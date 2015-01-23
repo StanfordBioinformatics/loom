@@ -1,278 +1,256 @@
+import hashlib
 import json
-import numbers
-import re
 
 from django.db import models
 from django.core.exceptions import ValidationError
 
+from .helpers import ValidationHelper
+from .helpers import DataObjectTypeHelper
 
-class _BaseModel(models.Model):
 
-    metadata = models.TextField(blank=True, null=True, validators=['_validate_json'])
+class _Hashable(models.Model):
 
-    @classmethod
-    def _validate_keys(cls, data_struct, required=None, optional=None):
-        for key in data_struct.keys():
-            if key not in required and key not in optional:
-                raise ValidationError('%s is not a valid field. required fields: %s, optional fields: %s' % (key, required, optional))
-        if required is not None:
-            for key in required:
-                if key not in data_struct.keys():
-                    raise ValidationError('Required field %s is missing' % key)
+    # A hashable has data stored in JSON format, and a unique id created
+    # as a hash of that JSON
 
-    @classmethod
-    def _validate_values(cls, data_struct, allowed_values_dict):
-        for key, allowed_values in allowed_values_dict.iteritems():
-            if key in data_struct.keys():
-                value = data_struct[key]
-                if value not in allowed_values:
-                    raise ValidationError('%s is not a valid value for %s. Accepted values: %s' % (value, key, allowed_values))
+    _json = models.TextField(blank=False, null=False, validators=[ValidationHelper.validate_and_parse_json])
+    _id = models.TextField(primary_key=True, blank=False, null=False)
 
-    @classmethod
-    def _validate_json(cls, raw_data):
-        try:
-            data_struct = json.loads(raw_data)
-        except ValueError:
-            raise ValidationError("Can't initialize object from an invalid JSON. data=%s" % data)
-        return data_struct
+    def save(self):
+        self._json = self._clean_json(self._json)
+        self._calculate_and_set_unique_id()
+        self.full_clean() #This runs validators
+        super(_Hashable, self).save()
+
+    def get_id(self):
+        return self._id
+
+    def _get_json(self):
+        # This is _private to encourage use of get_data_as_* methods
+        # which can properly integrate data with metadata and
+        # expand child objects.
+        return self._json
 
     @classmethod
-    def _validate_object_class(cls, value, required_class):
-        if value is None:
-            return
-        try:
-            # If required_class is a list
-            match = False
-            for each_class in required_class:
-                match = match or isinstance(value, each_class)
-            if not match:
-                raise ValidationError('%s is not a valid object of classes %s' % (value, required_class))
-        except TypeError:
-            # If required_class is scalar
-            if not isinstance(value, required_class):
-                raise ValidationError('%s is not a valid object of class %s' % (value, required_class))
+    def get_by_id(cls, id):
+        return cls.objects.get(_id=id)
 
     @classmethod
-    def _strip_metadata_from_struct(cls, data_struct):
-        try:
-            metadata = data_struct.pop('metadata')
-        except KeyError:
-            metadata = None
-        return metadata
+    def _clean_json(cls, data_json):
+        # Validate json, remove whitespace, and sort keys
+        data_obj = ValidationHelper.validate_and_parse_json(data_json)
+        return json.dumps(data_obj, sort_keys=True)
 
-class _DataTypeValidator:
-    # A mixin for models that need to parse and validate DataObject types
+    def _calculate_unique_id(self):
+        data_json = self._json
+        return hashlib.sha256(data_json).hexdigest()
 
-    SCALAR_TYPES = ['boolean', 'file', 'float', 'integer', 'string']
-    NONSCALAR_TYPES = {
-        'array': {'re': r'array\[(.*)\]'},
-        'tuple': {'re': r'tuple\[(.*)\]'},
-        }              
+    def _calculate_and_set_unique_id(self):
+        self._id = self._calculate_unique_id()
 
-    @classmethod
-    def _validate_data_type(cls, type, value = None):
-        type_validator = {
-            'array': cls._validate_array,
-            'boolean': cls._validate_boolean,
-            'file': cls._validate_file,
-            'float': cls._validate_float,
-            'integer': cls._validate_integer,
-            'string': cls._validate_string,
-            'tuple': cls._validate_tuple,
-            }
+    def _validate_unique_id(self):
+        if self._id != self._calculate_unique_id():
+            raise ValidationError('Content hash %s does not match the contents %s', (self._id, self.get_unique_id))
 
-        if type in cls.SCALAR_TYPES:
-            type_validator[type](value)
+    def clean(self):
+        # This method validates the model as a whole, and is called by full_clean when the object is saved.
+        # If children override this, they should call it as super(ChildClass, self).clean()
+        self._validate_unique_id()
 
-        # Nonscalar types will recursively call this method to validate the types of their members
-        elif re.match(cls.NONSCALAR_TYPES['array']['re'], type):
-            type_validator['array'](type, value)
-        elif re.match(cls.NONSCALAR_TYPES['tuple']['re'], type):
-            type_validator['tuple'](type, value)
 
-        else:
-            raise ValidationError('%s is not a valid type.' % type)
+class _BaseModelData(_Hashable):
+
+    # This stores the "data" part of a model, but not the "metadata"
+    # It is separate because it can be shared by more than one model,
+    # but as far as analysis is concerned metadata has on effect and
+    # results from any models with identical data are equivalent.
 
     @classmethod
-    def _validate_boolean(cls, value):
-        cls._validate_object_class(value, bool)
-
-    @classmethod
-    def _validate_file(cls, value):
-        VALID_HASH_ALGORITHMS = ['sha-256']
-        cls._validate_keys(value, required=['hash_algorithm', 'hash_value'])
-        cls._validate_values(value, {'hash_algorithm': VALID_HASH_ALGORITHMS})
-        cls._validate_object_class(value['hash_value'], [str, unicode])
-
-    @classmethod
-    def _validate_float(cls, value):
-        cls._validate_object_class(value, float)
-        
-    @classmethod
-    def _validate_integer(cls, value):
-        cls._validate_object_class(value, numbers.Integral)
-
-    @classmethod
-    def _validate_string(cls, value):
-        cls._validate_object_class(value, [str, unicode])
-
-    @classmethod
-    def _validate_array(cls, array_type, array_value):
-        # Get the type of the array members,
-        # e.g. array[tuple[boolean, string]]
-        # -> tuple[boolean, string]
-        m = re.match(cls.NONSCALAR_TYPES['array']['re'], array_type)
-        member_type = m.groups()[0]
-        if array_value is not None:
-            cls._validate_object_class(array_value, list)
-            for member_value in array_value:
-                cls._validate_data_type(member_type, member_value)
-
-    @classmethod
-    def _validate_tuple(cls, tuple_type, tuple_value):
-        # Get the type of the tuple members,
-        # e.g. tuple[boolean, string, tuple[file, file]]
-        # -> boolean, string, tuple[file, file]
-        m = re.match(cls.NONSCALAR_TYPES['tuple']['re'], tuple_type)
-        member_type_string = m.groups()[0]
-
-        # Split on commas not in parentheses
-        # e.g. 'boolean, string, tuple[file, file]'
-        # -> ['boolean', 'string', 'tuple[file, file]']
-        member_type_list = []
-        parentheses_counter = 0
-        last_split = 0
-        for i in range(len(member_type_string)):
-            letter = member_type_string[i]
-            if letter == '[':
-                parantheses_counter += 1
-            elif letter == ']':
-                parantheses_counter -= 1
-            elif letter == ',' and parentheses_counter == 0:
-                member_type_list.append(member_type_string[last_split:i].strip())
-                last_split = i+1
-        member_type_list.append(member_type_string[last_split:].strip())
-
-        if parentheses_counter != 0:
-            raise ValidationError('Unbalanced expression: %s' % tuple_type)
-
-        if tuple_value is not None:
-            cls._validate_object_class(tuple_value, list)
-            if len(tuple_value) != len(member_type_list):
-                raise ValidationError('List of tuple types did not match length of tuple values. Types: %s; Values: %s' % (tuple_type, tuple_value))
-
-            for i in range(len(tuple_value)):
-                cls._validate_data_type(member_type_list[i], tuple_value[i])
-
-
-class _AbstractAnalysis(_BaseModel):
-
-    ports = models.ManyToManyField('Port')
-
-
-class Container(_BaseModel):
-
-    hash_algorithm = models.CharField(max_length=20)
-    hash_value = models.TextField()
-    VALID_HASH_ALGORITHMS = ['sha-256']
-
-    @classmethod
-    def create(cls, raw_data):
-        data_struct = cls._validate_json(raw_data)
-        cls._validate_keys(data_struct, required=['hash_algorithm', 'hash_value'], optional=['metadata'])
-        cls._validate_object_class(data_struct['hash_algorithm'], [str, unicode])
-        cls._validate_object_class(data_struct['hash_value'], [str, unicode])
-        cls._validate_values(data_struct, {'hash_algorithm': cls.VALID_HASH_ALGORITHMS})
-        metadata = data_struct._strip_metadata_from_struct()
-        o = Container(
-            hash_algorithm=data_struct['hash_algorithm'],
-            hash_value=data_struct['hash_value'],
-            metadata=metadata,
-            )
+    def create(cls, raw_data_json):
+        o = cls(_json=raw_data_json)
         o.save()
+        return o
+
+    def clean(self):
+        if 'metadata' in json.loads(self._get_json()):
+            raise ValidationError('metadata cannot be saved to _BaseModelData object')
+        super(_BaseModelData, self).clean()
 
 
-class Environment(_BaseModel):
-    containers = models.ManyToManyField(Container)
+class _BaseModel(_Hashable):
 
-    @classmethod
-    def create(cls, raw_data):
-        data_struct = self._validate_json(raw_data)
-        self._validate_keys(data_struct, required=['containers'], optional=['metadata'])
-        metadata = data_struct._strip_metadata_from_struct()
-        o = Environment(metadata=metadata)
-        for container in data_struct['containers']:
-            # TODO
-            container_object = None
-            #container_object = Containers.object.get(pk=container.id)
-            if not container_object:
-                container_object.create(json.dumps(container))
-            o.containers.add(container_object)
-        o.save()
-
-class Task(_AbstractAnalysis):
-
-    VALID_INTERPRETERS = ['python', 'bash']
-    interpreter = models.CharField(max_length=20)
-    script = models.TextField()
-    environment = models.ForeignKey(Environment)
-
-
-class Analysis(_AbstractAnalysis):
-    # ports
-#    child_analyses = models.ManyToManyField(_AbstractAnalysis)
-    # bindings
-    # childbindings
-
-    class Meta:
-        verbose_name_plural = "analyses"
-
-
-class _AbstractDataObject(_BaseModel, _DataTypeValidator):
-    pass
-
-
-class DataImport(_AbstractDataObject):
-    import_note = models.TextField()
-
-
-class DataObject(_AbstractDataObject):
-
-    # data is in JSON format
-    data = models.TextField()
-#    source = models.ForeignKey(_AbstractDataObject)
-
-    def to_json(self, metadata=True):
-        data = json.loads(self.data)
-        if metadata:
-            data['metadata'] = self.metadata
-        return json.dumps(data)
+    # All models consist of data and metadata. Both are JSON-formatted strings. 
+    # In the JSON used to construct a model, metadata is designated with the 'metadata' key. 
+    # data is everything else.
+    # All models have a unique ID generated by hashing a JSON-formatted serialization of the model.
+    # metadata can only contain data which does not affect analysis results. metadata is not made
+    # available at runtime. Examples of metadata are coordinates for visual layout in a block diagram editor,
+    # comments, human-readable software name and version number, or credits to authors of the pipeline components.
+    #
+    # When an object is linked to another, it includes metadata. When judging whether an analysis has been run,
+    # however, metadata is ignored. For this reason, data is recorded as a separate object in the data store with 
+    # its own unique ID. Many objects with different metadata may link to the same data, and when analysis as run 
+    # any results produced by those objects are considered interchangeable.
 
     @classmethod
-    def create(cls, raw_data):
-        cleaned_data_struct = DataObject._clean(raw_data)
-        metadata = cls._strip_metadata_from_struct(cleaned_data_struct)
-        o = DataObject(
-            data=json.dumps(
-                cleaned_data_struct, 
-                sort_keys=True
-                ),
-            metadata=metadata,
-            )
+    def _create_model_from_json(cls, raw_data_json):
+        raw_data_obj = ValidationHelper.validate_and_parse_json(raw_data_json)
+        metadata_obj = cls._strip_metadata_from_obj(raw_data_obj)
+        data_model = _BaseModelData.create(json.dumps(raw_data_obj, sort_keys=True))
+        new_obj = {
+            "data": {
+                "id": data_model.get_id()
+            },
+        }
+        if metadata_obj is not None:
+            new_obj["metadata"] = metadata_obj
+        o = cls(_json=json.dumps(new_obj, sort_keys=True))
         o.save()
         return o
 
     @classmethod
-    def _clean(cls, raw_data):
-        data_struct = cls._validate_json(raw_data)
-        cls._validate_struct(data_struct)
-        return data_struct
+    def _strip_metadata_from_obj(cls, data_obj):
+        try:
+            metadata = data_obj.pop('metadata')
+        except KeyError:
+            metadata = None
+        return metadata
+
+    def get_data_id(self):
+        return json.loads(self._get_json())['data']['id']
+
+    def get_data_as_obj(self, metadata=True, shallow=False):
+        data_id = self.get_data_id()
+        data_model = _BaseModelData.get_by_id(data_id)
+        data_obj = json.loads(data_model._get_json())
+        if metadata:
+            if self.get_metadata_as_obj() is not None:
+                data_obj['metadata'] = self.get_metadata_as_obj()
+        if not shallow:
+            self._expand_children(data_obj, metadata=True)
+        return data_obj
+
+    def _expand_children(self, data_obj, metadata):
+        # Converts children from object id's to 
+        # expanded objects loaded from the database.
+
+        # Subclasses with children need to define 'child_classes',
+        # which should be a dict of keys and the corresponding class.
+        if not hasattr(self, 'child_classes'):
+            # Nothing to expand
+            return
+
+        # Looping over possible children of this object
+        for key in self.child_classes.keys():
+            # Proceed if that class of children is defined in this object
+            if data_obj.get(key) is not None:
+                if not isinstance(data_obj.get(key), list):
+                    # Expect a singleton dict
+                    child_id = data_obj.get(key)['id']
+                    # setting shallow=True ensures that children are recursively expanded
+                    expanded_children = self.child_classes[key].get_by_id(child_id).get_data_as_obj(metadata=metadata, shallow=True)
+                    data_obj[key] = expanded_children
+                else:
+                    # Expect a list
+                    expanded_children = []
+                    for child in data_obj.get(key):
+                        child_id = child['id']
+                        # setting shallow=True ensures that children are recursively expanded
+                        expanded_children.append(self.child_classes[key].get_by_id(child_id).get_data_as_obj(metadata=metadata, shallow=True))
+                    data_obj[key] = expanded_children
+
+    def get_data_as_json(self, metadata=True, shallow=False):
+        data_obj = self.get_data_as_obj(metadata=metadata, shallow=shallow)
+        return json.dumps(data_obj, sort_keys=True)
+
+    def get_metadata_as_obj(self):
+        model_obj = json.loads(self._get_json())
+        return model_obj.get('metadata')
+
+    def get_metadata_as_json(self):
+        return json.dumps(self.get_metadata_as_obj())
+
+    def clean(self):
+        for key in json.loads(self._get_json()):
+            if key not in ['metadata', 'data']:
+                raise ValidationError('"%s" is not a valid key for _BaseModel' % key)
+        super(_BaseModel, self).clean()
+
+class Application(_BaseModel):
+
+    APPLICATION_TYPES = ['docker', 'local']
+    # Docker applications load 1 or more docker containers.
+    # Local applications modify environment variables to place
+    # executables on the path.
 
     @classmethod
-    def _validate_struct(cls, data_struct):
-        cls._validate_keys(data_struct, required=['type', 'value'], optional='metadata')
-        cls._validate_data_type(data_struct['type'], data_struct['value'])
+    def create(cls, raw_data_json):
+        data_obj = cls._clean_and_parse_data(raw_data_json)
+        return cls._create_model_from_json(json.dumps(data_obj, sort_keys=True))
 
+    @classmethod
+    def _clean_and_parse_data(cls, data_json):
+        data_obj = ValidationHelper.validate_and_parse_json(data_json)
+        application_type = cls._clean_application_type(data_obj)
+        if application_type == 'docker':
+            cls._clean_docker_application_data(data_obj)
+        elif application_type == 'local':
+            cls._clean_local_application_data(data_obj)
+        else:
+            raise Exception()
+        return data_obj
+
+    @classmethod
+    def _clean_application_type(cls, data_obj):
+        application_type = ValidationHelper.validate_key(data_obj, 'application_type', [str, unicode])
+        ValidationHelper.validate_in(application_type, cls.APPLICATION_TYPES)
+        return application_type
+
+    @classmethod
+    def _clean_docker_application_data(cls, data_obj):
+        raise ValidationError("TODO. Docker applications have not been implemented.")
+
+    @classmethod
+    def _clean_local_application_data(cls, data_obj):
+        ValidationHelper.validate_keys(data_obj, required=['application_type'], optional=['paths', 'metadata'])
+
+
+class Environment(_BaseModel):
+
+    # Environment holds information needed to configure the runtime environment
+    # for a specific task. The same information should be able to make an
+    # application available in any environment where the task will run.
+    # This is not used to store information about a manually configured environment.
+
+    child_classes = {
+        'applications': Application
+    }
+
+    @classmethod
+    def create(cls, raw_data_json):
+        data_obj = cls._clean_and_parse_data(raw_data_json)
+        applications_obj = data_obj.get('applications')
+        application_ids = []
+        if applications_obj is not None:
+            for application in applications_obj:
+                a = Application.create(json.dumps(application, sort_keys=True))
+                application_ids.append({"id": a.get_id()})
+        data_obj['applications'] = application_ids        
+        return cls._create_model_from_json(json.dumps(data_obj, sort_keys=True))
+    
+    @classmethod
+    def _clean_and_parse_data(cls, raw_data_json):
+        data_obj = ValidationHelper.validate_and_parse_json(raw_data_json)
+        ValidationHelper.validate_keys(data_obj, required=None, optional=['applications', 'metadata'])
+        ValidationHelper.validate_object_class(data_obj.get('applications'), list)
+        return data_obj
+
+    def get_applications(self):
+        data = self.get_data_as_obj()
+        return data['applications']
+
+
+"""
 
 class Port(_AbstractDataObject):
     name = models.CharField(max_length = 100)
@@ -290,7 +268,7 @@ class Port(_AbstractDataObject):
     @classmethod
     def create(cls, raw_data):
         cleaned_data = Port._clean(raw_data)
-        metadata = cls._strip_metadata_from_struct(cleaned_data)
+        metadata = cls._strip_metadata_from_obj(cleaned_data)
         o = Port(
             metadata=metadata,
             data_type=cleaned_data['data_type'], 
@@ -302,15 +280,15 @@ class Port(_AbstractDataObject):
 
     @classmethod
     def _clean(cls, raw_data):
-        data_struct = cls._validate_json(raw_data)
-        cls._validate_struct(data_struct)
-        return data_struct
+        data_obj = ValidationHelper.validate_and_parse_json(raw_data)
+        cls.validate_obj(data_obj)
+        return data_obj
 
     @classmethod
-    def _validate_struct(cls, data_struct):
-        cls._validate_keys(data_struct, required=['name', 'data_type', 'port_type'], optional=['metadata'])
-        cls._validate_values(data_struct, {'port_type': cls.PORT_TYPES})
-        cls._validate_data_type(data_struct['data_type'])
+    def validate_obj(cls, data_obj):
+        ValidationHelper.validate_keys(data_obj, required=['name', 'data_type', 'port_type'], optional=['metadata'])
+        ValidationHelper.validate_values(data_obj, {'port_type': cls.PORT_TYPES})
+        DataObjectTypeHelper.validate_data_type(data_obj['data_type'])
 
 class Binding(_BaseModel):
 
@@ -338,3 +316,79 @@ class ChildBinding(_BaseModel):
 
     def to_json(self, metadata=True):
         pass
+
+class _AbstractAnalysis(_BaseModel):
+
+    pass
+
+
+class Task(_AbstractAnalysis):
+
+    VALID_INTERPRETERS = ['python', 'bash']
+#    interpreter = models.CharField(max_length=20)
+#    script = models.TextField()
+#    environment = models.ForeignKey(Environment)
+#    ports = models.ManyToManyField('Port')
+
+    @classmethod
+    def create(cls, raw_data):
+        data_obj = ValidationHelper.validate_and_parse_json(raw_data)
+        ValidationHelper.validate_keys(data_obj, required=['script', 'interpreter', 'environment'], optional=['metadata'])
+        ValidationHelper.validate_object_class(data_obj['script'], [unicode, str])
+        ValidationHelper.validate_object_class(data_obj['interpreter'], [unicode, str])
+        ValidationHelper.validate_object_class(data_obj['environment'], [unicode, str])
+        metadata = cls._strip_metadata_from_obj(data_obj)
+        o = Task(
+            metadata=metadata, 
+            script=data_obj['script'],
+            interpreter=data_obj['interpreter'],
+            # TODO environment= 
+            )
+        o.save()
+        return o
+        
+
+
+
+class Analysis(_AbstractAnalysis):
+    # ports
+#    child_analyses = models.ManyToManyField(_AbstractAnalysis)
+    # bindings
+    # childbindings
+#    ports = models.ManyToManyField('Port')
+
+    class Meta:
+        verbose_name_plural = "analyses"
+"""
+
+class _AbstractDataObject(_BaseModel):
+    pass
+
+"""
+class DataImport(_AbstractDataObject):
+    import_note = models.TextField()
+"""
+
+class DataObject(_AbstractDataObject):
+
+#    source = models.ForeignKey(_AbstractDataObject)
+
+    @classmethod
+    def create(cls, raw_data_json):
+        data_obj = cls._clean_and_parse_data(raw_data_json)
+        return cls._create_model_from_json(json.dumps(data_obj, sort_keys=True))
+
+    @classmethod
+    def _clean_and_parse_data(cls, data):
+        data_obj = ValidationHelper.validate_and_parse_json(data)
+        ValidationHelper.validate_keys(data_obj, required=['data_type', 'value'], optional='metadata')
+        DataObjectTypeHelper.validate_data_type(data_obj['data_type'], data_obj['value'])
+        return data_obj
+
+    def get_data_type(self):
+        data = self.get_data_as_obj()
+        return data['data_type']
+
+    def get_value(self):
+        data = self.get_data_as_obj()
+        return data['value']
