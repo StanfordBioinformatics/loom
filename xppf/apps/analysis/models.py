@@ -220,7 +220,10 @@ class Environment(_BaseModel):
     # Environment holds information needed to configure the runtime environment
     # for a specific task. The same information should be able to make an
     # application available in any environment where the task will run.
-    # This is not used to store information about a manually configured environment.
+    #
+    # Although we may abuse this feature in development to store information about 
+    # a manually configured local environment, that is not how Environment should
+    # be used in production.
 
     child_classes = {
         'applications': Application
@@ -247,75 +250,96 @@ class Environment(_BaseModel):
 
     def get_applications(self):
         data = self.get_data_as_obj()
-        return data['applications']
+        return data.get('applications')
 
 
-"""
+class _AbstractDataObject(_BaseModel):
+    pass
+
 
 class Port(_AbstractDataObject):
-    name = models.CharField(max_length = 100)
-    port_type = models.CharField(max_length = 20)
-    data_type = models.TextField()
-
-    PORT_TYPES = ['input', 'output']
-
-    def to_json(self, metadata=True):
-        data = {'data_type': self.data_type, 'port_type': self.port_type, 'name': self.name}
-        if metadata:
-            data['metadata'] = self.metadata
-        return json.dumps(data, sort_keys=True)
 
     @classmethod
-    def create(cls, raw_data):
-        cleaned_data = Port._clean(raw_data)
-        metadata = cls._strip_metadata_from_obj(cleaned_data)
-        o = Port(
-            metadata=metadata,
-            data_type=cleaned_data['data_type'], 
-            port_type=cleaned_data['port_type'], 
-            name=cleaned_data['name']
-            )
-        o.save()
-        return o
+    def create(cls, raw_data_json):
+        data_obj = cls._clean_and_parse_data(raw_data_json)
+        return cls._create_model_from_json(json.dumps(data_obj, sort_keys=True))
 
     @classmethod
-    def _clean(cls, raw_data):
-        data_obj = ValidationHelper.validate_and_parse_json(raw_data)
-        cls.validate_obj(data_obj)
+    def _clean_and_parse_data(cls, data):
+        data_obj = ValidationHelper.validate_and_parse_json(data)
+        ValidationHelper.validate_keys(data_obj, required=['name', 'data_type'], optional='metadata')
+        DataObjectTypeHelper.validate_data_type(data_obj['data_type'], value=None)
         return data_obj
 
-    @classmethod
-    def validate_obj(cls, data_obj):
-        ValidationHelper.validate_keys(data_obj, required=['name', 'data_type', 'port_type'], optional=['metadata'])
-        ValidationHelper.validate_values(data_obj, {'port_type': cls.PORT_TYPES})
-        DataObjectTypeHelper.validate_data_type(data_obj['data_type'])
+    def get_data_type(self):
+        data = self.get_data_as_obj()
+        return data.get('data_type')
+
+    def get_name(self):
+        data = self.get_data_as_obj()
+        return data.get('name')
 
 class Binding(_BaseModel):
 
-#    source = models.ForeignKey(_AbstractDataObject)
-#    destination = models.ForeignKey(_AbstractDataObject)
-#    parent_analysis = models.ForeignKey(Analysis)
+    # A Binding connects the output Port of one Analysis
+    # To the input Port of another Analysis
+    #
+    # It should be contained by an analysis, but that information
+    # is saved in the parent Analysis, not the Binding.
 
     @classmethod
-    def create(cls, raw_data):
-        #TODO
-        pass
-
-    def to_json(self, metadata=True):
-        pass
-
-class ChildBinding(_BaseModel):
-
-#    source = models.ForeignKey(Port)
-#    destination = models.ForeignKey(Port)
+    def create(cls, raw_data_json):
+        data_obj = cls._clean_and_parse_data(raw_data_json)
+        return cls._create_model_from_json(json.dumps(data_obj, sort_keys=True))
 
     @classmethod
-    def create(cls, raw_data):
-        #TODO
-        pass
+    def _clean_and_parse_data(cls, data):
+        data_obj = ValidationHelper.validate_and_parse_json(data)
+        ValidationHelper.validate_keys(data_obj, required=['source_analysis', 'source_port_name', 'destination_analysis', 'destination_port_name'], optional='metadata')
+        return data_obj
 
-    def to_json(self, metadata=True):
-        pass
+    def get_source_analysis(self):
+        data = self.get_data_as_obj()
+        return data.get('source_analysis')
+
+    def get_source_port_name(self):
+        data = self.get_data_as_obj()
+        return data.get('source_port_name')
+
+    def get_destination_analysis(self):
+        data = self.get_data_as_obj()
+        return data.get('destination_analysis')
+
+    def get_destination_port_name(self):
+        data = self.get_data_as_obj()
+        return data.get('destination_port_name')
+
+
+class ParentChildBinding(_BaseModel):
+
+    @classmethod
+    def create(cls, raw_data_json):
+        data_obj = cls._clean_and_parse_data(raw_data_json)
+        return cls._create_model_from_json(json.dumps(data_obj, sort_keys=True))
+
+    @classmethod
+    def _clean_and_parse_data(cls, data):
+        data_obj = ValidationHelper.validate_and_parse_json(data)
+        ValidationHelper.validate_keys(data_obj, required=['child_analysis', 'child_port_name', 'parent_port_name'], optional='metadata')
+        return data_obj
+
+    def get_child_analysis(self):
+        data = self.get_data_as_obj()
+        return data.get('source_analysis')
+
+    def get_child_port_name(self):
+        data = self.get_data_as_obj()
+        return data.get('child_port_name')
+
+    def get_parent_port_name(self):
+        data = self.get_data_as_obj()
+        return data.get('parent_port_name')
+
 
 class _AbstractAnalysis(_BaseModel):
 
@@ -325,46 +349,81 @@ class _AbstractAnalysis(_BaseModel):
 class Task(_AbstractAnalysis):
 
     VALID_INTERPRETERS = ['python', 'bash']
-#    interpreter = models.CharField(max_length=20)
-#    script = models.TextField()
-#    environment = models.ForeignKey(Environment)
-#    ports = models.ManyToManyField('Port')
+
+    child_classes = { 'inputports': Port,
+                      'outputports': Port,
+                      'environment': Environment
+    }
 
     @classmethod
-    def create(cls, raw_data):
-        data_obj = ValidationHelper.validate_and_parse_json(raw_data)
-        ValidationHelper.validate_keys(data_obj, required=['script', 'interpreter', 'environment'], optional=['metadata'])
-        ValidationHelper.validate_object_class(data_obj['script'], [unicode, str])
-        ValidationHelper.validate_object_class(data_obj['interpreter'], [unicode, str])
-        ValidationHelper.validate_object_class(data_obj['environment'], [unicode, str])
-        metadata = cls._strip_metadata_from_obj(data_obj)
-        o = Task(
-            metadata=metadata, 
-            script=data_obj['script'],
-            interpreter=data_obj['interpreter'],
-            # TODO environment= 
-            )
-        o.save()
-        return o
-        
+    def create(cls, raw_data_json):
+        data_obj = cls._clean_and_parse_data(raw_data_json)
 
+        inputports_obj = data_obj.get('inputports')
+        inputport_ids = []
+        if inputports_obj is not None:
+            for port in inputports_obj:
+                a = Port.create(json.dumps(port, sort_keys=True))
+                inputport_ids.append({"id": a.get_id()})
+        data_obj['inputports'] = inputport_ids
 
+        outputports_obj = data_obj.get('outputports')
+        outputport_ids = []
+        if outputports_obj is not None:
+            for port in outputports_obj:
+                a = Port.create(json.dumps(port, sort_keys=True))
+                outputport_ids.append({"id": a.get_id()})
+        data_obj['outputports'] = outputport_ids
 
+        environment_obj = data_obj.get('environment')
+        if environment_obj is not None:
+            a = Environment.create(json.dumps(environment_obj, sort_keys=True))
+            data_obj['environment'] = {"id": a.get_id()}
+
+        return cls._create_model_from_json(json.dumps(data_obj, sort_keys=True))
+    
+    @classmethod
+    def _clean_and_parse_data(cls, raw_data_json):
+        data_obj = ValidationHelper.validate_and_parse_json(raw_data_json)
+        ValidationHelper.validate_keys(data_obj, required=['script', 'interpreter'], 
+                                       optional=['metadata', 'inputports', 'outputports', 'environment'])
+        ValidationHelper.validate_object_class(data_obj.get('outputports'), list)
+        ValidationHelper.validate_object_class(data_obj.get('inputports'), list)
+        ValidationHelper.validate_object_class(data_obj.get('script'), [unicode, str])
+        ValidationHelper.validate_in(data_obj.get('interpreter'), cls.VALID_INTERPRETERS)
+        return data_obj
+
+    def get_environment(self):
+        data = self.get_data_as_obj()
+        return data.get('environment')
+
+    def get_inputports(self):
+        data = self.get_data_as_obj()
+        return data.get('inputports')
+
+    def get_outputports(self):
+        data = self.get_data_as_obj()
+        return data.get('outputports')
+
+    def get_interpreter(self):
+        data = self.get_data_as_obj()
+        return data.get('interpreter')
+
+    def get_script(self):
+        data = self.get_data_as_obj()
+        return data.get('script')
+
+"""
 class Analysis(_AbstractAnalysis):
     # ports
 #    child_analyses = models.ManyToManyField(_AbstractAnalysis)
     # bindings
-    # childbindings
+    # parentchildbindings
 #    ports = models.ManyToManyField('Port')
 
     class Meta:
         verbose_name_plural = "analyses"
-"""
 
-class _AbstractDataObject(_BaseModel):
-    pass
-
-"""
 class DataImport(_AbstractDataObject):
     import_note = models.TextField()
 """
