@@ -1,0 +1,48 @@
+{
+    "pipeline": {
+
+	"constants": {
+	    "bwa_procs": 2,
+	    "platform": "Illumina"
+	},
+
+	"tasks": [
+	    {
+		"comments": "world",
+		"constants": {
+		    "bwa_procs": 2,
+		    "platform": "Illumina"
+		},
+		"command": "echo world > #{worldfile}",
+		"outputs":
+		[
+		    {
+			"name": "worldfile",
+			"write_to_path": "step1/world.txt"
+		    }
+		]
+		"environment": ""
+	    },
+	    {
+		"comments": "helloworld",
+		"command": "cat #{hellofile} #{worldfile} > #{helloworldfile}"
+		"inputs":
+		[
+		    {
+			"name": "hellofile"
+		    },
+		    {
+			"name": "worldfile"
+		    }
+		],
+		"outputs":
+		[
+		    {
+			"name": "helloworldfile",
+			"write_to_path": "helloworld.txt"
+		    }
+		]
+	    }
+	]
+    }
+}

@@ -1,0 +1,66 @@
+{
+"tasks": [
+    {
+	"name": "make_words",
+	"command": "echo hello > word1.txt; echo world > word2.txt",
+	"environment": "echo",
+	"outputs":
+	[
+	    {
+		"name": "worldfilearray",
+		"paths": [
+		    "word1.txt",
+		    "word2,txt"
+		]
+	    }
+	]
+    },
+    {
+	"name": "contatenante_words",
+	
+    }
+]
+    {
+	"name": "helloworld",
+	"command": "cat {{ hellofile }} {{ worldfile }} > {{ helloworldfile }}",
+	"environment": "cat",
+	"inputs":
+	[
+	    {
+		"name": "hellofile"
+	    },
+	    {
+		"name": "worldfile"
+	    }
+	],
+	"outputs":
+	[
+	    {
+		"name": "helloworldfile",
+		"path": "helloworld.txt"
+	    }
+	]
+    }
+],
+
+"environments": [
+    {
+	"name": "cat",
+	"docker_image": "myrepo/cat"
+    },
+    {
+	"name": "echo",
+	"docker_image": "myrepo/echo"
+    }
+]
+
+"exports": [
+    {
+	"name": "helloworldfile"
+	"destination": {
+	    "path": "data/{{sampleid}}_helloworld.out"
+	},
+
+    }
+]
+}

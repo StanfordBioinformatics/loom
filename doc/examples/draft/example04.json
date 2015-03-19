@@ -1,0 +1,72 @@
+{
+"constants": [
+    "sampleid": "NA12878",
+]
+
+"imports": [
+    {
+	"name": "hellofile",
+	"source": {
+	    "path": "data/{{sampleid}}.in"
+	},
+	"path": "data/hello.txt"
+    }
+],
+
+"tasks": [
+    {
+	"name": "world",
+	"command": "echo world > {{ worldfile }}",
+	"environment": "echo",
+	"outputs":
+	[
+	    {
+		"name": "worldfile",
+		"path": "world.txt"
+	    }
+	]
+    },
+    {
+	"name": "helloworld",
+	"command": "cat {{ hellofile }} {{ worldfile }} > {{ helloworldfile }}",
+	"environment": "cat",
+	"inputs":
+	[
+	    {
+		"name": "hellofile"
+	    },
+	    {
+		"name": "worldfile"
+	    }
+	],
+	"outputs":
+	[
+	    {
+		"name": "helloworldfile",
+		"path": "helloworld.txt"
+	    }
+	]
+    }
+],
+
+"environments": [
+    {
+	"name": "cat",
+	"docker_image": "myrepo/cat"
+    },
+    {
+	"name": "echo",
+	"docker_image": "myrepo/echo"
+    }
+]
+
+"exports": [
+    {
+	"name": "helloworldfile"
+	"destination": {
+	    "path": "data/{{sampleid}}_helloworld.out"
+	},
+
+    }
+]
+}

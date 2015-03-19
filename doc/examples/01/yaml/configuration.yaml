@@ -1,0 +1,10 @@
+---
+  configuration: 
+    compute: 
+      type: "local"
+    external_storage: 
+      type: "local"
+      path: "/data/external"
+    intermediate_storage: 
+      type: "local"
+      path: "/data/scratch"

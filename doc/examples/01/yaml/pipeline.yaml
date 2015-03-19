@@ -1,0 +1,29 @@
+---
+  pipeline: 
+    input_ports: 
+      - 
+        name: "hellofile"
+        write_to_path: "hello.txt"
+    output_ports: 
+      - 
+        name: "helloworldfile"
+    tasks: 
+      - 
+        name: "world"
+        command: "echo world > {{ worldfile }}"
+        outputs: 
+          - 
+            name: "worldfile"
+            write_to_path: "world.txt"
+      - 
+        name: "helloworld"
+        command: "cat {{ hellofile }} {{ worldfile }} > {{ helloworldfile }}"
+        inputs: 
+          - 
+            name: "hellofile"
+          - 
+            name: "worldfile"
+        outputs: 
+          - 
+            name: "helloworldfile"
+            write_to_path: "helloworld.txt"
