@@ -1,0 +1,8 @@
+{
+  "BIND_IP": "127.0.0.1",
+  "BIND_PORT": "8000",
+  "PID_FILE": "/tmp/test.pid",
+  "PROTOCOL": "HTTP",
+  "SERVER_WSGI_MODULE": "xppfserver.wsgi",
+  "SERVER_PATH": "/Users/nhammond/repos/xppf/server"
+}

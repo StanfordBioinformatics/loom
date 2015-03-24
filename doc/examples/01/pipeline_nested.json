@@ -1,0 +1,94 @@
+{
+    "constants": [
+	"sample_id": "X53J7F",
+    ],
+    
+    "pipeline": {
+
+	"files": [
+	    {
+		"comments": "This file will be used in several tasks in a session, but will not be saved to persistent storage.",
+		"name": "worldfile",
+		"path": "words/world_${sample_id}.txt"
+	    },
+	    
+	    {
+		"comments": "This file needs to be imported. A separate 'imports' declaration gives info on where to find it.",
+		"name": "hellofile",
+		"path": "words/hello_${sample_id}.txt",
+		"import": True,
+		"file_source": {
+		    "comment": "here we are just pulling a file from the local drive, but normally this would include required info to pull a file from cloud storage"
+		    "path": "/data/hello.in"
+		}
+	    },
+	    {
+		"comments": "This result file will be exported to persistent storage. A separate 'exports' declaration gives info on where to put it.",
+		"name" "helloworldfile",
+		"path": "results/helloworld_${sample_id}.txt",
+		"export": True,
+		"file_destination": {
+		    "comment": "here we are just writing to the local drive, but normally this would include required info to write a file to cloud storage"
+		    "name": "helloworldfiledestination",
+		    "path": "/data/helloworld_${sample_id}.out"
+		},
+	    }
+	],
+
+	"sessions": [
+	    {
+		"name": "helloworldsession",
+		"comments": "A session is a set of tasks that share a common working directory, typically run on a single machine",
+		
+		"session_resources": {
+		    "name": "default_session_resources",
+		    "comments": "These are minimum resources for the whole session, i.e. requirements for a VM and mounted storage where a session will run",
+		    "disk_space": "50k",
+		    "memory": "16G",
+		    "cores": 1
+		},
+		
+		"constants": [
+		    "space_char": " ",
+		],
+		
+		"steps": [
+		    {
+			"name": "worldstep",
+			"comments": "I'm back to declaring outputs and inputs explicity under the step, in order to allow ordering of steps.",
+			"constants": {
+			    "world_text": "world"
+			},
+			"command": "echo ${space_char}${world_text} > ${worldfile}",
+			"applicaton": {
+			    "docker_image": "echo"
+			},
+			"step_resources": {
+			    "name": "default_step_resources",
+			    "memory": "1G",
+			    "cores": 1
+			},
+			
+			"outputs": ["worldfile"]
+		    },
+		    
+		    {
+			"name": "helloworldstep",
+			"comments": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
+			"command": "cat ${hellofile} ${worldfile} > ${helloworldfile}",
+			"application": {
+			    "docker_image": "cat"
+			},
+			"step_resources": {
+			    "name": "default_step_resources",
+			    "memory": "1G",
+			    "cores": 1
+			},
+			"inputs": ["worldfile", "hellofile"],
+			"outputs": ["helloworldfile"]
+		    }
+		]
+	    }
+	]
+    }
+}

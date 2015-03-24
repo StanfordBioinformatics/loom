@@ -1,4 +1,4 @@
 #!/bin/bash
 
 source ../env/bin/activate
-python ../client/xppfservercontrols.py "$@"
+python ../client/xppf_server_controls.py "$@"

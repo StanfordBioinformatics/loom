@@ -1,5 +1,5 @@
 #!/bin/bash
 
 source ../env/bin/activate
-python ../client/xppfclient.py "$@"
+python ../client/xppf_run.py "$@"
 
