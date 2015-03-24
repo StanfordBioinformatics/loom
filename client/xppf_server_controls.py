@@ -17,20 +17,21 @@ class XppfServerControls:
         if args is None:
             args=self._get_args()
         self._validate_args(args)
-        self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings)
+        self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
         self._set_main_function(args)
-        self.main()
+
+    @classmethod
+    def _get_parser(cls):
+        import argparse
+        parser = argparse.ArgumentParser("xppfserver")
+        parser.add_argument('command', choices=['start', 'stop', 'status', 'savesettings', 'clearsettings'])
+        parser.add_argument('--settings', '-s', nargs=1, metavar='SETTINGS_FILE', 
+                            help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
+        parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+        return parser
 
     def _get_args(self):
-        from argparse import ArgumentParser
-        parser = ArgumentParser("xppfserver")
-        # Any command can take a settings file, which will tell it which server to talk to.
-        # If called with no file, it will prompt to ask if local should be set.
-        # If no file is specified for start, stop, and status, default will be used.
-        # If no default is set when start, stop, and status are called, it asks if you want to run local, and 
-        # informs that default can be set with configure.
-        parser.add_argument('command', choices=['start', 'stop', 'status', 'savesettings', 'clearsettings'])
-        parser.add_argument('--settings', '-s', nargs=1, metavar='SETTINGS_FILE', help="Server settings. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
+        parser = self._get_parser()
         args = parser.parse_args()
         return args
 
@@ -39,8 +40,8 @@ class XppfServerControls:
             raise Exception("The '--settings' flag cannot be used with the 'clearsettings' command")
 
     def _set_main_function(self, args):
-        # Map command to function
-        command_to_function_map = {
+        # Map user input command to class method
+        command_to_method_map = {
             'status': self.status,
             'start': self.start,
             'stop': self.stop,
@@ -48,7 +49,7 @@ class XppfServerControls:
             'clearsettings': self.clear_settings,
         }
         try:
-            self.main = command_to_function_map[args.command]
+            self.main = command_to_method_map[args.command]
         except KeyError:
             raise Exception('Did not recognize command %s' % args.command)
 
@@ -71,6 +72,7 @@ class XppfServerControls:
                 print "server is ok"
             else:
                 print "unexpected status code %s from server" % response.status_code
+            return response
         except requests.exceptions.ConnectionError:
             print "no response from server"
 
@@ -93,4 +95,4 @@ class XppfServerControls:
 
 
 if __name__=='__main__':
-    XppfServerControls()
+    XppfServerControls().main()

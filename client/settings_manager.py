@@ -34,23 +34,34 @@ class SettingsManager:
         "additionalProperties": False,
     }
 
-    def __init__(self, settings_file=None, skip_init=False):
+    def __init__(self, settings_file=None, require_default_settings=False, skip_init=False):
         if not skip_init:
-            self._initialize(settings_file=settings_file)
+            self._initialize(settings_file=settings_file, require_default_settings=require_default_settings)
 
-    def _initialize(self, settings_file=None):
-        if settings_file is None:
-            settings_file = self.SAVED_SETTINGS_FILE
+    def _initialize(self, settings_file=None, require_default_settings=False):
+        self._validate_input_args(settings_file=settings_file, require_default_settings=require_default_settings)
 
-        try:
-            with open(settings_file, 'r') as f:
-                dirty_settings = json.load(f)
-        except IOError as e:
-            dirty_settings = self.DEFAULT_SETTINGS.copy()
-        except ValueError:
-            raise Exception("Failed to parse the settings file because it is not in valid JSON format.")
+        if require_default_settings:
+            dirty_settings = self._get_default_settings()
+        else:
+            if settings_file is None:
+                settings_file = self.SAVED_SETTINGS_FILE
+            try:
+                with open(settings_file, 'r') as f:
+                    dirty_settings = json.load(f)
+            except IOError as e:
+                dirty_settings = self._get_default_settings()
+            except ValueError:
+                raise Exception("Failed to parse the settings file because it is not in valid JSON format.")
 
         self.SETTINGS = self._clean_settings(dirty_settings)
+
+    def _get_default_settings(self):
+        return self.DEFAULT_SETTINGS.copy()
+
+    def _validate_input_args(self, settings_file=None, require_default_settings=False):
+        if (settings_file is not None) and require_default_settings:
+            raise Exception("You cannot specify a settings file require default settings at the same time.")
 
     def _clean_settings(self, settings):
         jsonschema.validate(settings, self.SETTINGS_SCHEMA)

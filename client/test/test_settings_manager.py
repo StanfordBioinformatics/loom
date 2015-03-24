@@ -9,17 +9,17 @@ from xppf.client import settings_manager
 
 class TestSettingsManager(unittest.TestCase):
 
-    TESTDATADIR = os.path.join(os.path.dirname(__file__), 'testdata')
+    TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
 
     def test_init(self):
         sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(self.TESTDATADIR, 'path/that/dont/exist')
+        sm.SAVED_SETTINGS_FILE = os.path.join(self.TEST_DATA_DIR, 'path/that/dont/exist')
         sm._initialize()
         
         self.assertEqual(sm.get_pid_file(), sm.DEFAULT_SETTINGS['PID_FILE'])
 
     def test_init_from_file(self):
-        sm = settings_manager.SettingsManager(settings_file = os.path.join(self.TESTDATADIR, 'testsettings.json'))
+        sm = settings_manager.SettingsManager(settings_file = os.path.join(self.TEST_DATA_DIR, 'testsettings.json'))
 
         # Verify settings came from saved file
         self.assertEqual(sm.get_pid_file(), '/tmp/test.pid')

@@ -16,21 +16,21 @@ class XppfRun:
             args=self._get_args()
         self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings)
         self.pipeline_files = args.pipeline_file
-        self.run()
 
     def _get_args(self):
-        from argparse import ArgumentParser
-        parser = ArgumentParser('xppfrun')
-        parser.add_argument('pipeline_file', nargs='+')
-        parser.add_argument('--settings', '-s', nargs=1, metavar='SETTINGS_FILE', help="Server settings. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
+        parser = self._get_parser()
         args = parser.parse_args()
         return args
 
-    def _set_main_from_input_command(self, args):
-        if args.command == 'run':
-            self.main = self.run
-        else:
-            raise Exception('Did not recognize command %s' % args.command)
+    @classmethod
+    def _get_parser(cls):
+        import argparse
+        parser = argparse.ArgumentParser('xppfrun')
+        parser.add_argument('pipeline_file', nargs='+')
+        parser.add_argument('--settings', '-s', nargs=1, metavar='SETTINGS_FILE', 
+                            help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
+        parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+        return parser
 
     def run(self):
         pipeline = self.merge_pipeline_files()
@@ -53,4 +53,4 @@ class XppfRun:
         return pipeline
 
 if __name__=='__main__':
-    XppfRun()
+    XppfRun().run()
