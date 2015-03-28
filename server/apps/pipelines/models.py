@@ -1,8 +1,14 @@
 from django.db import models
 from apps.pipelines import schema
-
+from apps.pipelines.helpers.constant_substitution \
+    import ConstantSubstitutionHelper
+from apps.pipelines.helpers.link_resolution import LinkResolutionHelper
+from apps.pipelines.helpers.strip_keys import StripKeys
+import collections
 import json
 import jsonschema
+import sys
+
 
 class Pipeline(models.Model):
 
@@ -12,8 +18,9 @@ class Pipeline(models.Model):
 
     @classmethod
     def find_or_create(cls, raw_data_json):
+        
         data_json = cls._clean_and_sort_json(raw_data_json)
-
+        #TODO
         return Pipeline(data_json=data_json)
 
     def has_results(self):
@@ -21,23 +28,38 @@ class Pipeline(models.Model):
         return False
 
     @classmethod
-    def _clean_and_sort_json(cls, raw_data_json):
-        self._validate_data_json_with_links(raw_data_json)
-        # TODO
-        # resolve links
-        # replace constants
-        # sort keys (after replacing constants)
-        data_json = raw_data_json
-        self._validate_data_json_with_no_links(data_json)
+    def _clean_and_sort_json(cls, pipeline_json):
+        pipeline_data = json.loads(
+            pipeline_json, 
+            object_pairs_hook=collections.OrderedDict)
+        cls._validate_data_json_with_links(pipeline_data)
+        cls._resolve_links(pipeline_data)
+        cls._apply_constants(pipeline_data)
+        cls._strip_ids_and_comments(pipeline_data)
+        cls._validate_data_json_with_no_links(pipeline_data)
+        pipeline_json = json.dumps(pipeline_data, sort_keys=True, 
+                                   indent=4, separators=(',', ': '))
         return data_json
 
     @classmethod
-    def _validate_data_json_with_links(self, data_json):
-        jsonschema.validate(data_json, self.pipeline_schema.WITH_LINKS)
+    def _validate_data_json_with_links(cls, data_json):
+        jsonschema.validate(data_json, cls.pipeline_schema.WITH_LINKS)
 
     @classmethod
-    def _validate_data_json_with_no_links(self, data_json):
-        jsonschema.validate(data_json, self.pipeline_schema.NO_LINKS)
+    def _validate_data_json_with_no_links(cls, data_json):
+        jsonschema.validate(data_json, cls.pipeline_schema.NO_LINKS)
+
+    @classmethod
+    def _apply_constants(cls, pipeline_data):
+        ConstantSubstitutionHelper.apply_constants(pipeline_data)
+
+    @classmethod
+    def _resolve_links(cls, pipeline_data):
+        LinkResolutionHelper().resolve_links(pipeline_data)
+
+    @classmethod
+    def _strip_ids_and_comments(cls, pipeline_data):
+        StripKeys.strip_keys(pipeline_data, ['id', 'comments'])
 
 class PipelineRunRequest(models.Model):
 
