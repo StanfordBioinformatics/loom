@@ -5,6 +5,13 @@ import jsonschema
 import os
 
 class SettingsManager:
+    """
+    This class manages xppf server settings.
+    Default settings may be used, or settings can be saved to the user's home directory.
+    Users should interact with this class through ../bin/xppfserver, with these subcommands:
+    - savesettings
+    - clearsettings
+    """
 
     SETTINGS = None
 
@@ -38,7 +45,7 @@ class SettingsManager:
         if not skip_init:
             self._initialize(settings_file=settings_file, require_default_settings=require_default_settings)
 
-    def _initialize(self, settings_file=None, require_default_settings=False):
+    def _initialize(self, settings_file=None, require_default_settings=None):
         self._validate_input_args(settings_file=settings_file, require_default_settings=require_default_settings)
 
         if require_default_settings:

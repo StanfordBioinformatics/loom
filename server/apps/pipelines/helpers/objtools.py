@@ -1,5 +1,15 @@
 import json
 
+def is_string(obj):
+    return isinstance(obj, basestring)
+
+def is_list(obj):
+    return isinstance(obj, (list, tuple))
+
+def is_dict(obj):
+    return hasattr(obj, 'keys') and hasattr(obj, 'values')
+
+
 class StripKeys(object):
     """
     Crawls a python data structure and removes
@@ -27,9 +37,9 @@ class StripKeys(object):
     @classmethod
     def strip_key(cls, obj, key):
         # Main recursive loop
-        if cls._is_list(obj):
+        if is_list(obj):
             cls._branch_from_list(obj, key)
-        elif cls._is_dict(obj):
+        elif is_dict(obj):
             obj.pop(key, None)
             cls._branch_from_list(obj.values(), key)
         else:
@@ -40,11 +50,3 @@ class StripKeys(object):
     def _branch_from_list(cls, objlist, key):
         for obj in objlist:
             cls.strip_key(obj, key)
-
-    @classmethod
-    def _is_list(self, obj):
-        return isinstance(obj, (list, tuple))
-
-    @classmethod
-    def _is_dict(self, obj):
-        return hasattr(obj, 'keys') and hasattr(obj, 'values')

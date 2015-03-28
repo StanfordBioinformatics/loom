@@ -1,8 +1,8 @@
 from django.test import TestCase
 from apps.pipelines import models as appmodels
-from apps.pipelines.helpers import constant_substitution
-from apps.pipelines.helpers import link_resolution
-from apps.pipelines.helpers import strip_keys
+from apps.pipelines.helpers import substitution
+from apps.pipelines.helpers import links
+from apps.pipelines.helpers import objtools
 import jsonschema
 import json
 import os
@@ -46,7 +46,7 @@ class PipelineTestCase(TestCase):
 #        with self.assertRaises(jsonschema.ValidationError):
 #            appmodels.Pipeline._clean_and_sort_json(self.pipeline_invalid_json)
 
-class ConstantSubstitutionHelperTestCase(TestCase):
+class SubstitutionHelperTestCase(TestCase):
 
     def setUp(self):
         with open(os.path.join(TEST_DATA_DIR, 'pipeline_nested.json')) as f:
@@ -56,12 +56,12 @@ class ConstantSubstitutionHelperTestCase(TestCase):
             self.pipeline_nested_substituted_json = f.read()
         
     def testConstantSubstitituion(self):
-        data_obj = constant_substitution.ConstantSubstitutionHelper.apply_constants_in_json(
+        data_obj = substitution.Substitution.apply_constants_in_json(
             self.pipeline_nested_json)
         data_json = json.dumps(data_obj, indent=4, separators=(',',': '))
         self.assertEqual(data_json.strip(), self.pipeline_nested_substituted_json.strip())
 
-class LinkResolutionHelperTestCase(TestCase):
+class LinkHelperTestCase(TestCase):
 
     def setUp(self):
         with open(os.path.join(TEST_DATA_DIR, 'pipeline_flat_substituted.json')) as f:
@@ -70,13 +70,13 @@ class LinkResolutionHelperTestCase(TestCase):
             self.pipeline_nested_substituted_json = f.read()
         
     def testLinksResolution(self):
-        data_obj = link_resolution.LinkResolutionHelper().resolve_links_in_json(
+        data_obj = links.Linker().resolve_links_in_json(
             self.pipeline_flat_substituted_json)
-        data_obj_minus_ids = strip_keys.StripKeys.strip_key(data_obj, 'id')
+        data_obj_minus_ids = objtools.StripKeys.strip_key(data_obj, 'id')
         data_json_minus_ids = json.dumps(data_obj_minus_ids, indent=4, separators=(',',': '))
 
         expected_json = self.pipeline_nested_substituted_json
-        expected_minus_ids = strip_keys.StripKeys.strip_key_from_json(expected_json, 'id')
+        expected_minus_ids = objtools.StripKeys.strip_key_from_json(expected_json, 'id')
         expected_json_minus_ids = json.dumps(data_obj, indent=4, separators=(',',': '))
 
         self.assertEqual(data_json_minus_ids.strip(), expected_json_minus_ids.strip())

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+source ../env/bin/activate
+cwd=$(pwd)
+
+cd $cwd/../client
+python -m unittest discover
+
+cd $cwd/../server
+./manage.py test
+

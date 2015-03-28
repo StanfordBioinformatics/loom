@@ -1,9 +1,8 @@
 from django.db import models
 from apps.pipelines import schema
-from apps.pipelines.helpers.constant_substitution \
-    import ConstantSubstitutionHelper
-from apps.pipelines.helpers.link_resolution import LinkResolutionHelper
-from apps.pipelines.helpers.strip_keys import StripKeys
+from apps.pipelines.helpers.substitution import Substitution
+from apps.pipelines.helpers.links import Linker
+from apps.pipelines.helpers.objtools import StripKeys
 import collections
 import json
 import jsonschema
@@ -51,11 +50,11 @@ class Pipeline(models.Model):
 
     @classmethod
     def _apply_constants(cls, pipeline_data):
-        ConstantSubstitutionHelper.apply_constants(pipeline_data)
+        Substitution.apply_constants(pipeline_data)
 
     @classmethod
     def _resolve_links(cls, pipeline_data):
-        LinkResolutionHelper().resolve_links(pipeline_data)
+        Linker().resolve_links(pipeline_data)
 
     @classmethod
     def _strip_ids_and_comments(cls, pipeline_data):

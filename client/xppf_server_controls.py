@@ -8,12 +8,18 @@ import sys
 from xppf.client import settings_manager
 
 class XppfServerControls:
+    """
+    This class provides methods for managing the xppf server, specifically the commands:
+    - start
+    - status
+    - stop
+    - savesettings
+    - clearsettings
 
-    def __init__(self, args=None, skip_initialization=False):
-        if not skip_initialization:
-            self._initialize(args)
+    Users should call this through ../bin/xppfserver to ensure the environment is configured.
+    """
 
-    def _initialize(self, args):
+    def __init__(self, args=None):
         if args is None:
             args=self._get_args()
         self._validate_args(args)

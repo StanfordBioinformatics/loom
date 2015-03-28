@@ -6,12 +6,13 @@ import requests
 from xppf.client import settings_manager
 
 class XppfRun:
+    """
+    This method provides commands for submitting and managing xppf pipeline runs.
+    An xppf server must already be running to use this client.
+    Users should call this through ../bin/xppfrun to ensure the environment is configured.
+    """
 
-    def __init__(self, args=None, skip_initialization=False):
-        if not skip_initialization:
-            self._initialize(args)
-
-    def _initialize(self, args=None):
+    def __init__(self, args=None):
         if args is None:
             args=self._get_args()
         self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings)
