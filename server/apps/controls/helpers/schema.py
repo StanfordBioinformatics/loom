@@ -1,4 +1,4 @@
-class PipelineSchema(object):
+class RunRequestSchema(object):
 
     DEFINITIONS = {
         "id": {"type": "string"},
@@ -9,68 +9,53 @@ class PipelineSchema(object):
                 "^[. ]*$": {"type": "string"}
             }
         },
-        "pipeline": {
+        "clean_pipeline": {
             "type": "object",
             "properties": {
-                "comment": {"$ref": "#/definitions/comment"},
-                "constants": {"$ref": "#/definitions/constants"},
-                "sessions": {
-                    "type": "array",
-                    "items": {"$ref": "#/definitions/session"},
-                    "minItems": 1,
-                    "uniqueItems": True
-                },
-                "files": {
-                    "type": "array",
-                    "items": {"$ref": "#/definitions/file"},
-                    "minItems": 0,
-                    "uniqueItems": True
-                },
+                "sessions": {"$ref": "#/definitions/clean_sessions"},
+                "files": {"$ref": "#/definitions/clean_files"}
             },
             "required": ['sessions'],
             "additionalProperties": False
         },
-        "pipeline_with_links": {
+        "raw_pipeline": {
             "type": "object",
             "properties": {
                 "comment": {"$ref": "#/definitions/comment"},
                 "constants": {"$ref": "#/definitions/constants"},
-                "sessions": {"$ref": "#/definitions/sessions_with_links"},
-                "files": {"$ref": "#/definitions/files_with_links"},
+                "sessions": {"$ref": "#/definitions/raw_sessions"},
+                "files": {"$ref": "#/definitions/raw_files"},
             },
             "required": ['sessions'],
             "additionalProperties": False
         },
-        "sessions": {
+        "clean_sessions": {
             "type": "array",
-            "items": {"$ref": "#/definitions/session"},
+            "items": {"$ref": "#/definitions/clean_session"},
             "minItems": 1,
             "uniqueItems": True
         },
-        "sessions_with_links": {
+        "raw_sessions": {
             "type": "array",
             "items": {
                 "oneOf": [
-                    {"$ref": "#/definitions/session_with_links"},
+                    {"$ref": "#/definitions/raw_session"},
                     {"$ref": "#/definitions/id"}
                 ]
             },
             "minItems": 1,
             "uniqueItems": True
         },
-        "session": {
+        "clean_session": {
             "type": "object",
             "properties": {
-                "id": {"$ref": "#/definitions/id"},
-                "comment": {"$ref": "#/definitions/comment"},
-                "constants": {"$ref": "#/definitions/constants"},
                 "session_resource_set": {"$ref": "#/definitions/session_resource_set"},
-                "steps": {"$ref": "#/definitions/steps"}
+                "steps": {"$ref": "#/definitions/clean_steps"}
             },
             "required": ["steps"],
             "additionalProperties": False
         },
-        "session_with_links": {
+        "raw_session": {
             "type": "object",
             "properties": {
                 "id": {"$ref": "#/definitions/id"},
@@ -82,7 +67,7 @@ class PipelineSchema(object):
                         {"$ref": "#/definitions/id"}
                     ]
                 },
-                "steps": {"$ref": "#/definitions/steps_with_links"},
+                "steps": {"$ref": "#/definitions/raw_steps"},
             },
             "required": ["steps"],
             "additionalProperties": False
@@ -120,29 +105,26 @@ class PipelineSchema(object):
             },
             "additionalProperties": False
         },
-        "files": {
+        "clean_files": {
             "type": "array",
-            "items": {"$ref": "#/definitions/file"},
+            "items": {"$ref": "#/definitions/clean_file"},
             "minItems": 0,
             "uniqueItems": True
         },
-        "files_with_links": {
+        "raw_files": {
             "type": "array",
             "items": {
                 "oneOf": [
-                    {"$ref": "#/definitions/file_with_links"},
+                    {"$ref": "#/definitions/raw_file"},
                     {"$ref": "#/definitions/id"},
                 ]
             },
             "minItems": 0,
             "uniqueItems": True
         },
-        "file": {
+        "clean_file": {
             "type": "object",
             "properties": {
-                "id": {"$ref": "#/definitions/id"},
-                "comment": {"$ref": "#/definitions/comment"},
-                "constants": {"$ref": "#/definitions/constants"},
                 "path": {"type": "string"},
                 "import_from": {"$ref": "#/definitions/remote_file_location"},
                 "save_to": {"$ref": "#/definitions/remote_file_location"}
@@ -150,7 +132,7 @@ class PipelineSchema(object):
             "required": ["path"],
             "additionalProperties": False
         },
-        "file_with_links": {
+        "raw_file": {
             "type": "object",
             "properties": {
                 "id": {"$ref": "#/definitions/id"},
@@ -173,29 +155,26 @@ class PipelineSchema(object):
             "required": ["path"],
             "additionalProperties": False
         },
-        "steps": {
+        "clean_steps": {
             "type": "array", 
-            "items": {"$ref": "#/definitions/step"},
+            "items": {"$ref": "#/definitions/clean_step"},
             "minItems": 1,
             "uniqueItems": True
         },
-        "steps_with_links": {
+        "raw_steps": {
             "type": "array", 
             "items": {
                 "oneOf": [
-                    {"$ref": "#/definitions/step_with_links"},
+                    {"$ref": "#/definitions/raw_step"},
                     {"$ref": "#/definitions/id"}
                     ]
             },
             "minItems": 1,
             "uniqueItems": True
         },
-        "step": {
+        "clean_step": {
             "type": "object",
             "properties": {
-                "id": {"$ref": "#/definitions/id"},
-                "comment": {"$ref": "#/definitions/comment"},
-                "constants": {"$ref": "#/definitions/constants"},
                 "command": {"type": "string"},
                 "application": {"$ref": "#/definitions/application"},
                 "step_resource_set": {"$ref": "#/definitions/step_resource_set"},
@@ -205,7 +184,7 @@ class PipelineSchema(object):
             "required": ["command"],
             "additionalProperties": False
         },
-        "step_with_links": {
+        "raw_step": {
             "type": "object",
             "properties": {
                 "id": {"$ref": "#/definitions/id"},
@@ -260,33 +239,33 @@ class PipelineSchema(object):
         }
     }
 
-    NO_LINKS = {
+    # No links or constants. comments and id's are removed.
+    CLEAN = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
-            "comment": {"$ref": "#/definitions/comment"},
-            "constants": {"$ref": "#/definitions/constants"},
-            "pipeline": {"$ref": "#/definitions/pipeline"},
+            "pipeline": {"$ref": "#/definitions/clean_pipeline"},
         },
         "required": ["pipeline"],
         "additionalProperties": False,
         "definitions": DEFINITIONS
     }
 
-    WITH_LINKS = {
+    # Links and constants ok. Need not be nested.
+    RAW = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
             "comment": {"$ref": "#/definitions/comment"},
             "constants": {"$ref": "#/definitions/constants"},
-            "pipeline": {"$ref": "#/definitions/pipeline_with_links"},
+            "pipeline": {"$ref": "#/definitions/raw_pipeline"},
             "applications": {"$ref": "#/definitions/applications"},
             "remote_file_locations": {"$ref": "#/definitions/remote_file_locations"},
-            "files": {"$ref": "#/definitions/files_with_links"},
+            "files": {"$ref": "#/definitions/raw_files"},
             "session_resource_sets": {"$ref": "#/definitions/session_resource_sets"},
             "step_resource_sets": {"$ref": "#/definitions/step_resource_sets"},
-            "steps": {"$ref": "#/definitions/steps_with_links"},
-            "sessions": {"$ref": "#/definitions/sessions_with_links"},
+            "steps": {"$ref": "#/definitions/raw_steps"},
+            "sessions": {"$ref": "#/definitions/raw_sessions"},
         },
         "required": ["pipeline"],
         "additionalProperties": False,

@@ -25,7 +25,7 @@ class StripKeys(object):
     @classmethod
     def strip_key_from_json(cls, json_data, key):
         data_obj = json.loads(json_data)
-        cls.strip_keys(data_obj, key)
+        cls.strip_key(data_obj, key)
         return data_obj
 
     @classmethod

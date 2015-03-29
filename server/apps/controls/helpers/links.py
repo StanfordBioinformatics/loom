@@ -2,7 +2,7 @@ import json
 import collections
 import string
 from copy import copy
-from apps.pipelines.helpers import objtools
+from apps.controls.helpers import objtools
 
 class Linker(object):
 

@@ -9,6 +9,5 @@ def status(request):
 
 @csrf_exempt
 def run(request):
-#    pipeline = Pipeline.create_from_json(request.body)
-    # TODO run pipeline
+    # TODO create and run pipeline
     return JsonResponse({}, status=200)
