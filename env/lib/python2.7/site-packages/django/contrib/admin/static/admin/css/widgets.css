@@ -1,18 +1,18 @@
 /* SELECTOR (FILTER INTERFACE) */
 
 .selector {
-    width: 840px;
+    width: 580px;
     float: left;
 }
 
 .selector select {
-    width: 400px;
+    width: 270px;
     height: 17.2em;
 }
 
 .selector-available, .selector-chosen {
     float: left;
-    width: 400px;
+    width: 270px;
     text-align: center;
     margin-bottom: 5px;
 }
@@ -48,14 +48,14 @@
 }
 
 .selector .selector-available input {
-    width: 360px;
+    width: 230px;
 }
 
 .selector ul.selector-chooser {
     float: left;
     width: 22px;
-    background-color: #eee;
-    border-radius: 10px;
+    height: 50px;
+    background: url(../img/chooser-bg.gif) top center no-repeat;
     margin: 10em 5px 0 5px;
     padding: 0;
 }
@@ -169,8 +169,7 @@ a.active.selector-clearall {
     height: 22px;
     width: 50px;
     margin: 0 0 3px 40%;
-    background-color: #eee;
-    border-radius: 10px;
+    background: url(../img/chooser_stacked-bg.gif) top center no-repeat;
 }
 
 .stacked .selector-chooser li {
@@ -576,3 +575,4 @@ ul.orderer li.deleted:hover, ul.orderer li.deleted a.selector:hover {
     font-size: 11px;
     border-top: 1px solid #ddd;
 }
+

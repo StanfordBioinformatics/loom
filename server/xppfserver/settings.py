@@ -52,15 +52,12 @@ ROOT_URLCONF = 'xppfserver.urls'
 
 WSGI_APPLICATION = 'xppfserver.wsgi.application'
 
-if RACK_ENV == 'development':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        }
-    }
-else:
-    raise Exception('TODO: create database settings for production environment.')
+DATABASES = {
+   'default' : {
+      'ENGINE' : 'django_mongodb_engine',
+      'NAME' : 'xppf'
+   }
+}
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'

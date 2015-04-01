@@ -1,0 +1,44 @@
+Metadata-Version: 1.1
+Name: djangotoolbox
+Version: 1.6.2
+Summary: Djangotoolbox for Django-nonrel
+Home-page: https://github.com/django-nonrel/djangotoolbox
+Author: Waldemar Kornewald
+Author-email: wkornewald@gmail.com
+License: 3-clause BSD
+Description: Djangotoolbox provides a common API for running Django on
+        non-relational/NoSQL databases (currently via Django-nonrel_).
+        
+        In ``djangotoolbox.db`` you can find base classes for writing
+        non-relational DB backends. Read
+        `Writing a non-relational Django backend`_
+        for more information.
+        
+        In ``djangotoolbox.fields`` you can find several common field
+        types for non-relational DB backends (``ListField``, ``SetField``,
+        ``DictField``, ``RawField``, ``BlobField``).
+        
+        The ``djangotoolbox.admin`` module provides admin overrides for
+        making ``django.contrib.auth`` work correctly in the admin UI.
+        Simply add ``'djangotoolbox'`` to ``INSTALLED_APPS`` **after**
+        ``django.contrib.admin``. This will disable features that
+        require JOINs. If you still need permission handling you should
+        use the `nonrel permission backend`_.
+        
+        .. _Django-nonrel: http://django-nonrel.org/
+        .. _Writing a non-relational Django backend: http://www.allbuttonspressed.com/blog/django/2010/04/Writing-a-non-relational-Django-backend
+        .. _nonrel permission backend: https://github.com/django-nonrel/django-permission-backend-nonrel
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Web Environment
+Classifier: Framework :: Django
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2.5
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Topic :: Database
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
