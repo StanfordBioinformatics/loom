@@ -1,10 +1,9 @@
 from django.core.exceptions import ImproperlyConfigured
 
-class MissingStorageModule(ImproperlyConfigured):
+
+class MissingStorage(ImproperlyConfigured):
     pass
 
-class MissingStorageClass(ImproperlyConfigured):
-    pass
 
 class NoFileStorageConfigured(ImproperlyConfigured):
     pass

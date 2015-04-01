@@ -29,10 +29,16 @@ function removeEvent(obj, evType, fn) {
     }
 }
 
-// quickElement(tagType, parentReference, textInChildNode, [, attribute, attributeValue ...]);
+function cancelEventPropagation(e) {
+    if (!e) e = window.event;
+    e.cancelBubble = true;
+    if (e.stopPropagation) e.stopPropagation();
+}
+
+// quickElement(tagType, parentReference [, textInChildNode, attribute, attributeValue ...]);
 function quickElement() {
     var obj = document.createElement(arguments[0]);
-    if (arguments[2] != '' && arguments[2] != null) {
+    if (arguments[2]) {
         var textNode = document.createTextNode(arguments[2]);
         obj.appendChild(textNode);
     }
@@ -42,6 +48,11 @@ function quickElement() {
     }
     arguments[1].appendChild(obj);
     return obj;
+}
+
+// "a" is reference to an object
+function removeChildren(a) {
+    while (a.hasChildNodes()) a.removeChild(a.lastChild);
 }
 
 // ----------------------------------------------------------------------------
