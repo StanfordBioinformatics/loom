@@ -7,6 +7,9 @@ from apps.controls.helpers.objtools import StripKeys
 from apps.controls.helpers.substitution import Substitution
 from apps.controls.helpers import schema
 
+class RunRequestValidationError(Exception):
+    pass
+
 class RunRequestHelper(object):
 
     schema = schema.RunRequestSchema
@@ -27,11 +30,17 @@ class RunRequestHelper(object):
 
     @classmethod
     def _validate_raw_data_json(cls, data_json):
-        jsonschema.validate(data_json, cls.schema.RAW)
+        try:
+            jsonschema.validate(data_json, cls.schema.RAW)
+        except jsonschema.ValidationError as e:
+            raise RunRequestValidationError(e.message)
 
     @classmethod
     def _validate_clean_data_json(cls, data_json):
-        jsonschema.validate(data_json, cls.schema.CLEAN)
+        try:
+            jsonschema.validate(data_json, cls.schema.CLEAN)
+        except jsonschema.ValidationError as e:
+            raise RunRequestValidationError(e.message)
 
     @classmethod
     def _apply_constants(cls, data_obj):

@@ -1,3 +1,5 @@
+"""
+
 from django.test import TestCase
 from django.db import models
 import json
@@ -39,7 +41,6 @@ class ImmutableModelTest(TestCase):
         self.assertTrue(childCountBefore > 0)
         self.assertEqual(childCountBefore, childCountAfter)
 
-"""
     def testEditRelation(self):
         parent = self.child.parent
         original_parent_id = parent.id

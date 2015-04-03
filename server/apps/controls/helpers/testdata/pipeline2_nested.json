@@ -36,44 +36,46 @@
                     "disk_space": "50k",
                     "memory": "16G",
                     "cores": 1
+                }
+            }
+        ],
+        "steps": [
+            {
+                "id": "worldstep",
+                "comment": "I'm back to declaring outputs and inputs explicity under the step, in order to allow ordering of steps.",
+		"session_id": "helloworldsession",
+                "command": "echo  world > words/world_X53J7F.txt",
+                "application": {
+                    "docker_image": "echo"
                 },
-                "steps": [
-                    {
-                        "id": "worldstep",
-                        "comment": "I'm back to declaring outputs and inputs explicity under the step, in order to allow ordering of steps.",
-                        "command": "echo  world > words/world_X53J7F.txt",
-                        "application": {
-                            "docker_image": "echo"
-                        },
-                        "step_resource_set": {
-                            "id": "default_step_resources",
-                            "memory": "1G",
-                            "cores": 1
-                        },
-                        "output_file_ids": [
-                            "worldfile"
-                        ]
-                    },
-                    {
-                        "id": "helloworldstep",
-                        "comment": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
-                        "command": "cat words/hello_X53J7F.txt words/world_X53J7F.txt > results/helloworld_X53J7F.txt",
-                        "application": {
-                            "docker_image": "cat"
-                        },
-                        "step_resource_set": {
-                            "id": "default_step_resources",
-                            "memory": "1G",
-                            "cores": 1
-                        },
-                        "input_file_ids": [
-                            "worldfile",
-                            "hellofile"
-                        ],
-                        "output_file_ids": [
-                            "helloworldfile"
-                        ]
-                    }
+                "step_resource_set": {
+                    "id": "default_step_resources",
+                    "memory": "1G",
+                    "cores": 1
+                },
+                "output_file_ids": [
+                    "worldfile"
+                ]
+            },
+            {
+                "id": "helloworldstep",
+                "comment": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
+		"session_id": "helloworldsession",
+                "command": "cat words/hello_X53J7F.txt words/world_X53J7F.txt > results/helloworld_X53J7F.txt",
+                "application": {
+                    "docker_image": "cat"
+                },
+                "step_resource_set": {
+                    "id": "default_step_resources",
+                    "memory": "1G",
+                    "cores": 1
+                },
+                "input_file_ids": [
+                    "worldfile",
+                    "hellofile"
+                ],
+                "output_file_ids": [
+                    "helloworldfile"
                 ]
             }
         ]

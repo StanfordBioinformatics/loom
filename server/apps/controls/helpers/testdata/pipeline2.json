@@ -65,6 +65,7 @@
 	{
 	    "id": "worldstep",
 	    "comment": "I'm back to declaring outputs and inputs explicity under the step, in order to allow ordering of steps.",
+	    "session_id": "helloworldsession",
 	    "command": "echo  world > words/world_X53J7F.txt",
 	    "application": "echo",
 	    "step_resource_set": "default_step_resources",
@@ -74,6 +75,7 @@
 	{
 	    "id": "helloworldstep",
 	    "comment": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
+	    "session_id": "helloworldsession",
 	    "command": "cat words/hello_X53J7F.txt words/world_X53J7F.txt > results/helloworld_X53J7F.txt",
 	    "application": "cat",
 	    "step_resource_set": "default_step_resources",
@@ -86,13 +88,7 @@
 	{
 	    "id": "helloworldsession",
 	    "comment": "A session is a set of tasks that share a common working directory, typically run on a single machine",
-
-	    "session_resource_set": "default_session_resources",
-	    
-	    "steps": [
-		"worldstep",
-		"helloworldstep"
-	    ]
+	    "session_resource_set": "default_session_resources"
 	}
     ],
 
@@ -105,6 +101,11 @@
 	
 	"sessions":[
 	    "helloworldsession"
+	],
+
+	"steps": [
+	    "worldstep",
+	    "helloworldstep"
 	]
     }
 }

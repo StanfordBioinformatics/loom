@@ -23,39 +23,41 @@
                     "cores": 1,
                     "disk_space": "50k",
                     "memory": "16G"
+                }
+            }
+        ],
+        "steps": [
+            {
+                "application": {
+                    "docker_image": "echo"
                 },
-                "steps": [
-                    {
-                        "application": {
-                            "docker_image": "echo"
-                        },
-                        "command": "echo  world > words/world_X53J7F.txt",
-                        "output_file_ids": [
-                            "worldfile"
-                        ],
-                        "step_resource_set": {
-                            "cores": 1,
-                            "memory": "1G"
-                        }
-                    },
-                    {
-                        "application": {
-                            "docker_image": "cat"
-                        },
-                        "command": "cat words/hello_X53J7F.txt words/world_X53J7F.txt > results/helloworld_X53J7F.txt",
-                        "input_file_ids": [
-                            "worldfile",
-                            "hellofile"
-                        ],
-                        "output_file_ids": [
-                            "helloworldfile"
-                        ],
-                        "step_resource_set": {
-                            "cores": 1,
-                            "memory": "1G"
-                        }
-                    }
-                ]
+                "command": "echo  world > words/world_X53J7F.txt",
+                "output_file_ids": [
+                    "worldfile"
+                ],
+                "session_id": "helloworldsession",
+                "step_resource_set": {
+                    "cores": 1,
+                    "memory": "1G"
+                }
+            },
+            {
+                "application": {
+                    "docker_image": "cat"
+                },
+                "command": "cat words/hello_X53J7F.txt words/world_X53J7F.txt > results/helloworld_X53J7F.txt",
+                "input_file_ids": [
+                    "worldfile",
+                    "hellofile"
+                ],
+                "output_file_ids": [
+                    "helloworldfile"
+                ],
+                "session_id": "helloworldsession",
+                "step_resource_set": {
+                    "cores": 1,
+                    "memory": "1G"
+                }
             }
         ]
     }

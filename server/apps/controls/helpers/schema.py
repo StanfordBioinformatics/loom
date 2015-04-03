@@ -13,7 +13,8 @@ class RunRequestSchema(object):
             "type": "object",
             "properties": {
                 "sessions": {"$ref": "#/definitions/clean_sessions"},
-                "files": {"$ref": "#/definitions/clean_files"}
+                "files": {"$ref": "#/definitions/clean_files"},
+                "steps": {"$ref": "#/definitions/clean_steps"}
             },
             "required": ['sessions'],
             "additionalProperties": False
@@ -25,6 +26,7 @@ class RunRequestSchema(object):
                 "constants": {"$ref": "#/definitions/constants"},
                 "sessions": {"$ref": "#/definitions/raw_sessions"},
                 "files": {"$ref": "#/definitions/raw_files"},
+                "steps": {"$ref": "#/definitions/raw_steps"}
             },
             "required": ['sessions'],
             "additionalProperties": False
@@ -49,10 +51,8 @@ class RunRequestSchema(object):
         "clean_session": {
             "type": "object",
             "properties": {
-                "session_resource_set": {"$ref": "#/definitions/session_resource_set"},
-                "steps": {"$ref": "#/definitions/clean_steps"}
+                "session_resource_set": {"$ref": "#/definitions/session_resource_set"}
             },
-            "required": ["steps"],
             "additionalProperties": False
         },
         "raw_session": {
@@ -66,10 +66,8 @@ class RunRequestSchema(object):
                         {"$ref": "#/definitions/session_resource_set"},
                         {"$ref": "#/definitions/id"}
                     ]
-                },
-                "steps": {"$ref": "#/definitions/raw_steps"},
+                }
             },
-            "required": ["steps"],
             "additionalProperties": False
         },
         "session_resource_sets": {
@@ -179,7 +177,8 @@ class RunRequestSchema(object):
                 "application": {"$ref": "#/definitions/application"},
                 "step_resource_set": {"$ref": "#/definitions/step_resource_set"},
                 "input_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
-                "output_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}}
+                "output_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "session_id": {"$ref": "#/definitions/id"}
             },
             "required": ["command"],
             "additionalProperties": False
@@ -204,7 +203,8 @@ class RunRequestSchema(object):
                     ]
                 },
                 "input_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
-                "output_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}}
+                "output_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "session_id": {"$ref": "#/definitions/id"}
             },
             "required": ["command"],
             "additionalProperties": False

@@ -2,6 +2,7 @@ from django.db import models
 import json
 import hashlib
 
+"""
 class _Immutable(models.Model):
 
     # Models that extend _Immutable are used to represent analysis or data objects.
@@ -77,3 +78,4 @@ class _Immutable(models.Model):
         # This method validates the model as a whole, and is called by full_clean when the object is saved.
         # If children override this, they should call it as super(ChildClass, self).clean()                                                                                                                
         self._validate_unique_id()
+"""

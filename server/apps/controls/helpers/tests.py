@@ -7,6 +7,7 @@ from apps.controls.helpers import links
 from apps.controls.helpers import objtools
 from apps.controls.helpers import runrequest
 from apps.controls.helpers import substitution
+from apps.controls.helpers.runrequest import RunRequestValidationError
 
 TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
 
@@ -23,7 +24,8 @@ class SubstitutionHelperTestCase(TestCase):
         pipeline1_substituted = substitution.Substitution.apply_constants_in_json(
             self.pipeline1_json)
         pipeline1_substituted_json = json.dumps(pipeline1_substituted, indent=4, separators=(',',': '))
-        self.assertEqual(pipeline1_substituted_json.strip(), self.pipeline1_substituted_exp_json.strip())
+
+        self.assertEqual(pipeline1_substituted_json.rstrip(), self.pipeline1_substituted_exp_json.rstrip())
 
 class LinkHelperTestCase(TestCase):
 
@@ -43,7 +45,7 @@ class LinkHelperTestCase(TestCase):
         pipeline2_nested_minus_ids_exp = objtools.StripKeys.strip_key_from_json(pipeline2_nested_exp_json, 'id')
         pipeline2_nested_minus_ids_exp_json = json.dumps(pipeline2_nested_minus_ids_exp, sort_keys=True, indent=4, separators=(',',': '))
 
-        self.assertEqual(pipeline2_nested_minus_ids_json.strip(), pipeline2_nested_minus_ids_exp_json.strip())
+        self.assertEqual(pipeline2_nested_minus_ids_json.rstrip(), pipeline2_nested_minus_ids_exp_json.rstrip())
 
 class RunRequestHelperTestCase(TestCase):
     
@@ -56,7 +58,7 @@ class RunRequestHelperTestCase(TestCase):
 
     def testCleanJson(self):
         pipeline3_clean_json = runrequest.RunRequestHelper.clean_json(self.pipeline3_json)
-        self.assertEqual(pipeline3_clean_json.strip(), self.pipeline3_clean_exp.strip())
+        self.assertEqual(pipeline3_clean_json.rstrip(), self.pipeline3_clean_exp.rstrip())
 
     def testValidateRawDataJson(self):
         should_pass = [
@@ -110,7 +112,7 @@ class RunRequestHelperTestCase(TestCase):
 
     def verify_fails_validation(self, validator, data_json):
         obj = json.loads(data_json)
-        with self.assertRaises(jsonschema.ValidationError):
+        with self.assertRaises(RunRequestValidationError):
             validator(obj)
 
     def verify_passes_validation(self, validator, data_json):

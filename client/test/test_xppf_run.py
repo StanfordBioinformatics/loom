@@ -28,9 +28,10 @@ class TestXppfRun(unittest.TestCase):
 
     def test_run(self):
         run_parser = xppf_run.XppfRun._get_parser()
-        args = run_parser.parse_args([os.path.join(self.TEST_DATA_DIR, 'empty_pipeline.json')])
+        args = run_parser.parse_args([os.path.join(self.TEST_DATA_DIR, 'invalid_pipeline.json')])
         xrun = xppf_run.XppfRun(args=args)
-        xrun.run()
+        with self.assertRaises(xppf_run.XppfRunException):
+            xrun.run()
 
     def wait_for_true(self, test_method, timeout_seconds=5):
         start_time = datetime.now()

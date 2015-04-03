@@ -5,6 +5,11 @@ import requests
 
 from xppf.client import settings_manager
 
+_OK_RESPONSE_CODE = 200
+
+class XppfRunException(Exception):
+    pass
+
 class XppfRun:
     """
     This method provides commands for submitting and managing xppf pipeline runs.
@@ -35,10 +40,18 @@ class XppfRun:
 
     def run(self):
         pipeline = self.merge_pipeline_files()
+
         try:
             response = requests.post(self.settings_manager.get_server_url() + '/run', data=json.dumps(pipeline))
         except requests.exceptions.ConnectionError as e:
             raise Exception("No response from server. (%s)" % e)
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            raise XppfRunException("%s\n%s" % (e.message, response.text))
+
+        return response
 
     def merge_pipeline_files(self):
         pipeline = {}
@@ -54,4 +67,5 @@ class XppfRun:
         return pipeline
 
 if __name__=='__main__':
-    XppfRun().run()
+    response =  XppfRun().run()
+    print response.text
