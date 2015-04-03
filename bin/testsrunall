@@ -1,11 +1,10 @@
 #!/bin/bash
 
-source ../env/bin/activate
-cwd=$(pwd)
+XPPFROOT=`dirname $0`/..
 
-cd $cwd/../client
+cd $XPPFROOT/client
 python -m unittest discover
 
-cd $cwd/../server
+cd $XPPFROOT/server
 ./manage.py test
 

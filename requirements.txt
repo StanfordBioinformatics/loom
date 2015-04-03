@@ -1,0 +1,5 @@
+Django==1.8
+gunicorn==19.3.0
+jsonschema==2.4.0
+requests==2.6.0
+

@@ -1,4 +1,4 @@
 #!/bin/bash
 
-source ../env/bin/activate
-python ../client/xppf_server_controls.py "$@"
+XPPFROOT=`dirname $0`/..
+python $XPPFROOT/client/xppf_server_controls.py "$@"

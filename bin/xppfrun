@@ -1,5 +1,5 @@
 #!/bin/bash
 
-source ../env/bin/activate
-python ../client/xppf_run.py "$@"
+XPPFROOT=`dirname $0`/..
+python $XPPFROOT/client/xppf_run.py "$@"
 
