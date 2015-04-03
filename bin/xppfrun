@@ -1,5 +1,5 @@
 #!/bin/bash
 
-XPPFROOT=`dirname $0`/..
+XPPFROOT=$(pwd)/$(dirname $0)/..
 python $XPPFROOT/client/xppf_run.py "$@"
 

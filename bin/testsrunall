@@ -1,6 +1,6 @@
 #!/bin/bash
 
-XPPFROOT=`dirname $0`/..
+XPPFROOT=$(pwd)/$(dirname $0)/..
 
 cd $XPPFROOT/client
 python -m unittest discover
