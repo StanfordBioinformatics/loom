@@ -2,6 +2,8 @@
 
 XPPFROOT=$(pwd)/$(dirname $0)/..
 
+export PYTHONPATH=${XPPFROOT}/..:$PYTHONPATH
+
 cd $XPPFROOT/client
 python -m unittest discover
 
