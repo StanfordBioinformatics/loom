@@ -1,0 +1,83 @@
+{
+    "pipeline": {
+        "files": [
+            {
+                "comment": "This file will be used in several tasks in a session, but will not be saved to persistent storage.",
+                "id": "worldfile",
+                "path": "words/world_X53J7F.txt"
+            },
+            {
+                "comment": "This file needs to be imported. A separate 'imports' declaration gives info on where to find it.",
+                "id": "hellofile",
+                "path": "words/hello_X53J7F.txt",
+                "import_from": {
+                    "comment": "here we are just pulling a file from the local drive, but normally this would include required info to pull a file from cloud storage",
+                    "path": "/data/hello.in"
+                }
+            },
+            {
+                "comment": "This result file will be exported to persistent storage. A separate 'exports' declaration gives info on where to put it.",
+                "id": "helloworldfile",
+                "path": "results/helloworld_X53J7F.txt",
+                "save_to": {
+                    "comment": "here we are just writing to the local drive, but normally this would include required info to write a file to cloud storage",
+                    "id": "helloworldfiledestination",
+                    "path": "/data/helloworld_X53J7F.out"
+                }
+            }
+        ],
+        "sessions": [
+            {
+                "id": "helloworldsession",
+                "comment": "A session is a set of tasks that share a common working directory, typically run on a single machine",
+                "session_resource_set": {
+                    "id": "default_session_resources",
+                    "comment": "These are minimum resources for the whole session, i.e. requirements for a VM and mounted storage where a session will run",
+                    "disk_space": "50k",
+                    "memory": "16G",
+                    "cores": 1
+                }
+            }
+        ],
+        "steps": [
+            {
+                "id": "worldstep",
+                "comment": "I'm back to declaring outputs and inputs explicity under the step, in order to allow ordering of steps.",
+		"session_id": "helloworldsession",
+                "command": "echo  world > words/world_X53J7F.txt",
+                "application": {
+                    "docker_image": "echo"
+                },
+                "step_resource_set": {
+                    "id": "default_step_resources",
+                    "memory": "1G",
+                    "cores": 1
+                },
+                "output_file_ids": [
+                    "worldfile"
+                ]
+            },
+            {
+                "id": "helloworldstep",
+                "comment": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
+		"session_id": "helloworldsession",
+                "command": "cat words/hello_X53J7F.txt words/world_X53J7F.txt > results/helloworld_X53J7F.txt",
+                "application": {
+                    "docker_image": "cat"
+                },
+                "step_resource_set": {
+                    "id": "default_step_resources",
+                    "memory": "1G",
+                    "cores": 1
+                },
+                "input_file_ids": [
+                    "worldfile",
+                    "hellofile"
+                ],
+                "output_file_ids": [
+                    "helloworldfile"
+                ]
+            }
+        ]
+    }
+}

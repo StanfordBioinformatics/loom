@@ -8,9 +8,12 @@ a File is a URL pointing to persistance location of the data, could be a file pa
 a database entry will be generated automatically by parsing json input, by calling jsonToClass
 '''
 
-from django.db import models
 import json
 import copy
+from django.db import models
+from django.core import serializers
+from datetime import datetime
+from datetime import timedelta
 
 class File(models.Model):
     fileid = models.CharField(primary_key=True, max_length=30)
@@ -35,7 +38,7 @@ class Resource(models.Model):
     def jsonToClass( self, aux ):
         self.resourceid = aux['id']
         self.diskspace = aux['disk_space']
-        self.momery = aux['disk_space']
+        self.memory = aux['disk_space']
         self.cores = aux['cores']
 
 class Step(models.Model):
@@ -46,6 +49,7 @@ class Step(models.Model):
     comment = models.CharField(max_length=256, default='')
     access = models.IntegerField(default=755)
     def jsonToClass( self, aux ):
+        self.stepid = aux['id']
         self.comment = aux['comment']
         self.cmd = aux['command']
         self.application = aux['application']
@@ -85,11 +89,11 @@ class Pipeline(models.Model):
             step_dict = {'':''}
             if type(query["steps"]) is list :
                 for step_entry in query["steps"]:
-                        s = Step(stepid="", stepname="", cmd="", application="", comment="")
+                        s = Step(stepid="")
                         s.jsonToClass( step_entry )
-                        step_dict[step_entry['id']] = s
                         s.save()
-
+                        step_dict[step_entry['id']] = s
+            
             # sessions
             if type(query["sessions"]) is list :
                 for session_entry in query["sessions"]:
@@ -98,25 +102,15 @@ class Pipeline(models.Model):
                         #init foreign keys
                         s.pipelineid = self
                         s.save()
-                        for item in session_entry["input_file"]:
+                        for item in session_entry["input_file_ids"]:
                             s.importfiles.add(file_dict[item])
-                        for item in session_entry["output_file"]:
+                        for item in session_entry["output_file_ids"]:
                             s.savefiles.add(file_dict[item])
-                        for item in session_entry["steps"]:
+                        for item in session_entry["step_ids"]:
                             s.steps.add(step_dict[item])
                         s.save()
                         self.save()
                         self.sessionids.add(s)
-
-
-class AnalysisStatus(models.Model):
-    serverid = models.CharField(max_length=256)
-    starttime = models.DateTimeField()
-    endtime = models.DateTimeField()
-    retries = models.IntegerField(default=0)
-    ramusage = models.IntegerField(default=0)
-    coresusage = models.IntegerField(default=1)
-    msg = models.CharField(max_length=256)
 
 
 class Analysis(models.Model):
@@ -134,5 +128,19 @@ class Analysis(models.Model):
                 obj_4_runner['command']=step.cmd
                 objs_4_runner.append(obj_4_runner)
         return json.dumps(objs_4_runner)
+
+
+class AnalysisStatus(models.Model):
+    statusid = models.CharField(max_length=256, primary_key=True)
+    analysis = models.ForeignKey(Analysis, null=True)
+    server = models.CharField(max_length=256, default="localhost")
+    starttime = models.DateTimeField(default=datetime.now())
+    endtime = models.DateTimeField(default=datetime.now())
+    retries = models.IntegerField(default=0)
+    ramusage = models.IntegerField(default=0)
+    coresusage = models.IntegerField(default=1)
+    msg = models.CharField(max_length=256)
+
+
 
 
