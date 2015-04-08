@@ -115,13 +115,13 @@ class Pipeline(models.Model):
 
 class Analysis(models.Model):
     analysisid = models.CharField(primary_key=True, max_length=256)
-    pipeline = models.ForeignKey(Pipeline)
+    pipelineid = models.ForeignKey(Pipeline, null=False)
     comment = models.CharField(max_length=256)
     ownerid = models.IntegerField(default=0)
     access = models.IntegerField(default=755)
     def prepareJSON(self):
         objs_4_runner = []
-        for session in self.pipeline.sessionids.all():
+        for session in self.pipelineid.sessionids.all():
             for step in session.steps.all():
                 obj_4_runner = {}
                 obj_4_runner['container']=step.application
@@ -140,7 +140,22 @@ class AnalysisStatus(models.Model):
     ramusage = models.IntegerField(default=0)
     coresusage = models.IntegerField(default=1)
     msg = models.CharField(max_length=256)
-
+    def updateStatus(self, query):
+        if 'server' in query: 
+            self.server = query['server']
+        if 'starttime' in query: 
+            self.starttime = query['starttime']
+        if 'endtime' in query: 
+            self.endtime = query['endtime']
+        if 'retries' in query: 
+            self.retries = query['retries']
+        if 'ramusage' in query: 
+            self.ramusage= query['ramusage']
+        if 'coreusage' in query: 
+            self.coresusage = query['coresusage']
+        if 'msg' in query: 
+            self.msg = query['msg']
+        self.save()
 
 
 
