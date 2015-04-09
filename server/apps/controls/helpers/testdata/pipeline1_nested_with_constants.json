@@ -2,9 +2,7 @@
     "constants": {
 	"sample_id": "X53J7F"
     },
-    
     "pipeline": {
-
 	"files": [
 	    {
 		"comment": "This file will be used in several tasks in a session, but will not be saved to persistent storage.",
@@ -33,7 +31,6 @@
 		}
 	    }
 	],
-
 	"sessions": [
 	    {
 		"comment": "A session is a set of tasks that share a common working directory, typically run on a single machine",

@@ -10,7 +10,6 @@
       id: "hellofilesource"
       comment: "This is publicly available file in Azure Blob storage."
       url: "TODO"
-      path: "/data/hello.in"
     - 
       id: "helloworldfiledestination"
       comment: "The file will be written to Azure Blob storage"

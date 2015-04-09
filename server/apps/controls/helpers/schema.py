@@ -14,7 +14,8 @@ class RunRequestSchema(object):
             "properties": {
                 "sessions": {"$ref": "#/definitions/clean_sessions"},
                 "files": {"$ref": "#/definitions/clean_files"},
-                "steps": {"$ref": "#/definitions/clean_steps"}
+                "steps": {"$ref": "#/definitions/clean_steps"},
+                "comment": {"$ref": "#/definitions/comment"}
             },
             "required": ['sessions'],
             "additionalProperties": False
@@ -51,7 +52,9 @@ class RunRequestSchema(object):
         "clean_session": {
             "type": "object",
             "properties": {
-                "session_resource_set": {"$ref": "#/definitions/session_resource_set"}
+                "session_resource_set": {"$ref": "#/definitions/session_resource_set"},
+                "steps": {"$ref": "#/definitions/clean_steps"},
+                "comment": {"$ref": "#/definitions/comment"}
             },
             "additionalProperties": False
         },
@@ -66,7 +69,8 @@ class RunRequestSchema(object):
                         {"$ref": "#/definitions/session_resource_set"},
                         {"$ref": "#/definitions/id"}
                     ]
-                }
+                },
+                "steps": {"$ref": "#/definitions/raw_steps"}
             },
             "additionalProperties": False
         },
@@ -218,11 +222,10 @@ class RunRequestSchema(object):
             "properties": {
                 "id": {"$ref": "#/definitions/id"},
                 "comment": {"$ref": "#/definitions/comment"},
-                "constants": {"$ref": "#/definitions/constants"},
-                "path": {"type": "string"}
+                "constants": {"$ref": "#/definitions/constants"}
             },
             "required": ["path"],
-            "additionalProperties": False
+            "additionalProperties": True
         },
         "applications": {
             "type": "array",

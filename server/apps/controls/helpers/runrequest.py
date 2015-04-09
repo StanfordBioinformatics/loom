@@ -19,11 +19,11 @@ class RunRequestHelper(object):
         data_obj = json.loads(
             raw_data_json, 
             object_pairs_hook=collections.OrderedDict)
-        cls._validate_raw_data_json(data_obj)
+#        cls._validate_raw_data_json(data_obj)
         cls._resolve_links(data_obj)
         cls._apply_constants(data_obj)
-        cls._strip_ids_and_comments(data_obj)
-        cls._validate_clean_data_json(data_obj)
+#        cls._strip_comments(data_obj)
+#        cls._validate_clean_data_json(data_obj)
         clean_data_json = json.dumps(data_obj, sort_keys=True, 
                                      indent=4, separators=(',', ': '))
         return clean_data_json
@@ -51,5 +51,5 @@ class RunRequestHelper(object):
         Linker().resolve_links(data_obj)
 
     @classmethod
-    def _strip_ids_and_comments(cls, data_obj):
-        StripKeys.strip_keys(data_obj, ['id', 'comment'])
+    def _strip_comments(cls, data_obj):
+        StripKeys.strip_keys(data_obj, ['comment'])

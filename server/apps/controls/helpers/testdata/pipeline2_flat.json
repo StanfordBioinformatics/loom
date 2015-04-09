@@ -1,8 +1,4 @@
 {
-    "constants": {
-	"sample_id": "X53J7F"
-    },
-
     "applications": [
 	{
 	    "id": "bwa",
@@ -30,19 +26,19 @@
 	{
 	    "comment": "This file will be used in several tasks in a session, but will not be saved to persistent storage.",
 	    "id": "worldfile",
-	    "path": "words/world_${sample_id}.txt"
+	    "path": "words/world_X53J7F.txt"
 	},
 	
 	{
 	    "comment": "This file already exists and needs to be imported.",
 	    "id": "hellofile",
-	    "path": "words/hello_${sample_id}.txt",
+	    "path": "words/hello_X53J7F.txt",
 	    "import_from": "hellofilesource"
 	},
 	{
 	    "comment": "This results file will be created by the analysis run.",
 	    "id": "helloworldfile",
-	    "path": "results/helloworld_${sample_id}.txt",
+	    "path": "results/helloworld_X53J7F.txt",
 	    "save_to": "helloworldfiledestination"
 	}
     ],
@@ -65,10 +61,7 @@
 	{
 	    "id": "worldstep",
 	    "comment": "Even though worldfile is only used inside the session, we declare it to make it clear that this step runs before helloworldstep",
-	    "constants": {
-		"world_text": "world"
-	    },
-	    "command": "echo ${world_text} > ${worldfile}",
+	    "command": "echo world > words/world_X53J7F.txt",
 	    "application": "bwa",
 	    "step_resource_set": "default_step_resources",
 	    "output_file_ids": ["worldfile"]
@@ -76,10 +69,7 @@
 	{
 	    "id": "helloworldstep",
 	    "comment": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
-	    "constants": {
-		"space_char": " "
-	    },
-	    "command": "cat ${hellofile}${space_char}${worldfile} > ${helloworldfile}",
+	    "command": "cat words/hello_X53J7F.txt words/world_X53J7F.txt > results/helloworld_X53J7F.txt",
 	    "application": "bwa",
 	    "step_resource_set": "default_step_resource_set",
 	    "input_file_ids": ["worldfile", "hellofile"],

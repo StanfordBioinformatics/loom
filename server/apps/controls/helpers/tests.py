@@ -14,15 +14,15 @@ TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
 class SubstitutionHelperTestCase(TestCase):
 
     def setUp(self):
-        with open(os.path.join(TEST_DATA_DIR, 'pipeline1.json')) as f:
-            self.pipeline1_json = f.read()
-        self.pipeline1 = json.loads(self.pipeline1_json)
+        with open(os.path.join(TEST_DATA_DIR, 'pipeline1_nested_with_constants.json')) as f:
+            self.pipeline1_nested_with_constants_json = f.read()
+        self.pipeline1_nested_with_constants = json.loads(self.pipeline1_nested_with_constants_json)
         with open(os.path.join(TEST_DATA_DIR, 'pipeline1_substituted.json')) as f:
             self.pipeline1_substituted_exp_json = f.read()
         
     def testConstantSubstitituion(self):
         pipeline1_substituted = substitution.Substitution.apply_constants_in_json(
-            self.pipeline1_json)
+            self.pipeline1_nested_with_constants_json)
         pipeline1_substituted_json = json.dumps(pipeline1_substituted, indent=4, separators=(',',': '))
 
         self.assertEqual(pipeline1_substituted_json.rstrip(), self.pipeline1_substituted_exp_json.rstrip())
@@ -30,22 +30,25 @@ class SubstitutionHelperTestCase(TestCase):
 class LinkHelperTestCase(TestCase):
 
     def setUp(self):
-        with open(os.path.join(TEST_DATA_DIR, 'pipeline2.json')) as f:
-            self.pipeline2_json = f.read()
+        with open(os.path.join(TEST_DATA_DIR, 'pipeline2_flat.json')) as f:
+            self.pipeline2_flat_json = f.read()
         with open(os.path.join(TEST_DATA_DIR, 'pipeline2_nested.json')) as f:
             self.pipeline2_nested_json = f.read()
         
     def testLinksResolution(self):
         pipeline2_nested = links.Linker().resolve_links_in_json(
-            self.pipeline2_json)
-        pipeline2_nested_minus_ids = objtools.StripKeys.strip_key(pipeline2_nested, 'id')
-        pipeline2_nested_minus_ids_json = json.dumps(pipeline2_nested_minus_ids, sort_keys=True, indent=4, separators=(',',': '))
+            self.pipeline2_flat_json)
+        pipeline2_nested_json = json.dumps(pipeline2_nested, indent=4, separators=(',',': '))
 
         pipeline2_nested_exp_json = self.pipeline2_nested_json
-        pipeline2_nested_minus_ids_exp = objtools.StripKeys.strip_key_from_json(pipeline2_nested_exp_json, 'id')
-        pipeline2_nested_minus_ids_exp_json = json.dumps(pipeline2_nested_minus_ids_exp, sort_keys=True, indent=4, separators=(',',': '))
 
-        self.assertEqual(pipeline2_nested_minus_ids_json.rstrip(), pipeline2_nested_minus_ids_exp_json.rstrip())
+        with open('act.json', 'w') as f:
+            f.write(pipeline2_nested_json.rstrip())
+
+        with open('exp.json', 'w') as f:
+            f.write(pipeline2_nested_exp_json.rstrip())
+
+        self.assertEqual(pipeline2_nested_json.rstrip(), pipeline2_nested_exp_json.rstrip())
 
 class RunRequestHelperTestCase(TestCase):
     
@@ -62,9 +65,9 @@ class RunRequestHelperTestCase(TestCase):
 
     def testValidateRawDataJson(self):
         should_pass = [
-            'pipeline1.json',
+            'pipeline1_nested_with_constants.json',
             'pipeline1_substituted.json',
-            'pipeline2.json',
+            'pipeline2_flat.json',
             'pipeline2_nested.json',
             'pipeline3.json',
             'pipeline3_clean.json',
@@ -76,11 +79,13 @@ class RunRequestHelperTestCase(TestCase):
         validator = runrequest.RunRequestHelper._validate_raw_data_json
 
         for json_file in should_pass:
+            print json_file
             with open(os.path.join(TEST_DATA_DIR, json_file)) as f:
                 data_json = f.read()
                 self.verify_passes_validation(validator, data_json)
 
         for json_file in should_fail:
+            print json_file
             with open(os.path.join(TEST_DATA_DIR, json_file)) as f:
                 data_json = f.read()
                 self.verify_fails_validation(validator, data_json)
@@ -90,9 +95,9 @@ class RunRequestHelperTestCase(TestCase):
             'pipeline3_clean.json',
         ]
         should_fail = [
-            'pipeline1.json',
+            'pipeline1_nested_with_constants.json',
             'pipeline1_substituted.json',
-            'pipeline2.json',
+            'pipeline2_flat.json',
             'pipeline2_nested.json',
             'pipeline3.json',
             'pipeline_invalid.json'
@@ -101,11 +106,13 @@ class RunRequestHelperTestCase(TestCase):
         validator = runrequest.RunRequestHelper._validate_clean_data_json
 
         for json_file in should_pass:
+            print json_file
             with open(os.path.join(TEST_DATA_DIR, json_file)) as f:
                 data_json = f.read()
                 self.verify_passes_validation(validator, data_json)
 
         for json_file in should_fail:
+            print json_file
             with open(os.path.join(TEST_DATA_DIR, json_file)) as f:
                 data_json = f.read()
                 self.verify_fails_validation(validator, data_json)
