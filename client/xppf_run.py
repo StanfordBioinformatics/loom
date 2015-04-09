@@ -42,7 +42,7 @@ class XppfRun:
         pipeline = self.merge_pipeline_files()
 
         try:
-            response = requests.post(self.settings_manager.get_server_url() + '/run', data=json.dumps(pipeline))
+            response = requests.post(self.settings_manager.get_server_url() + '/analyses', data=json.dumps(pipeline))
         except requests.exceptions.ConnectionError as e:
             raise Exception("No response from server. (%s)" % e)
 
