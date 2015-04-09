@@ -1,0 +1,59 @@
+---
+  constants: 
+    sample_id: "X53J7F"
+  pipeline: 
+    files: 
+      - 
+        comment: "This file will be used in several tasks in a session, but will not be saved to persistent storage."
+        id: "worldfile"
+        path: "words/world_${sample_id}.txt"
+      - 
+        comment: "This file already exists and needs to be imported."
+        id: "hellofile"
+        path: "words/hello_${sample_id}.txt"
+        import_from: 
+          comment: "This is publicly available file in Azure Blob storage."
+          url: "TODO"
+          path: "/data/hello.in"
+      - 
+        comment: "This results file will be created by the analysis run."
+        id: "helloworldfile"
+        path: "results/helloworld_${sample_id}.txt"
+        save_to: 
+          comment: "The file will be written to Azure Blob storage"
+          account: "TODO"
+          container: "TODO"
+          blob_id: "TODO"
+    sessions: 
+      - 
+        comment: "A session is a set of tasks that share a common working directory, typically run on a single machine"
+        session_resource_set: 
+          comment: "These are minimum resources for the whole session, i.e. requirements for a VM and mounted storage where a session will run"
+          disk_space: "50k"
+          memory: "16G"
+          cores: 1
+        steps: 
+          - 
+            comment: "Even though worldfile is only used inside the session, we declare it to make it clear that this step runs before helloworldstep"
+            constants: 
+              world_text: "world"
+            command: "echo ${world_text} > ${worldfile}"
+            application: 
+              docker_image: "echo"
+            step_resource_set: 
+              memory: "1G"
+              cores: 1
+          - 
+            Comment: "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile."
+            constants: 
+              space_char: " "
+            command: "cat ${hellofile}${space_char}${worldfile} > ${helloworldfile}"
+            application: 
+              docker_image: "isaacliao/bwa-0.7.7"
+            step_resource_set: 
+              memory: "1G"
+              cores: 1
+        input_file_ids: 
+          - "hellofile"
+        output_file_ids: 
+          - "helloworldfile"
