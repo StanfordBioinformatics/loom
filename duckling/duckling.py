@@ -12,8 +12,6 @@ import logging
 import requests
 import daemon
 
-from xppf.server.apps.analysis.models import Analysis
-
 DAEMON = False
 SLEEP_TIME = 5
 SERVER_URL = 'http://localhost:8000'
@@ -74,15 +72,20 @@ def main():
         daemon_context.open()
 
     while(True):
-        analysis_ids = get_analysis(None)
-        print( "#"+str(analysis_ids)+" of analyses in the todo list" )
-        for analysis_entry in analysis_ids:
+        analysis_status = get_analysis(None)
+        print( "#"+str(analysis_status)+" of analyses in the todo list" )
+        for analysis_entry in analysis_status:
             #Execute the analysis
-            analysis_id = get_analysis(analysis_entry['fields']['analysis'])
-            print("\n***analyze:"+str(analysis_id))
-            analysis = Analysis.objects.get(analysisid=analysis_id)
-            for step in analysis.steps:
-                print("\n>>>STEP:"+str(step))
+            analyses = get_analysis(analysis_entry['fields']['analysis'])
+            print("\n***analyze:"+str(analyses))
+            step_i=0
+            for analysis in analyses:
+                step_i = step_i+1
+                container = analysis['container']
+                command = analysis['command']
+                print(">>>STEP "+str(step_i))
+                print("container:"+container)
+                print("command:"+command)
             #update_analysis(analysis_id)
         time.sleep(1) 
         print('hi')
