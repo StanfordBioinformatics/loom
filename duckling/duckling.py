@@ -59,7 +59,7 @@ def upload_file(localfile, remotecontainer, remoteblob):
     transfer_file(localfile, remotecontainer, remoteblob)
 
 def transfer_file(localfile, remotecontainer, remoteblob):
-    # Note: blobxfer.py seems to have a bug with transferring empty files
+    # Requires blobxfer.py; seems to have a bug with transferring empty files
     subprocess.call(['./blobxfer.py', '--remoteresource', remoteblob, '--storageaccountkey', _STORAGE_ACCOUNT_KEY, _STORAGE_ACCOUNT_NAME, remotecontainer, localfile]) 
 
 def main():
