@@ -6,17 +6,20 @@ runs analyses, uploads output files, and updates the server with analysis status
 If DAEMON = True, runs as a detached process, writing stdout and stderr to log files in the current directory.
 """
 
+import subprocess
 import time
 import json
 import logging
 import requests
 import daemon
 
-DAEMON = False
-SLEEP_TIME = 5
-SERVER_URL = 'http://localhost:8000'
-ANALYSES_URL = SERVER_URL + '/analyses'
-STATUS_URL = SERVER_URL + '/status'
+_DAEMON = False
+_SLEEP_TIME = 5
+_SERVER_URL = 'http://localhost:8000'
+_ANALYSES_URL = _SERVER_URL + '/analyses'
+_STATUS_URL = _SERVER_URL + '/status'
+_STORAGE_ACCOUNT_KEY = '8hz9b5H3broyRlJTxMDFPR2b+LeYrpbD18PZZrbOZ8SNV35IGwL2IXvAgCzJ7qMd4s0LQDqcPS6t+OR4rW6OcQ=='
+_STORAGE_ACCOUNT_NAME = 'scgs'
 
 def check_server_status(status_url):
     r=requests.get(status_url)
@@ -55,11 +58,15 @@ def update_status(server_url):
     status_data = '{"analysis_id":"'+analysis_id+'","server":"localhost"}'
     r=requests.post("http://localhost:8000/"+analysis_id, data={}, headers = {'Content-type':'application/json','Accept':'text/plain'})
 
-def download_file(file_info):
-    msg=''
+def download_file(remotecontainer, remoteblob, localfile):
+    transfer_file(localfile, remotecontainer, remoteblob)
 
-def upload_file(file_info):
-    msg=''
+def upload_file(localfile, remotecontainer, remoteblob):
+    transfer_file(localfile, remotecontainer, remoteblob)
+
+def transfer_file(localfile, remotecontainer, remoteblob):
+    # Note: blobxfer.py seems to have a bug with transferring empty files
+    subprocess.call(['./blobxfer.py', '--remoteresource', remoteblob, '--storageaccountkey', _STORAGE_ACCOUNT_KEY, _STORAGE_ACCOUNT_NAME, remotecontainer, localfile]) 
 
 def main():
     """Runs as a detached process, writing stdout and stderr to log files in the current directory."""
