@@ -121,23 +121,24 @@ class Analysis(models.Model):
     access = models.IntegerField(default=755)
     def prepareJSON(self):
         objs_4_runner = []
-        file_objs = []
+        import_file_objs = []
+        export_file_objs = []
         step_objs = []
         for session in self.pipelineid.sessionids.all():
             for file_entry in session.importfiles.all():
                 obj_4_runner = {}
                 obj_4_runner['input_file_ids']=file_entry.uri
-                file_objs.append(obj_4_runner)
+                import_file_objs.append(obj_4_runner)
             for file_entry in session.savefiles.all():
                 obj_4_runner = {}
                 obj_4_runner['output_file_ids']=file_entry.uri
-                file_objs.append(obj_4_runner)
+                export_file_objs.append(obj_4_runner)
             for step in session.steps.all():
                 obj_4_runner = {}
                 obj_4_runner['container']=step.application
                 obj_4_runner['command']=step.cmd
                 step_objs.append(obj_4_runner)
-        objs_4_runner.append({'files':file_objs})
+        objs_4_runner.append({'files':{'imports':import_file_objs,'exports':export_file_objs}})
         objs_4_runner.append({'steps':step_objs})
         return json.dumps(objs_4_runner)
 

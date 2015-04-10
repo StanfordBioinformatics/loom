@@ -84,9 +84,11 @@ def main():
         print('Analyses ready:',ready_analyses)
 
         # Run ready analyses
-        for analysis in ready_analyses:
-            container = analysis['container']
-            command = analysis['command']
+        importfiles = analysis['files']['imports']
+        exportfiles = analysis['files']['exports']
+        for step in ready_analyses['steps']:
+            container = step['container']
+            command = step['command']
             process = run_analysis(container, command)
             print('Running command \"',command,'\" in container',container)
 
