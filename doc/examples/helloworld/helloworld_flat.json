@@ -52,7 +52,11 @@
 		"id": "helloworldsession",
 		"comment": "A session is a set of tasks that share a common working directory, typically run on a single machine",
 		"session_resource_set": "default_session_resource_set",
-		"steps": [
+        
+        "input_file_ids": ["worldfile", "hellofile"],
+        "output_file_ids": ["helloworldfile"],
+		
+        "step_ids": [
 		    "worldstep",
 		    "helloworldstep"
 		]
@@ -70,8 +74,7 @@
 	    },
 	    "command": "echo ${world_text} > ${worldfile}",
 	    "application": "bwa",
-	    "step_resource_set": "default_step_resources",
-	    "output_file_ids": ["worldfile"]
+	    "step_resource_set": "default_step_resources"
 	},
 	{
 	    "id": "helloworldstep",
@@ -81,9 +84,7 @@
 	    },
 	    "command": "cat ${hellofile}${space_char}${worldfile} > ${helloworldfile}",
 	    "application": "bwa",
-	    "step_resource_set": "default_step_resource_set",
-	    "input_file_ids": ["worldfile", "hellofile"],
-	    "output_file_ids": ["helloworldfile"]
+	    "step_resource_set": "default_step_resource_set"
 	}
     ],
 
