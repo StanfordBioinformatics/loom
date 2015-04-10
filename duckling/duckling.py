@@ -14,49 +14,43 @@ import requests
 import daemon
 
 _DAEMON = False
-_SLEEP_TIME = 5
+_SLEEP_INTERVAL = 5
 _SERVER_URL = 'http://localhost:8000'
 _ANALYSES_URL = _SERVER_URL + '/analyses'
 _STATUS_URL = _SERVER_URL + '/status'
 _STORAGE_ACCOUNT_KEY = '8hz9b5H3broyRlJTxMDFPR2b+LeYrpbD18PZZrbOZ8SNV35IGwL2IXvAgCzJ7qMd4s0LQDqcPS6t+OR4rW6OcQ=='
 _STORAGE_ACCOUNT_NAME = 'scgs'
+_HEADERS = {'Content-type':'application/json','Accept':'text/plain'}
 
-def check_server_status(status_url):
-    r=requests.get(status_url)
-    print(r)
+def check_server_status():
+    r=requests.get(_STATUS_URL)
+    return r
 
-def get_ready_analyses(server_url):
-    """Check the server for new analyses that are ready to run."""
-    # send msg without explict analysis_id, return with todo list
-    r=requests.get(server_url, data={}, headers = {'Content-type':'application/json','Accept':'text/plain'})
-    print(r)
+def get_ready_analyses():
+    """Get all ready analyses."""
+    r=requests.get(_ANALYSES_URL, params={'status':'ready'}) 
+    json_response = r.json()
+    return json_response
 
-def get_analysis(analysis_id):
-    """Get full JSON specifying the named analysis."""
-    # send msg with explict analysis_id, return analysis description in json format
-    todo_analysis_ids = []
-    query={}
-    if(analysis_id is None):
-        r=requests.get("http://localhost:8000/analyses", data={}, headers = {'Content-type':'application/json','Accept':'text/plain'})
-        query = json.loads( r.text.replace("\\","").replace("]\"","]").replace('\"[',"[") )
-        for q in query:
-            todo_analysis_ids.append(q['fields']['analysis'])
-    else:
-        data_pkg = json.dumps({'analysis_id':analysis_id})
-        r=requests.get("http://localhost:8000/analyses", data=data_pkg, headers = {'Content-type':'application/json','Accept':'text/plain'})
-        query = json.loads( r.text.replace("\\","").replace("]\"","]").replace('\"[',"[") )
-    return query
-
-def run_analysis(analysis):
+def run_analysis(container, command):
     """Run the analysis."""
-    analysis_json = json.loads(open("analysis_demo.json").read())
-    r=requests.post(SERVER_URL, data=analysis_josn, headers = {'Content-type':'application/json','Accept':'text/plain'})
+    cmd = 'sudo docker run ' + container + ' ' + command    
+    return subprocess.Popen(cmd, shell=True)
 
-def update_status(server_url):
-    """Update the server with the current status of each analysis? all analyses?"""
-    analysis_id = "93eef400-ddb5-11e4-ab2d-60f81dd0008a"
-    status_data = '{"analysis_id":"'+analysis_id+'","server":"localhost"}'
-    r=requests.post("http://localhost:8000/"+analysis_id, data={}, headers = {'Content-type':'application/json','Accept':'text/plain'})
+def check_process(process):
+    """Check the status of the given process and return it."""
+    returncode = process.returncode
+    if returncode is None:
+        return 'running'
+    elif returncode == 0:
+        return 'done'
+    else:
+        return str(returncode)
+
+def update_analysis(analysis_id, status):
+    """Update the server with the current status of an analysis."""
+    data_pkg = json.dumps({'status':status})
+    r=requests.update(_ANALYSES_URL + '/' + str(analysis_id), data=data_pkg, headers = _HEADERS)
 
 def download_file(remotecontainer, remoteblob, localfile):
     transfer_file(localfile, remotecontainer, remoteblob)
@@ -70,7 +64,7 @@ def transfer_file(localfile, remotecontainer, remoteblob):
 
 def main():
     """Runs as a detached process, writing stdout and stderr to log files in the current directory."""
-    if DAEMON:
+    if _DAEMON:
         daemon_context = daemon.DaemonContext(
             working_directory='.',
             stdout=open('out.log', 'w'),
@@ -78,43 +72,45 @@ def main():
             )
         daemon_context.open()
 
+    running_analyses = []
+    processes = {}
     while(True):
-        analysis_status = get_analysis(None)
-        print( "#"+str(analysis_status)+" of analyses in the todo list" )
-        for analysis_entry in analysis_status:
-            #Execute the analysis
-            analyses = get_analysis(analysis_entry['fields']['analysis'])
-            print("\n***analyze:"+str(analyses))
-            step_i=0
-            for analysis in analyses:
-                step_i = step_i+1
-                container = analysis['container']
-                command = analysis['command']
-                print(">>>STEP "+str(step_i))
-                print("container:"+container)
-                print("command:"+command)
-            #update_analysis(analysis_id)
-        time.sleep(1) 
-        print('hi')
+        # Check server status
+        current_status = check_server_status()
+        print('Current server status:', current_status)
 
-#    while(True):
-#        print('Sleeping for', SLEEP_TIME, 'seconds')
-#        time.sleep(SLEEP_TIME)   
-#        print('Checking server status')
-#        check_server_status(STATUS_URL)    
-#        print('Checking for analyses that are ready to run')
-#        ready_analyses = get_ready_analyses(ANALYSES_URL)
-#        # Run ready analyses, downloading files if needed
-#        for analysis in ready_analyses:
-#            for inputfile in analysis['inputfiles']:
-#                download_file(inputfile)
-#            run_analysis(analysis)
-#        # Check status of running analyses, uploading files if done
-#        for analysis in running_analyses:
-#            if analysis['status'] == 'done':
-#                for outputfile in analysis['outputfiles']:
-#                    upload_file(outputfile)
-#            update_status(analysis)
+        # Check for ready analyses
+        ready_analyses = get_ready_analyses()        
+        print('Analyses ready:',ready_analyses)
+
+        # Run ready analyses
+        for analysis in ready_analyses:
+            container = analysis['container']
+            command = analysis['command']
+            process = run_analysis(container, command)
+            print('Running command \"',command,'\" in container',container)
+
+            analysis_id = analysis['analysisid']
+            running_analyses.append(analysis_id)
+            processes[analysis_id] = process
+
+        # Update server with status of each analysis
+        completed_analyses = []
+        for analysis_id in running_analyses:
+            process = processes[analysis_id]
+            status = check_process(process)
+            update_analysis(analysis_id, status)
+            print('Updating server, analysis:', analysis_id, 'status:', status)
+
+            if status == 'done':
+                completed_analyses.append(analysis_id)
+        
+        # Remove completed analyses from the list of running analyses
+        for analysis_id in completed_analyses:
+            running_analyses.remove(analysis_id)
+
+        # Go back to sleep
+        time.sleep(_SLEEP_INTERVAL) 
 
 if __name__ == "__main__":
     main()
