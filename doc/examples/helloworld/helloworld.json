@@ -44,38 +44,41 @@
 		    "memory": "16G",
 		    "cores": 1
 		},
-		"steps": [
-		    {
-			"comment": "Even though worldfile is only used inside the session, we declare it to make it clear that this step runs before helloworldstep",
-			"constants": {
-			    "world_text": "world"
-			},
-			"command": "echo ${world_text} > ${worldfile}",
-			"application": {
-			    "docker_image": "echo"
-			},
-			"step_resource_set": {
-			    "memory": "1G",
-			    "cores": 1
-			}
-		    },
-		    {
-			"Comment": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
-			"constants": {
-			    "space_char": " "
-			},
-			"command": "cat ${hellofile}${space_char}${worldfile} > ${helloworldfile}",
-			"application": {
-			    "docker_image": "isaacliao/bwa-0.7.7"
-			},
-			"step_resource_set": {
-			    "memory": "1G",
-			    "cores": 1
-			}
-		    }
-		],
 		"input_file_ids": ["hellofile"],
-		"output_file_ids": ["helloworldfile"]
+		"output_file_ids": ["helloworldfile"],
+		"step_ids": ["worldstep", "helloworldstep"]
+	    }
+	],
+	"steps": [
+	    {
+		"id": "worldstep",
+		"comment": "Even though worldfile is only used inside the session, we declare it to make it clear that this step runs before helloworldstep",
+		"constants": {
+		    "world_text": "world"
+		},
+		"command": "echo ${world_text} > ${worldfile}",
+		"application": {
+		    "docker_image": "echo"
+		},
+		"step_resource_set": {
+		    "memory": "1G",
+		    "cores": 1
+		}
+	    },
+	    {
+		"id": "helloworldstep",
+		"Comment": "This step concatenates hello with world to write hello world. It won't run until that step finishes because it needs worldfile.",
+		"constants": {
+		    "space_char": " "
+		},
+		"command": "cat ${hellofile}${space_char}${worldfile} > ${helloworldfile}",
+		"application": {
+		    "docker_image": "isaacliao/bwa-0.7.7"
+		},
+		"step_resource_set": {
+		    "memory": "1G",
+		    "cores": 1
+		}
 	    }
 	]
     }
