@@ -63,10 +63,10 @@ def create(request):
         return JsonResponse({"message": 'Error: Input is not in valid JSON format: "%s" ' % err}, status=400)
 
     # TODO wait the schema validation function to be done
-    #try:
-    #    clean_data_json = RunRequestHelper.clean_json(request.body)
-    #except RunRequestValidationError as e:
-    #    return JsonResponse({"message": 'Error validating the run request. "%s"' % e.message}, status=400)
+    try:
+        clean_data_json = RunRequestHelper.clean_json(request.body)
+    except RunRequestValidationError as e:
+        return JsonResponse({"message": 'Error validating the run request. "%s"' % e.message}, status=400)
     
 
     # AnalysisRequest.create(clean_data_json)
