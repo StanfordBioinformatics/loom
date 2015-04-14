@@ -2,7 +2,7 @@
 HTTP Verb   Path    View method Used for
 POST    /analyses   analysis.views.analysis.create  Create a new analysis
 GET /analyses   analysis.views.analysis.index   Show all analyses. Accepts param ?status=ready
-UPDATE  /analyses/$id   analysis.views.analysis.update  Update analysis. (used to set status=done)
+PUT /analyses/$id   analysis.views.analysis.update  Update analysis. (used to set status=done)
 '''
 
 from django.http import JsonResponse
