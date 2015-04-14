@@ -21,8 +21,7 @@ _SLEEP_INTERVAL = 5
 _SERVER_URL = 'http://localhost:80'
 _ANALYSES_URL = _SERVER_URL + '/analyses'
 _STATUS_URL = _SERVER_URL + '/status'
-_STORAGE_ACCOUNT_KEY = '8hz9b5H3broyRlJTxMDFPR2b+LeYrpbD18PZZrbOZ8SNV35IGwL2IXvAgCzJ7qMd4s0LQDqcPS6t+OR4rW6OcQ=='
-_STORAGE_ACCOUNT_NAME = 'scgs'
+_STORAGE_ACCOUNT_KEY = '' # moved to external JSON
 _HEADERS = {'Content-type':'application/json','Accept':'text/plain'}
 
 def check_server_status():
@@ -40,11 +39,109 @@ def get_analysis(analysis_id):
     data_pkg = json.dumps({'analysis_id':analysis_id})
     r=requests.get(_ANALYSES_URL, data=data_pkg, headers = _HEADERS)
     json_response = json.loads(r.json())
-    return json_response[0]
+    return json_response
+
+def update_analysis(analysis):
+    """Check the status of an analysis, including its running subprocesses, launch the next step if applicable, and update analysis status."""
+    if analysis['status'] == 'ready':
+        start_downloading(analysis)
+    if analysis['status'] == 'downloading':
+        if current_step_complete(analysis):
+            if all_steps_complete(analysis):
+                start_running(analysis)
+            else:
+                start_next_step(analysis)
+    if analysis['status'] == 'running':
+        if current_step_complete(analysis):
+            if all_steps_complete(analysis):
+                start_uploading(analysis)
+            else:
+                start_next_step(analysis)
+    if analysis['status'] == 'uploading':
+        if current_step_complete(analysis):
+            if all_steps_complete(analysis):
+                analysis['status'] = 'done'
+            else:
+                start_next_step(analysis)
     
-def run_analysis(container, command):
-    """Run the analysis."""
-    cmd = 'sudo docker run ' + container + ' ' + command    
+def current_step_complete(analysis):
+    status = check_process(analysis['current_process'])
+    if status == 'done':
+        return True
+    elif status == 'running':
+        return False
+    else:
+        raise Exception('Process failed with return code ' + status)
+
+def all_steps_complete(analysis):
+    if analysis['status'] == 'downloading':
+        num_steps = len(analysis['files']['imports'])
+    elif analysis['status'] == 'running':
+        num_steps = len(analysis['steps'])
+    elif analysis['status'] == 'uploading':
+        num_steps = len(analysis['files']['exports'])
+    else:
+        raise Exception('Unrecognized analysis status for step completion check: ' + analysis['status'])
+        
+    if current_step_complete(analysis) and analysis['step_counter'] + 1 >= num_steps:
+        return True
+    else:
+        return False
+
+def start_downloading(analysis):
+    imports = analysis['files']['imports']
+    if len(imports) < 1:
+        start_running(analysis)
+    else:
+        download_step(analysis, 0)
+        analysis['status'] = 'downloading'
+        
+def download_step(analysis, n):
+        importfile = analysis['files']['imports'][n]
+        analysis['step_counter'] = n
+        analysis['current_process'] = download_file(importfile['account'], _STORAGE_ACCOUNT_KEY, importfile['container'], importfile['blob'], importfile['local_path']) 
+
+def start_uploading(analysis):
+    exports = analysis['files']['exports']
+    if len(exports) < 1:
+        analysis['status'] = 'done'
+    else:
+        upload_step(analysis, 0)
+        analysis['status'] = 'uploading'
+
+def upload_step(analysis, n):
+        exportfile = analysis['files']['exports'][n]
+        analysis['step_counter'] = n
+        analysis['current_process'] = upload_file(exportfile['account'], _STORAGE_ACCOUNT_KEY, exportfile['container'], exportfile['blob'], exportfile['local_path']) 
+
+def start_running(analysis):
+    if len(analysis['steps']) < 1:
+        start_uploading(analysis)
+    else:
+        run_step(analysis, 0)
+        analysis['status'] = 'running'
+
+def run_step(analysis, n):
+        step = analysis['steps'][n]
+        docker_image = step['docker_image']
+        command = step['command']
+        analysis['step_counter'] = n
+        analysis['current_process'] = run_command(docker_image, command)
+
+def start_next_step(analysis):
+    n = analysis['step_counter'] + 1
+    if analysis['status'] == 'downloading':
+        download_step(analysis, n)
+    elif analysis['status'] == 'running':
+        run_step(analysis, n)
+    elif analysis['status'] == 'uploading':
+        upload_step(analysis, n)
+    else:
+        raise Exception('Unrecognized analysis status for starting next step: ' + analysis['status'])
+
+def run_command(image, command):
+    """Run command using Docker image."""
+    cmd = 'sudo docker run ' + image + ' ' + command    
     return subprocess.Popen(cmd, shell=True)
 
 def check_process(process):
@@ -57,20 +154,20 @@ def check_process(process):
     else:
         return str(returncode)
 
-def update_analysis(analysis_id, status):
+def update_server(analysis_id, status):
     """Update the server with the current status of an analysis."""
     data_pkg = json.dumps({'status':status})
     r=requests.update(_ANALYSES_URL + '/' + str(analysis_id), data=data_pkg, headers = _HEADERS)
 
-def download_file(remotecontainer, remoteblob, localfile):
-    transfer_file(localfile, remotecontainer, remoteblob)
+def download_file(account, key, remotecontainer, remoteblob, localfile):
+    return transfer_file(account, key, localfile, remotecontainer, remoteblob, '--forcedownload')
 
-def upload_file(localfile, remotecontainer, remoteblob):
-    transfer_file(localfile, remotecontainer, remoteblob)
+def upload_file(account, key, localfile, remotecontainer, remoteblob):
+    return transfer_file(account, key, localfile, remotecontainer, remoteblob, '--forceupload')
 
-def transfer_file(localfile, remotecontainer, remoteblob):
+def transfer_file(account, key, localfile, remotecontainer, remoteblob, direction):
     # Requires blobxfer.py; seems to have a bug with transferring empty files
-    subprocess.call(['./blobxfer.py', '--remoteresource', remoteblob, '--storageaccountkey', _STORAGE_ACCOUNT_KEY, _STORAGE_ACCOUNT_NAME, remotecontainer, localfile]) 
+    return subprocess.Popen(['./blobxfer.py', direction, '--remoteresource', remoteblob, '--storageaccountkey', key, account, remotecontainer, localfile]) 
 
 def main():
     """Runs as a detached process, writing stdout and stderr to log files in the current directory."""
@@ -82,9 +179,12 @@ def main():
             )
         daemon_context.open()
 
-    running_analyses = []
+    # Open config JSON file and read inputs.
+    with open('duckling.json') as configfile:
+        config = json.load(configfile)
+        _STORAGE_ACCOUNT_KEY = config['_STORAGE_ACCOUNT_KEY']
+        
     analyses = {}
-    processes = {}
     while(True):
         # Check server status
         current_status = check_server_status()
@@ -108,40 +208,15 @@ def main():
         # Check each analysis in the dict and update as necessary
         for analysis_id in analyses:
             analysis = analyses[analysis_id]
-            status = analysis['status']
-            if status == 'ready':
-            elif status == 'downloading':
-            elif status == 'running':
-            elif status == 'uploading':
-            elif status == 'done':
+            update_analysis(analysis)
 
-        # Run ready analyses
-        #importfiles = analysis['files']['imports']
-        #exportfiles = analysis['files']['exports']
-        for step in ready_analyses['steps']:
-            container = step['container']
-            command = step['command']
-            process = run_analysis(container, command)
-            print('Running command \"',command,'\" in container',container)
-
-            analysis_id = analysis['analysisid']
-            running_analyses.append(analysis_id)
-            processes[analysis_id] = process
-
-        # Update server with status of each analysis
-        completed_analyses = []
-        for analysis_id in running_analyses:
-            process = processes[analysis_id]
-            status = check_process(process)
-            update_analysis(analysis_id, status)
-            print('Updating server, analysis:', analysis_id, 'status:', status)
-
-            if status == 'done':
-                completed_analyses.append(analysis_id)
-        
-        # Remove completed analyses from the list of running analyses
-        for analysis_id in completed_analyses:
-            running_analyses.remove(analysis_id)
+            # Update server with status of analysis
+            if analysis['status'] == 'downloading' or analysis['status'] == 'running' or analysis['status'] == 'uploading':
+                update_server(analysis_id, 1) #1 = running
+                print('Updating server, analysis:', analysis_id, 'status: running')
+            elif analysis['status'] == 'done':
+                update_server(analysis_id, 2) #2 = done
+                print('Updating server, analysis:', analysis_id, 'status: done')
 
         # Go back to sleep
         time.sleep(_SLEEP_INTERVAL) 

@@ -2,4 +2,4 @@
 
 XPPFROOT=$(pwd)/$(dirname $0)/..
 export PYTHONPATH=${XPPFROOT}/..:$PYTHONPATH
-python $XPPFROOT/duckling/duckling.py "$@"
+python3 $XPPFROOT/duckling/duckling.py "$@"
