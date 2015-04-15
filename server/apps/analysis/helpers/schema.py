@@ -51,8 +51,9 @@ class RunRequestSchema(object):
         "clean_session": {
             "type": "object",
             "properties": {
-                "input_file": {"type": "array", "items": {"$ref": "#/definitions/id"}},
-                "output_file": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "input_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "output_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "step_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
                 "session_resource_set": {"$ref": "#/definitions/session_resource_set"}
             },
             "additionalProperties": False
@@ -60,8 +61,9 @@ class RunRequestSchema(object):
         "raw_session": {
             "type": "object",
             "properties": {
-                "input_file": {"type": "array", "items": {"$ref": "#/definitions/id"}},
-                "output_file": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "input_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "output_file_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
+                "step_ids": {"type": "array", "items": {"$ref": "#/definitions/id"}},
                 "id": {"$ref": "#/definitions/id"},
                 "comment": {"$ref": "#/definitions/comment"},
                 "constants": {"$ref": "#/definitions/constants"},
@@ -155,7 +157,6 @@ class RunRequestSchema(object):
                 }
             },
             "required": ["path"],
-            "additionalProperties": False
         },
         "clean_steps": {
             "type": "array", 
@@ -221,7 +222,10 @@ class RunRequestSchema(object):
                 "id": {"$ref": "#/definitions/id"},
                 "comment": {"$ref": "#/definitions/comment"},
                 "constants": {"$ref": "#/definitions/constants"},
-                "path": {"type": "string"}
+                "path": {"type": "string"},
+                "account": {"type": "string"},
+                "container": {"type": "string"},
+                "blob_id": {"type": "string"}
             },
             "required": ["path"],
             "additionalProperties": False
