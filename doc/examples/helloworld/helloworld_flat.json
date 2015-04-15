@@ -14,11 +14,12 @@
 	{
 	    "id": "hellofilesource",
 	    "comment": "This is publicly available file in Azure Blob storage.",
-	    "url": "TODO"
+	    "path": "TODO"
 	},
 	{
 	    "id": "helloworldfiledestination",
 	    "comment": "The file will be written to Azure Blob storage",
+        "path": "http://TODO",
 	    "account": "TODO",
 	    "container": "TODO",
 	    "blob_id": "TODO"

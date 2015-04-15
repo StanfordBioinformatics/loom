@@ -18,6 +18,8 @@ from apps.analysis.models import Analysis
 from apps.analysis.models import Pipeline
 from apps.analysis.models import Session
 
+import traceback
+
 import json
 import uuid
 import sys
@@ -66,7 +68,7 @@ def create(request):
     try:
         clean_data_json = RunRequestHelper.clean_json(request.body)
     except RunRequestValidationError as e:
-        return JsonResponse({"message": 'Error validating the run request. "%s"' % e.message}, status=400)
+        return JsonResponse({"message": 'Error validating the run request. "%s"' % (e.message+"<br>"+str(traceback.format_exc()))}, status=400)
     
 
     # AnalysisRequest.create(clean_data_json)
