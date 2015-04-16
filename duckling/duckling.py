@@ -8,6 +8,7 @@ If DAEMON = True, runs as a detached process, writing stdout and stderr to log f
 State transition diagram for analyses: ready --> (downloading) --> running --> (uploading) --> done
 """
 
+import os
 import subprocess
 import time
 import json
@@ -180,7 +181,8 @@ def main():
         daemon_context.open()
 
     # Open config JSON file and read inputs.
-    with open('duckling.json') as configfile:
+    xppfroot = os.environ['XPPFROOT']
+    with open(os.path.join(xppfroot, 'duckling', 'duckling.json')) as configfile:
         config = json.load(configfile)
         _STORAGE_ACCOUNT_KEY = config['_STORAGE_ACCOUNT_KEY']
         
