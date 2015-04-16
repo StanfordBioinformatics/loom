@@ -222,12 +222,12 @@ class RunRequestSchema(object):
                 "id": {"$ref": "#/definitions/id"},
                 "comment": {"$ref": "#/definitions/comment"},
                 "constants": {"$ref": "#/definitions/constants"},
-                "path": {"type": "string"},
+                "url": {"type": "string"},
                 "account": {"type": "string"},
                 "container": {"type": "string"},
                 "blob_id": {"type": "string"}
             },
-            "required": ["path"],
+            "required": ["url"],
             "additionalProperties": False
         },
         "applications": {
