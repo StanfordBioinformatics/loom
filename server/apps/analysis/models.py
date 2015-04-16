@@ -27,7 +27,8 @@ class File(models.Model):
     comment = models.CharField(max_length=256, default='')
     def jsonToClass( self, aux ):
         self.fileid = aux['id']
-        self.uri = aux['url']
+        if 'url' in aux:
+            self.uri= aux['url']
         if 'container' in aux:
             self.container = aux['container']
         if 'blob' in aux:
