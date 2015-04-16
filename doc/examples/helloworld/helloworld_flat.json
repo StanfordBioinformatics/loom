@@ -14,7 +14,7 @@
     {
         "id": "hellofilesource",
         "comment": "This is a publicly available file in Azure Blob storage.",
-        "path": "https://scgs.blob.core.windows.net/public/hellofile.txt"
+        "url": "https://scgs.blob.core.windows.net/public/hellofile.txt"
     },
     {
         "id": "helloworldfiledestination",
