@@ -20,9 +20,9 @@ class RunRequestHelper(object):
             raw_data_json, 
             object_pairs_hook=collections.OrderedDict)
 #        cls._validate_raw_data_json(data_obj)
-        cls._resolve_links(data_obj)
+#        cls._resolve_links(data_obj)
         cls._apply_constants(data_obj)
-        cls._strip_ids_and_comments(data_obj)
+#        cls._strip_ids_and_comments(data_obj)
 #        cls._validate_clean_data_json(data_obj)
         clean_data_json = json.dumps(data_obj, sort_keys=True, 
                                      indent=4, separators=(',', ': '))

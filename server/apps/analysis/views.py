@@ -72,9 +72,8 @@ def create(request):
     
 
     # AnalysisRequest.create(clean_data_json)
-    # TODO a test run request
-    # parsing the json input
-    query = json.loads(request.body)
+    # parsing the clean json input
+    query = json.loads(clean_data_json)
     pipeline = Pipeline(pipelineid="test", pipelinename="tst_pipeline", comment="")
     msg = pipeline.jsonToClass( query )
     pipeline.save()

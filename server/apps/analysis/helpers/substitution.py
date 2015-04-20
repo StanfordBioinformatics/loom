@@ -55,7 +55,8 @@ class Substitution(object):
     # The pair FILE_KEY_FIELD.value:FILE_VALUE_FIELD.value define a constant.
     FILE_LIST_KEY = 'files'
     FILE_KEY_FIELD = 'id'
-    FILE_VALUE_FIELD = 'path'
+    # changed from 'path' to 'local_path', ziliang qian @April20th.2015
+    FILE_VALUE_FIELD = 'local_path'
 
     @classmethod
     def apply_constants_in_json(cls, data_json):
@@ -126,10 +127,13 @@ class Substitution(object):
             return
         # If {"files":[{"id":...,"path":...},...]} is defined, treat id -> path as a definition for a constant.
         for thisfile in dict_obj[cls.FILE_LIST_KEY]:
-            key = thisfile.get(cls.FILE_KEY_FIELD)
-            value = thisfile.get(cls.FILE_VALUE_FIELD)
-            if (key is not None) and (value is not None):
-                cls._insert_new_constant(key, value, constant_dict)
+            try:
+	        key = thisfile.get(cls.FILE_KEY_FIELD)
+                value = thisfile.get(cls.FILE_VALUE_FIELD)
+                if (key is not None) and (value is not None):
+                    cls._insert_new_constant(key, value, constant_dict)
+            except AttributeError:
+                pass
 
     @classmethod
     def _insert_new_constants(cls, new_constants, constant_dict):
