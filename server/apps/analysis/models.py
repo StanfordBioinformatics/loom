@@ -42,7 +42,13 @@ class File(models.Model):
         if 'comment' in aux:
             self.comment= aux['comment']
 
-
+class Application(models.Model):
+    applicationid = models.CharField(max_length=256, primary_key=True)
+    docker_image = models.CharField(max_length=256, default='')
+    def jsonToClass( self, aux ):
+        self.applicationid = aux['id']
+        if 'docker_image' in aux:
+            self.docker_image = aux['docker_image']
 
 class Resource(models.Model):
     resourceid = models.IntegerField(primary_key=True, default=0)
@@ -101,7 +107,13 @@ class Pipeline(models.Model):
             if type(query["remote_file_locations"]) is list :
                 for remote_file_entry in query["remote_file_locations"]:
                      r_file_loc_dict[remote_file_entry['id']] = remote_file_entry
-            
+
+            app_dict = {}
+            for app_entry in query["applications"]:
+                app = Application(applicationid=app_entry['id'], docker_image=app_entry['docker_image'])
+                app.save()
+                app_dict[app.applicationid] = app
+
             for file_entry in query["files"]:
                 f = File(uri="", fileid="", ownerid=0, comment="")
                 f.jsonToClass(file_entry)
@@ -183,7 +195,7 @@ class Analysis(models.Model):
                 export_file_objs.append(obj_4_runner)
             for step in session.steps.all():
                 obj_4_runner = {}
-                obj_4_runner['docker_image']=step.application
+                obj_4_runner['docker_image']=Application.objects.get(applicationid=step.application).docker_image
                 obj_4_runner['command']=step.cmd
                 step_objs.append(obj_4_runner)
         objs_4_runner['files']={'imports':import_file_objs,'exports':export_file_objs}
