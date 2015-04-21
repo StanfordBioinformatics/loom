@@ -18,6 +18,7 @@ from datetime import timedelta
 class File(models.Model):
     fileid = models.CharField(primary_key=True, max_length=30)
     uri = models.CharField(max_length=256)
+    remote_url = models.CharField(max_length=256)
     ownerid = models.IntegerField(default=0)
     access = models.IntegerField(default=755)
     # the following fields is reserved for microsoft Azure
@@ -25,18 +26,21 @@ class File(models.Model):
     container = models.CharField(max_length=256, default='')
     account = models.CharField(max_length=256, default='')
     comment = models.CharField(max_length=256, default='')
+    rw = models.CharField(max_length=256, default='r')
     def jsonToClass( self, aux ):
         self.fileid = aux['id']
-        if 'url' in aux:
-            self.uri= aux['url']
+        # change 'url' to 'local_path', ziliang Qian @April20.2015
+        if 'local_path' in aux:
+            self.uri= aux['local_path']
         if 'container' in aux:
             self.container = aux['container']
-        if 'blob' in aux:
-            self.container = aux['blob']
+        # change 'blob' to 'blob_id', ziliang Qian @April20.2015
+	if 'blob_id' in aux:
+            self.blob = aux['blob_id']
         if 'account' in aux:
-            self.container = aux['account']
+            self.account = aux['account']
         if 'comment' in aux:
-            self.container = aux['comment']
+            self.comment= aux['comment']
 
 
 
@@ -92,20 +96,40 @@ class Pipeline(models.Model):
         # files
         file_dict = {'':''}
         if type(query["files"]) is list :
+            #remote_file_location
+            r_file_loc_dict = {'':''}
+            if type(query["remote_file_locations"]) is list :
+                for remote_file_entry in query["remote_file_locations"]:
+                     r_file_loc_dict[remote_file_entry['id']] = remote_file_entry
+            
             for file_entry in query["files"]:
-                        f = File(uri="", fileid="", ownerid=0, comment="")
-                        f.jsonToClass(file_entry)
-                        f.save()
-                        file_dict[file_entry["id"]]=f
-
+                f = File(uri="", fileid="", ownerid=0, comment="")
+                f.jsonToClass(file_entry)
+                f.save()
+                if 'import_from' in file_entry :
+                    remote_file = r_file_loc_dict[file_entry['import_from']]
+                    f.remote_url = remote_file['url']
+                    f.rw = 'r'
+                    f.save()
+                if 'save_to' in file_entry :
+                    remote_file = r_file_loc_dict[file_entry['save_to']]
+                    f.blob = remote_file['blob_id']
+                    f.account = remote_file['account']
+                    f.container = remote_file['container']
+                    f.comment = f.comment + "\n" + remote_file['comment']
+                    f.rw = 'w'
+                    f.save()
+                    
+                file_dict[file_entry["id"]]=f
+            
             # steps
             step_dict = {'':''}
             if type(query["steps"]) is list :
                 for step_entry in query["steps"]:
-                        s = Step(stepid="")
-                        s.jsonToClass( step_entry )
-                        s.save()
-                        step_dict[step_entry['id']] = s
+                     s = Step(stepid="")
+                     s.jsonToClass( step_entry )
+                     s.save()
+                     step_dict[step_entry['id']] = s
             
             # sessions
             if type(query["sessions"]) is list :
@@ -142,10 +166,11 @@ class Analysis(models.Model):
                 obj_4_runner = {}
                 obj_4_runner['input_file_id']=file_entry.fileid
                 obj_4_runner['local_path']=file_entry.uri
-                # reserved for Azure
-                obj_4_runner['blob']=file_entry.blob
-                obj_4_runner['account']=file_entry.account
-                obj_4_runner['container']=file_entry.container
+                obj_4_runner['url']=file_entry.remote_url
+                # reserved for Azure, import file do not have blob account
+                #obj_4_runner['blob']=file_entry.blob
+                #obj_4_runner['account']=file_entry.account
+                #obj_4_runner['container']=file_entry.container
                 import_file_objs.append(obj_4_runner)
             for file_entry in session.savefiles.all():
                 obj_4_runner = {}
