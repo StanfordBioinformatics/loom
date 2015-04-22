@@ -8,6 +8,7 @@ If DAEMON = True, runs as a detached process, writing stdout and stderr to log f
 State transition diagram for analyses: ready --> (downloading) --> running --> (uploading) --> done
 """
 
+import string
 import os
 import subprocess
 import time
@@ -48,19 +49,19 @@ def update_analysis(analysis):
         start_downloading(analysis)
     if analysis['status'] == 'downloading':
         if current_step_complete(analysis):
-            if all_steps_complete(analysis):
+            if current_steps_complete(analysis):
                 start_running(analysis)
             else:
                 start_next_step(analysis)
     if analysis['status'] == 'running':
         if current_step_complete(analysis):
-            if all_steps_complete(analysis):
+            if current_steps_complete(analysis):
                 start_uploading(analysis)
             else:
                 start_next_step(analysis)
     if analysis['status'] == 'uploading':
         if current_step_complete(analysis):
-            if all_steps_complete(analysis):
+            if current_steps_complete(analysis):
                 analysis['status'] = 'done'
             else:
                 start_next_step(analysis)
@@ -74,7 +75,7 @@ def current_step_complete(analysis):
     else:
         raise Exception('Process failed with return code ' + status)
 
-def all_steps_complete(analysis):
+def current_steps_complete(analysis):
     if analysis['status'] == 'downloading':
         num_steps = len(analysis['files']['imports'])
     elif analysis['status'] == 'running':
@@ -94,13 +95,18 @@ def start_downloading(analysis):
     if len(imports) < 1:
         start_running(analysis)
     else:
-        download_step(analysis, 0)
         analysis['status'] = 'downloading'
+        download_step(analysis, 0)
         
 def download_step(analysis, n):
         importfile = analysis['files']['imports'][n]
         analysis['step_counter'] = n
-        analysis['current_process'] = download_file(importfile['account'], _STORAGE_ACCOUNT_KEY, importfile['container'], importfile['blob'], importfile['local_path']) 
+        if 'url' in importfile:
+            analysis['current_process'] = wget_file(importfile['url'], importfile['local_path'])
+        elif 'blob' in importfile:
+            analysis['current_process'] = download_blob(importfile['account'], _STORAGE_ACCOUNT_KEY, importfile['container'], importfile['blob'], importfile['local_path']) 
+        else:
+            raise Exception('Neither url nor blob in import file')
 
 def start_uploading(analysis):
     exports = analysis['files']['exports']
@@ -113,7 +119,8 @@ def start_uploading(analysis):
 def upload_step(analysis, n):
         exportfile = analysis['files']['exports'][n]
         analysis['step_counter'] = n
-        analysis['current_process'] = upload_file(exportfile['account'], _STORAGE_ACCOUNT_KEY, exportfile['container'], exportfile['blob'], exportfile['local_path']) 
+        analysis['current_process'] = upload_blob(exportfile['account'], _STORAGE_ACCOUNT_KEY, exportfile['local_path'], exportfile['container'], exportfile['blob']) 
+        print(analysis['current_process'].args)
 
 def start_running(analysis):
     if len(analysis['steps']) < 1:
@@ -130,7 +137,8 @@ def run_step(analysis, n):
         analysis['current_process'] = run_command(docker_image, command)
 
 def start_next_step(analysis):
-    n = analysis['step_counter'] + 1
+    analysis['step_counter'] = analysis['step_counter'] + 1
+    n = analysis['step_counter']
     if analysis['status'] == 'downloading':
         download_step(analysis, n)
     elif analysis['status'] == 'running':
@@ -142,12 +150,14 @@ def start_next_step(analysis):
 
 def run_command(image, command):
     """Run command using Docker image."""
-    cmd = 'sudo docker run ' + image + ' ' + command    
+    pwd = os.getcwd()
+    cmd_template = string.Template('sudo docker run --rm -v ${pwd}:/outside -w /outside $image $command')
+    cmd = cmd_template.substitute(pwd=pwd, image=image, command=command)
     return subprocess.Popen(cmd, shell=True)
 
 def check_process(process):
     """Check the status of the given process and return it."""
-    returncode = process.returncode
+    returncode = process.poll()
     if returncode is None:
         return 'running'
     elif returncode == 0:
@@ -158,17 +168,26 @@ def check_process(process):
 def update_server(analysis_id, status):
     """Update the server with the current status of an analysis."""
     data_pkg = json.dumps({'status':status})
-    r=requests.update(_ANALYSES_URL + '/' + str(analysis_id), data=data_pkg, headers = _HEADERS)
+    r=requests.put(_ANALYSES_URL + '/' + str(analysis_id), data=data_pkg, headers = _HEADERS)
+    pprint(r)
 
-def download_file(account, key, remotecontainer, remoteblob, localfile):
-    return transfer_file(account, key, localfile, remotecontainer, remoteblob, '--forcedownload')
+def download_blob(account, key, remotecontainer, remoteblob, localfile):
+    return transfer_blob(account, key, localfile, remotecontainer, remoteblob, '--forcedownload')
 
-def upload_file(account, key, localfile, remotecontainer, remoteblob):
-    return transfer_file(account, key, localfile, remotecontainer, remoteblob, '--forceupload')
+def upload_blob(account, key, localfile, remotecontainer, remoteblob):
+    return transfer_blob(account, key, localfile, remotecontainer, remoteblob, '--forceupload')
 
-def transfer_file(account, key, localfile, remotecontainer, remoteblob, direction):
+def transfer_blob(account, key, localfile, remotecontainer, remoteblob, direction):
     # Requires blobxfer.py; seems to have a bug with transferring empty files
-    return subprocess.Popen(['./blobxfer.py', direction, '--remoteresource', remoteblob, '--storageaccountkey', key, account, remotecontainer, localfile]) 
+    blobxfer_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'blobxfer.py')
+    return subprocess.Popen([blobxfer_path, direction, '--remoteresource', remoteblob, '--storageaccountkey', key, account, remotecontainer, localfile]) 
+
+def wget_file(url, local_path):
+    try:
+        os.makedirs(os.path.dirname(local_path))
+    except FileExistsError:
+        pass
+    return subprocess.Popen(['wget', '-nd', '-O', local_path, url]) 
 
 def main():
     """Runs as a detached process, writing stdout and stderr to log files in the current directory."""
@@ -184,6 +203,7 @@ def main():
     xppfroot = os.environ['XPPFROOT']
     with open(os.path.join(xppfroot, 'duckling', 'duckling.json')) as configfile:
         config = json.load(configfile)
+        global _STORAGE_ACCOUNT_KEY
         _STORAGE_ACCOUNT_KEY = config['_STORAGE_ACCOUNT_KEY']
         
     analyses = {}
@@ -211,6 +231,7 @@ def main():
         for analysis_id in analyses:
             analysis = analyses[analysis_id]
             update_analysis(analysis)
+            print(analysis_id, analysis['status'], 'step', analysis['step_counter'])
 
             # Update server with status of analysis
             if analysis['status'] == 'downloading' or analysis['status'] == 'running' or analysis['status'] == 'uploading':
