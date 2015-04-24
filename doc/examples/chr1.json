@@ -43,14 +43,13 @@
 	"id": "outputbamdestination", 
         "account": "scgs",
         "container": "testcontainer",
-        "blob_id": "${samplename}.recal.bam",
-    }
-
+        "blob_id": "${samplename}.recal.bam"
+    },
     {
 	"id": "vcffiledestination",
         "account": "scgs",
         "container": "testcontainer",
-        "blob_id": "${samplename}.recal.vcf.gz",
+        "blob_id": "${samplename}.recal.vcf.gz"
     }
     ],
     
@@ -87,7 +86,7 @@
 	    "local_path": "${resourcedir}/hapmap_3.3.hg19.vcf"
 	},
 	{
-	    "id": "omni"
+	    "id": "omni",
 	    "local_path": "${resourcedir}/1000G_omni2.5.hg19.vcf"
 	},
 	{
@@ -171,7 +170,7 @@
 		"LB": "Library",
 		"PL": "Illumina",
 		"SM": "${samplename}"
-	    }
+	    },
             "command": "bwa mem -CMp -t $cores -R \"@RG\\tID:$ID\\tLB:$LB\\tPL:$PL\\tSM:$SM\" ${reference} ${samplename}.fastq > ${samplename}.bwa.sam",
 	    "application": "bwa"
 	},
@@ -233,7 +232,7 @@
             "id": "findtargets",
             "comment": "Find realignment targets",
             "constants": {"threads": "30"},
-            "command": "java -Xms8g -Xmx8g -jar /opt/GenomeAnalysisTK.jar -T RealignerTargetCreator -I ${chromosome}.nodup.bam -R ${reference} -o ${chromosome}.realn.intervals -L ${chromosome} -known ${goldindels} -known ${phase1indels} -et NO_ET -K ${GATKkey} -nt ${threads}"
+            "command": "java -Xms8g -Xmx8g -jar /opt/GenomeAnalysisTK.jar -T RealignerTargetCreator -I ${chromosome}.nodup.bam -R ${reference} -o ${chromosome}.realn.intervals -L ${chromosome} -known ${goldindels} -known ${phase1indels} -et NO_ET -K ${GATKkey} -nt ${threads}",
 	    "application": "gatk"
 	},
 	{
@@ -278,7 +277,7 @@
             "id": "indexbamrecal",
 	    "comment": "Index BAM file",
 	    "command": "samtools index ${chromosome}.recal.bam",
-	    "application": "samtools",
+	    "application": "samtools"
 	},
 	{
             "id": "fixindexrecal",
@@ -390,11 +389,11 @@
             "phase1indels",
             "dbsnp",
 	    "hapmap",
-	    "omni"
+	    "omni",
             "phase1snps",
             "GATKkey",
             "outputbamfile",
-	    "vcfcompressed",
+	    "vcfcompressed"
         ],
 
         "sessions": [

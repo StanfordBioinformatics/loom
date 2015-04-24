@@ -32,7 +32,7 @@ def check_server_status():
 
 def get_ready_analyses():
     """Get list of ready analyses."""
-    r=requests.get(_ANALYSES_URL, params={'status':'ready'}) 
+    r=requests.get(_ANALYSES_URL, params={'status':'0'}) 
     json_response = json.loads(r.json())
     return json_response
 
