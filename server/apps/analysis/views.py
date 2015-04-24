@@ -28,13 +28,16 @@ import sys
 @csrf_exempt
 def update(request):
     query = json.loads(request.body)
-    if 'analysis_id' in query:
-        status = AnalysisStatus.objects.get(analysis = Analysis(analysisid=query['analysis_id']))
+    analysis_id = request.path.replace("analyses/","").replace("/","")
+    #if 'analysis_id' in query || request.path.replace("analyses/","")
+    
+    try:
+        status = AnalysisStatus.objects.get(analysis = Analysis(analysisid=analysis_id))
         status.updateStatus(query)
-        objs = [ AnalysisStatus.objects.get(analysis = Analysis(analysisid=query['analysis_id'])) ]
+        objs = [ AnalysisStatus.objects.get(analysis = Analysis(analysisid=analysis_id)) ]
         return JsonResponse(serializers.serialize('json', objs), safe=False, status=200)
-    else:
-        return JsonResponse({'msg':'wrong analysis ID'}, status=200)
+    except:
+        return JsonResponse({'msg':'wrong analysis ID'+analysis_id}, status=400)
 
 # indexing the analysis
 @csrf_exempt

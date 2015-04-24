@@ -60,9 +60,12 @@ class Resource(models.Model):
     comment = models.CharField(max_length=256, default='')
     def jsonToClass( self, aux ):
         self.resourceid = aux['id']
-        self.diskspace = aux['disk_space']
-        self.memory = aux['disk_space']
-        self.cores = aux['cores']
+        if 'disk_space' in aux:
+            self.diskspace = aux['disk_space']
+        if 'memory' in aux:
+            self.memory = aux['memory']
+        if 'cores' in aux:
+            self.cores = aux['cores']
 
 class Step(models.Model):
     stepid = models.CharField(primary_key=True, max_length=256)
@@ -73,9 +76,12 @@ class Step(models.Model):
     access = models.IntegerField(default=755)
     def jsonToClass( self, aux ):
         self.stepid = aux['id']
-        self.comment = aux['comment']
-        self.cmd = aux['command']
-        self.application = aux['application']
+        if 'comment' in aux:
+            self.comment = aux['comment']
+        if 'command' in aux:
+            self.cmd = aux['command']
+        if 'application' in aux:
+            self.application = aux['application']
         
 
 class Session(models.Model):
@@ -89,7 +95,8 @@ class Session(models.Model):
     access = models.IntegerField(default=755)
     def jsonToClass( self, aux ):
         self.sessionid = aux['id']
-        self.comment = aux['comment']
+        if 'comment' in aux:
+            self.comment = aux['comment']
     
 
 class Pipeline(models.Model):
@@ -128,7 +135,8 @@ class Pipeline(models.Model):
                     f.blob = remote_file['blob_id']
                     f.account = remote_file['account']
                     f.container = remote_file['container']
-                    f.comment = f.comment + "\n" + remote_file['comment']
+                    if 'comment' in remote_file:
+                        f.comment = f.comment + "\n" + remote_file['comment']
                     f.rw = 'w'
                     f.save()
                     
@@ -229,6 +237,8 @@ class AnalysisStatus(models.Model):
             self.coresusage = query['coresusage']
         if 'msg' in query: 
             self.msg = query['msg']
+        if 'status' in query: 
+            self.status = query['status']
         self.save()
 
 
