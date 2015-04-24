@@ -151,8 +151,10 @@ def start_next_step(analysis):
 def run_command(image, command):
     """Run command using Docker image."""
     pwd = os.getcwd()
-    cmd_template = string.Template('sudo docker run --rm -v ${pwd}:/outside -w /outside $image $command')
+    cmd_template = string.Template('sudo docker run --rm -v ${pwd}:/outside -w /outside $image sh -c \'env time -v $command\'')
     cmd = cmd_template.substitute(pwd=pwd, image=image, command=command)
+    time_string = time.strftime("[%A %Y-%m-%d %H:%M:%S] ")
+    print(time_string + cmd, flush=True)
     return subprocess.Popen(cmd, shell=True)
 
 def check_process(process):
@@ -169,7 +171,6 @@ def update_server(analysis_id, status):
     """Update the server with the current status of an analysis."""
     data_pkg = json.dumps({'status':status})
     r=requests.put(_ANALYSES_URL + '/' + str(analysis_id), data=data_pkg, headers = _HEADERS)
-    pprint(r)
 
 def download_blob(account, key, remotecontainer, remoteblob, localfile):
     return transfer_blob(account, key, localfile, remotecontainer, remoteblob, '--forcedownload')
@@ -183,10 +184,12 @@ def transfer_blob(account, key, localfile, remotecontainer, remoteblob, directio
     return subprocess.Popen([blobxfer_path, direction, '--remoteresource', remoteblob, '--storageaccountkey', key, account, remotecontainer, localfile]) 
 
 def wget_file(url, local_path):
-    try:
-        os.makedirs(os.path.dirname(local_path))
-    except FileExistsError:
-        pass
+    local_dir = os.path.dirname(local_path)
+    if len(local_dir) > 0:
+        try:
+            os.makedirs(local_dir)
+        except FileExistsError:
+            pass
     return subprocess.Popen(['wget', '-nd', '-O', local_path, url]) 
 
 def main():
@@ -210,18 +213,17 @@ def main():
     while(True):
         # Check server status
         current_status = check_server_status()
-        print('Current server status:', current_status)
+        # print('Current server status:', current_status)
 
         # Check for ready analyses
         ready_analyses = get_ready_analyses()        
         print(len(ready_analyses), 'analyses ready')
-        #pprint(ready_analyses)
 
         # Grab details for ready analyses and add them to the analyses dict
         for analysis in ready_analyses:
             analysis_id = analysis['fields']['analysis']
             analysis_details = get_analysis(analysis_id)
-            print('Analysis id', analysis_id)
+            print('Adding analysis to dict, id:', analysis_id)
             pprint(analysis_details)
             if analysis_id not in analyses:
                 analyses[analysis_id] = analysis_details
@@ -236,7 +238,7 @@ def main():
             # Update server with status of analysis
             if analysis['status'] == 'downloading' or analysis['status'] == 'running' or analysis['status'] == 'uploading':
                 update_server(analysis_id, 1) #1 = running
-                print('Updating server, analysis:', analysis_id, 'status: running')
+                #print('Updating server, analysis:', analysis_id, 'status: running')
             elif analysis['status'] == 'done':
                 update_server(analysis_id, 2) #2 = done
                 print('Updating server, analysis:', analysis_id, 'status: done')

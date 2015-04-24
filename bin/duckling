@@ -1,5 +1,5 @@
 #!/bin/bash
 
-export XPPFROOT=$(pwd)/$(dirname $0)/..
+export XPPFROOT=$(dirname $(readlink -f "$0"))/..
 export PYTHONPATH=${XPPFROOT}/..:$PYTHONPATH
 python3 $XPPFROOT/duckling/duckling.py "$@"
