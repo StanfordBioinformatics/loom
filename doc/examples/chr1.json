@@ -177,7 +177,7 @@
 	{
             "id": "samtobam",
             "comment": "Convert SAM to BAM",
-            "command": "samtools view -Sbt ${refindex} -o ${samplename}.bw.bam ${samplename}.bwa.sam",
+            "command": "samtools view -Sbt ${refindex} -o ${samplename}.bwa.bam ${samplename}.bwa.sam",
 	    "application": "samtools"
 	},
         {
