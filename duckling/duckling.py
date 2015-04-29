@@ -181,7 +181,7 @@ def upload_blob(account, key, localfile, remotecontainer, remoteblob):
 def transfer_blob(account, key, localfile, remotecontainer, remoteblob, direction):
     # Requires blobxfer.py; seems to have a bug with transferring empty files
     blobxfer_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'blobxfer.py')
-    return subprocess.Popen([blobxfer_path, direction, '--remoteresource', remoteblob, '--storageaccountkey', key, account, remotecontainer, localfile]) 
+    return subprocess.Popen([blobxfer_path, '--noprogressbar', direction, '--remoteresource', remoteblob, '--storageaccountkey', key, account, remotecontainer, localfile]) 
 
 def wget_file(url, local_path):
     local_dir = os.path.dirname(local_path)
@@ -190,7 +190,7 @@ def wget_file(url, local_path):
             os.makedirs(local_dir)
         except FileExistsError:
             pass
-    return subprocess.Popen(['wget', '-nd', '-O', local_path, url]) 
+    return subprocess.Popen(['wget', '--no-verbose', '-nd', '-O', local_path, url]) 
 
 def main():
     """Runs as a detached process, writing stdout and stderr to log files in the current directory."""
@@ -217,7 +217,7 @@ def main():
 
         # Check for ready analyses
         ready_analyses = get_ready_analyses()        
-        print(len(ready_analyses), 'analyses ready')
+        print(len(ready_analyses), 'analyses ready', flush=True)
 
         # Grab details for ready analyses and add them to the analyses dict
         for analysis in ready_analyses:

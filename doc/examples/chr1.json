@@ -213,7 +213,7 @@
 	{
             "id": "markduplicates",
             "comment": "Mark duplicates",
-            "command": "java -Xms5g -Xmx5g -jar /opt/picard-tools-1.32/MarkDuplicates.jar TMP_DIR=${dockermount} I=${chromosome}.bam O=${chromosome}.nodup.bam M= VALIDATION_STRINGENCY=SILENT ASSUME_SORTED=true REMOVE_DUPLICATES=false",
+            "command": "java -Xms5g -Xmx5g -jar /opt/picard-tools-1.32/MarkDuplicates.jar TMP_DIR=${dockermount} I=${chromosome}.bam O=${chromosome}.nodup.bam M=${chromosome}.bam.metrics VALIDATION_STRINGENCY=SILENT ASSUME_SORTED=true REMOVE_DUPLICATES=false",
 	    "application": "picard"
 	},
 	{
@@ -320,7 +320,7 @@
             "id": "combinevcfs",
             "comment":"Combine VCFs",
 	    "application": "gatk",
-            "command":"java -Xmx8g -Xms8g -jar /opt/GenomeAnalysisTK.jar -R ${dockermount}/${reference} -T CombineVariants --variant:VCF ${dockermount}/${chromosome}.gatk.vcf -o ${samplename}.gatk.vcf"
+            "command":"java -Xmx8g -Xms8g -jar /opt/GenomeAnalysisTK.jar -R ${reference} -T CombineVariants --variant:VCF ${dockermount}/${chromosome}.gatk.vcf -o ${samplename}.gatk.vcf"
 	},
         {
             "id": "selectsnpsforvqsr",
