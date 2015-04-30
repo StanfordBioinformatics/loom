@@ -1,11 +1,16 @@
-"""
-
 from django.test import TestCase
 from django.db import models
+from django.core.exceptions import ValidationError 
 import json
+import hashlib
 
-from .models import _Immutable
+from apps.immutable.models import _Immutable
+class FlatModel(_Immutable):
+    validation_schema = '{"jsonschema definition goes": "here"}'
+    field1 = models.CharField(max_length=256, default=' ')
+    field2 = models.CharField(max_length=256, default=' ')
 
+"""
 class ImmutableParent(_Immutable):
     name = models.CharField(max_length=100)
 
@@ -99,22 +104,83 @@ class MyImmutableModel(_Immutable):
 # Tests:
 # 
 # Flat model with no children:
-#
-# m = ModelWithNoRelations.create(data_json) 
-# Verify that m._id = hashlib.sha256(data_json).hexdigest() 
-# Verify that ModelWithNoRelations.get_by_id(hashlib.sha256(data_json).hexdigest()) returns the model
-# Edit a field on m and call m.save(). Verify that both the original model and the edited model now exist.
-# Verify that m._json matches data_json, but standardized (keys sorted, spacing standardized)
-#
-# Negative tests
-# Create model with invalid JSON
-# Create model with schema that does not match this model (models can use jsonschema to validate)
-# Edit the JSON schema so that it no longer matches the ID. Verify that the clean() method fails to validate.
-#
+# moves to models.py
+#class FlatModel(_Immutable):
+#    validation_schema = '{"jsonschema definition goes": "here"}'
+#    field1 = models.CharField(max_length=256)
+#    field2 = models.CharField(max_length=256)
+
+
+class TestFlatImmutableObject(TestCase):
+    data_json='{"field1":"value1","field2":"value2"}' #in standard format
+    data_json_nonstandard='{"field2": "value2", "field1": "value1"}'
+
+    def test_create_verify_hash(self):
+        flat_model = FlatModel.create(self.data_json) #create would call validation
+        expected_hash = hashlib.sha256(self.data_json).hexdigest()
+        self.assertEqual(expected_hash, flat_model._id)
+
+    def test_create_duplicate_entry(self):
+        flat_model = FlatModel.create(self.data_json) 
+        count1 = FlatModel.objects.count()
+        self.assertGreater(count1, 0)
+
+        flat_model2 = FlatModel.create(self.data_json) 
+        count2 = FlatModel.objects.count()
+        self.assertEqual(count1, count2)
+
+        self.assertEqual(flat_model1._id, flat_model2._id)
+
+    def test_create_with_nonstandard_json(self):
+        flat_model = FlatModel.create(self.data_json_nonstandard)
+        expected_hash = hashlib.sha256(self.data_json).hexdigest() #hash should be based on standard json
+        self.assertEqual(expected_hash, flat_model._id)
+
+    def test_get_by_id(self):
+        flatmodel = FlatModel.create(self.data_json)
+        flatmodel.save();
+        expected_id = hashlib.sha256(self.data_json).hexdigest()
+        entry = FlatModel.objects.get(_id=expected_id)
+        self.assertIsNotNone(entry)
+
+    def test_raises_error_on_save(self):
+        model = FlatModel.create(self.data_json)
+        with self.assertRaises(Exception):
+            model.save()
+
+    def test_invalid_json(self):
+        bad_json = '{oops this is invalid}'
+        with self.assertRaises(ValidationError):
+            FlatModel.create(bad_json)
+
+    def test_edit_json_changes_primary_key(self):
+        model=FlatModel.create(self.data_json)
+        original_hash = model._id
+        new_json = '{"field1":"new value","field2":"another new value"}' #in standard format
+        model._json = new_json
+        model.save()
+        new_hash = model._id
+        expected_hash = hashlib.sha256(new_json).hexdigest()
+        self.assertNotEqual(original_hash, new_hash)
+        self.assertEqual(model._id, expected_hash)
+
+    def test_clean_fails_if_json_is_changed(self):
+        model = FlatModel.create(self.data_json)
+        original_hash = model._id
+        new_json = '{"field1":"new value","field2":"another new value"}' #in standard format
+        model._json = new_json
+        with self.assertRaises(ValidationError):
+            model.clean()
+
+    def test_invalid_for_json_schema(self):
+        bad_json='{"field1":"value1","field2000":"value2"}'
+        with self.assertRaises(ValidationError):
+            FlatModel.create(bad_json)
+
 # Model with relations:
-# Create model where child is nested in input json
+#Create model where child is nested in input json
 #   { "child": {"child_property": "x"}}
-# or
+#or
 #   { "children": [{"child_property": "x"},
 #                  {"child_property": "y"}]}
 # Verify that parent and children are created
