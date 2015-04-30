@@ -88,6 +88,41 @@ class _Immutable(models.Model):
         # TODO json schema validation
         pass
 
+class FlatModel(_Immutable):
+    validation_schema = '{"jsonschema definition goes": "here"}'
+    field1 = models.CharField(max_length=256, default=' ')
+    field2 = models.CharField(max_length=256, default=' ')
+
+class ParentWithListChildModel(_Immutable):
+    validation_schema = '{"jsonschema definition goes": "here"}'
+    # a list of children
+    # get_class_for_key has not been implemented, call create recursively to create objects
+    @classmethod
+    def create(cls, data_json):
+        data_obj = json.loads(data_json)
+        o = cls(_json=data_json)
+        if isinstance(data_obj, basestring):
+            pass
+        else:
+            for (key, value) in data_obj.iteritems():
+                if isinstance(value, list):
+                    for entry in value:
+                        child = ParentWithListChildModel.create(json.dumps(entry))
+                        #child.save()
+    
+                elif isinstance(value, dict):
+                    for entry in value:
+                        child = ParentWithListChildModel.create(json.dumps(value[entry]))
+                        setattr(o, key, child)
+                else:
+                    setattr(o, key, value)
+        
+        o._json = o._clean_json(o._json)
+        o._calculate_and_set_unique_id()
+        o.full_clean()
+        super(_Immutable, o).save()
+        return o
+
  
 '''
 class File(_Immutable):

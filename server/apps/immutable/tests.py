@@ -5,11 +5,7 @@ import json
 import hashlib
 
 from apps.immutable.models import _Immutable
-class FlatModel(_Immutable):
-    validation_schema = '{"jsonschema definition goes": "here"}'
-    field1 = models.CharField(max_length=256, default=' ')
-    field2 = models.CharField(max_length=256, default=' ')
-
+from apps.immutable.models import FlatModel
 """
 class ImmutableParent(_Immutable):
     name = models.CharField(max_length=100)
