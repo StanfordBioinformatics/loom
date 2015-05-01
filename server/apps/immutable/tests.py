@@ -106,7 +106,7 @@ class MyImmutableModel(_Immutable):
 #    field1 = models.CharField(max_length=256)
 #    field2 = models.CharField(max_length=256)
 
-
+'''
 class TestFlatImmutableObject(TestCase):
     data_json='{"field1":"value1","field2":"value2"}' #in standard format
     data_json_nonstandard='{"field2": "value2", "field1": "value1"}'
@@ -172,6 +172,7 @@ class TestFlatImmutableObject(TestCase):
         bad_json='{"field1":"value1","field2000":"value2"}'
         with self.assertRaises(ValidationError):
             FlatModel.create(bad_json)
+'''
 
 # Model with relations:
 #Create model where child is nested in input json

@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 import json
 import hashlib
-
+from jsonschema import validate
 
 class _Immutable(models.Model):
 
@@ -23,6 +23,7 @@ class _Immutable(models.Model):
 
     _json = models.TextField(blank=False, null=False) #, TODO validators=[ValidationHelper.validate_and_parse_json])
     _id = models.TextField(primary_key=True, blank=False, null=False)
+    _jsonschema = 'schema not setted. will raise error if use this dummy string'
 
     def __init__(self, *args, **kwargs):
         super(_Immutable, self).__init__(*args, **kwargs)
@@ -43,16 +44,20 @@ class _Immutable(models.Model):
             else:
                 # if o.'key' is set, and it does not match 'value', raise an error.
                 setattr(o, key, value)
+        
+        # validate json schema
+        validate(o._json, o._jsonschema)
+        
+        # Ensures that ID and JSON do not get out of sync.
         o._json = o._clean_json(o._json)
         o._calculate_and_set_unique_id()
         o.full_clean() #This runs validators
         
-        super(_Immutable, o).save()
         return o
 
     def save(self):
-        # Ensures that ID and JSON do not get out of sync.
-        raise Exception("can not edit an immutable object!")
+        super(_Immutable, self).save()
+        #raise Exception("can not edit an immutable object!")
 
     @classmethod
     def get_by_id(cls, id):
@@ -65,7 +70,9 @@ class _Immutable(models.Model):
             data_obj = json.loads(dirty_data_json)
         except ValueError:
             raise ValidationError("Invalid JSON could not be parsed. %s" % dirty_data_json)
-        return json.dumps(data_obj, separators=(',',':'), sort_keys=True)
+
+        cleaned_json = json.dumps(data_obj, separators=(',',':'), sort_keys=True)
+        return cleaned_json
 
     def _calculate_unique_id(self):
         data_json = self._json
@@ -93,34 +100,53 @@ class FlatModel(_Immutable):
     field1 = models.CharField(max_length=256, default=' ')
     field2 = models.CharField(max_length=256, default=' ')
 
-class ParentWithListChildModel(_Immutable):
-    validation_schema = '{"jsonschema definition goes": "here"}'
+class ParentChildModel(_Immutable):
+    _jsonschema = '{"properties":{"files":{"type":"array", "items":{"type":"string"}}}}'
     # a list of children
     # get_class_for_key has not been implemented, call create recursively to create objects
     @classmethod
     def create(cls, data_json):
         data_obj = json.loads(data_json)
         o = cls(_json=data_json)
+        direct_children_ids = []
         if isinstance(data_obj, basestring):
             pass
         else:
             for (key, value) in data_obj.iteritems():
                 if isinstance(value, list):
+                    children = []
                     for entry in value:
-                        child = ParentWithListChildModel.create(json.dumps(entry))
-                        #child.save()
+                        child = ParentChildModel.create(json.dumps(entry))
+                        direct_children_ids.append(child._id)
+                        children.append(child)
+                    setattr(o, key, children)
     
                 elif isinstance(value, dict):
+                    children = {}
                     for entry in value:
-                        child = ParentWithListChildModel.create(json.dumps(value[entry]))
-                        setattr(o, key, child)
+                        child = ParentChildModel.create(json.dumps(value[entry]))
+                        direct_children_ids.append(child._id)
+                        children[entry]=child
+                    setattr(o, key, children)
                 else:
                     setattr(o, key, value)
         
+            # add deps into current json file
+            # obj_json = json.loads(o._json)
+            # obj_json['dependents'] = direct_children_ids
+            # o._json=json.dumps(obj_json)
+
+        # validate json schema
+        try:
+            validate(o._json, o._jsonschema)
+        except:
+            raise Exception("schema validation failed. schema = " + o._jsonschema + " / json = " +o._json)
+
+        # clean-up and validate the json file
         o._json = o._clean_json(o._json)
         o._calculate_and_set_unique_id()
         o.full_clean()
-        super(_Immutable, o).save()
+        #super(_Immutable, o).save()
         return o
 
  
