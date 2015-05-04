@@ -1,8 +1,10 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+import sys
 import json
 import hashlib
 from jsonschema import validate
+from django.core import serializers
 
 class _Immutable(models.Model):
 
@@ -23,31 +25,60 @@ class _Immutable(models.Model):
 
     _json = models.TextField(blank=False, null=False) #, TODO validators=[ValidationHelper.validate_and_parse_json])
     _id = models.TextField(primary_key=True, blank=False, null=False)
-    _jsonschema = 'schema not setted. will raise error if use this dummy string'
+    _jsonschema = {"schema not setted. will raise error if use this dummy string"}
 
     def __init__(self, *args, **kwargs):
         super(_Immutable, self).__init__(*args, **kwargs)
 
     @classmethod
-    def create(cls, data_json):
+    def create_no_save(cls, data_json):
         data_obj = json.loads(data_json)
-        o = cls(_json=data_json)
-        for (key, value) in data_obj.iteritems():
-            if isinstance(value, list):
-                # ManyToOne relation
-                pass
-            elif isinstance(value, dict):
-                # OneToOne relation
-                related_cls = self.get_class_for_key(key)
-                child = related_cls.create(value)
-                setattr(o, key, child)
-            else:
-                # if o.'key' is set, and it does not match 'value', raise an error.
-                setattr(o, key, value)
+        o = cls(_json=data_json) 
+        if isinstance(data_obj, basestring):
+            pass
+        else:
+            for (key, value) in data_obj.iteritems():
+                if isinstance(value, list):
+                    children = []
+                    for entry in value:
+                        fields_json = json.dumps(entry)
+                        #raise Exception(fields_json)
+                        for obj in serializers.deserialize('json', '[{"model":"immutable.'+key+'","fields":'+fields_json+'}]'):
+                            pass;
+                        fields_json = obj.object._clean_json( fields_json )
+                        obj.object._json = fields_json
+                        expected_id = obj.object._calculate_unique_id()
+                        try:
+                            child = obj.object.__class__.objects.get(_id=expected_id) # if existing in the db 
+                        except:
+                            child = obj.object.__class__.create(fields_json) # create a new if not
+                        children.append(child)
+                    setattr(o, key, children)
+    
+                elif isinstance(value, dict):
+                    children = {}
+                    fields_json = json.dumps(value)
+                    #raise Exception(str(key)+"/"+str(value))
+                    for obj in serializers.deserialize('json', '[{"model":"immutable.'+key+'","fields":'+fields_json+'}]'):
+                        pass;
+                    fields_json = obj.object._clean_json( fields_json )
+                    obj.object._json = fields_json
+                    expected_id = obj.object._calculate_unique_id()
+                    try:
+                        child = obj.object.__class__.objects.get(_id=expected_id) # if existing in the db 
+                    except:
+                        child = obj.object.__class__.create(fields_json) # create a new if not
+                    
+                    # TODO: dict of dict?
+                    for entry in value:
+                        children[entry]=child
+                    setattr(o, key, children)
+                else:
+                    setattr(o, key, value)
         
-        # validate json schema
-        validate(o._json, o._jsonschema)
-        
+        # validate schema
+        o.validate_jsonschema()
+
         # Ensures that ID and JSON do not get out of sync.
         o._json = o._clean_json(o._json)
         o._calculate_and_set_unique_id()
@@ -55,9 +86,18 @@ class _Immutable(models.Model):
         
         return o
 
+    def validate_jsonschema(self):
+        data_obj = json.loads(self._json)
+        validate(data_obj, self._jsonschema)
+
+    @classmethod
+    def create(cls, data_json):
+        o = cls.create_no_save(data_json)
+        super(_Immutable, o).save()
+        return o
+
     def save(self):
-        super(_Immutable, self).save()
-        #raise Exception("can not edit an immutable object!")
+        raise Exception("can not edit an immutable object!")
 
     @classmethod
     def get_by_id(cls, id):
@@ -96,60 +136,23 @@ class _Immutable(models.Model):
         pass
 
 class FlatModel(_Immutable):
-    validation_schema = '{"jsonschema definition goes": "here"}'
+    validation_schema = {"jsonschema definition goes": "here"}
     field1 = models.CharField(max_length=256, default=' ')
     field2 = models.CharField(max_length=256, default=' ')
 
-class ParentChildModel(_Immutable):
-    _jsonschema = '{"properties":{"files":{"type":"array", "items":{"type":"string"}}}}'
-    # a list of children
-    # get_class_for_key has not been implemented, call create recursively to create objects
-    @classmethod
-    def create(cls, data_json):
-        data_obj = json.loads(data_json)
-        o = cls(_json=data_json)
-        direct_children_ids = []
-        if isinstance(data_obj, basestring):
-            pass
-        else:
-            for (key, value) in data_obj.iteritems():
-                if isinstance(value, list):
-                    children = []
-                    for entry in value:
-                        child = ParentChildModel.create(json.dumps(entry))
-                        direct_children_ids.append(child._id)
-                        children.append(child)
-                    setattr(o, key, children)
-    
-                elif isinstance(value, dict):
-                    children = {}
-                    for entry in value:
-                        child = ParentChildModel.create(json.dumps(value[entry]))
-                        direct_children_ids.append(child._id)
-                        children[entry]=child
-                    setattr(o, key, children)
-                else:
-                    setattr(o, key, value)
-        
-            # add deps into current json file
-            # obj_json = json.loads(o._json)
-            # obj_json['dependents'] = direct_children_ids
-            # o._json=json.dumps(obj_json)
+class ChildModel(_Immutable):
+    _jsonschema = {}
+    field1 = models.CharField(max_length=256, default=' ')
+    field2 = models.CharField(max_length=256, default=' ')
 
-        # validate json schema
-        try:
-            validate(o._json, o._jsonschema)
-        except:
-            raise Exception("schema validation failed. schema = " + o._jsonschema + " / json = " +o._json)
+class ParentModel(_Immutable):
+    _jsonschema = {"properties":{"files":{"type":"array", "items":{"type":"string"}}}}
 
-        # clean-up and validate the json file
-        o._json = o._clean_json(o._json)
-        o._calculate_and_set_unique_id()
-        o.full_clean()
-        #super(_Immutable, o).save()
-        return o
+    child_list = models.ManyToManyField(ChildModel, related_name='childlist')
+    child_dict = models.ForeignKey(ChildModel, related_name='childdict', null=True, blank=True)
 
- 
+
+
 '''
 class File(_Immutable):
     def __init__(self, *args, **kwargs):
