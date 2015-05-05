@@ -62,3 +62,19 @@ class TestParentChildImmutableObject(TestCase):
         self.assertNotEqual(model._calculate_unique_id , model2._calculate_unique_id() )
     
 
+    ##### JSON schema validation #####
+    def test_invalid_json_schema(self):
+        model = ParentModel.create(self.dict_child_json)
+        model._jsonschema = '{invalid schema}'
+        model.validate_jsonschema()
+
+    ##### invalid json input #####
+    invalid_field_dict_child_json = '{"ChildModel":{"field_undefined":"step1","field2":"file1"}}'
+    def test_invalid_field_json(self):
+        model = ParentModel.create(self.invalid_field_dict_child_json)
+
+    invalid_format_dict_child_json = '{"ChildModel":{"field1":"step1",,,"field2":"file1"}}'
+    def test_invalid_format_json(self):
+        model = ParentModel.create(self.invalid_format_dict_child_json)
+
+

@@ -136,7 +136,7 @@ class _Immutable(models.Model):
         pass
 
 class FlatModel(_Immutable):
-    validation_schema = {"jsonschema definition goes": "here"}
+    _jsonschema = {"jsonschema definition goes": "here"}
     field1 = models.CharField(max_length=256, default=' ')
     field2 = models.CharField(max_length=256, default=' ')
 
