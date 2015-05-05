@@ -42,7 +42,6 @@ class _Immutable(models.Model):
                     children = []
                     for entry in value:
                         fields_json = json.dumps(entry)
-                        #raise Exception(fields_json)
                         for obj in serializers.deserialize('json', '[{"model":"immutable.'+key+'","fields":'+fields_json+'}]'):
                             pass;
                         fields_json = obj.object._clean_json( fields_json )
@@ -52,13 +51,14 @@ class _Immutable(models.Model):
                             child = obj.object.__class__.objects.get(_id=expected_id) # if existing in the db 
                         except:
                             child = obj.object.__class__.create(fields_json) # create a new if not
+                        o.list_child.append(child)
+                        
                         children.append(child)
                     setattr(o, key, children)
     
                 elif isinstance(value, dict):
                     children = {}
                     fields_json = json.dumps(value)
-                    #raise Exception(str(key)+"/"+str(value))
                     for obj in serializers.deserialize('json', '[{"model":"immutable.'+key+'","fields":'+fields_json+'}]'):
                         pass;
                     fields_json = obj.object._clean_json( fields_json )
