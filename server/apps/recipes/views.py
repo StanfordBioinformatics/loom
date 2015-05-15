@@ -18,6 +18,7 @@ from django.shortcuts import render
         - Run the RunRecipe
             - Submit Session(s) and input Binding(s) to resource manager
             - After Session(s) are complete, add new RunResult and File(s) to database
+        - Notify user that File is done
 
 Methods:
     - RunRecipe.Ready()
