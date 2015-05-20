@@ -17,9 +17,10 @@ class FileRecipe(Ingredient):
     from_run_recipe = models.ForeignKey('RunRecipe')
     from_port = models.ForeignKey('Port')
 
-class FileImport(Ingredient):
-    pass
-
+class ImportRecipe(Ingredient):
+    source = models.ForeignKey(Location, related_name='source')
+    destination = models.ForeignKey(Location, related_name='destination')
+    
 # Location subclasses
 class BlobLocation(Location):
     storage_account = models.CharField(max_length = 100)
@@ -37,13 +38,16 @@ class Binding(models.Model):
     ingredient = models.ForeignKey(Ingredient)
     port = models.ForeignKey('Port')
 
-class FileImportRequest(models.Model):
-    file_import = models.ForeignKey(FileImport)
-    file_import_result = models.ForeignKey('FileImportResult')
+class ImportRequest(models.Model):
+    import_recipe = models.ForeignKey(ImportRecipe)
 
-class FileImportResult(models.Model):
-    file_import = models.ForeignKey(FileImport)
+class ImportResult(models.Model):
+    import_recipe = models.ForeignKey(ImportRecipe)
     file_imported = models.ForeignKey(File)
+
+class Import(models.Model):
+    import_recipe = models.ForeignKey(ImportRecipe)
+    import_result = models.ForeignKey(ImportResult)
 
 class Port(models.Model):
     from_session = models.ForeignKey('Session')
@@ -64,8 +68,8 @@ class RunRecipe(models.Model):
 class RunResult(models.Model):
     run_recipe = models.ForeignKey(RunRecipe)
     input_file_recipes = models.ManyToManyField(FileRecipe)
-    input_files = models.ManyToManyField(File, related_name='result_inputs')
-    output_files = models.ManyToManyField(File, related_name='result_outputs')
+    input_files = models.ManyToManyField(File, related_name='inputs')
+    output_files = models.ManyToManyField(File, related_name='outputs')
 
 class Session(models.Model):
     steps = models.ManyToManyField('Step')
