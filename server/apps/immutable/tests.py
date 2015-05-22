@@ -4,18 +4,73 @@ from django.core.exceptions import ValidationError
 import json
 import hashlib
 
-from apps.immutable.models import _Immutable
-from apps.immutable.models import FlatModel
-"""
-class ImmutableParent(_Immutable):
-    name = models.CharField(max_length=100)
+from apps.immutable.models import SampleMutableChild, SampleMutableParent, \
+    SampleImmutableChild, SampleImmutableParent
 
-class ImmutableChild(_Immutable):
-    name = models.CharField(max_length=100)
-    parent = models.ForeignKey(ImmutableParent, related_name='child')
-    def get_class_for_key(self, key):
-        classes = {'parent': ImmutableParent}
-        return classes.get(key)
+class TestMutableModel(TestCase):
+
+    def testCreateWithScalarProperty(self):
+        model_json = '{"name": "ishmael"}'
+        model = SampleMutableChild.create(model_json)
+        self.assertEqual(model.name, 'ishmael')
+
+    def testCreateWithDictChild(self):
+        model_json = '{"singlechild": {"name": "ishmael"}}'
+        model = SampleMutableParent.create(model_json)
+        self.assertEqual(model.singlechild.name, 'ishmael')
+
+    def testCreateWithListOfChildren(self):
+        model_json = '{"listofchildren": [{"name": "ishmael"}, {"name": "jake"}]}'
+        model = SampleMutableParent.create(model_json)
+        self.assertEqual(model.listofchildren.count(), 2)
+
+    def testCreateAllFields(self):
+        model_json = '{"name": "papa", "singlechild": {"name": "ishmael"}, "listofchildren": [{"name": "ishmael"}, {"name": "jake"}]}'
+        model = SampleMutableParent.create(model_json)
+        self.assertEqual(model.name, 'papa')
+        self.assertEqual(model.singlechild.name, 'ishmael')
+        self.assertEqual(model.listofchildren.count(), 2)
+
+    def testToJson(self):
+        model_json = '{"name": "papa", "singlechild": {"name": "ishmael"}, "listofchildren": [{"name": "ishmael"}, {"name": "jake"}]}'
+        model = SampleMutableParent.create(model_json)
+        model_json_dump = model.to_json()
+        model_obj = json.loads(model_json_dump)
+        self.assertEqual(model_obj['name'], 'papa')
+        self.assertEqual(model_obj['singlechild']['name'], 'ishmael')
+        self.assertEqual(len(model_obj['listofchildren']), 2)
+
+    def testUpdateWithScalarProperty(self):
+        model_json = '{"name": "ishmael"}'
+        model = SampleMutableChild.create(model_json)
+
+        update_json = '{"name": "moby"}'
+        model.update(update_json)
+        self.assertEqual(model.name, 'moby')
+
+    def testUpdateWithDictChild(self):
+        model_json = '{"singlechild": {"name": "ishmael"}}'
+        model = SampleMutableParent.create(model_json)
+
+        update_obj = model.to_obj()
+        update_obj['singlechild']['name'] = "moby"
+        update_json = json.dumps(update_obj)
+        model.update(update_json)
+        self.assertEqual(model.singlechild.name, 'moby')
+
+    def testUpdateWithListOfChildren(self):
+        model_json = '{"listofchildren": [{"name": "ishmael"}]}'
+        model = SampleMutableParent.create(model_json)
+        update_obj = model.to_obj()
+        update_obj['listofchildren'][0]['name'] = "moby"
+        update_json = json.dumps(update_obj)
+        model.update(update_json)
+        self.assertEqual(model.listofchildren.first().name, 'moby')
+
+# Test removing an object with Null
+# Test replacing just one object in a list and dropping the others
+# Test Another layer of nesting
+# Test creating an object with a None input
 
 class ImmutableModelTest(TestCase):
     def setUp(self):
@@ -29,34 +84,29 @@ class ImmutableModelTest(TestCase):
         self.parent2_json = json.dumps(parent2_obj)
         self.child2_json = json.dumps(child2_obj)
 
-        self.parent1 = ImmutableParent.create(self.parent1_json)
-        import pdb; pdb.set_trace()
-        self.child1 = ImmutableChild.create(self.child1_json)
 
     def testCreateDuplicate(self):
         
-        childCountBefore = ImmutableChild.objects.count()
-        ImmutableChild.create(self.child1_json)
-        childCountAfter = ImmutableChild.objects.count()
+        SampleImmutableChild.create(self.child1_json)
+
+        childCountBefore = SampleImmutableChild.objects.count()
+        SampleImmutableChild.create(self.child1_json)
+        childCountAfter = SampleImmutableChild.objects.count()
 
         self.assertTrue(childCountBefore > 0)
         self.assertEqual(childCountBefore, childCountAfter)
 
-    def testEditRelation(self):
-        parent = self.child.parent
-        original_parent_id = parent.id
-
-        parent.json = self.parent2_json
-        parent.save()
-
-        self.assertEqual(original_parent_id, self.child.parent.id)
-
-    def testRenderJson(self):
-        self.assertEqual(self.child1.get_json(), self.child1_json)
-
+    def test_create_verify_hash(self):
+        model = SampleImmutableChild.create(self.child1_json)
+        clean_json = json.dumps(
+            json.loads(self.child1_json),
+            sort_keys=True, 
+            separators=(',',':')
+        )
+        expected_hash = hashlib.sha256(clean_json).hexdigest()
+        self.assertEqual(expected_hash, model._id)
 
     # TODO negative tests. Invalid JSON, fields that don't exist, fields that don't exist on children.
-"""
 
 # -------------
 # Notes below are a list of tests needed. This may not be complete.
@@ -110,11 +160,6 @@ class MyImmutableModel(_Immutable):
 class TestFlatImmutableObject(TestCase):
     data_json='{"field1":"value1","field2":"value2"}' #in standard format
     data_json_nonstandard='{"field2": "value2", "field1": "value1"}'
-
-    def test_create_verify_hash(self):
-        flat_model = FlatModel.create(self.data_json) #create would call validation
-        expected_hash = hashlib.sha256(self.data_json).hexdigest()
-        self.assertEqual(expected_hash, flat_model._id)
 
     def test_create_duplicate_entry(self):
         flat_model = FlatModel.create(self.data_json) 
