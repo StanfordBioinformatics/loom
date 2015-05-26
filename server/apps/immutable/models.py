@@ -39,6 +39,13 @@ class AttributeDoesNotExist(Exception):
 class MutableChildError(Exception):
     pass
 
+class CouldNotFindSubclassError(Exception):
+    pass
+
+class CouldNotFindUniqueSubclassError(Exception):
+    pass
+
+
 class _BaseModel(models.Model):
 
     def to_json(self):
@@ -156,7 +163,7 @@ class _BaseModel(models.Model):
         field = self._meta.get_field(key)
         Model = field.related.model
         if Model._is_abstract(value):
-            Model = self._select_best_subclass_model(Model, value)
+            Model = Model._select_best_subclass_model(value)
         self._check_child_compatibility(Model)
         return Model
 
@@ -170,7 +177,8 @@ class _BaseModel(models.Model):
         # if data_obj contains fields not defined in the base class.
         return cls._meta.abstract or not cls._do_all_fields_match(data_obj)
 
-    def _select_best_subclass_model(self, AbstractModel, data_obj):
+    @classmethod
+    def _select_best_subclass_model(AbstractModel, data_obj):
         # This works for either abstract base class or multitable base class
         subclass_models = []
         for Model in django.apps.apps.get_models():
@@ -181,9 +189,9 @@ class _BaseModel(models.Model):
             if Model._do_all_fields_match(data_obj):
                 matching_models.append(Model)
         if len(matching_models) == 0:
-            raise Exception("Failed to find a subclass of abstract model %s that matches these fields: %s" % (AbstractModel, data_obj))
+            raise CouldNotFindSubclassError("Failed to find a subclass of abstract model %s that matches these fields: %s" % (AbstractModel, data_obj))
         elif len(matching_models) > 1:
-            raise Exception(
+            raise CouldNotFindUniqueSubclassError(
                 "Failed to find a unique subclass of abstract model %s that matches these fields: %s. Multiple models matched: %s" 
                 % (AbstractModel, data_obj, matching_models))
         else:
@@ -240,7 +248,8 @@ class MutableModel(_BaseModel):
     @classmethod
     def create(cls, data_obj_or_json):
         data_obj = cls._any_to_obj(data_obj_or_json)
-        o = cls()
+        Model = cls._select_best_subclass_model(data_obj)
+        o = Model()
         o._create_or_update_attributes(data_obj)
         return o
 
@@ -273,7 +282,8 @@ class ImmutableModel(_BaseModel):
         data_json = cls._obj_to_json(data_obj)
         _id = cls._calculate_unique_id(data_json)
         data_obj.update({'_id': _id})
-        o = cls()
+        Model = cls._select_best_subclass_model(data_obj)
+        o = Model()
         o._create_or_update_attributes(data_obj)
         return o
 

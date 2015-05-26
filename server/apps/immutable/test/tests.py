@@ -107,7 +107,7 @@ class TestMutableModel(TestCase):
 
     def test_json_does_not_match_schema(self):
         model_json = '{"listofchildren": [{"name": "ishmael"}, {"name": "moby"}]}'
-        with self.assertRaises(FieldDoesNotExist):
+        with self.assertRaises(CouldNotFindSubclassError):
             model = SampleMutableChild.create(model_json)
         
 class ImmutableModelTest(TestCase):

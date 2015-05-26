@@ -1,11 +1,12 @@
 from django.db import models
+from apps.immutable.models import ImmutableModel, MutableModel
 
 # Abstract base classes
-class Ingredient(models.Model):
+class Ingredient(ImmutableModel):
     """Base class to allow pointers to Files, FileRecipes, or FileImports. Not intended to be instantiated without a subclass."""
     pass
 
-class Location(models.Model):
+class Location(ImmutableModel):
     """Base class to allow pointing to a URL, blob, file path, etc. Not intended to be instantiated without a subclass."""
     pass
 
@@ -34,46 +35,46 @@ class FilePathLocation(Location):
     file_path = models.CharField(max_length = 256)
 
 # Other classes
-class Binding(models.Model):
+class Binding(ImmutableModel):
     ingredient = models.ForeignKey(Ingredient)
     port = models.ForeignKey('Port')
 
-class ImportRequest(models.Model):
+class ImportRequest(ImmutableModel):
     import_recipe = models.ForeignKey(ImportRecipe)
 
-class ImportResult(models.Model):
+class ImportResult(ImmutableModel):
     import_recipe = models.ForeignKey(ImportRecipe)
     file_imported = models.ForeignKey(File)
 
-class Import(models.Model):
+class Import(ImmutableModel):
     import_recipe = models.ForeignKey(ImportRecipe)
     import_result = models.ForeignKey(ImportResult)
 
-class Port(models.Model):
+class Port(ImmutableModel):
     from_session = models.ForeignKey('Session')
 
-class Request(models.Model):
+class Request(ImmutableModel):
     file_recipes = models.ManyToManyField(FileRecipe)
     date = models.DateTimeField()
     requester = models.CharField(max_length = 100)
 
-class Run(models.Model):
+class Run(ImmutableModel):
     run_recipe = models.ForeignKey('RunRecipe')
     run_result = models.ForeignKey('RunResult')
 
-class RunRecipe(models.Model):
+class RunRecipe(ImmutableModel):
     sessions = models.ManyToManyField('Session')
     input_bindings = models.ManyToManyField(Binding)
 
-class RunResult(models.Model):
+class RunResult(ImmutableModel):
     run_recipe = models.ForeignKey(RunRecipe)
     input_file_recipes = models.ManyToManyField(FileRecipe)
     input_files = models.ManyToManyField(File, related_name='inputs')
     output_files = models.ManyToManyField(File, related_name='outputs')
 
-class Session(models.Model):
+class Session(ImmutableModel):
     steps = models.ManyToManyField('Step')
     
-class Step(models.Model):
+class Step(ImmutableModel):
     docker_image = models.CharField(max_length = 100)
     command = models.CharField(max_length = 256)
