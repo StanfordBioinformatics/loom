@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.db import models
 from apps.immutable.models import ImmutableModel, MutableModel
 
@@ -11,12 +12,17 @@ class Location(ImmutableModel):
     pass
 
 # Ingredient subclasses
+class Hash(ImmutableModel):
+    hash_value = models.CharField(max_length = 100)
+    hash_function = models.CharField(max_length = 100)
+
 class File(Ingredient):
     location = models.ForeignKey(Location)
+    hash = models.ForeignKey(Hash)
 
 class FileRecipe(Ingredient):
     from_run_recipe = models.ForeignKey('RunRecipe')
-    from_port = models.ForeignKey('Port')
+    from_port = models.ForeignKey('OutputPort')
 
 class ImportRecipe(Ingredient):
     source = models.ForeignKey(Location, related_name='source')
@@ -35,9 +41,9 @@ class FilePathLocation(Location):
     file_path = models.CharField(max_length = 256)
 
 # Other classes
-class Binding(ImmutableModel):
+class InputBinding(ImmutableModel):
     ingredient = models.ForeignKey(Ingredient)
-    port = models.ForeignKey('Port')
+    input_port = models.ForeignKey('InputPort')
 
 class ImportRequest(ImmutableModel):
     import_recipe = models.ForeignKey(ImportRecipe)
@@ -50,13 +56,25 @@ class Import(ImmutableModel):
     import_recipe = models.ForeignKey(ImportRecipe)
     import_result = models.ForeignKey(ImportResult)
 
-class Port(ImmutableModel):
+class OutputPort(ImmutableModel):
     from_session = models.ForeignKey('Session')
+    file_path = models.CharField(max_length = 256)
+
+class InputPort(ImmutableModel):
+    into_session = models.ForeignKey('Session')
+    file_path = models.CharField(max_length = 256)
 
 class Request(ImmutableModel):
     file_recipes = models.ManyToManyField(FileRecipe)
     date = models.DateTimeField()
     requester = models.CharField(max_length = 100)
+
+    @classmethod
+    def create(cls, data_obj_or_json):
+        data_obj = cls._any_to_obj(data_obj_or_json)
+        if data_obj.get('date') is None:
+            data_obj.update({'date': str(datetime.now())})
+        return super(Request, cls).create(data_obj)
 
 class Run(ImmutableModel):
     run_recipe = models.ForeignKey('RunRecipe')
@@ -64,7 +82,7 @@ class Run(ImmutableModel):
 
 class RunRecipe(ImmutableModel):
     sessions = models.ManyToManyField('Session')
-    input_bindings = models.ManyToManyField(Binding)
+    input_bindings = models.ManyToManyField(InputBinding)
 
 class RunResult(ImmutableModel):
     run_recipe = models.ForeignKey(RunRecipe)

@@ -11,9 +11,11 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Binding',
+            name='Hash',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('hash_value', models.CharField(max_length=100)),
+                ('hash_function', models.CharField(max_length=100)),
             ],
             options={
                 'abstract': False,
@@ -56,6 +58,25 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='InputBinding',
+            fields=[
+                ('_id', models.TextField(serialize=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='InputPort',
+            fields=[
+                ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('file_path', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='Location',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
@@ -65,9 +86,10 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='Port',
+            name='OutputPort',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('file_path', models.CharField(max_length=256)),
             ],
             options={
                 'abstract': False,
@@ -97,7 +119,7 @@ class Migration(migrations.Migration):
             name='RunRecipe',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
-                ('input_bindings', models.ManyToManyField(to='recipes.Binding')),
+                ('input_bindings', models.ManyToManyField(to='recipes.InputBinding')),
             ],
             options={
                 'abstract': False,
@@ -150,6 +172,7 @@ class Migration(migrations.Migration):
             name='File',
             fields=[
                 ('ingredient_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='recipes.Ingredient')),
+                ('hash', models.ForeignKey(to='recipes.Hash')),
             ],
             options={
                 'abstract': False,
@@ -219,24 +242,29 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='recipes.RunResult'),
         ),
         migrations.AddField(
-            model_name='port',
+            model_name='outputport',
             name='from_session',
             field=models.ForeignKey(to='recipes.Session'),
+        ),
+        migrations.AddField(
+            model_name='inputport',
+            name='into_session',
+            field=models.ForeignKey(to='recipes.Session'),
+        ),
+        migrations.AddField(
+            model_name='inputbinding',
+            name='ingredient',
+            field=models.ForeignKey(to='recipes.Ingredient'),
+        ),
+        migrations.AddField(
+            model_name='inputbinding',
+            name='input_port',
+            field=models.ForeignKey(to='recipes.InputPort'),
         ),
         migrations.AddField(
             model_name='import',
             name='import_result',
             field=models.ForeignKey(to='recipes.ImportResult'),
-        ),
-        migrations.AddField(
-            model_name='binding',
-            name='ingredient',
-            field=models.ForeignKey(to='recipes.Ingredient'),
-        ),
-        migrations.AddField(
-            model_name='binding',
-            name='port',
-            field=models.ForeignKey(to='recipes.Port'),
         ),
         migrations.AddField(
             model_name='runresult',
@@ -291,7 +319,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='filerecipe',
             name='from_port',
-            field=models.ForeignKey(to='recipes.Port'),
+            field=models.ForeignKey(to='recipes.OutputPort'),
         ),
         migrations.AddField(
             model_name='filerecipe',
