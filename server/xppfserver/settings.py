@@ -35,8 +35,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.immutable',
-    'apps.recipes',
-#   'apps.analysis',
+    'apps.analyses',
     'apps.controls'
 )
 

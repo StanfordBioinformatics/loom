@@ -1,5 +1,5 @@
 from django.test import TestCase
-from apps.recipes.models import *
+from apps.analyses.models import *
 
 class TestModels(TestCase):
     step_obj = {'docker_image': "abcdefg123", 'command': "echo hello"}
@@ -82,9 +82,9 @@ class TestModels(TestCase):
         binding = InputBinding.create(self.inputBinding_obj)
         self.assertEqual(binding.ingredient.hash.hash_value, 'rstxy123')
 
-    def testRunRecipe(self):
-        runRecipe = RunRecipe.create(self.runRecipe_obj)
-        self.assertEqual(runRecipe.sessions.first()._id, runRecipe.input_bindings.first().input_port.into_session._id)
+    def testSessionRecipe(self):
+        runRecipe = SessionRecipe.create(self.sessionRecipe_obj)
+        self.assertEqual(sessionRecipe.sessions.first()._id, sessionRecipe.input_bindings.first().input_port.into_session._id)
     
     def testFileRecipe(self):
         fileRecipe = FileRecipe.create(self.fileRecipe_obj)

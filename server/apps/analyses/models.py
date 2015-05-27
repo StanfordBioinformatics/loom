@@ -11,17 +11,17 @@ class Location(ImmutableModel):
     """Base class to allow pointing to a URL, blob, file path, etc. Not intended to be instantiated without a subclass."""
     pass
 
-# Ingredient subclasses
 class Hash(ImmutableModel):
     hash_value = models.CharField(max_length = 100)
     hash_function = models.CharField(max_length = 100)
 
+# Ingredient subclasses
 class File(Ingredient):
     location = models.ForeignKey(Location)
     hash = models.ForeignKey(Hash)
 
 class FileRecipe(Ingredient):
-    from_run_recipe = models.ForeignKey('RunRecipe')
+    from_run_recipe = models.ForeignKey('SessionRecipe')
     from_port = models.ForeignKey('OutputPort')
 
 class ImportRecipe(Ingredient):
@@ -76,16 +76,16 @@ class Request(ImmutableModel):
             data_obj.update({'date': str(datetime.now())})
         return super(Request, cls).create(data_obj)
 
-class Run(ImmutableModel):
-    run_recipe = models.ForeignKey('RunRecipe')
-    run_result = models.ForeignKey('RunResult')
+class SessionRun(ImmutableModel):
+    run_recipe = models.ForeignKey('SessionRecipe')
+    run_result = models.ForeignKey('SessionResult')
 
-class RunRecipe(ImmutableModel):
+class SessionRecipe(ImmutableModel):
     sessions = models.ManyToManyField('Session')
     input_bindings = models.ManyToManyField(InputBinding)
 
-class RunResult(ImmutableModel):
-    run_recipe = models.ForeignKey(RunRecipe)
+class SessionResult(ImmutableModel):
+    run_recipe = models.ForeignKey(SessionRecipe)
     input_file_recipes = models.ManyToManyField(FileRecipe)
     input_files = models.ManyToManyField(File, related_name='inputs')
     output_files = models.ManyToManyField(File, related_name='outputs')
