@@ -4,7 +4,7 @@ from apps.immutable.models import ImmutableModel, MutableModel
 
 # Abstract base classes
 class Ingredient(ImmutableModel):
-    """Base class to allow pointers to Files, FileRecipes, or FileImports. Not intended to be instantiated without a subclass."""
+    """Base class to allow pointers to Files, FileRecipes, or ImportRecipes. Not intended to be instantiated without a subclass."""
     pass
 
 class Location(ImmutableModel):
