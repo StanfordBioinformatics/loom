@@ -1,5 +1,5 @@
 from django.db import models
-from apps.immutable.models import ImmutableModel, MutableModel
+from immutable.models import ImmutableModel, MutableModel
 
 
 # Test models are defined here, not in the main app directory,

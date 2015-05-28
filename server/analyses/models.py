@@ -1,6 +1,6 @@
 from datetime import datetime
 from django.db import models
-from apps.immutable.models import ImmutableModel, MutableModel
+from immutable.models import ImmutableModel, MutableModel
 
 # Abstract base classes
 class Ingredient(ImmutableModel):
@@ -21,8 +21,8 @@ class File(Ingredient):
     hash = models.ForeignKey(Hash)
 
 class FileRecipe(Ingredient):
-    from_run_recipe = models.ForeignKey('SessionRecipe')
-    from_port = models.ForeignKey('OutputPort')
+    session_recipe = models.ForeignKey('SessionRecipe')
+    port = models.ForeignKey('OutputPort')
 
 class ImportRecipe(Ingredient):
     source = models.ForeignKey(Location, related_name='source')
@@ -57,11 +57,11 @@ class Import(ImmutableModel):
     import_result = models.ForeignKey(ImportResult)
 
 class OutputPort(ImmutableModel):
-    from_session = models.ForeignKey('Session')
+    session = models.ForeignKey('Session')
     file_path = models.CharField(max_length = 256)
 
 class InputPort(ImmutableModel):
-    into_session = models.ForeignKey('Session')
+    session = models.ForeignKey('Session')
     file_path = models.CharField(max_length = 256)
 
 class Request(ImmutableModel):
@@ -77,15 +77,15 @@ class Request(ImmutableModel):
         return super(Request, cls).create(data_obj)
 
 class SessionRun(ImmutableModel):
-    run_recipe = models.ForeignKey('SessionRecipe')
-    run_result = models.ForeignKey('SessionResult')
+    session_recipe = models.ForeignKey('SessionRecipe')
+    session_result = models.ForeignKey('SessionResult')
 
 class SessionRecipe(ImmutableModel):
     sessions = models.ManyToManyField('Session')
     input_bindings = models.ManyToManyField(InputBinding)
 
 class SessionResult(ImmutableModel):
-    run_recipe = models.ForeignKey(SessionRecipe)
+    session_recipe = models.ForeignKey(SessionRecipe)
     input_file_recipes = models.ManyToManyField(FileRecipe)
     input_files = models.ManyToManyField(File, related_name='inputs')
     output_files = models.ManyToManyField(File, related_name='outputs')

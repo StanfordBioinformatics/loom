@@ -4,8 +4,8 @@ from django.core.exceptions import ValidationError
 import json
 import hashlib
 
-from apps.immutable.models import *
-from apps.immutable.test.models import *
+from immutable.models import *
+from immutable.test.models import *
 from django.core.exceptions import FieldDoesNotExist
 
 class TestMutableModel(TestCase):
