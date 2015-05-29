@@ -45,6 +45,8 @@ class CouldNotFindSubclassError(Exception):
 class CouldNotFindUniqueSubclassError(Exception):
     pass
 
+class ForeignKeyInChildError(Exception):
+    pass
 
 class _BaseModel(models.Model):
 
@@ -161,7 +163,13 @@ class _BaseModel(models.Model):
 
     def _get_model_for_attribute_name(self, key, value):
         field = self._meta.get_field(key)
-        Model = field.related.model
+        try:
+            Model = field.related.model
+        except AttributeError as e:
+            if isinstance(field, django.db.models.ManyToOneRel):
+                raise ForeignKeyInChildError('Foreign keys from child to parent are not supported.')
+            else:
+                raise e
         if Model._is_abstract(value):
             Model = Model._select_best_subclass_model(value)
         self._check_child_compatibility(Model)
