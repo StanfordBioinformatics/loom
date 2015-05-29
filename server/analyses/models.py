@@ -3,28 +3,24 @@ from django.db import models
 from immutable.models import ImmutableModel, MutableModel
 
 # Abstract base classes
-class Ingredient(ImmutableModel):
+class DataObject(ImmutableModel):
     """Base class to allow pointers to Files, FileRecipes, or ImportRecipes. Not intended to be instantiated without a subclass."""
     pass
 
 class Location(ImmutableModel):
     """Base class to allow pointing to a URL, blob, file path, etc. Not intended to be instantiated without a subclass."""
-    pass
+    file = models.ForeignKey('File')
 
-class Hash(ImmutableModel):
+# DataObject subclasses
+class File(DataObject):
     hash_value = models.CharField(max_length = 100)
     hash_function = models.CharField(max_length = 100)
 
-# Ingredient subclasses
-class File(Ingredient):
-    location = models.ForeignKey(Location)
-    hash = models.ForeignKey(Hash)
-
-class FileRecipe(Ingredient):
+class FileRecipe(DataObject):
     session_recipe = models.ForeignKey('SessionRecipe')
     port = models.ForeignKey('OutputPort')
 
-class ImportRecipe(Ingredient):
+class ImportRecipe(DataObject):
     source = models.ForeignKey(Location, related_name='source')
     destination = models.ForeignKey(Location, related_name='destination')
     
@@ -42,7 +38,7 @@ class FilePathLocation(Location):
 
 # Other classes
 class InputBinding(ImmutableModel):
-    ingredient = models.ForeignKey(Ingredient)
+    data_object = models.ForeignKey(DataObject)
     input_port = models.ForeignKey('InputPort')
 
 class ImportRequest(ImmutableModel):
@@ -57,11 +53,9 @@ class Import(ImmutableModel):
     import_result = models.ForeignKey(ImportResult)
 
 class OutputPort(ImmutableModel):
-    session = models.ForeignKey('Session')
     file_path = models.CharField(max_length = 256)
 
 class InputPort(ImmutableModel):
-    session = models.ForeignKey('Session')
     file_path = models.CharField(max_length = 256)
 
 class Request(ImmutableModel):
@@ -81,7 +75,7 @@ class SessionRun(ImmutableModel):
     session_result = models.ForeignKey('SessionResult')
 
 class SessionRecipe(ImmutableModel):
-    sessions = models.ManyToManyField('Session')
+    session_template = models.ForeignKey('SessionTemplate')
     input_bindings = models.ManyToManyField(InputBinding)
 
 class SessionResult(ImmutableModel):
@@ -90,7 +84,8 @@ class SessionResult(ImmutableModel):
     input_files = models.ManyToManyField(File, related_name='inputs')
     output_files = models.ManyToManyField(File, related_name='outputs')
 
-class Session(ImmutableModel):
+class SessionTemplate(ImmutableModel):
+    models.ManyToMany()
     steps = models.ManyToManyField('Step')
     
 class Step(ImmutableModel):
