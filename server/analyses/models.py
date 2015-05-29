@@ -5,7 +5,6 @@ from immutable.models import ImmutableModel, MutableModel
 # Abstract base classes
 class DataObject(ImmutableModel):
     """Base class to allow pointers to Files, FileRecipes, or ImportRecipes. Not intended to be instantiated without a subclass."""
-    pass
 
 class Location(ImmutableModel):
     """Base class to allow pointing to a URL, blob, file path, etc. Not intended to be instantiated without a subclass."""
@@ -20,9 +19,15 @@ class FileRecipe(DataObject):
     session_recipe = models.ForeignKey('SessionRecipe')
     port = models.ForeignKey('OutputPort')
 
-class ImportRecipe(DataObject):
+    def is_processed(self):
+        return SessionResult.objects.filter(session_recipe=self.session_recipe).filter(status="done").exists()
+
+class ImportRecipe(Ingredient):
     source = models.ForeignKey(Location, related_name='source')
     destination = models.ForeignKey(Location, related_name='destination')
+    
+    def is_imported(self):
+        return ImportResult.objects.filter(import_recipe=self).filter(status="done").exists()
     
 # Location subclasses
 class BlobLocation(Location):
@@ -47,6 +52,7 @@ class ImportRequest(ImmutableModel):
 class ImportResult(ImmutableModel):
     import_recipe = models.ForeignKey(ImportRecipe)
     file_imported = models.ForeignKey(File)
+    status = models.CharField(max_length = 16)
 
 class Import(ImmutableModel):
     import_recipe = models.ForeignKey(ImportRecipe)
@@ -72,13 +78,47 @@ class Request(ImmutableModel):
 
 class SessionRun(ImmutableModel):
     session_recipe = models.ForeignKey('SessionRecipe')
-    session_result = models.ForeignKey('SessionResult')
 
 class SessionRecipe(ImmutableModel):
     session_template = models.ForeignKey('SessionTemplate')
     input_bindings = models.ManyToManyField(InputBinding)
+    
+    def is_ready(self):
+        """ Return True if all Ingredients pointed to by input Bindings satisfy one of the following conditions:
+            - Ingredient is a File,
+            - Ingredient is a FileRecipe AND FileRecipe.is_processed(),
+            - Ingredient is an ImportRecipe AND ImportRecipe.is_imported()
+        """
+        for input_binding in self.input_bindings:
+            ingredient = input_binding.ingredient
+            try:
+                file = ingredient.file
+                continue
+            except File.DoesNotExist:
+                pass
+            
+            try:
+                file_recipe = ingredient.filerecipe
+                if file_recipe.is_processed():
+                    continue
+                else:
+                    return False
+            except FileRecipe.DoesNotExist:
+                pass
 
+            try:
+                import_recipe = ingredient.importrecipe
+                if import_recipe.is_imported():
+                    continue
+                else:
+                    return False
+            except ImportRecipe.DoesNotExist:
+                pass
+        
+        return True
+        
 class SessionResult(ImmutableModel):
+    session_run = models.ForeignKey(SessionRun)
     session_recipe = models.ForeignKey(SessionRecipe)
     input_file_recipes = models.ManyToManyField(FileRecipe)
     input_files = models.ManyToManyField(File, related_name='inputs')

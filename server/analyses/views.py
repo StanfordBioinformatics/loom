@@ -17,22 +17,22 @@ Accepting a request from a user:
         - All referenced objects are either in the database or in the JSON
     - Add Request and all accompanying objects to database
 
-Returning a list of RunRecipes that are ready to run:
-    - Query for all Runs, filter out all those that have a Run pointing to them
+Returning a list of SessionRecipes that are ready to run:
+    - Query for all SessionRecipes, filter out all those that have a SessionRun pointing to them
     - Can sort by submit datetime for queue
 
-Returning a list of currently running RunRecipes:
-    - Query for all Runs, filter out all those that point to RunResults
+Returning a list of currently running SessionRecipes:
+    - Query for all SessionRuns, filter out all those that point to SessionResults
 
-Returning a list of RunRecipes that completed successfully:
-    - Query for all RunResults, filter for RunResult.status = done, get associated RunRecipes
+Returning a list of SessionRecipes that completed successfully:
+    - Query for all SessionResults, filter for SessionResult.status = done, get associated SessionRecipes
 
-Returning a list of RunRecipes that failed:
-    - Query for all RunResults, filter for RunResult.Status = failed, get associated RunRecipes
+Returning a list of SessionRecipes that failed:
+    - Query for all SessionResults, filter for SessionResult.status = failed, get associated SessionRecipes
 
-Updating server with status of Runs:
-    - When a new RunRecipe is started, create a new Run pointing to RunRecipe
-    - When a Run is completed (successfully or not), create a new RunResult pointing to RunRecipe and point Run to new RunResult
+Updating server with status of SessionRuns:
+    - When a new SesssionRecipe is started, create a new SessionRun pointing to SessionRecipe
+    - When a SessionRun is completed (successfully or not), create a new SessionResult pointing to SessionRecipe and point SessionRun to new SessionResult
 
 Accepting an ImportRequest from a user:
     - User writes JSON specifying ImportRequest, which points to an ImportRecipe.
@@ -46,18 +46,18 @@ Returning a list of failed Imports:
     - Query for all ImportResults. Filter for all those that have ImportResult.status = failed.
 
 Method designs:
-    - RunRecipe.is_ready():
+    - SessionRecipe.is_ready():
         - Return True if all Ingredients pointed to by input Bindings satisfy one of the following conditions:
             - Ingredient is a File, OR
             - Ingredient is a FileRecipe AND FileRecipe.is_cooked(), OR
             - Ingredient is a ImportRecipe AND ImportRecipe.is_imported()
         - Otherwise, return False
     - FileRecipe.is_cooked():
-        - Returns True if there is a RunResult pointing to this FileRecipe with RunResult.status = done
+        - Returns True if there is a SessionResult pointing to this FileRecipe with SessionResult.status = done
         - Returns False otherwise
     - FileRecipe.get_cooked_file():
-        - Return the File pointed to by the successful RunResult->RunRecipe->Session->Port pointing to this FileRecipe
-        - If no such RunResult, return None 
+        - Return the File pointed to by the successful SessionResult->SessionRecipe->Session->Port pointing to this FileRecipe
+        - If no such SessionResult, return None 
     - ImportRecipe.is_imported():
         - Return True if there is an ImportResult pointing to this ImportRecipe with ImportResult.status = done
         - Return False otherwise
@@ -77,36 +77,36 @@ Importing a file:
         - Server points ImportResult to ImportRecipe and (if successful) resulting File
         - Server points Import to ImportResult
 
-Running a RunRecipe:
-    - Get a RunRecipe from the server that is ready to run
+Running a SessionRecipe:
+    - Get a SessionRecipe from the server that is ready to run
         - Server makes sure to include all Bindings
-    - Tell server that this RunRecipe is now currently running
-        - Server creates a Run pointing to RunRecipe
+    - Tell server that this SessionRecipe is now currently running
+        - Server creates a SessionRun pointing to SessionRecipe
     - For each Binding:
         - If Binding is a File, copy it to local filesystem from Location
         - If Binding is a FileImport, check if file has been imported by looking for a FileImportResult pointing to FileImport
             - If so, copy File from Location to local filesystem
             - If not, check if file is currently being imported by looking for a FileImportRequest pointing to FileImport
                 - If not, create new FileImportRequest pointing to FileImport
-        - If Binding is a FileRecipe, check if File has been created already by looking for a RunResult pointing to it
+        - If Binding is a FileRecipe, check if File has been created already by looking for a SessionResult pointing to it
             - If so, copy File from Location to local filesystem
-            - If not, recursively resolve its RunRecipe 
+            - If not, recursively resolve its SessionRecipe 
     - Construct DAG of Session dependencies and run Session(s) that have all dependencies resolved
-    - Tell server that this RunRecipe failed or succeeded
-        - Server creates a RunResult with appropriate RunResult.status
-        - Server points RunResult to RunRecipe and (if successful) resulting File
-        - Server points Run to RunResult
+    - Tell server that this SessionRecipe failed or succeeded
+        - Server creates a SessionResult with appropriate SessionResult.status
+        - Server points SessionResult to SessionRecipe and (if successful) resulting File
+        - Server points SessionRun to SessionResult
 
 Method designs:
     - FileImport.import_file():
         - Copy the File from remote Location to local Location
         - Add a new File entry
         - Add a new FileImportResult pointing to the new File and this FileImport
-    - FileRecipe.cook():
-        - Run the RunRecipe pointed to by this FileRecipe
+    - FileRecipe.run():
+        - Run the SessionRecipe pointed to by this FileRecipe
 
 Outstanding issues:
-    - How to know whether a Run is currently being processed by workers? How to detect failure? Important for list of Sessions that are ready to run; don't want to dispatch same Session multiple times.
+    - How to know whether a SessionRun is currently being processed by workers? How to detect failure? Important for list of Sessions that are ready to run; don't want to dispatch same Session multiple times.
 """
 
 
