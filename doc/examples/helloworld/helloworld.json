@@ -13,7 +13,7 @@
                   {
                     "input_port": "input1", 
                     "data_object": {
-                      "hash_algorithm": "md5", 
+                      "hash_function": "md5", 
                       "hash_value": "b1946ac92492d2347c6235b4d2611184"
                     }
                   }
@@ -21,7 +21,7 @@
                 "session_template": {
                   "input_ports": [
                     {
-                      "local_path": "hello.txt", 
+                      "file_path": "hello.txt", 
                       "name": "input1"
                     }
                   ], 

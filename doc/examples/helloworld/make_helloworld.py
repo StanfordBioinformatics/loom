@@ -10,7 +10,7 @@ unpunctuated_hello_world_path = 'partialresult.txt'
 punctuated_hello_world_path = 'hello_worldfinal.txt'
 
 input_file = {
-    "hash_algorithm": "md5",
+    "hash_function": "md5",
     "hash_value": "b1946ac92492d2347c6235b4d2611184",
 }
 
@@ -34,7 +34,7 @@ session_1_template = {
     'input_ports': [
         {
             'name': 'input1',
-            'local_path': hello_path,
+            'file_path': hello_path,
         },
     ],
     'output_ports': [

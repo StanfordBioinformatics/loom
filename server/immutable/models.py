@@ -166,7 +166,9 @@ class _BaseModel(models.Model):
         try:
             Model = field.related.model
         except AttributeError as e:
-            if isinstance(field, django.db.models.ManyToOneRel):
+            if isinstance(field, django.db.models.ManyToManyRel):
+                Model = field.model
+            elif isinstance(field, django.db.models.ManyToOneRel):
                 raise ForeignKeyInChildError('Foreign keys from child to parent are not supported.')
             else:
                 raise e
