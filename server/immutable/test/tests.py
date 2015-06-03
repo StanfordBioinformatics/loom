@@ -8,6 +8,7 @@ from immutable.models import *
 from immutable.test.models import *
 from django.core.exceptions import FieldDoesNotExist
 
+
 class TestMutableModel(TestCase):
 
     def testCreateWithScalarProperty(self):
@@ -115,7 +116,7 @@ class TestMutableModel(TestCase):
         with self.assertRaises(CouldNotFindSubclassError):
             model = SampleMutableChild.create(model_json)
         
-class ImmutableModelTest(TestCase):
+class TestImmutableModel(TestCase):
     def setUp(self):
         child_obj = {'name': 'one'}
         parent_obj = {'child': child_obj, 'name': 'one'}
@@ -123,12 +124,15 @@ class ImmutableModelTest(TestCase):
         self.parent_json = json.dumps(parent_obj)
 
     def testCreateDuplicate(self):
-        SampleImmutableChild.create(self.child_json)
+        model = SampleImmutableChild.create(self.child_json)
         childCountBefore = SampleImmutableChild.objects.count()
         SampleImmutableChild.create(self.child_json)
         childCountAfter = SampleImmutableChild.objects.count()
-        self.assertTrue(childCountBefore > 0)
+        self.assertTrue(childCountBefore==1)
         self.assertEqual(childCountBefore, childCountAfter)
+
+        self.roundTripJson(model)
+        self.roundTripObj(model)
 
     def test_create_verify_hash(self):
         model = SampleImmutableParent.create(self.parent_json)
@@ -140,12 +144,18 @@ class ImmutableModelTest(TestCase):
         expected_hash = hashlib.sha256(clean_json).hexdigest()
         self.assertEqual(expected_hash, model._id)
 
+        self.roundTripJson(model)
+        self.roundTripObj(model)
+
     def test_hash_with_equivalent_jsons(self):
         modelA_json = '{"name":"one"}'
         modelB_json = '{ "name" : "one" }'
         modelA = SampleImmutableChild.create(modelA_json)
         modelB = SampleImmutableChild.create(modelB_json)
         self.assertEqual(modelA._id, modelB._id)
+
+        self.roundTripJson(modelA)
+        self.roundTripObj(modelA)
 
     def testRaisesErrorOnSave(self):
         model = SampleImmutableChild.create(self.child_json)
@@ -160,6 +170,18 @@ class ImmutableModelTest(TestCase):
     def test_immutable_contains_mutable_raises_error(self):
         with self.assertRaises(MutableChildError):
             model = BadImmutableParent.create(self.parent_json)
+
+    def roundTripJson(self, model):
+        cls = model.__class__
+        id1 = model._id
+        model = cls.create(model.to_json())
+        self.assertEqual(model._id, id1)
+
+    def roundTripObj(self, model):
+        cls = model.__class__
+        id1 = model._id
+        model = cls.create(model.to_obj())
+        self.assertEqual(model._id, id1)
 
 class InheritanceTest(TestCase):
     def testAbstractInheritance(self):
@@ -186,15 +208,15 @@ class InheritanceTest(TestCase):
         abstract_parent_json = '{"child":{"son1_name":"the child1"},"name":"the parent"}'
         parent = ParentOfAbstract.create(abstract_parent_json)
         expected = '{"_id":"7759b0240ed8ef1326aa05820f45f03bc4119eeb45794215b527645512969b75","child":'\
-                   '{"_id":"a77b7d0e6b10c94828ab5bc6f7ffbe23d0e0fe1920429bdd64491be2f2346535","son1_name":'\
-                   '"the child1"},"name":"the parent"}'
+            '{"_id":"a77b7d0e6b10c94828ab5bc6f7ffbe23d0e0fe1920429bdd64491be2f2346535","son1_name":'\
+            '"the child1"},"name":"the parent"}'
         self.assertEqual(parent.to_json(), expected)
 
     def testToJsonMultitableModels(self):
         multitable_parent_json = '{"child":{"daughter1_name":"the child1"},"name":"the parent"}'
         parent = ParentOfMultiTable.create(multitable_parent_json)
         expected = '{"_id":"a33306f11667fb440530ca0b2d18732221786cc9bbd33edfa684f9cef028798b","child":'\
-                   '{"_id":"57bbc8f5f7466bac9b01c716d04ada9c0837c710d6eecf0ee1e0368c6636a809","daughter1_name":'\
-                   '"the child1","multitablebasechild_ptr":'\
-                   '{"_id":"57bbc8f5f7466bac9b01c716d04ada9c0837c710d6eecf0ee1e0368c6636a809"}},"name":"the parent"}'
+            '{"_id":"57bbc8f5f7466bac9b01c716d04ada9c0837c710d6eecf0ee1e0368c6636a809",'\
+            '"daughter1_name":"the child1"},"name":"the parent"}'
         self.assertEqual(parent.to_json(), expected)
+

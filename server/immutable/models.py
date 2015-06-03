@@ -4,6 +4,7 @@ from django.db import models
 import hashlib
 import json
 import jsonschema
+from immutable.helpers.objtools import StripKeys
 
 
 class InvalidJsonError(Exception):
@@ -48,6 +49,12 @@ class CouldNotFindUniqueSubclassError(Exception):
 class ForeignKeyInChildError(Exception):
     pass
 
+class AttemptedToUpdateImmutableError(Exception):
+    pass
+
+class UniqueIdMismatchError(Exception):
+    pass
+
 class _BaseModel(models.Model):
 
     def to_json(self):
@@ -55,6 +62,8 @@ class _BaseModel(models.Model):
         return self._obj_to_json(obj)
 
     def to_obj(self):
+        if 'Environment' in str(self.__class__):
+            import pdb; pdb.set_trace()
         obj = self._get_fields_as_obj()
         obj.update(self._get_many_to_many_fields_as_obj())
         return obj
@@ -136,13 +145,26 @@ class _BaseModel(models.Model):
             setattr(self, key, None)
             return
         else:
-            Model = self._get_model_for_attribute_name(key, value)
-            if value.get('id') is not None:
-                child = Model.objects.get(id=value.get('id'))
-                child.update(value)
-            else:
-                child = Model.create(value)
+            child = self._create_or_update_child(key, value)
             setattr(self, key, child)
+
+    def _create_or_update_child(self, key, value):
+        Model = self._get_model_for_attribute_name(key, value)
+        if value.get('_id') is not None:
+            child = Model.objects.get(_id=value.get('_id'))
+            if isinstance(child, MutableModel):
+                child.update(value)
+            elif isinstance(child, ImmutableModel):
+                # If models are identical, no update is needed. Else error.
+                if child._id != ImmutableModel._calculate_unique_id(value):
+                    raise AttemptedToUpdateImmutableError("Attempted to update an immutable object. Original: '%s'. Update: '%s'" % (child.to_obj(), value))
+            else:
+                raise Exception("Failed because model is neither ImmutableModel nor MutableModel. %s" % child)
+        else:
+            child = Model.create(value)
+        return child
+
+
 
     def _create_or_update_many_to_many_attribute(self, key, valuelist):
         # Cannot create many-to-many relation until model is
@@ -153,12 +175,7 @@ class _BaseModel(models.Model):
             return
         else:
             for value in valuelist:
-                Model = self._get_model_for_attribute_name(key, value)
-                if value.get('id') is not None:
-                    child = Model.objects.get(id=value.get('id'))
-                    child.update(value)
-                else:
-                    child = Model.create(value)
+                child = self._create_or_update_child(key, value)
                 unsaved_for_this_key.append(child)
 
     def _get_model_for_attribute_name(self, key, value):
@@ -219,7 +236,11 @@ class _BaseModel(models.Model):
     def _get_fields_as_obj(self):
         obj = {}
         for field in self._meta.fields:
-            obj[field.name] = self._get_field_as_obj(field)
+            if isinstance(field, django.db.models.fields.related.OneToOneField) and \
+                    isinstance(self, field.related_model):
+                continue
+            else:
+                obj[field.name] = self._get_field_as_obj(field)
         return obj
 
     def _get_field_as_obj(self, field):
@@ -276,7 +297,7 @@ class MutableModel(_BaseModel):
         if _id is None:
             return
         if _id != self._id:
-            raise IdMismatchError('ID mismatch. The update JSON gave an id of "%s", but this model has id "%s"'
+            raise IdMismatchError('ID mismatch. The update JSON gave an id of "%s", but this model has id "%s."'
                             % (_id, self._id))
 
     class Meta:
@@ -301,12 +322,24 @@ class ImmutableModel(_BaseModel):
         raise NoSaveAllowedError("Immutable models cannot be saved after creation.")
 
     @classmethod
-    def _calculate_unique_id(cls, data_json):
+    def _calculate_unique_id(cls, data_obj_or_json):
+        data_obj_with_ids = cls._any_to_obj(data_obj_or_json)
+        data_obj = StripKeys.strip_key(data_obj_with_ids, '_id')
+        data_json = cls._obj_to_json(data_obj)
         return hashlib.sha256(data_json).hexdigest()
 
     def _check_child_compatibility(self, Child):
         if not issubclass(Child, ImmutableModel):
             raise MutableChildError("An ImmutableModel can only contain references to ImmutableModels.")
+
+    def to_obj(self):
+        obj = super(ImmutableModel, self).to_obj()
+        self._verify_unique_id(obj)
+        return obj
+
+    def _verify_unique_id(self, obj):
+        if not self._calculate_unique_id(obj) == self._id:
+            raise UniqueIdMismatchError("The _id %s is out of sync with the hash of contents %s on model %s" %(self._id, obj, self.__class__))
 
     class Meta:
         abstract = True
