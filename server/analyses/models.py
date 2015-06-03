@@ -93,15 +93,16 @@ class DockerImage(Environment):
 class AnalysisRequest(ImmutableModel):
     file_recipes = models.ManyToManyField('FileRecipe')
     resource_sets = models.ManyToManyField('ResourceSet')
-    date = models.DateTimeField()
+    # TODO fix timestamps
+#    date = models.DateTimeField()
     requester = models.CharField(max_length = 100)
 
-    @classmethod
-    def create(cls, data_obj_or_json):
-        data_obj = cls._any_to_obj(data_obj_or_json)
-        if data_obj.get('date') is None:
-            data_obj.update({'date': str(datetime.now())})
-        return super(AnalysisRequest, cls).create(data_obj)
+#    @classmethod
+#    def create(cls, data_obj_or_json):
+#        data_obj = cls._any_to_obj(data_obj_or_json)
+#        if data_obj.get('date') is None:
+#            data_obj.update({'date': str(datetime.now())})
+#        return super(AnalysisRequest, cls).create(data_obj)
 
 class ResourceSet(ImmutableModel):
     step = models.ForeignKey(Step)

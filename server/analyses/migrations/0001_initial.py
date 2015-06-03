@@ -14,7 +14,6 @@ class Migration(migrations.Migration):
             name='AnalysisRequest',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
-                ('date', models.DateTimeField()),
                 ('requester', models.CharField(max_length=100)),
             ],
             options={
