@@ -62,11 +62,8 @@ class _BaseModel(models.Model):
         return self._obj_to_json(obj)
 
     def to_obj(self):
-        if 'Environment' in str(self.__class__):
-            import pdb; pdb.set_trace()
-        obj = self._get_fields_as_obj()
-        obj.update(self._get_many_to_many_fields_as_obj())
-        return obj
+        model = self._get_lowest_subclass()
+        return model._get_fields_as_obj()
 
     @classmethod
     def get_by_id(cls, _id):
@@ -183,14 +180,14 @@ class _BaseModel(models.Model):
         try:
             Model = field.related.model
         except AttributeError as e:
-            if isinstance(field, django.db.models.ManyToManyRel):
+            if isinstance(field, models.ManyToManyRel):
                 Model = field.model
-            elif isinstance(field, django.db.models.ManyToOneRel):
+            elif isinstance(field, models.ManyToOneRel):
                 raise ForeignKeyInChildError('Foreign keys from child to parent are not supported.')
             else:
                 raise e
         if Model._is_abstract(value):
-            Model = Model._select_best_subclass_model(value)
+            Model = Model._select_best_subclass_model_by_fields(value)
         self._check_child_compatibility(Model)
         return Model
 
@@ -205,7 +202,7 @@ class _BaseModel(models.Model):
         return cls._meta.abstract or not cls._do_all_fields_match(data_obj)
 
     @classmethod
-    def _select_best_subclass_model(AbstractModel, data_obj):
+    def _select_best_subclass_model_by_fields(AbstractModel, data_obj):
         # This works for either abstract base class or multitable base class
         subclass_models = []
         for Model in django.apps.apps.get_models():
@@ -233,21 +230,58 @@ class _BaseModel(models.Model):
                 return False
         return True
         
+    def _get_lowest_subclass(self):
+        submodels = []
+        for field in self._meta.get_fields():
+            if isinstance(field, models.fields.related.OneToOneRel) and \
+                    issubclass(field.related_model, self.__class__):
+                try:
+                    model = getattr(self, field.name)
+                    if model._id == self._id:
+                        submodels.append(model)
+                except:
+                    #RelatedModelDoesNotExist
+                    pass
+        if len(submodels) == 0:
+            return self
+        elif len(submodels) > 1:
+            raise Exception("%s subclasses instances exist for abstract model %s. There should only be one." % (len(submodels), self))
+        else:
+            return submodels[0]
+
     def _get_fields_as_obj(self):
         obj = {}
-        for field in self._meta.fields:
-            if isinstance(field, django.db.models.fields.related.OneToOneField) and \
-                    isinstance(self, field.related_model):
-                continue
-            else:
-                obj[field.name] = self._get_field_as_obj(field)
+        for field in self._meta.get_fields():
+            field_obj = self._get_field_as_obj(field)
+            if field_obj is not None:
+                obj[field.name] = field_obj
         return obj
 
     def _get_field_as_obj(self, field):
-        if isinstance(field, models.fields.related.ForeignKey):
+        if self._does_field_point_to_parent_or_base_class(field):
+            return
+        elif isinstance(field, models.fields.related.ManyToManyField):
+            return self._get_many_to_many_field_as_obj(field)
+        elif isinstance(field, models.fields.related.ForeignKey):
             return self._get_foreign_key_field_as_obj(field)
         else:
             return getattr(self, field.name)
+
+    def _does_field_point_to_parent_or_base_class(self, field):
+        if isinstance(field, models.fields.related.ManyToManyRel) and \
+                isinstance(self, field.model):
+            # This is a ManyToMany defined on the parent model.
+            return True
+        elif isinstance(field, models.fields.related.OneToOneField) and \
+                isinstance(self, field.related_model):
+            # Points to a base class for this model.
+            return True
+        elif isinstance(field, models.fields.related.ManyToOneRel) and \
+                isinstance(self, field.model):
+            # This is a ForeignKey defined on the parent model.
+            return True
+        else:
+            return False
 
     def _get_foreign_key_field_as_obj(self, field):
         related_model = getattr(self, field.name)
@@ -256,17 +290,12 @@ class _BaseModel(models.Model):
         else:
             return related_model.to_obj()
 
-    def _get_many_to_many_fields_as_obj(self):
-        obj = {}
-        for field in self._meta.many_to_many:
-            obj[field.name] = self._get_many_to_many_field_as_obj(field)
-        return obj
-
     def _get_many_to_many_field_as_obj(self, field):
         related_model_list = getattr(self, field.name)
         related_model_obj = []
         for model in related_model_list.iterator():
             related_model_obj.append(model.to_obj())
+        related_model_obj.sort(key=lambda x: x.get('_id'))
         return related_model_obj
 
     class Meta:
@@ -279,7 +308,7 @@ class MutableModel(_BaseModel):
     @classmethod
     def create(cls, data_obj_or_json):
         data_obj = cls._any_to_obj(data_obj_or_json)
-        Model = cls._select_best_subclass_model(data_obj)
+        Model = cls._select_best_subclass_model_by_fields(data_obj)
         o = Model()
         o._create_or_update_attributes(data_obj)
         return o
@@ -313,7 +342,7 @@ class ImmutableModel(_BaseModel):
         data_json = cls._obj_to_json(data_obj)
         _id = cls._calculate_unique_id(data_json)
         data_obj.update({'_id': _id})
-        Model = cls._select_best_subclass_model(data_obj)
+        Model = cls._select_best_subclass_model_by_fields(data_obj)
         o = Model()
         o._create_or_update_attributes(data_obj)
         return o

@@ -209,6 +209,15 @@ class TestModels(TestCase):
         data_object = DataObject.create(data_object.to_json())
         self.assertEqual(data_object._id, id1)
 
+    def testDataObjectAsDataObject(self):
+        file_object = DataObject.create(self.file_obj)
+        data_object = DataObject.objects.get(_id=file_object._id)
+
+        # Test round trip
+        id1 = data_object._id
+        data_object = DataObject.create(data_object.to_json())
+        self.assertEqual(data_object._id, id1)
+
     def testResourceSet(self):
         resource_set = ResourceSet.create(self.resource_set_obj)
         self.assertEqual(resource_set.cores, self.resource_set_obj['cores'])
