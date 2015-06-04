@@ -51,7 +51,7 @@ For Mutable Models edits can be made with the model.update() function.
 ```
 model.update(data_json)
 ```
-## Inheritance
+## Multitable Inheritance
 Use multitable inheritance when you want a reference to one of several possible classes.
 ```
 class Container(ImmutableModel):
@@ -60,7 +60,7 @@ class Container(ImmutableModel):
 class FilingCabinet(Container):
     folder_name = models.CharField(max_length = 20)
     
-class Cabinet(Container):
+class Cupboard(Container):
     shelf_number = models.IntegerField()
     
 class Stuff(MutableModel):
@@ -93,3 +93,28 @@ FilingCabinet object
 
 myStuff
 ``` 
+You may find it cleaner to use the 'get' method to retrieve all fields. This will downcast wherever needed without and explicit 'downcast' call.
+```
+>>> stuff.get('stored_in').get('folder_name')
+myStuff
+```
+## Abstract Inheritance
+Use abstract inheritance when you want children to inherit properties or methods from a parent, but do not need to reference the parent class. This is unchanged from standard behavior for the django ORM.
+```
+class Container(ImmutableModel):
+    location_name = models.CharField(max_length=20
+
+    class Meta:
+        abstrace=True
+   
+class FilingCabinet(Container):
+    folder_name = models.CharField(max_length=20)
+
+class Cupboard(Container):
+    shelf_number = models.IntegerField()
+
+class Locations(MutableModel):
+    description = models.CharField(max_length=100)
+    cupboard_locations = models.ManyToManyField(Cupboard)
+    filing_cabinet_locations = models.ManyToManyField(FilingCabinet)
+```

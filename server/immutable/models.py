@@ -13,6 +13,16 @@ class _BaseModel(models.Model):
     def get_by_id(cls, _id):
         return cls.objects.get(_id=_id)
 
+    def get(self, field_name):
+        try:
+            field_value = getattr(self, field_name)
+        except:
+            return None
+        try:
+            return field_value.downcast()
+        except:
+            return field_value
+
     def to_json(self):
         obj = self.to_obj()
         return self._obj_to_json(obj)
