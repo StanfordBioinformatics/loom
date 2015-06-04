@@ -171,6 +171,15 @@ class TestImmutableModel(TestCase):
         with self.assertRaises(MutableChildError):
             model = BadImmutableParent.create(self.parent_json)
 
+    def test_change_list_order(self):
+        child1_obj = {'name': 'one'}
+        child2_obj = {'name': 'two'}
+        parent_obj = {'childlist': [child1_obj, child2_obj], 'name': 'one'}
+        parent_reverse_obj = {'childlist': [child2_obj, child1_obj], 'name': 'one'}
+        parent = SampleImmutableParent.create(parent_obj)
+        parent_reverse = SampleImmutableParent.create(parent_reverse_obj)
+        self.assertEqual(parent._id, parent_reverse._id)
+
     def roundTripJson(self, model):
         cls = model.__class__
         id1 = model._id

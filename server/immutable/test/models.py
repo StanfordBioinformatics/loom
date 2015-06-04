@@ -15,6 +15,7 @@ class SampleMutableChild2(MutableModel):
 
 class SampleMutableChild3(MutableModel):
     name = models.CharField(max_length=100)
+    # This is illegal and will raise an error. Child cannot have foreign key to parent.
     parent = models.ForeignKey('SampleMutableParent', related_name='listofchildren_foreignkey')
 
 class SampleMutableParent(MutableModel):
@@ -25,9 +26,13 @@ class SampleMutableParent(MutableModel):
 class SampleImmutableChild(ImmutableModel):
     name = models.CharField(max_length=100)
 
+class SampleImmutableChild2(ImmutableModel):
+    name = models.CharField(max_length=100)
+
 class SampleImmutableParent(ImmutableModel):
     name = models.CharField(max_length=100)
-    child = models.OneToOneField(SampleImmutableChild, related_name='parent')
+    child = models.OneToOneField(SampleImmutableChild, related_name='parent', null=True)
+    childlist = models.ManyToManyField(SampleImmutableChild2)
 
 class BadMutableChild(MutableModel):
     name = models.CharField(max_length=100)

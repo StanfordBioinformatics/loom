@@ -47,9 +47,7 @@ class TestWorkFlow(TestCase):
 
     def test_analysis_request_submission(self):
         analysis_request = AnalysisRequest.create(TestModels.analysis_request_obj)
-        environment = analysis_request.file_recipes.first().step.step_template.environment
-        environment = environment._get_lowest_subclass()
-        environment.docker_image
+        environment = analysis_request.file_recipes.first().step.step_template.environment.downcast().docker_image
 
 #        analysis_run = AnalysisRun.create(
 #            {'analysis_request': analysis_request.to_obj(),

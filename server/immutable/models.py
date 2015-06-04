@@ -4,91 +4,35 @@ from django.db import models
 import hashlib
 import json
 import jsonschema
-from immutable.helpers.objtools import StripKeys
-
-
-class InvalidJsonError(Exception):
-    pass
-
-class ConvertToJsonError(Exception):
-    pass
-
-class ConvertToDictError(Exception):
-    pass
-
-class MissingValidationSchemaError(Exception):
-    pass
-
-class ModelValidationError(Exception):
-    pass
-
-class InvalidValidationSchemaError(Exception):
-    pass
-
-class ModelNotFoundError(Exception):
-    pass
-
-class IdMismatchError(Exception):
-    pass
-
-class NoSaveAllowedError(Exception):
-    pass
-
-class AttributeDoesNotExist(Exception):
-    pass
-
-class MutableChildError(Exception):
-    pass
-
-class CouldNotFindSubclassError(Exception):
-    pass
-
-class CouldNotFindUniqueSubclassError(Exception):
-    pass
-
-class ForeignKeyInChildError(Exception):
-    pass
-
-class AttemptedToUpdateImmutableError(Exception):
-    pass
-
-class UniqueIdMismatchError(Exception):
-    pass
+from immutable import helpers
+from immutable.exceptions import *
 
 class _BaseModel(models.Model):
+
+    @classmethod
+    def get_by_id(cls, _id):
+        return cls.objects.get(_id=_id)
 
     def to_json(self):
         obj = self.to_obj()
         return self._obj_to_json(obj)
 
     def to_obj(self):
-        model = self._get_lowest_subclass()
+        model = self.downcast()
         return model._get_fields_as_obj()
 
     @classmethod
-    def get_by_id(cls, _id):
-        return cls.objects.get(_id=_id)
-
-    @classmethod
     def _obj_to_json(cls, data_obj):
-        JSON_DUMP_OPTIONS = {'separators': (',',':'), 'sort_keys': True}
-        try:
-            return json.dumps(data_obj, **JSON_DUMP_OPTIONS)
-        except Exception as e:
-            raise ConvertToJsonError('Could not convert object to JSON. "%s". %s' % (data_obj, e.message))
+        return helpers.obj_to_json(data_obj)
 
     @classmethod
     def _json_to_obj(cls, data_json):
-        try:
-            data_obj =json.loads(data_json)
-        except Exception as e:
-            raise InvalidJsonError('Invalid JSON. "%s". %s' % (data_json, e.message))
-        return data_obj
+        return helpers.json_to_obj(data_json)
 
     @classmethod
     def _any_to_json(cls, data_obj_or_json):
         if isinstance(data, basestring):
-            # Round trip to validate JSON and standardize format
+            # Input appears to be JSON. Round trip to validate.
             data_obj = cls._json_to_obj(data_obj_or_json)
         else:
             data_obj = data_obj_or_json(data)
@@ -99,45 +43,44 @@ class _BaseModel(models.Model):
         if isinstance(data, basestring):
             data_json = data
         else:
-            # Round trip to validate
+            # Input appears to be obj. Round trip to validate.
             data_json = cls._obj_to_json(data)
         return cls._json_to_obj(data_json)
 
-    def _create_or_update_attributes(self, data_obj):
-        self.unsaved_many_to_many = {}
+    def _create_or_update_fields(self, data_obj):
+        self.unsaved_many_to_many_related_objects = {}
         for (key, value) in data_obj.iteritems():
-            self._create_or_update_attribute(key, value)
-        self._process_many_to_many_relations()
+            self._create_or_update_field(key, value)
+        models.Model.save(self)
+        self._save_many_to_many_related_objects()
 
-    def _process_many_to_many_relations(self):
-        # Cannot create many-to-many relation until model is
+    def _save_many_to_many_related_objects(self):
+        # Cannot create many-to-many relations until both models are
         # saved, but saving before adding other fields will raise
         # errors if those fields are required (null=False).
-        # Now that all other fields are added, we save once,
-        # then add many-to-many relations, then save again.
-        models.Model.save(self)
-        while self.unsaved_many_to_many:
-            (key, children) = self.unsaved_many_to_many.popitem()
+        # Now that all other fields are added and the model is saved,
+        # we add many-to-many relations.
+        while self.unsaved_many_to_many_related_objects:
+            (key, children) = self.unsaved_many_to_many_related_objects.popitem()
             field = getattr(self, key)
             field.clear()
             for child in children:
                 field.add(child)
-        models.Model.save(self)
 
-    def _create_or_update_attribute(self, key, value):
+    def _create_or_update_field(self, key, value):
         if isinstance(value, list):
-            self._create_or_update_many_to_many_attribute(key, value)
+            self._create_or_update_many_to_many_field(key, value)
         elif isinstance(value, dict):
-            self._create_or_update_foreign_key_attribute(key, value)
+            self._create_or_update_foreign_key_field(key, value)
         else:
-            self._create_or_update_scalar_attribute(key, value)
+            self._create_or_update_scalar_field(key, value)
 
-    def _create_or_update_scalar_attribute(self, key, value):
+    def _create_or_update_scalar_field(self, key, value):
         if not hasattr(self, key):
             raise AttributeDoesNotExist("Attempted to set attribute %s on class %s, but the attribute does not exist." % (key, self.__class__))
         setattr(self, key, value)
 
-    def _create_or_update_foreign_key_attribute(self, key, value):
+    def _create_or_update_foreign_key_field(self, key, value):
         if value is None:
             setattr(self, key, None)
             return
@@ -145,49 +88,54 @@ class _BaseModel(models.Model):
             child = self._create_or_update_child(key, value)
             setattr(self, key, child)
 
-    def _create_or_update_child(self, key, value):
-        Model = self._get_model_for_attribute_name(key, value)
-        if value.get('_id') is not None:
-            child = Model.objects.get(_id=value.get('_id'))
-            if isinstance(child, MutableModel):
-                child.update(value)
-            elif isinstance(child, ImmutableModel):
-                # If models are identical, no update is needed. Else error.
-                if child._id != ImmutableModel._calculate_unique_id(value):
-                    raise AttemptedToUpdateImmutableError("Attempted to update an immutable object. Original: '%s'. Update: '%s'" % (child.to_obj(), value))
-            else:
-                raise Exception("Failed because model is neither ImmutableModel nor MutableModel. %s" % child)
-        else:
-            child = Model.create(value)
-        return child
-
-
-
-    def _create_or_update_many_to_many_attribute(self, key, valuelist):
+    def _create_or_update_many_to_many_field(self, key, valuelist):
         # Cannot create many-to-many relation until model is
         # saved, so we keep a list to save later.
-        unsaved_for_this_key = self.unsaved_many_to_many.setdefault(key, [])
+        unsaved_for_this_key = self.unsaved_many_to_many_related_objects.setdefault(key, [])
 
         if valuelist == [] or valuelist == None:
+            # This will remove all many_to_many relations.
             return
         else:
             for value in valuelist:
                 child = self._create_or_update_child(key, value)
                 unsaved_for_this_key.append(child)
 
-    def _get_model_for_attribute_name(self, key, value):
+    def _create_or_update_child(self, key, value):
+        Model = self._get_model_for_field_name(key, value)
+        if value.get('_id') is None:
+            child = Model.create(value)
+        else:
+            # Update existing model
+            child = Model.objects.get(_id=value.get('_id'))
+            if isinstance(child, MutableModel):
+                child.update(value)
+            elif isinstance(child, ImmutableModel):
+                if child._id != ImmutableModel._calculate_unique_id(value):
+                    # Error if update is not identical to existing ImmutableModel
+                    raise AttemptedToUpdateImmutableError("Attempted to update an immutable object. Original: '%s'. Update: '%s'" % (child.to_obj(), value))
+            else:
+                raise Exception("All model classes must extend ImmutableModel or MutableModel. Neither class found for %s." % child)
+        return child
+
+    def _get_model_for_field_name(self, key, child_value):
+        # Select the child model self.{key}
         field = self._meta.get_field(key)
         try:
+            # Child related by foreign key
             Model = field.related.model
         except AttributeError as e:
             if isinstance(field, models.ManyToManyRel):
+                # Child related by ManyToMany
                 Model = field.model
             elif isinstance(field, models.ManyToOneRel):
                 raise ForeignKeyInChildError('Foreign keys from child to parent are not supported.')
             else:
-                raise e
-        if Model._is_abstract(value):
-            Model = Model._select_best_subclass_model_by_fields(value)
+                raise Exception("Unknown exception %s" % e.message)
+        if Model._is_abstract(child_value):
+            # If child model is abstract or is missing fields, look for a subclass that matches child_value
+            child_fields = child_value.keys()
+            Model = Model._select_best_subclass_model_by_fields(child_fields)
         self._check_child_compatibility(Model)
         return Model
 
@@ -202,7 +150,7 @@ class _BaseModel(models.Model):
         return cls._meta.abstract or not cls._do_all_fields_match(data_obj)
 
     @classmethod
-    def _select_best_subclass_model_by_fields(AbstractModel, data_obj):
+    def _select_best_subclass_model_by_fields(AbstractModel, fields):
         # This works for either abstract base class or multitable base class
         subclass_models = []
         for Model in django.apps.apps.get_models():
@@ -210,56 +158,66 @@ class _BaseModel(models.Model):
                 subclass_models.append(Model)
         matching_models = []
         for Model in subclass_models:
-            if Model._do_all_fields_match(data_obj):
+            if Model._do_all_fields_match(fields):
                 matching_models.append(Model)
         if len(matching_models) == 0:
-            raise CouldNotFindSubclassError("Failed to find a subclass of abstract model %s that matches these fields: %s" % (AbstractModel, data_obj))
+            raise CouldNotFindSubclassError("Failed to find a subclass of abstract model %s that matches these fields: %s" % (AbstractModel, fields))
         elif len(matching_models) > 1:
             raise CouldNotFindUniqueSubclassError(
                 "Failed to find a unique subclass of abstract model %s that matches these fields: %s. Multiple models matched: %s" 
-                % (AbstractModel, data_obj, matching_models))
+                % (AbstractModel, fields, matching_models))
         else:
             return matching_models[0]
                 
     @classmethod
-    def _do_all_fields_match(cls, data_obj):
+    def _do_all_fields_match(cls, fields):
         model_fields = cls._meta.get_all_field_names()
-        data_fields = data_obj.keys()
-        for field in data_fields:
+        for field in fields:
             if field not in model_fields:
                 return False
         return True
         
-    def _get_lowest_subclass(self):
+    def downcast(self):
+        # If there is a subclass of this model with the same ID, return it.
         submodels = []
-        for field in self._meta.get_fields():
-            if isinstance(field, models.fields.related.OneToOneRel) and \
-                    issubclass(field.related_model, self.__class__):
-                try:
-                    model = getattr(self, field.name)
-                    if model._id == self._id:
-                        submodels.append(model)
-                except:
-                    #RelatedModelDoesNotExist
-                    pass
+        for field in self._get_subclass_fields():
+            try:
+                model = getattr(self, field.name)
+                if model._id == self._id:
+                    submodels.append(model)
+            except:
+                #RelatedModelDoesNotExist
+                pass
         if len(submodels) == 0:
+            # No submodels for downcast.
             return self
         elif len(submodels) > 1:
             raise Exception("%s subclasses instances exist for abstract model %s. There should only be one." % (len(submodels), self))
         else:
-            return submodels[0]
+            # Proceed recursively until no more downcasting is possible.
+            return submodels[0].downcast()
+
+    def _get_subclass_fields(self):
+        subclass_fields = []
+        for field in self._meta.get_fields():
+            if isinstance(field, models.fields.related.OneToOneRel) and \
+                    issubclass(field.related_model, self.__class__):
+                subclass_fields.append(field)
+        return subclass_fields
 
     def _get_fields_as_obj(self):
         obj = {}
         for field in self._meta.get_fields():
             field_obj = self._get_field_as_obj(field)
-            if field_obj is not None:
-                obj[field.name] = field_obj
+            if (field_obj is None) or (field_obj == []):
+                continue
+            obj[field.name] = field_obj
         return obj
 
     def _get_field_as_obj(self, field):
         if self._does_field_point_to_parent_or_base_class(field):
-            return
+            # Ignore these fields in representation of model as an obj or json
+            return None
         elif isinstance(field, models.fields.related.ManyToManyField):
             return self._get_many_to_many_field_as_obj(field)
         elif isinstance(field, models.fields.related.ForeignKey):
@@ -295,7 +253,6 @@ class _BaseModel(models.Model):
         related_model_obj = []
         for model in related_model_list.iterator():
             related_model_obj.append(model.to_obj())
-        related_model_obj.sort(key=lambda x: x.get('_id'))
         return related_model_obj
 
     class Meta:
@@ -310,23 +267,23 @@ class MutableModel(_BaseModel):
         data_obj = cls._any_to_obj(data_obj_or_json)
         Model = cls._select_best_subclass_model_by_fields(data_obj)
         o = Model()
-        o._create_or_update_attributes(data_obj)
+        o._create_or_update_fields(data_obj)
         return o
 
-    def update(self, data_json):
-        data_obj = self._any_to_obj(data_json)
-        self._verify_id(data_obj.get('_id'))
+    def update(self, update_json):
+        update_obj = self._any_to_obj(update_json)
+        self._verify_update_id_matches_model(update_obj.get('_id'))
+        # Start with existing model and update any fields in update_json
         model_obj = self.to_obj()
-        model_obj.update(data_obj)
-        model_json = self._obj_to_json(model_obj)
-        self._create_or_update_attributes(data_obj)
+        model_obj.update(update_obj)
+        self._create_or_update_fields(model_obj)
         return self
 
-    def _verify_id(self, _id):
+    def _verify_update_id_matches_model(self, _id):
         if _id is None:
             return
         if _id != self._id:
-            raise IdMismatchError('ID mismatch. The update JSON gave an id of "%s", but this model has id "%s."'
+            raise UpdateIdMismatchError('Update does not match model. The update JSON gave an _id of "%s", but this model has _id "%s."'
                             % (_id, self._id))
 
     class Meta:
@@ -334,7 +291,7 @@ class MutableModel(_BaseModel):
 
 class ImmutableModel(_BaseModel):
 
-    _id = models.TextField(primary_key=True, null=False)
+    _id = models.TextField(primary_key=True)
 
     @classmethod
     def create(cls, data_obj_or_json):
@@ -344,7 +301,7 @@ class ImmutableModel(_BaseModel):
         data_obj.update({'_id': _id})
         Model = cls._select_best_subclass_model_by_fields(data_obj)
         o = Model()
-        o._create_or_update_attributes(data_obj)
+        o._create_or_update_fields(data_obj)
         return o
 
     def save(self):
@@ -352,10 +309,8 @@ class ImmutableModel(_BaseModel):
 
     @classmethod
     def _calculate_unique_id(cls, data_obj_or_json):
-        data_obj_with_ids = cls._any_to_obj(data_obj_or_json)
-        data_obj = StripKeys.strip_key(data_obj_with_ids, '_id')
-        data_json = cls._obj_to_json(data_obj)
-        return hashlib.sha256(data_json).hexdigest()
+        data_obj = cls._any_to_obj(data_obj_or_json)
+        return helpers.IdCalculator(data_obj=data_obj, id_key='_id').get_id()
 
     def _check_child_compatibility(self, Child):
         if not issubclass(Child, ImmutableModel):
