@@ -36,6 +36,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'immutable',
     'analyses',
+    'editor',
 )
 
 MIDDLEWARE_CLASSES = (
