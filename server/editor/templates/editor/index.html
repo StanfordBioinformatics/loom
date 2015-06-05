@@ -10,6 +10,21 @@ Yay it works!
   <circle cx="80" cy="60" r="10"></circle>
   <circle cx="120" cy="60" r="10"></circle>
 </svg>
+<p>This is the first paragraph.</p>
+<script>
+d3.select("body").selectAll("p")
+    .data([4, 8, 15, 16, 23, 42])
+  .enter().append("p")
+    .text(function(d) { return "I’m number " + d + "!"; });
 
+var draggable = d3.behavior.drag()
+    .on("drag", function(d) {
+        d3.select(this)
+            .attr("cx", d3.event.x)
+            .attr("cy", d3.event.y);
+    });
+
+d3.selectAll("circle").call(draggable);
+</script>
 </body>
 </html>
