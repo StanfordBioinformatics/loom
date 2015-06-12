@@ -42,5 +42,5 @@ XPPF is an open source project. If you share our vision of making analysis pipel
 
 # Contributors
 * Nathan Hammond
-* Isaac Lioa
+* Isaac Liao
 * Ziliang Qian
