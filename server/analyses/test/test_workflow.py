@@ -30,9 +30,8 @@ class TestWorkFlow(TestCase):
         
         file_import_run = FileImportRun.create(file_import_run_obj)
 
-        # Upload begins
-
-        # Upload finishes
+        # Upload begins (not in test)
+        # Upload finishes (not in test)
 
         # FileImportRecord object is created and FileImportRun is updated
         file_import_record_obj = {
@@ -46,22 +45,31 @@ class TestWorkFlow(TestCase):
                 })
 
     def test_analysis_request_submission(self):
+        # Create an analysis request
         analysis_request = AnalysisRequest.create(TestModels.analysis_request_obj)
         environment = analysis_request.file_recipes.first().step.step_template.environment.downcast().docker_image
+        self.assertEqual(environment, TestModels.analysis_request_obj['file_recipes'][0]['step']['step_template']['environment']['docker_image'])
 
-#        analysis_run = AnalysisRun.create(
-#            {'analysis_request': analysis_request.to_obj(),
-#                }
-#            )
+        # Associate analysis request with analysis run
+        analysis_run = AnalysisRun.create({
+                'analysis_request': analysis_request.to_obj(),                
+                })
+        self.assertEqual(analysis_run.analysis_request._id, analysis_request._id)
         
-    def test_run_step(self):
-        # Submit an analysis request
+    def test_run_analysis(self):
+        # Submit an analysis request and start an analysis_run
         analysis_request = AnalysisRequest.create(TestModels.analysis_request_obj)
 
+        # Associate analysis request with analysis run
+        analysis_run = AnalysisRun.create({
+                'analysis_request': analysis_request.to_obj(),                
+                })
+        self.assertEqual(analysis_run.analysis_request._id, analysis_request._id)
+
+
         # Request step ready to run, create a StepRun
+        import pdb; pdb.set_trace()
         
 
         # Post StepResult and update StepRun
 
-    def test_run_analysis(self):
-        pass

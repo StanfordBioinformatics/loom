@@ -35,7 +35,7 @@ The result is an extremely convenient way to develop pipelines that can be easil
 * the same pipeline can can be run on any of the above without modification, by changing the configuration
 
 # Project status
-XPPF is a work in progress. A working alpha version is expected September 2015.
+XPPF is currently in progress and not read for production. Some features are described in documentation but not yet implemented. Contact us for more details.
 
 # Get involved
 XPPF is an open source project. If you share our vision of making analysis pipelines portable, repeatable, and verifiable, get involved! Contact nhammond@stanford.edu.
