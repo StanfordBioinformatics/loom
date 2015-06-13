@@ -105,7 +105,7 @@ class Container(ImmutableModel):
     location_name = models.CharField(max_length=20
 
     class Meta:
-        abstrace=True
+        abstract=True
    
 class FilingCabinet(Container):
     folder_name = models.CharField(max_length=20)
