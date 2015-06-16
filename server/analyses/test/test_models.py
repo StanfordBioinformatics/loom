@@ -26,6 +26,11 @@ class TestModels(TestCase):
         'input_port': input_port_obj,
         }
 
+    step_input_binding_obj = {
+        'file': file_obj,
+        'input_port': input_port_obj,
+        }
+
     step_template_obj = {
         'input_ports': [input_port_obj],
         'output_ports': [output_port_obj],
@@ -33,24 +38,29 @@ class TestModels(TestCase):
         'environment': docker_image_obj,
         }
 
-    step_obj = {
+    analysis_definition_obj = {
         'step_template': step_template_obj,
         'input_bindings': [input_binding_obj],
         }
 
+    step_definition_obj = {
+        'step_template': step_template_obj,
+        'step_input_bindings': [step_input_binding_obj],
+        }
+
     file_recipe_obj = {
-        'step': step_obj,
+        'analysis_definition': analysis_definition_obj,
         'output_port': output_port_obj,
         }
 
     resource_set_obj = {
-        'step': step_obj,
+        'analysis_definition': analysis_definition_obj,
         'memory_bytes': 1024**3,
         'cores': 2,
     }
 
     analysis_request_obj = {
-        'file_recipes': [file_recipe_obj],
+        'analysis_definitions': [analysis_definition_obj],
         'resource_sets': [resource_set_obj],
         'requester': 'someone@example.net',
         }
@@ -73,33 +83,41 @@ class TestModels(TestCase):
         }
 
     step_run_obj = {
-        'step': step_obj,
-        # Exclude step_run_record, to be added on update
+        'step_definition': step_definition_obj,
+        # Exclude step_run_records, step_results, to be added on update
+        }
+
+    step_result_obj = {
+        'file': file_obj,
+        'output_port': output_port_obj,
+        'step_definition': step_definition_obj,
         }
 
     step_run_record_obj = {
-        'step': step_obj,
-        'file': file_obj,
+        'step_definition': step_definition_obj,
+        'step_results': [step_result_obj],
         }
 
     analysis_run_obj = {
-        'analysis_request': analysis_request_obj,
+        'analysis_definition': analysis_definition_obj,
         # Exclude analysis_run_record, to be added on update
         }
 
     analysis_run_record_obj = {
-        'analysis_request': analysis_request_obj,
+        'analysis_definition': analysis_definition_obj,
         'step_run_records': [step_run_record_obj],
         }
 
     file_import_record_obj = {
         'import_comments': 'Notes about the source of this file...',
         'file': file_obj,
+        'requester': 'someone@example.net',
         }
 
-    file_import_run_obj = {
+    file_import_request_obj = {
         'import_comments': 'Notes about the source of this file...',
-        'destination': file_path_location_obj,
+        'file_location': file_path_location_obj,
+        'requester': 'someone@example.net',
         # Exclude file_import_record, to be added on update
         }
     
@@ -154,11 +172,11 @@ class TestModels(TestCase):
         self.roundTripObj(step_template)
         
     def testStep(self):
-        step = Step.create(self.step_obj)
-        self.assertEqual(step.step_template.command, self.step_obj['step_template']['command'])
+        step_definition = StepDefinition.create(self.step_definition_obj)
+        self.assertEqual(step_definition.step_template.command, self.step_definition_obj['step_template']['command'])
 
-        self.roundTripJson(step)
-        self.roundTripObj(step)
+        self.roundTripJson(step_definition)
+        self.roundTripObj(step_definition)
 
     def testFileRecipe(self):
         file_recipe = FileRecipe.create(self.file_recipe_obj)
@@ -234,7 +252,7 @@ class TestModels(TestCase):
 
     def testStepRunRecord(self):
         step_run_record = StepRunRecord.create(self.step_run_record_obj)
-        self.assertEqual(step_run_record.file.hash_value, self.step_run_record_obj['file']['hash_value'])
+        self.assertEqual(step_run_record.step_results.first().file.hash_value, self.step_run_record_obj['step_results'][0]['file']['hash_value'])
 
         self.roundTripJson(step_run_record)
         self.roundTripObj(step_run_record)
@@ -242,7 +260,7 @@ class TestModels(TestCase):
     def testStepRun(self):
         step_run = StepRun.create(self.step_run_obj)
         step_run.update({'step_run_record': self.step_run_record_obj})
-        self.assertEqual(step_run.step_run_record.file.hash_value, self.step_run_record_obj['file']['hash_value'])
+        self.assertEqual(step_run.step_run_record.step_results.first().file.hash_value, self.step_run_record_obj['step_results'][0]['file']['hash_value'])
 
         self.roundTripJson(step_run)
         self.roundTripObj(step_run)
@@ -257,7 +275,8 @@ class TestModels(TestCase):
     def testAnalysisRun(self):
         analysis_run = AnalysisRun.create(self.analysis_run_obj)
         analysis_run.update({'analysis_run_record': self.analysis_run_record_obj})
-        self.assertEqual(analysis_run.analysis_run_record.analysis_request.requester, self.analysis_run_record_obj['analysis_request']['requester'])
+        self.assertEqual(analysis_run.analysis_definition.step_template.command, 
+                         self.analysis_run_obj['analysis_definition']['step_template']['command'])
 
         self.roundTripJson(analysis_run)
         self.roundTripObj(analysis_run)
@@ -269,13 +288,13 @@ class TestModels(TestCase):
         self.roundTripJson(file_import_record)
         self.roundTripObj(file_import_record)
 
-    def testFileImportRun(self):
-        file_import_run = FileImportRun.create(self.file_import_run_obj)
-        file_import_run.update({'file_import_record': self.file_import_record_obj})
-        self.assertEqual(file_import_run.file_import_record.file.hash_value, self.file_import_record_obj['file']['hash_value'])
+    def testFileImportRequest(self):
+        file_import_request = FileImportRequest.create(self.file_import_request_obj)
+        file_import_request.update({'file_import_record': self.file_import_record_obj})
+        self.assertEqual(file_import_request.file_import_record.file.hash_value, self.file_import_record_obj['file']['hash_value'])
 
-        self.roundTripJson(file_import_run)
-        self.roundTripObj(file_import_run)
+        self.roundTripJson(file_import_request)
+        self.roundTripObj(file_import_request)
 
     def roundTripJson(self, model):
         cls = model.__class__

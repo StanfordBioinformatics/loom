@@ -11,10 +11,20 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
+            name='AnalysisDefinition',
+            fields=[
+                ('_id', models.TextField(serialize=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='AnalysisRequest',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
                 ('requester', models.CharField(max_length=100)),
+                ('analysis_definitions', models.ManyToManyField(to='analyses.AnalysisDefinition')),
             ],
             options={
                 'abstract': False,
@@ -24,7 +34,7 @@ class Migration(migrations.Migration):
             name='AnalysisRun',
             fields=[
                 ('_id', models.AutoField(serialize=False, primary_key=True)),
-                ('analysis_request', models.ForeignKey(to='analyses.AnalysisRequest')),
+                ('analysis_definition', models.ForeignKey(to='analyses.AnalysisDefinition')),
             ],
             options={
                 'abstract': False,
@@ -34,7 +44,7 @@ class Migration(migrations.Migration):
             name='AnalysisRunRecord',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
-                ('analysis_request', models.ForeignKey(to='analyses.AnalysisRequest')),
+                ('analysis_definition', models.ForeignKey(to='analyses.AnalysisDefinition')),
             ],
             options={
                 'abstract': False,
@@ -63,16 +73,19 @@ class Migration(migrations.Migration):
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
                 ('import_comments', models.CharField(max_length=10000)),
+                ('requester', models.CharField(max_length=100)),
             ],
             options={
                 'abstract': False,
             },
         ),
         migrations.CreateModel(
-            name='FileImportRun',
+            name='FileImportRequest',
             fields=[
                 ('_id', models.AutoField(serialize=False, primary_key=True)),
                 ('import_comments', models.CharField(max_length=10000)),
+                ('requester', models.CharField(max_length=100)),
+                ('file_import_record', models.ForeignKey(to='analyses.FileImportRecord', null=True)),
             ],
             options={
                 'abstract': False,
@@ -122,16 +135,37 @@ class Migration(migrations.Migration):
                 ('_id', models.TextField(serialize=False, primary_key=True)),
                 ('memory_bytes', models.BigIntegerField()),
                 ('cores', models.IntegerField()),
+                ('analysis_definition', models.ForeignKey(to='analyses.AnalysisDefinition')),
             ],
             options={
                 'abstract': False,
             },
         ),
         migrations.CreateModel(
-            name='Step',
+            name='StepDefinition',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
-                ('input_bindings', models.ManyToManyField(to='analyses.InputBinding')),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='StepInputBinding',
+            fields=[
+                ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('input_port', models.ForeignKey(to='analyses.InputPort')),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='StepResult',
+            fields=[
+                ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('output_port', models.ForeignKey(to='analyses.OutputPort')),
+                ('step_definition', models.ForeignKey(to='analyses.StepDefinition')),
             ],
             options={
                 'abstract': False,
@@ -141,7 +175,8 @@ class Migration(migrations.Migration):
             name='StepRun',
             fields=[
                 ('_id', models.AutoField(serialize=False, primary_key=True)),
-                ('step', models.ForeignKey(to='analyses.Step')),
+                ('step_definition', models.ForeignKey(to='analyses.StepDefinition')),
+                ('step_results', models.ManyToManyField(to='analyses.StepResult')),
             ],
             options={
                 'abstract': False,
@@ -151,7 +186,8 @@ class Migration(migrations.Migration):
             name='StepRunRecord',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
-                ('step', models.ForeignKey(to='analyses.Step')),
+                ('step_definition', models.ForeignKey(to='analyses.StepDefinition')),
+                ('step_results', models.ManyToManyField(to='analyses.StepResult')),
             ],
             options={
                 'abstract': False,
@@ -208,7 +244,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('filelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analyses.FileLocation')),
                 ('file_path', models.CharField(max_length=256)),
-                ('file', models.ForeignKey(to='analyses.File')),
+                ('file', models.ForeignKey(to='analyses.File', null=True)),
             ],
             options={
                 'abstract': False,
@@ -219,7 +255,6 @@ class Migration(migrations.Migration):
             name='FileRecipe',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analyses.DataObject')),
-                ('output_port', models.ForeignKey(to='analyses.OutputPort')),
             ],
             options={
                 'abstract': False,
@@ -231,7 +266,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('filelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analyses.FileLocation')),
                 ('url', models.CharField(max_length=256)),
-                ('file', models.ForeignKey(to='analyses.File')),
+                ('file', models.ForeignKey(to='analyses.File', null=True)),
             ],
             options={
                 'abstract': False,
@@ -259,14 +294,14 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analyses.StepRunRecord', null=True),
         ),
         migrations.AddField(
-            model_name='step',
-            name='step_template',
-            field=models.ForeignKey(to='analyses.StepTemplate'),
+            model_name='stepdefinition',
+            name='step_input_bindings',
+            field=models.ManyToManyField(to='analyses.StepInputBinding'),
         ),
         migrations.AddField(
-            model_name='resourceset',
-            name='step',
-            field=models.ForeignKey(to='analyses.Step'),
+            model_name='stepdefinition',
+            name='step_template',
+            field=models.ForeignKey(to='analyses.StepTemplate'),
         ),
         migrations.AddField(
             model_name='inputbinding',
@@ -279,14 +314,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analyses.InputPort'),
         ),
         migrations.AddField(
-            model_name='fileimportrun',
-            name='destination',
+            model_name='fileimportrequest',
+            name='file_location',
             field=models.ForeignKey(to='analyses.FileLocation'),
-        ),
-        migrations.AddField(
-            model_name='fileimportrun',
-            name='file_import_record',
-            field=models.ForeignKey(to='analyses.FileImportRecord', null=True),
         ),
         migrations.AddField(
             model_name='analysisrunrecord',
@@ -299,19 +329,44 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analyses.AnalysisRunRecord', null=True),
         ),
         migrations.AddField(
+            model_name='analysisrun',
+            name='step_runs',
+            field=models.ManyToManyField(to='analyses.StepRunRecord'),
+        ),
+        migrations.AddField(
             model_name='analysisrequest',
             name='resource_sets',
             field=models.ManyToManyField(to='analyses.ResourceSet'),
         ),
         migrations.AddField(
-            model_name='steprunrecord',
+            model_name='analysisdefinition',
+            name='input_bindings',
+            field=models.ManyToManyField(to='analyses.InputBinding'),
+        ),
+        migrations.AddField(
+            model_name='analysisdefinition',
+            name='step_template',
+            field=models.ForeignKey(to='analyses.StepTemplate'),
+        ),
+        migrations.AddField(
+            model_name='stepresult',
+            name='file',
+            field=models.ForeignKey(to='analyses.File'),
+        ),
+        migrations.AddField(
+            model_name='stepinputbinding',
             name='file',
             field=models.ForeignKey(to='analyses.File'),
         ),
         migrations.AddField(
             model_name='filerecipe',
-            name='step',
-            field=models.ForeignKey(to='analyses.Step'),
+            name='analysis_definition',
+            field=models.ForeignKey(to='analyses.AnalysisDefinition'),
+        ),
+        migrations.AddField(
+            model_name='filerecipe',
+            name='output_port',
+            field=models.ForeignKey(to='analyses.OutputPort'),
         ),
         migrations.AddField(
             model_name='fileimportrecord',
@@ -321,11 +376,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='azurebloblocation',
             name='file',
-            field=models.ForeignKey(to='analyses.File'),
-        ),
-        migrations.AddField(
-            model_name='analysisrequest',
-            name='file_recipes',
-            field=models.ManyToManyField(to='analyses.FileRecipe'),
+            field=models.ForeignKey(to='analyses.File', null=True),
         ),
     ]
