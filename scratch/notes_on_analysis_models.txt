@@ -1,7 +1,3 @@
-from django.shortcuts import render
-
-# Create your views here.
-
 """ 
 Workflow 1: Run Request w/ a specific file, 1 session
 Workflow 2: Run Request w/ a specific file, 2 sessions in serial
@@ -108,5 +104,4 @@ Method designs:
 Outstanding issues:
     - How to know whether a SessionRun is currently being processed by workers? How to detect failure? Important for list of Sessions that are ready to run; don't want to dispatch same Session multiple times.
 """
-
 

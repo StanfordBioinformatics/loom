@@ -11,8 +11,8 @@ class XppfServerControls:
     """
     This class provides methods for managing the xppf server, specifically the commands:
     - start
-    - status
     - stop
+    - status
     - savesettings
     - clearsettings
 
@@ -73,7 +73,7 @@ class XppfServerControls:
 
     def status(self):
         try:
-            response = requests.get(self.settings_manager.get_server_url() + '/status')
+            response = requests.get(self.settings_manager.get_server_url() + '/api/status')
             if response.status_code == 200:
                 print "server is ok"
             else:
