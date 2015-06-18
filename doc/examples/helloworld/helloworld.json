@@ -1,83 +1,52 @@
 {
-  "file_recipes": [
+  "analysis_definitions": [
     {
-      "output_port": "output1", 
-      "session": {
-        "input_bindings": [
+      "step_template": {
+        "environment": {
+          "docker_image": "ubuntu"
+        }, 
+        "input_ports": [
           {
-            "input_port": "input1", 
-            "data_object": {
-              "output_port": "output1", 
-              "session": {
-                "input_bindings": [
-                  {
-                    "input_port": "input1", 
-                    "data_object": {
-                      "hash_function": "md5", 
-                      "hash_value": "b1946ac92492d2347c6235b4d2611184"
-                    }
-                  }
-                ], 
-                "session_template": {
-                  "input_ports": [
-                    {
-                      "file_path": "hello.txt", 
-                      "name": "input1"
-                    }
-                  ], 
-                  "steps": [
-                    {
-                      "environment": {
-                        "docker_image": "ubuntu"
-                      }, 
-                      "command": "echo world > world.txt", 
-                      "name": "hello"
-                    }, 
-                    {
-                      "environment": {
-                        "docker_image": "ubuntu"
-                      }, 
-                      "after": [
-                        "hello"
-                      ], 
-                      "command": "cat hello.txt world.txt > hello_world.txt"
-                    }
-                  ], 
-                  "output_ports": [
-                    {
-                      "name": "output1", 
-                      "file_path": "hello_world.txt"
-                    }
-                  ]
-                }
-              }
-            }
+            "file_path": "hello.txt"
+          }, 
+          {
+            "file_path": "world.txt"
           }
         ], 
-        "session_template": {
-          "input_ports": [
-            {
-              "name": "input1", 
-              "file_path": "partialresult.txt"
-            }
-          ], 
-          "steps": [
-            {
-              "environment": {
-                "docker_image": "ubuntu"
+        "command": "cat hello.txt world.txt > hello_world.txt", 
+        "output_ports": [
+          {
+            "file_path": "hello_world.txt"
+          }
+        ]
+      }, 
+      "input_bindings": [
+        {
+          "input_port": {
+            "file_path": "world.txt"
+          }, 
+          "data_object": {
+            "output_port": {
+              "file_path": "world.txt"
+            }, 
+            "analysis_definition": {
+              "step_template": {
+                "environment": {
+                  "docker_image": "ubuntu"
+                }, 
+                "command": "echo world > world.txt", 
+                "output_ports": [
+                  {
+                    "file_path": "world.txt"
+                  }
+                ]
               }, 
-              "command": "echo \"`cat partialresult.txt`\"\\! > hello_worldfinal.txt"
+              "input_bindings": []
             }
-          ], 
-          "output_ports": [
-            {
-              "name": "output1", 
-              "file_path": "hello_worldfinal.txt"
-            }
-          ]
+          }
         }
-      }
+      ]
     }
   ], 
-  "requester": "somebody@example.net"
+  "requester": "someone@example.net"
 }

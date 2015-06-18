@@ -3,13 +3,9 @@ import uuid
 import json
 
 sample_id = uuid.uuid4().get_hex()
-hello_path = 'hello.txt'
-world_path = 'world.txt'
-hello_world_path = 'hello_world.txt'
-unpunctuated_hello_world_path = 'partialresult.txt'
-punctuated_hello_world_path = 'hello_worldfinal.txt'
 
-input_file = {
+# Contents of this file are "hello"
+hello_file = {
     "hash_function": "md5",
     "hash_value": "b1946ac92492d2347c6235b4d2611184",
 }
@@ -18,91 +14,65 @@ env = {
     'docker_image': 'ubuntu',
 }
 
-hello_step = {
-    'name': 'hello',
-    'command': 'echo world > %s' % world_path,
+world_output_port = {
+    'file_path': 'world.txt',
+    }
+
+world_step_template = {
+    'command': 'echo world > %s' % 'world.txt',
     'environment': env,
+    'output_ports': [
+        world_output_port,
+         ],
 }
 
-hello_world_step = {
-    'command': 'cat %s %s > %s' % (hello_path, world_path, hello_world_path),
+world_step_definition = {
+    'step_template': world_step_template,
+    'input_bindings': [],
+    }
+
+world_file_recipe = {
+    'analysis_definition': world_step_definition,
+    'output_port': world_output_port,
+    }
+
+hello_input_port = {
+    'file_path': 'hello.txt',
+    }
+
+world_input_port = {
+    'file_path': 'world.txt',
+    }
+
+hello_world_output_port = {
+    'file_path': 'hello_world.txt',
+    }
+
+hello_world_step_template = {
+    'command': 'cat %s %s > %s' % ('hello.txt', 'world.txt', 'hello_world.txt'),
     'environment': env,
-    'after': [hello_step['name']],
-}
-
-session_1_template = {
     'input_ports': [
-        {
-            'name': 'input1',
-            'file_path': hello_path,
-        },
-    ],
+        hello_input_port,
+        world_input_port,
+        ],
     'output_ports': [
+        hello_world_output_port,
+        ],
+}
+
+hello_world_step_definition = {
+    'step_template': hello_world_step_template,
+    'input_bindings':[
         {
-            'name': 'output1',
-            'file_path': hello_world_path,
-        }
-    ],
-    'steps':[
-        hello_step,
-        hello_world_step,
-    ],
-}
+            'data_object': world_file_recipe,
+            'input_port': world_input_port,
+            },
+        ]
+    }
 
-session_1 = {
-    'session_template': session_1_template,
-    'input_bindings': [
-        {
-            'data_object': input_file,
-            'input_port': 'input1',
-        },
-    ],
-}
+analysis_request = {
+    'analysis_definitions': [hello_world_step_definition],
+    'requester': 'someone@example.net',
+    }
 
-file_recipe_1 = {
-    'session': session_1,
-    'output_port': 'output1',
-}
-
-session_2_template = {
-    'input_ports': [
-        {
-            'name': 'input1',
-            'file_path': unpunctuated_hello_world_path,
-        }
-    ],
-    'output_ports': [
-        {
-            'name': 'output1',
-            'file_path': punctuated_hello_world_path,
-        }
-    ],
-    'steps':[
-        {
-            'command': 'echo "`cat %s`"\! > %s' % (unpunctuated_hello_world_path, punctuated_hello_world_path),
-            'environment': env,
-        },
-    ]
-}
-
-session_2 = {
-    'session_template': session_2_template,
-    'input_bindings': [
-        {
-            'data_object': file_recipe_1,
-            'input_port': 'input1'
-        },
-    ],
-}
-
-file_recipe_2 = {
-    'session': session_2,
-    'output_port': 'output1',
-}
-
-request = {
-    'file_recipes': [file_recipe_2],
-    'requester': 'somebody@example.net',
-}
-
-print json.dumps(request, indent=2)
+print json.dumps(analysis_request, indent=2)
