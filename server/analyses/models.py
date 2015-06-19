@@ -6,8 +6,8 @@ from immutable.models import ImmutableModel, MutableModel
 # FileRecipe and related classes.
 # Excluding FileLocations, ResourceSets, or other classes that affect execution but will not change results.
 
-class NamedModel:
-    _class_name = ('unnamed_model', 'unnamed_models')
+class NamedModel(models.Model):
+    _class_name = ('unnamed_model', 'unnamed_models') # To be overridden
 
     @classmethod
     def get_name(cls, plural=False):
@@ -15,6 +15,9 @@ class NamedModel:
             return cls._class_name[1]
         else:
             return cls._class_name[0]
+
+    class Meta:
+        abstract = True
 
 class DataObject(ImmutableModel, NamedModel):
     _class_name = ('data_object', 'data_objects')
@@ -113,15 +116,26 @@ class DockerImage(Environment, NamedModel):
     docker_image = models.CharField(max_length = 100)
 
 # ----------
-# AnalysisRequest and related classes
+# RequestRun and related classes
 
-class AnalysisRequest(ImmutableModel, NamedModel):
-    _class_name = ('analysis_request', 'analysis_requests')
+class RequestRun(MutableModel, NamedModel):
+    _class_name = ('request_run', 'request_runs')
     analysis_definitions = models.ManyToManyField('AnalysisDefinition')
-    resource_sets = models.ManyToManyField('ResourceSet')
+    analysis_runs = models.ManyToManyField('AnalysisRun')
+    resource_set_requests = models.ManyToManyField('ResourceSetRequest')
     # TODO fix timestamps
 #    date = models.DateTimeField()
     requester = models.CharField(max_length = 100)
+    request_run_record = models.ForeignKey('RequestRunRecord', null=True)
+
+    def is_ready_for_analysis_runs(self):
+        # True if any analysis_definitions do not have completed analysis_runs
+        for a in analysis_definitions:
+            if not a.has_complete_analysis_run():
+                return True
+        return False
+                
+        
 
 #    @classmethod
 #    def create(cls, data_obj_or_json):
@@ -130,8 +144,15 @@ class AnalysisRequest(ImmutableModel, NamedModel):
 #            data_obj.update({'date': str(datetime.now())})
 #        return super(AnalysisRequest, cls).create(data_obj)
 
-class ResourceSet(ImmutableModel, NamedModel):
-    _class_name = ('resource_set', 'resource_sets')
+class RequestRunRecord(ImmutableModel, NamedModel):
+    _class_name = ('request_run_record', 'request_run_records')
+    analysis_run_records = models.ManyToManyField('AnalysisRunRecord')
+    # TODO fix timestamps
+#    date = models.DateTimeField()
+    requester = models.CharField(max_length = 100)
+
+class ResourceSetRequest(ImmutableModel, NamedModel):
+    _class_name = ('resource_set_request', 'resource_set_requests')
     analysis_definition = models.ForeignKey(AnalysisDefinition)
     memory_bytes = models.BigIntegerField()
     cores = models.IntegerField()
@@ -143,6 +164,12 @@ class StepDefinition(ImmutableModel, NamedModel):
     _class_name = ('step_definition', 'step_definitions')
     step_template = models.ForeignKey('StepTemplate')
     step_input_bindings = models.ManyToManyField('StepInputBinding')
+
+class ResourceSet(ImmutableModel, NamedModel):
+    _class_name = ('resource_set', 'resource_sets')
+    step_definition = models.ForeignKey(StepDefinition)
+    memory_bytes = models.BigIntegerField()
+    cores = models.IntegerField()
 
 class StepInputBinding(ImmutableModel, NamedModel):
     _class_name = ('step_input_binding', 'step_input_bindings')
@@ -184,12 +211,14 @@ class FilePathLocation(FileLocation, NamedModel):
 
 class StepRun(MutableModel, NamedModel):
     _class_name = ('step_run', 'step_runs')
+    resource_set = models.ForeignKey('ResourceSet')
     step_definition = models.ForeignKey('StepDefinition')
     step_run_record = models.ForeignKey('StepRunRecord', null=True)
     step_results = models.ManyToManyField('StepResult')
 
 class StepRunRecord(ImmutableModel, NamedModel):
     _class_name = ('step_run_record', 'step_run_records')
+    resource_set = models.ForeignKey('ResourceSet')
     step_definition = models.ForeignKey('StepDefinition')
     step_results = models.ManyToManyField('StepResult')
 

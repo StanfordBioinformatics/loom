@@ -20,17 +20,6 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='AnalysisRequest',
-            fields=[
-                ('_id', models.TextField(serialize=False, primary_key=True)),
-                ('requester', models.CharField(max_length=100)),
-                ('analysis_definitions', models.ManyToManyField(to='analyses.AnalysisDefinition')),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
             name='AnalysisRun',
             fields=[
                 ('_id', models.AutoField(serialize=False, primary_key=True)),
@@ -130,7 +119,41 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='RequestRun',
+            fields=[
+                ('_id', models.AutoField(serialize=False, primary_key=True)),
+                ('requester', models.CharField(max_length=100)),
+                ('analysis_definitions', models.ManyToManyField(to='analyses.AnalysisDefinition')),
+                ('analysis_runs', models.ManyToManyField(to='analyses.AnalysisRun')),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='RequestRunRecord',
+            fields=[
+                ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('requester', models.CharField(max_length=100)),
+                ('analysis_run_records', models.ManyToManyField(to='analyses.AnalysisRunRecord')),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='ResourceSet',
+            fields=[
+                ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('memory_bytes', models.BigIntegerField()),
+                ('cores', models.IntegerField()),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='ResourceSetRequest',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
                 ('memory_bytes', models.BigIntegerField()),
@@ -175,6 +198,7 @@ class Migration(migrations.Migration):
             name='StepRun',
             fields=[
                 ('_id', models.AutoField(serialize=False, primary_key=True)),
+                ('resource_set', models.ForeignKey(to='analyses.ResourceSet')),
                 ('step_definition', models.ForeignKey(to='analyses.StepDefinition')),
                 ('step_results', models.ManyToManyField(to='analyses.StepResult')),
             ],
@@ -186,6 +210,7 @@ class Migration(migrations.Migration):
             name='StepRunRecord',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
+                ('resource_set', models.ForeignKey(to='analyses.ResourceSet')),
                 ('step_definition', models.ForeignKey(to='analyses.StepDefinition')),
                 ('step_results', models.ManyToManyField(to='analyses.StepResult')),
             ],
@@ -214,7 +239,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=('analyses.filelocation',),
+            bases=('analyses.filelocation', models.Model),
         ),
         migrations.CreateModel(
             name='DockerImage',
@@ -225,7 +250,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=('analyses.environment',),
+            bases=('analyses.environment', models.Model),
         ),
         migrations.CreateModel(
             name='File',
@@ -237,7 +262,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=('analyses.dataobject',),
+            bases=('analyses.dataobject', models.Model),
         ),
         migrations.CreateModel(
             name='FilePathLocation',
@@ -249,7 +274,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=('analyses.filelocation',),
+            bases=('analyses.filelocation', models.Model),
         ),
         migrations.CreateModel(
             name='FileRecipe',
@@ -259,7 +284,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=('analyses.dataobject',),
+            bases=('analyses.dataobject', models.Model),
         ),
         migrations.CreateModel(
             name='UrlLocation',
@@ -271,7 +296,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=('analyses.filelocation',),
+            bases=('analyses.filelocation', models.Model),
         ),
         migrations.AddField(
             model_name='steptemplate',
@@ -304,6 +329,21 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analyses.StepTemplate'),
         ),
         migrations.AddField(
+            model_name='resourceset',
+            name='step_definition',
+            field=models.ForeignKey(to='analyses.StepDefinition'),
+        ),
+        migrations.AddField(
+            model_name='requestrun',
+            name='request_run_record',
+            field=models.ForeignKey(to='analyses.RequestRunRecord', null=True),
+        ),
+        migrations.AddField(
+            model_name='requestrun',
+            name='resource_set_requests',
+            field=models.ManyToManyField(to='analyses.ResourceSetRequest'),
+        ),
+        migrations.AddField(
             model_name='inputbinding',
             name='data_object',
             field=models.ForeignKey(to='analyses.DataObject'),
@@ -332,11 +372,6 @@ class Migration(migrations.Migration):
             model_name='analysisrun',
             name='step_runs',
             field=models.ManyToManyField(to='analyses.StepRunRecord'),
-        ),
-        migrations.AddField(
-            model_name='analysisrequest',
-            name='resource_sets',
-            field=models.ManyToManyField(to='analyses.ResourceSet'),
         ),
         migrations.AddField(
             model_name='analysisdefinition',

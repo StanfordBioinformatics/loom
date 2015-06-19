@@ -73,9 +73,9 @@ hello_world_step_definition = {
         ]
     }
 
-analysis_request = {
+request_run = {
     'analysis_definitions': [hello_world_step_definition],
     'requester': 'someone@example.net',
     }
 
-print json.dumps(analysis_request, indent=2)
+print json.dumps(request_run, indent=2)

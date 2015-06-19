@@ -10,71 +10,6 @@ from xppf.client import xppf_server_controls
 
 class TestXppfRun(unittest.TestCase):
 
-    TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'testdata')
-
-    helloworld_json = """
-{
-  "analysis_definitions": [
-    {
-      "step_template": {
-        "environment": {
-          "docker_image": "ubuntu"
-        }, 
-        "input_ports": [
-          {
-            "file_path": "hello.txt"
-          },
-          {
-            "file_path": "world.txt"
-          }
-        ], 
-        "command": "cat hello.txt world.txt > hello_world.txt", 
-        "output_ports": [
-          {
-            "file_path": "hello_world.txt"
-          }
-        ]
-      }, 
-      "input_bindings": [
-        {
-          "input_port": {
-            "file_path": "world.txt"
-          }, 
-          "data_object": {
-            "output_port": {
-              "file_path": "world.txt"
-            }, 
-            "analysis_definition": {
-              "step_template": {
-                "environment": {
-                  "docker_image": "ubuntu"
-                }, 
-                "command": "echo world > world.txt", 
-                "output_ports": [
-                  {
-                    "file_path": "world.txt"
-                  }
-                ]
-              }
-            }
-          }
-        }, 
-        {
-          "input_port": {
-            "file_path": "hello.txt"
-          }, 
-          "data_object": {
-            "hash_value": "b1946ac92492d2347c6235b4d2611184", 
-            "hash_function": "md5"
-          }
-        }
-      ]
-    }
-  ], 
-  "requester": "someone@example.net"
-}
-"""
-
     file_path_location_json = """
 {
   "file_path": "/path/to/my/file",
@@ -93,6 +28,9 @@ class TestXppfRun(unittest.TestCase):
         self.server_url = xs.settings_manager.get_server_url()
         self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_pid_file()))
 
+        with open(os.path.join(os.path.dirname(__file__),'../../doc/examples/helloworld/helloworld.json')) as f:
+            self.helloworld_json = f.read()
+
     def tearDown(self):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
@@ -101,6 +39,7 @@ class TestXppfRun(unittest.TestCase):
         self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_pid_file()))
 
     def test_create_show_index_immutable(self):
+        import pdb; pdb.set_trace()
         # Test create
         r = requests.post(self.server_url+'/api/analysis_requests', data=self.helloworld_json)
         self.assertEqual(r.text,

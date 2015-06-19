@@ -4,69 +4,6 @@ from analyses.models import *
 
 class TestModels(TestCase):
 
-    hello_world_json = '''
-{
-  "analysis_definitions": [
-    {
-      "step_template": {
-        "environment": {
-          "docker_image": "ubuntu"
-        }, 
-        "input_ports": [
-          {
-            "file_path": "hello.txt"
-          }, 
-          {
-            "file_path": "world.txt"
-          }
-        ], 
-        "command": "cat hello.txt world.txt > hello_world.txt", 
-        "output_ports": [
-          {
-            "file_path": "hello_world.txt"
-          }
-        ]
-      }, 
-      "input_bindings": [
-        {
-          "input_port": {
-            "file_path": "world.txt"
-          }, 
-          "data_object": {
-            "output_port": {
-              "file_path": "world.txt"
-            }, 
-            "analysis_definition": {
-              "step_template": {
-                "environment": {
-                  "docker_image": "ubuntu"
-                }, 
-                "command": "echo world > world.txt", 
-                "output_ports": [
-                  {
-                    "file_path": "world.txt"
-                  }
-                ]
-              }
-            }
-          }
-        }, 
-        {
-          "input_port": {
-            "file_path": "hello.txt"
-          }, 
-          "data_object": {
-            "hash_value": "b1946ac92492d2347c6235b4d2611184", 
-            "hash_function": "md5"
-          }
-        }
-      ]
-    }
-  ], 
-  "requester": "someone@example.net"
-}
-'''
-
     file_obj = {
         'hash_value': '1234asfd',
         'hash_function': 'md5',
@@ -359,12 +296,6 @@ class TestModels(TestCase):
         self.roundTripJson(file_import_request)
         self.roundTripObj(file_import_request)
 
-    def testHelloWorld(self):
-        analysis_request = AnalysisRequest.create(self.hello_world_json)
-
-        self.roundTripJson(analysis_request)
-        self.roundTripObj(analysis_request)
-        
     def roundTripJson(self, model):
         cls = model.__class__
         id1 = model._id
