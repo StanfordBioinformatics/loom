@@ -1,6 +1,80 @@
 from django.conf.urls import patterns, include, url
+from analyses.models import *
 
 urlpatterns = patterns('',
-    url(r'^status$', 'analyses.views.status.status'),
-    url(r'^analysis_request$', 'analyses.views.analysis_request.create'),
+    url(r'^status/?$', 'analyses.views.status'),
+    )    
+
+model_classes = [
+    DataObject,
+    File,
+    FileRecipe,
+    InputBinding,
+    OutputPort,
+    InputPort,
+    AnalysisDefinition,
+    StepTemplate,
+    Environment,
+    DockerImage,
+    AnalysisRequest,
+    ResourceSet,
+    StepDefinition,
+    StepInputBinding,
+    StepResult,
+    FileLocation,
+    AzureBlobLocation,
+    UrlLocation,
+    FilePathLocation,
+    StepRun,
+    StepRunRecord,
+    AnalysisRun,
+    AnalysisRunRecord,
+    FileImportRequest,
+    FileImportRecord,
+    ]
+
+for cls in model_classes:
+    urlpatterns.append(url(r'^%s/?$' % cls.get_name(plural=True), 'analyses.views.create_or_index', {'cls': cls}))
+    urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_]+)$' % cls.get_name(plural=True), 'analyses.views.show_or_update', {'cls': cls}))
+
+"""
+    url(r'^analysis_definitions/?$', 'analyses.views.create_or_index', {'cls': AnalysisDefinition}),
+    url(r'^analysis_definitions/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': AnalysisDefinition}),
+    url(r'^analysis_requests/?$', 'analyses.views.create_or_index', {'cls': AnalysisRequest}),
+    url(r'^analysis_requests/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': AnalysisRequest}),
+    url(r'^analysis_runs/?$', 'analyses.views.create_or_index', {'cls': AnalysisRun}),
+    url(r'^analysis_runs/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': AnalysisRun}),
+    url(r'^analysis_run_records/?$', 'analyses.views.create_or_index', {'cls': AnalysisRunRecord}),
+    url(r'^analysis_run_records/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': AnalysisRunRecord}),
+    url(r'^data_objects/?$', 'analyses.views.create_or_index', {'cls': DataObject}),
+    url(r'^data_objects/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': DataObject}),
+    url(r'^environments/?$', 'analyses.views.create_or_index', {'cls': Environment}),
+    url(r'^environments/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': Environment}),
+    url(r'^file_locations/?$', 'analyses.views.create_or_index', {'cls': FileLocation}),
+    url(r'^file_locations/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': FileLocation}),
+    url(r'^file_import_records/?$', 'analyses.views.create_or_index', {'cls': FileImportRecord}),
+    url(r'^file_import_records/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': FileImportRecord}),
+    url(r'^file_import_requests/?$', 'analyses.views.create_or_index', {'cls': FileImportRequest}),
+    url(r'^file_import_requests/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': FileImportRequest}),
+    url(r'^file_path_locations/?$', 'analyses.views.create_or_index', {'cls': FilePathLocation}),
+    url(r'^file_path_locations/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': FilePathLocation}),
+    url(r'^file_recipes/?$', 'analyses.views.create_or_index', {'cls': FileRecipe}),
+    url(r'^file_recipes/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': FileRecipe}),
+    url(r'^files/?$', 'analyses.views.create_or_index', {'cls': File}),
+    url(r'^files/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': File}),
+    url(r'^input_bindings/?$', 'analyses.views.create_or_index', {'cls': InputBinding}),
+    url(r'^input_bindings/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': InputBinding}),
+    url(r'^input_ports/?$', 'analyses.views.create_or_index', {'cls': InputPort}),
+    url(r'^input_ports/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': InputPort}),
+    url(r'^output_ports/?$', 'analyses.views.create_or_index', {'cls': OutputPort}),
+    url(r'^output_ports/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': OutputPort}),
+    url(r'^step_templates/?$', 'analyses.views.create_or_index', {'cls': StepTemplate}),
+    url(r'^step_templates/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': StepTemplate}),
+    url(r'^step_results/?$', 'analyses.views.create_or_index', {'cls': StepResult}),
+    url(r'^step_results/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': StepResult}),
+    url(r'^step_runs/?$', 'analyses.views.create_or_index', {'cls': StepRun}),
+    url(r'^step_runs/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': StepRun}),
+    url(r'^step_run_records/?$', 'analyses.views.create_or_index', {'cls': StepRunRecord}),
+    url(r'^step_run_records/(?P<id>[a-zA-Z0-9_]+)$', 'analyses.views.show_or_update', {'cls': StepRunRecord}),
 )
+"""

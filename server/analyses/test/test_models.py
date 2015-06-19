@@ -50,6 +50,15 @@ class TestModels(TestCase):
               }
             }
           }
+        }, 
+        {
+          "input_port": {
+            "file_path": "hello.txt"
+          }, 
+          "data_object": {
+            "hash_value": "b1946ac92492d2347c6235b4d2611184", 
+            "hash_function": "md5"
+          }
         }
       ]
     }

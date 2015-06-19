@@ -28,7 +28,6 @@ world_step_template = {
 
 world_step_definition = {
     'step_template': world_step_template,
-    'input_bindings': [],
     }
 
 world_file_recipe = {
@@ -66,6 +65,10 @@ hello_world_step_definition = {
         {
             'data_object': world_file_recipe,
             'input_port': world_input_port,
+            },
+        {
+            'data_object': hello_file,
+            'input_port': hello_input_port,
             },
         ]
     }

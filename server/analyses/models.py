@@ -6,38 +6,61 @@ from immutable.models import ImmutableModel, MutableModel
 # FileRecipe and related classes.
 # Excluding FileLocations, ResourceSets, or other classes that affect execution but will not change results.
 
-class DataObject(ImmutableModel):
+class NamedModel:
+    _class_name = ('unnamed_model', 'unnamed_models')
+
+    @classmethod
+    def get_name(cls, plural=False):
+        if plural:
+            return cls._class_name[1]
+        else:
+            return cls._class_name[0]
+
+class DataObject(ImmutableModel, NamedModel):
+    _class_name = ('data_object', 'data_objects')
+
     """Base class to allow pointers to Files or FileRecipes. Not intended to be instantiated without a subclass."""
 
     # Warning -- When a field is defined on a base class, the null=False requirement may not be enforced.
     # To be safe, define the field on the child class.
 
-class File(DataObject):
+class File(DataObject, NamedModel):
+    _class_name = ('file', 'files')
+
     hash_value = models.CharField(max_length = 100)
     hash_function = models.CharField(max_length = 100)
 
-class FileRecipe(DataObject):
+class FileRecipe(DataObject, NamedModel):
+    _class_name = ('file_recipe', 'file_recipes')
+
     analysis_definition = models.ForeignKey('AnalysisDefinition')
     output_port = models.ForeignKey('OutputPort')
 
     def is_processed(self):
         return StepRunRecord.objects.filter(step=self.step).filter(status="done").exists()
 
-class InputBinding(ImmutableModel):
+class InputBinding(ImmutableModel, NamedModel):
+    _class_name = ('input_binding', 'input_bindings')
+
     data_object = models.ForeignKey(DataObject)
     input_port = models.ForeignKey('InputPort')
 
-class OutputPort(ImmutableModel):
+class OutputPort(ImmutableModel, NamedModel):
+    _class_name = ('output_port', 'output_ports')
+
     # Relative path within the working directory where
     # a file will be found after a step executes
     file_path = models.CharField(max_length = 256)
 
-class InputPort(ImmutableModel):
+class InputPort(ImmutableModel, NamedModel):
+    _class_name = ('input_port', 'input_ports')
+
     # Relative path within the working directory where
     # a file will be copied before a step is executed
     file_path = models.CharField(max_length = 256)
 
-class AnalysisDefinition(ImmutableModel):
+class AnalysisDefinition(ImmutableModel, NamedModel):
+    _class_name = ('analysis_definition', 'analysis_definitions')
     step_template = models.ForeignKey('StepTemplate')
     input_bindings = models.ManyToManyField(InputBinding)
     
@@ -75,22 +98,25 @@ class AnalysisDefinition(ImmutableModel):
         
         return True
         
-class StepTemplate(ImmutableModel):
+class StepTemplate(ImmutableModel, NamedModel):
+    _class_name = ('step_template', 'step_templates')
     input_ports = models.ManyToManyField('InputPort', related_name='step_templates')
     output_ports = models.ManyToManyField('OutputPort', related_name='step_templates')
     command = models.CharField(max_length = 256)
     environment = models.ForeignKey('Environment')
 
-class Environment(ImmutableModel):
-    pass
+class Environment(ImmutableModel, NamedModel):
+    _class_name = ('environment', 'environments')
 
-class DockerImage(Environment):
+class DockerImage(Environment, NamedModel):
+    _class_name = ('docker_image', 'docker_images')
     docker_image = models.CharField(max_length = 100)
 
 # ----------
 # AnalysisRequest and related classes
 
-class AnalysisRequest(ImmutableModel):
+class AnalysisRequest(ImmutableModel, NamedModel):
+    _class_name = ('analysis_request', 'analysis_requests')
     analysis_definitions = models.ManyToManyField('AnalysisDefinition')
     resource_sets = models.ManyToManyField('ResourceSet')
     # TODO fix timestamps
@@ -104,7 +130,8 @@ class AnalysisRequest(ImmutableModel):
 #            data_obj.update({'date': str(datetime.now())})
 #        return super(AnalysisRequest, cls).create(data_obj)
 
-class ResourceSet(ImmutableModel):
+class ResourceSet(ImmutableModel, NamedModel):
+    _class_name = ('resource_set', 'resource_sets')
     analysis_definition = models.ForeignKey(AnalysisDefinition)
     memory_bytes = models.BigIntegerField()
     cores = models.IntegerField()
@@ -112,15 +139,18 @@ class ResourceSet(ImmutableModel):
 # ----------
 # StepDefinition and related classes
 
-class StepDefinition(ImmutableModel):
+class StepDefinition(ImmutableModel, NamedModel):
+    _class_name = ('step_definition', 'step_definitions')
     step_template = models.ForeignKey('StepTemplate')
     step_input_bindings = models.ManyToManyField('StepInputBinding')
 
-class StepInputBinding(ImmutableModel):
+class StepInputBinding(ImmutableModel, NamedModel):
+    _class_name = ('step_input_binding', 'step_input_bindings')
     file = models.ForeignKey('File')
     input_port = models.ForeignKey('InputPort')
     
-class StepResult(ImmutableModel):
+class StepResult(ImmutableModel, NamedModel):
+    _class_name = ('step_result', 'step_results')
     step_definition = models.ForeignKey('StepDefinition')
     output_port = models.ForeignKey('OutputPort')
     file = models.ForeignKey('File')
@@ -128,54 +158,64 @@ class StepResult(ImmutableModel):
 # ----------
 # FileLocation and subclasses
 
-class FileLocation(MutableModel):
+class FileLocation(MutableModel, NamedModel):
+    _class_name = ('file_location', 'file_locations')
     """Base class to allow pointing to a URL, blob, file path, etc. Not intended to be instantiated without a subclass."""
 
-class AzureBlobLocation(FileLocation):
+class AzureBlobLocation(FileLocation, NamedModel):
+    _class_name = ('azure_blob_location', 'azure_blob_locations')
     file = models.ForeignKey(File, null=True)
     storage_account = models.CharField(max_length = 100)
     container = models.CharField(max_length = 100)
     blob = models.CharField(max_length = 100)
 
-class UrlLocation(FileLocation):
+class UrlLocation(FileLocation, NamedModel):
+    _class_name = ('url_location', 'url_locations')
     file = models.ForeignKey(File, null=True)
     url = models.CharField(max_length = 256)
 
-class FilePathLocation(FileLocation):
+class FilePathLocation(FileLocation, NamedModel):
+    _class_name = ('file_path_location', 'file_path_locations')
     file = models.ForeignKey(File, null=True)
     file_path = models.CharField(max_length = 256)
 
 # ----------
 # AnalysisRun and related classes
 
-class StepRun(MutableModel):
+class StepRun(MutableModel, NamedModel):
+    _class_name = ('step_run', 'step_runs')
     step_definition = models.ForeignKey('StepDefinition')
     step_run_record = models.ForeignKey('StepRunRecord', null=True)
     step_results = models.ManyToManyField('StepResult')
 
-class StepRunRecord(ImmutableModel):
+class StepRunRecord(ImmutableModel, NamedModel):
+    _class_name = ('step_run_record', 'step_run_records')
     step_definition = models.ForeignKey('StepDefinition')
     step_results = models.ManyToManyField('StepResult')
 
-class AnalysisRun(MutableModel):
+class AnalysisRun(MutableModel, NamedModel):
+    _class_name = ('analysis_run', 'analysis_runs')
     analysis_definition = models.ForeignKey('AnalysisDefinition')
     analysis_run_record = models.ForeignKey('AnalysisRunRecord', null=True)
     step_runs = models.ManyToManyField('StepRunRecord')
 
-class AnalysisRunRecord(ImmutableModel):
+class AnalysisRunRecord(ImmutableModel, NamedModel):
+    _class_name = ('analysis_run_record', 'analysis_run_records')
     step_run_records = models.ManyToManyField('StepRunRecord')
     analysis_definition = models.ForeignKey('AnalysisDefinition')
     
 # ----------
 # FileImport and related classes
 
-class FileImportRequest(MutableModel):
+class FileImportRequest(MutableModel, NamedModel):
+    _class_name = ('file_import_request', 'file_import_requests')
     import_comments = models.CharField(max_length = 10000)
     file_location = models.ForeignKey('FileLocation')
     file_import_record = models.ForeignKey('FileImportRecord', null=True)
     requester = models.CharField(max_length = 100)
     
-class FileImportRecord(ImmutableModel):
+class FileImportRecord(ImmutableModel, NamedModel):
+    _class_name = ('file_import_record', 'file_import_records')
     import_comments = models.CharField(max_length = 10000)
     file = models.ForeignKey('File')
     requester = models.CharField(max_length = 100)
