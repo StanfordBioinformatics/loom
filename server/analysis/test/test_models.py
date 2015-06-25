@@ -1,5 +1,5 @@
 from django.test import TestCase
-from analyses.models import *
+from analysis.models import *
 
 
 class TestModels(TestCase):
@@ -300,10 +300,10 @@ class TestModels(TestCase):
         cls = model.__class__
         id1 = model._id
         model = cls.create(model.to_json())
-        self.assertEqual(model._id, id1)
+        self.assertEqual(str(model._id), str(id1))
 
     def roundTripObj(self, model):
         cls = model.__class__
         id1 = model._id
         model = cls.create(model.to_obj())
-        self.assertEqual(model._id, id1)
+        self.assertEqual(str(model._id), str(id1))

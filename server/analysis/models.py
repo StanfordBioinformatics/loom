@@ -16,19 +16,54 @@ class NamedModel(models.Model):
     class Meta:
         abstract = True
 
+class WorkInProgress(models.Model): 
+    open_requests = models.ManyToManyField('Request')
+    new_analyses = models.ManyToManyField('Analysis')
+    new_steps = models.ManyToManyField('Step')
+
+    @classmethod
+    def get_wip(cls):
+        objects = cls.objects.all()
+        if len(objects) > 1:
+            raise Exception('Error: More than 1 WorkInProgress objects exist. This should be a singleton.')
+        elif len(objects) < 1:
+            wip = WorkInProgress()
+            wip.save()
+            return wip
+        else:
+            return objects[0]
+
+    @classmethod
+    def add_open_request(cls, request):
+        wip = cls.get_wip()
+        wip.open_requests.add(request)
+        for analysis in request.get_analyses():
+            wip.add_new_analysis(analysis)
+
+    @classmethod
+    def add_new_analysis(cls, analysis):
+        wip = cls.get_wip()
+        wip.new_analyses.add(analysis)
+
 # ---------------
 # AnalysisRequest and related classes
 
 class Request(MutableModel, NamedModel):
     _class_name = ('request', 'requests')
-    analysis_definitions = models.ManyToManyField('AnalysisDefinition')
+    analyses = models.ManyToManyField('Analysis')
     requester = models.CharField(max_length = 100)
 
-class AnalysisDefinition(MutableModel, NamedModel):
-    _class_name = ('analysis_definition', 'analysis_definitions')
+    def get_analyses(self):
+        return self.analyses.all()
+
+class Analysis(MutableModel, NamedModel):
+    _class_name = ('analysis', 'analyses')
     steps = models.ManyToManyField('Step')
     input_bindings = models.ManyToManyField('InputBinding')
     connectors = models.ManyToManyField('Connector')
+
+    def get_ready_steps(self):
+        pass
 
 class Step(MutableModel, NamedModel):
     _class_name = ('step_template', 'step_templates')

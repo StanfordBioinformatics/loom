@@ -30,7 +30,6 @@ class _BaseModel(models.Model):
 
     def to_obj(self):
         model = self.downcast()
-        import pdb; pdb.set_trace()
         return model._get_fields_as_obj()
 
     @classmethod

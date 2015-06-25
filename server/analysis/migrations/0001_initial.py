@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='AnalysisDefinition',
+            name='Analysis',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
             ],
@@ -107,7 +107,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('requester', models.CharField(max_length=100)),
-                ('analysis_definitions', models.ManyToManyField(to='analyses.AnalysisDefinition')),
+                ('analyses', models.ManyToManyField(to='analysis.Analysis')),
             ],
             options={
                 'abstract': False,
@@ -136,64 +136,73 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='WorkInProgress',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('new_analyses', models.ManyToManyField(to='analysis.Analysis')),
+                ('new_steps', models.ManyToManyField(to='analysis.Step')),
+                ('open_requests', models.ManyToManyField(to='analysis.Request')),
+            ],
+        ),
+        migrations.CreateModel(
             name='DockerImage',
             fields=[
-                ('environment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analyses.Environment')),
+                ('environment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.Environment')),
                 ('docker_image', models.CharField(max_length=100)),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analyses.environment', models.Model),
+            bases=('analysis.environment', models.Model),
         ),
         migrations.AddField(
             model_name='step',
             name='environment',
-            field=models.ForeignKey(to='analyses.Environment'),
+            field=models.ForeignKey(to='analysis.Environment'),
         ),
         migrations.AddField(
             model_name='step',
             name='input_ports',
-            field=models.ManyToManyField(to='analyses.InputPort'),
+            field=models.ManyToManyField(to='analysis.InputPort'),
         ),
         migrations.AddField(
             model_name='step',
             name='output_ports',
-            field=models.ManyToManyField(to='analyses.OutputPort'),
+            field=models.ManyToManyField(to='analysis.OutputPort'),
         ),
         migrations.AddField(
             model_name='inputbinding',
             name='destination',
-            field=models.ForeignKey(to='analyses.InputBindingDestination'),
+            field=models.ForeignKey(to='analysis.InputBindingDestination'),
         ),
         migrations.AddField(
             model_name='inputbinding',
             name='file',
-            field=models.ForeignKey(to='analyses.File'),
+            field=models.ForeignKey(to='analysis.File'),
         ),
         migrations.AddField(
             model_name='connector',
             name='destination',
-            field=models.ForeignKey(to='analyses.DestinationStepAndPort'),
+            field=models.ForeignKey(to='analysis.DestinationStepAndPort'),
         ),
         migrations.AddField(
             model_name='connector',
             name='source',
-            field=models.ForeignKey(to='analyses.SourceStepAndPort'),
+            field=models.ForeignKey(to='analysis.SourceStepAndPort'),
         ),
         migrations.AddField(
-            model_name='analysisdefinition',
+            model_name='analysis',
             name='connectors',
-            field=models.ManyToManyField(to='analyses.Connector'),
+            field=models.ManyToManyField(to='analysis.Connector'),
         ),
         migrations.AddField(
-            model_name='analysisdefinition',
+            model_name='analysis',
             name='input_bindings',
-            field=models.ManyToManyField(to='analyses.InputBinding'),
+            field=models.ManyToManyField(to='analysis.InputBinding'),
         ),
         migrations.AddField(
-            model_name='analysisdefinition',
+            model_name='analysis',
             name='steps',
-            field=models.ManyToManyField(to='analyses.Step'),
+            field=models.ManyToManyField(to='analysis.Step'),
         ),
     ]

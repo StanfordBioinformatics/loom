@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.test import TestCase
 import os
-from analyses.models import *
+from analysis.models import *
 
 class TestHelloWorld(TestCase):
   

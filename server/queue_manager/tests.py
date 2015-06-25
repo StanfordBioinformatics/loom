@@ -1,8 +1,8 @@
+"""
 from django.test import TestCase
 from analyses.models import *
 import queue_manager
 
-"""
 class TestQueueManager(TestCase):
 
     step_obj = {'docker_image': "abcdefg123", 'command': "echo hello"}

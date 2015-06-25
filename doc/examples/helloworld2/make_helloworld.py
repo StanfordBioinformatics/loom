@@ -46,7 +46,7 @@ hello_world_step = {
         ],
 }
 
-hello_world_analysis_definition = {
+hello_world_analysis = {
     'steps': [
         world_step,
         hello_world_step
@@ -76,7 +76,7 @@ hello_world_analysis_definition = {
     }
 
 request_run = {
-    'analysis_definitions': [hello_world_analysis_definition],
+    'analyses': [hello_world_analysis],
     'requester': 'someone@example.net',
     }
 
