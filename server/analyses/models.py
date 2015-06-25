@@ -2,9 +2,6 @@ from datetime import datetime
 from django.db import models
 from immutable.models import ImmutableModel, MutableModel
 
-# ----------
-# FileRecipe and related classes.
-# Excluding FileLocations, ResourceSets, or other classes that affect execution but will not change results.
 
 class NamedModel(models.Model):
     _class_name = ('unnamed_model', 'unnamed_models') # To be overridden
@@ -19,6 +16,89 @@ class NamedModel(models.Model):
     class Meta:
         abstract = True
 
+# ---------------
+# AnalysisRequest and related classes
+
+class Request(MutableModel, NamedModel):
+    _class_name = ('request', 'requests')
+    analysis_definitions = models.ManyToManyField('AnalysisDefinition')
+    requester = models.CharField(max_length = 100)
+
+class AnalysisDefinition(MutableModel, NamedModel):
+    _class_name = ('analysis_definition', 'analysis_definitions')
+    steps = models.ManyToManyField('Step')
+    input_bindings = models.ManyToManyField('InputBinding')
+    connectors = models.ManyToManyField('Connector')
+
+class Step(MutableModel, NamedModel):
+    _class_name = ('step_template', 'step_templates')
+    name = models.CharField(max_length = 256)
+    input_ports = models.ManyToManyField('InputPort')
+    output_ports = models.ManyToManyField('OutputPort')
+    command = models.CharField(max_length = 256)
+    environment = models.ForeignKey('Environment')
+
+class Environment(MutableModel, NamedModel):
+    _class_name = ('environment', 'environments')
+
+class DockerImage(Environment, NamedModel):
+    _class_name = ('docker_image', 'docker_images')
+    docker_image = models.CharField(max_length = 100)
+
+class OutputPort(MutableModel, NamedModel):
+    _class_name = ('output_port', 'output_ports')
+
+    # Relative path within the working directory where
+    # a file will be found after a step executes
+    name = models.CharField(max_length = 256)
+    file_path = models.CharField(max_length = 256)
+
+class InputPort(MutableModel, NamedModel):
+    _class_name = ('input_port', 'input_ports')
+
+    # Relative path within the working directory where
+    # a file will be copied before a step is executed
+    name = models.CharField(max_length = 256)
+    file_path = models.CharField(max_length = 256)
+
+class File(ImmutableModel, NamedModel):
+    _class_name = ('file', 'files')
+
+    hash_value = models.CharField(max_length = 100)
+    hash_function = models.CharField(max_length = 100)
+
+class InputBinding(MutableModel, NamedModel):
+    _class_name = ('input_binding', 'input_bindings')
+
+    file = models.ForeignKey('File')
+    destination = models.ForeignKey('InputBindingDestination')
+
+class Connector(MutableModel, NamedModel):
+    source = models.ForeignKey('SourceStepAndPort')
+    destination = models.ForeignKey('DestinationStepAndPort')
+
+class PortPointer(MutableModel, NamedModel):
+    step = models.CharField(max_length = 256)
+    port = models.CharField(max_length = 256)
+
+    class Meta:
+        abstract = True
+
+class InputBindingDestination(PortPointer):
+    pass
+
+class SourceStepAndPort(PortPointer):
+    pass
+
+class DestinationStepAndPort(PortPointer):
+    pass
+
+
+'''
+# ----------
+# FileRecipe and related classes.
+# Excluding FileLocations, ResourceSets, or other classes that affect execution but will not change results.
+
 class DataObject(ImmutableModel, NamedModel):
     _class_name = ('data_object', 'data_objects')
 
@@ -27,11 +107,6 @@ class DataObject(ImmutableModel, NamedModel):
     # Warning -- When a field is defined on a base class, the null=False requirement may not be enforced.
     # To be safe, define the field on the child class.
 
-class File(DataObject, NamedModel):
-    _class_name = ('file', 'files')
-
-    hash_value = models.CharField(max_length = 100)
-    hash_function = models.CharField(max_length = 100)
 
 class FileRecipe(DataObject, NamedModel):
     _class_name = ('file_recipe', 'file_recipes')
@@ -42,100 +117,8 @@ class FileRecipe(DataObject, NamedModel):
     def is_processed(self):
         return StepRunRecord.objects.filter(step=self.step).filter(status="done").exists()
 
-class InputBinding(ImmutableModel, NamedModel):
-    _class_name = ('input_binding', 'input_bindings')
-
-    data_object = models.ForeignKey(DataObject)
-    input_port = models.ForeignKey('InputPort')
-
-class OutputPort(ImmutableModel, NamedModel):
-    _class_name = ('output_port', 'output_ports')
-
-    # Relative path within the working directory where
-    # a file will be found after a step executes
-    file_path = models.CharField(max_length = 256)
-
-class InputPort(ImmutableModel, NamedModel):
-    _class_name = ('input_port', 'input_ports')
-
-    # Relative path within the working directory where
-    # a file will be copied before a step is executed
-    file_path = models.CharField(max_length = 256)
-
-class AnalysisDefinition(ImmutableModel, NamedModel):
-    _class_name = ('analysis_definition', 'analysis_definitions')
-    step_template = models.ForeignKey('StepTemplate')
-    input_bindings = models.ManyToManyField(InputBinding)
-    
-    def is_ready(self):
-        """ Return True if all DataObjects pointed to by input Bindings satisfy one of the following conditions:
-            - DataObject is a File,
-            - DataObject is a FileRecipe AND FileRecipe.is_processed(),
-            - DataObject is an ImportRecipe AND ImportRecipe.is_imported()
-        """
-        for input_binding in self.input_bindings:
-            data_object = input_binding.data_object
-            try:
-                file = data_object.file
-                continue
-            except File.DoesNotExist:
-                pass
-            
-            try:
-                file_recipe = data_object.filerecipe
-                if file_recipe.is_processed():
-                    continue
-                else:
-                    return False
-            except FileRecipe.DoesNotExist:
-                pass
-
-            try:
-                import_recipe = data_object.importrecipe
-                if import_recipe.is_imported():
-                    continue
-                else:
-                    return False
-            except ImportRecipe.DoesNotExist:
-                pass
-        
-        return True
-        
-class StepTemplate(ImmutableModel, NamedModel):
-    _class_name = ('step_template', 'step_templates')
-    input_ports = models.ManyToManyField('InputPort', related_name='step_templates')
-    output_ports = models.ManyToManyField('OutputPort', related_name='step_templates')
-    command = models.CharField(max_length = 256)
-    environment = models.ForeignKey('Environment')
-
-class Environment(ImmutableModel, NamedModel):
-    _class_name = ('environment', 'environments')
-
-class DockerImage(Environment, NamedModel):
-    _class_name = ('docker_image', 'docker_images')
-    docker_image = models.CharField(max_length = 100)
-
 # ----------
 # RequestRun and related classes
-
-class RequestRun(MutableModel, NamedModel):
-    _class_name = ('request_run', 'request_runs')
-    analysis_definitions = models.ManyToManyField('AnalysisDefinition')
-    analysis_runs = models.ManyToManyField('AnalysisRun')
-    resource_set_requests = models.ManyToManyField('ResourceSetRequest')
-    # TODO fix timestamps
-#    date = models.DateTimeField()
-    requester = models.CharField(max_length = 100)
-    request_run_record = models.ForeignKey('RequestRunRecord', null=True)
-
-    def is_ready_for_analysis_runs(self):
-        # True if any analysis_definitions do not have completed analysis_runs
-        for a in analysis_definitions:
-            if not a.has_complete_analysis_run():
-                return True
-        return False
-                
-        
 
 #    @classmethod
 #    def create(cls, data_obj_or_json):
@@ -248,3 +231,4 @@ class FileImportRecord(ImmutableModel, NamedModel):
     import_comments = models.CharField(max_length = 10000)
     file = models.ForeignKey('File')
     requester = models.CharField(max_length = 100)
+'''

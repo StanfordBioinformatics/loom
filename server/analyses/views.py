@@ -12,7 +12,7 @@ def create(request, cls):
     data_json = request.body
     try:
         model = cls.create(data_json)
-        return JsonResponse({"message": "created %s" % cls.get_name(), "_id": model._id}, status=201)
+        return JsonResponse({"message": "created %s" % cls.get_name(), "_id": str(model._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=400)
 
