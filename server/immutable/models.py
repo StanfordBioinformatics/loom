@@ -4,6 +4,7 @@ from django.db import models
 import hashlib
 import json
 import jsonschema
+import uuid
 from immutable import helpers
 from immutable.exceptions import *
 
@@ -221,6 +222,8 @@ class _BaseModel(models.Model):
             field_obj = self._get_field_as_obj(field)
             if (field_obj is None) or (field_obj == []):
                 continue
+            if isinstance(field_obj, uuid.UUID):
+                field_obj = str(field_obj)
             obj[field.name] = field_obj
         return obj
 
@@ -270,7 +273,7 @@ class _BaseModel(models.Model):
 
 class MutableModel(_BaseModel):
 
-    _id = models.AutoField(primary_key=True)
+    _id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     @classmethod
     def create(cls, data_obj_or_json):
@@ -292,7 +295,7 @@ class MutableModel(_BaseModel):
     def _verify_update_id_matches_model(self, _id):
         if _id is None:
             return
-        if _id != self._id:
+        if str(_id) != str(self._id):
             raise UpdateIdMismatchError('Update does not match model. The update JSON gave an _id of "%s", but this model has _id "%s."'
                             % (_id, self._id))
 
