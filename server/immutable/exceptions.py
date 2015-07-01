@@ -40,6 +40,9 @@ class CouldNotFindUniqueSubclassError(Exception):
 class ForeignKeyInChildError(Exception):
     pass
 
+class ImmutableChildWithForeignKeyException(Exception):
+    pass
+
 class AttemptedToUpdateImmutableError(Exception):
     pass
 

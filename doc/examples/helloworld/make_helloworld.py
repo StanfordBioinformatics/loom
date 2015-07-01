@@ -2,8 +2,6 @@
 import uuid
 import json
 
-sample_id = uuid.uuid4().get_hex()
-
 # Contents of this file are "hello"
 hello_file = {
     "hash_function": "md5",
@@ -14,67 +12,78 @@ env = {
     'docker_image': 'ubuntu',
 }
 
-world_output_port = {
-    'file_path': 'world.txt',
+resources = {
+    'memory': '5GB',
+    'cores': '1',
     }
 
-world_step_template = {
+world_step = {
+    'name': 'world_step',
     'command': 'echo world > %s' % 'world.txt',
     'environment': env,
+    'resources': resources,
     'output_ports': [
-        world_output_port,
-         ],
+        {
+            'name': 'world_out',
+            'file_path': 'world.txt',
+            }
+        ],
 }
 
-world_step_definition = {
-    'step_template': world_step_template,
-    }
-
-world_file_recipe = {
-    'analysis_definition': world_step_definition,
-    'output_port': world_output_port,
-    }
-
-hello_input_port = {
-    'file_path': 'hello.txt',
-    }
-
-world_input_port = {
-    'file_path': 'world.txt',
-    }
-
-hello_world_output_port = {
-    'file_path': 'hello_world.txt',
-    }
-
-hello_world_step_template = {
+hello_world_step = {
+    'name': 'hello_world_step',
     'command': 'cat %s %s > %s' % ('hello.txt', 'world.txt', 'hello_world.txt'),
     'environment': env,
+    'resources': resources,
     'input_ports': [
-        hello_input_port,
-        world_input_port,
+        {
+            'name': 'hello_in',
+            'file_path': 'hello.txt',
+            },
+        {
+            'name': 'world_in',
+            'file_path': 'world.txt',
+            }
         ],
     'output_ports': [
-        hello_world_output_port,
+        {
+            'name': 'hello_world_out',
+            "file_path": "hello_world.txt",
+            }
         ],
 }
 
-hello_world_step_definition = {
-    'step_template': hello_world_step_template,
-    'input_bindings':[
+hello_world_analysis = {
+    'steps': [
+        world_step,
+        hello_world_step
+        ],
+    'input_bindings': [
         {
-            'data_object': world_file_recipe,
-            'input_port': world_input_port,
-            },
+            'file': hello_file,
+            'destination': {
+                'step': 'hello_world_step',
+                'port': 'hello_in',
+                }
+            }
+        ],
+    'connectors':
+        [
         {
-            'data_object': hello_file,
-            'input_port': hello_input_port,
-            },
+            'source': {
+                'step': 'world_step',
+                'port': 'world_out'
+                },
+            'destination': {
+                'step': 'hello_world_step',
+                'port': 'world_in',
+                }
+            }
         ]
     }
 
 request_run = {
-    'analysis_definitions': [hello_world_step_definition],
+    'analyses': [hello_world_analysis],
     'requester': 'someone@example.net',
     }
 
