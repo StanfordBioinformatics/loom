@@ -14,25 +14,35 @@
             stroke-width:2;
             color: black;
         }
+        .transparent{
+            opacity:0.5;
+        }
         text {
             stroke:none;
             fill:black;
             font-size: 24;
             font-family: sans-serif;
         }
-        .input_port{
-            fill:lightgreen;
+        .port{
             r:5;
         }
-        .output_port{
+        .input{
+            fill:lightgreen;
+        }
+        .output{
             fill:pink;
-            r:5;
+        }
+        .connector{
+            stroke:black;
+            stroke-width:2;
         }
     </style>
 </head>
 <body>
+<!--
 <p>This is the first paragraph.</p>
 <img src="{{STATIC_URL}}/editor/heart.png" alt="My image"/>
+-->
 <script>
     
 // Define helper functions
@@ -63,13 +73,13 @@ var create_step = function(x, y) {
 }
 var add_input = function(step) {
     step.append("circle")
-        .classed("input_port", true)
+        .attr("class", "input port")
         .call(drag_port);
     position_ports(step);
 }
 var add_output = function(step) {
     step.append("circle")
-        .classed("output_port", true)
+        .attr("class", "output port")
         .call(drag_port);
     position_ports(step);
 }
@@ -80,14 +90,14 @@ var position_ports = function(step) {
     left = step_rect.attr('x');
     right = parseInt(left) + parseInt(step_rect.attr('width'));
 
-    inputs = step.selectAll(".input_port");
+    inputs = step.selectAll(".input");
     y_array = d3.scale.linear().domain([start_y,end_y]).ticks(inputs.size());
     //console.log(y_array);
     inputs.data(y_array)
         .attr('cy', function(d){return d})
         .attr('cx', left);
 
-    outputs = step.selectAll(".output_port");
+    outputs = step.selectAll(".output");
     y_array = d3.scale.linear().domain([start_y,end_y]).ticks(outputs.size());
     //console.log(y_array);
     outputs.data(y_array)
@@ -119,19 +129,33 @@ var drag_step = d3.behavior.drag()
 var drag_port = d3.behavior.drag()
     // Set origin to preserve mouse offset
     .origin(function(){return {"x":this.getAttribute("cx"), "y":this.getAttribute("cy")};})
-    .on("drag", function(d) {
-            // Prevent dragging using right mouse button
-            if (d3.event.sourceEvent.button == 2)
-                return;
-            console.log("Dragging port");
-            d3.select(this)
-                //.attr("transform", "translate("+d3.event.x+","+d3.event.y+")")
-                .attr("cx", d3.event.x)
-                .attr("cy", d3.event.y);
-        })
     .on("dragstart", function(d) {
+            console.log("drag start");
             // Prevent event from bubbling to step
             d3.event.sourceEvent.stopPropagation();
+
+            // Create a placeholder port and drag that instead
+            mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
+            this.ghostport = d3.select("#workspace").append("circle")
+                .attr("class", "port transparent")
+                .call(drag_port);
+            this.ghost_connector_start = "M " + mousecoords[0] + " " + mousecoords[1];
+            this.ghost_connector = d3.select("#workspace").append("path")
+                .attr("class", "connector transparent")
+                .attr("d", this.ghost_connector_start + " T " + mousecoords[0] + " " + mousecoords[1]);
+        })
+    .on("drag", function(d) {
+            mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
+            this.ghostport
+                .attr("cx", mousecoords[0])
+                .attr("cy", mousecoords[1]);
+            console.log(this.ghost_connector_start);
+            this.ghost_connector
+                .attr("d", this.ghost_connector_start + " T " + mousecoords[0] + " " + mousecoords[1]);
+        })
+    .on("dragend", function(d) {
+            this.ghostport.remove();
+            this.ghost_connector.remove();
         });
 
 // Define context menus
@@ -169,10 +193,9 @@ var background_menu = [
             {
                 title: 'New step',
                 action: function(elm, d, i) {
-                    mousecoords = d3.mouse(elm);
-                    background_x = d3.transform(d3.select("#workspace").attr("transform")).translate[0];
-                    background_y = d3.transform(d3.select("#workspace").attr("transform")).translate[1];
-                    create_step(mousecoords[0] - background_x, mousecoords[1] - background_y);
+                    // Get mouse position in workspace coordinates
+                    mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
+                    create_step(mousecoords[0], mousecoords[1]);
                 }
             }
            ];
@@ -197,7 +220,7 @@ var zoom = d3.behavior.zoom()
             .attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
     });
 
-// Set up viewport
+// Set up svg
 var WIDTH = 1200,
     HEIGHT = 800;
 d3.select("body").append("svg")
