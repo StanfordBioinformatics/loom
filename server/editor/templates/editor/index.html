@@ -1,30 +1,254 @@
 <html>
 <head>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js" charset="utf-8"></script>
+    <!-- Data-Driven Documents: http://d3js.org/ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js" charset="utf-8"></script>
+
+    <!-- d3-context-menu from https://github.com/patorjk/d3-context-menu -->
+    <link rel="stylesheet" href="{{STATIC_URL}}/editor/d3-context-menu.css" />
+    <script src="{{STATIC_URL}}/editor/d3-context-menu.js"></script>
+
+    <style>
+        .step{
+            fill:white;
+            stroke:black;
+            stroke-width:2;
+            color: black;
+        }
+        .transparent{
+            opacity:0.5;
+        }
+        text {
+            stroke:none;
+            fill:black;
+            font-size: 24;
+            font-family: sans-serif;
+        }
+        .port{
+            r:5;
+        }
+        .input{
+            fill:lightgreen;
+        }
+        .output{
+            fill:pink;
+        }
+        .connector{
+            stroke:black;
+            stroke-width:2;
+        }
+    </style>
 </head>
 <body>
-Yay it works!
-<img src="{{STATIC_URL}}/editor/heart.png" alt="My image"/>
-<svg width="720" height="120">
-  <circle cx="40" cy="60" r="10"></circle>
-  <circle cx="80" cy="60" r="10"></circle>
-  <circle cx="120" cy="60" r="10"></circle>
-</svg>
+<!--
 <p>This is the first paragraph.</p>
+<img src="{{STATIC_URL}}/editor/heart.png" alt="My image"/>
+-->
 <script>
-d3.select("body").selectAll("p")
-    .data([4, 8, 15, 16, 23, 42])
-  .enter().append("p")
-    .text(function(d) { return "I’m number " + d + "!"; });
+    
+// Define helper functions
+var create_step = function(x, y) {
+    step = d3.select("#workspace").append("g")
+        .classed("step", true)
+        .call(drag_step)
+        .attr("transform", "translate("+x+","+y+")")
+        .on('contextmenu', d3.contextMenu(step_menu));
+    rect = step.append("rect")
+        .classed("step_rect", true)
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", 160)
+        .attr("height", 40)
+        .attr("rx", 10)
+        .attr("ry", 10);
+    step.append("text")
+        .attr("pointer-events", "none")
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "middle")
+        .attr("x", rect.attr("width")/2)
+        .attr("y", rect.attr("height")/2)
+        .text("step name");
+    step.call(add_input)
+        .call(add_output)
+        .call(position_ports);
+}
+var add_input = function(step) {
+    step.append("circle")
+        .attr("class", "input port")
+        .call(drag_port);
+    position_ports(step);
+}
+var add_output = function(step) {
+    step.append("circle")
+        .attr("class", "output port")
+        .call(drag_port);
+    position_ports(step);
+}
+var position_ports = function(step) {
+    step_rect = step.select(".step_rect");
+    start_y = step_rect.attr("y");
+    end_y = parseInt(start_y) + parseInt(step_rect.attr('height'));
+    left = step_rect.attr('x');
+    right = parseInt(left) + parseInt(step_rect.attr('width'));
 
-var draggable = d3.behavior.drag()
+    inputs = step.selectAll(".input");
+    y_array = d3.scale.linear().domain([start_y,end_y]).ticks(inputs.size());
+    //console.log(y_array);
+    inputs.data(y_array)
+        .attr('cy', function(d){return d})
+        .attr('cx', left);
+
+    outputs = step.selectAll(".output");
+    y_array = d3.scale.linear().domain([start_y,end_y]).ticks(outputs.size());
+    //console.log(y_array);
+    outputs.data(y_array)
+        .attr('cy', function(d){return d})
+        .attr('cx', right);
+    
+}
+
+// Define drag behavior for steps
+var drag_step = d3.behavior.drag()
+    // Set origin to preserve mouse offset
+    .origin(function(){
+        return {"x":d3.transform(d3.select(this).attr("transform")).translate[0],
+                "y":d3.transform(d3.select(this).attr("transform")).translate[1]};
+        })
     .on("drag", function(d) {
+        // Prevent dragging using right mouse button
+        if (d3.event.sourceEvent.button == 2)
+            return;
         d3.select(this)
-            .attr("cx", d3.event.x)
-            .attr("cy", d3.event.y);
+            .attr("transform", "translate("+d3.event.x+","+d3.event.y+")");
+        })
+    .on("dragstart", function(d) {
+            // Prevent event from bubbling 
+            d3.event.sourceEvent.stopPropagation();
+        });
+
+// Define drag behavior for ports
+var drag_port = d3.behavior.drag()
+    // Set origin to preserve mouse offset
+    .origin(function(){return {"x":this.getAttribute("cx"), "y":this.getAttribute("cy")};})
+    .on("dragstart", function(d) {
+            console.log("drag start");
+            // Prevent event from bubbling to step
+            d3.event.sourceEvent.stopPropagation();
+
+            // Create a placeholder port and drag that instead
+            mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
+            this.ghostport = d3.select("#workspace").append("circle")
+                .attr("class", "port transparent")
+                .call(drag_port);
+            this.ghost_connector_start = "M " + mousecoords[0] + " " + mousecoords[1];
+            this.ghost_connector = d3.select("#workspace").append("path")
+                .attr("class", "connector transparent")
+                .attr("d", this.ghost_connector_start + " T " + mousecoords[0] + " " + mousecoords[1]);
+        })
+    .on("drag", function(d) {
+            mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
+            this.ghostport
+                .attr("cx", mousecoords[0])
+                .attr("cy", mousecoords[1]);
+            console.log(this.ghost_connector_start);
+            this.ghost_connector
+                .attr("d", this.ghost_connector_start + " T " + mousecoords[0] + " " + mousecoords[1]);
+        })
+    .on("dragend", function(d) {
+            this.ghostport.remove();
+            this.ghost_connector.remove();
+        });
+
+// Define context menus
+var step_menu = [
+            {
+                title: 'Edit step',
+                action: function(elm, d, i) {
+                    console.log('Item #1 clicked!');
+                    console.log('The data for this circle is: ' + d);
+                    console.log('Elm: ' + elm);
+                    
+                }
+            },
+            {
+                title: 'Add input',
+                action: function(elm, d, i) {
+                    d3.select(elm).call(add_input);
+                }
+            },
+            {
+                title: 'Add output',
+                action: function(elm, d, i) {
+                    d3.select(elm).call(add_output);
+                }
+            },
+            {
+                title: 'Delete step',
+                action: function(elm, d, i) {
+                    elm.remove();
+                    console.log('Removed element with id: ' + elm.id);
+                }
+            }
+           ];
+var background_menu = [
+            {
+                title: 'New step',
+                action: function(elm, d, i) {
+                    // Get mouse position in workspace coordinates
+                    mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
+                    create_step(mousecoords[0], mousecoords[1]);
+                }
+            }
+           ];
+
+// Define pan and zoom behavior
+var zoom = d3.behavior.zoom()
+    .translate([0,0])
+    .scale(1)
+    .scaleExtent([.5,8])
+    .size([WIDTH, HEIGHT])
+    .on("zoomstart", function() {
+        // Prevent dragging using right mouse button
+        if (d3.event.sourceEvent.button == 2)
+            return;
+    }) 
+    .on("zoom", function() {
+        // Prevent dragging using right mouse button
+        if (d3.event.sourceEvent.button == 2)
+            return;
+        //console.log(d3.event.sourceEvent.button);
+        d3.select("#workspace")
+            .attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
     });
 
-d3.selectAll("circle").call(draggable);
+// Set up svg
+var WIDTH = 1200,
+    HEIGHT = 800;
+d3.select("body").append("svg")
+    // Make mousewheel zoom background, and dragging pan background 
+    .call(zoom)
+    .attr("width", WIDTH)
+    .attr("height", HEIGHT)
+    .append("rect")
+        .attr("style", "border-style:solid;border-width:1px;border-color:black;stroke:black;fill:white;")
+        .attr("id", "background")
+        .attr("width", WIDTH)
+        .attr("height", HEIGHT)
+        // Make right-clicking the background open context menu
+        .on('contextmenu', d3.contextMenu(background_menu));
+d3.select("svg").append("g")
+    .attr("id", "workspace")
+    .append("circle")
+        .attr("style", "fill:black")
+        .attr("cx", 100)
+        .attr("cy", 100)
+        .attr("r", 20);
+/*
+d3.select("svg").append("rect")
+    .attr("id", "overlay")
+        .attr("width", WIDTH)
+        .attr("height", HEIGHT)
+        .attr("style", "fill:none;pointer-events:all;");
+*/
 </script>
 </body>
 </html>
