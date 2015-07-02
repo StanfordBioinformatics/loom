@@ -8,10 +8,10 @@ from immutable.models import ImmutableModel
 
 class StepResult(ImmutableModel, AnalysisAppBaseModel):
     step_definition = models.ForeignKey('StepDefinition')
-    output_bindings = models.ManyToManyField('OutputBinding')
+    output_binding = models.ForeignKey('StepResultOutputBinding')
 
-class OutputBinding(ImmutableModel, AnalysisAppBaseModel):
-    _class_name = ('step_result_input_binding', 'step_result_input_bindings')
+class StepResultOutputBinding(ImmutableModel, AnalysisAppBaseModel):
+    _class_name = ('result_output_binding', 'result_output_bindings')
 
     file = models.ForeignKey('File')
     output_port = models.ForeignKey('StepDefinitionOutputPort')

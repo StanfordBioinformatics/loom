@@ -28,6 +28,15 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
     template = models.ForeignKey('StepDefinitionTemplate')
     data_bindings = models.ManyToManyField('StepDefinitionDataBinding')
 
+    def get_step_run(self):
+        # TODO handle multiple results according to
+        # a sensible policy
+        step_runs = self.steprun_set
+        if step_runs.count() == 0:
+            return None
+        else:
+            return step_runs.first()
+
 class StepDefinitionTemplate(ImmutableModel, AnalysisAppBaseModel):
     """
     Everything that defines a an analysis step except for the input data
@@ -47,7 +56,7 @@ class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
     file_path = models.CharField(max_length = 256)
 
 class StepDefinitionDataBinding(ImmutableModel, AnalysisAppBaseModel):
-    _class_name = ('step_definition_input_binding', 'step_definition_input_bindings')
+    _class_name = ('step_definition_data_binding', 'step_definition_data_bindings')
     file = models.ForeignKey('File')
     input_port = models.ForeignKey('StepDefinitionInputPort')
 

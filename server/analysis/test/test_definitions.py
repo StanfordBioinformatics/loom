@@ -1,8 +1,10 @@
+from django.test import TestCase
 from analysis.models import *
 from .common import ImmutableModelsTestCase
-from .test_models_files import TestFiles
+from . import test_files
 
-file_obj = TestFiles.file_obj
+
+file_obj = test_files.file_obj
 
 docker_image_obj = {
     'docker_image': '1234567asdf',
@@ -77,3 +79,12 @@ class TestDefinitions(ImmutableModelsTestCase):
         self.assertEqual(o.template.command, step_obj['template']['command'])
         self.roundTripJson(o)
         self.roundTripObj(o)
+
+class TestStepDefinition(TestCase):
+
+    def setUp(self):
+        self.step_definition = StepDefinition.create(step_obj)
+
+    def testGetAnalysisRun(self):
+        run = self.step_definition.get_step_run()
+        self.assertIsNone(run)

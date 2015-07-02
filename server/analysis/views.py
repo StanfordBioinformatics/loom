@@ -2,7 +2,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, Request, WorkInProgress
+from analysis.models import File, Request, Queues
 
 @require_http_methods(["GET"])
 def status(request):
@@ -18,7 +18,7 @@ def submitrequest(request):
         return JsonResponse({"message": e.message}, status=400)
 
     try:
-        WorkInProgress.add_open_request(request)
+        Queues.subimt_new_request(request)
         return JsonResponse({"message": "created new %s" % request.get_name(), "_id": str(request._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)

@@ -43,6 +43,34 @@ class StripKey(object):
         for obj in objlist:
             cls.strip_key(obj, key)
 
+class StripBlanks(object):
+    """
+    Crawls a python data structure and removes
+    any keys with values None, [], or {}
+    """
+
+    @classmethod
+    def strip_blanks(cls, obj):
+        # Main recursive loop
+        if isinstance(obj, list):
+            cls._branch_from_list(obj)
+        elif isinstance(obj, dict):
+            to_remove = []
+            for (key, value) in obj.iteritems():
+                if value in [None, [], {}]:
+                    to_remove.append(key)
+            for key in to_remove:
+                obj.pop(key)
+            cls._branch_from_list(obj.values())
+        else:
+            pass
+        return obj
+
+    @classmethod
+    def _branch_from_list(cls, objlist):
+        for obj in objlist:
+            cls.strip_blanks(obj)
+
 class IdCalculator:
     """
     Calculates a unique hash for a data object.
@@ -51,11 +79,13 @@ class IdCalculator:
     """
 
     def __init__(self, data_obj, id_key):
-        self._data_obj = self._process_data_obj(data_obj, id_key)
+        data_obj_copy = copy.deepcopy(data_obj)
+        self._data_obj = self._process_data_obj(data_obj_copy, id_key)
 
     def _process_data_obj(self, data_obj, id_key):
         data_obj_without_ids = StripKey.strip_key(data_obj, id_key)
-        return self._sort_by_id(data_obj_without_ids)
+        data_obj_without_blanks = StripBlanks.strip_blanks(data_obj_without_ids)
+        return self._sort_by_id(data_obj_without_blanks)
         
     def get_id(self):
         return self._calculate_id(self._data_obj)

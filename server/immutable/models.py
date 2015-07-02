@@ -117,6 +117,8 @@ class _BaseModel(models.Model):
         Model = self._get_model_for_field_name(key, value)
         if value.get('_id') is None:
             child = Model.create(value)
+            if child._id == 'e4ed384a18d9796d5b3494ecba9ff4a96d545cc0afb578efbccdb66e87c79e5d':
+                import pdb; pdb.set_trace()
         else:
             # Update existing model
             child = Model.objects.get(_id=value.get('_id'))

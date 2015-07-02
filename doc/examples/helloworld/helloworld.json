@@ -1,7 +1,7 @@
 {
   "analyses": [
     {
-      "connectors": [
+      "data_pipes": [
         {
           "source": {
             "step": "world_step", 
@@ -13,7 +13,7 @@
           }
         }
       ], 
-      "input_bindings": [
+      "data_bindings": [
         {
           "destination": {
             "step": "hello_world_step", 

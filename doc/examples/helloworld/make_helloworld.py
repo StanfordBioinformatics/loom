@@ -58,7 +58,7 @@ hello_world_analysis = {
         world_step,
         hello_world_step
         ],
-    'input_bindings': [
+    'data_bindings': [
         {
             'file': hello_file,
             'destination': {
@@ -67,7 +67,7 @@ hello_world_analysis = {
                 }
             }
         ],
-    'connectors':
+    'data_pipes':
         [
         {
             'source': {
