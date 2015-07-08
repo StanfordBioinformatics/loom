@@ -198,12 +198,12 @@ class TestStepRequest(TestCase):
         
     def testIsReadyBoundData(self):
         # This step is ready because it already has a bound file.
-        self.assertTrue(self.step1.are_inputs_ready())
+        self.assertTrue(self.step1._are_inputs_ready())
 
     def testIsReadyDataPipeNoFile(self):
         # This step is not ready because its input port has a data_pipe to the
         # previous step but no file exists.
-        self.assertFalse(self.step2.are_inputs_ready())
+        self.assertFalse(self.step2._are_inputs_ready())
 
     def testIsReadyDataPipeWithFile(self):
         # TODO
