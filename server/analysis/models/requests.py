@@ -2,7 +2,7 @@ from django.db import models
 
 from .common import AnalysisAppBaseModel
 from .files import File
-from .definitions import StepDefinition
+from .definitions import StepDefinition, StepDefinitionOutputPort
 from immutable.models import MutableModel
 
 
@@ -29,14 +29,14 @@ class Request(MutableModel, AnalysisAppBaseModel):
 
 class AnalysisRequest(MutableModel, AnalysisAppBaseModel):
     _class_name = ('analysis_request', 'analysis_requests')
-    # steps: StepRequest has reverse foreign key
-    data_bindings = models.ManyToManyField('RequestDataBinding')
-    data_pipes = models.ManyToManyField('RequestDataPipe')        
+    # steps: StepRequest foreign key
+    # data_bindings: RequestDataBinding foreign key
+    # data_pipes: RequestDataPipe foreign key
 
     def get_steps_ready_to_run(self):
         steps = []
         for step in self.steps.all():
-            if step.are_inputs_ready():
+            if step.is_ready():
                 steps.append(step)
         return steps
 
@@ -124,12 +124,33 @@ class StepRequest(MutableModel, AnalysisAppBaseModel):
     def _get_output_port(self, name):
         return self.output_ports.get(name=name)
 
-    def are_inputs_ready(self):
+    def is_ready(self):
+        if self.has_run():
+            return False
+        elif self._are_inputs_ready():
+            return True
+        else:
+            return False
+
+    def is_complete(self):
+        if self.has_run():
+            return self.step_run.is_complete
+        else:
+            return False
+
+    def _are_inputs_ready(self):
         # Returns True if all input files are avaialble
         for port in self.input_ports.all():
             if not port.has_file():
                 return False
         return True
+
+    def get_output_file(self, port_name):
+        if not self.has_run():
+            return None
+        request_port = self._get_output_port(port_name)
+        result_port = request_port.get_step_definition_output_port()
+        return self.step_run.get_output_file(result_port)
 
 class RequestEnvironment(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_environment', 'request_environments')
@@ -155,6 +176,11 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
     name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
     step_request = models.ForeignKey('StepRequest', related_name='output_ports', null=True)
+
+    def get_step_definition_output_port(self):
+        return StepDefinitionOutputPort.get_by_definition(
+            self._render_step_definition_output_port()
+            )
 
     def _render_step_definition_output_port(self):
         return {'file_path': self.file_path}
@@ -215,6 +241,7 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
     file = models.ForeignKey('File')
     destination = models.ForeignKey('RequestDataBindingPortIdentifier')
+    analysis_request = models.ForeignKey('AnalysisRequest', related_name='data_bindings', null=True)
 
     def is_ready(self):
         # Returns True if the input file is available
@@ -241,10 +268,11 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
 
     source = models.ForeignKey('RequestDataPipeSourcePortIdentifier')
     destination = models.ForeignKey('RequestDataPipeDestinationPortIdentifier')
+    analysis_request = models.ForeignKey('AnalysisRequest', related_name='data_pipes', null=True)
 
     def get_file(self):
-        # TODO
-        return None
+        step = self.analysis_request.get_step(self.source.step)
+        return step.get_output_file(self.source.port)
 
 class PortIdentifier(MutableModel, AnalysisAppBaseModel):
     step = models.CharField(max_length = 256)

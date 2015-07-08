@@ -15,6 +15,14 @@ class _BaseModel(models.Model):
     def get_by_id(cls, _id):
         return cls.objects.get(_id=_id)
 
+    @classmethod
+    def get_by_definition(cls, data_obj_or_json):
+        data_obj = cls._any_to_obj(data_obj_or_json)
+        if data_obj.get('_id') is not None:
+            return cls.get_by_id(data_obj.get('_id'))
+        else:
+            return None
+
     def get(self, field_name):
         try:
             field_value = getattr(self, field_name)
@@ -331,6 +339,11 @@ class ImmutableModel(_BaseModel):
 
     def save(self):
         raise NoSaveAllowedError("Immutable models cannot be saved after creation.")
+
+    @classmethod
+    def get_by_definition(cls, data_obj_or_json):
+        id = cls._calculate_unique_id(data_obj_or_json)
+        return cls.get_by_id(id)
 
     @classmethod
     def _calculate_unique_id(cls, data_obj_or_json):

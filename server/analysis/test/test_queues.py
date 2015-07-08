@@ -77,5 +77,5 @@ class TestQueues(TestCase):
         results_after = StepResult.objects.count()
 
         self.assertEqual(steps_ready_to_run_after, steps_ready_to_run_before)
-        self.assertEqual(steps_running_after, steps_running_before + 2)
+        self.assertEqual(steps_running_after, steps_running_before)
         self.assertEqual(results_after, results_before + 2)

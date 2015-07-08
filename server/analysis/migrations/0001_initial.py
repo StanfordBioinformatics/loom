@@ -76,6 +76,7 @@ class Migration(migrations.Migration):
             name='RequestDataBinding',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('analysis_request', models.ForeignKey(related_name='data_bindings', to='analysis.AnalysisRequest', null=True)),
             ],
             options={
                 'abstract': False,
@@ -96,6 +97,7 @@ class Migration(migrations.Migration):
             name='RequestDataPipe',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('analysis_request', models.ForeignKey(related_name='data_pipes', to='analysis.AnalysisRequest', null=True)),
             ],
             options={
                 'abstract': False,
@@ -261,7 +263,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('is_complete', models.BooleanField(default=False)),
                 ('step_definition', models.ForeignKey(to='analysis.StepDefinition')),
-                ('step_result', models.ManyToManyField(to='analysis.StepResult')),
+                ('step_results', models.ManyToManyField(to='analysis.StepResult')),
             ],
             options={
                 'abstract': False,
@@ -410,15 +412,5 @@ class Migration(migrations.Migration):
             model_name='fileimportrequest',
             name='file_location',
             field=models.ForeignKey(to='analysis.FileLocation'),
-        ),
-        migrations.AddField(
-            model_name='analysisrequest',
-            name='data_bindings',
-            field=models.ManyToManyField(to='analysis.RequestDataBinding'),
-        ),
-        migrations.AddField(
-            model_name='analysisrequest',
-            name='data_pipes',
-            field=models.ManyToManyField(to='analysis.RequestDataPipe'),
         ),
     ]

@@ -4,6 +4,8 @@ from analysis.models import *
 urlpatterns = patterns('',
     url(r'^status/?$', 'analysis.views.status'),
     url(r'^submitrequest/?$', 'analysis.views.submitrequest'),
+    url(r'^submitresult/?$', 'analysis.views.submitresult'),
+    url(r'^closerun/?$', 'analysis.views.closerun'),
     )    
 
 model_classes = [

@@ -18,10 +18,36 @@ def submitrequest(request):
         return JsonResponse({"message": e.message}, status=400)
 
     try:
-        Queues.subimt_new_request(request)
+        Queues.submit_new_request(request)
         return JsonResponse({"message": "created new %s" % request.get_name(), "_id": str(request._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def submitresult(request):
+    data_json = request.body
+    try:
+        result = Result.create(data_json)
+    except Exception as e:
+        return JsonResponse({"message": e.message}, status=400)
+
+    try:
+        Queues.submit_result(result)
+        return JsonResponse({"message": "created new %s" % result.get_name(), "_id": str(result._id)}, status=201)
+    except Exception as e:
+        return JsonResponse({"message": e.message}, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def closerun(request):
+    data_json = request.body
+    try:
+        Queues.close_run(data_json)
+        return JsonResponse({"message": "closed run", "_id": data_json.get('_id')})
+    except Exception as e:
+        return JsonResponse({"message": e.message}, status=500)
+    run_id = data_json.get('_id')
 
 def create(request, cls):
 
