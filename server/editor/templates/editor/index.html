@@ -7,12 +7,42 @@
     <link rel="stylesheet" href="{{STATIC_URL}}/editor/d3-context-menu.css" />
     <script src="{{STATIC_URL}}/editor/d3-context-menu.js"></script>
 
+    <!-- Modernizr library for detecting browser support for required features: http://www.modernizr.com -->
+    <script src="{{STATIC_URL}}/editor/modernizr-latest.js"></script>
+
+    <script>
+    /**
+     * Generates a GUID string.
+     * @returns {String} The generated GUID.
+     * @example af8a8416-6e18-a307-bd9c-f2c947bbb3aa
+     * @author Slavik Meltser (slavik@meltser.info).
+     * @link http://slavik.meltser.info/?p=142
+     */
+    function guid() {
+        function _p8(s) {
+            var p = (Math.random().toString(16)+"000000000").substr(2,8);
+            return s ? "-" + p.substr(0,4) + "-" + p.substr(4,4) : p ;
+        }
+        return _p8() + _p8(true) + _p8(true) + _p8();
+    }
+    </script>
+
     <style>
+        #background{
+            fill:white;
+            stroke:black;
+        }
         .step{
             fill:white;
             stroke:black;
             stroke-width:2;
             color: black;
+        }
+        .step_rect{
+            width:160;
+            height:40;
+            rx:10;
+            ry:10;    
         }
         .transparent{
             opacity:0.5;
@@ -35,6 +65,7 @@
         .connector{
             stroke:black;
             stroke-width:2;
+            fill:none;
         }
     </style>
 </head>
@@ -42,6 +73,7 @@
 <!--
 <p>This is the first paragraph.</p>
 <img src="{{STATIC_URL}}/editor/heart.png" alt="My image"/>
+<div style="width:100;height:100;background-color:red;" draggable="true"></div>
 -->
 <script>
     
@@ -57,9 +89,7 @@ var create_step = function(x, y) {
         .attr("x", 0)
         .attr("y", 0)
         .attr("width", 160)
-        .attr("height", 40)
-        .attr("rx", 10)
-        .attr("ry", 10);
+        .attr("height", 40);
     step.append("text")
         .attr("pointer-events", "none")
         .attr("text-anchor", "middle")
@@ -72,16 +102,26 @@ var create_step = function(x, y) {
         .call(position_ports);
 }
 var add_input = function(step) {
-    step.append("circle")
-        .attr("class", "input port")
-        .call(drag_port);
+    add_port(step)
+        .classed("input", true);
     position_ports(step);
 }
 var add_output = function(step) {
-    step.append("circle")
-        .attr("class", "output port")
-        .call(drag_port);
+    add_port(step)
+        .classed("output", true);
     position_ports(step);
+}
+var add_port = function(step) {
+    id = "port-" + guid();
+    port = step.append("circle")
+        .attr("class", "port")
+        .attr("id", id)
+        .attr("draggable", "true")
+        .on("mouseover", over_port_start)
+        .on("mouseout", over_port_end)
+        .call(drag_port);
+        
+    return port;
 }
 var position_ports = function(step) {
     step_rect = step.select(".step_rect");
@@ -119,6 +159,7 @@ var drag_step = d3.behavior.drag()
             return;
         d3.select(this)
             .attr("transform", "translate("+d3.event.x+","+d3.event.y+")");
+        update_connectors();
         })
     .on("dragstart", function(d) {
             // Prevent event from bubbling 
@@ -134,14 +175,19 @@ var drag_port = d3.behavior.drag()
             // Prevent event from bubbling to step
             d3.event.sourceEvent.stopPropagation();
 
-            // Create a placeholder port and drag that instead
+            // Create a placeholder "ghost" port and move that while dragging
             mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
             this.ghostport = d3.select("#workspace").append("circle")
                 .attr("class", "port transparent")
-                .call(drag_port);
+                .attr("pointer-events", "none")
+                .attr("cx", mousecoords[0])
+                .attr("cy", mousecoords[1]);
+
+            // Also create and move a "ghost" connector
             this.ghost_connector_start = "M " + mousecoords[0] + " " + mousecoords[1];
             this.ghost_connector = d3.select("#workspace").append("path")
                 .attr("class", "connector transparent")
+                .attr("pointer-events", "none")
                 .attr("d", this.ghost_connector_start + " T " + mousecoords[0] + " " + mousecoords[1]);
         })
     .on("drag", function(d) {
@@ -149,15 +195,105 @@ var drag_port = d3.behavior.drag()
             this.ghostport
                 .attr("cx", mousecoords[0])
                 .attr("cy", mousecoords[1]);
-            console.log(this.ghost_connector_start);
+            //console.log(this.ghost_connector_start);
             this.ghost_connector
                 .attr("d", this.ghost_connector_start + " T " + mousecoords[0] + " " + mousecoords[1]);
         })
     .on("dragend", function(d) {
+            // Check if we're releasing over a port
+            if (over_port_id != null) {
+                console.log("This port: " + this.id);
+                console.log("Releasing over port: " + over_port_id);
+                
+                dropped_port = d3.select(this);
+                over_port = d3.select("#" + over_port_id);
+
+                // Check if it's a valid target
+
+                // Inputs can't connect to inputs; outputs can't connect to outputs
+                if ((dropped_port.classed("input") && over_port.classed("output")) || 
+                    (dropped_port.classed("output") && over_port.classed("input"))) {
+    
+                    // Ports must connect to different steps
+                    if (dropped_port.node().parentNode !== over_port.node().parentNode) {
+    
+                        // Target port must be empty
+                        // TODO: not working
+                        if (d3.selectAll(".connector").selectAll("[from="+over_port_id+"]").size() < 1 && 
+                            d3.selectAll(".connector").selectAll("[to="+over_port_id+"]").size() < 1) {
+
+                            // Add a connector
+                            console.log("Adding connector");
+                            d3.select("#workspace").append("path")
+                                .attr("class", "connector solid")
+                                .attr("from", this.id)
+                                .attr("to", over_port_id);
+                            update_connectors();
+                        } else {
+                            console.log("Skipped trying to connect to a non-vacant port");
+                        }
+                    } else {
+                        console.log("Skipped trying to connect ports of same step");
+                    }
+                } else {
+                    console.log("Skipped trying to connect ports of same type");
+                }
+            }
+
+            // Remove ghost port and connector
             this.ghostport.remove();
             this.ghost_connector.remove();
-        });
+        })
 
+// Update connector positions
+var update_connectors = function() {
+    d3.selectAll(".connector.solid")
+        .attr("d", function(d) {
+                from_port = d3.select("#"+d3.select(this).attr("from"));
+                step_transform = from_port.node().parentNode.getAttribute("transform");
+                translate = d3.transform(step_transform).translate;
+                from_x = parseInt(from_port.attr("cx"))+parseInt(translate[0]);
+                from_y = parseInt(from_port.attr("cy"))+parseInt(translate[1]);
+                to_port = d3.select("#"+d3.select(this).attr("to"));
+                step_transform = to_port.node().parentNode.getAttribute("transform");
+                translate = d3.transform(step_transform).translate;
+                to_x = parseInt(to_port.attr("cx"))+parseInt(translate[0]);
+                to_y = parseInt(to_port.attr("cy"))+parseInt(translate[1]);
+                x1 = (from_x + to_x) / 2;
+                y1 = from_y;
+                x2 = (from_x + to_x) / 2;
+                y2 = to_y;
+                return "M"+from_x+","+from_y+" C"+x1+","+y1+" "+x2+","+y2+" "+to_x+","+to_y;
+         });
+/*
+d3.svg.diagonal()
+            .source(function() { 
+                from_port = d3.select("#"+d3.select(this).attr("from"));
+                step_transform = from_port.node().parentNode.getAttribute("transform");
+                translate = d3.transform(step_transform).translate;
+                return {"x":parseInt(from_port.attr("cx"))+parseInt(translate[0]), "y":parseInt(from_port.attr("cy"))+parseInt(translate[1])};
+            })            
+            .target(function(d) {
+                to_port = d3.select("#"+d3.select(this).attr("to"));
+                step_transform = to_port.node().parentNode.getAttribute("transform");
+                translate = d3.transform(step_transform).translate;
+                return {"x":parseInt(to_port.attr("cx"))+parseInt(translate[0]), "y":parseInt(to_port.attr("cy"))+parseInt(translate[1])};
+            })
+        );
+*/
+}
+
+
+// Define functions to detect drag and drop for connecting ports
+var over_port_id = null;
+var over_port_start = function() {
+    console.log("Over port " + this.id);
+    over_port_id = this.id;
+}
+var over_port_end = function() {
+    console.log("Exiting port " + this.id);
+    over_port_id = null;
+}
 // Define context menus
 var step_menu = [
             {
@@ -220,7 +356,7 @@ var zoom = d3.behavior.zoom()
             .attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
     });
 
-// Set up svg
+// Set up main drawing area
 var WIDTH = 1200,
     HEIGHT = 800;
 d3.select("body").append("svg")
@@ -229,7 +365,6 @@ d3.select("body").append("svg")
     .attr("width", WIDTH)
     .attr("height", HEIGHT)
     .append("rect")
-        .attr("style", "border-style:solid;border-width:1px;border-color:black;stroke:black;fill:white;")
         .attr("id", "background")
         .attr("width", WIDTH)
         .attr("height", HEIGHT)
@@ -239,16 +374,9 @@ d3.select("svg").append("g")
     .attr("id", "workspace")
     .append("circle")
         .attr("style", "fill:black")
-        .attr("cx", 100)
-        .attr("cy", 100)
+        .attr("cx", 0)
+        .attr("cy", 0)
         .attr("r", 20);
-/*
-d3.select("svg").append("rect")
-    .attr("id", "overlay")
-        .attr("width", WIDTH)
-        .attr("height", HEIGHT)
-        .attr("style", "fill:none;pointer-events:all;");
-*/
 </script>
 </body>
 </html>
