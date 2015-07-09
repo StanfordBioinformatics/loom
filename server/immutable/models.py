@@ -8,11 +8,20 @@ import uuid
 from immutable import helpers
 from immutable.exceptions import *
 
+
 class _BaseModel(models.Model):
 
     @classmethod
     def get_by_id(cls, _id):
         return cls.objects.get(_id=_id)
+
+    @classmethod
+    def get_by_definition(cls, data_obj_or_json):
+        data_obj = cls._any_to_obj(data_obj_or_json)
+        if data_obj.get('_id') is not None:
+            return cls.get_by_id(data_obj.get('_id'))
+        else:
+            return None
 
     def get(self, field_name):
         try:
@@ -116,6 +125,8 @@ class _BaseModel(models.Model):
         Model = self._get_model_for_field_name(key, value)
         if value.get('_id') is None:
             child = Model.create(value)
+            if child._id == 'e4ed384a18d9796d5b3494ecba9ff4a96d545cc0afb578efbccdb66e87c79e5d':
+                import pdb; pdb.set_trace()
         else:
             # Update existing model
             child = Model.objects.get(_id=value.get('_id'))
@@ -140,7 +151,10 @@ class _BaseModel(models.Model):
                 # Child related by ManyToMany
                 Model = field.model
             elif isinstance(field, models.ManyToOneRel):
-                raise ForeignKeyInChildError('Foreign keys from child to parent are not supported.')
+                if not field.field.null:
+                    raise ForeignKeyInChildError('A foreign key from child to parent must set null=True, since the child is defined first.')
+                Model = field.related_model
+                self._check_child_with_foreign_key_compatibility(Model)
             else:
                 raise Exception("Unknown exception %s" % e.message)
         if Model._is_abstract(child_value):
@@ -151,6 +165,12 @@ class _BaseModel(models.Model):
         return Model
 
     def _check_child_compatibility(self, Child):
+        # Error if Child is not compatible with parent model (self)
+        # This is overridden in ImmutableModel
+        pass
+
+    def _check_child_with_foreign_key_compatibility(self, Child):
+        # Error if child cannot have foreign key to parent
         # This is overridden in ImmutableModel
         pass
 
@@ -321,6 +341,11 @@ class ImmutableModel(_BaseModel):
         raise NoSaveAllowedError("Immutable models cannot be saved after creation.")
 
     @classmethod
+    def get_by_definition(cls, data_obj_or_json):
+        id = cls._calculate_unique_id(data_obj_or_json)
+        return cls.get_by_id(id)
+
+    @classmethod
     def _calculate_unique_id(cls, data_obj_or_json):
         data_obj = cls._any_to_obj(data_obj_or_json)
         return helpers.IdCalculator(data_obj=data_obj, id_key='_id').get_id()
@@ -328,6 +353,9 @@ class ImmutableModel(_BaseModel):
     def _check_child_compatibility(self, Child):
         if not issubclass(Child, ImmutableModel):
             raise MutableChildError("An ImmutableModel can only contain references to ImmutableModels.")
+
+    def _check_child_with_foreign_key_compatibility(self, Child):
+        raise ImmutableChildWithForeignKeyException('Immutable model %s has a foreign key to its parent. This is not allowed for immutable models.' % Child)
 
     def to_obj(self):
         obj = super(ImmutableModel, self).to_obj()

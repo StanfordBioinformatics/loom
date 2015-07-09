@@ -1,7 +1,7 @@
 from django.conf.urls import patterns, include, url
 
 urlpatterns = patterns('',
-    url(r'^api/', include('analyses.urls')),
+    url(r'^api/', include('analysis.urls')),
     url(r'^editor$', 'editor.views.index'),
 )
 

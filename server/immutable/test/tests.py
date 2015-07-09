@@ -9,7 +9,7 @@ from immutable.test.models import *
 from django.core.exceptions import FieldDoesNotExist
 
 
-class TestMutableModel(TestCase):
+class TestMutableModel(TestCase):        
 
     def testCreateWithScalarProperty(self):
         model_json = '{"name": "ishmael"}'
@@ -28,8 +28,9 @@ class TestMutableModel(TestCase):
 
     def testCreateWithListOfChildrenReverseForeignKey(self):
         model_json = '{"listofchildren_foreignkey": [{"name": "ishmael"}, {"name": "jake"}]}'
-        with self.assertRaises(ForeignKeyInChildError):
-            model = SampleMutableParent.create(model_json)
+#        with self.assertRaises(ForeignKeyInChildError):
+        model = SampleMutableParent.create(model_json)
+        self.assertEqual(model.listofchildren_foreignkey.count(), 2)
 
     def testCreateAllFields(self):
         model_json = '{"name": "papa", "singlechild": {"name": "ishmael"}, "listofchildren": [{"name": "ishmael"}, {"name": "jake"}]}'
