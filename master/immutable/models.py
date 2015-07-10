@@ -13,7 +13,7 @@ class _BaseModel(models.Model):
 
     @classmethod
     def get_by_id(cls, _id):
-        return cls.objects.get(_id=_id)
+        return cls.objects.get(_id=_id).downcast()
 
     @classmethod
     def get_by_definition(cls, data_obj_or_json):

@@ -1,18 +1,14 @@
+from django.conf import settings
+from django.test import TestCase
+import os
+
 from analysis.models import *
+from analysis.test.fixtures import *
+
 from .common import ImmutableModelsTestCase
 
-file_obj = {
-    'hash_value': '1234asfd',
-    'hash_function': 'md5',
-    }
 
-file_path_location_obj = {
-    'file': file_obj,
-    'file_path': '/absolute/path/to/my/file.txt',
-    }
-
-
-class TestFiles(ImmutableModelsTestCase):
+class TestFileModels(ImmutableModelsTestCase):
 
     def testFile(self):
         file = File.create(file_obj)
@@ -35,3 +31,13 @@ class TestFiles(ImmutableModelsTestCase):
 
         self.roundTripJson(file_location)
         self.roundTripObj(file_location)
+
+
+class TestFile(TestCase):
+    def testIsAvailable(self):
+        file = File.create(file_obj)
+        self.assertFalse(file.is_available())
+        file_location = FileLocation.create(file_path_location_obj)
+        self.assertTrue(file.is_available())
+        
+    

@@ -7,6 +7,8 @@ from immutable.models import ImmutableModel
 
 
 class StepResult(ImmutableModel, AnalysisAppBaseModel):
+    _class_name = ('step_result', 'step_results')
+
     step_definition = models.ForeignKey('StepDefinition')
     output_binding = models.ForeignKey('StepResultOutputBinding')
 

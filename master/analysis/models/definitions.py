@@ -37,6 +37,14 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
         else:
             return step_runs.first()
 
+    def get_data_binding(self, port):
+        return self.data_bindings.get(input_port=port)
+
+    def get_input_file(self, port):
+        data_binding = self.get_data_binding(port)
+        return data_binding.file
+        
+
 class StepDefinitionTemplate(ImmutableModel, AnalysisAppBaseModel):
     """
     Everything that defines a an analysis step except for the input data

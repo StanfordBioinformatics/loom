@@ -7,6 +7,8 @@ from .common import AnalysisAppBaseModel
 from analysis.resource_manager import ResourceManager
 
 class Queues(AnalysisAppBaseModel):
+    _class_name = ('queues', 'queues')
+
     open_requests = models.ManyToManyField('Request')
     open_analyses = models.ManyToManyField('AnalysisRequest')
     steps_ready_to_run = models.ManyToManyField('StepRun', related_name='ready_to_run_queue')

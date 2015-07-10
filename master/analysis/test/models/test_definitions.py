@@ -1,41 +1,10 @@
 from django.test import TestCase
 from analysis.models import *
 from .common import ImmutableModelsTestCase
-from . import test_files
+from analysis.test.fixtures import *
 
 
-file_obj = test_files.file_obj
-
-docker_image_obj = {
-    'docker_image': '1234567asdf',
-    }
-
-input_port_obj = {
-    'file_path':'copy/my/file/here.txt',
-    }
-
-output_port_obj = {
-    'file_path':'look/for/my/file/here.txt',
-    }
-
-data_binding_obj = {
-    'file': file_obj,
-    'input_port': input_port_obj,
-    }
-
-template_obj = {
-    'input_ports': [input_port_obj],
-    'output_ports': [output_port_obj],
-    'command': 'echo test',
-    'environment': docker_image_obj,
-    }
-
-step_obj = {
-    'template': template_obj,
-    'data_bindings': [data_binding_obj],
-    }
-
-class TestDefinitions(ImmutableModelsTestCase):
+class TestDefinitionModels(ImmutableModelsTestCase):
 
     def testDockerImage(self):
         o = StepDefinitionDockerImage.create(docker_image_obj)
@@ -51,20 +20,20 @@ class TestDefinitions(ImmutableModelsTestCase):
         self.roundTripObj(o)
 
     def testInputPort(self):
-        o = StepDefinitionInputPort.create(input_port_obj)
-        self.assertEqual(o.file_path, input_port_obj['file_path'])
+        o = StepDefinitionInputPort.create(step_definition_input_port_obj)
+        self.assertEqual(o.file_path, step_definition_input_port_obj['file_path'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
     def testOutputPort(self):
-        o = StepDefinitionOutputPort.create(output_port_obj)
-        self.assertEqual(o.file_path, output_port_obj['file_path'])
+        o = StepDefinitionOutputPort.create(step_definition_output_port_obj)
+        self.assertEqual(o.file_path, step_definition_output_port_obj['file_path'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
     def testDataBinding(self):
-        o = StepDefinitionDataBinding.create(data_binding_obj)
-        self.assertEqual(o.input_port.file_path, data_binding_obj['input_port']['file_path'])
+        o = StepDefinitionDataBinding.create(step_definition_data_binding_obj)
+        self.assertEqual(o.input_port.file_path, step_definition_data_binding_obj['input_port']['file_path'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
@@ -85,6 +54,20 @@ class TestStepDefinition(TestCase):
     def setUp(self):
         self.step_definition = StepDefinition.create(step_obj)
 
-    def testGetAnalysisRun(self):
+    def testGetStepRun(self):
         run = self.step_definition.get_step_run()
         self.assertIsNone(run)
+
+    def testGetDataBinding(self):
+        port = self.step_definition.template.input_ports.first()
+        data_binding = self.step_definition.get_data_binding(port)
+        self.assertEqual(data_binding.input_port._id, port._id)
+
+    def testGetInputFile(self):
+        port = self.step_definition.template.input_ports.first()
+        data_binding = self.step_definition.get_data_binding(port)
+        file = self.step_definition.get_input_file(port)
+        self.assertEqual(data_binding.input_port._id, port._id)
+        self.assertEqual(data_binding.file._id, file._id)
+
+

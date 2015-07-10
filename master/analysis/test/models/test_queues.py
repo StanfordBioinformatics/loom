@@ -1,7 +1,9 @@
-from django.test import TestCase
-from analysis.models import *
-import os
 from django.conf import settings
+from django.test import TestCase
+import os
+
+from analysis.models import *
+from analysis.test.fixtures import *
 
 
 class TestQueues(TestCase):
@@ -10,15 +12,13 @@ class TestQueues(TestCase):
     hello_world_step_count = 2
 
     def setUp(self):
-        with open(os.path.join(settings.BASE_DIR,'../../doc/examples/helloworld/helloworld.json')) as f:
-            self.helloworld_json = f.read()
         self.queues = Queues._get_queue_singleton()
 
     def test_submit_new_request(self):
         requests_before = self.queues.open_requests.count()        
         analyses_before = self.queues.open_analyses.count()
 
-        Queues.submit_new_request(self.helloworld_json)
+        Queues.submit_new_request(helloworld_json)
 
         requests_after = self.queues.open_requests.count()
         analyses_after = self.queues.open_analyses.count()
@@ -30,7 +30,7 @@ class TestQueues(TestCase):
         steps_ready_to_run_before = self.queues.steps_ready_to_run.count()
         steps_running_before = self.queues.steps_running.count()
 
-        Queues.submit_new_request(self.helloworld_json)
+        Queues.submit_new_request(helloworld_json)
         q = Queues._get_queue_singleton()
         q._update_steps_ready_to_run()
 
@@ -45,7 +45,7 @@ class TestQueues(TestCase):
         steps_running_before = self.queues.steps_running.count()
         results_before = StepResult.objects.count()
 
-        Queues.submit_new_request(self.helloworld_json)
+        Queues.submit_new_request(helloworld_json)
         q = Queues._get_queue_singleton()
         q._update_steps_ready_to_run()
         q._run_ready_steps()
@@ -63,7 +63,7 @@ class TestQueues(TestCase):
         steps_running_before = self.queues.steps_running.count()
         results_before = StepResult.objects.count()
 
-        Queues.submit_new_request(self.helloworld_json)
+        Queues.submit_new_request(helloworld_json)
         q = Queues._get_queue_singleton()
         q._update_steps_ready_to_run()
         q._run_ready_steps()

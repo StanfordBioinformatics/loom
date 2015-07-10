@@ -1,91 +1,9 @@
 from django.test import TestCase
+
 from analysis.models import *
+from analysis.test.fixtures import *
+
 from .common import ImmutableModelsTestCase
-import test_files
-
-file_obj = test_files.file_obj
-
-docker_image_obj = {
-    'docker_image': 'ubuntu',
-    }
-
-input_port_obj_1 = {
-    'name': 'input_port1',
-    'file_path': 'rel/path/to/input_file',
-    }
-
-output_port_obj_1 = {
-    'name': 'output_port1',
-    'file_path': 'rel/path/to/output_file',
-    }
-
-input_port_obj_2 = {
-    'name': 'input_port2',
-    'file_path': 'rel/path/to/input_file',
-    }
-
-output_port_obj_2 = {
-    'name': 'output_port2',
-    'file_path': 'rel/path/to/output_file',
-    }
-
-port_identifier_obj = {
-    'step': 'stepname',
-    'port': 'portname',
-    }
-
-data_binding_obj = {
-    'file': file_obj,
-    'destination': {
-        'step': 'step1',
-        'port': 'input_port1',
-        },
-    }
-
-data_pipe_obj = {
-    'source': {
-        'step': 'step1',
-        'port': 'output_port1',
-        },
-    'destination': {
-        'step': 'step2',
-        'port': 'input_port2',
-        },
-    }
-
-resource_set_obj = {
-    'memory': '5G',
-    'cores': 4,
-    }
-
-step_obj_1 = {
-    'name': 'step1',
-    'input_ports': [input_port_obj_1],
-    'output_ports': [output_port_obj_1],
-    'command': 'echo hello',
-    'environment': docker_image_obj,
-    'resources': resource_set_obj,
-    }
-
-step_obj_2 = {
-    'name': 'step2',
-    'input_ports': [input_port_obj_2],
-    'output_ports': [output_port_obj_2],
-    'command': 'echo world',
-    'environment': docker_image_obj,
-    'resources': resource_set_obj,
-    }
-
-analysis_obj = {
-    'steps': [step_obj_1, step_obj_2],
-    'data_bindings': [data_binding_obj],
-    'data_pipes': [data_pipe_obj],
-    }
-
-request_obj = {
-    'analyses': [analysis_obj],
-    'requester': 'someone@example.com',
-    }
 
 
 class TestModelsRequests(ImmutableModelsTestCase):
@@ -228,35 +146,3 @@ class TestStepRequest(TestCase):
     def testCreateStepDefinition(self):
         step_definition = self.step1._create_step_definition()
         self.assertEqual(step_definition.template.input_ports.first().file_path, step_definition.data_bindings.first().input_port.file_path)
-
-
-"""
-    step_result_obj = {
-        'file': file_obj,
-        'output_port': output_port_obj,
-        'step_definition': step_definition_obj,
-        }
-
-    step_run_record_obj = {
-        'step_definition': step_definition_obj,
-        'step_results': [step_result_obj],
-        }
-
-    analysis_run_obj = {
-        'analysis_definition': analysis_definition_obj,
-        # Exclude analysis_run_record, to be added on update
-        }
-
-    file_import_record_obj = {
-        'import_comments': 'Notes about the source of this file...',
-        'file': file_obj,
-        'requester': 'someone@example.net',
-        }
-
-    file_import_request_obj = {
-        'import_comments': 'Notes about the source of this file...',
-        'file_location': file_path_location_obj,
-        'requester': 'someone@example.net',
-        # Exclude file_import_record, to be added on update
-        }
-"""

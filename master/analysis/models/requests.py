@@ -102,6 +102,7 @@ class StepRequest(MutableModel, AnalysisAppBaseModel):
                     } 
                 }
             )
+        return self.step_run
 
     def _create_step_definition(self):
         return StepDefinition.create(self._render_step_definition())
@@ -114,7 +115,7 @@ class StepRequest(MutableModel, AnalysisAppBaseModel):
                 'input_ports': [port._render_step_definition_input_port() for port in self.input_ports.all()],
                 'output_ports': [port._render_step_definition_output_port() for port in self.output_ports.all()],
                 },
-            'data_bindings': [binding._render_step_definition_data_bindings(self) for binding in self.analysis._get_bindings_by_step(self.name)]
+            'data_bindings': [binding._render_step_definition_data_bindings(self) for binding in self.analysis._get_bindings_by_step(self.name)],
             }
         return step_definition
 
@@ -254,7 +255,7 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
                 return False
 
     def get_file(self):
-        return file
+        return self.file
 
     def _render_step_definition_data_bindings(self, step_request):
         port = step_request._get_input_port(self.destination.port)

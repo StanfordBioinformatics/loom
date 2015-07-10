@@ -52,6 +52,15 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='ProcessLocation',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='Queues',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -262,8 +271,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('is_complete', models.BooleanField(default=False)),
-                ('step_definition', models.ForeignKey(to='analysis.StepDefinition')),
-                ('step_results', models.ManyToManyField(to='analysis.StepResult')),
             ],
             options={
                 'abstract': False,
@@ -274,12 +281,22 @@ class Migration(migrations.Migration):
             fields=[
                 ('filelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.FileLocation')),
                 ('file_path', models.CharField(max_length=256)),
-                ('file', models.ForeignKey(to='analysis.File', null=True)),
             ],
             options={
                 'abstract': False,
             },
             bases=('analysis.filelocation',),
+        ),
+        migrations.CreateModel(
+            name='LocalProcessLocation',
+            fields=[
+                ('processlocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.ProcessLocation')),
+                ('pid', models.IntegerField()),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.processlocation',),
         ),
         migrations.CreateModel(
             name='RequestDockerImage',
@@ -302,6 +319,21 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.stepdefinitionenvironment',),
+        ),
+        migrations.AddField(
+            model_name='steprun',
+            name='process_location',
+            field=models.ForeignKey(to='analysis.ProcessLocation', null=True),
+        ),
+        migrations.AddField(
+            model_name='steprun',
+            name='step_definition',
+            field=models.ForeignKey(to='analysis.StepDefinition'),
+        ),
+        migrations.AddField(
+            model_name='steprun',
+            name='step_results',
+            field=models.ManyToManyField(to='analysis.StepResult'),
         ),
         migrations.AddField(
             model_name='stepresult',
@@ -407,6 +439,11 @@ class Migration(migrations.Migration):
             model_name='queues',
             name='steps_running',
             field=models.ManyToManyField(related_name='running_queue', to='analysis.StepRun'),
+        ),
+        migrations.AddField(
+            model_name='filelocation',
+            name='file',
+            field=models.ForeignKey(to='analysis.File', null=True),
         ),
         migrations.AddField(
             model_name='fileimportrequest',

@@ -18,7 +18,7 @@ def submitrequest(request):
         return JsonResponse({"message": e.message}, status=400)
 
     try:
-        Queues.submit_new_request(request)
+        Queues.submit_new_request(request.to_obj())
         return JsonResponse({"message": "created new %s" % request.get_name(), "_id": str(request._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
@@ -50,7 +50,7 @@ def closerun(request):
     run_id = data_json.get('_id')
 
 def create(request, cls):
-
+    data_json = request.body
     try:
         model = cls.create(data_json)
         return JsonResponse({"message": "created %s" % cls.get_name(), "_id": str(model._id)}, status=201)
@@ -73,7 +73,7 @@ def create_or_index(request, cls):
    
 def show(request, id, cls):
     model = cls.get_by_id(id)
-    return JsonResponse({model.get_name(): model.to_obj()}, status=200)
+    return JsonResponse(model.to_obj(), status=200)
 
 def update(request, id, cls):
     model = cls.get_by_id(id)

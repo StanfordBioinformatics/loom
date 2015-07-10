@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
 import os
-import unittest
+from django.test import TestCase
 from datetime import datetime
 import requests
 import time
+from django.conf import settings
 
 from xppf.client import xppf_server_controls
 
-class TestXppfRun(unittest.TestCase):
+class TestXppfRun(TestCase):
 
     file_path_location_json = """
 {
@@ -28,7 +29,7 @@ class TestXppfRun(unittest.TestCase):
         self.server_url = xs.settings_manager.get_server_url()
         self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_pid_file()))
 
-        with open(os.path.join(os.path.dirname(__file__),'../../doc/examples/helloworld/helloworld.json')) as f:
+        with open(os.path.join(settings.BASE_DIR,'../../doc/examples/helloworld/helloworld.json')) as f:
             self.helloworld_json = f.read()
 
     def tearDown(self):
@@ -38,42 +39,48 @@ class TestXppfRun(unittest.TestCase):
         xs.main()
         self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_pid_file()))
 
+# Requests
+# StepRuns
+# StepRun/$id/port_bundles
+# Files
+# FileLocations
+# Results
+
     def test_create_show_index_immutable(self):
-        import pdb; pdb.set_trace()
         # Test create
-        r = requests.post(self.server_url+'/api/analysis_requests', data=self.helloworld_json)
-        self.assertEqual(r.text,
-                         '{"message": "created analysis_request", "_id": "6fa582dee34ba7e2874ebff16e8cb1fe05e81c686612e2e92e4d9f8087c5dd63"}')
+        r = requests.post(self.server_url+'/api/requests', data=self.helloworld_json)
+        self.assertTrue('{"message": "created request", "_id":' in r.text)
 
         # Test show
-        r = requests.get(self.server_url+'/api/analysis_requests/6fa582dee34ba7e2874ebff16e8cb1fe05e81c686612e2e92e4d9f8087c5dd63')
-        self.assertEqual(r.json()['analysis_request']['_id'], '6fa582dee34ba7e2874ebff16e8cb1fe05e81c686612e2e92e4d9f8087c5dd63')
+        id = r.json().get('_id')
+        r = requests.get(self.server_url+'/api/requests/'+ str(id))
+        self.assertEqual(r.json()['_id'], str(id))
 
         # Test index
-        r = requests.get(self.server_url+'/api/analysis_requests/')
-        ids = map(lambda x:x['_id'], r.json()['analysis_requests'])
-        self.assertTrue('6fa582dee34ba7e2874ebff16e8cb1fe05e81c686612e2e92e4d9f8087c5dd63' in ids)
+        r = requests.get(self.server_url+'/api/requests/')
+        ids = map(lambda x:x['_id'], r.json()['requests'])
+        self.assertTrue(id in ids)
 
     def test_create_show_index_update_mutable(self):
         # Test create
-        r = requests.post(self.server_url+'/api/file_path_locations', data=self.file_path_location_json)
-        self.assertEqual(r.json()['message'], "created file_path_location")
+        r = requests.post(self.server_url+'/api/file_locations', data=self.file_path_location_json)
+        self.assertEqual(r.json()['message'], "created file_location")
 
         # Test show
         id = r.json()['_id']
-        r = requests.get(self.server_url+'/api/file_path_locations/%s' % id)
-        self.assertEqual(r.json()['file_path_location']['_id'], id)
+        r = requests.get(self.server_url+'/api/file_locations/%s' % id)
+        self.assertEqual(r.json()['_id'], id)
 
         # Test index
-        r = requests.get(self.server_url+'/api/file_path_locations')
-        ids = map(lambda x:x['_id'], r.json()['file_path_locations'])
+        r = requests.get(self.server_url+'/api/file_locations')
+        ids = map(lambda x:x['_id'], r.json()['file_locations'])
         self.assertTrue(id in ids)
 
         # Test update
-        r = requests.post(self.server_url+'/api/file_path_locations/%s' % id, 
+        r = requests.post(self.server_url+'/api/file_locations/%s' % id, 
                           data='{"file_path": "/new/file/path"}')
-        r = requests.get(self.server_url+'/api/file_path_locations/%s' % id)
-        self.assertEqual(r.json()['file_path_location']['file_path'], '/new/file/path')
+        r = requests.get(self.server_url+'/api/file_locations/%s' % id)
+        self.assertEqual(r.json()['file_path'], '/new/file/path')
 
     def wait_for_true(self, test_method, timeout_seconds=5):
         start_time = datetime.now()
@@ -83,5 +90,3 @@ class TestXppfRun(unittest.TestCase):
             if time_running.seconds > timeout_seconds:
                 raise Exception("Timeout")
 
-if __name__=='__main__':
-    unittest.main()
