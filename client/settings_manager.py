@@ -24,7 +24,7 @@ class SettingsManager:
         'PROTOCOL': 'HTTP',
         'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
         'SERVER_PATH': os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'server')),
+            os.path.join(os.path.dirname(__file__), '..', 'master')),
     }
 
     SETTINGS_SCHEMA = {
