@@ -10,9 +10,14 @@
     <!-- Modernizr library for detecting browser support for required features: http://www.modernizr.com -->
     <script src="{{STATIC_URL}}/editor/modernizr-latest.js"></script>
 
+    <!-- Prism.js for syntax highlighting: http://http://prismjs.com/ -->
+    <link href="{{STATIC_URL}}/editor/prism.css" rel="stylesheet" />
+    <script src="{{STATIC_URL}}/editor/prism.js"></script>
+
     <script>
     /**
      * Generates a GUID string.
+
      * @returns {String} The generated GUID.
      * @example af8a8416-6e18-a307-bd9c-f2c947bbb3aa
      * @author Slavik Meltser (slavik@meltser.info).
@@ -47,12 +52,6 @@
         .transparent{
             opacity:0.5;
         }
-        text {
-            stroke:none;
-            fill:black;
-            font-size: 24;
-            font-family: sans-serif;
-        }
         .port{
             r:5;
         }
@@ -67,6 +66,17 @@
             stroke-width:2;
             fill:none;
         }
+        .foreign{
+            text-align:left;
+            display:block;
+        }
+        .step_text {
+            stroke:none;
+            fill:black;
+            font-size: 24;
+            font-family: sans-serif;
+            color:black;
+        }
     </style>
 </head>
 <body>
@@ -78,9 +88,19 @@
 <script>
     
 // Define helper functions
+function stripquotes(a) {
+    if (a.charAt(0) === '"' && a.charAt(a.length-1) === '"') {
+        return a.substr(1, a.length-2);
+    }
+    return a;
+}
+
+// Create a step
 var create_step = function(x, y) {
+    id = "step-" + guid();
     step = d3.select("#workspace").append("g")
         .classed("step", true)
+        .attr("id", id)
         .call(drag_step)
         .attr("transform", "translate("+x+","+y+")")
         .on('contextmenu', d3.contextMenu(step_menu));
@@ -91,12 +111,26 @@ var create_step = function(x, y) {
         .attr("width", 160)
         .attr("height", 40);
     step.append("text")
+        .classed("step_text", true)
         .attr("pointer-events", "none")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
         .attr("x", rect.attr("width")/2)
         .attr("y", rect.attr("height")/2)
+        .attr("contenteditable", "true")
         .text("step name");
+/*
+    step.append("foreignObject")
+        .attr("class", "foreign")
+        .attr("width", 100)
+        .attr("height", 20)
+        .attr("x", 200)
+        .attr("y", 200)
+        .append("p")
+            .attr("class", "foreigndiv")
+            .attr("contenteditable", "true")
+            .text("step name");
+*/
     step.call(add_input)
         .call(add_output)
         .call(position_ports);
@@ -116,6 +150,7 @@ var add_port = function(step) {
     port = step.append("circle")
         .attr("class", "port")
         .attr("id", id)
+        .attr("filename", "myfile.txt")
         .attr("draggable", "true")
         .on("mouseover", over_port_start)
         .on("mouseout", over_port_end)
@@ -217,10 +252,8 @@ var drag_port = d3.behavior.drag()
                     // Ports must connect to different steps
                     if (dropped_port.node().parentNode !== over_port.node().parentNode) {
     
-                        // Target port must be empty
-                        // TODO: not working
-                        if (d3.selectAll(".connector").selectAll("[from="+over_port_id+"]").size() < 1 && 
-                            d3.selectAll(".connector").selectAll("[to="+over_port_id+"]").size() < 1) {
+                        // Target port must be empty if it's an input port
+                        if (d3.selectAll("[to='"+over_port_id+"'].connector").empty()) {
 
                             // Add a connector
                             console.log("Adding connector");
@@ -229,8 +262,9 @@ var drag_port = d3.behavior.drag()
                                 .attr("from", this.id)
                                 .attr("to", over_port_id);
                             update_connectors();
+                            update_json();
                         } else {
-                            console.log("Skipped trying to connect to a non-vacant port");
+                            console.log("Skipped trying to connect to a non-vacant input port");
                         }
                     } else {
                         console.log("Skipped trying to connect ports of same step");
@@ -309,12 +343,14 @@ var step_menu = [
                 title: 'Add input',
                 action: function(elm, d, i) {
                     d3.select(elm).call(add_input);
+                    update_json();
                 }
             },
             {
                 title: 'Add output',
                 action: function(elm, d, i) {
                     d3.select(elm).call(add_output);
+                    update_json();
                 }
             },
             {
@@ -322,6 +358,7 @@ var step_menu = [
                 action: function(elm, d, i) {
                     elm.remove();
                     console.log('Removed element with id: ' + elm.id);
+                    update_json();
                 }
             }
            ];
@@ -332,6 +369,7 @@ var background_menu = [
                     // Get mouse position in workspace coordinates
                     mousecoords = d3.mouse(d3.select("#workspace")[0][0]);
                     create_step(mousecoords[0], mousecoords[1]);
+                    update_json();
                 }
             }
            ];
@@ -342,16 +380,8 @@ var zoom = d3.behavior.zoom()
     .scale(1)
     .scaleExtent([.5,8])
     .size([WIDTH, HEIGHT])
-    .on("zoomstart", function() {
-        // Prevent dragging using right mouse button
-        if (d3.event.sourceEvent.button == 2)
-            return;
-    }) 
     .on("zoom", function() {
-        // Prevent dragging using right mouse button
-        if (d3.event.sourceEvent.button == 2)
-            return;
-        //console.log(d3.event.sourceEvent.button);
+        //console.log(d3.event);
         d3.select("#workspace")
             .attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
     });
@@ -362,6 +392,8 @@ var WIDTH = 1200,
 d3.select("body").append("svg")
     // Make mousewheel zoom background, and dragging pan background 
     .call(zoom)
+    // Disable other zoom behaviors for now
+    .on("dblclick.zoom", null)
     .attr("width", WIDTH)
     .attr("height", HEIGHT)
     .append("rect")
@@ -377,6 +409,40 @@ d3.select("svg").append("g")
         .attr("cx", 0)
         .attr("cy", 0)
         .attr("r", 20);
+
+// Update json
+var the_json = {};
+var update_json = function() {
+    new_json = {};
+    new_json['steps'] = [];
+    d3.selectAll("g.step").each(function () {
+        step = {id:this.id, inputs:[], outputs:[]};
+        step["name"] = d3.select(this).select("text").text();
+        d3.select(this).selectAll(".input").each(function () {
+            current = d3.select(this);
+            step["inputs"].push({"id":this.id, "filename":current.attr("filename")});
+        });
+        d3.select(this).selectAll(".output").each(function () {
+            current = d3.select(this);
+            step["outputs"].push({"id":this.id, "filename":current.attr("filename")});
+        });
+        new_json['steps'].push(step);
+    });
+    new_json['connections'] = [];
+    d3.selectAll(".connector").each(function () {
+        current = d3.select(this);
+        connection = {"from":current.attr("from"), "to":current.attr("to")};
+        new_json['connections'].push(connection);
+    });
+
+
+    the_json = new_json;
+    d3.select("#json_display").text(JSON.stringify(the_json, null, 2));
+}
 </script>
+<pre>
+<code class="language-javascript" id="json_display">
+</code>
+</pre>
 </body>
 </html>
