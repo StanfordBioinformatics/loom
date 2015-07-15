@@ -1,46 +1,41 @@
-# XPPF
+# What is XPPF?
+The eXtremely Portable Pipeline Framework, is a tool to create and execute bioinformatics workflows.
 
-XPPF is a platform for creating and running analysis pipelines that can be easily executed in a variety of environments (local, HPC cluster, cloud) without any changes to the pipeline, while ensuring reproducibility of results.
+We observed that many bioinformaticians are doing analysis in a way that is not repeatable or traceable, and that cannot be easily migrated to a new compute environment. For example:
+* Depending on local software installations and environment settings
+* Executing commands manually
+* Failing to record analysis details and results in a database
+* Depending on file names and paths that may change and cannot be verified
 
-It also provides a convenient means of exactly describing an analysis performed, the executables used, and the input files used, such that an analysis can be shared with others for review.
+XPPF is designed as an easy-to-use analysis platform that remedies these problems to make analysis repeatable, your results traceable, and your workflows portable to other platforms.
 
-Direct access to the storage system for inputs and outputs is not required to run an analysis. Rather, data and analyses are published through a web interface. This allows XPPF to handle access controls and access logging, useful for regulatory compliance and for reducing the chance of accidental data loss from human error. 
+# Why use XPPF?
 
-Analysis records allows you to check provenance of each result, and built-in environment control and version management ensure reproducibility as long as the underlying applications are deterministic.
+## Make your analysis pipelines portable
+* XPPF uses Docker to make your pipelines platform-agnostic and to avoid using local software installations or environment settings
+* The same pipelines can be run in the cloud, on a local cluster, or on your laptop
+* XPPF will seamlessly pull data from your local path, a remote file server, or an object store
 
-Runtime environment management is fully automated and reproducible, requiring no intervention from the pipeline operator.
+## Share your analysis and results
+* XPPF analyses and results are defined as JSON documents that can be easily shared by email
+* JSON documents defining analyses and results have the same meaning anywhere, with no dependencies on your software configuration, local environment settings, or file locations. External references to files or applications (Docker images) can always be verified using a cryptographic hash of contents
 
-The result is an extremely convenient way to develop pipelines that can be easily moved or shared, and that generate data in such a way that it can be easily tracked, queried, and shared.
+## Keep your data secure
+* XPPF lets you run all your analysis with encryption of data in transit and at rest
 
-## Feature highlights
-### Data security 
-* encrypted data transmission
-* encrypted data storage
-* user access management
+## Make sure your analysis is repeatable
+* The same features that make XPPF sharable help to ensure repeatability: input files are verified with a cryptographic hash, and applications are stored in Docker containers that can be verified by image ID
+* Analyses and results are recorded in a persistent database
 
-### Traceability
-* access logging
-* analysis logs
-* data provenance tracking
+## Never lose track of how a result was generated
+* When answering questions like "Where did this file come from?", "What software version did we use to produce this result", or "What settings did we use for this?", you should never be scrambling through your notes or digging through output logs. XPPF keeps track of result provenance and can tell you all the steps that were performed from import of the original input data to producing the final result.
 
-## Repeatability
-* enforces consistency of processing environment and installed apps
-* version management
+# What is the current status?
 
-## Portability/configurability
-* processing may be configured as local, cloud, or job scheduler
-* storage may be configured as local or cloud
-* backend web server may be run locally or remotely, including cloud
-* database may be MySQL or SQLite and can be local or remote, including cloud solutions
-* the same pipeline can can be run on any of the above without modification, by changing the configuration
-
-# Project status
-XPPF is currently in progress and not read for production. Some features are described in documentation but not yet implemented. Contact us for more details.
-
-# Get involved
-XPPF is an open source project. If you share our vision of making analysis pipelines portable, repeatable, and verifiable, get involved! Contact nhammond@stanford.edu.
+XPPF is under active development. To get involved, contact nhammond@stanford.edu
 
 # Contributors
+
 * Nathan Hammond
 * Isaac Liao
 * Ziliang Qian
