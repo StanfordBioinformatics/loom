@@ -18,7 +18,7 @@ class FileLocation(MutableModel, AnalysisAppBaseModel):
     # pointers to the parent class can be created.
 
     _class_name = ('file_location', 'file_locations')
-
+    FOREIGN_KEY_CHILDREN = ['file']
     file = models.ForeignKey(File, null=True)
 
     @classmethod
@@ -32,7 +32,7 @@ class FilePathLocation(FileLocation):
 
 class FileImportRequest(MutableModel, AnalysisAppBaseModel):
     _class_name = ('file_import_request', 'file_import_requests')
-
+    FOREIGN_KEY_CHILDREN = ['file_location']
     import_comments = models.CharField(max_length = 10000)
     file_location = models.ForeignKey('FileLocation')
     requester = models.CharField(max_length = 100)

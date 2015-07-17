@@ -125,8 +125,6 @@ class _BaseModel(models.Model):
         Model = self._get_model_for_field_name(key, value)
         if value.get('_id') is None:
             child = Model.create(value)
-            if child._id == 'e4ed384a18d9796d5b3494ecba9ff4a96d545cc0afb578efbccdb66e87c79e5d':
-                import pdb; pdb.set_trace()
         else:
             # Update existing model
             child = Model.objects.get(_id=value.get('_id'))
@@ -255,6 +253,8 @@ class _BaseModel(models.Model):
             return self._get_many_to_many_field_as_obj(field)
         elif isinstance(field, models.fields.related.ForeignKey):
             return self._get_foreign_key_field_as_obj(field)
+        elif isinstance(field, models.fields.related.ManyToOneRel):
+            return self._get_many_to_one_field_as_obj(field)
         else:
             return getattr(self, field.name)
 
@@ -267,19 +267,43 @@ class _BaseModel(models.Model):
                 isinstance(self, field.related_model):
             # Points to a base class for this model.
             return True
-        elif isinstance(field, models.fields.related.ManyToOneRel) and \
-                isinstance(self, field.model):
-            # This is a ForeignKey defined on the parent model.
-            return True
+        elif isinstance(field, models.fields.related.ManyToOneRel) :
+            # and isinstance(self, field.model):
+            # This is a ForeignKey. Return only if it is explicitly listed as
+            # a child in self.FOREIGN_KEY_CHILDREN
+
+            if self._is_field_a_foreign_key_child(field.name):
+                # This is designated as a child model
+                return False
+            else:
+                # This is not designated as a child. Ignore it.
+                return True
         else:
             return False
 
+    def _is_field_a_foreign_key_child(self, field_name):
+        if hasattr(self, 'FOREIGN_KEY_CHILDREN'):
+            FOREIGN_KEY_CHILDREN = self.FOREIGN_KEY_CHILDREN
+        else:
+            FOREIGN_KEY_CHILDREN = []
+        return field_name in FOREIGN_KEY_CHILDREN
+
     def _get_foreign_key_field_as_obj(self, field):
+        if not self._is_field_a_foreign_key_child(field.name):
+            return None
+
         related_model = getattr(self, field.name)
         if related_model == None:
             return None
         else:
             return related_model.to_obj()
+
+    def _get_many_to_one_field_as_obj(self, field):
+        if not self._is_field_a_foreign_key_child(field.name):
+            return None
+
+        related_models = getattr(self, field.name).all()
+        return [model.to_obj() for model in related_models]
 
     def _get_many_to_many_field_as_obj(self, field):
         related_model_list = getattr(self, field.name)

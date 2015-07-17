@@ -4,7 +4,6 @@ import requests
 class DataNotFoundException(Exception):
     pass
 
-
 class StepRunner:
 
     def __init__(self, args=None):
@@ -33,9 +32,11 @@ class StepRunner:
         return input_port_bundles
 
     def run(self):
+        # Get step_run
         step_run = self._get_step_run()
 
-        # Get step_run
+        import pdb; pdb.set_trace()
+
         # Initialize
         # Run
         # Cleanup

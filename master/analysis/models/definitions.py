@@ -25,6 +25,7 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
     Excludes settings that do not alter results, e.g. resources
     """
     _class_name = ('step_definition', 'step_definitions')
+    FOREIGN_KEY_CHILDREN = ['template']
     template = models.ForeignKey('StepDefinitionTemplate')
     data_bindings = models.ManyToManyField('StepDefinitionDataBinding')
 
@@ -50,6 +51,7 @@ class StepDefinitionTemplate(ImmutableModel, AnalysisAppBaseModel):
     Everything that defines a an analysis step except for the input data
     """
     _class_name = ('step_definition_template', 'step_definition_templates')
+    FOREIGN_KEY_CHILDREN = ['environment']
     input_ports = models.ManyToManyField('StepDefinitionInputPort')
     output_ports = models.ManyToManyField('StepDefinitionOutputPort')
     command = models.CharField(max_length = 256)
@@ -65,6 +67,7 @@ class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
 
 class StepDefinitionDataBinding(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_data_binding', 'step_definition_data_bindings')
+    FOREIGN_KEY_CHILDREN = ['file', 'input_port']
     file = models.ForeignKey('File')
     input_port = models.ForeignKey('StepDefinitionInputPort')
 

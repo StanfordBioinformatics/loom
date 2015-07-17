@@ -19,6 +19,7 @@ class SampleMutableChild3(MutableModel):
     parent = models.ForeignKey('SampleMutableParent', related_name='listofchildren_foreignkey', null=True)
 
 class SampleMutableParent(MutableModel):
+    FOREIGN_KEY_CHILDREN = ['listofchildren_foreignkey', 'singlechild']
     name = models.CharField(max_length=100)
     listofchildren = models.ManyToManyField(SampleMutableChild2)
     singlechild = models.ForeignKey(SampleMutableChild, null=True)
@@ -30,6 +31,7 @@ class SampleImmutableChild2(ImmutableModel):
     name = models.CharField(max_length=100)
 
 class SampleImmutableParent(ImmutableModel):
+    FOREIGN_KEY_CHILDREN = ['child']
     name = models.CharField(max_length=100)
     child = models.OneToOneField(SampleImmutableChild, related_name='parent', null=True)
     childlist = models.ManyToManyField(SampleImmutableChild2)
@@ -52,6 +54,7 @@ class Son2(AbstractBaseChild):
     son2_name = models.CharField(max_length=100)
 
 class ParentOfAbstract(ImmutableModel):
+    FOREIGN_KEY_CHILDREN = ['child']
     name = models.CharField(max_length=100)
     child = models.ForeignKey(AbstractBaseChild, related_name='parent')
 
@@ -65,5 +68,6 @@ class Daughter2(MultiTableBaseChild):
     daughter2_name = models.CharField(max_length=100)
 
 class ParentOfMultiTable(ImmutableModel):
+    FOREIGN_KEY_CHILDREN = ['child']
     name = models.CharField(max_length=100)
     child = models.ForeignKey(MultiTableBaseChild, related_name='parent')

@@ -2,7 +2,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, Request, Queues
+from analysis.models import File, Request, Queues, StepRun
 
 @require_http_methods(["GET"])
 def status(request):
@@ -91,3 +91,10 @@ def show_or_update(request, id, cls):
         return update(request, id, cls)
     else:
         return show(request, id, cls)
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def show_input_port_bundles(request, id):
+    step_run = StepRun.get_by_id(id)
+    input_port_bundles = step_run.get_input_port_bundles()
+    return JsonResponse({"input_port_bundles": input_port_bundles}, status=200)
