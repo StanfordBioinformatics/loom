@@ -3,6 +3,7 @@
 import json
 import jsonschema
 import os
+import re
 
 class SettingsManager:
     """
@@ -21,7 +22,7 @@ class SettingsManager:
         'PID_FILE': '/tmp/xppf.pid',
         'BIND_IP': '127.0.0.1',
         'BIND_PORT': '8000',
-        'PROTOCOL': 'HTTP',
+        'PROTOCOL': 'http',
         'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
         'SERVER_PATH': os.path.abspath(
             os.path.join(os.path.dirname(__file__), '..', 'master')),
@@ -92,6 +93,15 @@ class SettingsManager:
 
     def get_pid_file(self):
         return self.SETTINGS['PID_FILE']
+
+    def get_pid(self):
+        if not os.path.exists(self.get_pid_file()):
+            raise Exception("PID file does not exist at %s" % self.get_pid_file())
+        with open(self.get_pid_file()) as f:
+            pid = f.read().strip()
+        if not re.match('[0-9]*', pid):
+            raise Exception('Invalid pid "%s" found in pidfile %s' % (pid, self.get_pid_file()))
+        return pid
 
     def get_server_path(self):
         return self.SETTINGS['SERVER_PATH']

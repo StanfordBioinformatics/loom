@@ -15,6 +15,7 @@ class StepRunner:
         self.FILE_SERVER = args.file_server
         self.FILE_ROOT = args.file_root
 
+
     def _get_step_run(self):
         url = self.MASTER_URL + '/api/step_runs/' + self.RUN_ID
         response = requests.get(url)
@@ -34,8 +35,6 @@ class StepRunner:
     def run(self):
         # Get step_run
         step_run = self._get_step_run()
-
-        import pdb; pdb.set_trace()
 
         # Initialize
         # Run

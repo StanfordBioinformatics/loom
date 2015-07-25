@@ -1,7 +1,9 @@
-from django.conf import settings
 import os
 
-with open(os.path.join(settings.BASE_DIR,'../../doc/examples/helloworld/helloworld.json')) as f:
+with open(os.path.join(
+        os.path.dirname(__file__),
+        '../../../doc/examples/helloworld/helloworld.json'
+        )) as f:
     helloworld_json = f.read()
 
 hello_world_step_definition_obj1 = {
