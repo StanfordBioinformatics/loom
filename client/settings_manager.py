@@ -99,7 +99,7 @@ class SettingsManager:
             raise Exception("PID file does not exist at %s" % self.get_pid_file())
         with open(self.get_pid_file()) as f:
             pid = f.read().strip()
-        if not re.match('[0-9]*', pid):
+        if not re.match('^[0-9]*$', pid):
             raise Exception('Invalid pid "%s" found in pidfile %s' % (pid, self.get_pid_file()))
         return pid
 

@@ -7,6 +7,11 @@ import sys
 
 from xppf.client import settings_manager
 
+ASYNC_DAEMON_EXECUTABLE = os.path.join(
+    os.path.dirname(__file__),
+    '../master/async/main_daemon.py'
+    )
+
 class XppfServerControls:
     """
     This class provides methods for managing the xppf server, specifically the commands:
@@ -63,7 +68,8 @@ class XppfServerControls:
 
     def start(self):
         self._verify_server_not_running()
-        env = self._add_server_to_python_path(os.environ.copy())
+        env = os.environ.copy()
+        env = self._add_server_to_python_path(env)
         env = self._set_database(env)
         subprocess.call(
             "gunicorn %s --bind %s:%s --pid %s --daemon" % (
@@ -73,6 +79,10 @@ class XppfServerControls:
                 self.settings_manager.get_pid_file(),
                 ),
             shell=True, 
+            env=env)
+        subprocess.call(
+            "%s start" % ASYNC_DAEMON_EXECUTABLE,
+            shell=True,
             env=env)
 
     def _verify_server_not_running(self):
@@ -84,7 +94,6 @@ class XppfServerControls:
             except:
                 pid = 'unknown'
             raise Exception('Server may already be running on pid "%s", as indicated in %s' % (pid, pidfile))
-
 
     def status(self):
         try:
@@ -107,6 +116,10 @@ class XppfServerControls:
                 os.remove(self.settings_manager.get_pid_file())
             except:
                 raise Exception('Failed to delete PID file %s' % self.settings_manager.get_pid_file())
+        subprocess.call(
+            "%s stop" % ASYNC_DAEMON_EXECUTABLE,
+            shell=True
+            )
 
     def save_settings(self):
         self.settings_manager.save_settings_to_file()
