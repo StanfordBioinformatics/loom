@@ -70,8 +70,59 @@ elif RACK_ENV == 'test':
 else:
     raise Exception('TODO: create database settings for production environment.')
 
+def _get_django_handler():
+    DJANGO_LOGFILE = os.getenv('DJANGO_LOGFILE', None)
+    if DJANGO_LOGFILE is not None:
+        handler = {
+            'class': 'logging.FileHandler',
+            'filename': DJANGO_LOGFILE,
+            }
+    else:
+        handler = {
+            'class': 'logging.StreamHandler',
+            }
+    return handler
+
+def _get_xppf_handler():
+    XPPF_LOGFILE = os.getenv('XPPF_LOGFILE', None)
+    if XPPF_LOGFILE  is not None:
+        handler = {
+            'class': 'logging.FileHandler',
+            'filename': XPPF_LOGFILE,
+            }
+    else:
+        handler = {
+            'class': 'logging.StreamHandler',
+            }
+    return handler
+
+def _get_log_level():
+    DEFAULT_LOG_LEVEL = 'INFO'
+    LOG_LEVEL = os.getenv('LOG_LEVEL', DEFAULT_LOG_LEVEL)
+    return LOG_LEVEL.upper()
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'django_handler': _get_django_handler(),
+        'xppf_handler': _get_xppf_handler(),
+        },
+    'loggers': {
+        'django': {
+            'handlers': ['django_handler'],
+            'level': _get_log_level(),
+            },
+        'xppf': {
+            'handlers': ['xppf_handler'],
+            'level': _get_log_level(),
+            },
+        },
+    }
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_TZ = True
 
 STATIC_URL = '/static/'
+

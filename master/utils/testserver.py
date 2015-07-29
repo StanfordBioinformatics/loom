@@ -20,14 +20,14 @@ class TestServer:
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main() # start server
         self.server_url = xs.settings_manager.get_server_url()
-        self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_pid_file()))
+        self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_webserver_pidfile()))
 
     def stop(self):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main()
-        self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_pid_file()))
+        self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_webserver_pidfile()))
 
     def wait_for_true(self, test_method, timeout_seconds=5):
         start_time = datetime.now()
@@ -50,7 +50,7 @@ class TestServer:
                         env=self._get_test_env())
 
     def _get_manage_cmd(self):
-        return  os.path.join(os.path.dirname(__file__), '../master/manage.py')
+        return  os.path.join(os.path.dirname(__file__), '../manage.py')
 
     def _get_test_env(self):
         env = os.environ.copy()

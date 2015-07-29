@@ -16,13 +16,13 @@ class TestSettingsManager(unittest.TestCase):
         sm.SAVED_SETTINGS_FILE = os.path.join(self.TEST_DATA_DIR, 'path/that/dont/exist')
         sm._initialize()
         
-        self.assertEqual(sm.get_pid_file(), sm.DEFAULT_SETTINGS['PID_FILE'])
+        self.assertEqual(sm.get_webserver_pidfile(), sm.DEFAULT_SETTINGS['WEBSERVER_PIDFILE'])
 
     def test_init_from_file(self):
         sm = settings_manager.SettingsManager(settings_file = os.path.join(self.TEST_DATA_DIR, 'testsettings.json'))
 
         # Verify settings came from saved file
-        self.assertEqual(sm.get_pid_file(), '/tmp/test.pid')
+        self.assertEqual(sm.get_webserver_pidfile(), '/tmp/test_xppf_webserver.pid')
 
     def test_save_settings_to_file(self):
         settingsdir = tempfile.mkdtemp()
@@ -37,7 +37,7 @@ class TestSettingsManager(unittest.TestCase):
         # Verify settings file was created with default values
         with open(settingsfile) as f:
             settings = json.load(f)
-        self.assertEqual(settings['PID_FILE'], sm.DEFAULT_SETTINGS['PID_FILE'])
+        self.assertEqual(settings['WEBSERVER_PIDFILE'], sm.DEFAULT_SETTINGS['WEBSERVER_PIDFILE'])
         os.remove(settingsfile)
 
     def test_save_settings_to_file_no_overwrite(self):

@@ -1,8 +1,11 @@
+import logging
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from analysis.models import File, Request, Queues, StepRun
+
+logger = logging.getLogger(__name__)
 
 @require_http_methods(["GET"])
 def status(request):
@@ -14,9 +17,10 @@ def submitrequest(request):
     data_json = request.body
     try:
         request = Request.create(data_json)
+        logger.info('Created request %s' % request._id)
     except Exception as e:
+        logger.error('Failed to create request with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=400)
-
     try:
         Queues.submit_new_request(request.to_obj())
         return JsonResponse({"message": "created new %s" % request.get_name(), "_id": str(request._id)}, status=201)

@@ -7,10 +7,11 @@ import sys
 
 from xppf.client import settings_manager
 
-ASYNC_DAEMON_EXECUTABLE = os.path.join(
+DAEMON_EXECUTABLE = os.path.abspath(
+    os.path.join(
     os.path.dirname(__file__),
-    '../master/async/main_daemon.py'
-    )
+    '../master/xppfdaemon/xppf_daemon.py'
+    ))
 
 class XppfServerControls:
     """
@@ -67,33 +68,49 @@ class XppfServerControls:
             raise Exception('Did not recognize command %s' % args.command)
 
     def start(self):
-        self._verify_server_not_running()
         env = os.environ.copy()
         env = self._add_server_to_python_path(env)
         env = self._set_database(env)
-        subprocess.call(
-            "gunicorn %s --bind %s:%s --pid %s --daemon" % (
+        env = self._export_django_settings(env)
+        self._start_webserver(env)
+        self._start_daemon(env)
+
+    def _start_webserver(self, env):
+        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --daemon" % (
                 self.settings_manager.get_server_wsgi_module(), 
                 self.settings_manager.get_bind_ip(), 
                 self.settings_manager.get_bind_port(), 
-                self.settings_manager.get_pid_file(),
-                ),
-            shell=True, 
-            env=env)
-        subprocess.call(
-            "%s start" % ASYNC_DAEMON_EXECUTABLE,
+                self.settings_manager.get_webserver_pidfile(),
+                self.settings_manager.get_access_logfile(),
+                self.settings_manager.get_error_logfile(),
+                self.settings_manager.get_log_level(),
+                )
+        process = subprocess.Popen(
+            cmd,
             shell=True,
-            env=env)
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        process.wait()
+        (stdout, stderr) = process.communicate()
+        if not process.returncode == 0:
+            raise Exception('XPPF Webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
 
-    def _verify_server_not_running(self):
-        pidfile = self.settings_manager.get_pid_file()
-        if os.path.exists(pidfile):
-            try:
-                with open(pidfile) as f:
-                    pid = f.read().strip()
-            except:
-                pid = 'unknown'
-            raise Exception('Server may already be running on pid "%s", as indicated in %s' % (pid, pidfile))
+    def _start_daemon(self, env):
+        pidfile = self.settings_manager.get_daemon_pidfile()
+        logfile = self.settings_manager.get_daemon_logfile()
+        loglevel = self.settings_manager.get_log_level()
+        cmd = "%s start --pidfile %s --logfile %s --loglevel %s" % (DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
+        process = subprocess.Popen(
+            cmd,
+            shell=True,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        process.wait()
+        (stdout, stderr) = process.communicate()
+        if not process.returncode == 0:
+            raise Exception('XPPF Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
     def status(self):
         try:
@@ -107,19 +124,31 @@ class XppfServerControls:
             print "no response from server"
 
     def stop(self):
+        self._stop_webserver()
+        self._stop_daemon()
+
+    def _stop_webserver(self):
+        pid = self.settings_manager.get_webserver_pid()
+        if pid is not None:
+            subprocess.call(
+                "kill %s" % pid,
+                shell=True,
+                )
+        self._cleanup_pidfile(self.settings_manager.get_webserver_pidfile())
+
+    def _stop_daemon(self):
         subprocess.call(
-            "kill %s" % self.settings_manager.get_pid(),
+            "%s --pidfile %s stop" % (DAEMON_EXECUTABLE, self.settings_manager.get_daemon_pidfile()),
             shell=True
             )
-        if os.path.exists(self.settings_manager.get_pid_file()):
+        self._cleanup_pidfile(self.settings_manager.get_daemon_pidfile())
+
+    def _cleanup_pidfile(self, pidfile):
+        if os.path.exists(pidfile):
             try:
-                os.remove(self.settings_manager.get_pid_file())
+                os.remove(pidfile)
             except:
-                raise Exception('Failed to delete PID file %s' % self.settings_manager.get_pid_file())
-        subprocess.call(
-            "%s stop" % ASYNC_DAEMON_EXECUTABLE,
-            shell=True
-            )
+                warnings.warn('Failed to delete PID file %s' % pidfile)
 
     def save_settings(self):
         self.settings_manager.save_settings_to_file()
@@ -147,6 +176,10 @@ class XppfServerControls:
                     shell=True, 
                     stdout=subprocess.PIPE,
                     env=env).communicate()
+        return env
+
+    def _export_django_settings(self, env):
+        env.update(self.settings_manager.get_django_env_settings())
         return env
 
 if __name__=='__main__':

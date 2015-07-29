@@ -10,7 +10,7 @@ import unittest
 
 from xppf.client import xppf_server_controls
 from xppf.master.analysis.test import fixtures
-from xppf.utils.testserver import TestServer
+from xppf.master.utils.testserver import TestServer
 from xppf.worker.step_runner import StepRunner
 
 class TestStepRunner(unittest.TestCase):

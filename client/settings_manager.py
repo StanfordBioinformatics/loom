@@ -5,6 +5,8 @@ import jsonschema
 import os
 import re
 
+XPPF_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 class SettingsManager:
     """
     This class manages xppf server settings.
@@ -19,13 +21,19 @@ class SettingsManager:
     SAVED_SETTINGS_FILE = os.path.join(os.getenv('HOME'), '.xppf', 'settings.json')
 
     DEFAULT_SETTINGS = {
-        'PID_FILE': '/tmp/xppf.pid',
+        'WEBSERVER_PIDFILE': '/tmp/xppf_webserver.pid',
         'BIND_IP': '127.0.0.1',
         'BIND_PORT': '8000',
         'PROTOCOL': 'http',
         'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
-        'SERVER_PATH': os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'master')),
+        'SERVER_PATH': os.path.join(XPPF_ROOT, 'master'),
+        'DAEMON_PIDFILE': '/tmp/xppf_daemon.pid',
+        'ACCESS_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_access.log'),
+        'ERROR_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_error.log'),
+        'DJANGO_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_django.log'),
+        'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
+        'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
+        'LOG_LEVEL': 'INFO',
     }
 
     SETTINGS_SCHEMA = {
@@ -34,15 +42,23 @@ class SettingsManager:
         "properties": {
             "BIND_IP": { "type": "string"},
             "BIND_PORT": {"type": "string", "pattern": "^[0-9]+$"},
-            "PID_FILE": {"type": "string"},
+            "WEBSERVER_PIDFILE": {"type": "string"},
             "PROTOCOL": {"enum": ["http", "https", "HTTP", "HTTPS"]},
             "SERVER_WSGI_MODULE": {"type": "string"},
-            "SERVER_PATH": {"type": "string"}
+            "SERVER_PATH": {"type": "string"},
+            "DAEMON_PIDFILE": {"type": "string"},
+            "ACCESS_LOGFILE": {"type": "string"},
+            "ERROR_LOGFILE": {"type": "string"},
+            "DJANGO_LOGFILE": {"type": "string"},
+            "WEBSERVER_LOGFILE": {"type": "string"},
+            "DAEMON_LOGFILE": {"type": "string"},
+            "LOG_LEVEL": {"type": "string"},
         },
         "additionalProperties": False,
     }
 
     def __init__(self, settings_file=None, require_default_settings=False, skip_init=False):
+        # skip_init is for testing purposes
         if not skip_init:
             self._initialize(settings_file=settings_file, require_default_settings=require_default_settings)
 
@@ -91,17 +107,44 @@ class SettingsManager:
     def get_bind_port(self):
         return self.SETTINGS['BIND_PORT']
 
-    def get_pid_file(self):
-        return self.SETTINGS['PID_FILE']
+    def get_access_logfile(self):
+        return self.SETTINGS['ACCESS_LOGFILE']
 
-    def get_pid(self):
-        if not os.path.exists(self.get_pid_file()):
-            raise Exception("PID file does not exist at %s" % self.get_pid_file())
-        with open(self.get_pid_file()) as f:
-            pid = f.read().strip()
+    def get_error_logfile(self):
+        return self.SETTINGS['ERROR_LOGFILE']
+
+    def get_log_level(self):
+        return self.SETTINGS['LOG_LEVEL']
+
+    def get_webserver_pidfile(self):
+        return self.SETTINGS['WEBSERVER_PIDFILE']
+
+    def get_webserver_pid(self):
+        return self._get_pid(self.get_webserver_pidfile())
+
+    def get_daemon_logfile(self):
+        return self.SETTINGS['DAEMON_LOGFILE']
+
+    def get_daemon_pidfile(self):
+        return self.SETTINGS['DAEMON_PIDFILE']
+
+    def get_daemon_pid(self):
+        return self._get_pid(self.get_daemon_pidfile())
+
+    def _get_pid(self, pidfile):
+        if not os.path.exists(pidfile):
+            return None
+        try:
+            with open(pidfile) as f:
+                pid = f.read().strip()
+                self._validate_pid(pid)
+                return pid
+        except:
+            return None
+
+    def _validate_pid(self, pid):
         if not re.match('^[0-9]*$', pid):
-            raise Exception('Invalid pid "%s" found in pidfile %s' % (pid, self.get_pid_file()))
-        return pid
+            raise Exception('Invalid pid "%s" found in pidfile %s' % (pid, pidfile))
 
     def get_server_path(self):
         return self.SETTINGS['SERVER_PATH']
@@ -132,7 +175,23 @@ class SettingsManager:
         except OSError as e:
             raise Exception("No settings file to delete at %s. (%s)" % (self.SAVED_SETTINGS_FILE, e))
 
-
     def remove_dir_if_empty(self, dirpath):
         if os.listdir(dirpath) == []:
             os.rmdir(dirpath)
+
+    def get_django_env_settings(self):
+        """
+        These are settings that will be passed out as environment variables before launching 
+        the webserver. This allows master/xppfserver/settings.py to use these settings.
+        """
+        export_settings = {}
+        setting_keys_to_export = [
+            'DJANGO_LOGFILE',
+            'XPPF_WEBSERVER_LOGFILE',
+            'LOG_LEVEL',
+            ]
+        for key in setting_keys_to_export:
+            value = self.SETTINGS.get(key)
+            if value is not None:
+                export_settings[key] = value
+        return export_settings
