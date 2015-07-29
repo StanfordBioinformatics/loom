@@ -17,10 +17,15 @@ class Queues(AnalysisAppBaseModel):
     @classmethod
     def update_and_run(cls):
         # This method is periodically called asynchronously
-
         q = cls._get_queue_singleton()
         q._update_steps_ready_to_run()
         q._run_ready_steps()
+
+    @classmethod
+    def update_and_dry_run(cls):
+        # For testing only
+        q = cls._get_queue_singleton()
+        q._update_steps_ready_to_run()
 
     @classmethod
     def _get_queue_singleton(cls):

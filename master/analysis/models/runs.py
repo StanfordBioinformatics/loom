@@ -8,7 +8,7 @@ from .common import AnalysisAppBaseModel
 
 class StepRun(MutableModel, AnalysisAppBaseModel):
     _class_name = ('step_run', 'step_runs')
-
+    FOREIGN_KEY_CHILDREN = ['step_definition', 'process_location']
     step_definition = models.ForeignKey('StepDefinition')
     step_results = models.ManyToManyField('StepResult')
     is_complete = models.BooleanField(default=False)

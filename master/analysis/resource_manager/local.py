@@ -1,6 +1,8 @@
 import hashlib
 import requests
 
+from settings import BASEDIR
+
 from analysis.models import StepResult
 
 
@@ -11,6 +13,7 @@ class LocalResourceManager:
         # Create a background process to initialize, run, cleanup
         # Record in step_run.process_location
         
+        pass
 
    """
         from analysis.models.queues import Queues

@@ -11,11 +11,11 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 RACK_ENV = os.getenv('RACK_ENV', 'production')
 
-if not RACK_ENV in ['production', 'development']:
+if not RACK_ENV in ['test', 'production', 'development']:
     raise Exception('Invalid RACK_ENV setting of "%s".\n '\
                     'Valid values for the env variable RACK_ENV are "production" and "development"' % RACK_ENV)
 
-if RACK_ENV == 'development':
+if RACK_ENV == 'development' or RACK_ENV == 'test':
     DEBUG = True
     TEMPLATE_DEBUG = True
     if SECRET_KEY is None:
@@ -57,7 +57,14 @@ if RACK_ENV == 'development':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+            'NAME': os.path.join(BASE_DIR, 'development_db.sqlite3'),
+        }
+    }
+elif RACK_ENV == 'test':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'test_db.sqlite3'),
         }
     }
 else:

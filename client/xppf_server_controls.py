@@ -7,6 +7,11 @@ import sys
 
 from xppf.client import settings_manager
 
+ASYNC_DAEMON_EXECUTABLE = os.path.join(
+    os.path.dirname(__file__),
+    '../master/async/main_daemon.py'
+    )
+
 class XppfServerControls:
     """
     This class provides methods for managing the xppf server, specifically the commands:
@@ -22,6 +27,7 @@ class XppfServerControls:
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
+        self.args = args
         self._validate_args(args)
         self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
         self._set_main_function(args)
@@ -34,6 +40,7 @@ class XppfServerControls:
         parser.add_argument('--settings', '-s', nargs=1, metavar='SETTINGS_FILE', 
                             help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
         return parser
 
     def _get_args(self):
@@ -60,7 +67,10 @@ class XppfServerControls:
             raise Exception('Did not recognize command %s' % args.command)
 
     def start(self):
-        env = self._add_server_to_python_path(os.environ.copy())
+        self._verify_server_not_running()
+        env = os.environ.copy()
+        env = self._add_server_to_python_path(env)
+        env = self._set_database(env)
         subprocess.call(
             "gunicorn %s --bind %s:%s --pid %s --daemon" % (
                 self.settings_manager.get_server_wsgi_module(), 
@@ -70,6 +80,20 @@ class XppfServerControls:
                 ),
             shell=True, 
             env=env)
+        subprocess.call(
+            "%s start" % ASYNC_DAEMON_EXECUTABLE,
+            shell=True,
+            env=env)
+
+    def _verify_server_not_running(self):
+        pidfile = self.settings_manager.get_pid_file()
+        if os.path.exists(pidfile):
+            try:
+                with open(pidfile) as f:
+                    pid = f.read().strip()
+            except:
+                pid = 'unknown'
+            raise Exception('Server may already be running on pid "%s", as indicated in %s' % (pid, pidfile))
 
     def status(self):
         try:
@@ -84,9 +108,18 @@ class XppfServerControls:
 
     def stop(self):
         subprocess.call(
-            "kill `cat %s`" % self.settings_manager.get_pid_file(),
+            "kill %s" % self.settings_manager.get_pid(),
             shell=True
-        )
+            )
+        if os.path.exists(self.settings_manager.get_pid_file()):
+            try:
+                os.remove(self.settings_manager.get_pid_file())
+            except:
+                raise Exception('Failed to delete PID file %s' % self.settings_manager.get_pid_file())
+        subprocess.call(
+            "%s stop" % ASYNC_DAEMON_EXECUTABLE,
+            shell=True
+            )
 
     def save_settings(self):
         self.settings_manager.save_settings_to_file()
@@ -99,6 +132,22 @@ class XppfServerControls:
         env['PYTHONPATH'] = "%s:%s" % (self.settings_manager.get_server_path(), env['PYTHONPATH'])
         return env
 
+    def _set_database(self, env):
+        # If test database requested, set RACK_ENV to test and reset database
+        if self.args.test_database:
+            env['RACK_ENV'] = 'test'
+            manage_cmd = '%s/manage.py' % self.settings_manager.get_server_path()
+            commands = [
+                '%s flush --noinput' % manage_cmd,
+                '%s migrate' % manage_cmd,
+                ]
+            for command in commands:
+                stdout = subprocess.Popen(
+                    command,
+                    shell=True, 
+                    stdout=subprocess.PIPE,
+                    env=env).communicate()
+        return env
 
 if __name__=='__main__':
     XppfServerControls().main()

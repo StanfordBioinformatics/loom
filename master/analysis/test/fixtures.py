@@ -1,27 +1,10 @@
-from django.conf import settings
 import os
 
-with open(os.path.join(settings.BASE_DIR,'../../doc/examples/helloworld/helloworld.json')) as f:
+with open(os.path.join(
+        os.path.dirname(__file__),
+        '../../../doc/examples/helloworld/helloworld.json'
+        )) as f:
     helloworld_json = f.read()
-
-{
-    'step_definition': 
-    {
-        'template': {
-            'environment': {
-                'docker_image': u'ubuntu'
-                }, 
-            'command': u'echo world > world.txt', 
-            'output_ports': [
-                {
-                    'file_path': u'world.txt'
-                    }
-                ]
-            }
-        }, 
-    'is_complete': True, 
-    }
-
 
 hello_world_step_definition_obj1 = {
     "template":
@@ -37,7 +20,6 @@ hello_world_step_definition_obj1 = {
             ]
         }
     }
-
 
 hello_world_step_run_obj1 = {
     "output_binding": {
@@ -125,6 +107,83 @@ hello_world_step_run_obj2 = {
     'step_results': [hello_world_step_result_obj2]
     }
 
+hello_world_request_with_runs = {
+    'analyses': [
+        {
+            'data_pipes': [
+                {'source': {
+                        'step': 'world_step', 
+                        'port': 'world_out'
+                        }, 
+                 'destination': {
+                        'step': 'hello_world_step', 
+                        'port': 'world_in'
+                        }
+                 }], 
+            'steps': [
+                {
+                    'environment': {
+                        'docker_image': 'ubuntu'
+                        }, 
+                    'command': 'echo world > world.txt', 
+                    'name': 'world_step', 
+                    'resources': {
+                        'cores': '1', 
+                        'memory': '5GB'
+                        }, 
+                    'output_ports': [
+                        {
+                            'name': 'world_out', 'file_path': 'world.txt'
+                            }
+                        ],
+                    'step_run': hello_world_step_run_obj1,
+                    }, 
+                {
+                    'name': 'hello_world_step', 
+                    'input_ports': [
+                        {
+                            'name': 'hello_in', 
+                            'file_path': 'hello.txt'
+                            }, 
+                        {
+                            'name': 'world_in', 
+                            'file_path': 'world.txt'
+                            }
+                        ], 
+                    'environment': {
+                        'docker_image': 'ubuntu'
+                        }, 
+                    'command': 'cat hello.txt world.txt > hello_world.txt', 
+                    'output_ports': [
+                        {
+                            'name': 'hello_world_out', 
+                            'file_path': 'hello_world.txt'
+                            }
+                        ], 
+                    'resources': {
+                        'cores': '1', 
+                        'memory': '5GB'
+                        },
+                    'step_run': hello_world_step_run_obj2,
+                    }
+                ], 
+         'data_bindings': [
+                {
+                    'destination': {
+                        'step': 'hello_world_step', 
+                        'port': 'hello_in'
+                        }, 
+                    'file': {
+                        'hash_value': 'b1946ac92492d2347c6235b4d2611184', 
+                        'hash_function': 'md5'
+                        }
+                    }
+                ]
+         }
+        ], 
+    'requester': u'someone@example.net'
+    }
+
 file_obj = {
     'hash_value': '1234asfd',
     'hash_function': 'md5',
@@ -134,6 +193,16 @@ file_path_location_obj = {
     'file': file_obj,
     'file_path': '/absolute/path/to/my/file.txt',
     }
+
+file_path_location_json = """
+{
+ "file_path": "/path/to/my/file",
+  "file": {
+    "hash_value": "b1946ac92492d2347c6235b4d2611184",
+    "hash_function": "md5"
+  }
+}    
+"""
 
 docker_image_obj = {
     'docker_image': '1234567asdf',

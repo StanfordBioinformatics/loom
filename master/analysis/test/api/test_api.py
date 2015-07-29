@@ -1,25 +1,17 @@
-#!/usr/bin/env python
-
-import os
+from django.conf import settings
 from django.test import TestCase
 from datetime import datetime
+import json
+import os
 import requests
 import time
-from django.conf import settings
 
+from analysis.test.fixtures import *
+from analysis.models import Request
 from xppf.client import xppf_server_controls
 
-class TestXppfRun(TestCase):
 
-    file_path_location_json = """
-{
-  "file_path": "/path/to/my/file",
-  "file": {
-    "hash_value": "b1946ac92492d2347c6235b4d2611184",
-    "hash_function": "md5"
-  }
-}                                                                                                                                                                        
-"""
+class TestXppfRun(TestCase):
 
     def setUp(self):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
@@ -28,9 +20,6 @@ class TestXppfRun(TestCase):
         xs.main()
         self.server_url = xs.settings_manager.get_server_url()
         self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_pid_file()))
-
-        with open(os.path.join(settings.BASE_DIR,'../../doc/examples/helloworld/helloworld.json')) as f:
-            self.helloworld_json = f.read()
 
     def tearDown(self):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
@@ -48,7 +37,7 @@ class TestXppfRun(TestCase):
 
     def test_create_show_index_immutable(self):
         # Test create
-        r = requests.post(self.server_url+'/api/requests', data=self.helloworld_json)
+        r = requests.post(self.server_url+'/api/requests', data=helloworld_json)
         self.assertTrue('{"message": "created request", "_id":' in r.text)
 
         # Test show
@@ -63,7 +52,7 @@ class TestXppfRun(TestCase):
 
     def test_create_show_index_update_mutable(self):
         # Test create
-        r = requests.post(self.server_url+'/api/file_locations', data=self.file_path_location_json)
+        r = requests.post(self.server_url+'/api/file_locations', data=file_path_location_json)
         self.assertEqual(r.json()['message'], "created file_location")
 
         # Test show
@@ -81,6 +70,12 @@ class TestXppfRun(TestCase):
                           data='{"file_path": "/new/file/path"}')
         r = requests.get(self.server_url+'/api/file_locations/%s' % id)
         self.assertEqual(r.json()['file_path'], '/new/file/path')
+
+    def test_show_input_port_bundles(self):
+        r = requests.post(self.server_url+'/api/requests/', data=json.dumps(hello_world_request_with_runs))
+        import pdb; pdb.set_trace()
+        id = request.analyses.first().steps.first()._id
+        r = requests.get(self.server_url+'/api/step_runs/%s/input_port_bundles/' % id)
 
     def wait_for_true(self, test_method, timeout_seconds=5):
         start_time = datetime.now()

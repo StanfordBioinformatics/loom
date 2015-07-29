@@ -28,6 +28,8 @@ class Request(MutableModel, AnalysisAppBaseModel):
         return True
 
 class AnalysisRequest(MutableModel, AnalysisAppBaseModel):
+    FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
+
     _class_name = ('analysis_request', 'analysis_requests')
     # steps: StepRequest foreign key
     # data_bindings: RequestDataBinding foreign key
@@ -71,8 +73,10 @@ class AnalysisRequest(MutableModel, AnalysisAppBaseModel):
                 return False
         return True
 
+
 class StepRequest(MutableModel, AnalysisAppBaseModel):
     _class_name = ('step_request', 'step_requests')
+    FOREIGN_KEY_CHILDREN = ['environment', 'resources', 'step_definition', 'step_run', 'input_ports', 'output_ports']
     name = models.CharField(max_length = 256)
     command = models.CharField(max_length = 256)
     environment = models.ForeignKey('RequestEnvironment')
@@ -239,7 +243,7 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
 
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_data_binding', 'request_data_bindings')
-
+    FOREIGN_KEY_CHILDREN = ['file', 'destination']
     file = models.ForeignKey('File')
     destination = models.ForeignKey('RequestDataBindingPortIdentifier')
     analysis_request = models.ForeignKey('AnalysisRequest', related_name='data_bindings', null=True)
@@ -266,7 +270,7 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
 class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_data_pipe', 'request_data_pipes')
-
+    FOREIGN_KEY_CHILDREN = ['source', 'destination']
     source = models.ForeignKey('RequestDataPipeSourcePortIdentifier')
     destination = models.ForeignKey('RequestDataPipeDestinationPortIdentifier')
     analysis_request = models.ForeignKey('AnalysisRequest', related_name='data_pipes', null=True)
