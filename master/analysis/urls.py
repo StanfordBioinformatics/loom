@@ -15,6 +15,7 @@ model_classes = [
     Request,
     StepRequest,
     StepRun,
+    StepResult,
     ]
 
 for cls in model_classes:

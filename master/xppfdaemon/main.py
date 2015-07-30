@@ -31,7 +31,9 @@ class App():
     def _init_logger(self, logfile):
         self.logger = logging.getLogger("XppfDaemon")
         self.logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
         handler = self._init_handler(logfile)
+        handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
     def _init_handler(self, logfile):

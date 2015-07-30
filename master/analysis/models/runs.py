@@ -27,6 +27,7 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
     def add_step_result(self, step_result_obj):
         step_result = StepResult.create(step_result_obj)
         self.step_results.add(step_result)
+        return step_result
 
     def get_input_port_bundles(self):
         # Bundles info for a port into a list with port, file, and file locations.

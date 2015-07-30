@@ -73,7 +73,6 @@ class TestXppfRun(TestCase):
 
     def test_show_input_port_bundles(self):
         r = requests.post(self.server_url+'/api/requests/', data=json.dumps(hello_world_request_with_runs))
-        import pdb; pdb.set_trace()
         id = request.analyses.first().steps.first()._id
         r = requests.get(self.server_url+'/api/step_runs/%s/input_port_bundles/' % id)
 

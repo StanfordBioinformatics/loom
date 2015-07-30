@@ -2,6 +2,7 @@
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
 
 import os
+import socket
 import sys
 
 BASE_DIR = os.path.dirname(__file__)
@@ -76,23 +77,27 @@ def _get_django_handler():
         handler = {
             'class': 'logging.FileHandler',
             'filename': DJANGO_LOGFILE,
+            'formatter': 'default',
             }
     else:
         handler = {
             'class': 'logging.StreamHandler',
+            'formatter': 'default',
             }
     return handler
 
 def _get_xppf_handler():
-    XPPF_LOGFILE = os.getenv('XPPF_LOGFILE', None)
-    if XPPF_LOGFILE  is not None:
+    WEBSERVER_LOGFILE = os.getenv('WEBSERVER_LOGFILE', None)
+    if WEBSERVER_LOGFILE  is not None:
         handler = {
             'class': 'logging.FileHandler',
-            'filename': XPPF_LOGFILE,
+            'filename': WEBSERVER_LOGFILE,
+            'formatter': 'default',
             }
     else:
         handler = {
             'class': 'logging.StreamHandler',
+            'formatter': 'default',
             }
     return handler
 
@@ -104,6 +109,11 @@ def _get_log_level():
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '%(levelname)s [%(asctime)s] %(message)s'
+            },
+        },
     'handlers': {
         'django_handler': _get_django_handler(),
         'xppf_handler': _get_xppf_handler(),
@@ -126,3 +136,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+RESOURCE_MANAGER = os.getenv('RESOURCE_MANAGER', 'LOCAL')
+MASTER_URL = os.getenv('MASTER_URL', 'http://127.0.0.1:8000')
+LOCAL_FILE_SERVER = os.getenv('LOCAL_FILE_SERVER', socket.getfqdn())
+FILE_ROOT = os.getenv('FILE_ROOT', os.path.join(os.getenv('HOME'),'xppf_data_root'))

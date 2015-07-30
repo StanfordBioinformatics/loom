@@ -34,6 +34,12 @@ class SettingsManager:
         'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
         'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
         'LOG_LEVEL': 'INFO',
+        'RESOURCE_MANAGER': 'LOCAL',
+
+        # Info needed by worker
+        'MASTER_URL': 'http://127.0.0.1:8000',
+        'LOCAL_FILE_SERVER': 'localhost',
+        'FILE_ROOT': '~/working_dir',
     }
 
     SETTINGS_SCHEMA = {
@@ -53,6 +59,10 @@ class SettingsManager:
             "WEBSERVER_LOGFILE": {"type": "string"},
             "DAEMON_LOGFILE": {"type": "string"},
             "LOG_LEVEL": {"type": "string"},
+            "RESOURCE_MANAGER": {"type": "string"},
+            'MASTER_URL': {"type": "string"},
+            'LOCAL_FILE_SERVER': {"type": "string"},
+            'FILE_ROOT': {"type": "string"},
         },
         "additionalProperties": False,
     }
@@ -187,8 +197,12 @@ class SettingsManager:
         export_settings = {}
         setting_keys_to_export = [
             'DJANGO_LOGFILE',
-            'XPPF_WEBSERVER_LOGFILE',
+            'WEBSERVER_LOGFILE',
             'LOG_LEVEL',
+            'RESOURCE_MANAGER',
+            'MASTER_URL',
+            'LOCAL_FILE_SERVER',
+            'FILE_ROOT',
             ]
         for key in setting_keys_to_export:
             value = self.SETTINGS.get(key)

@@ -1,38 +1,36 @@
 import hashlib
+import logging
+import os
 import requests
+import subprocess
 
-from settings import BASEDIR
+from django.conf import settings
 
 from analysis.models import StepResult
+
+
+logger = logging.getLogger('xppf')
+
+STEP_RUNNER_EXECUTABLE = os.path.abspath(
+    os.path.join(
+        settings.BASE_DIR,
+        '../../worker/step_runner.py',
+        ))
 
 
 class LocalResourceManager:
 
     @classmethod
     def run(cls, step_run):
-        # Create a background process to initialize, run, cleanup
-        # Record in step_run.process_location
-        
-        pass
+        cmd = '%s --run_id %s --master_url %s --file_server %s --file_root %s' % (
+            STEP_RUNNER_EXECUTABLE,
+            step_run._id,
+            settings.MASTER_URL,
+            settings.LOCAL_FILE_SERVER,
+            settings.FILE_ROOT,
+            )
+        logger.debug(cmd)
 
-   """
-        from analysis.models.queues import Queues
-        # Generate a result,
-        # post it to the web server.
+        proc = subprocess.Popen(cmd, shell=True)
 
-        for output_port in step_run.step_definition.template.output_ports.all():
-
-            result = {
-                'step_definition': step_run.step_definition.to_obj(),
-                'output_binding': {
-                    'file': cls._render_dummy_file(),
-                    'output_port': output_port.to_obj(),
-                    },
-                }
-
-            # Post result
-            Queues.submit_result({'step_run': step_run.to_json(), 'step_result': result})
-
-        #Remove run from queue
-        Queues.close_run(step_run.to_json())
-"""
+        #TODO save proc.pid for follow-up

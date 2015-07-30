@@ -1,10 +1,14 @@
 from django.db import models
+import logging
 
 from .requests import Request, AnalysisRequest, StepRequest
 from .runs import StepRun
 from .results import StepResult
 from .common import AnalysisAppBaseModel
-from analysis.resource_manager import ResourceManager
+from analysis.resource_manager.factory import ResourceManagerFactory
+
+logger = logging.getLogger('xppf')
+resource_manager = ResourceManagerFactory.get_resource_manager()
 
 class Queues(AnalysisAppBaseModel):
     _class_name = ('queues', 'queues')
@@ -16,6 +20,7 @@ class Queues(AnalysisAppBaseModel):
 
     @classmethod
     def update_and_run(cls):
+        logger.debug('Updating queues')
         # This method is periodically called asynchronously
         q = cls._get_queue_singleton()
         q._update_steps_ready_to_run()
@@ -47,11 +52,13 @@ class Queues(AnalysisAppBaseModel):
         q._add_open_request(request)
 
     @classmethod
-    def submit_result(cls, data_obj):
+    def submit_result(cls, data_obj_or_json):
+        data_obj = StepResult._any_to_obj(data_obj_or_json)
         step_run_obj = data_obj.get('step_run')
         step_run = StepRun.get_by_definition(step_run_obj)
         step_result_obj = data_obj.get('step_result')
-        step_run.add_step_result(step_result_obj)
+        step_result = step_run.add_step_result(step_result_obj)
+        return step_result
 
     @classmethod
     def close_run(cls, step_run_obj_or_json):
@@ -61,18 +68,26 @@ class Queues(AnalysisAppBaseModel):
         step_run.update({'is_complete': True})
 
     def _update_steps_ready_to_run(self):
+        logger.debug('Updating steps ready to run...')
         for analysis in self.open_analyses.all():
+            logger.debug('...checking analysis %s' % analysis._id)
             for step in analysis.get_steps_ready_to_run():
+                logger.debug('...ready to run step %s' % step._id)
                 step.attach_to_run_if_one_exists()
                 if not step.has_run():
                     step.create_step_run()
                     self._add_step_ready_to_run(step.step_run)
+                    logger.debug('...created a new StepRun with id %s' % step.step_run._id)
+                else:
+                    logger.debug('...found a matching StepRun with id %s' % step.step_run._id)
 
     def _run_ready_steps(self):
+        logger.debug('Running ready steps...')
         for step in self.steps_ready_to_run.all():
+            logger.debug('...transfering to steps_running queue and sending to resource manager, StepRun %s' % step._id)
             self._add_step_running(step)
             self._remove_step_ready_to_run(step)
-            ResourceManager.run(step)
+            resource_manager.run(step)
 
     def _add_open_request(self, request):
         self.open_requests.add(request)

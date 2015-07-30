@@ -3,9 +3,9 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, Request, Queues, StepRun
+from analysis.models import File, Request, Queues, StepRun, StepResult
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('xppf')
 
 @require_http_methods(["GET"])
 def status(request):
@@ -31,13 +31,13 @@ def submitrequest(request):
 @require_http_methods(["POST"])
 def submitresult(request):
     data_json = request.body
-    try:
-        result = Result.create(data_json)
-    except Exception as e:
-        return JsonResponse({"message": e.message}, status=400)
+#    try:
+#        result = StepResult.create(data_json)
+#    except Exception as e:
+#        return JsonResponse({"message": e.message}, status=400)
 
     try:
-        Queues.submit_result(result)
+        result = Queues.submit_result(data_json)
         return JsonResponse({"message": "created new %s" % result.get_name(), "_id": str(result._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
