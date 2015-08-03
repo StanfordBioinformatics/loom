@@ -2,7 +2,7 @@ from django.db import models
 
 from .common import AnalysisAppBaseModel
 from .files import File
-from .definitions import StepDefinition, StepDefinitionOutputPort
+from .step_definitions import StepDefinition, StepDefinitionOutputPort
 from immutable.models import MutableModel
 
 
@@ -12,25 +12,25 @@ receiving a request for analysis from a user.
 """
 
 
-class Request(MutableModel, AnalysisAppBaseModel):
-    _class_name = ('request', 'requests')
-    analyses = models.ManyToManyField('AnalysisRequest')
+class RequestSubmission(MutableModel, AnalysisAppBaseModel):
+    _class_name = ('request_submission', 'request_submissions')
+    workflows = models.ManyToManyField('Workflow')
     requester = models.CharField(max_length = 100)
 
-    def get_analyses(self):
-        return self.analyses.all()
+    def get_workflows(self):
+        return self.workflows.all()
 
     def is_complete(self):
-        # Returns True if all analyses are finished
-        for analysis in self.analyses.all():
-            if not analysis.is_complete():
+        # Returns True if all workflows are finished
+        for workflow in self.workflows.all():
+            if not workflow.is_complete():
                 return False
         return True
 
-class AnalysisRequest(MutableModel, AnalysisAppBaseModel):
+class Workflow(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
 
-    _class_name = ('analysis_request', 'analysis_requests')
+    _class_name = ('workflow', 'workflows')
     # steps: StepRequest foreign key
     # data_bindings: RequestDataBinding foreign key
     # data_pipes: RequestDataPipe foreign key
@@ -48,7 +48,7 @@ class AnalysisRequest(MutableModel, AnalysisAppBaseModel):
     def get_binding(self, step_name, port_name):
         bindings = self.data_bindings.filter(destination__step=step_name, destination__port=port_name)
         if bindings.count() > 1:
-            raise Exception("Multiple bindings were found on analysis %s for step %s, port %s" % (self, step_name, port_name))
+            raise Exception("Multiple bindings were found on workflow %s for step %s, port %s" % (self, step_name, port_name))
         elif bindings.count() == 1:
             return bindings.first()
         else:
@@ -60,7 +60,7 @@ class AnalysisRequest(MutableModel, AnalysisAppBaseModel):
     def get_data_pipe_by_destination_port_name(self, step_name, port_name):
         data_pipes = self.data_pipes.filter(destination__step=step_name, destination__port=port_name)
         if data_pipes.count() > 1:
-            raise Exception('Multiple data_pipes were found on analysis %s for step %s, port %s.' % (self, step_name, port_name))
+            raise Exception('Multiple data_pipes were found on workflow %s for step %s, port %s.' % (self, step_name, port_name))
         elif data_pipes.count() == 1:
             return data_pipes.first()
         else:
@@ -81,7 +81,7 @@ class StepRequest(MutableModel, AnalysisAppBaseModel):
     command = models.CharField(max_length = 256)
     environment = models.ForeignKey('RequestEnvironment')
     resources = models.ForeignKey('RequestResourceSet')
-    analysis = models.ForeignKey('AnalysisRequest', null=True, related_name='steps')
+    workflow = models.ForeignKey('Workflow', null=True, related_name='steps')
     step_definition = models.ForeignKey('StepDefinition', null=True)
     step_run = models.ForeignKey('StepRun', null=True)
 
@@ -119,7 +119,7 @@ class StepRequest(MutableModel, AnalysisAppBaseModel):
                 'input_ports': [port._render_step_definition_input_port() for port in self.input_ports.all()],
                 'output_ports': [port._render_step_definition_output_port() for port in self.output_ports.all()],
                 },
-            'data_bindings': [binding._render_step_definition_data_bindings(self) for binding in self.analysis._get_bindings_by_step(self.name)],
+            'data_bindings': [binding._render_step_definition_data_bindings(self) for binding in self.workflow._get_bindings_by_step(self.name)],
             }
         return step_definition
 
@@ -228,7 +228,7 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             return binding.get_file()
 
     def get_binding(self):
-        return self.step_request.analysis.get_binding(port_name=self.name, step_name=self.step_request.name)
+        return self.step_request.workflow.get_binding(port_name=self.name, step_name=self.step_request.name)
 
     def get_piped_file(self):
         data_pipe = self.get_data_pipe()
@@ -238,7 +238,7 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             return data_pipe.get_file()
 
     def get_data_pipe(self):
-        return self.step_request.analysis.get_data_pipe_by_destination_port_name(
+        return self.step_request.workflow.get_data_pipe_by_destination_port_name(
             port_name=self.name, step_name=self.step_request.name)
 
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
@@ -246,7 +246,7 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['file', 'destination']
     file = models.ForeignKey('File')
     destination = models.ForeignKey('RequestDataBindingPortIdentifier')
-    analysis_request = models.ForeignKey('AnalysisRequest', related_name='data_bindings', null=True)
+    workflow = models.ForeignKey('Workflow', related_name='data_bindings', null=True)
 
     def is_ready(self):
         # Returns True if the input file is available
@@ -273,10 +273,10 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['source', 'destination']
     source = models.ForeignKey('RequestDataPipeSourcePortIdentifier')
     destination = models.ForeignKey('RequestDataPipeDestinationPortIdentifier')
-    analysis_request = models.ForeignKey('AnalysisRequest', related_name='data_pipes', null=True)
+    workflow = models.ForeignKey('Workflow', related_name='data_pipes', null=True)
 
     def get_file(self):
-        step = self.analysis_request.get_step(self.source.step)
+        step = self.workflow.get_step(self.source.step)
         return step.get_output_file(self.source.port)
 
 class PortIdentifier(MutableModel, AnalysisAppBaseModel):

@@ -34,7 +34,7 @@ class SettingsManager:
         'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
         'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
         'LOG_LEVEL': 'INFO',
-        'RESOURCE_MANAGER': 'LOCAL',
+        'WORKER_TYPE': 'LOCAL',
 
         # Info needed by worker
         'MASTER_URL': 'http://127.0.0.1:8000',
@@ -59,7 +59,7 @@ class SettingsManager:
             "WEBSERVER_LOGFILE": {"type": "string"},
             "DAEMON_LOGFILE": {"type": "string"},
             "LOG_LEVEL": {"type": "string"},
-            "RESOURCE_MANAGER": {"type": "string"},
+            "WORKER_TYPE": {"type": "string"},
             'MASTER_URL': {"type": "string"},
             'LOCAL_FILE_SERVER': {"type": "string"},
             'FILE_ROOT': {"type": "string"},
@@ -199,7 +199,7 @@ class SettingsManager:
             'DJANGO_LOGFILE',
             'WEBSERVER_LOGFILE',
             'LOG_LEVEL',
-            'RESOURCE_MANAGER',
+            'WORKER_TYPE',
             'MASTER_URL',
             'LOCAL_FILE_SERVER',
             'FILE_ROOT',

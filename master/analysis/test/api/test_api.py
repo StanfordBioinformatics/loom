@@ -28,7 +28,7 @@ class TestXppfRun(TestCase):
         xs.main()
         self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_pid_file()))
 
-# Requests
+# RequestSubmissions
 # StepRuns
 # StepRun/$id/port_bundles
 # Files
@@ -73,7 +73,7 @@ class TestXppfRun(TestCase):
 
     def test_show_input_port_bundles(self):
         r = requests.post(self.server_url+'/api/requests/', data=json.dumps(hello_world_request_with_runs))
-        id = request.analyses.first().steps.first()._id
+        id = request.workflows.first().steps.first()._id
         r = requests.get(self.server_url+'/api/step_runs/%s/input_port_bundles/' % id)
 
     def wait_for_true(self, test_method, timeout_seconds=5):

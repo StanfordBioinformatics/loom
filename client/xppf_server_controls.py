@@ -42,6 +42,7 @@ class XppfServerControls:
                             help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
         return parser
 
     def _get_args(self):
@@ -97,6 +98,8 @@ class XppfServerControls:
             raise Exception('XPPF Webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
 
     def _start_daemon(self, env):
+        if self.args.no_daemon == True:
+            return
         pidfile = self.settings_manager.get_daemon_pidfile()
         logfile = self.settings_manager.get_daemon_logfile()
         loglevel = self.settings_manager.get_log_level()

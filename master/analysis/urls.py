@@ -10,9 +10,9 @@ urlpatterns = patterns(
     )    
 
 model_classes = [
-    AnalysisRequest,
+    Workflow,
     FileLocation,
-    Request,
+    RequestSubmission,
     StepRequest,
     StepRun,
     StepResult,

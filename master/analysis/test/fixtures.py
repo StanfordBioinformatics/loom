@@ -108,7 +108,7 @@ hello_world_step_run_obj2 = {
     }
 
 hello_world_request_with_runs = {
-    'analyses': [
+    'workflows': [
         {
             'data_pipes': [
                 {'source': {
@@ -304,14 +304,14 @@ step_obj_2 = {
     'resources': resource_set_obj,
     }
 
-analysis_obj = {
+workflow_obj = {
     'steps': [step_obj_1, step_obj_2],
     'data_bindings': [data_binding_obj],
     'data_pipes': [data_pipe_obj],
     }
 
-request_obj = {
-    'analyses': [analysis_obj],
+request_submission_obj = {
+    'workflows': [workflow_obj],
     'requester': 'someone@example.com',
     }
 

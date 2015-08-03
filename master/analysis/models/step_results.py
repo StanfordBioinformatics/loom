@@ -2,7 +2,7 @@ from django.db import models
 
 from .common import AnalysisAppBaseModel
 from .files import File
-from .definitions import StepDefinitionOutputPort
+from .step_definitions import StepDefinitionOutputPort
 from immutable.models import ImmutableModel
 
 

@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, Request, Queues, StepRun, StepResult
+from analysis.models import File, RequestSubmission, WorkInProgress, StepRun, StepResult
 
 logger = logging.getLogger('xppf')
 
@@ -16,14 +16,14 @@ def status(request):
 def submitrequest(request):
     data_json = request.body
     try:
-        request = Request.create(data_json)
-        logger.info('Created request %s' % request._id)
+        request_submission = RequestSubmission.create(data_json)
+        logger.info('Created request submission %s' % request_submission._id)
     except Exception as e:
-        logger.error('Failed to create request with data "%s". %s' % (data_json, e.message))
+        logger.error('Failed to create request submission with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=400)
     try:
-        Queues.submit_new_request(request.to_obj())
-        return JsonResponse({"message": "created new %s" % request.get_name(), "_id": str(request._id)}, status=201)
+        WorkInProgress.submit_new_request(request_submission.to_obj())
+        return JsonResponse({"message": "created new %s" % request_submission.get_name(), "_id": str(request_submission._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
 
@@ -31,13 +31,8 @@ def submitrequest(request):
 @require_http_methods(["POST"])
 def submitresult(request):
     data_json = request.body
-#    try:
-#        result = StepResult.create(data_json)
-#    except Exception as e:
-#        return JsonResponse({"message": e.message}, status=400)
-
     try:
-        result = Queues.submit_result(data_json)
+        result = WorkInProgress.submit_result(data_json)
         return JsonResponse({"message": "created new %s" % result.get_name(), "_id": str(result._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
@@ -47,7 +42,7 @@ def submitresult(request):
 def closerun(request):
     data_json = request.body
     try:
-        Queues.close_run(data_json)
+        WorkInProgress.close_run(data_json)
         return JsonResponse({"message": "closed run", "_id": data_json.get('_id')})
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)

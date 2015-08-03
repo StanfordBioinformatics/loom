@@ -1,5 +1,6 @@
 {
-  "analyses": [
+  "requester": "someone@example.net", 
+  "workflows": [
     {
       "data_pipes": [
         {
@@ -72,6 +73,5 @@
         }
       ]
     }
-  ], 
-  "requester": "someone@example.net"
+  ]
 }

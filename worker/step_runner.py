@@ -73,9 +73,8 @@ class StepRunner:
         docker_image = environment.get('docker_image')
         command = template.get('command')
         working_dir = self.FILE_ROOT #TODO - move into dirs by run, step
-        cmd_template = string.Template('docker run --rm -v ${working_dir}:/working_dir -w /working_dir $docker_image sh -c \'$command\'') #TODO - need sudo?
+        cmd_template = string.Template('docker run --rm -v /working_dir:${working_dir} -w /working_dir $docker_image sh -c \'$command\'') #TODO - need sudo?
         cmd = cmd_template.substitute(working_dir=working_dir, docker_image=docker_image, command=command)
-        print cmd
         return subprocess.Popen(cmd, shell=True)
 
     def _wait_for_process(self, process, poll_interval_seconds=1, timeout_seconds=86400):

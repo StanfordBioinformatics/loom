@@ -21,7 +21,7 @@ class TestXppfRun(unittest.TestCase):
         self.test_server.stop()
 
     def test_run(self):
-        run_parser = xppf_run.XppfRun._get_parser()
+        run_parser = xppf_run.XppfRun.get_parser()
         args = run_parser.parse_args([os.path.join(self.TEST_DATA_DIR, 'invalid_pipeline.json')])
         xrun = xppf_run.XppfRun(args=args)
         with self.assertRaises(xppf_run.XppfRunException):

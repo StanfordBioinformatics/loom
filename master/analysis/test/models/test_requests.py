@@ -6,7 +6,7 @@ from analysis.test.fixtures import *
 from .common import ImmutableModelsTestCase
 
 
-class TestModelsRequests(ImmutableModelsTestCase):
+class TestModelsRequestSubmissions(ImmutableModelsTestCase):
 
     def testRequestDockerImage(self):
         o = RequestDockerImage.create(docker_image_obj)
@@ -74,31 +74,31 @@ class TestModelsRequests(ImmutableModelsTestCase):
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-    def testRequestsAnalysis(self):
-        o = AnalysisRequest.create(analysis_obj)
-        self.assertEqual(o.steps.count(), len(analysis_obj['steps']))
+    def testWorkflow(self):
+        o = Workflow.create(workflow_obj)
+        self.assertEqual(o.steps.count(), len(workflow_obj['steps']))
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-    def testRequest(self):
-        o = Request.create(request_obj)
-        self.assertEqual(o.analyses.count(), len(request_obj['analyses']))
+    def testRequestSubmission(self):
+        o = RequestSubmission.create(request_submission_obj)
+        self.assertEqual(o.workflows.count(), len(request_submission_obj['workflows']))
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-class TestAnalysisRequest(TestCase):
+class TestWorkflow(TestCase):
     def setUp(self):
-        self.analysis = AnalysisRequest.create(analysis_obj)
+        self.workflow = Workflow.create(workflow_obj)
     
     def testGetStepRequest(self):
-        step1 = self.analysis.get_step('step1')
+        step1 = self.workflow.get_step('step1')
         self.assertEqual(step1.name, step_obj_1['name'])
 
 class TestRequestInputPort(TestCase):
     def setUp(self):
-        self.analysis = AnalysisRequest.create(analysis_obj)
-        self.step1 = self.analysis.get_step('step1')
-        self.step2 = self.analysis.get_step('step2')
+        self.workflow = Workflow.create(workflow_obj)
+        self.step1 = self.workflow.get_step('step1')
+        self.step2 = self.workflow.get_step('step2')
 
     def testIsReadyBoundData(self):
         port1 = self.step1._get_input_port('input_port1')
@@ -110,9 +110,9 @@ class TestRequestInputPort(TestCase):
         
 class TestStepRequest(TestCase):
     def setUp(self):
-        self.analysis = AnalysisRequest.create(analysis_obj)
-        self.step1 = self.analysis.get_step('step1')
-        self.step2 = self.analysis.get_step('step2')
+        self.workflow = Workflow.create(workflow_obj)
+        self.step1 = self.workflow.get_step('step1')
+        self.step2 = self.workflow.get_step('step2')
         
     def testIsReadyBoundData(self):
         # This step is ready because it already has a bound file.

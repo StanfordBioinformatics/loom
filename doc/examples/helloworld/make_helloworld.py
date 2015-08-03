@@ -53,7 +53,7 @@ hello_world_step = {
         ],
 }
 
-hello_world_analysis = {
+hello_world_workflow = {
     'steps': [
         world_step,
         hello_world_step
@@ -83,7 +83,7 @@ hello_world_analysis = {
     }
 
 request_run = {
-    'analyses': [hello_world_analysis],
+    'workflows': [hello_world_workflow],
     'requester': 'someone@example.net',
     }
 

@@ -1,20 +1,20 @@
 from django.db import models
 import logging
 
-from .requests import Request, AnalysisRequest, StepRequest
-from .runs import StepRun
-from .results import StepResult
+from .request_submissions import RequestSubmission, Workflow, StepRequest
+from .step_runs import StepRun
+from .step_results import StepResult
 from .common import AnalysisAppBaseModel
-from analysis.resource_manager.factory import ResourceManagerFactory
+from analysis.worker_manager.factory import WorkerManagerFactory
 
 logger = logging.getLogger('xppf')
-resource_manager = ResourceManagerFactory.get_resource_manager()
+worker_manager = WorkerManagerFactory.get_worker_manager()
 
-class Queues(AnalysisAppBaseModel):
-    _class_name = ('queues', 'queues')
+class WorkInProgress(AnalysisAppBaseModel):
+    _class_name = ('work_in_progress', 'work_in_progress')
 
-    open_requests = models.ManyToManyField('Request')
-    open_analyses = models.ManyToManyField('AnalysisRequest')
+    open_request_submissions = models.ManyToManyField('RequestSubmission')
+    open_workflows = models.ManyToManyField('Workflow')
     steps_ready_to_run = models.ManyToManyField('StepRun', related_name='ready_to_run_queue')
     steps_running = models.ManyToManyField('StepRun', related_name='running_queue')
 
@@ -38,18 +38,18 @@ class Queues(AnalysisAppBaseModel):
         if q_objects.count() > 1:
             raise Exception('Error: More than 1 WorkInProgress objects exist. This should be a singleton.')
         elif q_objects.count() < 1:
-            q = Queues()
+            q = cls()
             q.save()
             return q
         else:
             return q_objects.first()
 
     @classmethod
-    def submit_new_request(cls, request_obj_or_json):
+    def submit_new_request(cls, request_submission_obj_or_json):
         # This is called by a view when a new request is received
-        request = Request.create(request_obj_or_json)
+        request_submission = RequestSubmission.create(request_submission_obj_or_json)
         q = cls._get_queue_singleton()
-        q._add_open_request(request)
+        q._add_open_request_submissions(request_submission)
 
     @classmethod
     def submit_result(cls, data_obj_or_json):
@@ -69,9 +69,9 @@ class Queues(AnalysisAppBaseModel):
 
     def _update_steps_ready_to_run(self):
         logger.debug('Updating steps ready to run...')
-        for analysis in self.open_analyses.all():
-            logger.debug('...checking analysis %s' % analysis._id)
-            for step in analysis.get_steps_ready_to_run():
+        for workflow in self.open_workflows.all():
+            logger.debug('...checking workflow %s' % workflow._id)
+            for step in workflow.get_steps_ready_to_run():
                 logger.debug('...ready to run step %s' % step._id)
                 step.attach_to_run_if_one_exists()
                 if not step.has_run():
@@ -84,21 +84,21 @@ class Queues(AnalysisAppBaseModel):
     def _run_ready_steps(self):
         logger.debug('Running ready steps...')
         for step in self.steps_ready_to_run.all():
-            logger.debug('...transfering to steps_running queue and sending to resource manager, StepRun %s' % step._id)
+            logger.debug('...transfering to steps_running queue and sending to worker manager, StepRun %s' % step._id)
             self._add_step_running(step)
             self._remove_step_ready_to_run(step)
-            resource_manager.run(step)
+            worker_manager.run(step)
 
-    def _add_open_request(self, request):
-        self.open_requests.add(request)
-        for analysis in request.get_analyses():
-            self._add_open_analysis(analysis)
+    def _add_open_request_submissions(self, request_submission):
+        self.open_request_submissions.add(request_submission)
+        for workflow in request_submission.get_workflows():
+            self._add_open_workflow(workflow)
 
-    def _add_open_analysis(self, analysis):
-        self.open_analyses.add(analysis)
+    def _add_open_workflow(self, workflow):
+        self.open_workflows.add(workflow)
 
-    def _remove_open_analysis(self, analysis):
-        self.open_analyses.remove(analysis)
+    def _remove_open_workflow(self, workflow):
+        self.open_workflows.remove(workflow)
 
     def _add_step_ready_to_run(self, step):
         self.steps_ready_to_run.add(step)
@@ -113,14 +113,14 @@ class Queues(AnalysisAppBaseModel):
         self.steps_running.remove(step_run)
 
     @classmethod
-    def print_queue(cls):
+    def print_work_in_progress(cls):
         q = cls._get_queue_singleton()
-        print "Open requests (%s):" % q.open_requests.count()
-        for request in q.open_requests.all():
-            print request
-        print "Open analyses (%s):" % q.open_analyses.count()
-        for analysis in q.open_analyses.all():
-            print analysis
+        print "Open request submissions (%s):" % q.open_request_submissions.count()
+        for request_submission in q.open_request_submissions.all():
+            print request_submission
+        print "Open workflows (%s):" % q.open_workflows.count()
+        for workflow in q.open_workflows.all():
+            print workflow
         print "Steps ready to run (%s):" % q.steps_ready_to_run.count()
         for step_run in q.steps_ready_to_run.all():
             print step_run

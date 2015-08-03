@@ -20,16 +20,16 @@ class XppfRun:
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
-        self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings)
+        self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings, require_default_settings=args.require_default_settings)
         self.pipeline_file = args.pipeline_file
 
     def _get_args(self):
-        parser = self._get_parser()
+        parser = self.get_parser()
         args = parser.parse_args()
         return args
 
     @classmethod
-    def _get_parser(cls):
+    def get_parser(cls):
         import argparse
         parser = argparse.ArgumentParser('xppfrun')
         parser.add_argument('pipeline_file')

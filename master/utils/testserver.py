@@ -14,9 +14,12 @@ class TestServer:
     The test server has its database flushed each time it starts.
     """
 
-    def start(self):
+    def start(self, no_daemon=True):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
-        args = xsc_parser.parse_args(['start', '--require_default_settings', '--test_database'])
+        arglist = ['start', '--require_default_settings', '--test_database']
+        if no_daemon == True:
+            arglist.append('--no_daemon')
+        args = xsc_parser.parse_args(arglist)
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main() # start server
         self.server_url = xs.settings_manager.get_server_url()
@@ -55,4 +58,5 @@ class TestServer:
     def _get_test_env(self):
         env = os.environ.copy()
         env['RACK_ENV'] = 'test'
+        env['FILE_ROOT'] = '/tmp/'
         return env

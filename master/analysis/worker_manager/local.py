@@ -18,7 +18,7 @@ STEP_RUNNER_EXECUTABLE = os.path.abspath(
         ))
 
 
-class LocalResourceManager:
+class LocalWorkerManager:
 
     @classmethod
     def run(cls, step_run):
