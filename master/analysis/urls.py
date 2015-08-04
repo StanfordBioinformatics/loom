@@ -7,6 +7,7 @@ urlpatterns = patterns(
     url(r'^submitrequest/?$', 'analysis.views.submitrequest'),
     url(r'^submitresult/?$', 'analysis.views.submitresult'),
     url(r'^closerun/?$', 'analysis.views.closerun'),
+    url(r'^workerinfo/?$', 'analysis.views.workerinfo'),
     )    
 
 model_classes = [

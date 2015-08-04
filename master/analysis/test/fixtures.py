@@ -6,6 +6,7 @@ with open(os.path.join(
         )) as f:
     helloworld_json = f.read()
 
+"""
 hello_world_step_definition_obj1 = {
     "template":
         {
@@ -183,6 +184,7 @@ hello_world_request_with_runs = {
         ], 
     'requester': u'someone@example.net'
     }
+"""
 
 file_obj = {
     'hash_value': '1234asfd',

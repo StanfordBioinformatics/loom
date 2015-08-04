@@ -22,7 +22,11 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
             return step_result.output_binding.file
 
     def get_step_result(self, port):
-        return self.step_results.get(output_binding__output_port=port)
+        try:
+            step_result = self.step_results.get(output_binding__output_port=port)
+        except StepResult.DoesNotExist:
+            step_result = None
+        return step_result
 
     def add_step_result(self, step_result_obj):
         step_result = StepResult.create(step_result_obj)

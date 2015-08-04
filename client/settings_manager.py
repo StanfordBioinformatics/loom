@@ -32,6 +32,7 @@ class SettingsManager:
         'ERROR_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_error.log'),
         'DJANGO_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_django.log'),
         'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
+        'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
         'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
         'LOG_LEVEL': 'INFO',
         'WORKER_TYPE': 'LOCAL',
@@ -60,6 +61,7 @@ class SettingsManager:
             "ERROR_LOGFILE": {"type": "string"},
             "DJANGO_LOGFILE": {"type": "string"},
             "WEBSERVER_LOGFILE": {"type": "string"},
+            "WORKER_LOGFILE": {"type": "string"},
             "DAEMON_LOGFILE": {"type": "string"},
             "LOG_LEVEL": {"type": "string"},
             "WORKER_TYPE": {"type": "string"},
@@ -207,6 +209,7 @@ class SettingsManager:
         setting_keys_to_export = [
             'DJANGO_LOGFILE',
             'WEBSERVER_LOGFILE',
+            'WORKER_LOGFILE',
             'LOG_LEVEL',
             'WORKER_TYPE',
             'MASTER_URL',

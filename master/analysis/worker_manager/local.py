@@ -22,12 +22,10 @@ class LocalWorkerManager:
 
     @classmethod
     def run(cls, step_run):
-        cmd = '%s --run_id %s --master_url %s --file_server %s --file_root %s' % (
+        cmd = '%s --run_id %s --master_url %s' % (
             STEP_RUNNER_EXECUTABLE,
             step_run._id,
             settings.MASTER_URL,
-            settings.FILE_SERVER,
-            settings.FILE_ROOT,
             )
         logger.debug(cmd)
 

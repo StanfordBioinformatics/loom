@@ -82,7 +82,7 @@ class WorkInProgress(AnalysisAppBaseModel):
                     logger.debug('...found a matching StepRun with id %s' % step.step_run._id)
 
     def _run_ready_steps(self):
-        logger.debug('Running ready steps...')
+        logger.debug('Running ready steps (if any)...')
         for step in self.steps_ready_to_run.all():
             logger.debug('...transfering to steps_running queue and sending to worker manager, StepRun %s' % step._id)
             self._add_step_running(step)

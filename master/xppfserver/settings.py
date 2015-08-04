@@ -106,6 +106,9 @@ def _get_log_level():
     LOG_LEVEL = os.getenv('LOG_LEVEL', DEFAULT_LOG_LEVEL)
     return LOG_LEVEL.upper()
 
+LOG_LEVEL = _get_log_level()
+WORKER_LOGFILE = os.getenv('WORKER_LOGFILE', None)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -121,11 +124,11 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['django_handler'],
-            'level': _get_log_level(),
+            'level': LOG_LEVEL,
             },
         'xppf': {
             'handlers': ['xppf_handler'],
-            'level': _get_log_level(),
+            'level': LOG_LEVEL,
             },
         },
     }

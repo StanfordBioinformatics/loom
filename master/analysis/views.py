@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
@@ -10,6 +11,16 @@ logger = logging.getLogger('xppf')
 @require_http_methods(["GET"])
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
+
+@require_http_methods(["GET"])
+def workerinfo(request):
+    workerinfo = {
+        'FILE_SERVER': settings.FILE_SERVER,
+        'FILE_ROOT': settings.FILE_ROOT,
+        'WORKER_LOGFILE': settings.WORKER_LOGFILE,
+        'LOG_LEVEL': settings.LOG_LEVEL,
+        }
+    return JsonResponse({'workerinfo': workerinfo})
 
 @csrf_exempt
 @require_http_methods(["POST"])
