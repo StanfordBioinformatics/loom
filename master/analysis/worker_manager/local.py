@@ -26,7 +26,7 @@ class LocalWorkerManager:
             STEP_RUNNER_EXECUTABLE,
             step_run._id,
             settings.MASTER_URL,
-            settings.LOCAL_FILE_SERVER,
+            settings.FILE_SERVER,
             settings.FILE_ROOT,
             )
         logger.debug(cmd)

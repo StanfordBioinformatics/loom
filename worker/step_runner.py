@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 from datetime import datetime
-import hashlib
 import json
 import os
 import requests
 import string
 import subprocess
 import time
+
+from xppf.utils import md5calc
 
 class DataNotFoundException(Exception):
     pass
@@ -115,20 +116,10 @@ class StepRunner:
 
     def _get_file_obj(self, file_path):
         file = {
-            'hash_value': self._calculate_md5sum(file_path),
+            'hash_value': md5calc.calculate_md5sum(file_path),
             'hash_function': 'md5',
             }
         return file
-
-    def _calculate_md5sum(self, file_path):
-        with open(file_path, 'rb') as f:
-            m = hashlib.md5()
-            while True:
-                data = f.read(8192)
-                if not data:
-                    break
-                m.update(data)
-        return m.hexdigest()
 
     def _save_results(self, results, step_run):
         for result in results:

@@ -276,9 +276,10 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='FilePathLocation',
+            name='FileServerLocation',
             fields=[
                 ('filelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.FileLocation')),
+                ('host_url', models.CharField(max_length=256)),
                 ('file_path', models.CharField(max_length=256)),
             ],
             options={

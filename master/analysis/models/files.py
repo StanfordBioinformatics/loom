@@ -25,9 +25,10 @@ class FileLocation(MutableModel, AnalysisAppBaseModel):
     def get_by_file(self, file):
         return self.objects.filter(file=file).all()
 
-class FilePathLocation(FileLocation):
-    _class_name = ('file_path_location', 'file_path_locations')
+class FileServerLocation(FileLocation):
+    _class_name = ('file_server_location', 'file_server_locations')
 
+    host_url = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
 
 class FileImportRequest(MutableModel, AnalysisAppBaseModel):

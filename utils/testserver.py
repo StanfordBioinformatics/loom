@@ -53,7 +53,7 @@ class TestServer:
                         env=self._get_test_env())
 
     def _get_manage_cmd(self):
-        return  os.path.join(os.path.dirname(__file__), '../manage.py')
+        return  os.path.join(os.path.dirname(__file__), '../master/manage.py')
 
     def _get_test_env(self):
         env = os.environ.copy()

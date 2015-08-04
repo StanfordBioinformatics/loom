@@ -189,14 +189,16 @@ file_obj = {
     'hash_function': 'md5',
     }
 
-file_path_location_obj = {
+file_server_location_obj = {
     'file': file_obj,
     'file_path': '/absolute/path/to/my/file.txt',
+    'host_url': 'localhost',
     }
 
-file_path_location_json = """
+file_server_location_json = """
 {
- "file_path": "/path/to/my/file",
+  "file_path": "/path/to/my/file",
+  "host_url": "localhost",
   "file": {
     "hash_value": "b1946ac92492d2347c6235b4d2611184",
     "hash_function": "md5"

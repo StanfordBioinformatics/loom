@@ -38,8 +38,11 @@ class SettingsManager:
 
         # Info needed by worker
         'MASTER_URL': 'http://127.0.0.1:8000',
-        'LOCAL_FILE_SERVER': 'localhost',
-        'FILE_ROOT': '~/working_dir',
+        'FILE_SERVER': 'localhost',
+        'FILE_ROOT': os.path.join(
+            os.getenv('HOME'),
+            'working_dir',
+        )
     }
 
     SETTINGS_SCHEMA = {
@@ -61,7 +64,7 @@ class SettingsManager:
             "LOG_LEVEL": {"type": "string"},
             "WORKER_TYPE": {"type": "string"},
             'MASTER_URL': {"type": "string"},
-            'LOCAL_FILE_SERVER': {"type": "string"},
+            'FILE_SERVER': {"type": "string"},
             'FILE_ROOT': {"type": "string"},
         },
         "additionalProperties": False,
@@ -141,6 +144,12 @@ class SettingsManager:
     def get_daemon_pid(self):
         return self._get_pid(self.get_daemon_pidfile())
 
+    def get_file_server(self):
+        return self.SETTINGS['FILE_SERVER']
+
+    def get_file_root(self):
+        return self.SETTINGS['FILE_ROOT']
+
     def _get_pid(self, pidfile):
         if not os.path.exists(pidfile):
             return None
@@ -201,7 +210,7 @@ class SettingsManager:
             'LOG_LEVEL',
             'WORKER_TYPE',
             'MASTER_URL',
-            'LOCAL_FILE_SERVER',
+            'FILE_SERVER',
             'FILE_ROOT',
             ]
         for key in setting_keys_to_export:
