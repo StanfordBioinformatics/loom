@@ -155,6 +155,17 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='Step',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('name', models.CharField(max_length=256)),
+                ('command', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='StepDefinition',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
@@ -206,17 +217,6 @@ class Migration(migrations.Migration):
             name='StepDefinitionTemplate',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
-                ('command', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='StepRequest',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('name', models.CharField(max_length=256)),
                 ('command', models.CharField(max_length=256)),
             ],
             options={
@@ -346,31 +346,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.StepDefinition'),
         ),
         migrations.AddField(
-            model_name='steprequest',
-            name='environment',
-            field=models.ForeignKey(to='analysis.RequestEnvironment'),
-        ),
-        migrations.AddField(
-            model_name='steprequest',
-            name='resources',
-            field=models.ForeignKey(to='analysis.RequestResourceSet'),
-        ),
-        migrations.AddField(
-            model_name='steprequest',
-            name='step_definition',
-            field=models.ForeignKey(to='analysis.StepDefinition', null=True),
-        ),
-        migrations.AddField(
-            model_name='steprequest',
-            name='step_run',
-            field=models.ForeignKey(to='analysis.StepRun', null=True),
-        ),
-        migrations.AddField(
-            model_name='steprequest',
-            name='workflow',
-            field=models.ForeignKey(related_name='steps', to='analysis.Workflow', null=True),
-        ),
-        migrations.AddField(
             model_name='stepdefinitiontemplate',
             name='environment',
             field=models.ForeignKey(to='analysis.StepDefinitionEnvironment'),
@@ -401,19 +376,44 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.StepDefinitionTemplate'),
         ),
         migrations.AddField(
+            model_name='step',
+            name='environment',
+            field=models.ForeignKey(to='analysis.RequestEnvironment'),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='resources',
+            field=models.ForeignKey(to='analysis.RequestResourceSet'),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='step_definition',
+            field=models.ForeignKey(to='analysis.StepDefinition', null=True),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='step_run',
+            field=models.ForeignKey(to='analysis.StepRun', null=True),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='workflow',
+            field=models.ForeignKey(related_name='steps', to='analysis.Workflow', null=True),
+        ),
+        migrations.AddField(
             model_name='requestsubmission',
             name='workflows',
             field=models.ManyToManyField(to='analysis.Workflow'),
         ),
         migrations.AddField(
             model_name='requestoutputport',
-            name='step_request',
-            field=models.ForeignKey(related_name='output_ports', to='analysis.StepRequest', null=True),
+            name='step',
+            field=models.ForeignKey(related_name='output_ports', to='analysis.Step', null=True),
         ),
         migrations.AddField(
             model_name='requestinputport',
-            name='step_request',
-            field=models.ForeignKey(related_name='input_ports', to='analysis.StepRequest', null=True),
+            name='step',
+            field=models.ForeignKey(related_name='input_ports', to='analysis.Step', null=True),
         ),
         migrations.AddField(
             model_name='requestdatapipe',

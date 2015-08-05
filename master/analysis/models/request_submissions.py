@@ -7,7 +7,7 @@ from immutable.models import MutableModel
 
 
 """
-This module contains Requests and other classes related to
+This module contains RequestSubmissions and other classes related to
 receiving a request for analysis from a user.
 """
 
@@ -31,7 +31,7 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
 
     _class_name = ('workflow', 'workflows')
-    # steps: StepRequest foreign key
+    # steps: Step foreign key
     # data_bindings: RequestDataBinding foreign key
     # data_pipes: RequestDataPipe foreign key
 
@@ -74,8 +74,8 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
         return True
 
 
-class StepRequest(MutableModel, AnalysisAppBaseModel):
-    _class_name = ('step_request', 'step_requests')
+class Step(MutableModel, AnalysisAppBaseModel):
+    _class_name = ('step', 'steps')
     FOREIGN_KEY_CHILDREN = ['environment', 'resources', 'step_definition', 'step_run', 'input_ports', 'output_ports']
     name = models.CharField(max_length = 256)
     command = models.CharField(max_length = 256)
@@ -180,7 +180,7 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
     # a file will be found after a step executes
     name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
-    step_request = models.ForeignKey('StepRequest', related_name='output_ports', null=True)
+    step = models.ForeignKey('Step', related_name='output_ports', null=True)
 
     def get_step_definition_output_port(self):
         return StepDefinitionOutputPort.get_by_definition(
@@ -197,7 +197,7 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
     # a file will be copied before a step is executed
     name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
-    step_request = models.ForeignKey('StepRequest', related_name='input_ports', null=True)
+    step = models.ForeignKey('Step', related_name='input_ports', null=True)
 
     def _render_step_definition_input_port(self):
         return {'file_path': self.file_path}
@@ -228,7 +228,7 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             return binding.get_file()
 
     def get_binding(self):
-        return self.step_request.workflow.get_binding(port_name=self.name, step_name=self.step_request.name)
+        return self.step.workflow.get_binding(port_name=self.name, step_name=self.step.name)
 
     def get_piped_file(self):
         data_pipe = self.get_data_pipe()
@@ -238,8 +238,8 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             return data_pipe.get_file()
 
     def get_data_pipe(self):
-        return self.step_request.workflow.get_data_pipe_by_destination_port_name(
-            port_name=self.name, step_name=self.step_request.name)
+        return self.step.workflow.get_data_pipe_by_destination_port_name(
+            port_name=self.name, step_name=self.step.name)
 
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_data_binding', 'request_data_bindings')
@@ -261,8 +261,8 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
     def get_file(self):
         return self.file
 
-    def _render_step_definition_data_bindings(self, step_request):
-        port = step_request._get_input_port(self.destination.port)
+    def _render_step_definition_data_bindings(self, step):
+        port = step._get_input_port(self.destination.port)
         return {
             'file': self.file.to_obj(),
             'input_port': port._render_step_definition_input_port()

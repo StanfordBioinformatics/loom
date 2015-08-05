@@ -27,7 +27,7 @@ class TestStepRunner(unittest.TestCase):
         self.file_root = tempfile.mkdtemp()
 
         parser = StepRunner._get_parser()
-        args = parser.parse_args(['--run_id', self.step1_run_id, '--master_url', self.test_server.server_url, '--file_server', 'localhost', '--file_root', self.file_root])
+        args = parser.parse_args(['--run_id', self.step1_run_id, '--master_url', self.test_server.server_url])
         self.step_runner = StepRunner(args=args)
 
     def tearDown(self):

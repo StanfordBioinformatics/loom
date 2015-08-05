@@ -15,7 +15,7 @@ model_classes = [
     Workflow,
     FileLocation,
     RequestSubmission,
-    StepRequest,
+    Step,
     StepRun,
     StepResult,
     ]

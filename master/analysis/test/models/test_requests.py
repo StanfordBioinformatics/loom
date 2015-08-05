@@ -68,8 +68,8 @@ class TestModelsRequestSubmissions(ImmutableModelsTestCase):
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-    def testStepRequest(self):
-        o = StepRequest.create(step_obj_1)
+    def testStep(self):
+        o = Step.create(step_obj_1)
         self.assertEqual(o.name, step_obj_1['name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
@@ -90,7 +90,7 @@ class TestWorkflow(TestCase):
     def setUp(self):
         self.workflow = Workflow.create(workflow_obj)
     
-    def testGetStepRequest(self):
+    def testGetStep(self):
         step1 = self.workflow.get_step('step1')
         self.assertEqual(step1.name, step_obj_1['name'])
 
@@ -108,7 +108,7 @@ class TestRequestInputPort(TestCase):
         port2 = self.step2._get_input_port('input_port2')
         self.assertFalse(port2.has_file())
         
-class TestStepRequest(TestCase):
+class TestStep(TestCase):
     def setUp(self):
         self.workflow = Workflow.create(workflow_obj)
         self.step1 = self.workflow.get_step('step1')

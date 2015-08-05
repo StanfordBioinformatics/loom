@@ -1,7 +1,7 @@
 from django.db import models
 import logging
 
-from .request_submissions import RequestSubmission, Workflow, StepRequest
+from .request_submissions import RequestSubmission, Workflow, Step
 from .step_runs import StepRun
 from .step_results import StepResult
 from .common import AnalysisAppBaseModel
