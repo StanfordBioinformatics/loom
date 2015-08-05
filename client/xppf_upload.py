@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import datetime
+import errno
 import json
 import os
 import requests
@@ -17,6 +19,7 @@ class XppfUploadException(Exception):
 class XppfUpload:
 
     LOCALHOST = ['localhost', '127.0.0.1']
+    IMPORTED_FILES_DIR = 'imported_files'
 
     def __init__(self, args=None):
         if args is None:
@@ -24,8 +27,7 @@ class XppfUpload:
         self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings, require_default_settings=args.require_default_settings)
 
         self.local_path = args.file
-        self.hostname = self.settings_manager.get_file_server() 
-        self.remote_path = self._init_remote_path()
+        self.file_server = self.settings_manager.get_file_server() 
 
     def _get_args(self):
         parser = self.get_parser()
@@ -48,10 +50,10 @@ class XppfUpload:
         file_obj = self._create_file_obj()
 
         print "Registering file with the XPPF server"
-        file_id = self._post_file_obj(file_obj)
+        self.file_id = self._post_file_obj(file_obj)
 
         print "Copying file to server"
-        self._rsync_file()
+        self._copy_file()
 
         file_location_obj = self._create_file_location_obj(file_obj)
         file_location_id = self._post_file_location_obj(file_location_obj)
@@ -76,30 +78,49 @@ class XppfUpload:
             raise XppfUploadException("%s\n%s" % (e.message, response.text))
         return response.json().get('_id')
 
-    def _rsync_file(self):
+    def _copy_file(self):
         if self._is_localhost():
-            shutil.copyfile(self.local_path, self.remote_path)
+            path = self.get_remote_path()
+            try:
+                os.makedirs(os.path.dirname(path))
+            except OSError as e:
+                if e.errno == errno.EEXIST and os.path.isdir(os.path.dirname(path)):
+                    pass
+                else:
+                    raise
+            shutil.copyfile(self.local_path, self.get_remote_path())
         else:
+            subprocess.call(
+                ['ssh',
+                 self.file_server,
+                 'mkdir',
+                 '-p',
+                 os.path.dirname(self.get_remote_path())]
+                 )
             subprocess.call(
                 ['scp',
                  self.local_path,
-                 ':'.join([self.hostname, self.remote_path])]
+                 ':'.join([self.file_server, self.get_remote_path()])]
                 )
 
     def _is_localhost(self):
-        return self.hostname in self.LOCALHOST
+        return self.file_server in self.LOCALHOST
 
-    def _init_remote_path(self):
-        return os.path.join(
-            self.settings_manager.get_file_root(),
-            os.path.split(self.local_path)[1],
+    def get_remote_path(self):
+        if not hasattr(self,'_remote_path'):
+            timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
+            self._remote_path = os.path.join(
+                self.settings_manager.get_file_root(),
+                self.IMPORTED_FILES_DIR,
+                "%s_%s_%s" % (timestamp, self.file_id[0:10], os.path.split(self.local_path)[1]),
             )
+        return self._remote_path
 
     def _create_file_location_obj(self, file_obj):
         return {
             'file': file_obj,
-            'file_path': self.remote_path,
-            'host_url': self.hostname
+            'file_path': self.get_remote_path(),
+            'host_url': self.file_server,
             }
 
     def _post_file_location_obj(self, file_location_obj):

@@ -115,8 +115,9 @@ class TestStep(TestCase):
         self.step2 = self.workflow.get_step('step2')
         
     def testIsReadyBoundData(self):
-        # This step is ready because it already has a bound file.
-        self.assertTrue(self.step1._are_inputs_ready())
+        # This step is not ready because although it already has 
+        # a bound file, that file has no location
+        self.assertFalse(self.step1._are_inputs_ready())
 
     def testIsReadyDataPipeNoFile(self):
         # This step is not ready because its input port has a data_pipe to the

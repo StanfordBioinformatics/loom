@@ -71,7 +71,8 @@
             "memory": "5GB"
           }
         }
-      ]
+      ], 
+      "name": "hello_world"
     }
   ]
 }

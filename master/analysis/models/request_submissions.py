@@ -31,6 +31,7 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
 
     _class_name = ('workflow', 'workflows')
+    name = models.CharField(max_length = 256, null=True) # name is used to make results more browsable on a file server
     # steps: Step foreign key
     # data_bindings: RequestDataBinding foreign key
     # data_pipes: RequestDataPipe foreign key
@@ -56,6 +57,9 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
 
     def _get_bindings_by_step(self, step_name):
         return self.data_bindings.filter(destination__step=step_name)
+
+    def _get_data_pipes_by_step(self, step_name):
+        return self.data_pipes.filter(destination__step=step_name)
         
     def get_data_pipe_by_destination_port_name(self, step_name, port_name):
         data_pipes = self.data_pipes.filter(destination__step=step_name, destination__port=port_name)
@@ -119,9 +123,14 @@ class Step(MutableModel, AnalysisAppBaseModel):
                 'input_ports': [port._render_step_definition_input_port() for port in self.input_ports.all()],
                 'output_ports': [port._render_step_definition_output_port() for port in self.output_ports.all()],
                 },
-            'data_bindings': [binding._render_step_definition_data_bindings(self) for binding in self.workflow._get_bindings_by_step(self.name)],
+            'data_bindings': self._get_step_definition_data_bindings(),
             }
         return step_definition
+
+    def _get_step_definition_data_bindings(self):
+        data_bindings = [binding._render_step_definition_data_bindings(self) for binding in self.workflow._get_bindings_by_step(self.name)]
+        data_bindings.extend([data_pipe._render_step_definition_data_bindings(self) for data_pipe in self.workflow._get_data_pipes_by_step(self.name)])
+        return data_bindings
 
     def _get_input_port(self, name):
         return self.input_ports.get(name=name)
@@ -146,7 +155,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
     def _are_inputs_ready(self):
         # Returns True if all input files are avaialble
         for port in self.input_ports.all():
-            if not port.has_file():
+            if not port.has_file_and_location():
                 return False
         return True
 
@@ -207,6 +216,13 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             return True
         else:
             return False
+
+    def has_file_and_location(self):
+        file = self.get_file()
+        if file is not None:
+            if file.is_available():
+                return True
+        return False
 
     def get_file(self):
         bound_file = self.get_bound_file()
@@ -278,6 +294,13 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
     def get_file(self):
         step = self.workflow.get_step(self.source.step)
         return step.get_output_file(self.source.port)
+
+    def _render_step_definition_data_bindings(self, step):
+        port = step._get_input_port(self.destination.port)
+        return {
+            'file': self.get_file().to_obj(),
+            'input_port': port._render_step_definition_input_port()
+            }
 
 class PortIdentifier(MutableModel, AnalysisAppBaseModel):
     step = models.CharField(max_length = 256)

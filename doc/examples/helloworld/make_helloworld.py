@@ -54,6 +54,7 @@ hello_world_step = {
 }
 
 hello_world_workflow = {
+    'name': 'hello_world',
     'steps': [
         world_step,
         hello_world_step

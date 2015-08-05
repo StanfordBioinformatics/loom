@@ -15,6 +15,8 @@ class DataNotFoundException(Exception):
 
 class StepRunner:
 
+    STEP_RUNS_DIR = 'step_runs'
+
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
@@ -62,6 +64,9 @@ class StepRunner:
 
     def run(self):
         step_run = self._get_step_run()
+
+        self._prepare_working_directory()
+
         inputs = self._get_input_port_bundles().get('input_port_bundles')
         output_ports = self._get_output_ports(step_run)
 
@@ -69,8 +74,24 @@ class StepRunner:
         process = self._execute(step_run)
         self._wait_for_process(process)
 
-        results = self._process_outputs(output_ports, step_run.get('step_definition'))
-        self._save_results(results, step_run)
+        (results, locations) = self._process_outputs(output_ports, step_run.get('step_definition'))
+        self._save_results(results, locations, step_run)
+
+    def _prepare_working_directory(self):
+        self.WORKING_DIR = os.path.join(
+            self.FILE_ROOT, 
+            self.STEP_RUNS_DIR,
+            "%s_%s" % (
+                datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss"),
+                self.RUN_ID[0:10],
+                ))
+        try:
+            os.makedirs(self.WORKING_DIR)
+        except OSError as e:
+            if e.errno == errno.EEXIST and os.path.isdir(self.WORKING_DIR):
+                pass
+            else:
+                raise
 
     def _prepare_inputs(self, inputs):
         if inputs is None:
@@ -79,8 +100,13 @@ class StepRunner:
             self._prepare_input(input)
 
     def _prepare_input(self, input):
-        #TODO
-        pass
+        cmd = ['ln',
+               self._select_location(input),
+               self._get_file_path(input['input_port'])]
+        subprocess.call(cmd)
+
+    def _select_location(self, input):
+        return input['file_locations'][0]['file_path']
 
     def _execute(self, step_run):
         step_definition = step_run.get('step_definition')
@@ -88,7 +114,7 @@ class StepRunner:
         environment = template.get('environment')
         docker_image = environment.get('docker_image')
         command = template.get('command')
-        host_dir = self.FILE_ROOT
+        host_dir = self.WORKING_DIR
         container_dir = '/working_dir'
         cmd_template = string.Template('docker run --rm -v ${host_dir}:${container_dir}:rw -w ${container_dir} $docker_image sh -c \'$command\'') #TODO - need sudo?
         cmd = cmd_template.substitute(container_dir=container_dir, host_dir=host_dir, docker_image=docker_image, command=command)
@@ -112,20 +138,32 @@ class StepRunner:
 
     def _process_outputs(self, output_ports, step_definition):
         results = []
+        locations = []
         for output_port in output_ports:
-            results.append(self._process_output(output_port, step_definition))
-        return results
+            results.append(self._get_result_obj(output_port, step_definition))
+            locations.append(self._get_location_obj(output_port))
+        return (results, locations)
 
-    def _process_output(self, output_port, step_definition):
+    def _get_file_path(self, port):
+        return os.path.join(
+            self.WORKING_DIR,
+            port.get('file_path')
+            )
+
+
+    def _get_location_obj(self, output_port):
+        location = {
+            'file': self._get_file_obj(self._get_file_path(output_port)),
+            'file_path': self._get_file_path(output_port),
+            'host_url': self.FILE_SERVER,
+            }
+        return location
+
+    def _get_result_obj(self, output_port, step_definition):
         result = {
             'step_definition': step_definition,
             'output_binding': {
-                'file': self._get_file_obj(
-                    os.path.join(
-                        self.FILE_ROOT,
-                        output_port.get('file_path')
-                        )
-                    ),
+                'file': self._get_file_obj(self._get_file_path(output_port)),
                 'output_port': output_port,
                 },
             }
@@ -138,9 +176,14 @@ class StepRunner:
             }
         return file
 
-    def _save_results(self, results, step_run):
+    def _save_results(self, results, locations, step_run):
         for result in results:
             self._save_result(result, step_run)
+        for location in locations:
+            self._save_location(location)
+
+    def _save_location(self, location):
+        requests.post(self.MASTER_URL+'/api/file_locations', data=json.dumps(location))
 
     def _save_result(self, result, step_run):
         data = {
