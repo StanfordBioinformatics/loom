@@ -207,6 +207,12 @@ file_server_location_json = """
 }    
 """
 
+file_import_request_obj = {
+    'file_location': file_server_location_obj,
+    'comments': "Description of file source",
+    'requester': "someone@somewhere.net",
+    }
+
 docker_image_obj = {
     'docker_image': '1234567asdf',
     }

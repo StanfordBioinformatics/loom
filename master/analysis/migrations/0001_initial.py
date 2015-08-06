@@ -23,10 +23,19 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='FileHandle',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='FileImportRequest',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('import_comments', models.CharField(max_length=10000)),
+                ('comments', models.CharField(max_length=10000)),
                 ('requester', models.CharField(max_length=100)),
             ],
             options={
