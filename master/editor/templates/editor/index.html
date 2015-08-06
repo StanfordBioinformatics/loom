@@ -14,6 +14,11 @@
     <link href="{{STATIC_URL}}/editor/prism.css" rel="stylesheet" />
     <script src="{{STATIC_URL}}/editor/prism.js"></script>
 
+    <!-- FileSaver.js for popping up a "Save as..." dialog: https://github.com/eligrey/FileSaver.js -->
+    <script src="{{STATIC_URL}}/editor/FileSaver.js"/>
+    <!-- Blob.js for browsers that don't support the Blob API: https://github.com/eligrey/Blob.js -->
+    <script src="{{STATIC_URL}}/editor/Blob.js"/>
+
     <style>
         #background{
             fill:white;
@@ -292,7 +297,7 @@
     }
     InputPort.prototype = Object.create(Port.prototype);
     InputPort.prototype.constructor = InputPort;
-    function OutputPort() {
+    function OutputPort(parent) {
         Port.call(this, parent);
     }
     OutputPort.prototype = Object.create(Port.prototype);
@@ -326,11 +331,6 @@
         Workspace.update();
         JsonView.update();
     }
-
-    function JsonView() {};
-    JsonView.update = function() {
-        d3.select("#json_display").text(safe_stringify(Steps, null, 2));
-    };
 
     function Workspace () {
     }
@@ -463,6 +463,81 @@
         return null;
     }
 
+    function JsonView() {};
+    JsonView.update = function() {
+        // Build XPPF JSON object
+        var xppf_json = {
+            "analyses": [
+                {
+                    "data_pipes": [],
+                    "data_bindings": [],
+                    "steps": []
+                }
+            ],
+            "requester": "someone@example.net"
+        };
+
+        // Add Connectors to data_pipes
+        var connectors_array = to_values_array(Connectors);
+        for (var i = 0; i < connectors_array.length; i++) {
+            var connector = connectors_array[i];
+            var new_pipe = {
+                "source": {
+                    "step": connector.from.parent_step.name,
+                    "port": connector.from.name
+                },
+                "destination": {
+                    "step": connector.to.parent_step.name,
+                    "port": connector.to.name
+                }
+            };
+            xppf_json.analyses[0].data_pipes.push(new_pipe);
+        }
+
+        // Add Steps to steps
+        var steps_array = to_values_array(Steps);
+        for (var i = 0; i < steps_array.length; i++) {
+            var step = steps_array[i];
+            var new_step = {
+                "name": step.name,
+                "environment": step.environment,
+                "command": step.command,
+                "resources":step.resources
+            };
+            // Add ports
+            var input_ports_array = to_values_array(step.input_ports);
+            if (input_ports_array.length > 0) {
+                new_step.input_ports = [];
+                for (var j = 0; j < input_ports_array.length; j++) {
+                    current_port = input_ports_array[j];
+                    new_step.input_ports.push({
+                       "name": current_port.name,
+                       "file_path": current_port.file_path
+                    });
+                }
+            }
+            var output_ports_array = to_values_array(step.output_ports);
+            if (output_ports_array.length > 0) {
+                new_step.output_ports = [];
+                for (var j = 0; j < output_ports_array.length; j++) {
+                    current_port = output_ports_array[j];
+                    new_step.output_ports.push({
+                        "name": current_port.name,
+                        "file_path": current_port.file_path
+                    });
+                }
+            }
+            xppf_json.analyses[0].steps.push(new_step);
+        }
+
+        // TODO: Figure out what to do about data_bindings (need hash of file)
+        // TODO: Let users enter email and add as requester
+
+        d3.select("#xppf_json_display").text(JSON.stringify(xppf_json, null, 2));
+
+        // DEBUG: Dump entire Steps object
+        //d3.select("#json_display").text(safe_stringify(Steps, null, 2));
+    };
 
     // Define helper functions
     function strip_quotes(a) {
@@ -476,7 +551,7 @@
     }
     /**
      * Generates a GUID string.
-
+     *
      * @returns {String} The generated GUID.
      * @example af8a8416-6e18-a307-bd9c-f2c947bbb3aa
      * @author Slavik Meltser (slavik@meltser.info).
@@ -490,11 +565,18 @@
         return _p8() + _p8(true) + _p8(true) + _p8();
     }
 
-    // Credit to: https://github.com/isaacs/json-stringify-safe
+    /**
+     * Serializes JSON and removes circular references.
+     *
+     * @param obj
+     * @param replacer
+     * @param spaces
+     * @param cycleReplacer
+     * @link https://github.com/isaacs/json-stringify-safe
+     */
     function safe_stringify(obj, replacer, spaces, cycleReplacer) {
         return JSON.stringify(obj, serializer(replacer, cycleReplacer), spaces)
     }
-
     function serializer(replacer, cycleReplacer) {
         var stack = [], keys = []
 
@@ -515,7 +597,6 @@
             return replacer == null ? value : replacer.call(this, key, value)
         }
     }
-
 
     // Define drag behavior for steps
     var drag_step = d3.behavior.drag()
@@ -612,7 +693,7 @@
                     input_port = over_port;
                 }
 
-                // TODO: Input port must be empty
+                // TODO: Validate that Input port is empty
                 if (d3.selectAll("[to='"+input_port.id+"'].connector").empty()) {
                     return true;
                 } else {
@@ -739,13 +820,18 @@
 //        the_json = new_json;
 //        d3.select("#json_display").text(JSON.stringify(the_json, null, 2));
 //    }
-    
-
+    d3.select("#save_button").on("click", function() {
+        var blob = new Blob(["Hello, world!"], {type: "text/plain;charset=utf-8"});
+        saveAs(blob, "hello world.txt");
+    });
 
 </script>
 <pre>
-<code class="language-javascript" id="json_display">
-</code>
+    <input type="button" value="Save JSON" id="save_button"/>
+    <code class="language-javascript" id="xppf_json_display"></code>
+</pre>
+<pre>
+    <code class="language-javascript" id="json_display"></code>
 </pre>
 </body>
 </html>
