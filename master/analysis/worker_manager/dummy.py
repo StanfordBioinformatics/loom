@@ -4,13 +4,13 @@ import requests
 from analysis.models import StepResult
 
 
-class DummyResourceManager:
+class DummyWorkerManager:
 
     dummy_file_counter = 0
 
     @classmethod
     def run(cls, step_run):
-        from analysis.models.queues import Queues
+        from analysis.models.work_in_progress import WorkInProgress
         # Generate a result,
         # post it to the web server.
 
@@ -25,10 +25,10 @@ class DummyResourceManager:
                 }
 
             # Post result
-            Queues.submit_result({'step_run': step_run.to_json(), 'step_result': result})
+            WorkInProgress.submit_result({'step_run': step_run.to_json(), 'step_result': result})
 
         #Remove run from queue
-        Queues.close_run(step_run.to_json())
+        WorkInProgress.close_run(step_run.to_json())
 
     @classmethod
     def _render_dummy_file(self):

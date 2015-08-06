@@ -6,6 +6,7 @@ with open(os.path.join(
         )) as f:
     helloworld_json = f.read()
 
+
 hello_world_step_definition_obj1 = {
     "template":
         {
@@ -108,7 +109,7 @@ hello_world_step_run_obj2 = {
     }
 
 hello_world_request_with_runs = {
-    'analyses': [
+    'workflows': [
         {
             'data_pipes': [
                 {'source': {
@@ -189,20 +190,28 @@ file_obj = {
     'hash_function': 'md5',
     }
 
-file_path_location_obj = {
+file_server_location_obj = {
     'file': file_obj,
     'file_path': '/absolute/path/to/my/file.txt',
+    'host_url': 'localhost',
     }
 
-file_path_location_json = """
+file_server_location_json = """
 {
- "file_path": "/path/to/my/file",
+  "file_path": "/path/to/my/file",
+  "host_url": "localhost",
   "file": {
     "hash_value": "b1946ac92492d2347c6235b4d2611184",
     "hash_function": "md5"
   }
 }    
 """
+
+file_import_request_obj = {
+    'file_location': file_server_location_obj,
+    'comments': "Description of file source",
+    'requester': "someone@somewhere.net",
+    }
 
 docker_image_obj = {
     'docker_image': '1234567asdf',
@@ -304,14 +313,14 @@ step_obj_2 = {
     'resources': resource_set_obj,
     }
 
-analysis_obj = {
+workflow_obj = {
     'steps': [step_obj_1, step_obj_2],
     'data_bindings': [data_binding_obj],
     'data_pipes': [data_pipe_obj],
     }
 
-request_obj = {
-    'analyses': [analysis_obj],
+request_submission_obj = {
+    'workflows': [workflow_obj],
     'requester': 'someone@example.com',
     }
 

@@ -10,7 +10,7 @@ from .common import ImmutableModelsTestCase
 class TestHelloWorld(ImmutableModelsTestCase):
   
     def testHelloWorld(self):
-        request = Request.create(helloworld_json)
+        request_submission = RequestSubmission.create(helloworld_json)
 
-        self.roundTripJson(request)
-        self.roundTripObj(request)
+        self.roundTripJson(request_submission)
+        self.roundTripObj(request_submission)

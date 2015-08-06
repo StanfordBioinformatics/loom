@@ -1,5 +1,6 @@
 {
-  "analyses": [
+  "requester": "someone@example.net", 
+  "workflows": [
     {
       "data_pipes": [
         {
@@ -70,8 +71,8 @@
             "memory": "5GB"
           }
         }
-      ]
+      ], 
+      "name": "hello_world"
     }
-  ], 
-  "requester": "someone@example.net"
+  ]
 }

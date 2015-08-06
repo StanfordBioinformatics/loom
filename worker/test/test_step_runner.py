@@ -5,6 +5,7 @@ import json
 import os
 import requests
 import subprocess
+import tempfile
 import time
 import unittest
 
@@ -23,11 +24,15 @@ class TestStepRunner(unittest.TestCase):
         r = requests.get(self.test_server.server_url+'/api/step_runs/')
         self.step1_run_id = r.json()['step_runs'][0].get('_id')
 
+        self.file_root = tempfile.mkdtemp()
+
         parser = StepRunner._get_parser()
-        args = parser.parse_args(['--run_id', self.step1_run_id, '--master_url', self.test_server.server_url, '--file_server', 'localhost', '--file_root', '.'])
+        args = parser.parse_args(['--run_id', self.step1_run_id, '--master_url', self.test_server.server_url])
         self.step_runner = StepRunner(args=args)
+        self.step_runner.WORKING_DIR = '/tmp'
 
     def tearDown(self):
+        # remove self.file_root
         self.test_server.stop()
 
     def _run_helloworld(self):

@@ -22,11 +22,16 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
             return step_result.output_binding.file
 
     def get_step_result(self, port):
-        return self.step_results.get(output_binding__output_port=port)
+        try:
+            step_result = self.step_results.get(output_binding__output_port=port)
+        except StepResult.DoesNotExist:
+            step_result = None
+        return step_result
 
     def add_step_result(self, step_result_obj):
         step_result = StepResult.create(step_result_obj)
         self.step_results.add(step_result)
+        return step_result
 
     def get_input_port_bundles(self):
         # Bundles info for a port into a list with port, file, and file locations.
@@ -40,7 +45,7 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
                 {
                     'file': file.to_obj(),
                     'file_locations': [file_location.to_obj() for file_location in file_locations],
-                    'inpurt_port': input_port.to_obj(),
+                    'input_port': input_port.to_obj(),
                     }
                 )
         return bundles

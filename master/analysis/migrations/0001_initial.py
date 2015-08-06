@@ -12,15 +12,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='AnalysisRequest',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
             name='File',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
@@ -32,10 +23,19 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='FileHandle',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='FileImportRequest',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('import_comments', models.CharField(max_length=10000)),
+                ('comments', models.CharField(max_length=10000)),
                 ('requester', models.CharField(max_length=100)),
             ],
             options={
@@ -61,31 +61,9 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='Queues',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('open_analyses', models.ManyToManyField(to='analysis.AnalysisRequest')),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='Request',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('requester', models.CharField(max_length=100)),
-                ('analyses', models.ManyToManyField(to='analysis.AnalysisRequest')),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
             name='RequestDataBinding',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('analysis_request', models.ForeignKey(related_name='data_bindings', to='analysis.AnalysisRequest', null=True)),
             ],
             options={
                 'abstract': False,
@@ -106,7 +84,6 @@ class Migration(migrations.Migration):
             name='RequestDataPipe',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('analysis_request', models.ForeignKey(related_name='data_pipes', to='analysis.AnalysisRequest', null=True)),
             ],
             options={
                 'abstract': False,
@@ -177,6 +154,27 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='RequestSubmission',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('requester', models.CharField(max_length=100)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='Step',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('name', models.CharField(max_length=256)),
+                ('command', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='StepDefinition',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
@@ -235,18 +233,6 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='StepRequest',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('name', models.CharField(max_length=256)),
-                ('command', models.CharField(max_length=256)),
-                ('analysis', models.ForeignKey(related_name='steps', to='analysis.AnalysisRequest', null=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
             name='StepResult',
             fields=[
                 ('_id', models.TextField(serialize=False, primary_key=True)),
@@ -277,9 +263,33 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='FilePathLocation',
+            name='Workflow',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('name', models.CharField(max_length=256, null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='WorkInProgress',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('open_request_submissions', models.ManyToManyField(to='analysis.RequestSubmission')),
+                ('open_workflows', models.ManyToManyField(to='analysis.Workflow')),
+                ('steps_ready_to_run', models.ManyToManyField(related_name='ready_to_run_queue', to='analysis.StepRun')),
+                ('steps_running', models.ManyToManyField(related_name='running_queue', to='analysis.StepRun')),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='FileServerLocation',
             fields=[
                 ('filelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.FileLocation')),
+                ('host_url', models.CharField(max_length=256)),
                 ('file_path', models.CharField(max_length=256)),
             ],
             options={
@@ -346,26 +356,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.StepDefinition'),
         ),
         migrations.AddField(
-            model_name='steprequest',
-            name='environment',
-            field=models.ForeignKey(to='analysis.RequestEnvironment'),
-        ),
-        migrations.AddField(
-            model_name='steprequest',
-            name='resources',
-            field=models.ForeignKey(to='analysis.RequestResourceSet'),
-        ),
-        migrations.AddField(
-            model_name='steprequest',
-            name='step_definition',
-            field=models.ForeignKey(to='analysis.StepDefinition', null=True),
-        ),
-        migrations.AddField(
-            model_name='steprequest',
-            name='step_run',
-            field=models.ForeignKey(to='analysis.StepRun', null=True),
-        ),
-        migrations.AddField(
             model_name='stepdefinitiontemplate',
             name='environment',
             field=models.ForeignKey(to='analysis.StepDefinitionEnvironment'),
@@ -396,14 +386,44 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.StepDefinitionTemplate'),
         ),
         migrations.AddField(
+            model_name='step',
+            name='environment',
+            field=models.ForeignKey(to='analysis.RequestEnvironment'),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='resources',
+            field=models.ForeignKey(to='analysis.RequestResourceSet'),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='step_definition',
+            field=models.ForeignKey(to='analysis.StepDefinition', null=True),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='step_run',
+            field=models.ForeignKey(to='analysis.StepRun', null=True),
+        ),
+        migrations.AddField(
+            model_name='step',
+            name='workflow',
+            field=models.ForeignKey(related_name='steps', to='analysis.Workflow', null=True),
+        ),
+        migrations.AddField(
+            model_name='requestsubmission',
+            name='workflows',
+            field=models.ManyToManyField(to='analysis.Workflow'),
+        ),
+        migrations.AddField(
             model_name='requestoutputport',
-            name='step_request',
-            field=models.ForeignKey(related_name='output_ports', to='analysis.StepRequest', null=True),
+            name='step',
+            field=models.ForeignKey(related_name='output_ports', to='analysis.Step', null=True),
         ),
         migrations.AddField(
             model_name='requestinputport',
-            name='step_request',
-            field=models.ForeignKey(related_name='input_ports', to='analysis.StepRequest', null=True),
+            name='step',
+            field=models.ForeignKey(related_name='input_ports', to='analysis.Step', null=True),
         ),
         migrations.AddField(
             model_name='requestdatapipe',
@@ -416,6 +436,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.RequestDataPipeSourcePortIdentifier'),
         ),
         migrations.AddField(
+            model_name='requestdatapipe',
+            name='workflow',
+            field=models.ForeignKey(related_name='data_pipes', to='analysis.Workflow', null=True),
+        ),
+        migrations.AddField(
             model_name='requestdatabinding',
             name='destination',
             field=models.ForeignKey(to='analysis.RequestDataBindingPortIdentifier'),
@@ -426,19 +451,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.File'),
         ),
         migrations.AddField(
-            model_name='queues',
-            name='open_requests',
-            field=models.ManyToManyField(to='analysis.Request'),
-        ),
-        migrations.AddField(
-            model_name='queues',
-            name='steps_ready_to_run',
-            field=models.ManyToManyField(related_name='ready_to_run_queue', to='analysis.StepRun'),
-        ),
-        migrations.AddField(
-            model_name='queues',
-            name='steps_running',
-            field=models.ManyToManyField(related_name='running_queue', to='analysis.StepRun'),
+            model_name='requestdatabinding',
+            name='workflow',
+            field=models.ForeignKey(related_name='data_bindings', to='analysis.Workflow', null=True),
         ),
         migrations.AddField(
             model_name='filelocation',

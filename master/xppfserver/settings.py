@@ -2,6 +2,7 @@
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
 
 import os
+import socket
 import sys
 
 BASE_DIR = os.path.dirname(__file__)
@@ -70,8 +71,75 @@ elif RACK_ENV == 'test':
 else:
     raise Exception('TODO: create database settings for production environment.')
 
+def _get_django_handler():
+    DJANGO_LOGFILE = os.getenv('DJANGO_LOGFILE', None)
+    if DJANGO_LOGFILE is not None:
+        handler = {
+            'class': 'logging.FileHandler',
+            'filename': DJANGO_LOGFILE,
+            'formatter': 'default',
+            }
+    else:
+        handler = {
+            'class': 'logging.StreamHandler',
+            'formatter': 'default',
+            }
+    return handler
+
+def _get_xppf_handler():
+    WEBSERVER_LOGFILE = os.getenv('WEBSERVER_LOGFILE', None)
+    if WEBSERVER_LOGFILE  is not None:
+        handler = {
+            'class': 'logging.FileHandler',
+            'filename': WEBSERVER_LOGFILE,
+            'formatter': 'default',
+            }
+    else:
+        handler = {
+            'class': 'logging.StreamHandler',
+            'formatter': 'default',
+            }
+    return handler
+
+def _get_log_level():
+    DEFAULT_LOG_LEVEL = 'INFO'
+    LOG_LEVEL = os.getenv('LOG_LEVEL', DEFAULT_LOG_LEVEL)
+    return LOG_LEVEL.upper()
+
+LOG_LEVEL = _get_log_level()
+WORKER_LOGFILE = os.getenv('WORKER_LOGFILE', None)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '%(levelname)s [%(asctime)s] %(message)s'
+            },
+        },
+    'handlers': {
+        'django_handler': _get_django_handler(),
+        'xppf_handler': _get_xppf_handler(),
+        },
+    'loggers': {
+        'django': {
+            'handlers': ['django_handler'],
+            'level': LOG_LEVEL,
+            },
+        'xppf': {
+            'handlers': ['xppf_handler'],
+            'level': LOG_LEVEL,
+            },
+        },
+    }
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_TZ = True
 
 STATIC_URL = '/static/'
+
+WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
+MASTER_URL = os.getenv('MASTER_URL', 'http://127.0.0.1:8000')
+FILE_SERVER = os.getenv('FILE_SERVER', socket.getfqdn())
+FILE_ROOT = os.getenv('FILE_ROOT', os.path.join(os.getenv('HOME'),'xppf_data_root'))
