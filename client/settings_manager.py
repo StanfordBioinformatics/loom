@@ -22,7 +22,7 @@ class SettingsManager:
 
     DEFAULT_SETTINGS = {
         'WEBSERVER_PIDFILE': '/tmp/xppf_webserver.pid',
-        'BIND_IP': '127.0.0.1',
+        'BIND_IP': '0.0.0.0',
         'BIND_PORT': '8000',
         'PROTOCOL': 'http',
         'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
