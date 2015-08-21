@@ -43,6 +43,7 @@ class XppfServerControls:
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--fg_webserver', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
         return parser
 
     def _get_args(self):
@@ -73,11 +74,11 @@ class XppfServerControls:
         env = self._add_server_to_python_path(env)
         env = self._set_database(env)
         env = self._export_django_settings(env)
-        self._start_webserver(env)
         self._start_daemon(env)
+        self._start_webserver(env)
 
     def _start_webserver(self, env):
-        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --daemon" % (
+        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s" % (
                 self.settings_manager.get_server_wsgi_module(), 
                 self.settings_manager.get_bind_ip(), 
                 self.settings_manager.get_bind_port(), 
@@ -86,6 +87,8 @@ class XppfServerControls:
                 self.settings_manager.get_error_logfile(),
                 self.settings_manager.get_log_level(),
                 )
+        if not self.args.fg_webserver:
+            cmd = cmd + " --daemon"
         process = subprocess.Popen(
             cmd,
             shell=True,
