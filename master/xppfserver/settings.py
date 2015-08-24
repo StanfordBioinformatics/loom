@@ -139,7 +139,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
-MASTER_URL = os.getenv('MASTER_URL', 'http://127.0.0.1:8000')
+#WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
+#MASTER_URL = os.getenv('MASTER_URL', 'http://127.0.0.1:8000')
+WORKER_TYPE = os.getenv('WORKER_TYPE', 'CLUSTER')
+MASTER_URL = os.getenv('MASTER_URL', 'http://frontend001:8000')
 FILE_SERVER = os.getenv('FILE_SERVER', socket.getfqdn())
 FILE_ROOT = os.getenv('FILE_ROOT', os.path.join(os.getenv('HOME'),'xppf_data_root'))
