@@ -55,3 +55,7 @@ class ClusterWorkerManager:
         proc = subprocess.Popen(cmd, shell=True)
 
         #TODO save proc.pid for follow-up
+
+	# For now, return process so caller can follow up
+	# However, this is just the sbatch process
+	return proc
