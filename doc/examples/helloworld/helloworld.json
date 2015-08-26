@@ -35,7 +35,7 @@
           "name": "world_step", 
           "resources": {
             "cores": "1", 
-            "memory": "5GB"
+            "memory": "1GB"
           }, 
           "output_ports": [
             {
@@ -68,7 +68,7 @@
           ], 
           "resources": {
             "cores": "1", 
-            "memory": "5GB"
+            "memory": "1GB"
           }
         }
       ], 

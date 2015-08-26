@@ -13,7 +13,7 @@ env = {
 }
 
 resources = {
-    'memory': '5GB',
+    'memory': '1GB',
     'cores': '1',
     }
 

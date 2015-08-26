@@ -44,10 +44,10 @@ class ClusterWorkerManager:
         resources = step.resources
 
         # Use Slurm to call the step runner on a worker node
-        cmd = "echo -e '#!/bin/bash\n%s' | sbatch -n %s --mem %s" % (
-            cmd,
+        cmd = "sbatch -n %s --mem=%s --wrap='%s'" % (
             resources.cores,
-            resources.memory
+            resources.memory,
+            cmd
             )
 
         logger.debug(cmd)
@@ -57,5 +57,5 @@ class ClusterWorkerManager:
         #TODO save proc.pid for follow-up
 
 	# For now, return process so caller can follow up
-	# However, this is just the sbatch process
+	# However, this is just the sbatch submission process, not the step runner!
 	return proc

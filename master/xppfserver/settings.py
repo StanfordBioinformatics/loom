@@ -139,8 +139,12 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-#WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
-#MASTER_URL = os.getenv('MASTER_URL', 'http://127.0.0.1:8000')
+# Only used for testing for now
+LOCAL_WORKER_TYPE = 'LOCAL'
+LOCAL_MASTER_URL = 'http://127.0.0.1:8000'
+CLUSTER_WORKER_TYPE = 'CLUSTER'
+CLUSTER_MASTER_URL = 'http://frontend001:8000'
+
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'CLUSTER')
 MASTER_URL = os.getenv('MASTER_URL', 'http://frontend001:8000')
 FILE_SERVER = os.getenv('FILE_SERVER', socket.getfqdn())

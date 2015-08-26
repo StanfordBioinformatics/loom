@@ -8,7 +8,6 @@ from .common import AnalysisAppBaseModel
 from analysis.worker_manager.factory import WorkerManagerFactory
 
 logger = logging.getLogger('xppf')
-worker_manager = WorkerManagerFactory.get_worker_manager()
 
 class WorkInProgress(AnalysisAppBaseModel):
     _class_name = ('work_in_progress', 'work_in_progress')
@@ -83,6 +82,7 @@ class WorkInProgress(AnalysisAppBaseModel):
 
     def _run_ready_steps(self):
         logger.debug('Running ready steps (if any)...')
+	worker_manager = WorkerManagerFactory.get_worker_manager()
         for step in self.steps_ready_to_run.all():
             logger.debug('...transfering to steps_running queue and sending to worker manager, StepRun %s' % step._id)
             self._add_step_running(step)
