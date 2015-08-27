@@ -34,12 +34,20 @@ class SettingsManager:
         'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
         'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
         'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
-        'LOG_LEVEL': 'INFO',
-        'WORKER_TYPE': 'LOCAL',
+        #'LOG_LEVEL': 'INFO',
+        'LOG_LEVEL': 'DEBUG',
 
         # Info needed by worker
-        'MASTER_URL': 'http://127.0.0.1:8000',
-        'FILE_SERVER': 'localhost',
+
+	# Workers on same machine as server
+        #'MASTER_URL': 'http://127.0.0.1:8000',
+        #'FILE_SERVER': 'localhost',
+        #'WORKER_TYPE': 'LOCAL',
+
+	# Cluster configuration
+        'WORKER_TYPE': 'CLUSTER',
+        'MASTER_URL': 'http://frontend001:8000',
+        'FILE_SERVER': 'frontend001',
         'FILE_ROOT': os.path.join(
             os.getenv('HOME'),
             'working_dir',

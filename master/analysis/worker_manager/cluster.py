@@ -3,7 +3,7 @@ import logging
 import os
 import requests
 import subprocess
-
+import errno 
 from django.conf import settings
 
 from analysis.models import StepResult
@@ -28,6 +28,16 @@ STEP_RUNNER_EXECUTABLE = os.path.abspath(
 class ClusterWorkerManager:
 
     @classmethod
+    def _create_file_root(cls):
+        try:
+            os.makedirs(settings.FILE_ROOT)
+        except OSError as e:
+            if e.errno == errno.EEXIST and os.path.isdir(settings.FILE_ROOT):
+                pass
+            else:
+                raise
+
+    @classmethod
     def run(cls, step_run):
         cmd = '%s %s --run_id %s --master_url %s' % (
             PYTHON_EXECUTABLE,
@@ -44,7 +54,9 @@ class ClusterWorkerManager:
         resources = step.resources
 
         # Use Slurm to call the step runner on a worker node
-        cmd = "sbatch -n %s --mem=%s --wrap='%s'" % (
+    	ClusterWorkerManager._create_file_root()
+        cmd = "sbatch -D %s -n %s --mem=%s --wrap='%s'" % (
+	    settings.FILE_ROOT,
             resources.cores,
             resources.memory,
             cmd
