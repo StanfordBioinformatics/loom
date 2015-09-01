@@ -1,4 +1,4 @@
-# Deploying xppf clusters using elasticluster
+# Deploying XPPF clusters using elasticluster
 
 In general, we follow these instructions for setting up elasticluster: http://googlegenomics.readthedocs.org/en/latest/use_cases/setup_gridengine_cluster_on_compute_engine/#install-elasticluster-on-your-workstation-laptop
 
@@ -25,7 +25,7 @@ cd ../share/elasticluster/providers/ansible-playbooks/roles
 ansible-galaxy install -p . angstwad.docker_ubuntu
 ```
 
-#### 2. Add docker and xppf roles:
+#### 2. Add Docker and XPPF roles:
 
 ```
 cp <path-to-xppf-repo>/xppf/deploy/docker.yml <path-to-xppf-repo>/xppf/deploy/xppf.yml <path-to-elasticluster-repo>/elasticluster/share/elasticluster/providers/ansible-playbooks/roles
@@ -64,5 +64,8 @@ curl <frontend-node-ip>:8000/api/steps
 ```
 elasticluster stop mycluster
 ```
+
+
+
 
 TODO: once elasticluster 1.9.3 is added to pip repository, make a requirements.txt
