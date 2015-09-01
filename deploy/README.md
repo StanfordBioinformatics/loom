@@ -40,7 +40,7 @@ Edit elasticluster/share/elasticluster/providers/ansible-playbooks/site.yml and 
 
 #### 3. Edit ~/.elasticluster/config, using xppf/deploy/config_template as a template.
 
-If you haven't used gcloud ssh with your Google Cloud Project before, you'll need to generate SSH keys as ouytlined here: http://googlegenomics.readthedocs.org/en/latest/use_cases/setup_gridengine_cluster_on_compute_engine/#generating-your-ssh-keypair
+If you haven't used gcloud ssh with your Google Cloud Project before, you'll need to generate SSH keys as outlined here: http://googlegenomics.readthedocs.org/en/latest/use_cases/setup_gridengine_cluster_on_compute_engine/#generating-your-ssh-keypair
 
 Also, you can find your project ID, client ID, and client secret by following these instructions: http://googlegenomics.readthedocs.org/en/latest/use_cases/setup_gridengine_cluster_on_compute_engine/#obtaining-your-client-id-and-client-secret
 
