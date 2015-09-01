@@ -65,7 +65,5 @@ curl <frontend-node-ip>:8000/api/steps
 elasticluster stop mycluster
 ```
 
-
-
-
-TODO: once elasticluster 1.9.3 is added to pip repository, make a requirements.txt
+#### TODO:
+- Once ansible 1.9.3 and a supporting version of elasticluster have been added to pip repository, make a requirements.txt.
