@@ -1,6 +1,8 @@
-# Deploying XPPF clusters using elasticluster
+# Deploying XPPF clusters using Elasticluster
 
-In general, we follow these instructions for setting up elasticluster: http://googlegenomics.readthedocs.org/en/latest/use_cases/setup_gridengine_cluster_on_compute_engine/#install-elasticluster-on-your-workstation-laptop
+Elasticluster is a tool that simplifies cluster deployment on cloud platforms. It uses Ansible behind the scenes to help accomplish this. We can use Elasticluster to quickly and easily bring up clusters running XPPF.
+
+In general, we follow these instructions for setting up Elasticluster: http://googlegenomics.readthedocs.org/en/latest/use_cases/setup_gridengine_cluster_on_compute_engine/#install-elasticluster-on-your-workstation-laptop
 
 However, there are several important differences:
 - we use Slurm instead of Grid Engine
