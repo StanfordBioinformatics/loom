@@ -21,17 +21,17 @@ cd ..
 git clone https://github.com/gc3-uzh-ch/elasticluster.git
 cd elasticluster
 python setup.py install
-cd ../share/elasticluster/providers/ansible-playbooks/roles
-ansible-galaxy install -p . angstwad.docker_ubuntu
 ```
 
 #### 2. Add Docker and XPPF roles:
 
 ```
-cp <path-to-xppf-repo>/xppf/deploy/docker.yml <path-to-xppf-repo>/xppf/deploy/xppf.yml <path-to-elasticluster-repo>/elasticluster/share/elasticluster/providers/ansible-playbooks/roles
+cd elasticluster/providers/ansible-playbooks/roles
+ansible-galaxy install -p . angstwad.docker_ubuntu
+cp <path-to-xppf-repo>/xppf/deploy/docker.yml <path-to-xppf-repo>/xppf/deploy/xppf.yml .
 ```
 
-Edit elasticluster/share/elasticluster/providers/ansible-playbooks/site.yml and add these two lines at the bottom:
+Edit elasticluster/elasticluster/providers/ansible-playbooks/site.yml and add these two lines at the bottom:
 
 ```
 - include: roles/docker.yml
