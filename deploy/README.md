@@ -44,6 +44,8 @@ If you haven't used gcloud ssh with your Google Cloud Project before, you'll nee
 
 Also, you can find your project ID, client ID, and client secret by following these instructions: http://googlegenomics.readthedocs.org/en/latest/use_cases/setup_gridengine_cluster_on_compute_engine/#obtaining-your-client-id-and-client-secret
 
+Finally, you may need to add a firewall rule to your Google Cloud Project to allow connecting to instances from your machine: https://cloud.google.com/compute/docs/networking#firewalls
+
 #### 4. Test your elasticluster installation:
 
 ```
@@ -53,7 +55,7 @@ elasticluster ssh mycluster
 exit
 ```
 
-#### 5. Make sure XPPF webserver is running:
+#### 5. Make sure XPPF webserver is running and accessible from your machine:
 
 ```
 curl <frontend-node-ip>:8000/api/steps
