@@ -71,3 +71,4 @@ elasticluster stop mycluster
 
 #### TODO:
 - Once ansible 1.9.3 and a supporting version of elasticluster have been added to pip repository, make a requirements.txt.
+- Elasticluster's export and import commands might be a better way of getting up and running. However, this only saves the step of editing .elasticluster/config using config_template. Would still need to install software, add roles, and get SSH keys and API keys.
