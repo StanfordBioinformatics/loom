@@ -71,4 +71,7 @@ elasticluster stop mycluster
 
 #### TODO:
 - Once ansible 1.9.3 and a supporting version of elasticluster have been added to pip repository, make a requirements.txt.
+
+#### Other thoughts:
 - Elasticluster's export and import commands might be a better way of getting up and running. However, this only saves the step of editing .elasticluster/config using config_template. Would still need to install software, add roles, and get SSH keys and API keys.
+- Could skip steps 1 and 2 by distributing a Docker container with Elasticluster/Ansible/roles already configured for XPPF. However, users would still have to do final cluster configuration and key management, and make config file visible to Docker container. Would require Docker on client machine. Typing "docker run -v /home/username/.elasticluster:/home/xppf/.elasticluster xppf/elasticluster start" is clunky (but could make a script for that).
