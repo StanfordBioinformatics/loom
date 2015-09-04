@@ -68,14 +68,14 @@ class SettingsManager:
         #   client on a laptop)
 
         # Client on same machine as server
-        #'CLIENT_TYPE': 'LOCAL',
-        #'CLIENT_MASTER_URL': 'http://127.0.0.1:8000',
-        #'CLIENT_FILE_SERVER': 'localhost', 
+        'CLIENT_TYPE': 'LOCAL',
+        'CLIENT_MASTER_URL': 'http://127.0.0.1:8000',
+        'CLIENT_FILE_SERVER': 'localhost', 
 
         # Client outside of elasticluster, get IP's from elasticluster
-        'CLIENT_TYPE': 'CLUSTER',
-        'MASTER_URL_FOR_CLIENT': '',  # retrieved by _get_frontend_ip_from_elasticluster()
-        'FILE_SERVER_FOR_CLIENT': ''  # retrieved by _get_frontend_ip_from_elasticluster()
+        #'CLIENT_TYPE': 'CLUSTER',
+        #'MASTER_URL_FOR_CLIENT': '',  # retrieved by _get_frontend_ip_from_elasticluster()
+        #'FILE_SERVER_FOR_CLIENT': ''  # retrieved by _get_frontend_ip_from_elasticluster()
 
         # TODO: Client completely remote, IP's entered by user using savesettings
         #'CLIENT_TYPE': 'REMOTE',
