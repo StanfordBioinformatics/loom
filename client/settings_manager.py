@@ -69,8 +69,8 @@ class SettingsManager:
 
         # Client on same machine as server
         'CLIENT_TYPE': 'LOCAL',
-        'CLIENT_MASTER_URL': 'http://127.0.0.1:8000',
-        'CLIENT_FILE_SERVER': 'localhost', 
+        'MASTER_URL_FOR_CLIENT': 'http://127.0.0.1:8000',
+        'FILE_SERVER_FOR_CLIENT': 'localhost', 
 
         # Client outside of elasticluster, get IP's from elasticluster
         #'CLIENT_TYPE': 'CLUSTER',
