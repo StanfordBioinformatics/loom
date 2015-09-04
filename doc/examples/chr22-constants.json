@@ -1,0 +1,98 @@
+{ "requester": "someone@example.net", 
+  "constants": {
+    "samplename": "NA12878-Macrogen-chr22",
+    "bwacores": "4",
+    "reference": "ucsc.hg19.fasta"
+    },
+  "workflows": [
+    {
+      "name": "medgap_poc",
+      "data_pipes": [
+        {
+          "source": {
+            "step": "bam2fq_step", 
+            "port": "bam2fq_out"
+          }, 
+          "destination": {
+            "step": "align_step", 
+            "port": "align_in"
+          }
+        }
+      ], 
+      "data_bindings": [
+        {
+          "destination": {
+            "step": "bam2fq_step", 
+            "port": "bam2fq_in"
+          }, 
+          "file": {
+            "hash_value": "e91383f973a46f66807669a8d2118039", 
+            "hash_function": "md5"
+          }
+        },
+        {
+          "destination": {
+            "step": "align_step", 
+            "port": "align_ref"
+          }, 
+          "file": {
+            "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
+            "hash_function": "md5"
+          }
+        }
+      ], 
+      "steps": [
+        {
+          "name": "bam2fq_step",
+          "environment": {
+            "docker_image": "isaacliao/samtools-0.1.19"
+          }, 
+          "command": "samtools bam2fq ${samplename}.bam > ${samplename}.fastq", 
+          "resources": {
+            "cores": "4", 
+            "memory": "10GB"
+          }, 
+          "input_ports": [
+            {
+              "name": "bam2fq_in",
+              "file_path": "${samplename}.bam"
+            }
+          ],
+          "output_ports": [
+            {
+              "name": "bam2fq_out", 
+              "file_path": "${samplename}.fastq"
+            }
+          ]
+        }, 
+        {
+          "name": "align_step",
+          "environment": {
+            "docker_image": "isaacliao/bwa-0.7.4"
+          }, 
+          "command": "bwa mem -CMp -t ${bwacores} -R \"@RG\\tID:$ID\\tLB:$LB\\tPL:$PL\\tSM:$SM\" ${reference} ${samplename}.fastq > ${samplename}.bwa.sam",
+          "resources": {
+            "cores": "${bwacores}", 
+            "memory": "10GB"
+          }, 
+          "input_ports": [
+            {
+              "name": "align_in",
+              "file_path": "${samplename}.fastq"
+            },
+            {
+              "name": "align_ref",
+              "file_path": "${reference}"
+            }
+          ],
+          "output_ports": [
+            {
+              "name": "align_out", 
+              "file_path": "${samplename}.bwa.sam"
+            }
+          ]
+        } 
+      ] 
+    }
+  ]
+}

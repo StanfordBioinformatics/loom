@@ -32,26 +32,55 @@ class SettingsManager:
         'ERROR_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_error.log'),
         'DJANGO_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_django.log'),
         'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
-        'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
         'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
         #'LOG_LEVEL': 'INFO',
         'LOG_LEVEL': 'DEBUG',
 
-        # Info needed by worker
+        # Info needed by workers
+        # - MASTER_URL passed as argument to step_runner
+        # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
+        #   webserver at MASTER_URL by step_runner
 
-	# Workers on same machine as server
+        'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
+
+        # Workers on same machine as server
+        #'WORKER_TYPE': 'LOCAL',
         #'MASTER_URL': 'http://127.0.0.1:8000',
         #'FILE_SERVER': 'localhost',
-        #'WORKER_TYPE': 'LOCAL',
+        #'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
 
-	# Cluster configuration
+        # Workers in elasticluster 
+        # Allows us to reach XPPF master at "frontend001" instead of getting a different IP every time
         'WORKER_TYPE': 'CLUSTER',
         'MASTER_URL': 'http://frontend001:8000',
         'FILE_SERVER': 'frontend001',
-        'FILE_ROOT': os.path.join(
-            os.getenv('HOME'),
-            'working_dir',
-        )
+        'FILE_ROOT': os.path.join('/home', 'xppf', 'working_dir'),
+        'REMOTE_USERNAME': 'xppf',
+
+        # TODO: Workers completely remote, IP's configured at runtime
+        #'WORKER_TYPE': 'REMOTE',
+        #'MASTER_URL': 'http://<webserver-ip>:8000',
+        #'FILE_SERVER': '<fileserver-ip>',
+
+        # Info needed by client (xppf_run and xppf_upload)
+        # - Fileserver and webserver addresses as seen by client differ from those seen by workers
+        #   when client is on a different machine or network (e.g., master and workers in elasticluster, 
+        #   client on a laptop)
+
+        # Client on same machine as server
+        #'CLIENT_TYPE': 'LOCAL',
+        #'CLIENT_MASTER_URL': 'http://127.0.0.1:8000',
+        #'CLIENT_FILE_SERVER': 'localhost', 
+
+        # Client outside of elasticluster, get IP's from elasticluster
+        'CLIENT_TYPE': 'CLUSTER',
+        'MASTER_URL_FOR_CLIENT': '',  # retrieved by _get_frontend_ip_from_elasticluster()
+        'FILE_SERVER_FOR_CLIENT': ''  # retrieved by _get_frontend_ip_from_elasticluster()
+
+        # TODO: Client completely remote, IP's entered by user using savesettings
+        #'CLIENT_TYPE': 'REMOTE',
+        #'MASTER_URL_FOR_CLIENT': 'http://<webserver-ip>:8000',
+        #'FILE_SERVER_FOR_CLIENT': '<fileserver-ip>',
     }
 
     SETTINGS_SCHEMA = {
@@ -76,6 +105,11 @@ class SettingsManager:
             'MASTER_URL': {"type": "string"},
             'FILE_SERVER': {"type": "string"},
             'FILE_ROOT': {"type": "string"},
+            'CLIENT_TYPE': {"type": "string"},
+            'MASTER_URL_FOR_CLIENT': {"type": "string"},
+            'FILE_SERVER_FOR_CLIENT': {"type": "string"},
+            'CLUSTER_NAME': {"type": "string"},
+            'REMOTE_USERNAME': {"type": "string"}
         },
         "additionalProperties": False,
     }
@@ -103,8 +137,42 @@ class SettingsManager:
 
         self.SETTINGS = self._clean_settings(dirty_settings)
 
+
     def _get_default_settings(self):
-        return self.DEFAULT_SETTINGS.copy()
+        settings = self.DEFAULT_SETTINGS.copy()
+        if settings['CLIENT_TYPE'] == 'CLUSTER':
+            frontend_ip = self._get_frontend_ip_from_elasticluster()
+            settings['FILE_SERVER_FOR_CLIENT'] = frontend_ip
+            settings['MASTER_URL_FOR_CLIENT'] = "http://%s:8000" % frontend_ip
+            
+        return settings
+
+    def _get_frontend_ip_from_elasticluster(self):
+        """Gets external IP of frontend node from Ansible inventory file.
+
+        Assumptions:
+        - Inventory file is in default location ($HOME/.elasticluster/storage)
+        - User only has one cluster running through elasticluster (TODO: support multiple clusters by taking cluster name as input)
+        - XPPF webserver and fileserver are on frontend001
+        """
+        inventory_search_path = os.path.join(os.getenv('HOME'), '.elasticluster', 'storage', 'ansible-inventory.*')
+        import glob
+        inventory_files = glob.glob(inventory_search_path)
+
+        if len(inventory_files) > 1:
+            raise Exception("More than one running cluster found, don't know which to target!")
+        if len(inventory_files) < 1:
+            raise Exception("Ansible inventory file not found in default location %s" % inventory_search_path)
+        
+        inventory_file = inventory_files[0]
+        
+        with open(inventory_file) as f:
+            for line in f:
+                match = re.match(r"frontend001 ansible_ssh_host=([\d.]+)", line) # matches IP address of frontend node
+                if match:
+                    ip = match.group(1) 
+                    return ip
+            raise Exception("No entry for frontend001 found in Ansible inventory file %s" % inventory_file)
 
     def _validate_input_args(self, settings_file=None, require_default_settings=False):
         if (settings_file is not None) and require_default_settings:
@@ -115,11 +183,15 @@ class SettingsManager:
         return settings
 
     def get_server_url(self):
-        return "%s://%s:%s" % (
-            self.SETTINGS['PROTOCOL'], 
-            self.SETTINGS['BIND_IP'], 
-            self.SETTINGS['BIND_PORT']
-        )
+        return self.SETTINGS['MASTER_URL']
+        #return "%s://%s:%s" % (
+        #    self.SETTINGS['PROTOCOL'], 
+        #    self.SETTINGS['BIND_IP'], 
+        #    self.SETTINGS['BIND_PORT']
+        #)
+
+    def get_server_url_for_client(self):
+        return self.SETTINGS['MASTER_URL_FOR_CLIENT']
 
     def get_server_wsgi_module(self):
         return self.SETTINGS['SERVER_WSGI_MODULE']
@@ -157,8 +229,17 @@ class SettingsManager:
     def get_file_server(self):
         return self.SETTINGS['FILE_SERVER']
 
+    def get_file_server_for_client(self):
+        return self.SETTINGS['FILE_SERVER_FOR_CLIENT']
+
     def get_file_root(self):
         return self.SETTINGS['FILE_ROOT']
+
+    def get_client_type(self):
+        return self.SETTINGS['CLIENT_TYPE']
+
+    def get_remote_username(self):
+        return self.SETTINGS['REMOTE_USERNAME']
 
     def _get_pid(self, pidfile):
         if not os.path.exists(pidfile):

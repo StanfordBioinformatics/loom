@@ -7,6 +7,7 @@ import os
 import requests
 import shutil
 import subprocess
+import logging
 
 from xppf.client import settings_manager
 from xppf.utils import md5calc
@@ -27,7 +28,7 @@ class XppfUpload:
         self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings, require_default_settings=args.require_default_settings)
 
         self.local_path = args.file
-        self.file_server = self.settings_manager.get_file_server() 
+        self.file_server = self.settings_manager.get_file_server_for_client() 
 
     def _get_args(self):
         parser = self.get_parser()
@@ -68,9 +69,10 @@ class XppfUpload:
 
     def _post_file_obj(self, file_obj):
         try:
-            response = requests.post(self.settings_manager.get_server_url()+'/api/files', data=json.dumps(file_obj))
+            url = self.settings_manager.get_server_url_for_client()
+            response = requests.post(url+'/api/files', data=json.dumps(file_obj))
         except requests.exceptions.ConnectionError as e:
-            raise Exception("No response from server. (%s)" % e)
+            raise Exception("No response from server %s\n%s" % (url, e))
         
         try:
             response.raise_for_status()
@@ -89,6 +91,36 @@ class XppfUpload:
                 else:
                     raise
             shutil.copyfile(self.local_path, self.get_remote_path())
+        elif self._is_elasticluster():
+            """ Use elasticluster and GCE-specific parameters for file transfer. 
+            TODO: Consider using elasticluster's ssh and sftp commands instead.
+                  - Would decouple XPPF from cloud specifics (key management, username, fileserver IP).
+                  - However, nesting virtualenvs seems problematic, and would have to locate
+                    elasticluster installation or let user specify.
+            """
+            username = self.settings_manager.get_remote_username()
+            gce_key = os.path.join(os.getenv('HOME'),'.ssh','google_compute_engine')
+            if not os.path.exists(gce_key):
+                raise Exception("GCE key not found at %s" % gce_key)
+            print "Creating working directory on elasticluster at %s" % self.file_server
+            subprocess.check_call(
+                ['ssh',
+                 username+'@'+self.file_server,
+                 '-i',
+                 gce_key,
+                 'mkdir',
+                 '-p',
+                 os.path.dirname(self.get_cluster_remote_path(username))]
+                 )
+            print "Uploading file to elasticluster at %s" % self.file_server
+            subprocess.check_call(
+                ['scp',
+                 '-i',
+                 gce_key,
+                 self.local_path,
+                 ':'.join([username+'@'+self.file_server, self.get_cluster_remote_path(username)])]
+                )
+
         else:
             subprocess.call(
                 ['ssh',
@@ -103,6 +135,9 @@ class XppfUpload:
                  ':'.join([self.file_server, self.get_remote_path()])]
                 )
 
+    def _is_elasticluster(self):
+        return self.settings_manager.get_client_type() == 'CLUSTER'
+
     def _is_localhost(self):
         return self.file_server in self.LOCALHOST
 
@@ -111,6 +146,18 @@ class XppfUpload:
             timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
             self._remote_path = os.path.join(
                 self.settings_manager.get_file_root(),
+                self.IMPORTED_FILES_DIR,
+                "%s_%s_%s" % (timestamp, self.file_id[0:10], os.path.split(self.local_path)[1]),
+            )
+        return self._remote_path
+
+    def get_cluster_remote_path(self, username):
+        if not hasattr(self,'_remote_path'):
+            timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
+            self._remote_path = os.path.join(
+                '/home',
+                username,
+                'working_dir',
                 self.IMPORTED_FILES_DIR,
                 "%s_%s_%s" % (timestamp, self.file_id[0:10], os.path.split(self.local_path)[1]),
             )
@@ -125,9 +172,10 @@ class XppfUpload:
 
     def _post_file_location_obj(self, file_location_obj):
         try:
-            response = requests.post(self.settings_manager.get_server_url()+'/api/file_locations', data=json.dumps(file_location_obj))
+            url = self.settings_manager.get_server_url_for_client()
+            response = requests.post(url+'/api/file_locations', data=json.dumps(file_location_obj))
         except requests.exceptions.ConnectionError as e:
-            raise Exception("No response from server. (%s)" % e)
+            raise Exception("No response from server %s\n%s)" % (url, e))
         
         try:
             response.raise_for_status()

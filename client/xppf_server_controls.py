@@ -38,7 +38,7 @@ class XppfServerControls:
         import argparse
         parser = argparse.ArgumentParser("xppfserver")
         parser.add_argument('command', choices=['start', 'stop', 'status', 'savesettings', 'clearsettings'])
-        parser.add_argument('--settings', '-s', nargs=1, metavar='SETTINGS_FILE', 
+        parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
                             help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
