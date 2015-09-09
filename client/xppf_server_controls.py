@@ -120,7 +120,7 @@ class XppfServerControls:
 
     def status(self):
         try:
-            response = requests.get(self.settings_manager.get_server_url() + '/api/status')
+            response = requests.get(self.settings_manager.get_server_url_for_client() + '/api/status')
             if response.status_code == 200:
                 print "server is ok"
             else:

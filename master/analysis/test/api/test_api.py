@@ -18,7 +18,7 @@ class TestXppfRun(TestCase):
         args = xsc_parser.parse_args(['start', '--require_default_settings'])
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main()
-        self.server_url = xs.settings_manager.get_server_url()
+        self.server_url = xs.settings_manager.get_server_url_for_client()
         self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_webserver_pidfile()))
 
     def tearDown(self):

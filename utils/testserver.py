@@ -22,7 +22,7 @@ class TestServer:
         args = xsc_parser.parse_args(arglist)
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main() # start server
-        self.server_url = xs.settings_manager.get_server_url()
+        self.server_url = xs.settings_manager.get_server_url_for_client()
         self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_webserver_pidfile()))
 
     def stop(self):
