@@ -1,11 +1,14 @@
 from django.test import TestCase
 from django.db import models
 from django.core.exceptions import ValidationError 
+import datetime
+from django.utils import timezone
 import json
 import hashlib
 
 from immutable.models import *
 from immutable.test.models import *
+from immutable import helpers
 from django.core.exceptions import FieldDoesNotExist
 
 
@@ -62,7 +65,7 @@ class TestMutableModel(TestCase):
 
         update_obj = model.to_obj()
         update_obj['singlechild']['name'] = "moby"
-        update_json = json.dumps(update_obj)
+        update_json = helpers.obj_to_json(update_obj)
         model.update(update_json)
         self.assertEqual(model.singlechild.name, 'moby')
 
@@ -71,7 +74,7 @@ class TestMutableModel(TestCase):
         model = SampleMutableParent.create(model_json)
         update_obj = model.to_obj()
         update_obj['listofchildren'][0]['name'] = "moby"
-        update_json = json.dumps(update_obj)
+        update_json = helpers.obj_to_json(update_obj)
         model.update(update_json)
         self.assertEqual(model.listofchildren.first().name, 'moby')
 
@@ -89,7 +92,7 @@ class TestMutableModel(TestCase):
 
         update_obj = model.to_obj()
         update_obj['singlechild'] = None
-        update_json = json.dumps(update_obj)
+        update_json = helpers.obj_to_json(update_obj)
         model.update(update_json)
         self.assertEqual(model.singlechild, None)
 
@@ -98,7 +101,7 @@ class TestMutableModel(TestCase):
         model = SampleMutableParent.create(model_json)
         update_obj = model.to_obj()
         update_obj['listofchildren'] = []
-        update_json = json.dumps(update_obj)
+        update_json = helpers.obj_to_json(update_obj)
         model.update(update_json)
         self.assertEqual(model.listofchildren.count(), 0)
 
@@ -108,7 +111,7 @@ class TestMutableModel(TestCase):
         self.assertEqual(model.listofchildren.count(), 2)
         update_obj = model.to_obj()
         update_obj['listofchildren'].pop()
-        update_json = json.dumps(update_obj)
+        update_json = helpers.obj_to_json(update_obj)
         model.update(update_json)
         self.assertEqual(model.listofchildren.count(), 1)
 
@@ -121,8 +124,8 @@ class TestImmutableModel(TestCase):
     def setUp(self):
         child_obj = {'name': 'one'}
         parent_obj = {'child': child_obj, 'name': 'one'}
-        self.child_json = json.dumps(child_obj)
-        self.parent_json = json.dumps(parent_obj)
+        self.child_json = helpers.obj_to_json(child_obj)
+        self.parent_json = helpers.obj_to_json(parent_obj)
 
     def testCreateDuplicate(self):
         model = SampleImmutableChild.create(self.child_json)
@@ -137,11 +140,9 @@ class TestImmutableModel(TestCase):
 
     def test_create_verify_hash(self):
         model = SampleImmutableParent.create(self.parent_json)
-        clean_json = json.dumps(
-            json.loads(self.parent_json),
-            sort_keys=True, 
-            separators=(',',':')
-        )
+        clean_json = helpers.obj_to_json(
+            json.loads(self.parent_json)
+            )
         expected_hash = hashlib.sha256(clean_json).hexdigest()
         self.assertEqual(expected_hash, model._id)
 
@@ -230,3 +231,47 @@ class InheritanceTest(TestCase):
             '"daughter1_name":"the child1"},"name":"the parent"}'
         self.assertEqual(parent.to_json(), expected)
 
+class TimeStempTest(TestCase):
+
+    def setUp(self):
+        self.model_obj = {"name": "ishmael"}
+
+    def testDatetimeCreatedDatetimeUpdatedAutomaticallySetOnCreate(self):
+        min_time = datetime.datetime.now(timezone.utc).isoformat()
+        model = SampleMutableChild.create(self.model_obj)
+        max_time = datetime.datetime.now(timezone.utc).isoformat()
+        self.assertTrue(min_time < model.datetime_created)
+        self.assertTrue(max_time > model.datetime_created)
+        self.assertTrue(min_time < model.datetime_updated)
+        self.assertTrue(max_time > model.datetime_updated)
+
+    def testDatetimeCreatedDatetimeUpdatedExplicitlySetOnCreate(self):
+        datetime_created = datetime.datetime.now(timezone.utc).isoformat()
+        datetime_updated = datetime.datetime.now(timezone.utc).isoformat()
+        before_update = datetime.datetime.now(timezone.utc).isoformat()
+        self.model_obj.update({'datetime_created': datetime_created,
+                          'datetime_updated': datetime_updated})
+        model = SampleMutableChild.create(self.model_obj)
+        after_update = datetime.datetime.now(timezone.utc).isoformat()
+
+        self.assertEqual(model.datetime_created, datetime_created)
+        self.assertTrue(model.datetime_updated > before_update)
+        self.assertTrue(model.datetime_updated < after_update)
+
+    def testAutoSetDatetimeUpdated(self):
+        time1 = datetime.datetime.now(timezone.utc).isoformat()
+        model = SampleMutableChild.create(self.model_obj)
+        time2 = datetime.datetime.now(timezone.utc).isoformat()
+        model.update({'name': 'queequeg'})
+        time3 = datetime.datetime.now(timezone.utc).isoformat()
+        
+        self.assertTrue(time2 < model.datetime_updated)
+        self.assertTrue(time3 > model.datetime_updated)
+
+        self.assertTrue(time1 < model.datetime_created)
+        self.assertTrue(time2 > model.datetime_created)
+
+
+    # Try to explicitly set datetime_created and _updated after object exists. Verify exception.
+
+    # Verify exception when USE_TZ==False

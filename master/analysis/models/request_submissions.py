@@ -27,6 +27,14 @@ class RequestSubmission(MutableModel, AnalysisAppBaseModel):
                 return False
         return True
 
+    @classmethod
+    def render_active_request_submissions(cls):
+        return [3]
+
+    @classmethod
+    def render_inactive_request_submissions(cls, count=None):
+        return[4]
+
 class Workflow(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
 

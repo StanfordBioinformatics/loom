@@ -1,6 +1,9 @@
 import copy
+import datetime
 import django
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 import hashlib
 import json
 import jsonschema
@@ -8,6 +11,10 @@ import uuid
 from immutable import helpers
 from immutable.exceptions import *
 
+if not settings.USE_TZ == True:
+    raise Exception("You are required to set USE_TZ=True in the django settings module, to support timezone-aware datetimes.")
+
+now = lambda:timezone.now().isoformat()
 
 class _BaseModel(models.Model):
 
@@ -41,6 +48,10 @@ class _BaseModel(models.Model):
         model = self.downcast()
         return model._get_fields_as_obj()
 
+    def to_serializable_obj(self):
+        obj = self.to_obj()
+        return helpers.NonserializableTypeConverter.convert(obj)
+
     @classmethod
     def _obj_to_json(cls, data_obj):
         return helpers.obj_to_json(data_obj)
@@ -71,8 +82,13 @@ class _BaseModel(models.Model):
         self.unsaved_many_to_many_related_objects = {}
         for (key, value) in data_obj.iteritems():
             self._create_or_update_field(key, value)
+        self._set_datetime_updated()
         models.Model.save(self)
         self._save_many_to_many_related_objects()
+
+    def _set_datetime_updated(self):
+        # Override if needed
+        pass
 
     def _save_many_to_many_related_objects(self):
         # Cannot create many-to-many relations until both models are
@@ -240,8 +256,6 @@ class _BaseModel(models.Model):
             field_obj = self._get_field_as_obj(field)
             if (field_obj is None) or (field_obj == []):
                 continue
-            if isinstance(field_obj, uuid.UUID):
-                field_obj = str(field_obj)
             obj[field.name] = field_obj
         return obj
 
@@ -318,6 +332,8 @@ class _BaseModel(models.Model):
 class MutableModel(_BaseModel):
 
     _id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    datetime_created = models.DateTimeField(default=now)
+    datetime_updated = models.DateTimeField(default=now)
 
     @classmethod
     def create(cls, data_obj_or_json):
@@ -335,6 +351,9 @@ class MutableModel(_BaseModel):
         model_obj.update(update_obj)
         self._create_or_update_fields(model_obj)
         return self
+
+    def _set_datetime_updated(self):
+        self.datetime_updated = now()
 
     def _verify_update_id_matches_model(self, _id):
         if _id is None:
@@ -354,7 +373,11 @@ class ImmutableModel(_BaseModel):
     def create(cls, data_obj_or_json):
         data_obj = cls._any_to_obj(data_obj_or_json)
         data_json = cls._obj_to_json(data_obj)
+        id_from_input = data_obj.get('_id')
         _id = cls._calculate_unique_id(data_json)
+        if id_from_input is not None:
+            if id_from_input != _id:
+                raise UniqueIdMismatchError("The input _id %s is out of sync with the hash of contents %s on model %s" %(id_from_input, data_obj, self.__class__))
         data_obj.update({'_id': _id})
         Model = cls._select_best_subclass_model_by_fields(data_obj)
         o = Model()

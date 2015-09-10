@@ -8,6 +8,39 @@ from analysis.models import File, RequestSubmission, WorkInProgress, StepRun, St
 
 logger = logging.getLogger('xppf')
 
+class Helper:
+
+    @classmethod
+    def create(cls, request, model_class):
+        data_json = request.body
+        try:
+            model = model_class.create(data_json)
+            return JsonResponse({"message": "created %s" % model_class.get_name(), "_id": str(model._id)}, status=201)
+        except Exception as e:
+            return JsonResponse({"message": e.message}, status=400)
+
+    @classmethod
+    def index(cls, request, model_class):
+        model_list = []
+        for model in model_class.objects.all():
+            model_list.append(model.downcast().to_serializable_obj())
+        return JsonResponse({model_class.get_name(plural=True): model_list}, status=200)
+
+    @classmethod
+    def show(cls, request, id, model_class):
+        model = model_class.get_by_id(id)
+        return JsonResponse(model.to_serializable_obj(), status=200)
+
+    @classmethod
+    def update(cls, request, id, model_class):
+        model = model_class.get_by_id(id)
+        data_json = request.body
+        try:
+            model.update(data_json)
+            return JsonResponse({"message": "updated %s _id=%s" % (model_class.get_name(), model._id)}, status=201)
+        except Exception as e:
+            return JsonResponse({"message": e.message}, status=400)
+
 @require_http_methods(["GET"])
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
@@ -59,48 +92,21 @@ def closerun(request):
         return JsonResponse({"message": e.message}, status=500)
     run_id = data_json.get('_id')
 
-def create(request, cls):
-    data_json = request.body
-    try:
-        model = cls.create(data_json)
-        return JsonResponse({"message": "created %s" % cls.get_name(), "_id": str(model._id)}, status=201)
-    except Exception as e:
-        return JsonResponse({"message": e.message}, status=400)
-
-def index(request, cls):
-    model_list = []
-    for model in cls.objects.all():
-        model_list.append(model.downcast().to_obj())
-    return JsonResponse({cls.get_name(plural=True): model_list}, status=200)
-
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
-def create_or_index(request, cls):
+def create_or_index(request, model_class):
     if request.method == "POST":
-        return create(request, cls)
+        return Helper.create(request, model_class)
     else:
-        return index(request, cls)
+        return Helper.index(request, model_class)
    
-def show(request, id, cls):
-    model = cls.get_by_id(id)
-    return JsonResponse(model.to_obj(), status=200)
-
-def update(request, id, cls):
-    model = cls.get_by_id(id)
-    data_json = request.body
-    try:
-        model.update(data_json)
-        return JsonResponse({"message": "updated %s _id=%s" % (cls.get_name(), model._id)}, status=201)
-    except Exception as e:
-        return JsonResponse({"message": e.message}, status=400)
-
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
-def show_or_update(request, id, cls):
+def show_or_update(request, id, model_class):
     if request.method == "POST":
-        return update(request, id, cls)
+        return Helper.update(request, id, model_class)
     else:
-        return show(request, id, cls)
+        return Helper.show(request, id, model_class)
 
 @csrf_exempt
 @require_http_methods(["GET"])
@@ -108,3 +114,25 @@ def show_input_port_bundles(request, id):
     step_run = StepRun.get_by_id(id)
     input_port_bundles = step_run.get_input_port_bundles()
     return JsonResponse({"input_port_bundles": input_port_bundles}, status=200)
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def dashboard(request):
+    # Display all active RequestSubmissions plus the last n closed RequestSubmissions
+
+    def get_count(request):
+        DEFAULT_COUNT_STR = '10'
+        count_str = request.GET.get('n', DEFAULT_COUNT_STR)
+        try:
+            count = int(count_str)
+        except ValueError as e:
+            count = int(DEFAULT_COUNT_STR)
+        if count < 0:
+            count = int(DEFAULT_COUNT_STR)
+        return count
+    count = get_count(request)
+
+    active_requests = RequestSubmission.render_active_request_submissions()
+    inactive_requests = RequestSubmission.render_inactive_request_submissions(count=count)
+
+    return JsonResponse({'active_request_submissions': active_requests, 'inactive_request_submissions': inactive_requests}, status=200)

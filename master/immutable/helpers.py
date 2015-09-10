@@ -1,6 +1,9 @@
 import copy
+import datetime
 import hashlib
 import json
+import uuid
+
 from immutable.exceptions import *
 
 
@@ -8,6 +11,7 @@ JSON_DUMP_OPTIONS = {'separators': (',',':'), 'sort_keys': True}
 
 def obj_to_json(data_obj):
     try:
+        data_obj = NonserializableTypeConverter.convert(data_obj)
         return json.dumps(data_obj, **JSON_DUMP_OPTIONS)
     except Exception as e:
         raise ConvertToJsonError('Could not convert object to JSON. "%s". %s' % (data_obj, e.message))
@@ -42,6 +46,42 @@ class StripKey(object):
     def _branch_from_list(cls, objlist, key):
         for obj in objlist:
             cls.strip_key(obj, key)
+
+class NonserializableTypeConverter(object):
+    """
+    Crawls a python data structure and
+    converts non-serializable data types
+    into a serializable type
+    """
+    special_type_converters = {
+        datetime.datetime: lambda x: x.isoformat(),
+        uuid.UUID: str,
+        }
+
+    @classmethod
+    def convert(cls, obj):
+        #Main recursive loop
+        if isinstance(obj, list):
+            cls._branch_from_list(obj)
+        elif isinstance(obj, dict):
+            to_replace = []
+            for (key, value) in obj.iteritems():
+                if type(value) in cls.special_type_converters.keys():
+                    to_replace.append(key)
+            for key in to_replace:
+                value = obj[key]
+                value_type = type(value)
+                new_value = cls.special_type_converters[value_type](value)
+                obj[key] = new_value
+            cls._branch_from_list(obj.values())
+        else:
+            pass
+        return obj
+
+    @classmethod
+    def _branch_from_list(cls, objlist):
+        for obj in objlist:
+            cls.convert(obj)
 
 class StripBlanks(object):
     """
