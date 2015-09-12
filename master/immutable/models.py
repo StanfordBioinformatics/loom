@@ -40,6 +40,14 @@ class _BaseModel(models.Model):
         except:
             return field_value
 
+    def get_field_as_serializable(self, field_name):
+        field_value = self.get(field_name)
+        try:
+            obj = field_value.to_obj()
+        except:
+            obj = field_value
+        return helpers.NonserializableTypeConverter.convert(obj)
+
     def to_json(self):
         obj = self.to_obj()
         return self._obj_to_json(obj)

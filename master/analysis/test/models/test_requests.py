@@ -147,3 +147,40 @@ class TestStep(TestCase):
     def testCreateStepDefinition(self):
         step_definition = self.step1._create_step_definition()
         self.assertEqual(step_definition.template.input_ports.first().file_path, step_definition.data_bindings.first().input_port.file_path)
+
+class TestRequestSubmissions(TestCase):
+
+    def testRequestSubmissionsReverseSorted(self):
+        count = 5
+        for i in range(count):
+            RequestSubmission.create(request_submission_obj)
+        r_list = RequestSubmission.get_sorted()
+        for i in range(1, count):
+            self.assertTrue(r_list[i-1].datetime_created > r_list[i].datetime_created)
+
+    def testRequestSubmissionNoCount(self):
+        count = 5
+        for i in range(count):
+            RequestSubmission.create(request_submission_obj)
+        r_list = RequestSubmission.get_sorted()
+        self.assertEqual(len(r_list), count)
+
+    def testRequestSubmissionWithCount(self):
+        count = 5
+        for i in range(count):
+            RequestSubmission.create(request_submission_obj)
+
+        r_list_full = RequestSubmission.get_sorted()
+        r_list_truncated = RequestSubmission.get_sorted(count-1)
+        r_list_untruncated = RequestSubmission.get_sorted(count+1)
+
+        # Truncated list should start with the newest record
+        self.assertEqual(r_list_full[0].datetime_created, r_list_truncated[0].datetime_created)
+
+        # Length should match count
+        self.assertEqual(len(r_list_truncated), count-1)
+
+        # If count is greater than available elements, all elements should be present
+        self.assertEqual(len(r_list_untruncated), count)
+
+    

@@ -122,7 +122,7 @@ def dashboard(request):
 
     def get_count(request):
         DEFAULT_COUNT_STR = '10'
-        count_str = request.GET.get('n', DEFAULT_COUNT_STR)
+        count_str = request.GET.get('count', DEFAULT_COUNT_STR)
         try:
             count = int(count_str)
         except ValueError as e:
@@ -130,9 +130,39 @@ def dashboard(request):
         if count < 0:
             count = int(DEFAULT_COUNT_STR)
         return count
+
+    def get_step_info(s):
+        return {
+            'id': s.get_field_as_serializable('_id'),
+            'name': s.name,
+            'is_complete': s.is_complete(),
+            'command': s.command,
+            }
+
+    def get_workflow_info(w):
+        return {
+            'id': w.get_field_as_serializable('_id'),
+            'name': w.name,
+            'is_complete': w.is_complete(),
+            'steps': [
+                get_step_info(s) for s in w.steps.order_by('datetime_created').reverse().all()
+                ]
+            }
+
+    def get_request_submission_info(r):
+        return {
+            'created_at': r.datetime_created,
+            'is_complete': r.is_complete(),
+            'id': r.get_field_as_serializable('_id'),
+            'workflows': [ 
+                get_workflow_info(w) for w in r.workflows.order_by('datetime_created').reverse().all()
+                ]
+            }
+
     count = get_count(request)
+    request_submissions = RequestSubmission.get_sorted(count=count)
+    if len(request_submissions) == 0:
+        request_submissions_info = []
+    request_submissions_info = [get_request_submission_info(r) for r in request_submissions]
 
-    active_requests = RequestSubmission.render_active_request_submissions()
-    inactive_requests = RequestSubmission.render_inactive_request_submissions(count=count)
-
-    return JsonResponse({'active_request_submissions': active_requests, 'inactive_request_submissions': inactive_requests}, status=200)
+    return JsonResponse({'request_submissions': request_submissions_info}, status=200)

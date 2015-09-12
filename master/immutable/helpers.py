@@ -64,24 +64,17 @@ class NonserializableTypeConverter(object):
         if isinstance(obj, list):
             cls._branch_from_list(obj)
         elif isinstance(obj, dict):
-            to_replace = []
-            for (key, value) in obj.iteritems():
-                if type(value) in cls.special_type_converters.keys():
-                    to_replace.append(key)
-            for key in to_replace:
-                value = obj[key]
-                value_type = type(value)
-                new_value = cls.special_type_converters[value_type](value)
-                obj[key] = new_value
-            cls._branch_from_list(obj.values())
+            for key in obj.keys():
+                obj[key] = cls.convert(obj[key])
         else:
-            pass
+            if type(obj) in cls.special_type_converters.keys():
+                obj = cls.special_type_converters[type(obj)](obj)
         return obj
 
     @classmethod
     def _branch_from_list(cls, objlist):
-        for obj in objlist:
-            cls.convert(obj)
+        for i in range(len(objlist)):
+            objlist[i] = cls.convert(objlist[i])
 
 class StripBlanks(object):
     """

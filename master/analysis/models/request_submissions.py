@@ -28,12 +28,12 @@ class RequestSubmission(MutableModel, AnalysisAppBaseModel):
         return True
 
     @classmethod
-    def render_active_request_submissions(cls):
-        return [3]
-
-    @classmethod
-    def render_inactive_request_submissions(cls, count=None):
-        return[4]
+    def get_sorted(cls, count=None):
+        request_submissions = cls.objects.order_by('datetime_created').reverse()
+        if count is not None:
+            if request_submissions.count() > count:
+                request_submissions = request_submissions[:count]
+        return [r for r in request_submissions]
 
 class Workflow(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
