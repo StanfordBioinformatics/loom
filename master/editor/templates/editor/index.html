@@ -15,9 +15,9 @@
     <script src="{{STATIC_URL}}/editor/prism.js"></script>
 
     <!-- FileSaver.js for popping up a "Save as..." dialog: https://github.com/eligrey/FileSaver.js -->
-    <script src="{{STATIC_URL}}/editor/FileSaver.js"/>
+    <!--<script src="{{STATIC_URL}}/editor/FileSaver.js"/>-->
     <!-- Blob.js for browsers that don't support the Blob API: https://github.com/eligrey/Blob.js -->
-    <script src="{{STATIC_URL}}/editor/Blob.js"/>
+    <!--<script src="{{STATIC_URL}}/editor/Blob.js"/>-->
 
     <style>
         #background{
@@ -792,7 +792,7 @@
             .attr("r", 20);
 
     // Update json
-//    var the_json = {};
+    var the_json = {};
 //    var JsonView.update = function() {
 //        new_json = {};
 //        new_json['steps'] = [];
@@ -820,10 +820,10 @@
 //        the_json = new_json;
 //        d3.select("#json_display").text(JSON.stringify(the_json, null, 2));
 //    }
-    d3.select("#save_button").on("click", function() {
-        var blob = new Blob(["Hello, world!"], {type: "text/plain;charset=utf-8"});
-        saveAs(blob, "hello world.txt");
-    });
+//    d3.select("#save_button").on("click", function() {
+    //        var blob = new Blob(["Hello, world!"], {type: "text/plain;charset=utf-8"});
+    //        saveAs(blob, "hello world.txt");
+    //    });
 
 </script>
 <pre>

@@ -1,12 +1,15 @@
 {
-  "ACCESS_LOGFILE": "demo/path/xppf/log/http_access.log",
-  "BIND_IP": "127.0.0.1",
-  "BIND_PORT": "8000",
-  "DAEMON_PIDFILE": "/tmp/test_xppf_daemon.pid",
-  "ERROR_LOGFILE": "demo/path/xppf/log/http_error.log",
-  "LOG_LEVEL": "info",
-  "PROTOCOL": "http",
-  "SERVER_PATH": "/demo/path/xppf/master",
-  "SERVER_WSGI_MODULE": "xppfserver.wsgi",
-  "WEBSERVER_PIDFILE": "/tmp/test_xppf_webserver.pid"
+  "CURRENT_PRESET": "LOCAL_SETTINGS",
+  "LOCAL_SETTINGS": {
+      "ACCESS_LOGFILE": "demo/path/xppf/log/http_access.log",
+      "BIND_IP": "127.0.0.1",
+      "BIND_PORT": "8000",
+      "DAEMON_PIDFILE": "/tmp/test_xppf_daemon.pid",
+      "ERROR_LOGFILE": "demo/path/xppf/log/http_error.log",
+      "LOG_LEVEL": "info",
+      "PROTOCOL": "http",
+      "SERVER_PATH": "/demo/path/xppf/master",
+      "SERVER_WSGI_MODULE": "xppfserver.wsgi",
+      "WEBSERVER_PIDFILE": "/tmp/test_xppf_webserver.pid"
+    }
 }

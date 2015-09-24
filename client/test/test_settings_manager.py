@@ -13,10 +13,10 @@ class TestSettingsManager(unittest.TestCase):
 
     def test_init(self):
         sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(self.TEST_DATA_DIR, 'path/that/dont/exist')
+        sm.settings_file = os.path.join(self.TEST_DATA_DIR, 'path/that/dont/exist')
         sm._initialize()
         
-        self.assertEqual(sm.get_webserver_pidfile(), sm.DEFAULT_SETTINGS['WEBSERVER_PIDFILE'])
+        self.assertEqual(sm.get_webserver_pidfile(), sm.settings['WEBSERVER_PIDFILE'])
 
     def test_init_from_file(self):
         sm = settings_manager.SettingsManager(settings_file = os.path.join(self.TEST_DATA_DIR, 'testsettings.json'))
@@ -29,55 +29,59 @@ class TestSettingsManager(unittest.TestCase):
         settingsfile = os.path.join(settingsdir, 'settings.json')
 
         sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(settingsfile)
-        sm._initialize()
+        sm._initialize(settings_file=settingsfile)
 
         sm.save_settings_to_file()
 
         # Verify settings file was created with default values
         with open(settingsfile) as f:
-            settings = json.load(f)
-        self.assertEqual(settings['WEBSERVER_PIDFILE'], sm.DEFAULT_SETTINGS['WEBSERVER_PIDFILE'])
+            loaded_presets = json.load(f)
+        loaded_current_preset = loaded_presets['CURRENT_PRESET']
+        default_current_preset = sm.DEFAULT_PRESETS['CURRENT_PRESET']
+        self.assertEqual(loaded_presets[loaded_current_preset]['WEBSERVER_PIDFILE'], sm.DEFAULT_PRESETS[default_current_preset]['WEBSERVER_PIDFILE'])
         os.remove(settingsfile)
 
-    def test_save_settings_to_file_no_overwrite(self):
-        settingsdir = tempfile.mkdtemp()
-        settingsfile = os.path.join(settingsdir, 'settings.json')
+    # This test no longer applies; SettingsManager can overwrite settings file
+    # (for instance, to update current preset)
 
-        sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(settingsfile)
-        sm._initialize()
+    # def test_save_settings_to_file_no_overwrite(self):
+    #     settingsdir = tempfile.mkdtemp()
+    #     settingsfile = os.path.join(settingsdir, 'settings.json')
 
-        sm.save_settings_to_file()
-        with self.assertRaises(Exception):
-            sm.save_settings_to_file()
+    #     sm = settings_manager.SettingsManager(skip_init=True)
+    #     sm._initialize(settings_file=settingsfile)
 
-        os.remove(settingsfile)
+    #     sm.save_settings_to_file()
+    #     with self.assertRaises(Exception):
+    #         sm.save_settings_to_file()
+
+    #     os.remove(settingsfile)
 
     def test_delete_saved_settings(self):
         settingsdir = tempfile.mkdtemp()
         settingsfile = os.path.join(settingsdir, 'settings.json')
 
         sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(settingsfile)
-        sm._initialize()
+        sm._initialize(settings_file=settingsfile)
 
         sm.save_settings_to_file()
         sm.delete_saved_settings()
     
         self.assertFalse(os.path.exists(settingsfile))
 
-    def test_delete_saved_settings_no_file(self):
-        settingsdir = tempfile.mkdtemp()
-        settingsfile = os.path.join(settingsdir, 'settings.json')
+    # This test no longer applies; SettingsManager now creates default
+    # settings file if no filename provided
 
-        sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(settingsfile)
-        sm._initialize()
+    # def test_delete_saved_settings_no_file(self):
+    #     settingsdir = tempfile.mkdtemp()
+    #     settingsfile = os.path.join(settingsdir, 'settings.json')
 
-        # settings file does not exist. Try to delete it
-        with self.assertRaises(Exception):
-            sm.delete_saved_settings() 
+    #     sm = settings_manager.SettingsManager(skip_init=True)
+    #     sm._initialize(settings_file=settingsfile)
+
+    #     # settings file does not exist. Try to delete it
+    #     with self.assertRaises(Exception):
+    #         sm.delete_saved_settings() 
 
     def test_clean_settings(self):
         sm = settings_manager.SettingsManager(skip_init=True)
@@ -90,14 +94,14 @@ class TestSettingsManager(unittest.TestCase):
         settingsdir = tempfile.mkdtemp()
         settingsfile = os.path.join(settingsdir, 'settingsdir', 'settings.json')
         sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(settingsfile)
+        sm.settings_file = os.path.join(settingsfile)
         sm.make_settings_directory()
 
     def test_make_settings_directory_already_exists(self):
         settingsdir = tempfile.mkdtemp()
         settingsfile = os.path.join(settingsdir, 'settings.json')
         sm = settings_manager.SettingsManager(skip_init=True)
-        sm.SAVED_SETTINGS_FILE = os.path.join(settingsfile)
+        sm.settings_file = os.path.join(settingsfile)
         sm.make_settings_directory()
 
     def test_remove_dir_if_empty(self):

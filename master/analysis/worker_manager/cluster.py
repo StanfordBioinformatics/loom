@@ -53,6 +53,11 @@ class ClusterWorkerManager:
         step = step_run.step_set.get()
         resources = step.resources
 
+        # Make sure sbatch is on the path
+        import distutils.spawn
+        if distutils.spawn.find_executable('sbatch') == None:
+            raise Exception('Slurm job submission executable, sbatch, not found on path')
+
         # Use Slurm to call the step runner on a worker node
     	ClusterWorkerManager._create_file_root()
         cmd = "sbatch -D %s -n %s --mem=%s --wrap='%s'" % (
