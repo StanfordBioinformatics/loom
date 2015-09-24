@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
+import immutable.models
 import uuid
 
 
@@ -26,6 +27,8 @@ class Migration(migrations.Migration):
             name='FileHandle',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
             ],
             options={
                 'abstract': False,
@@ -35,6 +38,8 @@ class Migration(migrations.Migration):
             name='FileImportRequest',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('comments', models.CharField(max_length=10000)),
                 ('requester', models.CharField(max_length=100)),
             ],
@@ -46,6 +51,8 @@ class Migration(migrations.Migration):
             name='FileLocation',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
             ],
             options={
                 'abstract': False,
@@ -55,6 +62,8 @@ class Migration(migrations.Migration):
             name='ProcessLocation',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
             ],
             options={
                 'abstract': False,
@@ -64,6 +73,8 @@ class Migration(migrations.Migration):
             name='RequestDataBinding',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
             ],
             options={
                 'abstract': False,
@@ -73,6 +84,8 @@ class Migration(migrations.Migration):
             name='RequestDataBindingPortIdentifier',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('step', models.CharField(max_length=256)),
                 ('port', models.CharField(max_length=256)),
             ],
@@ -84,6 +97,8 @@ class Migration(migrations.Migration):
             name='RequestDataPipe',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
             ],
             options={
                 'abstract': False,
@@ -93,6 +108,8 @@ class Migration(migrations.Migration):
             name='RequestDataPipeDestinationPortIdentifier',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('step', models.CharField(max_length=256)),
                 ('port', models.CharField(max_length=256)),
             ],
@@ -104,6 +121,8 @@ class Migration(migrations.Migration):
             name='RequestDataPipeSourcePortIdentifier',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('step', models.CharField(max_length=256)),
                 ('port', models.CharField(max_length=256)),
             ],
@@ -115,6 +134,8 @@ class Migration(migrations.Migration):
             name='RequestEnvironment',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
             ],
             options={
                 'abstract': False,
@@ -124,6 +145,8 @@ class Migration(migrations.Migration):
             name='RequestInputPort',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('name', models.CharField(max_length=256)),
                 ('file_path', models.CharField(max_length=256)),
             ],
@@ -135,6 +158,8 @@ class Migration(migrations.Migration):
             name='RequestOutputPort',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('name', models.CharField(max_length=256)),
                 ('file_path', models.CharField(max_length=256)),
             ],
@@ -146,6 +171,8 @@ class Migration(migrations.Migration):
             name='RequestResourceSet',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('memory', models.CharField(max_length=20)),
                 ('cores', models.IntegerField()),
             ],
@@ -157,6 +184,8 @@ class Migration(migrations.Migration):
             name='RequestSubmission',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('requester', models.CharField(max_length=100)),
             ],
             options={
@@ -167,6 +196,8 @@ class Migration(migrations.Migration):
             name='Step',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('name', models.CharField(max_length=256)),
                 ('command', models.CharField(max_length=256)),
             ],
@@ -256,6 +287,8 @@ class Migration(migrations.Migration):
             name='StepRun',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('is_complete', models.BooleanField(default=False)),
             ],
             options={
@@ -266,6 +299,8 @@ class Migration(migrations.Migration):
             name='Workflow',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=immutable.models.now)),
+                ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('name', models.CharField(max_length=256, null=True)),
             ],
             options={

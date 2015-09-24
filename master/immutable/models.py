@@ -14,7 +14,8 @@ from immutable.exceptions import *
 if not settings.USE_TZ == True:
     raise Exception("You are required to set USE_TZ=True in the django settings module, to support timezone-aware datetimes.")
 
-now = lambda:timezone.now().isoformat()
+def now():
+    return timezone.now().isoformat()
 
 class _BaseModel(models.Model):
 
