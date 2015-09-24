@@ -148,7 +148,6 @@ class Migration(migrations.Migration):
                 ('datetime_created', models.DateTimeField(default=immutable.models.now)),
                 ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('name', models.CharField(max_length=256)),
-                ('file_path', models.CharField(max_length=256)),
             ],
             options={
                 'abstract': False,
@@ -161,7 +160,6 @@ class Migration(migrations.Migration):
                 ('datetime_created', models.DateTimeField(default=immutable.models.now)),
                 ('datetime_updated', models.DateTimeField(default=immutable.models.now)),
                 ('name', models.CharField(max_length=256)),
-                ('file_path', models.CharField(max_length=256)),
             ],
             options={
                 'abstract': False,
@@ -355,6 +353,28 @@ class Migration(migrations.Migration):
             bases=('analysis.requestenvironment',),
         ),
         migrations.CreateModel(
+            name='RequestFileInputPort',
+            fields=[
+                ('requestinputport_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.RequestInputPort')),
+                ('file_path', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.requestinputport',),
+        ),
+        migrations.CreateModel(
+            name='RequestFileOutputPort',
+            fields=[
+                ('requestoutputport_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.RequestOutputPort')),
+                ('file_path', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.requestoutputport',),
+        ),
+        migrations.CreateModel(
             name='StepDefinitionDockerImage',
             fields=[
                 ('stepdefinitionenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.StepDefinitionEnvironment')),
@@ -451,16 +471,6 @@ class Migration(migrations.Migration):
             field=models.ManyToManyField(to='analysis.Workflow'),
         ),
         migrations.AddField(
-            model_name='requestoutputport',
-            name='step',
-            field=models.ForeignKey(related_name='output_ports', to='analysis.Step', null=True),
-        ),
-        migrations.AddField(
-            model_name='requestinputport',
-            name='step',
-            field=models.ForeignKey(related_name='input_ports', to='analysis.Step', null=True),
-        ),
-        migrations.AddField(
             model_name='requestdatapipe',
             name='destination',
             field=models.ForeignKey(to='analysis.RequestDataPipeDestinationPortIdentifier'),
@@ -499,5 +509,15 @@ class Migration(migrations.Migration):
             model_name='fileimportrequest',
             name='file_location',
             field=models.ForeignKey(to='analysis.FileLocation'),
+        ),
+        migrations.AddField(
+            model_name='requestfileoutputport',
+            name='step',
+            field=models.ForeignKey(related_name='output_ports', to='analysis.Step', null=True),
+        ),
+        migrations.AddField(
+            model_name='requestfileinputport',
+            name='step',
+            field=models.ForeignKey(related_name='input_ports', to='analysis.Step', null=True),
         ),
     ]

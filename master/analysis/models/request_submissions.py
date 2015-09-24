@@ -192,10 +192,12 @@ class RequestResourceSet(MutableModel, AnalysisAppBaseModel):
 
 class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_output_port', 'request_output_ports')
+    name = models.CharField(max_length = 256)
+
+class RequestFileOutputPort(RequestOutputPort):
 
     # Relative path within the working directory where
     # a file will be found after a step executes
-    name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
     step = models.ForeignKey('Step', related_name='output_ports', null=True)
 
@@ -209,10 +211,11 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
 
 class RequestInputPort(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_input_port', 'request_input_ports')
+    name = models.CharField(max_length = 256)
 
+class RequestFileInputPort(RequestInputPort):
     # Relative path within the working directory where
     # a file will be copied before a step is executed
-    name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
     step = models.ForeignKey('Step', related_name='input_ports', null=True)
 

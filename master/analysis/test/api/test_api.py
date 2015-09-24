@@ -4,12 +4,14 @@ from datetime import datetime
 import json
 import os
 import requests
+import sys
 import time
 
-from analysis.test.fixtures import *
 from analysis.models import RequestSubmission
 from xppf.client import xppf_server_controls
 
+sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
+from xppf.utils.fixtures import *
 
 class TestXppfRun(TestCase):
 

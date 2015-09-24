@@ -2,9 +2,11 @@ import copy
 from django.conf import settings
 from django.test import TestCase
 import os
+import sys
 
 from analysis.models import *
-from analysis.test.fixtures import *
+sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
+from xppf.utils.fixtures import *
 
 from .common import ImmutableModelsTestCase
 

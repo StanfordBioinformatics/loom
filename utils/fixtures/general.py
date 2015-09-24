@@ -2,7 +2,7 @@ import os
 
 with open(os.path.join(
         os.path.dirname(__file__),
-        '../../../doc/examples/helloworld/helloworld.json'
+        '../../doc/examples/helloworld/helloworld.json'
         )) as f:
     helloworld_json = f.read()
 

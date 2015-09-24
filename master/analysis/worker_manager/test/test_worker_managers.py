@@ -5,12 +5,15 @@ import json
 import os
 import requests
 import subprocess
+import sys
 import time
 import unittest
 import logging
 
 from django.conf import settings
-from xppf.master.analysis.test import fixtures
+
+sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
+from xppf.utils import fixtures
 from xppf.utils.testserver import TestServer
 from xppf.master.analysis.worker_manager.factory import WorkerManagerFactory
 from xppf.master.analysis.worker_manager.cluster import ClusterWorkerManager
