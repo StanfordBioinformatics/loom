@@ -25,7 +25,7 @@ class LocalWorkerManager:
         cmd = '%s --run_id %s --master_url %s' % (
             STEP_RUNNER_EXECUTABLE,
             step_run._id,
-            settings.MASTER_URL,
+            settings.MASTER_URL_FOR_WORKER,
             )
         logger.debug(cmd)
 

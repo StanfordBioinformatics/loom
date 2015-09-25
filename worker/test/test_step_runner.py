@@ -36,8 +36,9 @@ class TestStepRunner(unittest.TestCase):
         self.test_server.stop()
 
     def _run_helloworld(self):
-        r = requests.post(self.test_server.server_url+'/api/submitrequest/', data=fixtures.helloworld_json)
-        self.assertEqual(r.status_code, 201)
+        url = self.test_server.server_url+'/api/submitrequest/'
+        r = requests.post(url, data=fixtures.helloworld_json)
+        self.assertEqual(r.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (r.status_code, url))
         self.test_server.dry_run_job_queues()
 
     # Given steprun ID, retrieve the steprun

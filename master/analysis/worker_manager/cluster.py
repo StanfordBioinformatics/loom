@@ -43,7 +43,7 @@ class ClusterWorkerManager:
             PYTHON_EXECUTABLE,
             STEP_RUNNER_EXECUTABLE,
             step_run._id,
-            settings.MASTER_URL,
+            settings.MASTER_URL_FOR_WORKER,
             )
         # Retrieve resource requirements 
         if step_run.step_set.count() < 1:
