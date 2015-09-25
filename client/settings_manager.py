@@ -106,8 +106,8 @@ class SettingsManager:
 
             # Client outside of elasticluster, get IP's from elasticluster config file
             'CLIENT_TYPE': 'ELASTICLUSTER',
-            'MASTER_URL_FOR_CLIENT': '',  # retrieved by _get_frontend_ip_from_elasticluster()
-            'FILE_SERVER_FOR_CLIENT': '',  # retrieved by _get_frontend_ip_from_elasticluster()
+            'MASTER_URL_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
+            'FILE_SERVER_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
 
             # Needed by both worker and client
             'FILE_ROOT': os.path.join('/home', 'xppf', 'working_dir')
@@ -221,6 +221,10 @@ class SettingsManager:
                 self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
                 self.save_settings_to_file()
 
+        # Get IP's from elasticluster if needed
+        if self.settings['CLIENT_TYPE'] == 'ELASTICLUSTER':
+            self._update_elasticluster_frontend_ip()
+
     def load_settings_from_presets(self, dirty_presets):
             self.presets = SettingsManager._clean_presets(dirty_presets)
             dirty_settings = SettingsManager._get_current_preset(self.presets)
@@ -249,11 +253,10 @@ class SettingsManager:
         return settings
 
     def _update_elasticluster_frontend_ip(self):
-        """Update settings with the elasticluster frontend IP if needed."""
-        if self.settings['CLIENT_TYPE'] == 'ELASTICLUSTER':
-            frontend_ip = self._get_elasticluster_frontend_ip()
-            self.settings['FILE_SERVER_FOR_CLIENT'] = frontend_ip
-            self.settings['MASTER_URL_FOR_CLIENT'] = "http://%s:8000" % frontend_ip
+        """Update settings with the elasticluster frontend IP, and also write to presets."""
+        frontend_ip = self._get_elasticluster_frontend_ip()
+        self.settings['FILE_SERVER_FOR_CLIENT'] = frontend_ip
+        self.settings['MASTER_URL_FOR_CLIENT'] = "http://%s:8000" % frontend_ip
         
         current_preset_key = self.presets['CURRENT_PRESET']
         self.presets[current_preset_key] = self.settings

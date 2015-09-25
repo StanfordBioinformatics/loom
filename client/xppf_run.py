@@ -42,6 +42,8 @@ class XppfRun:
         pipeline = self.read_pipeline_file()
 
         try:
+            #print self.settings_manager.settings
+            #print "Server URL for client: " + self.settings_manager.get_server_url_for_client()
             response = requests.post(self.settings_manager.get_server_url_for_client()+'/api/submitrequest', data=json.dumps(pipeline))
         except requests.exceptions.ConnectionError as e:
             raise Exception("No response from server. (%s)" % e)
