@@ -6,7 +6,7 @@ import os
 import sys
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.utils.fixtures import *
+from xppf.common.fixtures import *
 
 
 class TestDefinitionModels(ImmutableModelsTestCase):

@@ -10,7 +10,7 @@ import subprocess
 import logging
 
 from xppf.client import settings_manager
-from xppf.utils import md5calc
+from xppf.common import md5calc
 
 
 class XppfUploadException(Exception):

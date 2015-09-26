@@ -3,7 +3,7 @@ from django.db import models
 from .common import AnalysisAppBaseModel
 from immutable.models import ImmutableModel, MutableModel
 
-from xppf.utils.exceptions import AbstractMethodException
+from xppf.common.exceptions import AbstractMethodException
 
 class File(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('file', 'files')

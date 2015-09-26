@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 
 from xppf.client import xppf_server_controls
-from xppf.utils.testserver import TestServer
+from xppf.common.testserver import TestServer
 
 class TestXppfServerControls(unittest.TestCase):
 

@@ -7,7 +7,7 @@ import requests
 import time
 
 from xppf.client import xppf_server_controls
-from xppf.utils.testserver import TestServer
+from xppf.common.testserver import TestServer
 
 class TestXppfRun(unittest.TestCase):
 

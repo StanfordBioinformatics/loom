@@ -10,8 +10,8 @@ import time
 import unittest
 
 from xppf.client import xppf_server_controls
-from xppf.utils import fixtures
-from xppf.utils.testserver import TestServer
+from xppf.common import fixtures
+from xppf.common.testserver import TestServer
 from xppf.worker.step_runner import StepRunner
 
 class TestStepRunner(unittest.TestCase):

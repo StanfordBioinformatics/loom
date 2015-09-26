@@ -4,8 +4,8 @@ sys.path.append(
     os.path.join(os.path.dirname(__file__), 
                  '../../../..'))
 
-from xppf.utils.fixtures import *
-from xppf.utils.integration_tests.workflows.abstract_workflow_tester import AbstractWorkflowTester
+from xppf.common.fixtures import *
+from xppf.common.integration_tests.workflows.abstract_workflow_tester import AbstractWorkflowTester
 
 helloworld_json_path = os.path.join(
     os.path.dirname(__file__), 

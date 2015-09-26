@@ -11,7 +11,7 @@ import time
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from xppf.utils import md5calc
+from xppf.common import md5calc
 
 class DataNotFoundException(Exception):
     pass

@@ -11,7 +11,7 @@ from analysis.models import RequestSubmission
 from xppf.client import xppf_server_controls
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.utils.fixtures import *
+from xppf.common.fixtures import *
 
 class TestXppfRun(TestCase):
 

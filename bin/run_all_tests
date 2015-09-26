@@ -12,5 +12,5 @@ python -m unittest discover
 cd $ROOTDIR/xppf/worker
 python -m unittest discover
 
-cd $ROOTDIR/xppf/utils
+cd $ROOTDIR/xppf/common
 python -m unittest discover

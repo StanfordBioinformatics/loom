@@ -6,7 +6,7 @@ import sys
 from analysis.models import *
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.utils.fixtures import *
+from xppf.common.fixtures import *
 
 from .common import ImmutableModelsTestCase
 

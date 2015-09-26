@@ -13,8 +13,8 @@ import logging
 from django.conf import settings
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.utils import fixtures
-from xppf.utils.testserver import TestServer
+from xppf.common import fixtures
+from xppf.common.testserver import TestServer
 from xppf.master.analysis.worker_manager.factory import WorkerManagerFactory
 from xppf.master.analysis.worker_manager.cluster import ClusterWorkerManager
 from xppf.master.analysis.worker_manager.local import LocalWorkerManager
