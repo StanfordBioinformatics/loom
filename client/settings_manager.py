@@ -44,18 +44,18 @@ class SettingsManager:
         'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
 
         # Workers on same machine as server
-        #'WORKER_TYPE': 'LOCAL',
-        #'MASTER_URL': 'http://127.0.0.1:8000',
-        #'FILE_SERVER': 'localhost',
-        #'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
+        'WORKER_TYPE': 'LOCAL',
+        'MASTER_URL': 'http://0.0.0.0:8000',
+        'FILE_SERVER': 'localhost',
+        'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
 
         # Workers in elasticluster 
         # Allows us to reach XPPF master at "frontend001" instead of getting a different IP every time
-        'WORKER_TYPE': 'CLUSTER',
-        'MASTER_URL': 'http://frontend001:8000',
-        'FILE_SERVER': 'frontend001',
-        'FILE_ROOT': os.path.join('/home', 'xppf', 'working_dir'),
-        'REMOTE_USERNAME': 'xppf',
+#        'WORKER_TYPE': 'CLUSTER',
+#        'MASTER_URL': 'http://frontend001:8000',
+#        'FILE_SERVER': 'frontend001',
+#        'FILE_ROOT': os.path.join('/home', 'xppf', 'working_dir'),
+#        'REMOTE_USERNAME': 'xppf',
 
         # TODO: Workers completely remote, IP's configured at runtime
         #'WORKER_TYPE': 'REMOTE',

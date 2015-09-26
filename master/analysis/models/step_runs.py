@@ -43,9 +43,9 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
             input_port = binding.input_port
             bundles.append(
                 {
-                    'file': file.to_obj(),
-                    'file_locations': [file_location.to_obj() for file_location in file_locations],
-                    'input_port': input_port.to_obj(),
+                    'file': file.to_serializable_obj(),
+                    'file_locations': [file_location.to_serializable_obj() for file_location in file_locations],
+                    'input_port': input_port.to_serializable_obj(),
                     }
                 )
         return bundles

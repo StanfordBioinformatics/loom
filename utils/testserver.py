@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import unittest
 from datetime import datetime
@@ -29,8 +31,14 @@ class TestServer:
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
         xs = xppf_server_controls.XppfServerControls(args=args)
-        xs.main()
+        xs.main() # stop server
         self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_webserver_pidfile()))
+
+    def status(self):
+        xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
+        args = xsc_parser.parse_args(['status', '--require_default_settings'])
+        xs = xppf_server_controls.XppfServerControls(args=args)
+        xs.main() # get server status
 
     def wait_for_true(self, test_method, timeout_seconds=5):
         start_time = datetime.now()
@@ -60,3 +68,20 @@ class TestServer:
         env['RACK_ENV'] = 'test'
         env['FILE_ROOT'] = '/tmp/'
         return env
+
+    @classmethod
+    def _get_parser(cls):
+        import argparse
+        parser = argparse.ArgumentParser("testserver")
+        parser.add_argument('command', choices=['start', 'stop', 'status'])
+        return parser
+
+if __name__=='__main__':
+    parser = TestServer._get_parser()
+    args = parser.parse_args()
+    if args.command == 'start':
+        TestServer().start()
+    elif args.command == 'stop':
+        TestServer().stop()
+    elif args.command == 'status':
+        TestServer().status()

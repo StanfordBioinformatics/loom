@@ -47,7 +47,7 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     def get_steps_ready_to_run(self):
         steps = []
         for step in self.steps.all():
-            if step.is_ready():
+            if step.is_ready() and not step.is_complete():
                 steps.append(step)
         return steps
 

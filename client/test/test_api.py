@@ -11,22 +11,9 @@ from xppf.utils.testserver import TestServer
 
 class TestXppfRun(unittest.TestCase):
 
-    file_path_location_json = """
-{
-  "file_path": "/path/to/my/file",
-  "file": {
-    "hash_value": "b1946ac92492d2347c6235b4d2611184",
-    "hash_function": "md5"
-  }
-}                                                                                                                                                                        
-"""
-
     def setUp(self):
         self.test_server = TestServer()
         self.test_server.start()
-
-        with open(os.path.join(os.path.dirname(__file__),'../../doc/examples/helloworld/helloworld.json')) as f:
-            self.helloworld_json = f.read()
 
     def tearDown(self):
         self.test_server.stop()

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-XPPFROOT=$(pwd)/$(dirname $0)/..
-export PYTHONPATH=${XPPFROOT}/..:$PYTHONPATH
-python $XPPFROOT/client/xppf_upload.py "$@"
+ROOTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )
+export PYTHONPATH=${ROOTDIR}:$PYTHONPATH
+python $ROOTDIR/xppf/client/xppf_upload.py "$@"
 

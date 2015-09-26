@@ -38,6 +38,14 @@ class XppfRun:
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         return parser
 
+    def get(self, relative_url):
+        response = requests.get(self.settings_manager.get_server_url_for_client()+relative_url)
+        return response
+
+    def post(self, relative_url, data):
+        response = requests.post(self.settings_manager.get_server_url_for_client()+relative_url, data=json.dumps(data))
+        return response
+
     def run(self):
         pipeline = self.read_pipeline_file()
 

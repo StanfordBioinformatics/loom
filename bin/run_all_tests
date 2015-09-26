@@ -1,15 +1,17 @@
 #!/bin/bash
 
-XPPFROOT=$(pwd)/$(dirname $0)/..
+ROOTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )
+export PYTHONPATH=${ROOTDIR}:$PYTHONPATH
 
-export PYTHONPATH=${XPPFROOT}/..:$PYTHONPATH
-
-cd $XPPFROOT/client
+cd $ROOTDIR/xppf/client
 python -m unittest discover
 
-cd $XPPFROOT/worker
+cd $ROOTDIR/xppf/worker
 python -m unittest discover
 
-cd $XPPFROOT/master
+cd $ROOTDIR/xppf/master
+./manage.py test
+
+cd $ROOTDIR/xppf/utils
 ./manage.py test
 

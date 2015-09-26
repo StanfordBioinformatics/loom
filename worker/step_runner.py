@@ -69,16 +69,14 @@ class StepRunner:
         step_run = self._get_step_run()
 
         self._prepare_working_directory()
-
         inputs = self._get_input_port_bundles().get('input_port_bundles')
         output_ports = self._get_output_ports(step_run)
-
         self._prepare_inputs(inputs)
         process = self._execute(step_run)
         self._wait_for_process(process)
-
         (results, locations) = self._process_outputs(output_ports, step_run.get('step_definition'))
         self._save_results(results, locations, step_run)
+        self._flag_run_as_complete(step_run)
 
     def _prepare_working_directory(self):
         self.WORKING_DIR = os.path.join(
@@ -195,6 +193,12 @@ class StepRunner:
             }
         requests.post(self.MASTER_URL+'/api/submitresult', data=json.dumps(data))
         # TODO verify
+
+    def _flag_run_as_complete(self, step_run):
+        update_data = {'is_complete': True}
+        url = self.MASTER_URL+'/api/step_runs/%s' % step_run.get('_id')
+        self.logger.debug('updating StepRun at url '+url)
+        requests.post(url, data=json.dumps(update_data))
 
     def _get_args(self):
         parser = self._get_parser()
