@@ -19,8 +19,6 @@ class XppfServerControls:
     - start
     - stop
     - status
-    - savesettings
-    - clearsettings
 
     Users should call this through ../bin/xppfserver to ensure the environment is configured.
     """
@@ -29,7 +27,6 @@ class XppfServerControls:
         if args is None:
             args=self._get_args()
         self.args = args
-        self._validate_args(args)
         self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
         self._set_main_function(args)
 
@@ -37,13 +34,14 @@ class XppfServerControls:
     def _get_parser(cls):
         import argparse
         parser = argparse.ArgumentParser("xppfserver")
-        parser.add_argument('command', choices=['start', 'stop', 'status', 'savesettings', 'clearsettings'])
-        parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
-                            help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
-        parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('command', choices=['start', 'stop', 'status'])
+        parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
+                            help="Settings files indicate which server to talk to and how the server can be reached. Defaults to ~/.xppf/settings.json (created on first run if not found). Use xppfconfig to choose from available presets, or edit the file directly.")
         parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--fg_webserver', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
+        parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
         return parser
 
     def _get_args(self):
@@ -51,18 +49,12 @@ class XppfServerControls:
         args = parser.parse_args()
         return args
 
-    def _validate_args(self, args):
-        if args.command == 'clearsettings' and args.settings is not None:
-            raise Exception("The '--settings' flag cannot be used with the 'clearsettings' command")
-
     def _set_main_function(self, args):
         # Map user input command to class method
         command_to_method_map = {
             'status': self.status,
             'start': self.start,
-            'stop': self.stop,
-            'savesettings': self.save_settings,
-            'clearsettings': self.clear_settings,
+            'stop': self.stop
         }
         try:
             self.main = command_to_method_map[args.command]
@@ -89,6 +81,8 @@ class XppfServerControls:
                 )
         if not self.args.fg_webserver:
             cmd = cmd + " --daemon"
+        if self.args.verbose:
+            print("Starting webserver with command:\n%s" % cmd)
         process = subprocess.Popen(
             cmd,
             shell=True,
@@ -107,6 +101,8 @@ class XppfServerControls:
         logfile = self.settings_manager.get_daemon_logfile()
         loglevel = self.settings_manager.get_log_level()
         cmd = "%s start --pidfile %s --logfile %s --loglevel %s" % (DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
+        if self.args.verbose:
+            print("Starting XPPF daemon with command:\n%s" % cmd)
         process = subprocess.Popen(
             cmd,
             shell=True,
@@ -155,12 +151,6 @@ class XppfServerControls:
                 os.remove(pidfile)
             except:
                 warnings.warn('Failed to delete PID file %s' % pidfile)
-
-    def save_settings(self):
-        self.settings_manager.save_settings_to_file()
-
-    def clear_settings(self):
-        self.settings_manager.delete_saved_settings()
 
     def _add_server_to_python_path(self, env):
         env.setdefault('PYTHONPATH', '')

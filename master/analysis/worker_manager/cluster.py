@@ -43,7 +43,7 @@ class ClusterWorkerManager:
             PYTHON_EXECUTABLE,
             STEP_RUNNER_EXECUTABLE,
             step_run._id,
-            settings.MASTER_URL,
+            settings.MASTER_URL_FOR_WORKER,
             )
         # Retrieve resource requirements 
         if step_run.step_set.count() < 1:
@@ -52,6 +52,11 @@ class ClusterWorkerManager:
             raise Exception('More than one step found for a step run')
         step = step_run.step_set.get()
         resources = step.resources
+
+        # Make sure sbatch is on the path
+        import distutils.spawn
+        if distutils.spawn.find_executable('sbatch') == None:
+            raise Exception('Slurm job submission executable, sbatch, not found on path')
 
         # Use Slurm to call the step runner on a worker node
     	ClusterWorkerManager._create_file_root()

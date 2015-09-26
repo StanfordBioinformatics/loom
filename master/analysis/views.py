@@ -48,7 +48,7 @@ def status(request):
 @require_http_methods(["GET"])
 def workerinfo(request):
     workerinfo = {
-        'FILE_SERVER': settings.FILE_SERVER,
+        'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
         'FILE_ROOT': settings.FILE_ROOT,
         'WORKER_LOGFILE': settings.WORKER_LOGFILE,
         'LOG_LEVEL': settings.LOG_LEVEL,

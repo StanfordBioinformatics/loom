@@ -3,15 +3,14 @@
 ROOTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )
 export PYTHONPATH=${ROOTDIR}:$PYTHONPATH
 
+cd $ROOTDIR/xppf/master
+./manage.py test
+
 cd $ROOTDIR/xppf/client
 python -m unittest discover
 
 cd $ROOTDIR/xppf/worker
 python -m unittest discover
 
-cd $ROOTDIR/xppf/master
-./manage.py test
-
 cd $ROOTDIR/xppf/utils
-./manage.py test
-
+python -m unittest discover

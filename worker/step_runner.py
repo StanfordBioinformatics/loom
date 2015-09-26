@@ -37,7 +37,7 @@ class StepRunner:
         response.raise_for_status()
         workerinfo = response.json()
 
-        self.FILE_SERVER = workerinfo['workerinfo']['FILE_SERVER']
+        self.FILE_SERVER = workerinfo['workerinfo']['FILE_SERVER_FOR_WORKER']
         self.FILE_ROOT = workerinfo['workerinfo']['FILE_ROOT']
         self.LOGFILE = workerinfo['workerinfo']['WORKER_LOGFILE']
         self.LOG_LEVEL = workerinfo['workerinfo']['LOG_LEVEL']
