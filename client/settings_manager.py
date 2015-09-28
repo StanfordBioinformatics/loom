@@ -105,7 +105,7 @@ class SettingsManager:
             # Info needed by client (xppf_run and xppf_upload)
 
             # Client outside of elasticluster, get IP's from elasticluster config file
-            'CLIENT_TYPE': 'ELASTICLUSTER',
+            'CLIENT_TYPE': 'OUTSIDE_ELASTICLUSTER',
             'MASTER_URL_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
             'FILE_SERVER_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
 
@@ -146,7 +146,7 @@ class SettingsManager:
             # Info needed by client (xppf_run and xppf_upload)
 
             # Client inside elasticluster on frontend node
-            'CLIENT_TYPE': 'ELASTICLUSTER',
+            'CLIENT_TYPE': 'INSIDE_ELASTICLUSTER',
             'MASTER_URL_FOR_CLIENT': 'http://frontend001:8000',
             'FILE_SERVER_FOR_CLIENT': 'frontend001',
 
@@ -222,7 +222,7 @@ class SettingsManager:
                 self.save_settings_to_file()
 
         # Get IP's from elasticluster if needed
-        if self.settings['CLIENT_TYPE'] == 'ELASTICLUSTER':
+        if self.settings['CLIENT_TYPE'] == 'OUTSIDE_ELASTICLUSTER':
             self._update_elasticluster_frontend_ip()
 
     def load_settings_from_presets(self, dirty_presets):
