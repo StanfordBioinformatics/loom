@@ -1,0 +1,152 @@
+{
+  "requester": "someone@example.net", 
+  "workflows": [
+    {
+      "data_pipes": [
+        {
+          "source": {
+            "step": "split_step", 
+            "port": "bam_array"
+          }, 
+          "destination": {
+            "step": "process_step", 
+            "port": "bam"
+          }
+        }, 
+        {
+          "source": {
+            "step": "process_step", 
+            "port": "bam"
+          }, 
+          "destination": {
+            "step": "merge_step", 
+            "port": "bam_array"
+          }
+        }, 
+        {
+          "source": {
+            "step": "split_step", 
+            "port": "chromosome_list"
+          }, 
+          "destination": {
+            "step": "process_step", 
+            "port": "chr"
+          }
+        }, 
+        {
+          "source": {
+            "step": "split_step", 
+            "port": "chromosome_list"
+          }, 
+          "destination": {
+            "step": "merge_step", 
+            "port": "chromosome_list"
+          }
+        }
+      ], 
+      "data_bindings": [
+        {
+          "destination": {
+            "step": "split_step", 
+            "port": "bam"
+          }, 
+          "data": {
+            "hash_value": "???", 
+            "type": "file", 
+            "hash_function": "md5"
+          }
+        }
+      ], 
+      "steps": [
+        {
+          "name": "split_step", 
+          "input_ports": [
+            {
+              "file_name": "input.bam", 
+              "name": "bam", 
+              "data_type": "file"
+            }
+          ], 
+          "environment": {
+            "docker_image": "ubuntu"
+          }, 
+          "command": "bamtools split -in {{ input.bam }} -tag RG; for file in *TAG_RG*.bam; do f=${file%.bam}; f=${f#*TAG_RG_}; echo $f >> {{ output_ports.chromosome_list }}; done", 
+          "output_ports": [
+            {
+              "glob": "*TAG_RG*.bam", 
+              "name": "bam_array", 
+              "data_type": "file_array"
+            }, 
+            {
+              "name": "chromosome_list", 
+              "data_type": "string_array"
+            }
+          ], 
+          "resources": {
+            "cores": "1", 
+            "memory": "1GB"
+          }
+        }, 
+        {
+          "name": "process_step", 
+          "input_ports": [
+            {
+              "type": "file", 
+              "name": "bam", 
+              "filename": "{{ input_ports.chr }}.bam"
+            }, 
+            {
+              "type": "string", 
+              "name": "chr"
+            }
+          ], 
+          "environment": {
+            "docker_image": "ubuntu"
+          }, 
+          "command": "process_chromosome {{ input_ports.bam }} > {{ output_ports.bam }}", 
+          "output_ports": [
+            {
+              "type": "file", 
+              "name": "bam", 
+              "filename": "{{ input_ports.chr }}_out.bam"
+            }
+          ], 
+          "resources": {
+            "cores": "1", 
+            "memory": "1GB"
+          }
+        }, 
+        {
+          "name": "merge_step", 
+          "input_ports": [
+            {
+              "file_name": "{{ input_ports.chromosome_list[i] }}.bam", 
+              "name": "bam_array", 
+              "data_type": "file_array"
+            }, 
+            {
+              "input_ports": "chromosome_list", 
+              "data_type": "string_array"
+            }
+          ], 
+          "environment": {
+            "docker_image": "ubuntu"
+          }, 
+          "command": "samtools merge {{ output_ports.merged_bam }}{% for bam in input_ports.bam_array %} {{ bam }}{% endfor %}", 
+          "output_ports": [
+            {
+              "file_name": "out.bam", 
+              "name": "merged_bam", 
+              "data_type": "file"
+            }
+          ], 
+          "resources": {
+            "cores": "1", 
+            "memory": "1GB"
+          }
+        }
+      ], 
+      "name": "split_merge"
+    }
+  ]
+}
