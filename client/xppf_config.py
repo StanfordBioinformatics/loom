@@ -30,6 +30,7 @@ class XppfConfig:
         self.args = args
         self._validate_args(args)
         self._set_main_function(args)
+        self._set_default_settings(args)
         self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings, verbose=args.verbose)
 
     @classmethod
@@ -59,12 +60,20 @@ class XppfConfig:
             'elasticluster': self.set_elasticluster,
             'elasticluster_frontend': self.set_elasticluster_frontend,
             'savesettings': self.save_settings,
-            'clearsettings': self.clear_settings,
+            'clearsettings': self.clear_settings
         }
         try:
             self.main = command_to_method_map[args.command]
         except KeyError:
             raise Exception('Did not recognize command %s' % args.command)
+
+    def _set_default_settings(self, args):
+        if args.require_default_settings == None:
+            # If one of the presets is chosen, use default settings (don't bother loading settings.json)
+            if args.command in ('local', 'elasticluster', 'elasticluster_frontend'):
+                args.require_default_settings = True
+            else:
+                args.require_default_settings = False
 
     def set_local(self):
         self.settings_manager.set_local()
