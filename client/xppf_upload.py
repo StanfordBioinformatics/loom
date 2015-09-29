@@ -136,7 +136,7 @@ class XppfUpload:
                 )
 
     def _is_elasticluster(self):
-        return self.settings_manager.get_client_type() == 'ELASTICLUSTER'
+        return self.settings_manager.get_client_type() in ('INSIDE_ELASTICLUSTER', 'OUTSIDE_ELASTICLUSTER')
 
     def _is_localhost(self):
         return self.file_server in self.LOCALHOST

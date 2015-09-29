@@ -33,6 +33,7 @@ class SettingsManager:
 
     # Constants
     DEFAULT_SETTINGS_FILE = os.path.join(os.getenv('HOME'), '.xppf', 'settings.json')
+    DEFAULT_REMOTE_USERNAME = 'xppf'
     DEFAULT_PRESETS = {
         'CURRENT_PRESET': 'LOCAL_SETTINGS',
 
@@ -70,7 +71,10 @@ class SettingsManager:
             'FILE_SERVER_FOR_CLIENT': 'localhost', 
 
             # Needed by both worker and client
-            'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir')
+            'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
+    
+            # Not currently used for local mode
+            'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         },
 
         # Client is outside of elasticluster, workers and master in elasticluster
@@ -110,7 +114,8 @@ class SettingsManager:
             'FILE_SERVER_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
 
             # Needed by both worker and client
-            'FILE_ROOT': os.path.join('/home', 'xppf', 'working_dir')
+            'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         },
 
         # Client is in elasticluster on frontend node, workers are not 
@@ -151,7 +156,8 @@ class SettingsManager:
             'FILE_SERVER_FOR_CLIENT': 'frontend001',
 
             # Needed by both worker and client
-            'FILE_ROOT': os.path.join('/home', 'xppf', 'working_dir')
+            'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         }
     }
 
@@ -179,7 +185,8 @@ class SettingsManager:
             'FILE_ROOT': {"type": "string"},
             'CLIENT_TYPE': {"type": "string"},
             'MASTER_URL_FOR_CLIENT': {"type": "string"},
-            'FILE_SERVER_FOR_CLIENT': {"type": "string"}
+            'FILE_SERVER_FOR_CLIENT': {"type": "string"},
+            'REMOTE_USERNAME': {"type": "string"}
         },
         "additionalProperties": False
     }
@@ -209,12 +216,12 @@ class SettingsManager:
         self.settings_file = settings_file
         self.require_default_settings = require_default_settings
 
+        if self.settings_file is None:
+            self.settings_file = SettingsManager.DEFAULT_SETTINGS_FILE
+
         if self.require_default_settings:
             self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
         else:
-            if self.settings_file is None:
-                self.settings_file = SettingsManager.DEFAULT_SETTINGS_FILE
-
             if os.path.exists(self.settings_file):
                 self.load_settings_from_file()
             else:
@@ -374,6 +381,9 @@ class SettingsManager:
     def _validate_pid(self, pid):
         if not re.match('^[0-9]*$', pid):
             raise Exception('Invalid pid "%s" found in pidfile %s' % (pid, pidfile))
+
+    def get_remote_username(self):
+        return self.settings['REMOTE_USERNAME']
 
     def get_server_path(self):
         return self.settings['SERVER_PATH']
