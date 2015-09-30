@@ -9,7 +9,7 @@ from django.conf import settings
 from analysis.models import StepResult
 
 
-logger = logging.getLogger('xppf')
+logger = logging.getLogger('XppfDaemon')
 
 # Location of Python in virtualenv on worker node
 PYTHON_EXECUTABLE = os.path.abspath(
@@ -56,7 +56,7 @@ class ClusterWorkerManager:
         # Make sure sbatch is on the path
         import distutils.spawn
         if distutils.spawn.find_executable('sbatch') == None:
-            raise Exception('Slurm job submission executable, sbatch, not found on path')
+            raise Exception('Slurm job submission executable (sbatch) not found on path')
 
         # Use Slurm to call the step runner on a worker node
     	ClusterWorkerManager._create_file_root()
@@ -74,5 +74,5 @@ class ClusterWorkerManager:
         #TODO save proc.pid for follow-up
 
 	# For now, return process so caller can follow up
-	# However, this is just the sbatch submission process, not the step runner!
+	# However, this is just the job submit process (sbatch), not the step runner!
 	return proc

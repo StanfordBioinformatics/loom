@@ -434,6 +434,8 @@ class SettingsManager:
         the webserver. This allows master/xppfserver/settings.py to use these settings.
         Passing settings this way only works if the webserver is on the same machine as the
         client launching it.
+
+        TODO: pass settings to Django server when client is on a different machine
         """
         export_settings = {}
         setting_keys_to_export = [
