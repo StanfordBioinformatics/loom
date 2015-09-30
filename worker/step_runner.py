@@ -88,9 +88,10 @@ class StepRunner:
                 ))
         try:
             os.makedirs(self.WORKING_DIR)
+            self.logger.debug('Created %s' % self.WORKING_DIR)
         except OSError as e:
             if e.errno == errno.EEXIST and os.path.isdir(self.WORKING_DIR):
-                pass
+                self.logger.debug('Directory %s exists, no need to create' % self.WORKING_DIR) 
             else:
                 raise
 

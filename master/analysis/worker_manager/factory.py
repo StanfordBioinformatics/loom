@@ -4,12 +4,12 @@ from .dummy import DummyWorkerManager
 from .local import LocalWorkerManager
 from .cluster import ClusterWorkerManager
 
-logger = logging.getLogger('xppf')
+logger = logging.getLogger('XppfDaemon')
 
 class WorkerManagerFactory:
     LOCAL = 'LOCAL'
     DUMMY = 'DUMMY'
-    CLUSTER = 'CLUSTER'
+    CLUSTER = 'ELASTICLUSTER'
 
     @classmethod
     def get_worker_manager(cls):

@@ -9,7 +9,7 @@ from django.conf import settings
 from analysis.models import StepResult
 
 
-logger = logging.getLogger('xppf')
+logger = logging.getLogger('XppfDaemon')
 
 STEP_RUNNER_EXECUTABLE = os.path.abspath(
     os.path.join(
