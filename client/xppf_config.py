@@ -68,9 +68,9 @@ class XppfConfig:
             raise Exception('Did not recognize command %s' % args.command)
 
     def _set_default_settings(self, args):
-        if args.require_default_settings == None:
+        if args.require_default_settings == False:
             # If one of the presets is chosen, use default settings (don't bother loading settings.json)
-            if args.command in ('local', 'elasticluster', 'elasticluster_frontend'):
+            if args.command in ('local', 'elasticluster', 'elasticluster_frontend', 'clearsettings'):
                 args.require_default_settings = True
             else:
                 args.require_default_settings = False
