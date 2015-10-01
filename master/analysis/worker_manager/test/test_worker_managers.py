@@ -47,7 +47,7 @@ class TestWorkerManagers(unittest.TestCase):
         time.sleep(5)
 
     def test_cluster_worker_manager(self):
-        settings.WORKER_TYPE = 'CLUSTER'
+        settings.WORKER_TYPE = 'ELASTICLUSTER'
         settings.MASTER_URL_FOR_WORKER = 'http://frontend001:8000'
         self._run_helloworld()
 
