@@ -56,12 +56,17 @@ class XppfUpload:
         print "Copying file to server"
         self._copy_file()
 
-        file_location_obj = self._create_file_location_obj(file_obj)
-        file_location_id = self._post_file_location_obj(file_location_obj)
+        file_storage_location_obj = self._create_file_storage_location_obj(file_obj)
+        file_storage_location_id = self._post_file_storage_location_obj(file_storage_location_obj)
 
         return
 
     def _create_file_obj(self):
+        return {
+            'file_contents': self._create_file_contents_obj()
+            }
+
+    def _create_file_contents_obj(self):
         return {
             'hash_value': md5calc.calculate_md5sum(self.local_path),
             'hash_function': 'md5',
@@ -163,17 +168,17 @@ class XppfUpload:
             )
         return self._remote_path
 
-    def _create_file_location_obj(self, file_obj):
+    def _create_file_storage_location_obj(self, file_obj):
         return {
-            'file': file_obj,
+            'file_contents': file_obj['file_contents'],
             'file_path': self.get_remote_path(),
             'host_url': self.file_server,
             }
 
-    def _post_file_location_obj(self, file_location_obj):
+    def _post_file_storage_location_obj(self, file_storage_location_obj):
         try:
             url = self.settings_manager.get_server_url_for_client()
-            response = requests.post(url+'/api/file_locations', data=json.dumps(file_location_obj))
+            response = requests.post(url+'/api/file_storage_locations', data=json.dumps(file_storage_location_obj))
         except requests.exceptions.ConnectionError as e:
             raise Exception("No response from server %s\n%s)" % (url, e))
         

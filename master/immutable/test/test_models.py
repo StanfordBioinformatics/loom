@@ -31,7 +31,6 @@ class TestMutableModel(TestCase):
 
     def testCreateWithListOfChildrenReverseForeignKey(self):
         model_json = '{"listofchildren_foreignkey": [{"name": "ishmael"}, {"name": "jake"}]}'
-#        with self.assertRaises(ForeignKeyInChildError):
         model = SampleMutableParent.create(model_json)
         self.assertEqual(model.listofchildren_foreignkey.count(), 2)
 

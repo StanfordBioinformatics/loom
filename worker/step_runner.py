@@ -108,7 +108,7 @@ class StepRunner:
         subprocess.call(cmd)
 
     def _select_location(self, input):
-        return input['file_locations'][0]['file_path']
+        return input['file_storage_locations'][0]['file_path']
 
     def _execute(self, step_run):
         step_definition = step_run.get('step_definition')
@@ -155,7 +155,7 @@ class StepRunner:
 
     def _get_location_obj(self, output_port):
         location = {
-            'file': self._get_file_obj(self._get_file_path(output_port)),
+            'file_contents': self._get_file_obj(self._get_file_path(output_port))['file_contents'],
             'file_path': self._get_file_path(output_port),
             'host_url': self.FILE_SERVER,
             }
@@ -173,8 +173,10 @@ class StepRunner:
 
     def _get_file_obj(self, file_path):
         file = {
-            'hash_value': md5calc.calculate_md5sum(file_path),
-            'hash_function': 'md5',
+            'file_contents': {
+                'hash_value': md5calc.calculate_md5sum(file_path),
+                'hash_function': 'md5',
+                }
             }
         return file
 
@@ -185,7 +187,7 @@ class StepRunner:
             self._save_location(location)
 
     def _save_location(self, location):
-        requests.post(self.MASTER_URL+'/api/file_locations', data=json.dumps(location))
+        requests.post(self.MASTER_URL+'/api/file_storage_locations', data=json.dumps(location))
 
     def _save_result(self, result, step_run):
         data = {

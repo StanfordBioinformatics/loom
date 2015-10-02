@@ -113,12 +113,16 @@ class _BaseModel(models.Model):
                 field.add(child)
 
     def _create_or_update_field(self, key, value):
+        if self._is_field_a_parent(key):
+            raise ParentNestedInChildException("Setting field %s on class %s is not permitted because the field is a parent. "
+                            "If this field is a foreign key child, add FOREIGN_KEY_CHILDREN = ['%s'] to the class definition of %s" 
+                            % (key, type(self), key, type(self)))
         if isinstance(value, list):
             self._create_or_update_many_to_many_field(key, value)
         elif isinstance(value, dict):
             self._create_or_update_foreign_key_field(key, value)
         else:
-            self._create_or_update_scalar_field(key, value)
+            self._create_or_update_scalar_field(key, value)        
 
     def _create_or_update_scalar_field(self, key, value):
         if not hasattr(self, key):
@@ -263,7 +267,7 @@ class _BaseModel(models.Model):
         obj = {}
         for field in self._meta.get_fields():
             field_obj = self._get_field_as_obj(field)
-            if (field_obj is None) or (field_obj == []):
+            if (field_obj is None) or (field_obj == []) or (field_obj == ''):
                 continue
             obj[field.name] = field_obj
         return obj
@@ -303,6 +307,14 @@ class _BaseModel(models.Model):
                 return True
         else:
             return False
+
+    def _is_field_a_parent(self, field_name):
+        # Field is a parent if it is a foreign key that is not listed in FOREIGN_KEY_CHILDREN
+        # TODO: OR if the current class is listed in FOREIGN_KEY_CHILDREN of the field's model
+        return self._is_field_a_foreign_key(field_name) and not self._is_field_a_foreign_key_child(field_name)
+
+    def _is_field_a_foreign_key(self, field_name):
+        return isinstance(self._meta.get_field(field_name), models.fields.related.ForeignKey)
 
     def _is_field_a_foreign_key_child(self, field_name):
         if hasattr(self, 'FOREIGN_KEY_CHILDREN'):

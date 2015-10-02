@@ -42,8 +42,10 @@ hello_world_step_result_obj1 = {
             'file_path': u'world.txt',
             }, 
         'file': {
-            'hash_value': u'8c2753548775b4161e531c323ea24c08', 
-            'hash_function': u'md5'
+            'file_contents': {
+                'hash_value': u'8c2753548775b4161e531c323ea24c08', 
+                'hash_function': u'md5'
+                }
             }
         }
     }
@@ -55,8 +57,10 @@ hello_world_step_definition_obj2 = {
                 'file_path': u'hello.txt'
                 }, 
             'file': {
-                'hash_value': u'b1946ac92492d2347c6235b4d2611184', 
-                'hash_function': u'md5'
+                'file_contents': {
+                    'hash_value': u'b1946ac92492d2347c6235b4d2611184', 
+                    'hash_function': u'md5'
+                    }
                 }
             }
         ], 
@@ -88,8 +92,10 @@ hello_world_step_result_obj2 = {
             'file_path': u'hello_world.txt'
             }, 
         'file': {
-            'hash_value': u'ffdc12d8d601ae40f258acf3d6e7e1fb', 
-            'hash_function': u'md5'
+            'file_contents': {
+                'hash_value': u'ffdc12d8d601ae40f258acf3d6e7e1fb', 
+                'hash_function': u'md5'
+                }
             }
         }
     }
@@ -175,8 +181,10 @@ hello_world_request_with_runs = {
                         'port': 'hello_in'
                         }, 
                     'file': {
-                        'hash_value': 'b1946ac92492d2347c6235b4d2611184', 
-                        'hash_function': 'md5'
+                        'file_contents': {
+                            'hash_value': 'b1946ac92492d2347c6235b4d2611184', 
+                            'hash_function': 'md5'
+                            }
                         }
                     }
                 ]
@@ -185,30 +193,23 @@ hello_world_request_with_runs = {
     'requester': u'someone@example.net'
     }
 
-file_obj = {
+file_contents_obj = {
     'hash_value': '1234asfd',
-    'hash_function': 'md5',
+    'hash_function': 'md5', 
     }
 
-file_server_location_obj = {
-    'file': file_obj,
+file_obj = {
+    'file_contents': file_contents_obj,
+    }
+
+server_file_storage_location_obj = {
+    'file_contents': file_contents_obj,
     'file_path': '/absolute/path/to/my/file.txt',
     'host_url': 'localhost',
     }
 
-file_server_location_json = """
-{
-  "file_path": "/path/to/my/file",
-  "host_url": "localhost",
-  "file": {
-    "hash_value": "b1946ac92492d2347c6235b4d2611184",
-    "hash_function": "md5"
-  }
-}    
-"""
-
 file_import_request_obj = {
-    'file_location': file_server_location_obj,
+    'file_storage_location': server_file_storage_location_obj,
     'comments': "Description of file source",
     'requester': "someone@somewhere.net",
     }

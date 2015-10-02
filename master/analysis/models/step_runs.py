@@ -1,7 +1,7 @@
 from django.db import models
 
 from immutable.models import MutableModel
-from analysis.models import FileLocation, File, StepResult
+from analysis.models import FileStorageLocation, File, StepResult
 
 from .common import AnalysisAppBaseModel
 
@@ -39,12 +39,12 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
         bundles = []
         for binding in self.step_definition.data_bindings.all():
             file = binding.file
-            file_locations = FileLocation.get_by_file(file).all()
+            file_storage_locations = FileStorageLocation.get_by_file(file).all()
             input_port = binding.input_port
             bundles.append(
                 {
                     'file': file.to_serializable_obj(),
-                    'file_locations': [file_location.to_serializable_obj() for file_location in file_locations],
+                    'file_storage_locations': [file_storage_location.to_serializable_obj() for file_storage_location in file_storage_locations],
                     'input_port': input_port.to_serializable_obj(),
                     }
                 )

@@ -5,54 +5,64 @@ from immutable.models import ImmutableModel, MutableModel
 
 from xppf.common.exceptions import AbstractMethodException
 
+
 class File(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('file', 'files')
+    FOREIGN_KEY_CHILDREN = ['file_contents']
+
+    metadata = models.CharField(max_length = 10000)
+    file_contents = models.ForeignKey('FileContents')
+
+    def is_available(self):
+        return self.file_contents.has_storage_location()
+
+class FileContents(ImmutableModel, AnalysisAppBaseModel):
+    _class_name = ('file_contents', 'file_contents')
 
     hash_value = models.CharField(max_length = 100)
     hash_function = models.CharField(max_length = 100)
 
-    def is_available(self):
-        return self.filelocation_set.exists()
+    def has_storage_location(self):
+        return self.filestoragelocation_set.exists()
 
-class FileLocation(MutableModel, AnalysisAppBaseModel):
-    # Multitable, not abstract inheritance, so that 
-    # pointers to the parent class can be created.
+class FileStorageLocation(MutableModel, AnalysisAppBaseModel):
+    _class_name = ('file_storage_location', 'file_storage_locations')
+    FOREIGN_KEY_CHILDREN = ['file_contents']
 
-    _class_name = ('file_location', 'file_locations')
-    FOREIGN_KEY_CHILDREN = ['file']
-    file = models.ForeignKey('File', null=True)
+    file_contents = models.ForeignKey('FileContents', null=True)
 
     @classmethod
     def get_by_file(self, file):
-        return self.objects.filter(file=file).all()
+        return self.objects.filter(file_contents=file.file_contents).all()
 
-    def has_file(self):
-        return self.file is not None
-
-class FileServerLocation(FileLocation):
+class ServerFileStorageLocation(FileStorageLocation):
     _class_name = ('file_server_location', 'file_server_locations')
 
     host_url = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
 
+"""
+# Draft work for handling file import requests, where a workflow is defined with inputs
+# that have not yet been uploaded.
+
 class FileImportRequest(MutableModel, AnalysisAppBaseModel):
     _class_name = ('file_import_request', 'file_import_requests')
-    FOREIGN_KEY_CHILDREN = ['file_location']
+    FOREIGN_KEY_CHILDREN = ['file_storage_location']
 
-    file_location = models.ForeignKey('FileLocation')
+    file_storage_location = models.ForeignKey('FileStorageLocation')
     comments = models.CharField(max_length = 10000)
     requester = models.CharField(max_length = 100)
 
     def is_file_available(self):
-        if self.file_location.file is None:
+        if self.file_storage_location.file is None:
             return False
-        return self.file_location.file.is_available()
+        return self.file_storage_location.file.is_available()
 
     def get_file(self):
-        return self.file_location.file
+        return self.file_storage_location.file
 
     def register_file(self, file):
-        self.file_location.file = File.create(file)
+        self.file_storage_location.file = File.create(file)
         self.save()
 
 class FileHandle(MutableModel, AnalysisAppBaseModel):
@@ -81,9 +91,10 @@ class FileImportRequestHandle():
     file_import_request = models.ForeignKey('FileImportRequest', null=True)
 
     def is_available(self):
-        # return filelocation.file.exists and is_available
+        # return file_storage_location.file.exists and is_available
         pass
 
     def get_file(self):
-        # return filelocation.file
+        # return file_storage_location.file
         pass
+"""

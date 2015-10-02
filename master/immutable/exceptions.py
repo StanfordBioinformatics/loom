@@ -49,3 +49,5 @@ class AttemptedToUpdateImmutableError(Exception):
 class UniqueIdMismatchError(Exception):
     pass
 
+class ParentNestedInChildException(Exception):
+    pass

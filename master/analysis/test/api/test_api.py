@@ -34,7 +34,7 @@ class TestXppfRun(TestCase):
 # StepRuns
 # StepRun/$id/port_bundles
 # Files
-# FileLocations
+# FileStorageLocations
 # Results
 
     def test_create_show_index_immutable(self):
@@ -57,27 +57,27 @@ class TestXppfRun(TestCase):
 
     def test_create_show_index_update_mutable(self):
         # Test create
-        r = requests.post(self.server_url+'/api/file_locations', data=file_server_location_json)
+        r = requests.post(self.server_url+'/api/file_storage_locations', data=json.dumps(server_file_storage_location_obj))
         r.raise_for_status()
-        self.assertEqual(r.json()['message'], "created file_location")
+        self.assertEqual(r.json()['message'], "created file_storage_location")
 
         # Test show
         id = r.json()['_id']
-        r = requests.get(self.server_url+'/api/file_locations/%s' % id)
+        r = requests.get(self.server_url+'/api/file_storage_locations/%s' % id)
         r.raise_for_status()
         self.assertEqual(r.json()['_id'], id)
 
         # Test index
-        r = requests.get(self.server_url+'/api/file_locations')
+        r = requests.get(self.server_url+'/api/file_storage_locations')
         r.raise_for_status()
-        ids = map(lambda x:x['_id'], r.json()['file_locations'])
+        ids = map(lambda x:x['_id'], r.json()['file_storage_locations'])
         self.assertTrue(id in ids)
 
         # Test update
-        r = requests.post(self.server_url+'/api/file_locations/%s' % id, 
+        r = requests.post(self.server_url+'/api/file_storage_locations/%s' % id, 
                           data='{"file_path": "/new/file/path"}')
         r.raise_for_status()
-        r = requests.get(self.server_url+'/api/file_locations/%s' % id)
+        r = requests.get(self.server_url+'/api/file_storage_locations/%s' % id)
         r.raise_for_status()
         self.assertEqual(r.json()['file_path'], '/new/file/path')
     """
