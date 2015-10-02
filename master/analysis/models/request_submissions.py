@@ -1,7 +1,7 @@
 from django.db import models
 
 from .common import AnalysisAppBaseModel
-from .files import File
+from .files import DataObject
 from .step_definitions import StepDefinition, StepDefinitionOutputPort
 from immutable.models import MutableModel
 
@@ -149,7 +149,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
     def is_ready(self):
         if self.has_run():
             return False
-        elif self._are_inputs_ready():
+        elif self._is_input_data_ready():
             return True
         else:
             return False
@@ -160,19 +160,16 @@ class Step(MutableModel, AnalysisAppBaseModel):
         else:
             return False
 
-    def _are_inputs_ready(self):
+    def _is_input_data_ready(self):
         # Returns True if all input files are avaialble
-        for port in self.input_ports.all():
-            if not port.has_file_and_location():
-                return False
-        return True
+        return all([port.is_input_data_ready() for port in self.input_ports.all()])
 
-    def get_output_file(self, port_name):
+    def get_output_data_object(self, port_name):
         if not self.has_run():
             return None
         request_port = self._get_output_port(port_name)
         result_port = request_port.get_step_definition_output_port()
-        return self.step_run.get_output_file(result_port)
+        return self.step_run.get_output_data_object(result_port)
 
 class RequestEnvironment(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_environment', 'request_environments')
@@ -194,8 +191,6 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_output_port', 'request_output_ports')
     name = models.CharField(max_length = 256)
 
-class RequestFileOutputPort(RequestOutputPort):
-
     # Relative path within the working directory where
     # a file will be found after a step executes
     file_path = models.CharField(max_length = 256)
@@ -211,87 +206,84 @@ class RequestFileOutputPort(RequestOutputPort):
 
 class RequestInputPort(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_input_port', 'request_input_ports')
-    name = models.CharField(max_length = 256)
 
-class RequestFileInputPort(RequestInputPort):
+    name = models.CharField(max_length = 256)
     # Relative path within the working directory where
     # a file will be copied before a step is executed
     file_path = models.CharField(max_length = 256)
     step = models.ForeignKey('Step', related_name='input_ports', null=True)
-
-    def _render_step_definition_input_port(self):
-        return {'file_path': self.file_path}
-
-    def has_file(self):
-        if self.get_file() is not None:
-            return True
-        else:
-            return False
-
-    def has_file_and_location(self):
-        file = self.get_file()
-        if file is not None:
-            if file.is_available():
-                return True
-        return False
-
-    def get_file(self):
-        bound_file = self.get_bound_file()
-        piped_file = self.get_piped_file()
-        if (bound_file is not None) and (piped_file is not None):
-            raise Exception('The input port %s has both a bound file %s and a piped file %s.' % (self, bound_file, piped_file))
-        elif bound_file is not None:
-            return bound_file
-        elif piped_file is not None:
-            return piped_file
-        else:
-            return None
-
-    def get_bound_file(self):
-        binding = self.get_binding()
-        if binding is None:
-            return None
-        else:
-            return binding.get_file()
+    is_array = models.BooleanField(default = False)
 
     def get_binding(self):
         return self.step.workflow.get_binding(port_name=self.name, step_name=self.step.name)
-
-    def get_piped_file(self):
-        data_pipe = self.get_data_pipe()
-        if data_pipe is None:
-            return None
-        else: 
-            return data_pipe.get_file()
 
     def get_data_pipe(self):
         return self.step.workflow.get_data_pipe_by_destination_port_name(
             port_name=self.name, step_name=self.step.name)
 
+    def has_data_object(self):
+        if self.get_input_data() is None:
+            return False
+        else:
+            return True
+
+    def is_input_data_ready(self):
+        input_data = self.get_input_data()
+        if input_data is None:
+            return False
+        else:
+            return input_data.is_available()
+
+    def get_input_data(self):
+        bound_input_data = self.get_bound_input_data()
+        piped_input_data = self.get_piped_input_data()
+        if (bound_input_data is not None) and (piped_input_data is not None):
+            raise Exception('The input port %s has both bound data %s and piped data %s.' % (self, bound_input_data, piped_input_data))
+        elif bound_input_data is not None:
+            return bound_input_data
+        elif piped_input_data is not None:
+            return piped_input_data
+        else:
+            return None
+
+    def get_bound_input_data(self):
+        binding = self.get_binding()
+        if binding is None:
+            return None
+        else:
+            return binding.get_data_object()
+
+    def get_piped_input_data(self):
+        data_pipe = self.get_data_pipe()
+        if data_pipe is None:
+            return None
+        else: 
+            return data_pipe.get_data_object()
+
+    def _render_step_definition_input_port(self):
+        return {'file_path': self.file_path}
+
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_data_binding', 'request_data_bindings')
-    FOREIGN_KEY_CHILDREN = ['file', 'destination']
-    file = models.ForeignKey('File')
+    FOREIGN_KEY_CHILDREN = ['data_object', 'destination']
+    data_object = models.ForeignKey('DataObject') # File or FileArray
     destination = models.ForeignKey('RequestDataBindingPortIdentifier')
     workflow = models.ForeignKey('Workflow', related_name='data_bindings', null=True)
 
     def is_ready(self):
-        # Returns True if the input file is available
-        if not self.file.exists():
+        # Returns True if the input file or file array is available
+        if not self.data_object.exists():
             return False
         else:
-            if self.file.is_available():
-                return True
-            else:
-                return False
+            return data_object.is_available()
 
-    def get_file(self):
-        return self.file
+    def get_data_object(self):
+        return self.get('data_object') # Downcast
 
     def _render_step_definition_data_bindings(self, step):
         port = step._get_input_port(self.destination.port)
         return {
-            'file': self.file.to_obj(),
+            'data_object': self.data_object.to_obj(),
             'input_port': port._render_step_definition_input_port()
             }
 
@@ -302,14 +294,14 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
     destination = models.ForeignKey('RequestDataPipeDestinationPortIdentifier')
     workflow = models.ForeignKey('Workflow', related_name='data_pipes', null=True)
 
-    def get_file(self):
+    def get_data_object(self):
         step = self.workflow.get_step(self.source.step)
-        return step.get_output_file(self.source.port)
+        return step.get_output_data_object(self.source.port)
 
     def _render_step_definition_data_bindings(self, step):
         port = step._get_input_port(self.destination.port)
         return {
-            'file': self.get_file().to_obj(),
+            'data_object': self.get_data_object().to_obj(),
             'input_port': port._render_step_definition_input_port()
             }
 

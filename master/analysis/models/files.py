@@ -6,7 +6,10 @@ from immutable.models import ImmutableModel, MutableModel
 from xppf.common.exceptions import AbstractMethodException
 
 
-class File(ImmutableModel, AnalysisAppBaseModel):
+class DataObject(ImmutableModel, AnalysisAppBaseModel):
+    _class_name = ('data_object', 'data_objects')
+
+class File(DataObject):
     _class_name = ('file', 'files')
     FOREIGN_KEY_CHILDREN = ['file_contents']
 
@@ -41,13 +44,14 @@ class ServerFileStorageLocation(FileStorageLocation):
     host_url = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
 
-class FileArray(ImmutableModel, AnalysisAppBaseModel):
+class FileArray(DataObject):
     _class_name = ('file_array', 'file_arrays')
     
     files = models.ManyToManyField(File)
 
     def is_available(self):
         return all([file.is_available() for file in self.files.all()])
+    
 
 """
 # Draft work for handling file import requests, where a workflow is defined with inputs

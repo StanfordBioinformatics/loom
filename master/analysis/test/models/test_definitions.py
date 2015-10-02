@@ -71,8 +71,8 @@ class TestStepDefinition(TestCase):
     def testGetInputFile(self):
         port = self.step_definition.template.input_ports.first()
         data_binding = self.step_definition.get_data_binding(port)
-        file = self.step_definition.get_input_file(port)
+        file = self.step_definition.get_input_data_object(port)
         self.assertEqual(data_binding.input_port._id, port._id)
-        self.assertEqual(data_binding.file._id, file._id)
+        self.assertEqual(data_binding.data_object._id, file._id)
 
 

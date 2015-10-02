@@ -41,7 +41,7 @@ hello_world_step_result_obj1 = {
         'output_port': {
             'file_path': u'world.txt',
             }, 
-        'file': {
+        'data_object': {
             'file_contents': {
                 'hash_value': u'8c2753548775b4161e531c323ea24c08', 
                 'hash_function': u'md5'
@@ -56,7 +56,7 @@ hello_world_step_definition_obj2 = {
             'input_port': {
                 'file_path': u'hello.txt'
                 }, 
-            'file': {
+            'data_object': {
                 'file_contents': {
                     'hash_value': u'b1946ac92492d2347c6235b4d2611184', 
                     'hash_function': u'md5'
@@ -91,7 +91,7 @@ hello_world_step_result_obj2 = {
         'output_port': {
             'file_path': u'hello_world.txt'
             }, 
-        'file': {
+        'data_object': {
             'file_contents': {
                 'hash_value': u'ffdc12d8d601ae40f258acf3d6e7e1fb', 
                 'hash_function': u'md5'
@@ -180,7 +180,7 @@ hello_world_request_with_runs = {
                         'step': 'hello_world_step', 
                         'port': 'hello_in'
                         }, 
-                    'file': {
+                    'data_object': {
                         'file_contents': {
                             'hash_value': 'b1946ac92492d2347c6235b4d2611184', 
                             'hash_function': 'md5'
@@ -249,7 +249,7 @@ step_definition_output_port_obj = {
     }
 
 step_definition_data_binding_obj = {
-    'file': file_obj,
+    'data_object': file_obj,
     'input_port': step_definition_input_port_obj,
     }
 
@@ -295,7 +295,7 @@ port_identifier_obj = {
     }
 
 data_binding_obj = {
-    'file': file_obj,
+    'data_object': file_obj,
     'destination': {
         'step': 'step1',
         'port': 'input_port1',

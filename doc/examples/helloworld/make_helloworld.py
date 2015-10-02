@@ -66,7 +66,7 @@ hello_world_workflow = {
         ],
     'data_bindings': [
         {
-            'file': hello_file,
+            'data_object': hello_file,
             'destination': {
                 'step': 'hello_world_step',
                 'port': 'hello_in',

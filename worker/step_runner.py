@@ -13,9 +13,6 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from xppf.common import md5calc
 
-class DataNotFoundException(Exception):
-    pass
-
 class StepRunner:
 
     STEP_RUNS_DIR = 'step_runs'
@@ -45,8 +42,7 @@ class StepRunner:
     def _get_step_run(self):
         url = self.MASTER_URL + '/api/step_runs/' + self.RUN_ID
         response = requests.get(url)
-        if not response.status_code == 200:
-            raise DataNotFoundException("Step run not found at url %s" % url)
+        response.raise_for_status()
         step_run = response.json()
         self.logger.debug(step_run)
         return step_run
@@ -54,8 +50,7 @@ class StepRunner:
     def _get_input_port_bundles(self):
         url = self.MASTER_URL + '/api/step_runs/' + self.RUN_ID + '/input_port_bundles/'
         response = requests.get(url)
-        if not response.status_code == 200:
-            raise DataNotFoundException("Input port bundles not found at url %s" % url)
+        response.raise_for_status()
         input_port_bundles = response.json()
         return input_port_bundles
 
@@ -165,7 +160,7 @@ class StepRunner:
         result = {
             'step_definition': step_definition,
             'output_binding': {
-                'file': self._get_file_obj(self._get_file_path(output_port)),
+                'data_object': self._get_file_obj(self._get_file_path(output_port)),
                 'output_port': output_port,
                 },
             }
@@ -187,21 +182,23 @@ class StepRunner:
             self._save_location(location)
 
     def _save_location(self, location):
-        requests.post(self.MASTER_URL+'/api/file_storage_locations', data=json.dumps(location))
+        response = requests.post(self.MASTER_URL+'/api/file_storage_locations', data=json.dumps(location))
+        response.raise_for_status()
 
     def _save_result(self, result, step_run):
         data = {
             'step_run': step_run,
             'step_result': result,
             }
-        requests.post(self.MASTER_URL+'/api/submitresult', data=json.dumps(data))
-        # TODO verify
+        response = requests.post(self.MASTER_URL+'/api/submitresult', data=json.dumps(data))
+        response.raise_for_status()
 
     def _flag_run_as_complete(self, step_run):
         update_data = {'is_complete': True}
         url = self.MASTER_URL+'/api/step_runs/%s' % step_run.get('_id')
         self.logger.debug('updating StepRun at url '+url)
-        requests.post(url, data=json.dumps(update_data))
+        response = requests.post(url, data=json.dumps(update_data))
+        response.raise_for_status()
 
     def _get_args(self):
         parser = self._get_parser()

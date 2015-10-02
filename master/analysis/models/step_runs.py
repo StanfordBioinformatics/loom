@@ -14,12 +14,12 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
     is_complete = models.BooleanField(default=False)
     process_location = models.ForeignKey('ProcessLocation', null=True)
 
-    def get_output_file(self, port):
+    def get_output_data_object(self, port):
         step_result = self.get_step_result(port)
         if step_result == None:
             return None
         else:
-            return step_result.output_binding.file
+            return step_result.output_binding.get('data_object')
 
     def get_step_result(self, port):
         try:
@@ -38,7 +38,7 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
         # Returns a list of these bundles, one for each input_port
         bundles = []
         for binding in self.step_definition.data_bindings.all():
-            file = binding.file
+            file = binding.get('data_object')
             file_storage_locations = FileStorageLocation.get_by_file(file).all()
             input_port = binding.input_port
             bundles.append(
