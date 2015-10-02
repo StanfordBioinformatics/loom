@@ -25,6 +25,24 @@ class TestFile(ImmutableModelsTestCase):
         file_storage_location = FileStorageLocation.create(server_file_storage_location_obj)
         self.assertTrue(file.is_available())
 
+class TestFileArray(ImmutableModelsTestCase):
+
+    def testFileArray(self):
+        file_array = FileArray.create(file_array_obj)
+        self.assertEqual(file_array.files.count(), len(file_array_obj['files']))
+        self.roundTripJson(file_array)
+        self.roundTripObj(file_array)
+
+    def testIsAvailable(self):
+        file1 = File.create(file_obj)
+        file2 = File.create(file_obj_2)
+        file_array = FileArray.create({'files': [file_obj, file_obj_2]})
+        self.assertFalse(file_array.is_available())
+        file_storage_location = FileStorageLocation.create(server_file_storage_location_obj)
+        self.assertFalse(file_array.is_available())
+        file_storage_location_2 = FileStorageLocation.create(server_file_storage_location_obj_2)
+        self.assertTrue(file_array.is_available())
+
 class TestFileStorageLocation(ImmutableModelsTestCase):
 
     def testFileStorageLocation(self):
