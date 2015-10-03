@@ -13,6 +13,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from xppf.common import md5calc
 
+
 class StepRunner:
 
     STEP_RUNS_DIR = 'step_runs'
@@ -66,7 +67,7 @@ class StepRunner:
         self._prepare_working_directory()
         inputs = self._get_input_port_bundles().get('input_port_bundles')
         output_ports = self._get_output_ports(step_run)
-        self._prepare_inputs(inputs)
+        self._prepare_all_inputs(inputs)
         process = self._execute(step_run)
         self._wait_for_process(process)
         (results, locations) = self._process_outputs(output_ports, step_run.get('step_definition'))
@@ -90,33 +91,46 @@ class StepRunner:
             else:
                 raise
 
-    def _prepare_inputs(self, inputs):
-        if inputs is None:
+    def _prepare_all_inputs(self, input_port_bundles):
+        if input_port_bundles is None:
             return
-        for input in inputs:
-            self._prepare_input(input)
+        for bundle in input_port_bundles:
+            self._prepare_port_inputs(bundle)
 
-    def _prepare_input(self, input):
+    def _prepare_port_inputs(self, input_port_bundle):
+        port = input_port_bundle['input_port']
+        files_and_locations = input_port_bundle.get('files_and_storage_locations')
+        if files_and_locations is None:
+            return
+        for f in files_and_locations:
+            self._prepare_input(f, port)
+
+    def _prepare_input(self, file_and_locations, port):
         cmd = ['ln',
-               self._select_location(input),
-               self._get_file_path(input['input_port'])]
+               self._select_location(file_and_locations.get('file_storage_locations')),
+               self._get_file_path(port)]
         subprocess.call(cmd)
 
-    def _select_location(self, input):
-        return input['file_storage_locations'][0]['file_path']
+    def _select_location(self, locations):
+        return locations[0]['file_path']
 
     def _execute(self, step_run):
         step_definition = step_run.get('step_definition')
         template = step_definition.get('template')
         environment = template.get('environment')
         docker_image = environment.get('docker_image')
-        command = template.get('command')
+        raw_command = template.get('command')
+        command = self._process_command(raw_command, step_run)
         host_dir = self.WORKING_DIR
         container_dir = '/working_dir'
-        cmd_template = string.Template('docker run --rm -v ${host_dir}:${container_dir}:rw -w ${container_dir} $docker_image sh -c \'$command\'') #TODO - need sudo?
-        cmd = cmd_template.substitute(container_dir=container_dir, host_dir=host_dir, docker_image=docker_image, command=command)
-        self.logger.debug(cmd)
-        return subprocess.Popen(cmd, shell=True)
+        command_template = string.Template('docker run --rm -v ${host_dir}:${container_dir}:rw -w ${container_dir} $docker_image sh -c \'$command\'') #TODO - need sudo?
+        full_command = command_template.substitute(container_dir=container_dir, host_dir=host_dir, docker_image=docker_image, command=command)
+        self.logger.debug(full_command)
+        return subprocess.Popen(full_command, shell=True)
+
+    def _process_command(self, raw_command, step_run):
+#        template_dict = TemplateDict(step_run)
+        return raw_command
 
     def _wait_for_process(self, process, poll_interval_seconds=1, timeout_seconds=86400):
         start_time = datetime.now()

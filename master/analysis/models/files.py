@@ -19,6 +19,9 @@ class File(DataObject):
     def is_available(self):
         return self.file_contents.has_storage_location()
 
+    def render_as_list(self):
+        return [self]
+
 class FileContents(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('file_contents', 'file_contents')
 
@@ -52,6 +55,9 @@ class FileArray(DataObject):
     def is_available(self):
         return all([file.is_available() for file in self.files.all()])
     
+    def render_as_list(self):
+        return [file for file in self.files.all()]
+
 
 """
 # Draft work for handling file import requests, where a workflow is defined with inputs

@@ -35,20 +35,8 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
 
     def get_input_port_bundles(self):
         # Bundles info for a port into a list with port, file, and file locations.
-        # Returns a list of these bundles, one for each input_port
-        bundles = []
-        for binding in self.step_definition.data_bindings.all():
-            file = binding.get('data_object')
-            file_storage_locations = FileStorageLocation.get_by_file(file).all()
-            input_port = binding.input_port
-            bundles.append(
-                {
-                    'file': file.to_serializable_obj(),
-                    'file_storage_locations': [file_storage_location.to_serializable_obj() for file_storage_location in file_storage_locations],
-                    'input_port': input_port.to_serializable_obj(),
-                    }
-                )
-        return bundles
+        # Returns a list of these bundles, one for each input port binding
+        return [binding.get_input_bundle() for binding in self.step_definition.data_bindings.all()]
 
     def __str__(self):
         return self.step_definition.template.command
