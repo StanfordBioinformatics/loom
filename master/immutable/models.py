@@ -3,6 +3,7 @@ import datetime
 import django
 from django.conf import settings
 from django.db import models
+from django.db import transaction
 from django.utils import timezone
 import hashlib
 import json
@@ -113,15 +114,15 @@ class _BaseModel(models.Model):
                 field.add(child)
 
     def _create_or_update_field(self, key, value):
-        if self._is_field_a_parent(key):
-            raise ParentNestedInChildException("Setting field %s on class %s is not permitted because the field is a parent. "
-                            "If this field is a foreign key child, add FOREIGN_KEY_CHILDREN = ['%s'] to the class definition of %s" 
-                            % (key, type(self), key, type(self)))
+        self._verify_field_is_not_a_parent(key)
         if isinstance(value, list):
+            self._verify_field_is_many_to_many(key)
             self._create_or_update_many_to_many_field(key, value)
         elif isinstance(value, dict):
+            self._verify_field_is_a_foreign_key_field(key)
             self._create_or_update_foreign_key_field(key, value)
         else:
+            self._verify_field_is_a_scalar_field(key)
             self._create_or_update_scalar_field(key, value)        
 
     def _create_or_update_scalar_field(self, key, value):
@@ -166,6 +167,25 @@ class _BaseModel(models.Model):
             else:
                 raise Exception("All model classes must extend ImmutableModel or MutableModel. Neither class found for %s." % child)
         return child
+
+
+    def _verify_field_is_not_a_parent(self, key):
+        if self._is_field_a_parent(key):
+            raise ParentNestedInChildException("Setting field %s on class %s is not permitted because the field is a parent. "
+                                               "If this field is a foreign key child, add FOREIGN_KEY_CHILDREN = ['%s'] to the class definition of %s" 
+                                               % (key, type(self), key, type(self)))
+
+    def _verify_field_is_many_to_many(self, key):
+        #TODO
+        pass
+
+    def _verify_field_is_a_foreign_key_field(self, key):
+        #TODO
+        pass
+
+    def _verify_field_is_a_scalar_field(self, key):
+        #TODO
+        pass
 
     def _get_model_for_field_name(self, key, child_value):
         # Select the child model self.{key}
@@ -347,6 +367,9 @@ class _BaseModel(models.Model):
             related_model_obj.append(model.to_obj())
         return related_model_obj
 
+    def validate_model(self):
+        pass
+
     class Meta:
         abstract = True
 
@@ -359,19 +382,32 @@ class MutableModel(_BaseModel):
     @classmethod
     def create(cls, data_obj_or_json):
         data_obj = cls._any_to_obj(data_obj_or_json)
+        cls.validate_create_input(data_obj)
         Model = cls._select_best_subclass_model_by_fields(data_obj)
-        o = Model()
-        o._create_or_update_fields(data_obj)
+        with transaction.atomic():
+            o = Model()
+            o._create_or_update_fields(data_obj)
+            o.validate_model()
         return o
 
     def update(self, update_json):
         update_obj = self._any_to_obj(update_json)
         self._verify_update_id_matches_model(update_obj.get('_id'))
         # Start with existing model and update any fields in update_json
+        self.validate_patch_input(update_obj)
         model_obj = self.to_obj()
         model_obj.update(update_obj)
-        self._create_or_update_fields(model_obj)
+        with transaction.atomic():
+            self._create_or_update_fields(model_obj)
+            self.validate_model()
         return self
+
+    @classmethod
+    def validate_create_input(cls, data_obj):
+        pass
+
+    def validate_patch_input(self, data_obj):
+        pass
 
     def _set_datetime_updated(self):
         self.datetime_updated = now()
@@ -393,17 +429,23 @@ class ImmutableModel(_BaseModel):
     @classmethod
     def create(cls, data_obj_or_json):
         data_obj = cls._any_to_obj(data_obj_or_json)
-        data_json = cls._obj_to_json(data_obj)
+        cls.validate_create_input(data_obj)
         id_from_input = data_obj.get('_id')
-        _id = cls._calculate_unique_id(data_json)
+        _id = cls._calculate_unique_id(data_obj)
         if id_from_input is not None:
             if id_from_input != _id:
                 raise UniqueIdMismatchError("The input _id %s is out of sync with the hash of contents %s on model %s" %(id_from_input, data_obj, self.__class__))
         data_obj.update({'_id': _id})
         Model = cls._select_best_subclass_model_by_fields(data_obj)
-        o = Model()
-        o._create_or_update_fields(data_obj)
+        with transaction.atomic():
+            o = Model()
+            o._create_or_update_fields(data_obj)
+            o.validate_model()
         return o
+
+    @classmethod
+    def validate_create_input(cls, data_obj):
+        pass
 
     def save(self):
         raise NoSaveAllowedError("Immutable models cannot be saved after creation.")

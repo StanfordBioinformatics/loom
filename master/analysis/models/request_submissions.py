@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
 
 from .common import AnalysisAppBaseModel
@@ -85,6 +86,31 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
                 return False
         return True
 
+    def validate_model(self):
+        self._validate_port_identifiers()
+
+    def _validate_port_identifiers(self):
+        for data_binding in self.data_bindings.all():
+            self._validate_destination(data_binding.destination)
+        for data_pipe in self.data_pipes.all():
+            self._validate_destination(data_pipe.destination)
+            self._validate_source(data_pipe.source)
+
+    def _validate_destination(self, destination):
+        step = self.get_step(destination.step)
+        if step is None:
+            raise ValidationError("No step named %s" % destination.step)
+        port = step._get_input_port(destination.port)
+        if port is None:
+            raise ValidationError("No port named %s on step %s" % (destination.port, destination.step))
+
+    def _validate_source(self, source):
+        step = self.get_step(source.step)
+        if step is None:
+            raise ValidationError("No step named %s" % source.step)
+        port = step._get_output_port(source.port)
+        if port is None:
+            raise ValidationError("No port named %s on step %s" % (source.port, source.step))
 
 class Step(MutableModel, AnalysisAppBaseModel):
     _class_name = ('step', 'steps')
@@ -141,18 +167,21 @@ class Step(MutableModel, AnalysisAppBaseModel):
         return data_bindings
 
     def _get_input_port(self, name):
-        return self.input_ports.get(name=name)
+        try:
+            return self.input_ports.get(name=name)
+        except ObjectDoesNotExist:
+            return None
 
     def _get_output_port(self, name):
-        return self.output_ports.get(name=name)
+        try:
+            return self.output_ports.get(name=name)
+        except ObjectDoesNotExist:
+            return None
 
     def is_ready(self):
         if self.has_run():
             return False
-        elif self._is_input_data_ready():
-            return True
-        else:
-            return False
+        return self._is_input_data_ready()
 
     def is_complete(self):
         if self.has_run():

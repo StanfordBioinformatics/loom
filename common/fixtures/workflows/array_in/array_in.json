@@ -7,27 +7,24 @@
         {
           "destination": {
             "step": "join_files",
-            "port": "file_array"
+            "port": "files_to_join"
           },
-	  "data": {
+	  "data_object": {
 	    "files": [
 	      {
-	        "metadata": {
-		  "filename": "hello"
-		},
-		"contents": {
+	        "metadata": "metadata text",
+		"file_contents": {
 		  "hash_value": "b1946ac92492d2347c6235b4d2611184", 
 		  "hash_function": "md5"
 		}
 	      },
 	      {
-	        "metadata": {
-		  "filename": "hello"
-		},
-	      "contents": {
-	        "hash_value": "591785b794601e212b260e25925636fd",
-		"hash_function": "md5"
-	      }
+	        "metadata": "metadata_text",
+	        "file_contents": {
+	          "hash_value": "591785b794601e212b260e25925636fd",
+		  "hash_function": "md5"
+	     	}
+	      }		 
 	    ]
 	  } 
         }
@@ -45,15 +42,13 @@
           }, 
 	  "input_ports": [
 	    {
-	      "type": "file_array",
 	      "name": "files_to_join",
-	      "filename": "file_[i].txt"
+	      "file_path": "file.txt"
 	    }
-	  ]
+	  ],
           "output_ports": [
             {
               "name": "joined_files", 
-	      "type": "file",
               "file_path": "joined_files.txt"
             }
           ]
