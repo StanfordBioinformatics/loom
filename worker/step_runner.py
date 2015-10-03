@@ -99,7 +99,7 @@ class StepRunner:
 
     def _prepare_port_inputs(self, input_port_bundle):
         port = input_port_bundle['input_port']
-        files_and_locations = input_port_bundle.get('files_and_storage_locations')
+        files_and_locations = input_port_bundle.get(u'files_and_locations')
         if files_and_locations is None:
             return
         for f in files_and_locations:
