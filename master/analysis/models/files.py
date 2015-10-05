@@ -1,5 +1,5 @@
 from django.db import models
-
+import jsonfield
 from .common import AnalysisAppBaseModel
 from immutable.models import ImmutableModel, MutableModel
 
@@ -12,8 +12,9 @@ class DataObject(ImmutableModel, AnalysisAppBaseModel):
 class File(DataObject):
     _class_name = ('file', 'files')
     FOREIGN_KEY_CHILDREN = ['file_contents']
+    JSON_FIELDS = ['metadata']
 
-    metadata = models.CharField(max_length = 10000)
+    metadata = jsonfield.JSONField()
     file_contents = models.ForeignKey('FileContents')
 
     def is_available(self):

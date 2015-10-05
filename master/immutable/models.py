@@ -115,22 +115,37 @@ class _BaseModel(models.Model):
 
     def _create_or_update_field(self, key, value):
         self._verify_field_is_not_a_parent(key)
-        if isinstance(value, list):
-            self._verify_field_is_many_to_many(key)
+
+        if self._is_array_field(key, value):
             self._create_or_update_many_to_many_field(key, value)
-        elif isinstance(value, dict):
-            self._verify_field_is_a_foreign_key_field(key)
+        elif self._is_foreign_key_field(key, value):
             self._create_or_update_foreign_key_field(key, value)
         else:
-            self._verify_field_is_a_scalar_field(key)
             self._create_or_update_scalar_field(key, value)        
 
+    def _is_array_field(self, key, value):
+        return isinstance(value, list)
+
+    def _is_foreign_key_field(self, key, value):
+        # A dict value may be either a model with a foreign key relation
+        # or a JSON field. If JSON, we treat it as a scalar and let the 
+        # JSON field model handle (de)serialization
+        return isinstance(value, dict) and not self._is_json_field(key)
+
+    def _is_json_field(self, field_name):
+        if hasattr(self, 'JSON_FIELDS'):
+            return field_name in self.JSON_FIELDS
+        else:
+            return False
+
     def _create_or_update_scalar_field(self, key, value):
+        self._verify_field_is_a_scalar_field(key)
         if not hasattr(self, key):
             raise AttributeDoesNotExist("Attempted to set attribute %s on class %s, but the attribute does not exist." % (key, self.__class__))
         setattr(self, key, value)
 
     def _create_or_update_foreign_key_field(self, key, value):
+        self._verify_field_is_a_foreign_key_field(key)
         if value is None:
             setattr(self, key, None)
             return
@@ -139,6 +154,7 @@ class _BaseModel(models.Model):
             setattr(self, key, child)
 
     def _create_or_update_many_to_many_field(self, key, valuelist):
+        self._verify_field_is_many_to_many(key)
         # Cannot create many-to-many relation until model is
         # saved, so we keep a list to save later.
         unsaved_for_this_key = self.unsaved_many_to_many_related_objects.setdefault(key, [])
@@ -338,10 +354,9 @@ class _BaseModel(models.Model):
 
     def _is_field_a_foreign_key_child(self, field_name):
         if hasattr(self, 'FOREIGN_KEY_CHILDREN'):
-            FOREIGN_KEY_CHILDREN = self.FOREIGN_KEY_CHILDREN
+            return field_name in self.FOREIGN_KEY_CHILDREN
         else:
-            FOREIGN_KEY_CHILDREN = []
-        return field_name in FOREIGN_KEY_CHILDREN
+            return False
 
     def _get_foreign_key_field_as_obj(self, field):
         if not self._is_field_a_foreign_key_child(field.name):
