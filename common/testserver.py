@@ -6,7 +6,7 @@ from datetime import datetime
 import requests
 import subprocess
 import time
-
+from xppf.common.helper import Helper
 from xppf.client import xppf_server_controls
 
 class TestServer:
@@ -22,17 +22,21 @@ class TestServer:
         if no_daemon == True:
             arglist.append('--no_daemon')
         args = xsc_parser.parse_args(arglist)
-        xs = xppf_server_controls.XppfServerControls(args=args)
-        xs.main() # start server
-        self.server_url = xs.settings_manager.get_server_url_for_client()
-        self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_webserver_pidfile()))
+        self.xs = xppf_server_controls.XppfServerControls(args=args)
+        self.xs.main() # start server
+        self.server_url = self.xs.settings_manager.get_server_url_for_client()
+
+        # Confirm server started
+        Helper.wait_for_true(self._webserver_started, timeout_seconds=5)
 
     def stop(self):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main() # stop server
-        self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_webserver_pidfile()))
+
+        # Confirm server stopped
+        Helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)
 
     def status(self):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
@@ -40,13 +44,11 @@ class TestServer:
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main() # get server status
 
-    def wait_for_true(self, test_method, timeout_seconds=5):
-        start_time = datetime.now()
-        while not test_method():
-            time.sleep(timeout_seconds/10.0)
-            time_running = datetime.now() - start_time
-            if time_running.seconds > timeout_seconds:
-                raise Exception("Timeout")
+    def _webserver_started(self):
+        return os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
+
+    def _webserver_stopped(self):
+        return not os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
 
     def run_job_queues(self):
         env = self._get_test_env()

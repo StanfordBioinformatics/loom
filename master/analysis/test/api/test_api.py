@@ -12,23 +12,36 @@ from xppf.client import xppf_server_controls
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
 from xppf.common.fixtures import *
+from xppf.common.helper import Helper
 
 class TestXppfRun(TestCase):
 
     def setUp(self):
+        # Start server
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
         args = xsc_parser.parse_args(['start', '--require_default_settings'])
-        xs = xppf_server_controls.XppfServerControls(args=args)
-        xs.main()
-        self.server_url = xs.settings_manager.get_server_url_for_client()
-        self.wait_for_true(lambda: os.path.exists(xs.settings_manager.get_webserver_pidfile()))
+        self.xs = xppf_server_controls.XppfServerControls(args=args)
+        self.xs.main()
+        self.server_url = self.xs.settings_manager.get_server_url_for_client()
+
+        # Confirm server started
+        Helper.wait_for_true(self._webserver_started, timeout_seconds=5)
 
     def tearDown(self):
+        # Stop server
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
         xs = xppf_server_controls.XppfServerControls(args=args)
         xs.main()
-        self.wait_for_true(lambda: not os.path.exists(xs.settings_manager.get_webserver_pidfile()))
+
+        # Confirm server stopped
+        Helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)
+
+    def _webserver_started(self):
+        return os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
+
+    def _webserver_stopped(self):
+        return not os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
 
 # RequestSubmissions
 # StepRuns
@@ -88,12 +101,4 @@ class TestXppfRun(TestCase):
         r = requests.get(self.server_url+'/api/step_runs/%s/input_port_bundles/' % id)
         r.raise_for_status()
         """
-
-    def wait_for_true(self, test_method, timeout_seconds=5):
-        start_time = datetime.now()
-        while not test_method():
-            time.sleep(timeout_seconds/10.0)
-            time_running = datetime.now() - start_time
-            if time_running.seconds > timeout_seconds:
-                raise Exception("Timeout")
 

@@ -16,6 +16,7 @@ model_classes = [
     FileStorageLocation,
     RequestSubmission,
     Step,
+    StepDefinition,
     StepRun,
     StepResult,
     ]

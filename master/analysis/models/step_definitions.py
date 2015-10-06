@@ -59,10 +59,12 @@ class StepDefinitionTemplate(ImmutableModel, AnalysisAppBaseModel):
 
 class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_input_port', 'step_definition_input_ports')
+    name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
 
 class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_output_port', 'step_definition_output_ports')
+    name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
 
 class StepDefinitionDataBinding(ImmutableModel, AnalysisAppBaseModel):

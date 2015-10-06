@@ -4,6 +4,7 @@ from django.db import models
 from .common import AnalysisAppBaseModel
 from .files import DataObject
 from .step_definitions import StepDefinition, StepDefinitionOutputPort
+from .template_helper import StepTemplateHelper
 from immutable.models import MutableModel
 
 
@@ -152,7 +153,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
     def _render_step_definition(self):
         step_definition = {
             'template': {
-                'command': self.command,
+                'command': self._render_command(),
                 'environment': self.get('environment')._render_step_definition_environment(),
                 'input_ports': [port._render_step_definition_input_port() for port in self.input_ports.all()],
                 'output_ports': [port._render_step_definition_output_port() for port in self.output_ports.all()],
@@ -160,6 +161,9 @@ class Step(MutableModel, AnalysisAppBaseModel):
             'data_bindings': self._get_step_definition_data_bindings(),
             }
         return step_definition
+
+    def _render_command(self):
+        return StepTemplateHelper(self).render(self.command)
 
     def _get_step_definition_data_bindings(self):
         data_bindings = [binding._render_step_definition_data_bindings(self) for binding in self.workflow._get_bindings_by_step(self.name)]
@@ -231,7 +235,10 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
             )
 
     def _render_step_definition_output_port(self):
-        return {'file_path': self.file_path}
+        return {
+            'name': self.name,
+            'file_path': StepTemplateHelper(self.step).render(self.file_path)
+            }
 
 class RequestInputPort(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_input_port', 'request_input_ports')
@@ -290,7 +297,10 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             return data_pipe.get_data_object()
 
     def _render_step_definition_input_port(self):
-        return {'file_path': self.file_path}
+        return {
+            'name': self.name,
+            'file_path': StepTemplateHelper(self.step).render(self.file_path)
+            }
 
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_data_binding', 'request_data_bindings')

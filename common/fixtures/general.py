@@ -241,10 +241,12 @@ docker_image_obj = {
     }
 
 step_definition_input_port_obj = {
+    'name': 'input1',
     'file_path':'copy/my/file/here.txt',
     }
 
 step_definition_output_port_obj = {
+    'name': 'output1',
     'file_path':'look/for/my/file/here.txt',
     }
 
@@ -260,7 +262,7 @@ template_obj = {
     'environment': docker_image_obj,
     }
 
-step_obj = {
+step_definition_obj = {
     'template': template_obj,
     'data_bindings': [step_definition_data_binding_obj],
     }
@@ -335,6 +337,16 @@ step_obj_2 = {
     'environment': docker_image_obj,
     'resources': resource_set_obj,
     }
+
+step_obj_with_templated_command = {
+    'name': 'step1',
+    'input_ports': [input_port_obj_1],
+    'output_ports': [output_port_obj_1],
+    'command': 'echo {{ input_ports.input_port1.file_path }} > {{ output_ports.output_port1.file_path }}',
+    'environment': docker_image_obj,
+    'resources': resource_set_obj,
+    }
+
 
 workflow_obj = {
     'steps': [step_obj_1, step_obj_2],

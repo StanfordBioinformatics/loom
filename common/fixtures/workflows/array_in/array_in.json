@@ -12,7 +12,7 @@
 	  "data_object": {
 	    "files": [
 	      {
-	        "metadata": "metadata text",
+	        "metadata": {"something": "anything"},
 		"file_contents": {
 		  "hash_value": "b1946ac92492d2347c6235b4d2611184", 
 		  "hash_function": "md5"
@@ -34,7 +34,7 @@
           "environment": {
             "docker_image": "ubuntu"
           }, 
-          "command": "cat {% for file in input_ports.files_to_join %}{{file}} {% endfor %} > {{ output_ports.joined_files }}", 
+          "command": "cat {% for file in input_ports.files_to_join.file_path %}{{file}} {% endfor %} > {{ output_ports.joined_files }}", 
           "name": "join_files",
           "resources": {
             "cores": "1", 
