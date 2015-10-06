@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
+import jsonfield
 
 from .common import AnalysisAppBaseModel
 from .files import DataObject
@@ -16,8 +17,10 @@ receiving a request for analysis from a user.
 
 class RequestSubmission(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_submission', 'request_submissions')
-    workflows = models.ManyToManyField('Workflow')
+    JSON_FIELDS = ['constants']
+
     requester = models.CharField(max_length = 100)
+    constants = jsonfield.JSONField(null=True)
 
     def get_workflows(self):
         return self.workflows.all()
@@ -39,9 +42,12 @@ class RequestSubmission(MutableModel, AnalysisAppBaseModel):
 
 class Workflow(MutableModel, AnalysisAppBaseModel):
     FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
+    JSON_FIELDS = ['constants']
 
     _class_name = ('workflow', 'workflows')
     name = models.CharField(max_length = 256, null=True) # name is used to make results more browsable on a file server
+    constants = jsonfield.JSONField(null=True)
+    request_submission = models.ForeignKey('RequestSubmission', related_name='workflows', null=True)
     # steps: Step foreign key
     # data_bindings: RequestDataBinding foreign key
     # data_pipes: RequestDataPipe foreign key
@@ -116,8 +122,10 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
 class Step(MutableModel, AnalysisAppBaseModel):
     _class_name = ('step', 'steps')
     FOREIGN_KEY_CHILDREN = ['environment', 'resources', 'step_definition', 'step_run', 'input_ports', 'output_ports']
+    JSON_FIELDS = ['constants']
     name = models.CharField(max_length = 256)
     command = models.CharField(max_length = 256)
+    constants = jsonfield.JSONField(null=True)
     environment = models.ForeignKey('RequestEnvironment')
     resources = models.ForeignKey('RequestResourceSet')
     workflow = models.ForeignKey('Workflow', null=True, related_name='steps')

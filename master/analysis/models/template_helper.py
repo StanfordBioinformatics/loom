@@ -9,6 +9,7 @@ class StepTemplateContext:
         return {
             'input_ports': self._get_input_ports_context(),
             'output_ports': self._get_output_ports_context(),
+            'constants': self._get_constants_context(),
             }
 
     def _get_input_ports_context(self):
@@ -48,6 +49,30 @@ class StepTemplateContext:
         return {
             'file_path': port.file_path
             }
+
+    def _get_constants_context(self):
+        constants = self._get_request_submission_constants()
+        constants.update(self._get_workflow_constants())
+        constants.update(self._get_step_constants())
+        return constants
+
+    def _get_step_constants(self):
+        if self.step.constants is not None:
+            return self.step.constants
+        return {}
+
+    def _get_workflow_constants(self):
+        if self.step.workflow is not None:
+            if self.step.workflow.constants is not None:
+                return self.step.workflow.constants
+        return {}
+
+    def _get_request_submission_constants(self):
+        if self.step.workflow is not None:
+            if self.step.workflow.request_submission is not None:
+                if self.step.workflow.request_submission.constants is not None:
+                    return self.step.workflow.request_submission.constants
+        return {}
 
 class StepTemplateHelper:
 

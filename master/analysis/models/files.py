@@ -14,7 +14,7 @@ class File(DataObject):
     FOREIGN_KEY_CHILDREN = ['file_contents']
     JSON_FIELDS = ['metadata']
 
-    metadata = jsonfield.JSONField()
+    metadata = jsonfield.JSONField(null=True)
     file_contents = models.ForeignKey('FileContents')
 
     def is_available(self):

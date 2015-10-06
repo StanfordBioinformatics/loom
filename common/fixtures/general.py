@@ -338,16 +338,6 @@ step_obj_2 = {
     'resources': resource_set_obj,
     }
 
-step_obj_with_templated_command = {
-    'name': 'step1',
-    'input_ports': [input_port_obj_1],
-    'output_ports': [output_port_obj_1],
-    'command': 'echo {{ input_ports.input_port1.file_path }} > {{ output_ports.output_port1.file_path }}',
-    'environment': docker_image_obj,
-    'resources': resource_set_obj,
-    }
-
-
 workflow_obj = {
     'steps': [step_obj_1, step_obj_2],
     'data_bindings': [data_binding_obj],
@@ -359,3 +349,30 @@ request_submission_obj = {
     'requester': 'someone@example.com',
     }
 
+step_obj_with_templated_command = {
+    'name': 'step1',
+    'constants': {'id': 'step123'},
+    'input_ports': [input_port_obj_1],
+    'output_ports': [output_port_obj_1],
+    'command': 'cat {{ input_ports.input_port1.file_path }} > {{ output_ports.output_port1.file_path }};'+
+               ' echo {{ constants.id }}{{ constants.wf }}{{ constants.rs }} >>  {{ output_ports.output_port1.file_path }}',
+    'environment': docker_image_obj,
+    'resources': resource_set_obj,
+    }
+
+workflow_obj_with_templated_command = {
+    'steps': [step_obj_with_templated_command],
+    'constants': {
+        'id': 'workflow123',
+        'wf': 'x',
+        }
+    }
+
+request_submission_obj_with_templated_command = {
+    'workflows': [workflow_obj_with_templated_command],
+    'constants': {
+        'id': 'requestsubmission123',
+        'rs': 'y'
+        },
+    'requester': 'you@there'
+    }
