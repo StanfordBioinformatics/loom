@@ -231,10 +231,12 @@ class RequestResourceSet(MutableModel, AnalysisAppBaseModel):
 class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_output_port', 'request_output_ports')
     name = models.CharField(max_length = 256)
+    is_array = models.BooleanField(default = False)
 
     # Relative path within the working directory where
     # a file will be found after a step executes
-    file_path = models.CharField(max_length = 256)
+    file_path = models.CharField(max_length = 256, null=True)
+    glob = models.CharField(max_length = 256, null=True)
     step = models.ForeignKey('Step', related_name='output_ports', null=True)
 
     def get_step_definition_output_port(self):
@@ -244,8 +246,9 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
 
     def _render_step_definition_output_port(self):
         return {
-            'name': self.name,
-            'file_path': StepTemplateHelper(self.step).render(self.file_path)
+            'file_path': StepTemplateHelper(self.step).render(self.file_path),
+            'glob': StepTemplateHelper(self.step).render(self.glob),
+            'is_array': self.is_array
             }
 
 class RequestInputPort(MutableModel, AnalysisAppBaseModel):
@@ -306,8 +309,8 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
 
     def _render_step_definition_input_port(self):
         return {
-            'name': self.name,
-            'file_path': StepTemplateHelper(self.step).render(self.file_path)
+            'file_path': StepTemplateHelper(self.step).render(self.file_path),
+            'is_array': self.is_array
             }
 
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):

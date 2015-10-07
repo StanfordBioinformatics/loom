@@ -59,13 +59,14 @@ class StepDefinitionTemplate(ImmutableModel, AnalysisAppBaseModel):
 
 class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_input_port', 'step_definition_input_ports')
-    name = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
+    is_array = models.BooleanField()
 
 class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_output_port', 'step_definition_output_ports')
-    name = models.CharField(max_length = 256)
-    file_path = models.CharField(max_length = 256)
+    file_path = models.CharField(max_length = 256, null=True)
+    glob = models.CharField(max_length = 256, null=True)
+    is_array = models.BooleanField()
 
 class StepDefinitionDataBinding(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_data_binding', 'step_definition_data_bindings')

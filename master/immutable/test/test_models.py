@@ -274,3 +274,10 @@ class TimeStempTest(TestCase):
     # Try to explicitly set datetime_created and _updated after object exists. Verify exception.
 
     # Verify exception when USE_TZ==False
+
+class TestBooleanField(TestCase):
+    def test_field(self):
+        model_in = {'is_raining': True}
+        model = BooleanModel.create(model_in)
+        model_out = model.to_obj()
+        self.assertEqual(model_in['is_raining'], model_out['is_raining'])

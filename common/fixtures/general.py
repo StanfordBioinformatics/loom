@@ -16,7 +16,8 @@ hello_world_step_definition_obj1 = {
             },
         "output_ports": [
             {
-                "file_path": "world.txt"
+                "file_path": "world.txt",
+                "is_array": False,
                 }
             ]
         }
@@ -29,7 +30,8 @@ hello_world_step_run_obj1 = {
             "hash_value":"8c2753548775b4161e531c323ea24c08"
             },
         "output_port": {
-            "file_path": "world.txt"
+            "file_path": "world.txt",
+            "is_array": False
             }
         },
     "step_definition": hello_world_step_definition_obj1,
@@ -40,6 +42,7 @@ hello_world_step_result_obj1 = {
     'output_binding': {
         'output_port': {
             'file_path': u'world.txt',
+            'is_array': False,
             }, 
         'data_object': {
             'file_contents': {
@@ -54,7 +57,8 @@ hello_world_step_definition_obj2 = {
     'data_bindings': [
         {
             'input_port': {
-                'file_path': u'hello.txt'
+                'file_path': u'hello.txt',
+                "is_array": False
                 }, 
             'data_object': {
                 'file_contents': {
@@ -70,16 +74,19 @@ hello_world_step_definition_obj2 = {
             }, 
         'input_ports': [
             {
-                'file_path': u'hello.txt'
+                'file_path': u'hello.txt',
+                "is_array": False
                 }, 
             {
-                'file_path': u'world.txt'
+                'file_path': u'world.txt',
+                "is_array": False
                 }
             ], 
         'command': u'cat hello.txt world.txt > hello_world.txt', 
         'output_ports': [
             {
-                'file_path': u'hello_world.txt'
+                'file_path': u'hello_world.txt',
+                'is_array': False
                 }
             ]
         }
@@ -89,7 +96,8 @@ hello_world_step_result_obj2 = {
     'step_definition': hello_world_step_definition_obj2,
     'output_binding': {
         'output_port': {
-            'file_path': u'hello_world.txt'
+            'file_path': u'hello_world.txt',
+            "is_array": False
             }, 
         'data_object': {
             'file_contents': {
@@ -241,13 +249,13 @@ docker_image_obj = {
     }
 
 step_definition_input_port_obj = {
-    'name': 'input1',
     'file_path':'copy/my/file/here.txt',
+    "is_array": False
     }
 
 step_definition_output_port_obj = {
-    'name': 'output1',
     'file_path':'look/for/my/file/here.txt',
+    "is_array": False
     }
 
 step_definition_data_binding_obj = {

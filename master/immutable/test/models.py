@@ -6,6 +6,8 @@ from immutable.models import ImmutableModel, MutableModel
 # to prevent creating the test models' database tables in a
 # production database.
 
+class BooleanModel(ImmutableModel):
+    is_raining = models.BooleanField()
 
 class SampleMutableChild(MutableModel):
     name = models.CharField(max_length=100)
