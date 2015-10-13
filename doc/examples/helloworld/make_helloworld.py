@@ -3,9 +3,14 @@ import uuid
 import json
 
 # Contents of this file are "hello"
-hello_file = {
+file_contents = {
     "hash_function": "md5",
     "hash_value": "b1946ac92492d2347c6235b4d2611184",
+}
+
+hello_file = {
+    'file_contents': file_contents,
+    'metadata': '{"filename": "hello.txt"}'
 }
 
 env = {
@@ -61,7 +66,7 @@ hello_world_workflow = {
         ],
     'data_bindings': [
         {
-            'file': hello_file,
+            'data_object': hello_file,
             'destination': {
                 'step': 'hello_world_step',
                 'port': 'hello_in',

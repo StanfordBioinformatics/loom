@@ -49,15 +49,15 @@ class TestDefinitionModels(ImmutableModelsTestCase):
         self.roundTripObj(o)
         
     def testStepDefinition(self):
-        o = StepDefinition.create(step_obj)
-        self.assertEqual(o.template.command, step_obj['template']['command'])
+        o = StepDefinition.create(step_definition_obj)
+        self.assertEqual(o.template.command, step_definition_obj['template']['command'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
 class TestStepDefinition(TestCase):
 
     def setUp(self):
-        self.step_definition = StepDefinition.create(step_obj)
+        self.step_definition = StepDefinition.create(step_definition_obj)
 
     def testGetStepRun(self):
         run = self.step_definition.get_step_run()
@@ -71,8 +71,8 @@ class TestStepDefinition(TestCase):
     def testGetInputFile(self):
         port = self.step_definition.template.input_ports.first()
         data_binding = self.step_definition.get_data_binding(port)
-        file = self.step_definition.get_input_file(port)
+        file = self.step_definition.get_input_data_object(port)
         self.assertEqual(data_binding.input_port._id, port._id)
-        self.assertEqual(data_binding.file._id, file._id)
+        self.assertEqual(data_binding.data_object._id, file._id)
 
 

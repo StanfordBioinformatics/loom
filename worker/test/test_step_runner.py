@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import os
 import requests
+import shutil
 import subprocess
 import tempfile
 import time
@@ -29,30 +30,25 @@ class TestStepRunner(unittest.TestCase):
         parser = StepRunner._get_parser()
         args = parser.parse_args(['--run_id', self.step1_run_id, '--master_url', self.test_server.server_url])
         self.step_runner = StepRunner(args=args)
-        self.step_runner.WORKING_DIR = '/tmp'
+        self.step_runner.settings['WORKING_DIR'] = self.file_root
 
     def tearDown(self):
-        # remove self.file_root
+        shutil.rmtree(self.file_root)
         self.test_server.stop()
 
     def _run_helloworld(self):
         url = self.test_server.server_url+'/api/submitrequest/'
-        r = requests.post(url, data=fixtures.helloworld_json)
-        self.assertEqual(r.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (r.status_code, url))
+        response = requests.post(url, data=fixtures.helloworld_json)
+        self.assertEqual(response.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (response.status_code, url))
         self.test_server.dry_run_job_queues()
 
     # Given steprun ID, retrieve the steprun
     def test_get_step_run(self):
-        step_run = self.step_runner._get_step_run()
+        step_run = self.step_runner.step_run
         self.assertEqual(step_run.get('_id'), self.step1_run_id)
 
-    def test_get_input_port_bundles(self):
-        bundles = self.step_runner._get_input_port_bundles()
-        self.assertTrue('input_port_bundles' in bundles.keys())
-
     def test_execute(self):
-        step_run = self.step_runner._get_step_run()
-        process = self.step_runner._execute(step_run)
+        process = self.step_runner._execute()
         self.step_runner._wait_for_process(process)
 
 if __name__=='__main__':

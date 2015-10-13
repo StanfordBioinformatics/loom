@@ -1,7 +1,7 @@
 from django.db import models
 
 from .common import AnalysisAppBaseModel
-from .files import File
+from .files import DataObject
 from .step_definitions import StepDefinitionOutputPort
 from immutable.models import ImmutableModel
 
@@ -14,6 +14,6 @@ class StepResult(ImmutableModel, AnalysisAppBaseModel):
 
 class StepResultOutputBinding(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('result_output_binding', 'result_output_bindings')
-    FOREIGN_KEY_CHILDREN = ['file', 'output_port']
-    file = models.ForeignKey('File')
+    FOREIGN_KEY_CHILDREN = ['data_object', 'output_port']
+    data_object = models.ForeignKey('DataObject')
     output_port = models.ForeignKey('StepDefinitionOutputPort')

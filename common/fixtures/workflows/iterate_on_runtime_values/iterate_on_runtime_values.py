@@ -9,80 +9,66 @@ def _make_request():
     
     resources = {
         'memory': '1GB',
-        'cores': '1',
+        'cores': '1'
         }
     
     split_step = {
         'name': 'split_step',
-        'command': 'bamtools split -in {{ input.bam }} -tag RG; for file in *TAG_RG*.bam; do f=${file%.bam}; f=${f#*TAG_RG_}; echo $f >> {{ output_ports.chromosome_list }}; done',
+        'command': 'bamtools split -in {{ input_ports.bam }} -tag RG',
         'environment': env,
         'resources': resources,
         'input_ports': [
             {
-                'data_type': 'file',
+                'type': 'file',
                 'name': 'bam',
-                'file_name': 'input.bam',
+                'file_name': 'input.bam'
                 }
             ],
         'output_ports': [
             {
-                'data_type': 'file_array',
+                'type': 'file_array',
                 'name': 'bam_array',
-                'glob': '*TAG_RG*.bam',
-                },
-            {
-                'data_type': 'string_array',
-                'name': 'chromosome_list',
+                'glob': '*TAG_RG*.bam'
                 }
             ]
         }
 
     process_step = {
         'name': 'process_step',
-        'command': 'process_chromosome {{ input_ports.bam }} > {{ output_ports.bam }}',
+        'command': 'process_readgroup {{ input_ports.bam }} > {{ output_ports.bam }}',
         'environment': env,
         'resources': resources,
         'input_ports': [
             {
                 'name': 'bam',
-                'type': 'file',
-                'filename': '{{ input_ports.chr }}.bam',
+                'type': 'file'
                 },
-            {
-                'name': 'chr',
-                'type': 'string',
-                }
             ],
         'output_ports': [
             {
                 'name': 'bam',
                 'type': 'file',
-                'filename': '{{ input_ports.chr }}_out.bam',
+                'filename': '{{ input_ports.bam }}.processed'
                 }
             ]
         }
     
     merge_step = {
         'name': 'merge_step',
-        'command': 'samtools merge {{ output_ports.merged_bam }}{% for bam in input_ports.bam_array %} {{ bam }}{% endfor %}',
+        'command': 'samtools merge {{ output_ports.merged_bam }}{% for bamfile in input_ports.bam_array %} {{ bamfile }}{% endfor %}',
         'environment': env,
         'resources': resources,
         'input_ports': [
             {
                 'name': 'bam_array',
-                'data_type': 'file_array',
-                'file_name': '{{ input_ports.chromosome_list[i] }}.bam',
-                },
-            {
-                'input_ports': 'chromosome_list',
-                'data_type': 'string_array'
+                'type': 'file_array'
                 }
             ],
         'output_ports': [
             {
                 'name': 'merged_bam',
                 'file_name': 'out.bam',
-                'data_type': 'file'
+                'type': 'file'
                 }
             ]
         }
@@ -92,7 +78,7 @@ def _make_request():
         'steps': [
             split_step,
             process_step,
-            merge_step,
+            merge_step
             ],
         "data_bindings": [
             {
@@ -111,41 +97,21 @@ def _make_request():
             {
                 'source': {
                     'step': 'split_step',
-                    'port': 'bam_array',
+                    'port': 'bam_array'
                     },
                 'destination': {
                     'step': 'process_step',
-                    'port': 'bam',
+                    'port': 'bam'
                     }
                 },
             {
                 'source': {
                     'step': 'process_step',
-                    'port': 'bam',
+                    'port': 'bam'
                     },
                 'destination': {
                     'step': 'merge_step',
-                    'port': 'bam_array',
-                    }
-                },
-            {
-                "source": {
-                    "step": "split_step",
-                    "port": "chromosome_list"
-                    },
-                "destination": {
-                    "step": "process_step",
-                    "port": "chr"
-                    }
-                },
-            {
-                "source": {
-                    "step": "split_step",
-                    "port": "chromosome_list"
-                    },
-                "destination": {
-                    "step": "merge_step",
-                    "port": "chromosome_list"
+                    'port': 'bam_array'
                     }
                 }
             ]
@@ -153,7 +119,7 @@ def _make_request():
     
     request_run = {
         'workflows': [split_merge_workflow],
-        'requester': 'someone@example.net',
+        'requester': 'someone@example.net'
         }
 
     return request_run

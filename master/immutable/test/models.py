@@ -6,6 +6,8 @@ from immutable.models import ImmutableModel, MutableModel
 # to prevent creating the test models' database tables in a
 # production database.
 
+class BooleanModel(ImmutableModel):
+    is_raining = models.BooleanField()
 
 class SampleMutableChild(MutableModel):
     name = models.CharField(max_length=100)
@@ -22,7 +24,7 @@ class SampleMutableParent(MutableModel):
     FOREIGN_KEY_CHILDREN = ['listofchildren_foreignkey', 'singlechild']
     name = models.CharField(max_length=100)
     listofchildren = models.ManyToManyField(SampleMutableChild2)
-    singlechild = models.ForeignKey(SampleMutableChild, null=True)
+    singlechild = models.ForeignKey(SampleMutableChild, null=True, related_name = 'parents')
 
 class SampleImmutableChild(ImmutableModel):
     name = models.CharField(max_length=100)
@@ -40,6 +42,7 @@ class BadMutableChild(MutableModel):
     name = models.CharField(max_length=100)
 
 class BadImmutableParent(ImmutableModel):
+    FOREIGN_KEY_CHILDREN = ['child']
     name = models.CharField(max_length=100)
     child = models.OneToOneField(BadMutableChild, related_name='parent')
 

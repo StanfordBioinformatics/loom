@@ -2,7 +2,7 @@ from django.db import models
 
 from .common import AnalysisAppBaseModel
 from immutable.models import ImmutableModel
-
+from .files import FileStorageLocation
 
 """
 Models in this module form the core definition of an anlysis step.
@@ -41,9 +41,9 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
     def get_data_binding(self, port):
         return self.data_bindings.get(input_port=port)
 
-    def get_input_file(self, port):
+    def get_input_data_object(self, port):
         data_binding = self.get_data_binding(port)
-        return data_binding.file
+        return data_binding.data_object
         
 
 class StepDefinitionTemplate(ImmutableModel, AnalysisAppBaseModel):
@@ -60,16 +60,34 @@ class StepDefinitionTemplate(ImmutableModel, AnalysisAppBaseModel):
 class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_input_port', 'step_definition_input_ports')
     file_path = models.CharField(max_length = 256)
+    is_array = models.BooleanField()
 
 class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_output_port', 'step_definition_output_ports')
-    file_path = models.CharField(max_length = 256)
+    file_path = models.CharField(max_length = 256, null=True)
+    glob = models.CharField(max_length = 256, null=True)
+    is_array = models.BooleanField()
 
 class StepDefinitionDataBinding(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_data_binding', 'step_definition_data_bindings')
-    FOREIGN_KEY_CHILDREN = ['file', 'input_port']
-    file = models.ForeignKey('File')
+    FOREIGN_KEY_CHILDREN = ['data_object', 'input_port']
+    data_object = models.ForeignKey('DataObject')
     input_port = models.ForeignKey('StepDefinitionInputPort')
+
+    def get_files_and_locations_list(self):
+        file_list = self.get('data_object').render_as_list()
+        return [self.get_file_and_locations(file) for file in file_list]
+
+    def get_file_and_locations(self, file):
+        file_storage_locations = [l.to_serializable_obj() for l in FileStorageLocation.get_by_file(file).all()]
+        return {'file': file.to_serializable_obj(),
+                'file_storage_locations': file_storage_locations}
+
+    def get_input_bundle(self):
+        return {
+            'files_and_locations': self.get_files_and_locations_list(),
+            'input_port': self.input_port.to_serializable_obj()
+            }
 
 class StepDefinitionEnvironment(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('step_definition_environment', 'step_definition_environments')

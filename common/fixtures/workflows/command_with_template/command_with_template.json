@@ -1,0 +1,83 @@
+{
+  "requester": "someone@example.net", 
+  "workflows": [
+    {
+      "name": "echo_workflow",
+      "data_bindings": [
+        {
+          "destination": {
+            "step": "echo1",
+            "port": "hello_in"
+          },
+	  "data_object": {
+	    "metadata": {"something": "anything"},
+	    "file_contents": {
+	      "hash_value": "b1946ac92492d2347c6235b4d2611184", 
+	      "hash_function": "md5"
+	    }		 
+	  } 
+        }
+      ], 
+      "data_pipes": [
+        {
+          "source": {
+	    "step": "echo1",
+	    "port": "hello_out"
+	  },
+	  "destination": {
+	    "step": "echo2",
+	    "port": "hello_in"
+	  }
+        }
+      ],
+      "steps": [
+        {
+          "environment": {
+            "docker_image": "ubuntu"
+          }, 
+          "command": "cat {{ input_ports.hello_in.file_path }} > {{ output_ports.hello_out.file_path }}",
+          "name": "echo1",
+          "resources": {
+            "cores": "1", 
+            "memory": "1GB"
+          }, 
+	  "input_ports": [
+	    {
+	      "name": "hello_in",
+	      "file_path": "hello_in.txt"
+	    }
+	  ],
+          "output_ports": [
+            {
+              "name": "hello_out", 
+              "file_path": "hello1.txt"
+            }
+          ]
+        },
+        {
+          "environment": {
+            "docker_image": "ubuntu"
+          }, 
+          "command": "cat {{ input_ports.hello_in.file_path }} > {{ output_ports.hello_out.file_path }}",
+          "name": "echo2",
+          "resources": {
+            "cores": "1", 
+            "memory": "1GB"
+          }, 
+	  "input_ports": [
+	    {
+	      "name": "hello_in",
+	      "file_path": "hello2.txt"
+	    }
+	  ],
+          "output_ports": [
+            {
+              "name": "hello_out", 
+              "file_path": "{{ input_ports.hello_in.file_path }}.out"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

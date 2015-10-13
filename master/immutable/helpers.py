@@ -55,7 +55,7 @@ class NonserializableTypeConverter(object):
     """
     special_type_converters = {
         datetime.datetime: lambda x: x.isoformat(),
-        uuid.UUID: str,
+        uuid.UUID: str
         }
 
     @classmethod

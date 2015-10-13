@@ -107,11 +107,11 @@ class TestRequestInputPort(TestCase):
 
     def testIsReadyBoundData(self):
         port1 = self.step1._get_input_port('input_port1')
-        self.assertTrue(port1.has_file())
+        self.assertTrue(port1.has_data_object())
 
     def testIsReadyConnectedFile(self):
         port2 = self.step2._get_input_port('input_port2')
-        self.assertFalse(port2.has_file())
+        self.assertFalse(port2.has_data_object())
         
 class TestStep(TestCase):
     def setUp(self):
@@ -122,12 +122,12 @@ class TestStep(TestCase):
     def testIsReadyBoundData(self):
         # This step is not ready because although it already has 
         # a bound file, that file has no location
-        self.assertFalse(self.step1._are_inputs_ready())
+        self.assertFalse(self.step1._is_input_data_ready())
 
     def testIsReadyDataPipeNoFile(self):
         # This step is not ready because its input port has a data_pipe to the
         # previous step but no file exists.
-        self.assertFalse(self.step2._are_inputs_ready())
+        self.assertFalse(self.step2._is_input_data_ready())
 
     def testIsReadyDataPipeWithFile(self):
         # TODO

@@ -142,4 +142,4 @@ STATIC_URL = '/static/'
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 FILE_SERVER_FOR_WORKER = os.getenv('FILE_SERVER_FOR_WORKER', socket.getfqdn())
-FILE_ROOT = os.getenv('FILE_ROOT', os.path.join(os.getenv('HOME'),'xppf_data_root'))
+FILE_ROOT = os.getenv('FILE_ROOT', os.path.join(os.getenv('HOME'),'working_dir'))

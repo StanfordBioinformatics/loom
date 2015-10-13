@@ -31,7 +31,6 @@ class TestMutableModel(TestCase):
 
     def testCreateWithListOfChildrenReverseForeignKey(self):
         model_json = '{"listofchildren_foreignkey": [{"name": "ishmael"}, {"name": "jake"}]}'
-#        with self.assertRaises(ForeignKeyInChildError):
         model = SampleMutableParent.create(model_json)
         self.assertEqual(model.listofchildren_foreignkey.count(), 2)
 
@@ -275,3 +274,10 @@ class TimeStempTest(TestCase):
     # Try to explicitly set datetime_created and _updated after object exists. Verify exception.
 
     # Verify exception when USE_TZ==False
+
+class TestBooleanField(TestCase):
+    def test_field(self):
+        model_in = {'is_raining': True}
+        model = BooleanModel.create(model_in)
+        model_out = model.to_obj()
+        self.assertEqual(model_in['is_raining'], model_out['is_raining'])
