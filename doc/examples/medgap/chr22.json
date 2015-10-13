@@ -1,0 +1,1899 @@
+{
+    "workflows": [
+        {
+            "data_pipes": [
+                {
+                    "source": {
+                        "step": "bam2fq", 
+                        "port": "bam2fq_out"
+                    }, 
+                    "destination": {
+                        "step": "align", 
+                        "port": "align_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "bam2fq", 
+                        "port": "bam2fq_out"
+                    }, 
+                    "destination": {
+                        "step": "samtobam", 
+                        "port": "samtobam_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "samtobam", 
+                        "port": "samtobam_out"
+                    }, 
+                    "destination": {
+                        "step": "mergeinputbams", 
+                        "port": "mergeinputbams_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "mergeinputbams", 
+                        "port": "mergeinputbams_out"
+                    }, 
+                    "destination": {
+                        "step": "indexbam", 
+                        "port": "indexbam_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "mergeinputbams", 
+                        "port": "mergeinputbams_out"
+                    }, 
+                    "destination": {
+                        "step": "extractchromosome", 
+                        "port": "extractchromosome_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "indexbam", 
+                        "port": "indexbam_out"
+                    }, 
+                    "destination": {
+                        "step": "extractchromosome", 
+                        "port": "extractchromosome_index_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "extractchromosome", 
+                        "port": "extractchromosome_out"
+                    }, 
+                    "destination": {
+                        "step": "indexchromosomebam", 
+                        "port": "indexchromosomebam_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "indexchromosomebam", 
+                        "port": "indexchromosomebam_out"
+                    }, 
+                    "destination": {
+                        "step": "fixindexnamechromosome", 
+                        "port": "fixindexnamechromosome_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "extractchromosome", 
+                        "port": "extractchromosome_out"
+                    }, 
+                    "destination": {
+                        "step": "markduplicates", 
+                        "port": "markduplicates_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "markduplicates", 
+                        "port": "markduplicates_out"
+                    }, 
+                    "destination": {
+                        "step": "indexnodupbam", 
+                        "port": "indexnodupbam_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "indexnodupbam", 
+                        "port": "indexnodupbam_out"
+                    }, 
+                    "destination": {
+                        "step": "fixindexnamenodup", 
+                        "port": "fixindexnamenodup_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "markduplicates", 
+                        "port": "markduplicates_out"
+                    }, 
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "findtargets", 
+                        "port": "findtargets_out"
+                    }, 
+                    "destination": {
+                        "step": "realign", 
+                        "port": "realign_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "markduplicates", 
+                        "port": "markduplicates_out"
+                    }, 
+                    "destination": {
+                        "step": "realign", 
+                        "port": "realign_nodup_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "realign", 
+                        "port": "realign_out"
+                    }, 
+                    "destination": {
+                        "step": "fixmatepairs", 
+                        "port": "fixmatepairs_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "fixmatepairs", 
+                        "port": "fixmatepairs_out"
+                    }, 
+                    "destination": {
+                        "step": "indexrealnbam", 
+                        "port": "indexrealnbam_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "indexrealnbam", 
+                        "port": "indexrealnbam_out"
+                    }, 
+                    "destination": {
+                        "step": "fixindexrealn", 
+                        "port": "fixindexrealn_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "fixmatepairs", 
+                        "port": "fixmatepairs_out"
+                    }, 
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "fixindexrealn", 
+                        "port": "fixindexrealn_out"
+                    }, 
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_index_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "fixmatepairs", 
+                        "port": "fixmatepairs_out"
+                    }, 
+                    "destination": {
+                        "step": "printreads", 
+                        "port": "printreads_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "fixindexrealn", 
+                        "port": "fixindexrealn_out"
+                    }, 
+                    "destination": {
+                        "step": "printreads", 
+                        "port": "printreads_index_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "bqsr", 
+                        "port": "bqsr_out"
+                    }, 
+                    "destination": {
+                        "step": "printreads", 
+                        "port": "printreads_bqsr_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "printreads", 
+                        "port": "printreads_out"
+                    }, 
+                    "destination": {
+                        "step": "indexbamrecal", 
+                        "port": "indexbamrecal_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "indexbamrecal", 
+                        "port": "indexbamrecal_out"
+                    }, 
+                    "destination": {
+                        "step": "fixindexrecal", 
+                        "port": "fixindexrecal_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "printreads", 
+                        "port": "printreads_out"
+                    }, 
+                    "destination": {
+                        "step": "haplotypecaller", 
+                        "port": "haplotypecaller_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "fixindexrecal", 
+                        "port": "fixindexrecal_out"
+                    }, 
+                    "destination": {
+                        "step": "haplotypecaller", 
+                        "port": "haplotypecaller_index_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "haplotypecaller", 
+                        "port": "haplotypecaller_out"
+                    }, 
+                    "destination": {
+                        "step": "selectsnps", 
+                        "port": "selectsnps_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "haplotypecaller", 
+                        "port": "haplotypecaller_out"
+                    }, 
+                    "destination": {
+                        "step": "selectindels", 
+                        "port": "selectindels_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "selectsnps", 
+                        "port": "selectsnps_out"
+                    }, 
+                    "destination": {
+                        "step": "combinesnpsindels", 
+                        "port": "combinesnpsindels_snps_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "selectindels", 
+                        "port": "selectindels_out"
+                    }, 
+                    "destination": {
+                        "step": "combinesnpsindels", 
+                        "port": "combinesnpsindels_snps_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "printreads", 
+                        "port": "printreads_out"
+                    }, 
+                    "destination": {
+                        "step": "mergechromosomebams", 
+                        "port": "mergechromosomebams_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "combinesnpsindels", 
+                        "port": "combinesnpsindels_out"
+                    }, 
+                    "destination": {
+                        "step": "combinevcfs", 
+                        "port": "combinevcfs_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "combinevcfs", 
+                        "port": "combinevcfs_out"
+                    }, 
+                    "destination": {
+                        "step": "selectsnpsforvqsr", 
+                        "port": "selectsnpsforvqsr_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "selectsnpsforvqsr", 
+                        "port": "selectsnpsforvqsr_out"
+                    }, 
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "selectsnpsforvqsr", 
+                        "port": "selectsnpsforvqsr_out"
+                    }, 
+                    "destination": {
+                        "step": "vqsrsnps", 
+                        "port": "vqsrsnps_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_recal_out"
+                    }, 
+                    "destination": {
+                        "step": "vqsrsnps", 
+                        "port": "vqsrsnps_recal_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_tranches_out"
+                    }, 
+                    "destination": {
+                        "step": "vqsrsnps", 
+                        "port": "vqsrsnps_tranches_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "combinevcfs", 
+                        "port": "combinevcfs_out"
+                    }, 
+                    "destination": {
+                        "step": "selectindelsforvqsr", 
+                        "port": "selectindelsforvqsr_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "selectindelsforvqsr", 
+                        "port": "selectindelsforvqsr_out"
+                    }, 
+                    "destination": {
+                        "step": "trainvqsrindels", 
+                        "port": "trainvqsrindels_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "selectindelsforvqsr", 
+                        "port": "selectindelsforvqsr_out"
+                    }, 
+                    "destination": {
+                        "step": "vqsrindels", 
+                        "port": "vqsrindels_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "trainvqsrindels", 
+                        "port": "trainvqsrindels_recal_out"
+                    }, 
+                    "destination": {
+                        "step": "vqsrindels", 
+                        "port": "vqsrindels_recal_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "trainvqsrindels", 
+                        "port": "trainvqsrindels_tranches_out"
+                    }, 
+                    "destination": {
+                        "step": "vqsrindels", 
+                        "port": "vqsrindels_tranches_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "vqsrsnps", 
+                        "port": "vqsrsnps_out"
+                    }, 
+                    "destination": {
+                        "step": "mergecalibratedvcfs", 
+                        "port": "mergecalibratedvcfs_snp_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "vqsrindels", 
+                        "port": "vqsrindels_out"
+                    }, 
+                    "destination": {
+                        "step": "mergecalibratedvcfs", 
+                        "port": "mergecalibratedvcfs_indel_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "mergecalibratedvcfs", 
+                        "port": "mergecalibratedvcfs_out"
+                    }, 
+                    "destination": {
+                        "step": "compressvcf", 
+                        "port": "compressvcf_in"
+                    }
+                }, 
+                {
+                    "source": {
+                        "step": "compressvcf", 
+                        "port": "compressvcf_out"
+                    }, 
+                    "destination": {
+                        "step": "indexcompressedvcf", 
+                        "port": "indexcompressedvcf_in"
+                    }
+                }
+            ], 
+            "steps": [
+                {
+                    "name": "bam2fq", 
+                    "input_ports": [
+                        {
+                            "name": "bam2fq_in", 
+                            "file_path": "NA12878-Macrogen-chr22.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools bam2fq NA12878-Macrogen-chr22.bam > NA12878.fastq", 
+                    "output_ports": [
+                        {
+                            "name": "bam2fq_out", 
+                            "file_path": "NA12878.fastq"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "align", 
+                    "input_ports": [
+                        {
+                            "name": "align_in", 
+                            "file_path": "NA12878.fastq"
+                        }, 
+                        {
+                            "name": "reference_index_bwt", 
+                            "file_path": "ucsc.hg19.fasta.bwt"
+                        }, 
+                        {
+                            "name": "reference_index_pac", 
+                            "file_path": "ucsc.hg19.fasta.pac"
+                        }, 
+                        {
+                            "name": "reference_index_sa", 
+                            "file_path": "ucsc.hg19.fasta.sa"
+                        }, 
+                        {
+                            "name": "reference_index_ann", 
+                            "file_path": "ucsc.hg19.fasta.ann"
+                        }, 
+                        {
+                            "name": "reference_index_amb", 
+                            "file_path": "ucsc.hg19.fasta.amb"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/bwa-0.7.4"
+                    }, 
+                    "command": "bwa mem -CMp -t 4 -R \"@RG\\tID:0\\tLB:Library\\tPL:Illumina\\tSM:NA12878\" ucsc.hg19.fasta NA12878.fastq > NA12878.bwa.sam", 
+                    "output_ports": [
+                        {
+                            "name": "align_out", 
+                            "file_path": "NA12878.bwa.sam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "samtobam", 
+                    "input_ports": [
+                        {
+                            "name": "samtobam_in", 
+                            "file_path": "NA12878.fastq"
+                        }, 
+                        {
+                            "name": "reference_index_fai", 
+                            "file_path": "ucsc.hg19.fasta.fai"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools view -Sbt ucsc.hg19.fasta.fai -o NA12878.bwa.bam NA12878.bwa.sam", 
+                    "output_ports": [
+                        {
+                            "name": "samtobam_out", 
+                            "file_path": "NA12878.bwa.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "mergeinputbams", 
+                    "input_ports": [
+                        {
+                            "name": "mergeinputbams_in", 
+                            "file_path": "NA12878.bwa.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/picard-1.32"
+                    }, 
+                    "command": "java -Xms8g -Xmx8g -jar /opt/picard-tools-1.32/MergeSamFiles.jar TMP_DIR=/outside INPUT=NA12878.bwa.bam USE_THREADING=true CREATE_INDEX=true OUTPUT=NA12878.bwa.sorted.bam", 
+                    "output_ports": [
+                        {
+                            "name": "mergeinputbams_out", 
+                            "file_path": "NA12878.bwa.sorted.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "indexbam", 
+                    "input_ports": [
+                        {
+                            "name": "indexbam_in", 
+                            "file_path": "NA12878.bwa.sorted.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools index NA12878.bwa.sorted.bam", 
+                    "output_ports": [
+                        {
+                            "name": "indexbam_out", 
+                            "file_path": "NA12878.bwa.sorted.bam.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "extractchromosome", 
+                    "input_ports": [
+                        {
+                            "name": "extractchromosome_in", 
+                            "file_path": "NA12878.bwa.sorted.bam"
+                        }, 
+                        {
+                            "name": "extractchromosome_index_in", 
+                            "file_path": "NA12878.bwa.sorted.bam.bai"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools view NA12878.bwa.sorted.bam chr22 -bo chr22.bam", 
+                    "output_ports": [
+                        {
+                            "name": "extractchromosome_out", 
+                            "file_path": "chr22.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "indexchromosomebam", 
+                    "input_ports": [
+                        {
+                            "name": "indexchromosomebam_in", 
+                            "file_path": "chr22.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools index chr22.bam", 
+                    "output_ports": [
+                        {
+                            "name": "indexchromosomebam_out", 
+                            "file_path": "chr22.bam.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "fixindexnamechromosome", 
+                    "input_ports": [
+                        {
+                            "name": "fixindexnamechromosome_in", 
+                            "file_path": "chr22.bam.bai"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/fix_bai_name"
+                    }, 
+                    "command": "python /opt/fix_bai_name.py chr22.bam.bai", 
+                    "output_ports": [
+                        {
+                            "name": "fixindexnamechromosome_out", 
+                            "file_path": "chr22.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "markduplicates", 
+                    "input_ports": [
+                        {
+                            "name": "markduplicates_in", 
+                            "file_path": "chr22.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/picard-1.32"
+                    }, 
+                    "command": "java -Xms5g -Xmx5g -jar /opt/picard-tools-1.32/MarkDuplicates.jar TMP_DIR=/outside I=chr22.bam O=chr22.nodup.bam M=chr22.bam.metrics VALIDATION_STRINGENCY=SILENT ASSUME_SORTED=true REMOVE_DUPLICATES=false", 
+                    "output_ports": [
+                        {
+                            "name": "markduplicates_out", 
+                            "file_path": "chr22.nodup.bam"
+                        }, 
+                        {
+                            "name": "markduplicates_metrics_out", 
+                            "file_path": "chr22.bam.metrics"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "indexnodupbam", 
+                    "input_ports": [
+                        {
+                            "name": "indexnodupbam_in", 
+                            "file_path": "chr22.nodup.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools index chr22.nodup.bam", 
+                    "output_ports": [
+                        {
+                            "name": "indexnodupbam_out", 
+                            "file_path": "chr22.nodup.bam.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "fixindexnamenodup", 
+                    "input_ports": [
+                        {
+                            "name": "fixindexnamenodup_in", 
+                            "file_path": "chr22.nodup.bam.bai"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/fix_bai_name"
+                    }, 
+                    "command": "python /opt/fix_bai_name.py chr22.nodup.bam.bai", 
+                    "output_ports": [
+                        {
+                            "name": "fixindexnamenodup_out", 
+                            "file_path": "chr22.nodup.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "findtargets", 
+                    "input_ports": [
+                        {
+                            "name": "findtargets_in", 
+                            "file_path": "chr22.nodup.bam"
+                        }, 
+                        {
+                            "name": "findtargets_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "findtargets_goldindels_in", 
+                            "file_path": "Mills_and_1000G_gold_standard.indels.hg19.vcf"
+                        }, 
+                        {
+                            "name": "findtargets_phase1indels_in", 
+                            "file_path": "1000G_phase1.indels.hg19.vcf"
+                        }, 
+                        {
+                            "name": "findtargets_GATKkey_in", 
+                            "file_path": "stanford.edu.key"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xms8g -Xmx8g -jar /opt/GenomeAnalysisTK.jar -T RealignerTargetCreator -I chr22.nodup.bam -R ucsc.hg19.fasta -o chr22.realn.intervals -L chr22 -known Mills_and_1000G_gold_standard.indels.hg19.vcf -known 1000G_phase1.indels.hg19.vcf -et NO_ET -K stanford.edu.key -nt 8", 
+                    "output_ports": [
+                        {
+                            "name": "findtargets_out", 
+                            "file_path": "chr22.realn.intervals"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "realign", 
+                    "input_ports": [
+                        {
+                            "name": "realign_in", 
+                            "file_path": "chr22.realn.intervals"
+                        }, 
+                        {
+                            "name": "realign_nodup_in", 
+                            "file_path": "chr22.nodup.bam"
+                        }, 
+                        {
+                            "name": "realign_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "findtargets_goldindels_in", 
+                            "file_path": "Mills_and_1000G_gold_standard.indels.hg19.vcf"
+                        }, 
+                        {
+                            "name": "findtargets_phase1indels_in", 
+                            "file_path": "1000G_phase1.indels.hg19.vcf"
+                        }, 
+                        {
+                            "name": "findtargets_GATKkey_in", 
+                            "file_path": "stanford.edu.key"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xms8g -Xmx8g -Djava.io.tmpdir=/outside -jar /opt/GenomeAnalysisTK.jar -T IndelRealigner -I chr22.nodup.bam -R ucsc.hg19.fasta -o chr22.realn.bam -L chr22 -targetIntervals chr22.realn.intervals -known Mills_and_1000G_gold_standard.indels.hg19.vcf -known 1000G_phase1.indels.hg19.vcf -et NO_ET -K stanford.edu.key", 
+                    "output_ports": [
+                        {
+                            "name": "realign_out", 
+                            "file_path": "chr22.realn.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "fixmatepairs", 
+                    "input_ports": [
+                        {
+                            "name": "fixmatepairs_in", 
+                            "file_path": "chr22.realn.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/picard-1.32"
+                    }, 
+                    "command": "java -Xms8g -Xmx8g -jar /opt/picard-tools-1.32/FixMateInformation.jar TMP_DIR=/outside INPUT=chr22.realn.bam OUTPUT=chr22.realn.fixed.bam VALIDATION_STRINGENCY=SILENT SORT_ORDER=coordinate", 
+                    "output_ports": [
+                        {
+                            "name": "fixmatepairs_out", 
+                            "file_path": "chr22.realn.fixed.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "indexrealnbam", 
+                    "input_ports": [
+                        {
+                            "name": "indexrealnbam_in", 
+                            "file_path": "chr22.realn.fixed.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools index chr22.realn.fixed.bam", 
+                    "output_ports": [
+                        {
+                            "name": "indexrealnbam_out", 
+                            "file_path": "chr22.realn.fixed.bam.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "fixindexrealn", 
+                    "input_ports": [
+                        {
+                            "name": "fixindexrealn_in", 
+                            "file_path": "chr22.realn.fixed.bam.bai"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/fix_bai_name"
+                    }, 
+                    "command": "python /opt/fix_bai_name.py chr22.realn.fixed.bam.bai", 
+                    "output_ports": [
+                        {
+                            "name": "fixindexrealn_out", 
+                            "file_path": "chr22.realn.fixed.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "bqsr", 
+                    "input_ports": [
+                        {
+                            "name": "bqsr_in", 
+                            "file_path": "chr22.realn.fixed.bam"
+                        }, 
+                        {
+                            "name": "bqsr_index_in", 
+                            "file_path": "chr22.realn.fixed.bai"
+                        }, 
+                        {
+                            "name": "bqsr_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "bqsr_goldindels_in", 
+                            "file_path": "Mills_and_1000G_gold_standard.indels.hg19.vcf"
+                        }, 
+                        {
+                            "name": "bqsr_phase1indels_in", 
+                            "file_path": "1000G_phase1.indels.hg19.vcf"
+                        }, 
+                        {
+                            "name": "bqsr_GATKkey_in", 
+                            "file_path": "stanford.edu.key"
+                        }, 
+                        {
+                            "name": "bqsr_dbsnp_in", 
+                            "file_path": "dbsnp_138.hg19.vcf"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xms5g -Xmx5g -jar /opt/GenomeAnalysisTK.jar -T BaseRecalibrator -I chr22.realn.fixed.bam -R ucsc.hg19.fasta -o chr22.recal.grp -knownSites Mills_and_1000G_gold_standard.indels.hg19.vcf -knownSites 1000G_phase1.indels.hg19.vcf -knownSites dbsnp_138.hg19.vcf -K stanford.edu.key -nct 8", 
+                    "output_ports": [
+                        {
+                            "name": "bqsr_out", 
+                            "file_path": "chr22.recal.grp"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "printreads", 
+                    "input_ports": [
+                        {
+                            "name": "printreads_in", 
+                            "file_path": "chr22.realn.fixed.bam"
+                        }, 
+                        {
+                            "name": "printreads_index_in", 
+                            "file_path": "chr22.realn.fixed.bai"
+                        }, 
+                        {
+                            "name": "printreads_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "printreads_GATKkey_in", 
+                            "file_path": "stanford.edu.key"
+                        }, 
+                        {
+                            "name": "printreads_bqsr_in", 
+                            "file_path": "chr22.recal.grp"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xms5g -Xmx5g -jar /opt/GenomeAnalysisTK.jar -R ucsc.hg19.fasta -I chr22.realn.fixed.bam -o chr22.recal.bam -T PrintReads -BQSR chr22.recal.grp -K stanford.edu.key -nct 8", 
+                    "output_ports": [
+                        {
+                            "name": "printreads_out", 
+                            "file_path": "chr22.recal.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "indexbamrecal", 
+                    "input_ports": [
+                        {
+                            "name": "indexbamrecal_in", 
+                            "file_path": "chr22.recal.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools index chr22.recal.bam", 
+                    "output_ports": [
+                        {
+                            "name": "indexbamrecal_out", 
+                            "file_path": "chr22.recal.bam.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "fixindexrecal", 
+                    "input_ports": [
+                        {
+                            "name": "fixindexrecal_in", 
+                            "file_path": "chr22.recal.bam.bai"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/fix_bai_name"
+                    }, 
+                    "command": "python /opt/fix_bai_name.py chr22.recal.bam.bai", 
+                    "output_ports": [
+                        {
+                            "name": "fixindexrecal_out", 
+                            "file_path": "chr22.recal.bai"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "1GB"
+                    }
+                }, 
+                {
+                    "name": "haplotypecaller", 
+                    "input_ports": [
+                        {
+                            "name": "haplotypecaller_in", 
+                            "file_path": "chr22.recal.bam"
+                        }, 
+                        {
+                            "name": "haplotypecaller_index_in", 
+                            "file_path": "chr22.recal.bai"
+                        }, 
+                        {
+                            "name": "haplotypecaller_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx8g -Xms8g -Djava.io.tmpdir=/outside -jar /opt/GenomeAnalysisTK.jar -T HaplotypeCaller -R ucsc.hg19.fasta -I chr22.recal.bam --dbsnp dbsnp_138.hg19.vcf -o chr22.gatk.vcf.hc.vcf -stand_call_conf 20.0 -stand_emit_conf 10.0 --genotyping_mode DISCOVERY -nct 8", 
+                    "output_ports": [
+                        {
+                            "name": "haplotypecaller_out", 
+                            "file_path": "chr22.gatk.vcf.hc.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "selectsnps", 
+                    "input_ports": [
+                        {
+                            "name": "selectsnps_in", 
+                            "file_path": "chr22.gatk.vcf.hc.vcf"
+                        }, 
+                        {
+                            "name": "selectsnps_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx8g -Xms8g -jar /opt/GenomeAnalysisTK.jar -T SelectVariants -R ucsc.hg19.fasta -V chr22.gatk.vcf.hc.vcf -o chr22.gatk.vcf.snp -selectType SNP", 
+                    "output_ports": [
+                        {
+                            "name": "selectsnps_out", 
+                            "file_path": "chr22.gatk.vcf.snp"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "selectindels", 
+                    "input_ports": [
+                        {
+                            "name": "selectindels_in", 
+                            "file_path": "chr22.gatk.vcf.hc.vcf"
+                        }, 
+                        {
+                            "name": "selectindels_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx8g -Xms8g -jar /opt/GenomeAnalysisTK.jar -T SelectVariants -R ucsc.hg19.fasta -V chr22.gatk.vcf.hc.vcf -o chr22.gatk.vcf.indel -selectType INDEL", 
+                    "output_ports": [
+                        {
+                            "name": "selectindels_out", 
+                            "file_path": "chr22.gatk.vcf.indel"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "combinesnpsindels", 
+                    "input_ports": [
+                        {
+                            "name": "combinesnpsindels_snps_in", 
+                            "file_path": "chr22.gatk.vcf.snp"
+                        }, 
+                        {
+                            "name": "combinesnpsindels_snps_in", 
+                            "file_path": "chr22.gatk.vcf.indel"
+                        }, 
+                        {
+                            "name": "combinesnpsindels_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx8g -Xms8g -jar /opt/GenomeAnalysisTK.jar -R ucsc.hg19.fasta -T CombineVariants --variant chr22.gatk.vcf.snp --variant chr22.gatk.vcf.indel -o chr22.gatk.vcf", 
+                    "output_ports": [
+                        {
+                            "name": "combinesnpsindels_out", 
+                            "file_path": "chr22.gatk.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "mergechromosomebams", 
+                    "input_ports": [
+                        {
+                            "name": "mergechromosomebams_in", 
+                            "file_path": "chr22.recal.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/picard-1.32"
+                    }, 
+                    "command": "java -Xms5g -Xmx5g -jar /opt/picard-tools-1.32/MergeSamFiles.jar TMP_DIR=/outside INPUT=chr22.recal.bam USE_THREADING=true CREATE_INDEX=true OUTPUT=genome.recal.bam", 
+                    "output_ports": [
+                        {
+                            "name": "mergechromosomebams_out", 
+                            "file_path": "genome.recal.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "6GB"
+                    }
+                }, 
+                {
+                    "name": "combinevcfs", 
+                    "input_ports": [
+                        {
+                            "name": "combinevcfs_in", 
+                            "file_path": "chr22.gatk.vcf"
+                        }, 
+                        {
+                            "name": "combinevcfs_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx8g -Xms8g -jar /opt/GenomeAnalysisTK.jar -R ucsc.hg19.fasta -T CombineVariants --variant:VCF /outside/chr22.gatk.vcf -o NA12878.gatk.vcf", 
+                    "output_ports": [
+                        {
+                            "name": "combinevcfs_out", 
+                            "file_path": "NA12878.gatk.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "selectsnpsforvqsr", 
+                    "input_ports": [
+                        {
+                            "name": "selectsnpsforvqsr_in", 
+                            "file_path": "NA12878.gatk.vcf"
+                        }, 
+                        {
+                            "name": "selectsnpsforvqsr_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx6g -Xms6g -jar /opt/GenomeAnalysisTK.jar -T SelectVariants -R ucsc.hg19.fasta -V NA12878.gatk.vcf -o NA12878.snp.vcf -selectType SNP", 
+                    "output_ports": [
+                        {
+                            "name": "selectsnpsforvqsr_out", 
+                            "file_path": "NA12878.snp.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "8GB"
+                    }
+                }, 
+                {
+                    "name": "trainvqsrforsnps", 
+                    "input_ports": [
+                        {
+                            "name": "trainvqsrforsnps_in", 
+                            "file_path": "NA12878.snp.vcf"
+                        }, 
+                        {
+                            "name": "trainvqsrforsnps_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "trainvqsrforsnps_hapmap_in", 
+                            "file_path": "hapmap_3.3.hg19.vcf"
+                        }, 
+                        {
+                            "name": "trainvqsrforsnps_omni_in", 
+                            "file_path": "1000G_omni2.5.hg19.vcf"
+                        }, 
+                        {
+                            "name": "trainvqsrforsnps_phase1snps_in", 
+                            "file_path": "1000G_phase1.snps.high_confidence.hg19.vcf"
+                        }, 
+                        {
+                            "name": "trainvqsrforsnps_dbsnp_in", 
+                            "file_path": "dbsnp_138.hg19.vcf"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx6g -Xms6g -jar /opt/GenomeAnalysisTK.jar -T VariantRecalibrator -R ucsc.hg19.fasta -input NA12878.snp.vcf -resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap_3.3.hg19.vcf -resource:omni,known=false,training=true,truth=true,prior=12.0 1000G_omni2.5.hg19.vcf -resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G_phase1.snps.high_confidence.hg19.vcf -resource:dbsnp,known=true,training=false,truth=false,prior=2.0 dbsnp_138.hg19.vcf -an DP -an QD -an FS -an MQRankSum -an ReadPosRankSum -tranche 100.0 -tranche 99.9 -tranche 99.0 -tranche 90.0 -mode SNP -recalFile NA12878.tmp.snp.vcf -tranchesFile NA12878.tranches.gatk.snp.recal.csv -nt 8 -rscriptFile NA12878.gatk.recal.snp.R", 
+                    "output_ports": [
+                        {
+                            "name": "trainvqsrforsnps_recal_out", 
+                            "file_path": "NA12878.tmp.snp.vcf"
+                        }, 
+                        {
+                            "name": "trainvqsrforsnps_tranches_out", 
+                            "file_path": "NA12878.tranches.gatk.snp.recal.csv"
+                        }, 
+                        {
+                            "name": "trainvqsrforsnps_rscript_out", 
+                            "file_path": "NA12878.gatk.recal.snp.R"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "4", 
+                        "memory": "8GB"
+                    }
+                }, 
+                {
+                    "name": "vqsrsnps", 
+                    "input_ports": [
+                        {
+                            "name": "vqsrsnps_in", 
+                            "file_path": "NA12878.snp.vcf"
+                        }, 
+                        {
+                            "name": "vqsrsnps_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "vqsrsnps_recal_in", 
+                            "file_path": "NA12878.tmp.snp.vcf"
+                        }, 
+                        {
+                            "name": "vqsrsnps_tranches_in", 
+                            "file_path": "NA12878.tranches.gatk.snp.recal.csv"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx3g -Xms3g -jar /opt/GenomeAnalysisTK.jar -T ApplyRecalibration -R ucsc.hg19.fasta -input NA12878.snp.vcf --ts_filter_level 99.0 -tranchesFile NA12878.tranches.gatk.snp.recal.csv -recalFile NA12878.tmp.snp.vcf -o NA12878.vqsr.snp.vcf --mode SNP", 
+                    "output_ports": [
+                        {
+                            "name": "vqsrsnps_out", 
+                            "file_path": "NA12878.vqsr.snp.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "4GB"
+                    }
+                }, 
+                {
+                    "name": "selectindelsforvqsr", 
+                    "input_ports": [
+                        {
+                            "name": "selectindelsforvqsr_in", 
+                            "file_path": "NA12878.gatk.vcf"
+                        }, 
+                        {
+                            "name": "selectindelsforvqsr_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx6g -Xms6g -jar /opt/GenomeAnalysisTK.jar -T SelectVariants -R ucsc.hg19.fasta -V NA12878.gatk.vcf -o NA12878.indel.vcf -selectType INDEL", 
+                    "output_ports": [
+                        {
+                            "name": "selectindelsforvqsr_out", 
+                            "file_path": "NA12878.indel.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "8GB"
+                    }
+                }, 
+                {
+                    "name": "trainvqsrindels", 
+                    "input_ports": [
+                        {
+                            "name": "trainvqsrindels_in", 
+                            "file_path": "NA12878.indel.vcf"
+                        }, 
+                        {
+                            "name": "trainvqsrindels_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "trainvqsrindels_goldindels_in", 
+                            "file_path": "Mills_and_1000G_gold_standard.indels.hg19.vcf"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx6g -Xms6g -jar /opt/GenomeAnalysisTK.jar -T VariantRecalibrator -R ucsc.hg19.fasta -input NA12878.indel.vcf -resource:mills,known=true,training=true,truth=true,prior=12.0 Mills_and_1000G_gold_standard.indels.hg19.vcf -an DP -an FS -an MQRankSum -an ReadPosRankSum -tranche 100.0 -tranche 99.9 -tranche 99.0 -tranche 90.0 -mode INDEL -recalFile NA12878.tmp.indel.vcf -tranchesFile NA12878.tranches.gatk.indel.recal.csv --maxGaussians 4 -nt 8 -rscriptFile NA12878.gatk.recal.indel.R", 
+                    "output_ports": [
+                        {
+                            "name": "trainvqsrindels_recal_out", 
+                            "file_path": "NA12878.tmp.indel.vcf"
+                        }, 
+                        {
+                            "name": "trainvqsrindels_tranches_out", 
+                            "file_path": "NA12878.tranches.gatk.indel.recal.csv"
+                        }, 
+                        {
+                            "name": "trainvqsrindels_rscript_out", 
+                            "file_path": "NA12878.gatk.recal.indel.R"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "8", 
+                        "memory": "8GB"
+                    }
+                }, 
+                {
+                    "name": "vqsrindels", 
+                    "input_ports": [
+                        {
+                            "name": "vqsrindels_in", 
+                            "file_path": "NA12878.indel.vcf"
+                        }, 
+                        {
+                            "name": "vqsrindels_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }, 
+                        {
+                            "name": "vqsrindels_recal_in", 
+                            "file_path": "NA12878.tmp.indel.vcf"
+                        }, 
+                        {
+                            "name": "vqsrindels_tranches_in", 
+                            "file_path": "NA12878.tranches.gatk.indel.recal.csv"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx6g -Xms6g -jar /opt/GenomeAnalysisTK.jar -T ApplyRecalibration -R ucsc.hg19.fasta -input NA12878.indel.vcf --ts_filter_level 99.0 -tranchesFile NA12878.tranches.gatk.indel.recal.csv -recalFile NA12878.tmp.indel.vcf -o NA12878.vqsr.indel.vcf --mode INDEL", 
+                    "output_ports": [
+                        {
+                            "name": "vqsrindels_out", 
+                            "file_path": "NA12878.vqsr.indel.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "8GB"
+                    }
+                }, 
+                {
+                    "name": "mergecalibratedvcfs", 
+                    "input_ports": [
+                        {
+                            "name": "mergecalibratedvcfs_snp_in", 
+                            "file_path": "NA12878.vqsr.snp.vcf"
+                        }, 
+                        {
+                            "name": "mergecalibratedvcfs_indel_in", 
+                            "file_path": "NA12878.vqsr.indel.vcf"
+                        }, 
+                        {
+                            "name": "mergecalibratedvcfs_reference_in", 
+                            "file_path": "ucsc.hg19.fasta"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/gatk-3.1.1"
+                    }, 
+                    "command": "java -Xmx8g -Xms8g -jar /opt/GenomeAnalysisTK.jar -R ucsc.hg19.fasta -T CombineVariants --variant:VCF NA12878.vqsr.indel.vcf --variant:VCF NA12878.vqsr.snp.vcf -o genome.recal.vcf", 
+                    "output_ports": [
+                        {
+                            "name": "mergecalibratedvcfs_out", 
+                            "file_path": "genome.recal.vcf"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "10GB"
+                    }
+                }, 
+                {
+                    "name": "compressvcf", 
+                    "input_ports": [
+                        {
+                            "name": "compressvcf_in", 
+                            "file_path": "genome.recal.vcf"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/tabix-0.2.5"
+                    }, 
+                    "command": "bgzip -fc genome.recal.vcf > genome.recal.vcf.gz", 
+                    "output_ports": [
+                        {
+                            "name": "compressvcf_out", 
+                            "file_path": "genome.recal.vcf.gz"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "8GB"
+                    }
+                }, 
+                {
+                    "name": "indexcompressedvcf", 
+                    "input_ports": [
+                        {
+                            "name": "indexcompressedvcf_in", 
+                            "file_path": "genome.recal.vcf.gz"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/tabix-0.2.5"
+                    }, 
+                    "command": "tabix -p vcf genome.recal.vcf.gz", 
+                    "output_ports": [
+                        {
+                            "name": "indexcompressedvcf_out", 
+                            "file_path": "genome.recal.vcf.gz.tbi"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "8GB"
+                    }
+                }
+            ], 
+            "data_bindings": [
+                {
+                    "destination": {
+                        "step": "bam2fq", 
+                        "port": "bam2fq_in"
+                    }, 
+                    "file": {
+                        "hash_value": "e91383f973a46f66807669a8d2118039", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_amb"
+                    }, 
+                    "file": {
+                        "hash_value": "3a7d429dc05ab5f537a49bc661ad2838", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_bwt"
+                    }, 
+                    "file": {
+                        "hash_value": "fb63789e11e9829f9a81843878419b50", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_pac"
+                    }, 
+                    "file": {
+                        "hash_value": "5c6a35db7b9d0eca77aa598f06da38cc", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_sa"
+                    }, 
+                    "file": {
+                        "hash_value": "3bb711abaeec3721151ded065a4d9ddc", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_ann"
+                    }, 
+                    "file": {
+                        "hash_value": "05f76d57ff877d06c795efbe2f557884", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "samtobam", 
+                        "port": "reference_index_fai"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bam2fq", 
+                        "port": "bam2fq_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "realign_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "printreads", 
+                        "port": "printreads_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "haplotypecaller", 
+                        "port": "haplotypecaller_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectsnps", 
+                        "port": "selectsnps_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectindels", 
+                        "port": "selectindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "combinesnpsindels", 
+                        "port": "combinesnpsindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "combinevcfs", 
+                        "port": "combinevcfs_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectsnpsforvqsr", 
+                        "port": "selectsnpsforvqsr_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "vqsrsnps", 
+                        "port": "vqsrsnps_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectindelsforvqsr", 
+                        "port": "selectindelsforvqsr_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrindels", 
+                        "port": "trainvqsrindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "vqsrindels", 
+                        "port": "vqsrindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "mergecalibratedvcfs", 
+                        "port": "mergecalibratedvcfs_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "findtargets_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrindels", 
+                        "port": "trainvqsrindels_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_phase1indels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "findtargets_phase1indels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_phase1indels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_phase1snps_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_dbsnp_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_dbsnp_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_hapmap_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_omni_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "findtargets_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "printreads", 
+                        "port": "printreads_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "TODO", 
+                        "hash_function": "md5"
+                    }
+                }
+            ], 
+            "name": "medgap_poc"
+        }
+    ], 
+    "requester": "someone@example.net"
+}

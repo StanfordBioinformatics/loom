@@ -9,8 +9,28 @@
             "port": "bam2fq_out"
           }, 
           "destination": {
+            "step": "index_step", 
+            "port": "index_in"
+          }
+        },
+        {
+          "source": {
+            "step": "bam2fq_step", 
+            "port": "bam2fq_out"
+          }, 
+          "destination": {
             "step": "align_step", 
             "port": "align_in"
+          }
+        },
+        {
+          "source": {
+            "step": "index_step", 
+            "port": "index_out"
+          }, 
+          "destination": {
+            "step": "align_step", 
+            "port": "align_index_in"
           }
         }
       ], 
@@ -32,6 +52,16 @@
           }, 
           "file": {
             "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
+            "hash_function": "md5"
+          }
+        },
+        {
+          "destination": {
+            "step": "align_step", 
+            "port": "align_ref_index"
+          }, 
+          "file": {
+            "hash_value": "279292c13406ad18f7c80ce71b80ed26", 
             "hash_function": "md5"
           }
         }
@@ -61,11 +91,34 @@
           ]
         }, 
         {
+          "name": "index_step",
+          "environment": {
+            "docker_image": "isaacliao/bwa-0.7.4"
+          }, 
+          "command": "bwa index -a bwtsw NA12878-Macrogen-chr22.fastq",
+          "resources": {
+            "cores": "4",
+            "memory": "10GB"
+          }, 
+          "input_ports": [
+            {
+              "name": "index_in",
+              "file_path": "NA12878-Macrogen-chr22.fastq"
+            }
+          ],
+          "output_ports": [
+            {
+              "name": "index_out", 
+              "file_path": "NA12878-Macrogen-chr22.fastq.fai"
+            }
+          ]
+        }, 
+        {
           "name": "align_step",
           "environment": {
             "docker_image": "isaacliao/bwa-0.7.4"
           }, 
-          "command": "bwa mem -CMp -t 4 -R \"@RG\\tID:$ID\\tLB:$LB\\tPL:$PL\\tSM:$SM\" ucsc.hg19.fasta NA12878-Macrogen-chr22.fastq > NA12878-Macrogen-chr22.bwa.sam",
+          "command": "bwa mem -CMp -t 4 -R \"@RG\\tID:0\\tLB:Library\\tPL:Illumina\\tSM:NA12878\" ucsc.hg19.fasta NA12878-Macrogen-chr22.fastq > NA12878-Macrogen-chr22.bwa.sam",
           "resources": {
             "cores": "4",
             "memory": "10GB"
@@ -76,8 +129,16 @@
               "file_path": "NA12878-Macrogen-chr22.fastq"
             },
             {
+              "name": "align_index_in",
+              "file_path": "NA12878-Macrogen-chr22.fastq.fai"
+            },
+            {
               "name": "align_ref",
               "file_path": "ucsc.hg19.fasta"
+            },
+            {
+              "name": "align_ref_index",
+              "file_path": "ucsc.hg19.fasta.fai"
             }
           ],
           "output_ports": [
