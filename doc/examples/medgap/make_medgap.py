@@ -2,9 +2,11 @@
 
 import json
 import string
+import os
 
 INPUT_FILENAME = "chr22-constants.json"
 OUTPUT_FILENAME = "chr22.json"
+HASH_FUNCTION = "md5"
 
 def load_json(filename):
     with open(filename) as infile:
@@ -21,17 +23,34 @@ def read_file(filename):
 def add_data_bindings(obj):
     """If a file listed in data_bindings_files is referenced by an input_port, add a binding to data_bindings."""
     for workflow in obj["workflows"]:
-        for filename in workflow["data_bindings_files"]:
+        if "data_bindings" not in workflow:
+            workflow["data_bindings"] = []
+        for filepath in workflow["data_bindings_file_paths"]:
+            hash_value = calculate_hash(filepath)
             for step in workflow["steps"]:
                 for input_port in step["input_ports"]:
-                    if input_port["file_path"] == filename:
-                        new_data_binding = {"destination": {"step": step["name"], "port": input_port["name"]}, "file": {"hash_value": "TODO", "hash_function": "md5"}}
+                    if os.path.basename(input_port["file_path"]) == os.path.basename(filepath):
+                        new_data_binding = {"destination": {"step": step["name"], "port": input_port["name"]}, "file": {"hash_value": hash_value, "hash_function": HASH_FUNCTION}}
                         workflow["data_bindings"].append(new_data_binding)
+
+def calculate_hash(filepath):
+    """Calculate and return hash value of input file using HASH_FUNCTION."""
+    if not os.path.exists(filepath):
+        print "File not found, using dummy hash value: %s" % filepath
+        return "FileNotFound"
+    import hashlib
+    if HASH_FUNCTION == "md5":
+        hashobj = hashlib.md5()
+    # Add other desired hashing algorithms here
+
+    with open(filepath) as inputfile:
+        hashobj.update(inputfile.read())
+    return hashobj.hexdigest()
 
 def delete_data_bindings_files(obj):
     """Delete data_bindings_files list since it's not needed any more."""
     for workflow in obj["workflows"]:
-        del(workflow["data_bindings_files"])
+        del(workflow["data_bindings_file_paths"])
 
 def check_ports(obj):
     """Make sure filenames across all output ports are unique,

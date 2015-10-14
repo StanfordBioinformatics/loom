@@ -463,6 +463,398 @@
                     }
                 }
             ], 
+            "data_bindings": [
+                {
+                    "destination": {
+                        "step": "bam2fq", 
+                        "port": "bam2fq_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "realign_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "printreads", 
+                        "port": "printreads_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "haplotypecaller", 
+                        "port": "haplotypecaller_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectsnps", 
+                        "port": "selectsnps_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectindels", 
+                        "port": "selectindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "combinesnpsindels", 
+                        "port": "combinesnpsindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "combinevcfs", 
+                        "port": "combinevcfs_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectsnpsforvqsr", 
+                        "port": "selectsnpsforvqsr_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "vqsrsnps", 
+                        "port": "vqsrsnps_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "selectindelsforvqsr", 
+                        "port": "selectindelsforvqsr_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrindels", 
+                        "port": "trainvqsrindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "vqsrindels", 
+                        "port": "vqsrindels_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "mergecalibratedvcfs", 
+                        "port": "mergecalibratedvcfs_reference_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_bwt"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_pac"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_ann"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_amb"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "align", 
+                        "port": "reference_index_sa"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "samtobam", 
+                        "port": "reference_index_fai"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "findtargets_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrindels", 
+                        "port": "trainvqsrindels_goldindels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_phase1indels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "findtargets_phase1indels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_phase1indels_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_phase1snps_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_dbsnp_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_dbsnp_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_hapmap_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "trainvqsrforsnps", 
+                        "port": "trainvqsrforsnps_omni_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "findtargets", 
+                        "port": "findtargets_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "realign", 
+                        "port": "findtargets_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "bqsr", 
+                        "port": "bqsr_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }, 
+                {
+                    "destination": {
+                        "step": "printreads", 
+                        "port": "printreads_GATKkey_in"
+                    }, 
+                    "file": {
+                        "hash_value": "FileNotFound", 
+                        "hash_function": "md5"
+                    }
+                }
+            ], 
             "steps": [
                 {
                     "name": "bam2fq", 
@@ -1487,408 +1879,6 @@
                     "resources": {
                         "cores": "1", 
                         "memory": "8GB"
-                    }
-                }
-            ], 
-            "data_bindings": [
-                {
-                    "destination": {
-                        "step": "bam2fq", 
-                        "port": "bam2fq_in"
-                    }, 
-                    "file": {
-                        "hash_value": "e91383f973a46f66807669a8d2118039", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "align", 
-                        "port": "reference_index_amb"
-                    }, 
-                    "file": {
-                        "hash_value": "3a7d429dc05ab5f537a49bc661ad2838", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "align", 
-                        "port": "reference_index_bwt"
-                    }, 
-                    "file": {
-                        "hash_value": "fb63789e11e9829f9a81843878419b50", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "align", 
-                        "port": "reference_index_pac"
-                    }, 
-                    "file": {
-                        "hash_value": "5c6a35db7b9d0eca77aa598f06da38cc", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "align", 
-                        "port": "reference_index_sa"
-                    }, 
-                    "file": {
-                        "hash_value": "3bb711abaeec3721151ded065a4d9ddc", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "align", 
-                        "port": "reference_index_ann"
-                    }, 
-                    "file": {
-                        "hash_value": "05f76d57ff877d06c795efbe2f557884", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "samtobam", 
-                        "port": "reference_index_fai"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "bam2fq", 
-                        "port": "bam2fq_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "findtargets", 
-                        "port": "findtargets_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "realign", 
-                        "port": "realign_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "bqsr", 
-                        "port": "bqsr_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "printreads", 
-                        "port": "printreads_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "haplotypecaller", 
-                        "port": "haplotypecaller_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "selectsnps", 
-                        "port": "selectsnps_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "selectindels", 
-                        "port": "selectindels_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "combinesnpsindels", 
-                        "port": "combinesnpsindels_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "combinevcfs", 
-                        "port": "combinevcfs_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "selectsnpsforvqsr", 
-                        "port": "selectsnpsforvqsr_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "trainvqsrforsnps", 
-                        "port": "trainvqsrforsnps_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "vqsrsnps", 
-                        "port": "vqsrsnps_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "selectindelsforvqsr", 
-                        "port": "selectindelsforvqsr_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "trainvqsrindels", 
-                        "port": "trainvqsrindels_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "vqsrindels", 
-                        "port": "vqsrindels_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "mergecalibratedvcfs", 
-                        "port": "mergecalibratedvcfs_reference_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "findtargets", 
-                        "port": "findtargets_goldindels_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "realign", 
-                        "port": "findtargets_goldindels_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "bqsr", 
-                        "port": "bqsr_goldindels_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "trainvqsrindels", 
-                        "port": "trainvqsrindels_goldindels_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "findtargets", 
-                        "port": "findtargets_phase1indels_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "realign", 
-                        "port": "findtargets_phase1indels_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "bqsr", 
-                        "port": "bqsr_phase1indels_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "trainvqsrforsnps", 
-                        "port": "trainvqsrforsnps_phase1snps_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "bqsr", 
-                        "port": "bqsr_dbsnp_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "trainvqsrforsnps", 
-                        "port": "trainvqsrforsnps_dbsnp_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "trainvqsrforsnps", 
-                        "port": "trainvqsrforsnps_hapmap_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "trainvqsrforsnps", 
-                        "port": "trainvqsrforsnps_omni_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "findtargets", 
-                        "port": "findtargets_GATKkey_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "realign", 
-                        "port": "findtargets_GATKkey_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "bqsr", 
-                        "port": "bqsr_GATKkey_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
-                    }
-                }, 
-                {
-                    "destination": {
-                        "step": "printreads", 
-                        "port": "printreads_GATKkey_in"
-                    }, 
-                    "file": {
-                        "hash_value": "TODO", 
-                        "hash_function": "md5"
                     }
                 }
             ], 
