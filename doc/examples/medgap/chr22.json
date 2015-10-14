@@ -470,7 +470,7 @@
                         "port": "bam2fq_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "e91383f973a46f66807669a8d2118039", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -480,7 +480,7 @@
                         "port": "findtargets_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -490,7 +490,7 @@
                         "port": "realign_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -500,7 +500,7 @@
                         "port": "bqsr_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -510,7 +510,7 @@
                         "port": "printreads_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -520,7 +520,7 @@
                         "port": "haplotypecaller_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -530,7 +530,7 @@
                         "port": "selectsnps_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -540,7 +540,7 @@
                         "port": "selectindels_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -550,7 +550,7 @@
                         "port": "combinesnpsindels_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -560,7 +560,7 @@
                         "port": "combinevcfs_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -570,7 +570,7 @@
                         "port": "selectsnpsforvqsr_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -580,7 +580,7 @@
                         "port": "trainvqsrforsnps_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -590,7 +590,7 @@
                         "port": "vqsrsnps_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -600,7 +600,7 @@
                         "port": "selectindelsforvqsr_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -610,7 +610,7 @@
                         "port": "trainvqsrindels_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -620,7 +620,7 @@
                         "port": "vqsrindels_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -630,7 +630,7 @@
                         "port": "mergecalibratedvcfs_reference_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a244d8a32473650b25c6e8e1654387d6", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -640,7 +640,7 @@
                         "port": "reference_index_bwt"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "fb63789e11e9829f9a81843878419b50", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -650,7 +650,7 @@
                         "port": "reference_index_pac"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "5c6a35db7b9d0eca77aa598f06da38cc", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -660,7 +660,7 @@
                         "port": "reference_index_ann"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "05f76d57ff877d06c795efbe2f557884", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -670,7 +670,7 @@
                         "port": "reference_index_amb"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "3a7d429dc05ab5f537a49bc661ad2838", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -680,7 +680,7 @@
                         "port": "reference_index_sa"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "3bb711abaeec3721151ded065a4d9ddc", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -690,7 +690,7 @@
                         "port": "reference_index_fai"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "279292c13406ad18f7c80ce71b80ed26", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -700,7 +700,7 @@
                         "port": "findtargets_goldindels_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "d237e9aacf86037fcf41d75de1df88cc", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -710,7 +710,7 @@
                         "port": "findtargets_goldindels_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "d237e9aacf86037fcf41d75de1df88cc", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -720,7 +720,7 @@
                         "port": "bqsr_goldindels_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "d237e9aacf86037fcf41d75de1df88cc", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -730,7 +730,7 @@
                         "port": "trainvqsrindels_goldindels_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "d237e9aacf86037fcf41d75de1df88cc", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -740,7 +740,7 @@
                         "port": "findtargets_phase1indels_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "2ea6fb013c2077e1228c1975af6448af", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -750,7 +750,7 @@
                         "port": "findtargets_phase1indels_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "2ea6fb013c2077e1228c1975af6448af", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -760,7 +760,7 @@
                         "port": "bqsr_phase1indels_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "2ea6fb013c2077e1228c1975af6448af", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -770,7 +770,7 @@
                         "port": "trainvqsrforsnps_phase1snps_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "f103be40c9d060273310b749795ac623", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -780,7 +780,7 @@
                         "port": "bqsr_dbsnp_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "e72a8935db9028c09e4961659bafaf2b", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -790,7 +790,7 @@
                         "port": "trainvqsrforsnps_dbsnp_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "e72a8935db9028c09e4961659bafaf2b", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -800,7 +800,7 @@
                         "port": "trainvqsrforsnps_hapmap_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "1dcee27ed5649f7ea8f781c9631adec3", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -810,7 +810,7 @@
                         "port": "trainvqsrforsnps_omni_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "a12e25654c0f63bfee957b9a3549ca05", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -820,7 +820,7 @@
                         "port": "findtargets_GATKkey_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "705f5f068d8653e5e8ba8dc63d8d5218", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -830,7 +830,7 @@
                         "port": "findtargets_GATKkey_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "705f5f068d8653e5e8ba8dc63d8d5218", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -840,7 +840,7 @@
                         "port": "bqsr_GATKkey_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "705f5f068d8653e5e8ba8dc63d8d5218", 
                         "hash_function": "md5"
                     }
                 }, 
@@ -850,7 +850,7 @@
                         "port": "printreads_GATKkey_in"
                     }, 
                     "file": {
-                        "hash_value": "FileNotFound", 
+                        "hash_value": "705f5f068d8653e5e8ba8dc63d8d5218", 
                         "hash_function": "md5"
                     }
                 }

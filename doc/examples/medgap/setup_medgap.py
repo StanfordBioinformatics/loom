@@ -3,6 +3,8 @@
 import json
 import string
 import os
+import subprocess
+import sys
 
 INPUT_FILENAME = "chr22-template.json"
 OUTPUT_FILENAME = "chr22.json"
@@ -44,8 +46,17 @@ def calculate_hash(filepath):
     # Add other desired hashing algorithms here
 
     with open(filepath) as inputfile:
+	print "Hashing %s using %s..." % (filepath, HASH_FUNCTION),
+	sys.stdout.flush()
         hashobj.update(inputfile.read())
-    return hashobj.hexdigest()
+	hash_value = hashobj.hexdigest()
+	print hash_value
+    return hash_value
+
+def upload_data_bindings_files(obj):
+    for workflow in obj["workflows"]:
+        for filepath in workflow["data_bindings_file_paths"]:
+            subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
 
 def delete_data_bindings_files(obj):
     """Delete data_bindings_files list since it's not needed any more."""
@@ -113,7 +124,10 @@ def main():
     obj = json.loads(substituted_string)
     del(obj["constants"])
 
-    # Add files to data_bindings based on data_bindings_files list and input ports, then remove data_bindings_files list
+    # Upload data_bindings files
+    upload_data_bindings_files(obj)
+
+    # Hash and add files to data_bindings based on data_bindings_files list and input ports, then remove dict
     add_data_bindings(obj)
     delete_data_bindings_files(obj)
 
