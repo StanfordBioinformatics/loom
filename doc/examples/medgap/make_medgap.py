@@ -4,7 +4,7 @@ import json
 import string
 import os
 
-INPUT_FILENAME = "chr22-constants.json"
+INPUT_FILENAME = "chr22-template.json"
 OUTPUT_FILENAME = "chr22.json"
 HASH_FUNCTION = "md5"
 
