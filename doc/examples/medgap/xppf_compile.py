@@ -76,32 +76,47 @@ def delete_data_bindings_files(obj):
         del(workflow["data_bindings_file_paths"])
 
 def check_ports(obj):
-    """Make sure filenames across all output ports are unique,
-    no two input ports have the same name on the same step,
+    """Make sure filenames across all output ports are unique within each workflow,
+    input/output port names are unique within each step, 
+    no two data_bindings have the same destination,
     and every input port's filename matches an output port or a data binding.
     """
     for workflow in obj["workflows"]:
         
-        # Check for duplicate output filenames
+        #Collect output filenames, and check for duplicates in each workflow
         output_filenames = set() 
         for step in workflow["steps"]:
+            # Check for duplicate output port names in each step
+            output_port_names = set()
             for output_port in step["output_ports"]:
+                if output_port["name"] in output_port_names:
+                    raise Exception("More than one output port named \"%s\" in step \"%s\"" % (output_port["name"], step["name"]))
+                else:
+                    output_port_names.add(output_port["name"])
+
                 if output_port["file_path"] in output_filenames:
                     raise Exception("Duplicate output filename in step %s" % step["name"])
                 else:
                     output_filenames.add(output_port["file_path"])
 
+        # Collect destinations of data_bindings and check for duplicates
         destinations = set()
         for binding in workflow["data_bindings"]:
-            destinations.add((binding["destination"]["step"], binding["destination"]["port"]))
+            new_binding = (binding["destination"]["step"], binding["destination"]["port"])
+            if new_binding in destinations:
+                raise Exception("More than one data_binding for step %s, port %s" % (new_binding[0], new_binding[1]))
+            else:
+                destinations.add(new_binding)
+
         for step in workflow["steps"]:
+            # Check for duplicate input port names within each step
             input_port_names = set()
             for input_port in step["input_ports"]:
-                # Make sure no input ports have identical names on same step
                 if input_port["name"] in input_port_names:
                     raise Exception("More than one input port named \"%s\" in step \"%s\"" % (input_port["name"], step["name"]))
                 else:
                     input_port_names.add(input_port["name"])
+
                 # Make sure every input port maps to an output file or a data binding
                 if input_port["file_path"] not in output_filenames and \
                    (step["name"], input_port["name"]) not in destinations:
@@ -132,20 +147,18 @@ def add_data_pipes(obj):
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
     parser.add_argument('--nohash', action='store_true', default=False, help='Use hashes from destination JSON.')
-    parser.add_argument('--noupload', action='store_true', default=False, help='Skip uploading input files.')
+    parser.add_argument('inputfilename', default=INPUT_FILENAME)
+    parser.add_argument('outputfilename', default=OUTPUT_FILENAME)
     args = parser.parse_args()
     return args 
 
-def main():
-    # Parse arguments
-    args = parse_arguments()    
-
+def substitute_constants(inputfilename):
     # Get dict of constants
-    obj = load_json(INPUT_FILENAME)    
+    obj = load_json(inputfilename)    
     constants_dict = obj['constants']
 
     # Substitute constants 
-    entire_file_string = read_file(INPUT_FILENAME)
+    entire_file_string = read_file(inputfilename)
     template = string.Template(entire_file_string)
     substituted_string = template.substitute(constants_dict)
     
@@ -153,13 +166,15 @@ def main():
     obj = json.loads(substituted_string)
     del(obj["constants"])
 
-    # Upload data_bindings files
-    if not args.noupload:
-        upload_data_bindings_files(obj)
+    return obj
+
+def main():
+    args = parse_arguments()    
+    obj = substitute_constants(args.inputfilename)
 
     if args.nohash:
         # Get data_bindings from destination JSON
-        load_data_bindings(obj, OUTPUT_FILENAME)
+        load_data_bindings(obj, args.outputfilename)
     else:
         # Hash and add files to data_bindings based on data_bindings_files list and input ports
         add_data_bindings(obj)
@@ -170,7 +185,7 @@ def main():
     # Validation, compute data pipes
     check_ports(obj)
     add_data_pipes(obj)
-    save_json(obj, OUTPUT_FILENAME)
+    save_json(obj, args.outputfilename)
 
 if __name__ == "__main__":
     main() 
