@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-
 import json
 import string
 import os
 import subprocess
 import sys
+import argparse
 
 INPUT_FILENAME = "chr22-template.json"
 OUTPUT_FILENAME = "chr22.json"
@@ -53,6 +53,18 @@ def calculate_hash(filepath):
 	print hash_value
     return hash_value
 
+def load_data_bindings(obj, filename):
+    """Load data bindings from specified filename into obj."""
+    with open(filename) as inputfile:
+        inputobj = json.load(inputfile)
+    for workflow in obj["workflows"]:
+        workflowname = workflow["name"]
+        for inputworkflow in inputobj["workflows"]:
+            if inputworkflow["name"] == workflowname:
+                workflow["data_bindings"] = inputworkflow["data_bindings"]
+        if "data_bindings" not in workflow:
+            raise Exception("Can't load hashes from destination file; no workflow named %s in %s." % (workflowname, filename))
+
 def upload_data_bindings_files(obj):
     for workflow in obj["workflows"]:
         for filepath in workflow["data_bindings_file_paths"]:
@@ -65,7 +77,8 @@ def delete_data_bindings_files(obj):
 
 def check_ports(obj):
     """Make sure filenames across all output ports are unique,
-    and that every input port's filename matches an output port or a data binding.
+    no two input ports have the same name on the same step,
+    and every input port's filename matches an output port or a data binding.
     """
     for workflow in obj["workflows"]:
         
@@ -78,12 +91,18 @@ def check_ports(obj):
                 else:
                     output_filenames.add(output_port["file_path"])
 
-        # Make sure every input port maps to an output file or a data binding
         destinations = set()
         for binding in workflow["data_bindings"]:
             destinations.add((binding["destination"]["step"], binding["destination"]["port"]))
         for step in workflow["steps"]:
+            input_port_names = set()
             for input_port in step["input_ports"]:
+                # Make sure no input ports have identical names on same step
+                if input_port["name"] in input_port_names:
+                    raise Exception("More than one input port named \"%s\" in step \"%s\"" % (input_port["name"], step["name"]))
+                else:
+                    input_port_names.add(input_port["name"])
+                # Make sure every input port maps to an output file or a data binding
                 if input_port["file_path"] not in output_filenames and \
                    (step["name"], input_port["name"]) not in destinations:
                     raise Exception("Input port \"%s\" in step \"%s\" has no matching data binding destination or output file named \"%s\"" % (input_port["name"], step["name"], input_port["file_path"]))
@@ -110,7 +129,17 @@ def add_data_pipes(obj):
 
         workflow["data_pipes"] = data_pipes
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
+    parser.add_argument('--nohash', action='store_true', default=False, help='Use hashes from destination JSON.')
+    parser.add_argument('--noupload', action='store_true', default=False, help='Skip uploading input files.')
+    args = parser.parse_args()
+    return args 
+
 def main():
+    # Parse arguments
+    args = parse_arguments()    
+
     # Get dict of constants
     obj = load_json(INPUT_FILENAME)    
     constants_dict = obj['constants']
@@ -125,10 +154,17 @@ def main():
     del(obj["constants"])
 
     # Upload data_bindings files
-    upload_data_bindings_files(obj)
+    if not args.noupload:
+        upload_data_bindings_files(obj)
 
-    # Hash and add files to data_bindings based on data_bindings_files list and input ports, then remove dict
-    add_data_bindings(obj)
+    if args.nohash:
+        # Get data_bindings from destination JSON
+        load_data_bindings(obj, OUTPUT_FILENAME)
+    else:
+        # Hash and add files to data_bindings based on data_bindings_files list and input ports
+        add_data_bindings(obj)
+
+    # Remove files dict since it's not needed any more
     delete_data_bindings_files(obj)
 
     # Validation, compute data pipes

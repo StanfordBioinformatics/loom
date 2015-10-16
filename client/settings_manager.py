@@ -86,11 +86,11 @@ class SettingsManager:
             'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
             'SERVER_PATH': os.path.join(XPPF_ROOT, 'master'),
             'DAEMON_PIDFILE': '/tmp/xppf_daemon.pid',
-            'ACCESS_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_access.log'),
-            'ERROR_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_error.log'),
-            'DJANGO_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_django.log'),
-            'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
-            'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
+            'ACCESS_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_access.log'),
+            'ERROR_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_error.log'),
+            'DJANGO_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_django.log'),
+            'WEBSERVER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_webserver.log'),
+            'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
@@ -104,7 +104,7 @@ class SettingsManager:
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
             'FILE_SERVER_FOR_WORKER': 'frontend001',
-            'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
+            'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_worker.log'),
 
             # Info needed by client (xppf_run and xppf_upload)
 
@@ -128,11 +128,11 @@ class SettingsManager:
             'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
             'SERVER_PATH': os.path.join(XPPF_ROOT, 'master'),
             'DAEMON_PIDFILE': '/tmp/xppf_daemon.pid',
-            'ACCESS_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_access.log'),
-            'ERROR_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_error.log'),
-            'DJANGO_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_django.log'),
-            'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
-            'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
+            'ACCESS_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_access.log'),
+            'ERROR_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_error.log'),
+            'DJANGO_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_django.log'),
+            'WEBSERVER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_webserver.log'),
+            'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
@@ -146,7 +146,7 @@ class SettingsManager:
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
             'FILE_SERVER_FOR_WORKER': 'frontend001',
-            'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
+            'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_worker.log'),
 
             # Info needed by client (xppf_run and xppf_upload)
 

@@ -53,7 +53,7 @@
               }, 
               "command": "samtools bam2fq ${inputbamfile} > ${samplename}.fastq", 
               "resources": {
-                "cores": "4", 
+                "cores": "1", 
                 "memory": "10GB"
               }, 
               "input_ports": [
@@ -125,7 +125,7 @@
               "input_ports": [
                 {
                   "name": "samtobam_in",
-                  "file_path": "${samplename}.fastq"
+                  "file_path": "${samplename}.bwa.sam"
                 },
                 {
                   "name": "reference_index_fai",
@@ -715,7 +715,7 @@
                   "file_path": "${chromosome}.gatk.vcf.snp"
                 },
                 {
-                  "name": "combinesnpsindels_snps_in",
+                  "name": "combinesnpsindels_indels_in",
                   "file_path": "${chromosome}.gatk.vcf.indel"
                 },
                 {

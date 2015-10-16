@@ -5,12 +5,13 @@ from .files import File
 from .step_definitions import StepDefinition, StepDefinitionOutputPort
 from immutable.models import MutableModel
 
+import logging
+logger = logging.getLogger('xppf')
 
 """
 This module contains RequestSubmissions and other classes related to
 receiving a request for analysis from a user.
 """
-
 
 class RequestSubmission(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_submission', 'request_submissions')
@@ -57,7 +58,9 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     def get_binding(self, step_name, port_name):
         bindings = self.data_bindings.filter(destination__step=step_name, destination__port=port_name)
         if bindings.count() > 1:
-            raise Exception("Multiple bindings were found on workflow %s for step %s, port %s" % (self, step_name, port_name))
+            message="Multiple bindings were found on workflow %s for step %s, port %s" % (self, step_name, port_name)
+            logger.error(message)
+            raise Exception(message)
         elif bindings.count() == 1:
             return bindings.first()
         else:
@@ -72,7 +75,9 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     def get_data_pipe_by_destination_port_name(self, step_name, port_name):
         data_pipes = self.data_pipes.filter(destination__step=step_name, destination__port=port_name)
         if data_pipes.count() > 1:
-            raise Exception('Multiple data_pipes were found on workflow %s for step %s, port %s.' % (self, step_name, port_name))
+            message='Multiple data_pipes were found on workflow %s for step %s, port %s.' % (self, step_name, port_name)
+            logger.error(message)
+            raise Exception(message)
         elif data_pipes.count() == 1:
             return data_pipes.first()
         else:

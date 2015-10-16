@@ -14,8 +14,8 @@
                 }, 
                 {
                     "source": {
-                        "step": "bam2fq", 
-                        "port": "bam2fq_out"
+                        "step": "align", 
+                        "port": "align_out"
                     }, 
                     "destination": {
                         "step": "samtobam", 
@@ -299,7 +299,7 @@
                     }, 
                     "destination": {
                         "step": "combinesnpsindels", 
-                        "port": "combinesnpsindels_snps_in"
+                        "port": "combinesnpsindels_indels_in"
                     }
                 }, 
                 {
@@ -875,7 +875,7 @@
                         }
                     ], 
                     "resources": {
-                        "cores": "4", 
+                        "cores": "1", 
                         "memory": "10GB"
                     }
                 }, 
@@ -927,7 +927,7 @@
                     "input_ports": [
                         {
                             "name": "samtobam_in", 
-                            "file_path": "NA12878.fastq"
+                            "file_path": "NA12878.bwa.sam"
                         }, 
                         {
                             "name": "reference_index_fai", 
@@ -1517,7 +1517,7 @@
                             "file_path": "chr22.gatk.vcf.snp"
                         }, 
                         {
-                            "name": "combinesnpsindels_snps_in", 
+                            "name": "combinesnpsindels_indels_in", 
                             "file_path": "chr22.gatk.vcf.indel"
                         }, 
                         {
