@@ -6,8 +6,6 @@ import subprocess
 import sys
 import argparse
 
-INPUT_FILENAME = "chr22-template.json"
-OUTPUT_FILENAME = "chr22.json"
 HASH_FUNCTION = "md5"
 
 def load_json(filename):
@@ -22,12 +20,27 @@ def read_file(filename):
     with open(filename) as infile:
         return infile.read()
 
+def files_to_ports(obj):
+    """Convert input_files and output_files to input_ports and output_ports in each step.
+    This requires generating port names.
+    """
+    for workflow in obj["workflows"]:
+        for step in workflow["steps"]:
+            step["input_ports"] = []
+            for input_file in step["input_files"]:
+                step["input_ports"].append({"name": "%s_%s_in" % (step["name"], input_file),"file_path": input_file})
+            del(step["input_files"])
+            step["output_ports"] = []
+            for output_file in step["output_files"]:
+                step["output_ports"].append({"name": "%s_%s_out" % (step["name"], output_file),"file_path": output_file})
+            del(step["output_files"])
+
 def add_data_bindings(obj):
-    """If a file listed in data_bindings_files is referenced by an input_port, add a binding to data_bindings."""
+    """If a workflow input file is referenced by an input_port, add a binding to data_bindings."""
     for workflow in obj["workflows"]:
         if "data_bindings" not in workflow:
             workflow["data_bindings"] = []
-        for filepath in workflow["data_bindings_file_paths"]:
+        for filepath in workflow["input_files"]:
             hash_value = calculate_hash(filepath)
             for step in workflow["steps"]:
                 for input_port in step["input_ports"]:
@@ -65,15 +78,15 @@ def load_data_bindings(obj, filename):
         if "data_bindings" not in workflow:
             raise Exception("Can't load hashes from destination file; no workflow named %s in %s." % (workflowname, filename))
 
-def upload_data_bindings_files(obj):
+def upload_input_files(obj):
     for workflow in obj["workflows"]:
-        for filepath in workflow["data_bindings_file_paths"]:
+        for filepath in workflow["input_files"]:
             subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
 
-def delete_data_bindings_files(obj):
-    """Delete data_bindings_files list since it's not needed any more."""
+def delete_workflow_input_files(obj):
+    """Delete workflow input_files dict since it's not needed any more."""
     for workflow in obj["workflows"]:
-        del(workflow["data_bindings_file_paths"])
+        del(workflow["input_files"])
 
 def check_ports(obj):
     """Make sure filenames across all output ports are unique within each workflow,
@@ -147,8 +160,8 @@ def add_data_pipes(obj):
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
     parser.add_argument('--nohash', action='store_true', default=False, help='Use hashes from destination JSON.')
-    parser.add_argument('inputfilename', default=INPUT_FILENAME)
-    parser.add_argument('outputfilename', default=OUTPUT_FILENAME)
+    parser.add_argument('inputfilename')
+    parser.add_argument('outputfilename')
     args = parser.parse_args()
     return args 
 
@@ -172,15 +185,17 @@ def main():
     args = parse_arguments()    
     obj = substitute_constants(args.inputfilename)
 
+    files_to_ports(obj)
+
     if args.nohash:
         # Get data_bindings from destination JSON
         load_data_bindings(obj, args.outputfilename)
     else:
-        # Hash and add files to data_bindings based on data_bindings_files list and input ports
+        # Hash and add files to data_bindings based on workflow input files and step input files 
         add_data_bindings(obj)
 
-    # Remove files dict since it's not needed any more
-    delete_data_bindings_files(obj)
+    # Remove input_files dict since it's not needed any more
+    delete_workflow_input_files(obj)
 
     # Validation, compute data pipes
     check_ports(obj)
