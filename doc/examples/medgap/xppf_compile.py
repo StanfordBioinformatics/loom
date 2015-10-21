@@ -160,6 +160,7 @@ def add_data_pipes(obj):
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
     parser.add_argument('--nohash', action='store_true', default=False, help='Use hashes from destination JSON.')
+    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files.')
     parser.add_argument('inputfilename')
     parser.add_argument('outputfilename')
     args = parser.parse_args()
@@ -194,7 +195,10 @@ def main():
         # Hash and add files to data_bindings based on workflow input files and step input files 
         add_data_bindings(obj)
 
-    # Remove input_files dict since it's not needed any more
+    if args.upload:
+        upload_input_files(obj)
+
+    #  Remove input_files dict since it's not needed any more
     delete_workflow_input_files(obj)
 
     # Validation, compute data pipes
