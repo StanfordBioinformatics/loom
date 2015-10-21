@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import argparse
+import re
 
 HASH_FUNCTION = "md5"
 
@@ -20,9 +21,9 @@ def read_file(filename):
     with open(filename) as infile:
         return infile.read()
 
-def files_to_ports(obj):
+def step_files_to_ports(obj):
     """Convert input_files and output_files to input_ports and output_ports in each step.
-    This requires generating port names.
+    Automatically generates port names from step names and filenames.
     """
     for workflow in obj["workflows"]:
         for step in workflow["steps"]:
@@ -35,18 +36,29 @@ def files_to_ports(obj):
                 step["output_ports"].append({"name": "%s_%s_out" % (step["name"], output_file),"file_path": output_file})
             del(step["output_files"])
 
-def add_data_bindings(obj):
+def add_data_bindings(obj, hashes):
     """If a workflow input file is referenced by an input_port, add a binding to data_bindings."""
     for workflow in obj["workflows"]:
         if "data_bindings" not in workflow:
             workflow["data_bindings"] = []
         for filepath in workflow["input_files"]:
-            hash_value = calculate_hash(filepath)
+            hash_value = hashes[workflow["name"]][filepath]
             for step in workflow["steps"]:
                 for input_port in step["input_ports"]:
                     if os.path.basename(input_port["file_path"]) == os.path.basename(filepath):
                         new_data_binding = {"destination": {"step": step["name"], "port": input_port["name"]}, "file": {"hash_value": hash_value, "hash_function": HASH_FUNCTION}}
                         workflow["data_bindings"].append(new_data_binding)
+
+def calculate_hashes(obj):
+    """Calculate hashes for workflow input files and return results indexed by workflow name and filepath."""
+    hashes = {}
+    for workflow in obj["workflows"]:
+        workflowname = workflow["name"]
+        hashes[workflowname] = {}
+        for filepath in workflow["input_files"]:
+            hash_value = calculate_hash(filepath)
+            hashes[workflowname][filepath] = hash_value
+    return hashes
 
 def calculate_hash(filepath):
     """Calculate and return hash value of input file using HASH_FUNCTION."""
@@ -79,8 +91,25 @@ def load_data_bindings(obj, filename):
             raise Exception("Can't load hashes from destination file; no workflow named %s in %s." % (workflowname, filename))
 
 def upload_input_files(obj):
+    vcf = re.compile("\.vcf$")
+    bam = re.compile("\.bam$")
     for workflow in obj["workflows"]:
+        # Split input files into VCF's and BAM's vs. other files.
+        datafiles = []
+        otherfiles = []
         for filepath in workflow["input_files"]:
+            if re.search(vcf, filepath) or re.search(bam, filepath):
+                datafiles.append(filepath)
+            else:
+                otherfiles.append(filepath)
+        # Upload VCF's and BAM's first so that index files are newer.
+        dataprocesses = []
+        for filepath in datafiles:    
+            process = subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
+            dataprocesses.append(process)
+        for process in dataprocesses:
+            process.wait()
+        for filepath in otherfiles:
             subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
 
 def delete_workflow_input_files(obj):
@@ -159,10 +188,10 @@ def add_data_pipes(obj):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
-    parser.add_argument('--nohash', action='store_true', default=False, help='Use hashes from destination JSON.')
-    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files.')
     parser.add_argument('inputfilename')
-    parser.add_argument('outputfilename')
+    parser.add_argument('--updatehashes', action='store_true', default=False, help='Force recalculating hashes.')
+    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files.')
+    parser.add_argument('-o', '--outputfilename', help='Output filename.')
     args = parser.parse_args()
     return args 
 
@@ -182,18 +211,40 @@ def substitute_constants(inputfilename):
 
     return obj
 
+def remove_extensions(filepath):
+    """Return the filename without extensions."""
+    root,ext = os.path.splitext(filepath)
+    if ext == '':
+        return root
+    else:
+        return remove_extensions(root)
+
 def main():
     args = parse_arguments()    
+
+    # Generate filenames
+    root = remove_extensions(args.inputfilename)
+    ext = os.path.splitext(args.inputfilename)[1]
+    hashesfilename = root + "-hashes" + ext
+    if args.outputfilename is None:
+        outputfilename = root + "-compiled" + ext
+    else:
+        outputfilename = args.outputfilename
+
+    # Load obj from input file and substitute constants
     obj = substitute_constants(args.inputfilename)
 
-    files_to_ports(obj)
-
-    if args.nohash:
-        # Get data_bindings from destination JSON
-        load_data_bindings(obj, args.outputfilename)
+    # Generate and save hashes, or load from file if exists
+    if args.updatehashes or not os.path.exists(hashesfilename):
+        hashes = calculate_hashes(obj)
+        save_json(hashes, hashesfilename)
     else:
-        # Hash and add files to data_bindings based on workflow input files and step input files 
-        add_data_bindings(obj)
+        hashes = load_json(hashesfilename)
+
+    step_files_to_ports(obj)
+
+    # Add files to data_bindings based on workflow input files and step input files 
+    add_data_bindings(obj, hashes)
 
     if args.upload:
         upload_input_files(obj)
@@ -204,7 +255,7 @@ def main():
     # Validation, compute data pipes
     check_ports(obj)
     add_data_pipes(obj)
-    save_json(obj, args.outputfilename)
+    save_json(obj, outputfilename)
 
 if __name__ == "__main__":
     main() 
