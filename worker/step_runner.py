@@ -230,6 +230,8 @@ class StepRunner:
         if self.LOGFILE is None:
             return logging.StreamHandler()
         else:
+            if not os.path.exists(os.path.dirname(self.LOGFILE):
+                os.makedirs(os.path.dirname(self.LOGFILE))
             return logging.FileHandler(self.LOGFILE)
 
 

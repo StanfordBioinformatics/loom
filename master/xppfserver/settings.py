@@ -89,6 +89,8 @@ def _get_django_handler():
 def _get_xppf_handler():
     WEBSERVER_LOGFILE = os.getenv('WEBSERVER_LOGFILE', None)
     if WEBSERVER_LOGFILE  is not None:
+        if not os.path.exists(os.path.dirname(WEBSERVER_LOGFILE)):
+            os.makedirs(os.path.dirname(WEBSERVER_LOGFILE))
         handler = {
             'class': 'logging.FileHandler',
             'filename': WEBSERVER_LOGFILE,

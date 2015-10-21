@@ -40,6 +40,8 @@ class App():
         if logfile is None:
             return logging.StreamHandler()
         else:
+            if not os.path.exists(dirname(logfile)):
+                os.makedirs(dirname(logfile)) 
             return logging.FileHandler(logfile)
 
 if __name__=='__main__':
