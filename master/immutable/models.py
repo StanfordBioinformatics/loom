@@ -1,3 +1,4 @@
+import contextlib
 import copy
 import datetime
 import django
@@ -6,11 +7,13 @@ from django.db import models
 from django.db import transaction
 from django.utils import timezone
 import hashlib
+from immutable import helpers
+from immutable.exceptions import *
 import json
 import jsonschema
 import uuid
-from immutable import helpers
-from immutable.exceptions import *
+import warnings
+
 
 if not settings.USE_TZ == True:
     raise Exception("You are required to set USE_TZ=True in the django settings module, to support timezone-aware datetimes.")
@@ -19,6 +22,10 @@ def now():
     return timezone.now().isoformat()
 
 class _BaseModel(models.Model):
+
+    def __init__(self, *args, **kwargs):
+        # warnings.warn("Constructor was called directly. Use the 'create' or 'update' method instead on %s" % type(self))
+        super(_BaseModel, self).__init__(*args, **kwargs)
 
     @classmethod
     def get_by_id(cls, _id):
@@ -32,15 +39,17 @@ class _BaseModel(models.Model):
         else:
             return None
 
-    def get(self, field_name):
+    def get(self, field_name, downcast=True):
         try:
             field_value = getattr(self, field_name)
         except:
             return None
-        try:
-            return field_value.downcast()
-        except:
-            return field_value
+        if downcast:
+            try:
+                return field_value.downcast()
+            except:
+                pass
+        return field_value
 
     def get_field_as_serializable(self, field_name):
         field_value = self.get(field_name)
@@ -53,6 +62,7 @@ class _BaseModel(models.Model):
     def to_json(self):
         obj = self.to_obj()
         return self._obj_to_json(obj)
+
 
     def to_obj(self):
         model = self.downcast()
@@ -362,7 +372,10 @@ class _BaseModel(models.Model):
         if not self._is_field_a_foreign_key_child(field.name):
             return None
 
-        related_model = getattr(self, field.name)
+        with warnings.catch_warnings():
+            # Silence "use the 'create' or 'update' method" warning
+            warnings.simplefilter("ignore")
+            related_model = getattr(self, field.name)
         if related_model == None:
             return None
         else:
@@ -400,8 +413,11 @@ class MutableModel(_BaseModel):
         cls.validate_create_input(data_obj)
         Model = cls._select_best_subclass_model_by_fields(data_obj)
         with transaction.atomic():
-            o = Model()
-            o._create_or_update_fields(data_obj)
+            with warnings.catch_warnings():
+                # Silence "use the 'create' or 'update' method" warning
+                warnings.simplefilter("ignore")
+                o = Model()
+                o._create_or_update_fields(data_obj)
             o.validate_model()
         return o
 
@@ -413,7 +429,10 @@ class MutableModel(_BaseModel):
         model_obj = self.to_obj()
         model_obj.update(update_obj)
         with transaction.atomic():
-            self._create_or_update_fields(model_obj)
+            with warnings.catch_warnings():
+                # Silence "use the 'create' or 'update' method" warning
+                warnings.simplefilter("ignore")
+                self._create_or_update_fields(model_obj)
             self.validate_model()
         return self
 
@@ -453,8 +472,10 @@ class ImmutableModel(_BaseModel):
         data_obj.update({'_id': _id})
         Model = cls._select_best_subclass_model_by_fields(data_obj)
         with transaction.atomic():
-            o = Model()
-            o._create_or_update_fields(data_obj)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                o = Model()
+                o._create_or_update_fields(data_obj)
             o.validate_model()
         return o
 
@@ -477,7 +498,7 @@ class ImmutableModel(_BaseModel):
 
     def _check_child_compatibility(self, Child):
         if not issubclass(Child, ImmutableModel):
-            raise MutableChildError("An ImmutableModel can only contain references to ImmutableModels.")
+            raise MutableChildError("An ImmutableModel can only contain references to ImmutableModels. A %s cannot contain a %s." % (type(self), Child))
 
     def _check_child_with_foreign_key_compatibility(self, Child):
         raise ImmutableChildWithForeignKeyException('Immutable model %s has a foreign key to its parent. This is not allowed for immutable models.' % Child)

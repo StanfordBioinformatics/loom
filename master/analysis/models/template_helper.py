@@ -31,12 +31,12 @@ class StepTemplateContext:
 
     def _get_scalar_input_port_context(self, port):
         return {
-            'file_path': port.file_path
+            'file_name': port.file_name
             }
 
 #    def _get_array_input_port_context(self, port):
 #        return {
-#            'file_path': []
+#            'file_name': []
 #            }
 
     def _get_output_ports_context(self):
@@ -47,11 +47,11 @@ class StepTemplateContext:
 
     def _get_output_port_context(self, port):
         return {
-            'file_path': port.file_path
+            'file_name': port.file_name
             }
 
     def _get_constants_context(self):
-        constants = self._get_request_submission_constants()
+        constants = self._get_run_request_constants()
         constants.update(self._get_workflow_constants())
         constants.update(self._get_step_constants())
         return constants
@@ -67,11 +67,11 @@ class StepTemplateContext:
                 return self.step.workflow.constants
         return {}
 
-    def _get_request_submission_constants(self):
+    def _get_run_request_constants(self):
         if self.step.workflow is not None:
-            if self.step.workflow.request_submission is not None:
-                if self.step.workflow.request_submission.constants is not None:
-                    return self.step.workflow.request_submission.constants
+            if self.step.workflow.run_request is not None:
+                if self.step.workflow.run_request.constants is not None:
+                    return self.step.workflow.run_request.constants
         return {}
 
 class StepTemplateHelper:

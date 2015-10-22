@@ -7,7 +7,7 @@ import requests
 import sys
 import time
 
-from analysis.models import RequestSubmission
+from analysis.models import RunRequest
 from xppf.client import xppf_server_controls
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
@@ -43,7 +43,7 @@ class TestXppfRun(TestCase):
     def _webserver_stopped(self):
         return not os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
 
-# RequestSubmissions
+# RunRequests
 # StepRuns
 # StepRun/$id/port_bundles
 # Files
@@ -52,20 +52,20 @@ class TestXppfRun(TestCase):
 
     def test_create_show_index_immutable(self):
         # Test create
-        r = requests.post(self.server_url+'/api/request_submissions', data=helloworld_json)
+        r = requests.post(self.server_url+'/api/run_requests', data=hello_world_json)
         r.raise_for_status()
-        self.assertTrue('{"message": "created request_submission", "_id":' in r.text)
+        self.assertTrue('{"message": "created run_request", "_id":' in r.text)
 
         # Test show
         id = r.json().get('_id')
-        r = requests.get(self.server_url+'/api/request_submissions/'+ str(id))
+        r = requests.get(self.server_url+'/api/run_requests/'+ str(id))
         r.raise_for_status()
         self.assertEqual(r.json()['_id'], str(id))
 
         # Test index
-        r = requests.get(self.server_url+'/api/request_submissions/')
+        r = requests.get(self.server_url+'/api/run_requests/')
         r.raise_for_status()
-        ids = map(lambda x:x['_id'], r.json()['request_submissions'])
+        ids = map(lambda x:x['_id'], r.json()['run_requests'])
         self.assertTrue(id in ids)
 
     def test_create_show_index_update_mutable(self):
@@ -95,7 +95,7 @@ class TestXppfRun(TestCase):
         self.assertEqual(r.json()['file_path'], '/new/file/path')
     """
     def test_show_input_port_bundles(self):
-        r = requests.post(self.server_url+'/api/request_submissions/', data=json.dumps(hello_world_request_with_runs))
+        r = requests.post(self.server_url+'/api/run_requests/', data=json.dumps(hello_world_request_with_runs))
         r.raise_for_status()
         id = hello_world_request_with_runs.get('workflows')[0].get('steps')[0].get('_id')
         r = requests.get(self.server_url+'/api/step_runs/%s/input_port_bundles/' % id)

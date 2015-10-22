@@ -1,9 +1,4 @@
 import os
-import sys
-sys.path.append(
-    os.path.join(os.path.dirname(__file__), 
-                 '../../../..'))
-
 from xppf.common.fixtures import *
 from xppf.common.integration_tests.workflows.abstract_workflow_tester import AbstractWorkflowTester
 
@@ -19,7 +14,6 @@ world_file = os.path.join(
     os.path.dirname(__file__), 
     '../../../../xppf/common/fixtures/workflows/array_in/world.txt')
 
-"""
 class TestArrayInWorkflow(AbstractWorkflowTester):
 
     def setUp(self):
@@ -35,4 +29,3 @@ class TestArrayInWorkflow(AbstractWorkflowTester):
 
     def testWorkflow(self):
         self.assertTrue(True)
-"""

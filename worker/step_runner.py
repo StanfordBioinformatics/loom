@@ -47,11 +47,11 @@ class InputManager:
     def _prepare_input(self, file_and_locations, port):
         cmd = ['ln',
                self._select_location(file_and_locations.get('file_storage_locations')),
-               self._get_file_path(port)]
+               self._get_file_name(port)]
         subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
 
-    def _get_file_path(self, input_port):
-        return input_port['file_path']
+    def _get_file_name(self, input_port):
+        return input_port['file_name']
 
     def _select_location(self, locations):
         return locations[0]['file_path']
@@ -117,7 +117,7 @@ class _FilePortOutputManager(_AbstractPortOutputManager):
         self._save_location(location)
 
     def _get_file_path(self):
-        file_name = self.output_port.get('file_path')
+        file_name = self.output_port.get('file_name')
         if file_name is None:
             file_names = self._get_files_by_glob()
             if len(file_names) > 1:

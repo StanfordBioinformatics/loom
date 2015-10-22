@@ -43,7 +43,7 @@
           "output_ports": [
             {
               "name": "world_out", 
-              "file_path": "world.txt"
+              "file_name": "world.txt"
             }
           ]
         }, 
@@ -52,11 +52,11 @@
           "input_ports": [
             {
               "name": "hello_in", 
-              "file_path": "hello.txt"
+              "file_name": "hello.txt"
             }, 
             {
               "name": "world_in", 
-              "file_path": "world.txt"
+              "file_name": "world.txt"
             }
           ], 
           "environment": {
@@ -66,7 +66,7 @@
           "output_ports": [
             {
               "name": "hello_world_out", 
-              "file_path": "hello_world.txt"
+              "file_name": "hello_world.txt"
             }
           ], 
           "resources": {

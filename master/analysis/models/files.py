@@ -1,13 +1,15 @@
 from django.db import models
 import jsonfield
-from .common import AnalysisAppBaseModel
 from immutable.models import ImmutableModel, MutableModel
-
 from xppf.common.exceptions import AbstractMethodException
-
+from .common import AnalysisAppBaseModel
 
 class DataObject(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('data_object', 'data_objects')
+
+    def get_data_object(self):
+        # For use as a source, which may be a DataObject or a StepRunPort
+        return self
 
 class File(DataObject):
     _class_name = ('file', 'files')
@@ -23,6 +25,7 @@ class File(DataObject):
     def render_as_list(self):
         return [self]
 
+
 class FileContents(ImmutableModel, AnalysisAppBaseModel):
     _class_name = ('file_contents', 'file_contents')
 
@@ -31,6 +34,7 @@ class FileContents(ImmutableModel, AnalysisAppBaseModel):
 
     def has_storage_location(self):
         return self.filestoragelocation_set.exists()
+
 
 class FileStorageLocation(MutableModel, AnalysisAppBaseModel):
     _class_name = ('file_storage_location', 'file_storage_locations')
@@ -42,11 +46,13 @@ class FileStorageLocation(MutableModel, AnalysisAppBaseModel):
     def get_by_file(self, file):
         return self.objects.filter(file_contents=file.file_contents).all()
 
+
 class ServerFileStorageLocation(FileStorageLocation):
     _class_name = ('file_server_location', 'file_server_locations')
 
     host_url = models.CharField(max_length = 256)
     file_path = models.CharField(max_length = 256)
+
 
 class FileArray(DataObject):
     _class_name = ('file_array', 'file_arrays')

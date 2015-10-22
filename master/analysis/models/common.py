@@ -1,5 +1,4 @@
 from django.db import models
-
 from immutable.models import ImmutableModel, MutableModel
 
 

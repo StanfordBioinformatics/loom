@@ -12,16 +12,28 @@ from .common import ImmutableModelsTestCase
 
 class TestRunsModels(ImmutableModelsTestCase):
 
-    def testStepRun(self):
-        o = StepRun.create(hello_world_step_run_obj1)
-        self.assertEqual(o.step_definition.template.get('environment').docker_image,
-                         hello_world_step_run_obj1['step_definition']['template']['environment']['docker_image'])
+    def testMinimalStepRun(self):
+        o = StepRun.create(step_run_minimal_obj)
+        self.assertEqual(o.steps.all().first().name,
+                         step_run_minimal_obj['steps'][0]['name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-class TestStepRun(TestCase):
+    def testStepRunWithEverything(self):
+        o = StepRun.create(step_run_with_everything_obj)
+        self.assertEqual(o.steps.all().first().name,
+                         step_run_with_everything_obj['steps'][0]['name'])
+        self.roundTripJson(o)
+        self.roundTripObj(o)
 
-    def testGetInputPortBundles(self):
-        o = StepRun.create(hello_world_step_run_obj2)
-        o.get_input_port_bundles()
+#    def testStepRunConnector(self):
+#        o = StepRun.create(step_run_with_everything_obj)
+        
+                         
+
+#class TestStepRun(TestCase):
+
+#    def testGetInputPortBundles(self):
+#        o = StepRun.create(hello_world_step_run_obj2)
+#        o.get_input_port_bundles()
         # TODO

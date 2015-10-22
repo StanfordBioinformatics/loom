@@ -26,31 +26,19 @@ class TestDefinitionModels(ImmutableModelsTestCase):
 
     def testInputPort(self):
         o = StepDefinitionInputPort.create(step_definition_input_port_obj)
-        self.assertEqual(o.file_path, step_definition_input_port_obj['file_path'])
+        self.assertEqual(o.file_name, step_definition_input_port_obj['file_name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
     def testOutputPort(self):
         o = StepDefinitionOutputPort.create(step_definition_output_port_obj)
-        self.assertEqual(o.file_path, step_definition_output_port_obj['file_path'])
+        self.assertEqual(o.file_name, step_definition_output_port_obj['file_name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-    def testDataBinding(self):
-        o = StepDefinitionDataBinding.create(step_definition_data_binding_obj)
-        self.assertEqual(o.input_port.file_path, step_definition_data_binding_obj['input_port']['file_path'])
-        self.roundTripJson(o)
-        self.roundTripObj(o)
-
-    def testTemplate(self):
-        o = StepDefinitionTemplate.create(template_obj)
-        self.assertEqual(o.command, template_obj['command'])
-        self.roundTripJson(o)
-        self.roundTripObj(o)
-        
     def testStepDefinition(self):
         o = StepDefinition.create(step_definition_obj)
-        self.assertEqual(o.template.command, step_definition_obj['template']['command'])
+        self.assertEqual(o.command, step_definition_obj['command'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
@@ -63,16 +51,19 @@ class TestStepDefinition(TestCase):
         run = self.step_definition.get_step_run()
         self.assertIsNone(run)
 
-    def testGetDataBinding(self):
-        port = self.step_definition.template.input_ports.first()
-        data_binding = self.step_definition.get_data_binding(port)
-        self.assertEqual(data_binding.input_port._id, port._id)
+class TestStepDefinitionInputPort(TestCase):
 
-    def testGetInputFile(self):
-        port = self.step_definition.template.input_ports.first()
-        data_binding = self.step_definition.get_data_binding(port)
-        file = self.step_definition.get_input_data_object(port)
-        self.assertEqual(data_binding.input_port._id, port._id)
-        self.assertEqual(data_binding.data_object._id, file._id)
+    def setUp(self):
+        self.step_definition_obj = step_definition_obj
+        self.step_definition = StepDefinition.create(self.step_definition_obj)
+        self.port_obj = self.step_definition_obj['input_ports'][0]
+        self.port = StepDefinitionInputPort.create(self.port_obj) 
+            # Same instance as the one attached to self.step_definition, since it's immutable
 
+    def test_get_files_and_locations_list(self):
+        fl_list = self.port.get_files_and_locations_list()
+        self.assertEqual(fl_list[0]['file']['file_contents']['hash_value'], self.port.data_object.file_contents.hash_value)
 
+    def test_get_input_bundles(self):
+        input_bundles = self.step_definition.get_input_bundles()
+        self.assertEqual(input_bundles[0]['input_port']['data_object']['file_contents']['hash_value'], self.step_definition.input_ports.first().get('data_object').file_contents.hash_value)

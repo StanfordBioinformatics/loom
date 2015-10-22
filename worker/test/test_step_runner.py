@@ -20,7 +20,7 @@ class TestStepRunner(unittest.TestCase):
     def setUp(self):
         self.test_server = TestServer()
         self.test_server.start()
-        self._run_helloworld()
+        self._run_hello_world()
 
         r = requests.get(self.test_server.server_url+'/api/step_runs/')
         self.step1_run_id = r.json()['step_runs'][0].get('_id')
@@ -36,9 +36,9 @@ class TestStepRunner(unittest.TestCase):
         shutil.rmtree(self.file_root)
         self.test_server.stop()
 
-    def _run_helloworld(self):
+    def _run_hello_world(self):
         url = self.test_server.server_url+'/api/submitrequest/'
-        response = requests.post(url, data=fixtures.helloworld_json)
+        response = requests.post(url, data=fixtures.hello_world_json)
         self.assertEqual(response.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (response.status_code, url))
         self.test_server.dry_run_job_queues()
 

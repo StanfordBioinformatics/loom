@@ -15,9 +15,9 @@ from django.conf import settings
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
 from xppf.common import fixtures
 from xppf.common.testserver import TestServer
-from xppf.master.analysis.worker_manager.factory import WorkerManagerFactory
-from xppf.master.analysis.worker_manager.cluster import ClusterWorkerManager
-from xppf.master.analysis.worker_manager.local import LocalWorkerManager
+from analysis.worker_manager.factory import WorkerManagerFactory
+from analysis.worker_manager.cluster import ClusterWorkerManager
+from analysis.worker_manager.local import LocalWorkerManager
 from analysis.models.work_in_progress import WorkInProgress
 
 logger = logging.getLogger('xppf')
@@ -41,7 +41,7 @@ class TestWorkerManagers(unittest.TestCase):
     def test_local_worker_manager(self):
         settings.WORKER_TYPE = 'LOCAL'
         settings.MASTER_URL_FOR_WORKER = 'http://127.0.0.1:8000'
-        self._run_helloworld()
+        self._run_hello_world()
 
         # Give tests some time to finish before shutting down the server. 
         time.sleep(5)
@@ -49,13 +49,13 @@ class TestWorkerManagers(unittest.TestCase):
     def test_cluster_worker_manager(self):
         settings.WORKER_TYPE = 'ELASTICLUSTER'
         settings.MASTER_URL_FOR_WORKER = 'http://frontend001:8000'
-        self._run_helloworld()
+        self._run_hello_world()
 
         # Give tests some time to finish before shutting down the server. 
         time.sleep(5)
 
-    def _run_helloworld(self):
-        WorkInProgress.submit_new_request(fixtures.helloworld_json)
+    def _run_hello_world(self):
+        WorkInProgress.submit_new_request(fixtures.hello_world_json)
         WorkInProgress.update_and_run()
 
 if __name__=='__main__':

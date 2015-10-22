@@ -19,7 +19,7 @@
 		}
 	      },
 	      {
-	        "metadata": "metadata_text",
+	        "metadata": {"something": "anything"},
 	        "file_contents": {
 	          "hash_value": "591785b794601e212b260e25925636fd",
 		  "hash_function": "md5"
@@ -34,7 +34,7 @@
           "environment": {
             "docker_image": "ubuntu"
           }, 
-          "command": "cat {% for file in input_ports.files_to_join.file_path %}{{file}} {% endfor %} > {{ output_ports.joined_files }}", 
+          "command": "cat {% for file in input_ports.files_to_join %}{{file.file_name }} {% endfor %} > {{ output_ports.joined_files.file_name }}", 
           "name": "join_files",
           "resources": {
             "cores": "1", 
@@ -43,13 +43,13 @@
 	  "input_ports": [
 	    {
 	      "name": "files_to_join",
-	      "file_path": "file.txt"
+	      "file_name": "file.txt"
 	    }
 	  ],
           "output_ports": [
             {
               "name": "joined_files", 
-              "file_path": "joined_files.txt"
+              "file_name": "joined_files.txt"
             }
           ]
         }

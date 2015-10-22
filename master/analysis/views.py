@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, RequestSubmission, WorkInProgress, StepRun, StepResult
+from analysis.models import File, RunRequest, WorkInProgress, StepRun, StepResult
 
 logger = logging.getLogger('xppf')
 
@@ -60,14 +60,14 @@ def workerinfo(request):
 def submitrequest(request):
     data_json = request.body
     try:
-        request_submission = RequestSubmission.create(data_json)
-        logger.info('Created request submission %s' % request_submission._id)
+        run_request = RunRequest.create(data_json)
+        logger.info('Created run request %s' % run_request._id)
     except Exception as e:
-        logger.error('Failed to create request submission with data "%s". %s' % (data_json, e.message))
+        logger.error('Failed to create run request with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=400)
     try:
-        WorkInProgress.submit_new_request(request_submission.to_obj())
-        return JsonResponse({"message": "created new %s" % request_submission.get_name(), "_id": str(request_submission._id)}, status=201)
+        WorkInProgress.submit_new_request(run_request.to_obj())
+        return JsonResponse({"message": "created new %s" % run_request.get_name(), "_id": str(run_request._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
 
@@ -118,9 +118,9 @@ def show_input_port_bundles(request, id):
 @csrf_exempt
 @require_http_methods(["GET"])
 def dashboard(request):
-    # Display all active RequestSubmissions plus the last n closed RequestSubmissions
+    # Display all active RunRequests plus the last n closed RunRequests
 
-    def get_count(request):
+    def _get_count(request):
         DEFAULT_COUNT_STR = '10'
         count_str = request.GET.get('count', DEFAULT_COUNT_STR)
         try:
@@ -131,38 +131,38 @@ def dashboard(request):
             count = int(DEFAULT_COUNT_STR)
         return count
 
-    def get_step_info(s):
+    def _get_step_info(s):
         return {
             'id': s.get_field_as_serializable('_id'),
             'name': s.name,
-            'is_complete': s.is_complete(),
+            'are_results_complete': s.are_results_complete,
             'command': s.command,
             }
 
-    def get_workflow_info(w):
+    def _get_workflow_info(w):
         return {
             'id': w.get_field_as_serializable('_id'),
             'name': w.name,
-            'is_complete': w.is_complete(),
+            'are_results_complete': w.are_results_complete,
             'steps': [
-                get_step_info(s) for s in w.steps.order_by('datetime_created').reverse().all()
+                _get_step_info(s) for s in w.steps.order_by('datetime_created').reverse().all()
                 ]
             }
 
-    def get_request_submission_info(r):
+    def _get_run_request_info(r):
         return {
             'created_at': r.datetime_created,
-            'is_complete': r.is_complete(),
+            'are_results_complete': r.are_results_complete,
             'id': r.get_field_as_serializable('_id'),
             'workflows': [ 
-                get_workflow_info(w) for w in r.workflows.order_by('datetime_created').reverse().all()
+                _get_workflow_info(w) for w in r.workflows.order_by('datetime_created').reverse().all()
                 ]
             }
 
-    count = get_count(request)
-    request_submissions = RequestSubmission.get_sorted(count=count)
-    if len(request_submissions) == 0:
-        request_submissions_info = []
-    request_submissions_info = [get_request_submission_info(r) for r in request_submissions]
+    count = _get_count(request)
+    run_requests = RunRequest.get_sorted(count=count)
+    if len(run_requests) == 0:
+        run_requests_info = []
+    run_requests_info = [_get_run_request_info(r) for r in run_requests]
 
-    return JsonResponse({'request_submissions': request_submissions_info}, status=200)
+    return JsonResponse({'run_requests': run_requests_info}, status=200)

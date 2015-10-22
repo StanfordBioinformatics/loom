@@ -2,29 +2,29 @@ import os
 import sys
 from django.conf import settings
 from django.test import TestCase
-from analysis.models import Step, RequestSubmission
+from analysis.models.run_requests import Step, RunRequest
 from analysis.models.template_helper import StepTemplateHelper
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
 from xppf.common.fixtures import *
 
 class TestTemplateHelper(TestCase):
 
-    def test_file_path(self):
-        step = Step.create(step_obj_with_templated_command)
+    def test_file_name(self):
+        step = Step.create(step_with_templated_command_obj)
         command = StepTemplateHelper(step).render(step.command)
-        inputfile = step_obj_with_templated_command['input_ports'][0]['file_path']
-        outputfile = step_obj_with_templated_command['output_ports'][0]['file_path']
+        inputfile = step_with_templated_command_obj['input_ports'][0]['file_name']
+        outputfile = step_with_templated_command_obj['output_ports'][0]['file_name']
         self.assertTrue(inputfile in command)
         self.assertTrue(outputfile in command)
 
     def test_substitution(self):
-        request_submission = RequestSubmission.create(request_submission_obj_with_templated_command)
-        workflow = request_submission.workflows.first()
+        run_request = RunRequest.create(run_request_with_templated_command_obj)
+        workflow = run_request.workflows.first()
         step = workflow.steps.first()
 
         step_id = step.constants['id']
-        rs_id_overridden = request_submission.constants['id']
-        rs_const = request_submission.constants['rs']
+        rs_id_overridden = run_request.constants['id']
+        rs_const = run_request.constants['rs']
         wf_const = workflow.constants['wf']
 
         command = StepTemplateHelper(step).render(step.command)

@@ -9,8 +9,8 @@ class AbstractWorkflowTester(unittest.TestCase):
         response = self.runner.get('/api/dashboard/')
         if not response.status_code == 200:
             return False
-        request_submissions = response.json().get('request_submissions')
-        r = filter(lambda r, id=self.request_id: r['id']==id, request_submissions)
+        run_requests = response.json().get('run_requests')
+        r = filter(lambda r, id=self.request_id: r['id']==id, run_requests)
         if not len(r) == 1:
             return False
         r = r[0]
@@ -20,9 +20,9 @@ class AbstractWorkflowTester(unittest.TestCase):
         self.test_server = TestServer()
         self.test_server.start(no_daemon=False)
 
-    def start_job(self, request_submission_json_path):
+    def start_job(self, run_request_json_path):
         run_parser = xppf_run.XppfRun.get_parser()
-        args = run_parser.parse_args(['--require_default_settings', request_submission_json_path])
+        args = run_parser.parse_args(['--require_default_settings', run_request_json_path])
         self.runner = xppf_run.XppfRun(args=args)
         response = self.runner.run()
         self.assertEqual(response.status_code, 201)

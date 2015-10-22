@@ -9,6 +9,7 @@ import time
 from xppf.common.helper import Helper
 from xppf.client import xppf_server_controls
 
+
 class TestServer:
     """
     Launches a test XPPF server
@@ -32,8 +33,8 @@ class TestServer:
     def stop(self):
         xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
-        xs = xppf_server_controls.XppfServerControls(args=args)
-        xs.main() # stop server
+        self.xs = xppf_server_controls.XppfServerControls(args=args)
+        self.xs.main() # stop server
 
         # Confirm server stopped
         Helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)

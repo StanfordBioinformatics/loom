@@ -30,7 +30,7 @@ world_step = {
     'output_ports': [
         {
             'name': 'world_out',
-            'file_path': 'world.txt',
+            'file_name': 'world.txt',
             }
         ],
 }
@@ -43,17 +43,17 @@ hello_world_step = {
     'input_ports': [
         {
             'name': 'hello_in',
-            'file_path': 'hello.txt',
+            'file_name': 'hello.txt',
             },
         {
             'name': 'world_in',
-            'file_path': 'world.txt',
+            'file_name': 'world.txt',
             }
         ],
     'output_ports': [
         {
             'name': 'hello_world_out',
-            "file_path": "hello_world.txt",
+            "file_name": "hello_world.txt",
             }
         ],
 }
@@ -93,4 +93,4 @@ request_run = {
     'requester': 'someone@example.net',
     }
 
-print json.dumps(request_run, indent=2)
+print json.dumps(request_run, separators=(',', ':'), indent=2)

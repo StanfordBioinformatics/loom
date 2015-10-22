@@ -64,29 +64,3 @@ class TestServerFileStorageLocation(ImmutableModelsTestCase):
         self.assertEqual(server_file_storage_location.file_path, server_file_storage_location_obj['file_path'])
         self.roundTripJson(server_file_storage_location)
         self.roundTripObj(server_file_storage_location)
-
-"""
-class TestFileImportRequest(ImmutableModelsTestCase):
-
-    def testFileImportRequest(self):
-        file_import_request = FileImportRequest.create(file_import_request_obj)
-        self.assertEqual(file_import_request.requester, file_import_request_obj.get('requester'))
-        self.roundTripJson(file_import_request)
-        self.roundTripObj(file_import_request)
-
-    def testIsAvailable(self):
-        file_import_request = FileImportRequest.create(file_import_request_obj)
-        self.assertTrue(file_import_request.is_file_available())
-
-    def testIsAvailableNeg(self):
-        r_obj = copy.deepcopy(file_import_request_obj)
-        r_obj['file_storage_location'].pop('file')
-        file_import_request = FileImportRequest.create(r_obj)
-        self.assertFalse(file_import_request.is_file_available())
-
-    def testGetFile(self):
-        file_import_request = FileImportRequest.create(file_import_request_obj)
-        file = file_import_request.get_file()
-        self.assertEqual(file.hash_value, file_import_request_obj['file_storage_location']['file']['hash_value'])
-                             
-"""

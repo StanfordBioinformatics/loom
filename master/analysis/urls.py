@@ -12,9 +12,10 @@ urlpatterns = patterns(
 
 model_classes = [
     File,
+    FileArray,
     Workflow,
     FileStorageLocation,
-    RequestSubmission,
+    RunRequest,
     Step,
     StepDefinition,
     StepRun,

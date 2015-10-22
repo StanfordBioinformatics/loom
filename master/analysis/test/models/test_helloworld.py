@@ -2,18 +2,14 @@ from django.conf import settings
 from django.test import TestCase
 import os
 import sys
-
 from analysis.models import *
-
-sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common.fixtures import *
-
+from xppf.common.fixtures import hello_world
 from .common import ImmutableModelsTestCase
 
 class TestHelloWorld(ImmutableModelsTestCase):
   
     def testHelloWorld(self):
-        request_submission = RequestSubmission.create(helloworld_json)
+        run_request = RunRequest.create(hello_world.hello_world_run_request_obj)
 
-        self.roundTripJson(request_submission)
-        self.roundTripObj(request_submission)
+        self.roundTripJson(run_request)
+        self.roundTripObj(run_request)
