@@ -29,7 +29,7 @@
     "workflows": [
         {
             "name": "medgap_poc",
-            "input_files": [
+            "imports": [
                 "${input_dir}/${inputbamfile}",
                 "${resource_dir}/${reference}",
                 "${resource_dir}/${reference}.bwt",

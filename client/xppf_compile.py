@@ -1,11 +1,13 @@
 #!/usr/bin/env python
+import argparse
+import hashlib
 import json
-import string
 import os
+import re
+import string
 import subprocess
 import sys
-import argparse
-import re
+import warnings
 
 HASH_FUNCTION = "md5"
 
@@ -41,7 +43,7 @@ def add_data_bindings(obj, hashes):
     for workflow in obj["workflows"]:
         if "data_bindings" not in workflow:
             workflow["data_bindings"] = []
-        for filepath in workflow["input_files"]:
+        for filepath in workflow["imports"]:
             hash_value = hashes[workflow["name"]][filepath]
             for step in workflow["steps"]:
                 for input_port in step["input_ports"]:
@@ -55,7 +57,7 @@ def calculate_hashes(obj):
     for workflow in obj["workflows"]:
         workflowname = workflow["name"]
         hashes[workflowname] = {}
-        for filepath in workflow["input_files"]:
+        for filepath in workflow["imports"]:
             hash_value = calculate_hash(filepath)
             hashes[workflowname][filepath] = hash_value
     return hashes
@@ -63,41 +65,36 @@ def calculate_hashes(obj):
 def calculate_hash(filepath):
     """Calculate and return hash value of input file using HASH_FUNCTION."""
     if not os.path.exists(filepath):
-        print "File not found, using dummy hash value: %s" % filepath
+        warnings.warn("File not found, using dummy hash value: %s" % filepath)
         return "FileNotFound"
-    import hashlib
     if HASH_FUNCTION == "md5":
         hashobj = hashlib.md5()
     # Add other desired hashing algorithms here
 
-    with open(filepath) as inputfile:
-	print "Hashing %s using %s..." % (filepath, HASH_FUNCTION),
-	sys.stdout.flush()
-        hashobj.update(inputfile.read())
-	hash_value = hashobj.hexdigest()
-	print hash_value
+    print "Hashing %s using %s..." % (filepath, HASH_FUNCTION),
+    sys.stdout.flush()
+    for chunk in chunks(filepath, chunksize=hashobj.block_size*1024):
+        hashobj.update(chunk)
+    hash_value = hashobj.hexdigest()
+    print hash_value
     return hash_value
 
-def load_data_bindings(obj, filename):
-    """Load data bindings from specified filename into obj."""
-    with open(filename) as inputfile:
-        inputobj = json.load(inputfile)
-    for workflow in obj["workflows"]:
-        workflowname = workflow["name"]
-        for inputworkflow in inputobj["workflows"]:
-            if inputworkflow["name"] == workflowname:
-                workflow["data_bindings"] = inputworkflow["data_bindings"]
-        if "data_bindings" not in workflow:
-            raise Exception("Can't load hashes from destination file; no workflow named %s in %s." % (workflowname, filename))
-
-def upload_input_files(obj):
+def chunks(filepath, chunksize):
+    """Generator that sequentially reads and yields <chunksize> bytes from a file."""
+    with open(filepath, 'rb') as fp:
+        chunk = fp.read(chunksize)
+        while(chunk):
+            yield chunk
+            chunk = fp.read(chunksize)
+    
+def upload_imports(obj):
     vcf = re.compile("\.vcf$")
     bam = re.compile("\.bam$")
     for workflow in obj["workflows"]:
         # Split input files into VCF's and BAM's vs. other files.
         datafiles = []
         otherfiles = []
-        for filepath in workflow["input_files"]:
+        for filepath in workflow["imports"]:
             if re.search(vcf, filepath) or re.search(bam, filepath):
                 datafiles.append(filepath)
             else:
@@ -112,10 +109,10 @@ def upload_input_files(obj):
         for filepath in otherfiles:
             subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
 
-def delete_workflow_input_files(obj):
-    """Delete workflow input_files dict since it's not needed any more."""
+def delete_workflow_imports(obj):
+    """Delete imports dicts from workflows since they're not needed any more."""
     for workflow in obj["workflows"]:
-        del(workflow["input_files"])
+        del(workflow["imports"])
 
 def check_ports(obj):
     """Make sure filenames across all output ports are unique within each workflow,
@@ -190,8 +187,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
     parser.add_argument('inputfilename')
     parser.add_argument('--updatehashes', action='store_true', default=False, help='Force recalculating hashes.')
-    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files.')
-    parser.add_argument('-o', '--outputfilename', help='Output filename.')
+    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files using xppfcompile.')
+    parser.add_argument('-o', '--outputfilename', help='Output filename. Defaults to <inputfileroot>-compiled.json.')
     args = parser.parse_args()
     return args 
 
@@ -219,10 +216,7 @@ def remove_extensions(filepath):
     else:
         return remove_extensions(root)
 
-def main():
-    args = parse_arguments()    
-
-    # Generate filenames
+def generate_filenames(args):
     root = remove_extensions(args.inputfilename)
     ext = os.path.splitext(args.inputfilename)[1]
     hashesfilename = root + "-hashes" + ext
@@ -230,27 +224,38 @@ def main():
         outputfilename = root + "-compiled" + ext
     else:
         outputfilename = args.outputfilename
+    return hashesfilename, outputfilename
 
-    # Load obj from input file and substitute constants
-    obj = substitute_constants(args.inputfilename)
-
-    # Generate and save hashes, or load from file if exists
-    if args.updatehashes or not os.path.exists(hashesfilename):
+def get_hashes(obj, hashesfilename, updatehashes):
+    """Generate and save hashes, or load from file if exists."""
+    if updatehashes or not os.path.exists(hashesfilename):
         hashes = calculate_hashes(obj)
         save_json(hashes, hashesfilename)
     else:
         hashes = load_json(hashesfilename)
+    return hashes
 
+def main():
+    args = parse_arguments()    
+    hashesfilename, outputfilename = generate_filenames(args)
+
+    # Load input JSON file, substitute constants, convert to Python object
+    obj = substitute_constants(args.inputfilename)
+
+    # Generate hashes for all imports, or load from file
+    hashes = get_hashes(obj, hashesfilename, args.updatehashes)
+
+    # Convert input_files and output_files in all steps into ports
     step_files_to_ports(obj)
 
     # Add files to data_bindings based on workflow input files and step input files 
     add_data_bindings(obj, hashes)
 
     if args.upload:
-        upload_input_files(obj)
+        upload_imports(obj)
 
-    #  Remove input_files dict since it's not needed any more
-    delete_workflow_input_files(obj)
+    #  Remove imports dicts from workflows since they're not needed any more
+    delete_workflow_imports(obj)
 
     # Validation, compute data pipes
     check_ports(obj)
