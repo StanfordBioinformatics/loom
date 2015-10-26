@@ -126,17 +126,13 @@ class TestOversimplifiedInputManager(TestCase, SetupHelper):
     def setUp(self):
         self.workflow = Workflow.create(hello_world.hello_world_workflow)
     
-    def test_init_on_step(self):
-        step = Step.create(fixtures.step_1_obj)
-        self.assertTrue(hasattr(step, 'input_set_manager'))
-
     def test_are_step_runs_pending(self):
         step = self.workflow.get_step('world_step')
-        self.assertTrue(step.input_set_manager.are_step_runs_pending())
+        self.assertTrue(step.get_input_set_manager().are_step_runs_pending())
 
     def test_get_available_input_sets_no_inputs(self):
         step = self.workflow.get_step('world_step')
-        input_sets = step.input_set_manager.get_available_input_sets()
+        input_sets = step.get_input_set_manager().get_available_input_sets()
         self.assertEqual(len(input_sets), 1)
         self.assertEqual(len(input_sets[0].inputs), 0)
 
@@ -145,7 +141,7 @@ class TestOversimplifiedInputManager(TestCase, SetupHelper):
         self._create_world_step_run()
         self._create_world_step_result()
         step = self.workflow.get_step('hello_world_step')
-        input_sets = step.input_set_manager.get_available_input_sets()
+        input_sets = step.get_input_set_manager().get_available_input_sets()
         self.assertEqual(len(input_sets), 1)
         self.assertEqual(len(input_sets[0].inputs), 2)
 

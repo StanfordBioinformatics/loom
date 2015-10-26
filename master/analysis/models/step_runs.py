@@ -1,11 +1,14 @@
 from django.core import exceptions
 from django.db import models
+
+from analysis.models.common import AnalysisAppBaseModel
+from analysis.models.step_definitions import StepDefinitionOutputPort
+from analysis.models.files import DataObject
 from immutable.models import MutableModel, ImmutableModel
-from .common import *
-from .step_definitions import StepDefinitionOutputPort
-from .files import DataObject
+
 
 class StepResult(MutableModel, AnalysisAppBaseModel):
+    """Assigns a DataObject result to one OutputPort of one StepRun"""
 
     _class_name = ('step_result', 'step_results')
 
@@ -51,6 +54,11 @@ class StepRunInputPort(MutableModel, AnalysisAppBaseModel):
 
 
 class StepRun(MutableModel, AnalysisAppBaseModel):
+    """One instance of executing a step. A step can have many InputSets
+    if there is a parallel workflow, and each InputSet will generate at 
+    least one StepRun. A step can also have distinct StepRuns for reruns
+    with the same InputSet.
+    """
 
     _class_name = ('step_run', 'step_runs')
 
@@ -112,9 +120,7 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
     def get_step_run_output_port_by_step_definition_output_port(self, step_definition_output_port):
         return self.output_ports.get(step_definition_output_port=step_definition_output_port._id)
 
-    def add_step_result(self, data_object_obj, step_definition_output_port_obj):
-        step_definition_output_port = StepDefinitionOutputPort.get_by_id(step_definition_output_port_obj['_id'])
-        data_object = DataObject.create(data_object_obj)
+    def add_step_result(self, data_object, step_definition_output_port):
         step_run_output_port = self.get_step_run_output_port_by_step_definition_output_port(step_definition_output_port)
         return StepResult.create(
             {
@@ -123,12 +129,20 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
                 }
             )
 
+    @classmethod
+    def submit_result(cls, result_info_obj_or_json):
+        result_info_obj = StepResult._any_to_obj(result_info_obj_or_json)
+        step_definition_output_port = StepDefinitionOutputPort.get_by_definition(result_info_obj.get('step_result').get('output_port'))
+        data_object = DataObject.create(result_info_obj.get('step_result').get('data_object'))
+        step_run = StepRun.get_by_definition(result_info_obj.get('step_run'))
+        return step_run.add_step_result(data_object, step_definition_output_port)
+
     def __str__(self):
         return self.step_definition.command
 
 
 class StepRunDataBinding(MutableModel, AnalysisAppBaseModel):
-    # Connects existing DataObject as input for a StepRun
+    """ Connects existing DataObject as input for a StepRun"""
 
     _class_name = ('step_run_data_binding', 'step_run_data_bindings')
 
@@ -137,7 +151,7 @@ class StepRunDataBinding(MutableModel, AnalysisAppBaseModel):
 
 
 class StepRunDataPipe(MutableModel, AnalysisAppBaseModel):
-    # Connects output from another StepRun as input for a StepRun
+    """Connects output from another StepRun as input for a StepRun"""
 
     _class_name = ('step_run_data_pipe', 'step_run_data_pipes')
 

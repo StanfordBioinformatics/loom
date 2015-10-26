@@ -1,14 +1,14 @@
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
-from immutable.models import MutableModel
 import jsonfield
 
-from .common import AnalysisAppBaseModel
-from .files import DataObject
-from .input_sets import OversimplifiedInputSetManager
-from .step_definitions import StepDefinition, StepDefinitionOutputPort
-from .step_runs import StepRun
-from .template_helper import StepTemplateHelper
+from analysis.models.common import AnalysisAppBaseModel
+from analysis.models.files import DataObject
+from analysis.models.input_sets import InputSetManagerFactory
+from analysis.models.step_definitions import StepDefinition, StepDefinitionOutputPort
+from analysis.models.step_runs import StepRun
+from analysis.models.template_helper import StepTemplateHelper
+from immutable.models import MutableModel
 
 
 """
@@ -18,6 +18,9 @@ receiving a request for analysis from a user.
 
 
 class RunRequest(MutableModel, AnalysisAppBaseModel):
+    """A single instance of a user request for work. May contain
+    many workflows.
+    """
 
     _class_name = ('run_request', 'run_requests')
 
@@ -36,7 +39,6 @@ class RunRequest(MutableModel, AnalysisAppBaseModel):
     @classmethod
     def update_and_dry_run(cls):
         cls.update_all_statuses()
-        # TODO dry run
 
     @classmethod
     def update_all_statuses(cls):
@@ -63,13 +65,17 @@ class RunRequest(MutableModel, AnalysisAppBaseModel):
 
 
 class Workflow(MutableModel, AnalysisAppBaseModel):
+    """Each workflow may contain many processing steps, with results from one
+    step optionally feeding into another step as input.
+    """
 
     _class_name = ('workflow', 'workflows')
 
     FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
     JSON_FIELDS = ['constants']
 
-    name = models.CharField(max_length = 256, null=True) # name is used to make results more browsable on a file server
+    # name is used for grouping working directories on the file server.
+    name = models.CharField(max_length = 256, null=True)
     constants = jsonfield.JSONField(null=True)
     run_request = models.ForeignKey('RunRequest', related_name='workflows', null=True)
     are_results_complete = models.BooleanField(default=False)
@@ -136,6 +142,9 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
 
 
 class Step(MutableModel, AnalysisAppBaseModel):
+    """A step is the template for a task to be run. However it may represent many StepRuns
+    in a workflow with parallel steps.
+    """
 
     _class_name = ('step', 'steps')
 
@@ -150,9 +159,8 @@ class Step(MutableModel, AnalysisAppBaseModel):
     workflow = models.ForeignKey('Workflow', null=True, related_name='steps')
     are_results_complete = models.BooleanField(default=False)
 
-    def __init__(self, *args ,**kwargs):
-        super(Step, self).__init__(*args, **kwargs)
-        self.input_set_manager = OversimplifiedInputSetManager(self)
+    def get_input_set_manager(self):
+        return InputSetManagerFactory.get_input_set_manager(self)
 
     def _update_status(self):
         self._update_existing_step_runs()
@@ -161,8 +169,8 @@ class Step(MutableModel, AnalysisAppBaseModel):
             self.update({'are_results_complete': True})
 
     def _are_all_step_runs_complete(self):
-        # are any step_runs yet to be created or any existing step_runs incomplete
-        return not (self.input_set_manager.are_step_runs_pending()
+        """Are any step_runs yet to be created or any existing step_runs incomplete"""
+        return not (self.get_input_set_manager().are_step_runs_pending()
                 or self.step_runs.filter(are_results_complete=False).exists())
 
     def _update_existing_step_runs(self):
@@ -170,7 +178,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
             step_run._update_status()
 
     def _update_new_step_runs(self):
-        for input_set in self.input_set_manager.get_available_input_sets():
+        for input_set in self.get_input_set_manager().get_available_input_sets():
             if input_set.is_data_ready():
                 self.create_or_get_step_run(input_set)
 
@@ -193,9 +201,9 @@ class Step(MutableModel, AnalysisAppBaseModel):
 
     def get_connector(self, destination_port_name):
         connectors = filter(lambda c: c.destination.port==destination_port_name, self.get_connectors())
-        if len(connectors == 0):
+        if not connectors:
             return None
-        if len(connectors == 1):
+        if len(connectors) == 1:
             return connectors[0]
         else:
             raise Exception("Found multiple connectors with port name %s" % destination_port_name)
@@ -276,9 +284,6 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
 
     name = models.CharField(max_length = 256)
     is_array = models.BooleanField(default = False)
-
-    # Relative path within the working directory where
-    # a file will be found after a step executes
     file_name = models.CharField(max_length = 256, null=True)
     glob = models.CharField(max_length = 256, null=True)
     step = models.ForeignKey('Step', related_name='output_ports', null=True)
@@ -302,8 +307,6 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
     _class_name = ('request_input_port', 'request_input_ports')
 
     name = models.CharField(max_length = 256)
-    # Relative path within the working directory where
-    # a file will be copied before a step is executed
     file_name = models.CharField(max_length = 256)
     step = models.ForeignKey('Step', related_name='input_ports', null=True)
     is_array = models.BooleanField(default = False)
@@ -315,9 +318,13 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
         return connector
 
     def _get_binding(self):
+        if not self.step.workflow:
+            return None
         return self.step.workflow._get_binding(port_name=self.name, step_name=self.step.name)
 
     def _get_data_pipe(self):
+        if not self.step.workflow:
+            return None
         return self.step.workflow._get_data_pipe(
             port_name=self.name, step_name=self.step.name)
 
@@ -333,9 +340,10 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             'name': self.name,
             'step_definition_input_port': self._render_step_definition_input_port(source.get_data_object())
             }
-        
+
 
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
+    """Connects an already existing DataObject to the input port of a step"""
 
     _class_name = ('request_data_binding', 'request_data_bindings')
 
@@ -355,17 +363,17 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
         return self.get('data_object', downcast=True)
 
     def is_source_an_array(self):
-        return self.data_object.is_array()
+        return self.data_object.is_array
 
     def is_destination_an_array(self):
-        return self.get_destination_step().get_input_port(self.destination.port).is_array()
+        return self.get_destination_step().get_input_port(self.destination.port).is_array
 
     def get_destination_step(self):
         self._verify_workflow()
         return self.workflow.get_step(self.destination.step)
 
     def _verify_workflow(self):
-        if not self.workflow.exists():
+        if not self.workflow:
             raise Exception("No workflow defined for RequestDataBinding %s" % self.to_obj())
 
     def get_destination_port(self):
@@ -379,6 +387,9 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
 
 class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
+    """Connects an output port of a previous step to an input port
+    of the current step.
+    """
 
     _class_name = ('request_data_pipe', 'request_data_pipes')
 
@@ -398,10 +409,10 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
         return self.workflow.get_step(self.destination.step)
 
     def is_source_an_array(self):
-        return self.get_source_step().get_output_port(self.source.port).is_array()
+        return self.get_source_step().get_output_port(self.source.port).is_array
 
     def is_destination_an_array(self):
-        return self.get_destination_step().get_input_port(self.destination.port).is_array()
+        return self.get_destination_step().get_input_port(self.destination.port).is_array
 
     def _render_step_definition_data_bindings(self, step):
         port = step.get_input_port(self.destination.port)

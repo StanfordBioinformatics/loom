@@ -300,7 +300,7 @@ class StepRunner:
             raise Exception('Process returned with error %s' % str(returncode))
 
     def _flag_run_as_complete(self, step_run):
-        update_data = {'is_complete': True}
+        update_data = {'are_results_complete': True}
         url = self.settings['MASTER_URL']+'/api/step_runs/%s' % step_run.get('_id')
         self.logger.debug('updating StepRun at url '+url)
         response = requests.post(url, data=json.dumps(update_data))

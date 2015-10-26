@@ -1,12 +1,12 @@
 from django.db import models
 from django.core import exceptions
 
-from .common import AnalysisAppBaseModel
+from analysis.models.common import AnalysisAppBaseModel
+from analysis.models.files import FileStorageLocation, DataObject
 from immutable.models import ImmutableModel
-from .files import FileStorageLocation, DataObject
 
-"""
-Models in this module form the core definition of an anlysis step.
+
+"""Models in this module form the core definition of an anlysis step.
 
 These models are immutable. Their primary key is a hash of the model's
 contents, so no identical duplicates exist. Immutable models cannot be 
@@ -21,10 +21,10 @@ servers.
 
 
 class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
-    """
-    Contains the unchanging parts of a step, with inputs specified.
+    """Contains the unchanging parts of a step, with inputs specified.
     Excludes settings that do not alter results, e.g. resources
     """
+
     _class_name = ('step_definition', 'step_definitions')
 
     FOREIGN_KEY_CHILDREN = ['environment']
@@ -72,6 +72,12 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
 
 
 class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
+    """Since a StepDefinition can't be defined without existing DataObjects,
+    StepDefinitionInputPorts can only be connected to DataObjects, not to other 
+    ports. StepRunInputPorts are closely associated with StepDefinitionInputPorts
+    and can connect to StepRunOutputPorts from previous StepRuns. Once the DataObject
+    becomes available at runtime, the StepDefinition and its input ports are created.
+    """
 
     _class_name = ('step_definition_input_port', 'step_definition_input_ports')
 

@@ -5,7 +5,6 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from analysis.models import File, RunRequest, StepRun, StepResult
-from analysis.models.work_in_progress import WorkInProgress
 
 logger = logging.getLogger('xppf')
 
@@ -63,35 +62,20 @@ def submitrequest(request):
     try:
         run_request = RunRequest.create(data_json)
         logger.info('Created run request %s' % run_request._id)
+        return JsonResponse({"message": "created new %s with id %s" % (run_request.get_name(), run_request._id)})
     except Exception as e:
         logger.error('Failed to create run request with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=400)
-    try:
-        WorkInProgress.submit_new_request(run_request.to_obj())
-        return JsonResponse({"message": "created new %s" % run_request.get_name(), "_id": str(run_request._id)}, status=201)
-    except Exception as e:
-        return JsonResponse({"message": e.message}, status=500)
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def submitresult(request):
     data_json = request.body
     try:
-        result = WorkInProgress.submit_result(data_json)
+        result = StepRun.submit_result(data_json)
         return JsonResponse({"message": "created new %s" % result.get_name(), "_id": str(result._id)}, status=201)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def closerun(request):
-    data_json = request.body
-    try:
-        WorkInProgress.close_run(data_json)
-        return JsonResponse({"message": "closed run", "_id": data_json.get('_id')})
-    except Exception as e:
-        return JsonResponse({"message": e.message}, status=500)
-    run_id = data_json.get('_id')
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])

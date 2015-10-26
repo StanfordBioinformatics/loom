@@ -1,6 +1,9 @@
 from jinja2 import DictLoader, Environment
 
 class StepTemplateContext:
+    """Utilities to perform substitutions on user-provided
+    text in the Step.
+    """
 
     def __init__(self, step):
         self.step = step
@@ -19,25 +22,17 @@ class StepTemplateContext:
         return input_ports_context
 
     def _get_input_port_context(self, port):
-        # if 1 to 1, get_scalar
-        # if 1 to many, get scalar
-        # if array to 1, get array
-        # if array to array, get scalar
-#        if port.is_from_scalar():
-#            return self._get_scalar_input_port_context(port)
-#        else:
-#            return self._get_array_input_port_context(port)
+        # TODO support input from arrays
+        # if port.is_from_scalar():
+        #     return self._get_scalar_input_port_context(port)
+        # else:
+        #     return self._get_array_input_port_context(port)
         return self._get_scalar_input_port_context(port)
 
     def _get_scalar_input_port_context(self, port):
         return {
             'file_name': port.file_name
             }
-
-#    def _get_array_input_port_context(self, port):
-#        return {
-#            'file_name': []
-#            }
 
     def _get_output_ports_context(self):
         output_ports_context = {}

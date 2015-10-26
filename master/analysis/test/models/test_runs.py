@@ -11,15 +11,11 @@ class TestRunsModels(ImmutableModelsTestCase):
 
     def testMinimalStepRun(self):
         o = StepRun.create(fixtures.step_run_minimal_obj)
-        self.assertEqual(o.steps.all().first().name,
-                         fixtures.step_run_minimal_obj['steps'][0]['name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
     def testStepRunWithEverything(self):
         o = StepRun.create(fixtures.step_run_with_everything_obj)
-        self.assertEqual(o.steps.all().first().name,
-                         fixtures.step_run_with_everything_obj['steps'][0]['name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 

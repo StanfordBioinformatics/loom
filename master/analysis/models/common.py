@@ -3,7 +3,9 @@ from immutable.models import ImmutableModel, MutableModel
 
 
 class AnalysisAppBaseModel(models.Model):
-    # _class_names can be used to generate API urls and error messages
+    """Base class provides a standard way to assign and access human readable
+    object names for use in URLs and error messages.
+    """
 
     _class_name = ('unnamed_model', 'unnamed_models') # To be overridden
 
