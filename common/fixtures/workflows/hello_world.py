@@ -12,7 +12,7 @@ file_contents = {
 
 hello_file = {
     'file_contents': file_contents,
-    'metadata': '{"filename": "hello.txt"}'
+    'metadata': '{"file_name": "hello.txt"}'
 }
 
 world_file = {
@@ -20,8 +20,17 @@ world_file = {
         "hash_function": "md5", 
         "hash_value": "591785b794601e212b260e25925636fd"
         },
-    'metadata': '{"filename": "world.txt"}'
+    'metadata': '{"file_name": "world.txt"}'
     }
+
+hello_world_file = {
+    'file_contents': {
+        'hash_function': 'md5',
+        'hash_value': '0f723ae7f9bf07744445e93ac5595156'
+        },
+    'metadata': '{"file_name": "hello_world.txt"}'
+    }
+
 
 env = {
     'docker_image': 'ubuntu',
@@ -103,37 +112,74 @@ hello_world_run_request_obj = {
     'requester': 'someone@example.net',
     }
 
-world_step_output_port = {
-    "file_name": "hello_world.txt",
-    "is_array": False,
+world_step_definition_output_port = {
+    'file_name': 'world.txt',
+    'is_array': False
     }
 
 world_step_definition = {
-    'input_ports': [
-                      {
-                          "file_name": "hello.txt",
-                          "data_object": hello_file,
-                          "is_array": False,
-                          },
-                      {
-                          "file_name": "world.txt",
-                          "data_object": world_file,
-                          "is_array": False
-                          }
-                      ],
-    'output_ports': [world_step_output_port],
+    'output_ports': [world_step_definition_output_port],
     'command': world_step['command'],
     'environment': world_step['environment'],
     }
 
-world_step_run = {
-    'step_definition': world_step_definition
+world_step_run_output_port = {
+    'name': 'world',
+    'step_definition_output_port': world_step_definition_output_port,
     }
 
-world_step_result = {
+world_step_run = {
     'step_definition': world_step_definition,
-    'data_object': world_file,
-    'output_port': world_step_output_port
+    'output_ports': [world_step_run_output_port]
+    }
+
+hello_world_step_definition_output_port = {
+    "file_name": "hello_world.txt",
+    "is_array": False,
+    }
+
+hello_world_step_definition_hello_input_port = {
+    "file_name": "hello.txt",
+    "data_object": hello_file,
+    "is_array": False,
+    }
+
+hello_world_step_definition_world_input_port = {
+    "file_name": "world.txt",
+    "data_object": world_file,
+    "is_array": False
+    }
+
+hello_world_step_definition = {
+    'input_ports': [
+        hello_world_step_definition_hello_input_port,
+        hello_world_step_definition_world_input_port
+
+                      ],
+    'output_ports': [hello_world_step_definition_output_port],
+    'command': hello_world_step['command'],
+    'environment': hello_world_step['environment'],
+    }
+
+hello_world_step_run_output_port = {
+    'name': 'hello_world',
+    'step_definition_output_port': hello_world_step_definition_output_port,
+    }
+
+hello_world_step_run_hello_input_port = {
+    'name': 'hello',
+    'step_definition_input_port': hello_world_step_definition_hello_input_port
+    }
+
+hello_world_step_run_world_input_port = {
+    'name': 'world',
+    'step_definition_input_port': hello_world_step_definition_world_input_port
+    }
+
+hello_world_step_run = {
+    'step_definition': hello_world_step_definition,
+    'input_ports': [hello_world_step_run_hello_input_port, hello_world_step_run_world_input_port],
+    'output_ports': [hello_world_step_run_output_port]
     }
 
 if __name__=='__main__':

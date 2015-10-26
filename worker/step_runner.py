@@ -99,11 +99,8 @@ class _AbstractPortOutputManager:
 
     def _get_result(self, data_object):
         return {
-            'step_definition': self.step_run['step_definition'],
-            'output_binding': {
-                'data_object': data_object,
-                'output_port': self.output_port,
-                },
+            'data_object': data_object,
+            'output_port': self.output_port,
             }
 
 class _FilePortOutputManager(_AbstractPortOutputManager):
@@ -194,7 +191,7 @@ class OutputManager:
         self.output_ports = self._get_output_ports(step_run)
 
     def _get_output_ports(self, step_run):
-        output_ports = step_run.get('step_definition').get('template').get('output_ports')
+        output_ports = step_run.get('step_definition').get('output_ports')
         if output_ports is None:
             output_ports = []
         return output_ports
@@ -277,10 +274,9 @@ class StepRunner:
 
     def _execute(self):
         step_definition = self.step_run.get('step_definition')
-        template = step_definition.get('template')
-        environment = template.get('environment')
+        environment = step_definition.get('environment')
         docker_image = environment.get('docker_image')
-        user_command = template.get('command')
+        user_command = step_definition.get('command')
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/working_dir'
         raw_full_command = 'docker run --rm -v ${host_dir}:${container_dir}:rw -w ${container_dir} $docker_image sh -c \'$user_command\'' #TODO - need sudo?

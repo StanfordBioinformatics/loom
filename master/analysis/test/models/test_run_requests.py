@@ -1,14 +1,10 @@
+from analysis.models import *
 from django.conf import settings
 from django.test import TestCase
 import os
 import sys
-
-from analysis.models import *
-
-sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
 from xppf.common import fixtures
 from xppf.common.fixtures.workflows import hello_world
-
 from .common import ImmutableModelsTestCase
 
 
@@ -38,8 +34,8 @@ class TestModelsRunRequests(ImmutableModelsTestCase):
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-    def testRequestDataBindingPortIdentifier(self):
-        o = RequestDataBindingPortIdentifier.create(fixtures.port_identifier_obj)
+    def testRequestDataBindingInputPortIdentifier(self):
+        o = RequestDataBindingDestinationPortIdentifier.create(fixtures.port_identifier_obj)
         self.assertEqual(o.step, fixtures.port_identifier_obj['step'])
         self.roundTripJson(o)
         self.roundTripObj(o)
@@ -154,7 +150,7 @@ class TestRunRequests(TestCase):
         # If count is greater than available elements, all elements should be present
         self.assertEqual(len(r_list_untruncated), count)
 
-
+"""
 class TestOversimplifiedInputManager(TestCase):
     
     def test_init_on_step(self):
@@ -185,6 +181,7 @@ class TestInputSet(TestCase):
         self.assertTrue(self.world_step_input_set.is_data_ready())
 
     def test_is_data_ready_no_file_location(self):
+        self._create_world_step_input_set()
         self._create_world_step_run()
         self._create_world_step_result()
         self._create_hello_world_step_input_set()
@@ -197,6 +194,7 @@ class TestInputSet(TestCase):
         self.assertTrue(self.hello_world_step_input_set.is_data_ready())
                 
     def test_is_data_ready_no_run_result(self):
+        self._create_world_step_input_set()
         self._create_world_step_run()
         self._create_hello_world_file_storage_location()
         self._create_hello_world_step_input_set()
@@ -210,44 +208,52 @@ class TestInputSet(TestCase):
 
     def test_create_step_run_no_inputs(self):
         self._create_world_step_input_set()
-        self.assertEqual(self.workflow.get_step('world_step').step_runs.count(), 0)
-        self.world_step_input_set.create_step_run_if_new()
-        self.assertEqual(self.workflow.get_step('world_step').step_runs.count(), 1)
+        world_step = self.workflow.get_step('world_step')
+
+        self.assertEqual(world_step.step_runs.count(), 0)
+        world_step.create_or_get_step_run(self.world_step_input_set)
+        self.assertEqual(world_step.step_runs.count(), 1)
 
         # Recreating should have no effect
-        self.world_step_input_set.create_step_run_if_new()
-        self.assertEqual(self.workflow.get_step('world_step').step_runs.count(), 1)
+        world_step.create_or_get_step_run(self.world_step_input_set)
+        self.assertEqual(world_step.step_runs.count(), 1)
         
     def test_create_step_run_with_inputs(self):
+        self._create_world_step_input_set()
         self._create_world_step_run()
         self._create_world_step_result()
         self._create_hello_world_step_input_set()
         self._create_hello_world_file_storage_location()
+        hello_world_step = self.workflow.get_step('hello_world_step')
 
-        self.assertEqual(self.workflow.get_step('hello_world_step').step_runs.count(), 0)
-        self.hello_world_step_input_set.create_step_run_if_new()
-        self.assertEqual(self.workflow.get_step('hello_world_step').step_runs.count(), 1)
+        self.assertEqual(hello_world_step.step_runs.count(), 0)
+        hello_world_step.create_or_get_step_run(self.hello_world_step_input_set)
+        self.assertEqual(hello_world_step.step_runs.count(), 1)
 
         # Recreating should have no effect
-        self.hello_world_step_input_set.create_step_run_if_new()
-        self.assertEqual(self.workflow.get_step('hello_world_step').step_runs.count(), 1)
+        hello_world_step.create_or_get_step_run(self.hello_world_step_input_set)
+        self.assertEqual(hello_world_step.step_runs.count(), 1)
 
     def test_create_step_run_not_linked_to_step(self):
-        self._create_world_step_run(link_to_step=False)
         self._create_world_step_input_set()
+        self._create_world_step_run()
+        self.world_step_run.steps = []
+
         self.assertEqual(self.workflow.get_step('world_step').step_runs.count(), 0)
-        self.world_step_input_set.create_step_run_if_new()
+        self.workflow.get_step('world_step').create_or_get_step_run(self.world_step_input_set)
         self.assertEqual(self.workflow.get_step('world_step').step_runs.count(), 1)
         
     def _create_world_step_run(self, link_to_step=True):
-        run_obj = hello_world.world_step_run
         world_step = self.workflow.get_step('world_step')
-        self.world_step_run = StepRun.create(run_obj)
-        if link_to_step:
-            self.world_step_run.update({'steps': [world_step.to_obj()]})
+        self.world_step_run = world_step.create_or_get_step_run(self.world_step_input_set)
 
     def _create_world_step_result(self):
-        world_result = StepResult.create(hello_world.world_step_result)
+        world_result = StepResult.create(
+            {
+                'data_object': hello_world.world_file,
+                'output_port': self.world_step_run.output_ports.first().to_serializable_obj(),
+                }
+            )
         self._create_world_file_storage_location()
         self.world_step_run.update({'step_results': [world_result.to_serializable_obj()]})
 
@@ -272,3 +278,4 @@ class TestInputSet(TestCase):
 
     def _create_world_step_input_set(self):
         self.world_step_input_set = InputSet(self.workflow.get_step('world_step'))
+"""

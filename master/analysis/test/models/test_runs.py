@@ -1,39 +1,48 @@
+from analysis.models import *
+from .common import ImmutableModelsTestCase
 from django.conf import settings
 from django.test import TestCase
 import os
 import sys
-
-from analysis.models import *
-sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common.fixtures import *
-
-from .common import ImmutableModelsTestCase
+from xppf.common import fixtures
 
 
 class TestRunsModels(ImmutableModelsTestCase):
 
     def testMinimalStepRun(self):
-        o = StepRun.create(step_run_minimal_obj)
+        o = StepRun.create(fixtures.step_run_minimal_obj)
         self.assertEqual(o.steps.all().first().name,
-                         step_run_minimal_obj['steps'][0]['name'])
+                         fixtures.step_run_minimal_obj['steps'][0]['name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
     def testStepRunWithEverything(self):
-        o = StepRun.create(step_run_with_everything_obj)
+        o = StepRun.create(fixtures.step_run_with_everything_obj)
         self.assertEqual(o.steps.all().first().name,
-                         step_run_with_everything_obj['steps'][0]['name'])
+                         fixtures.step_run_with_everything_obj['steps'][0]['name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
-#    def testStepRunConnector(self):
-#        o = StepRun.create(step_run_with_everything_obj)
-        
-                         
+    def testStepResult(self):
+        step_run = StepRun.create(fixtures.step_run_with_everything_obj)
+        file = File.create(fixtures.file_obj)
+        result = StepResult.create(
+            {
+                'output_port': step_run.output_ports.first().to_serializable_obj(),
+                'data_object': file.to_obj()
+             }
+            )
+        self.roundTripJson(result)
+        self.roundTripObj(result)
 
-#class TestStepRun(TestCase):
+class TestStepRun(TestCase):
 
-#    def testGetInputPortBundles(self):
-#        o = StepRun.create(hello_world_step_run_obj2)
-#        o.get_input_port_bundles()
+    def testStepRunDataPipe(self):
+        pass
+
+    def testStepRunDataBinding(self):
+        pass
+
+    def testGetInputPortBundles(self):
         # TODO
+        pass

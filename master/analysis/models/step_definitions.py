@@ -1,9 +1,9 @@
 from django.db import models
+from django.core import exceptions
 
 from .common import AnalysisAppBaseModel
 from immutable.models import ImmutableModel
 from .files import FileStorageLocation, DataObject
-
 
 """
 Models in this module form the core definition of an anlysis step.
@@ -26,28 +26,57 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
     Excludes settings that do not alter results, e.g. resources
     """
     _class_name = ('step_definition', 'step_definitions')
+
     FOREIGN_KEY_CHILDREN = ['environment']
+
     input_ports = models.ManyToManyField('StepDefinitionInputPort')
     output_ports = models.ManyToManyField('StepDefinitionOutputPort')
     command = models.CharField(max_length = 256)
     environment = models.ForeignKey('StepDefinitionEnvironment')
 
-    def get_step_run(self, cutofftime=None):
-        # TODO: for stability, return oldest by default
-        # For forced reruns, filter any older than given cutoff
-        step_runs = self.steprun_set
-        if step_runs.count() == 0:
+    def attach_step_run_if_one_exists(self, step, input_set):
+
+        # If there is a valid step_run attached to this step, return it.
+        step_run = self.get_step_run_by_step(step)
+        if step_run is not None:
+            return step_run
+
+        # Look for a valid StepRun running the same StepDefinition under another Step.
+        # If one exists, we kill to birds by attaching this step rather than re-run it
+        step_run = self.get_step_run()
+        if step_run is not None:
+            step_run.steps.add(step)
+            step_run.save() # TODO is this needed on ManyToMany?
+            return step_run
+
+        return None
+
+    def get_step_run_by_step(self, step):
+        # TODO add cutoff time for forced reruns
+        # TODO: return oldest by default
+        try:
+            return self.step_runs.filter(steps___id=step._id).first()
+        except exceptions.DoesNotExist:
             return None
-        else:
-            return step_runs.first()
+
+    def get_step_run(self):
+        # TODO add cutoff time for forced reruns
+        # TODO: return oldest by default
+        try:
+            self.step_runs.first()
+        except exceptions.DoesNotExist:
+            return None
 
     def get_input_bundles(self):
         return [port.get_input_bundle() for port in self.input_ports.all()]
 
 
 class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
+
     _class_name = ('step_definition_input_port', 'step_definition_input_ports')
+
     FOREIGN_KEY_CHILDREN = ['data_object']
+
     file_name = models.CharField(max_length = 256)
     is_array = models.BooleanField()
     data_object = models.ForeignKey(DataObject)

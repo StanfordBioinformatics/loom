@@ -1,12 +1,10 @@
+from analysis.models import *
 from django.conf import settings
 from django.test import TestCase
-from analysis.models import *
-from .common import ImmutableModelsTestCase
 import os
 import sys
-
-sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
 from xppf.common.fixtures import *
+from .common import ImmutableModelsTestCase
 
 
 class TestDefinitionModels(ImmutableModelsTestCase):

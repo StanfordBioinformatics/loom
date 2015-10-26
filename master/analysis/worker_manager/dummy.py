@@ -1,8 +1,6 @@
 import hashlib
 import requests
 
-from analysis.models import StepResult
-
 
 class DummyWorkerManager:
 

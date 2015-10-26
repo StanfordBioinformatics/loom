@@ -4,7 +4,8 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, RunRequest, WorkInProgress, StepRun, StepResult
+from analysis.models import File, RunRequest, StepRun, StepResult
+from analysis.models.work_in_progress import WorkInProgress
 
 logger = logging.getLogger('xppf')
 
@@ -112,7 +113,7 @@ def show_or_update(request, id, model_class):
 @require_http_methods(["GET"])
 def show_input_port_bundles(request, id):
     step_run = StepRun.get_by_id(id)
-    input_port_bundles = step_run.get_input_port_bundles()
+    input_port_bundles = step_run.get_input_bundles()
     return JsonResponse({"input_port_bundles": input_port_bundles}, status=200)
 
 @csrf_exempt

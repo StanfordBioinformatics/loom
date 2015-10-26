@@ -6,8 +6,6 @@ import subprocess
 
 from django.conf import settings
 
-from analysis.models import StepResult
-
 
 logger = logging.getLogger('XppfDaemon')
 
@@ -34,4 +32,7 @@ class LocalWorkerManager:
         #TODO save proc.pid for follow-up
 
 	#For now, return process so caller can follow up
+
+        step_run.update({'is_running': True})
+
 	return proc

@@ -1,12 +1,14 @@
-from analysis.models.common import AnalysisAppBaseModel
-from analysis.models.files import DataObject
-from analysis.models.step_definitions import StepDefinition, StepDefinitionOutputPort
-from analysis.models.step_runs import StepRun
-from analysis.models.template_helper import StepTemplateHelper
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
 from immutable.models import MutableModel
 import jsonfield
+
+from .common import AnalysisAppBaseModel
+from .files import DataObject
+from .input_sets import OversimplifiedInputSetManager
+from .step_definitions import StepDefinition, StepDefinitionOutputPort
+from .step_runs import StepRun
+from .template_helper import StepTemplateHelper
 
 
 """
@@ -29,16 +31,17 @@ class RunRequest(MutableModel, AnalysisAppBaseModel):
     @classmethod
     def update_and_run(cls):
         cls.update_all_statuses()
+        StepRun.run_all()
 
     @classmethod
     def update_and_dry_run(cls):
         cls.update_all_statuses()
+        # TODO dry run
 
     @classmethod
     def update_all_statuses(cls):
         for run_request in cls.objects.filter(are_results_complete=False):
             run_request._update_status()
-            run_request.save()
 
     def _update_status(self):
         for workflow in self.workflows.filter(are_results_complete=False):
@@ -70,9 +73,6 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     constants = jsonfield.JSONField(null=True)
     run_request = models.ForeignKey('RunRequest', related_name='workflows', null=True)
     are_results_complete = models.BooleanField(default=False)
-    # steps: Step foreign key
-    # data_bindings: RequestDataBinding foreign key
-    # data_pipes: RequestDataPipe foreign key
 
     def _update_status(self):
         for step in self.steps.filter(are_results_complete=False):
@@ -134,133 +134,6 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
         if port is None:
             raise ValidationError("No port named %s on step %s" % (source.port, source.step))
 
-"""
-class AbstractInputSetManager:
-    def __init__(self, step):
-        self.step = step
-
-class ForLoopBeginInputSetManager:
-    pass
-
-class ForLoopEndInputSetManager:
-    pass
-
-class NoLoopInputSetManager:
-    pass
-
-class InputSetManagerFactory:
-    @classmethod
-    port_type_count = self._count_port_types(step)
-    def get_input_set_manager(cls, step):
-        if self._is_for_loop_starting(port_type_count):
-            return ForLoopBeginInputSetManager(step)
-        elif self._is_for_loop_ending(port_type_count):
-            return ForLoopEndFromArrayInputSetManager(step)
-        elif self._is_no_loop_start_or_end(port_type_count):
-            return NoLoopInputSetManager(step)
-        else:
-            raise Exception('invalid configuration')
-
-    @classmethod
-    def _count_port_types(cls, step):
-        count = {
-            'scalar2scalar': 0
-            'array2array': 0,
-            'array2scalar': 0,
-            'scalar2array': 0,
-        }
-        for port in step.input_ports:
-            source_is_array = port.get_connector().is_source_an_array()
-            destination_is_array = port.get_connector().is_destination_an_array()
-            if (source_is_array, destination_is_array) == (False, False):
-                count['scalar2scalar'] += 1
-            elif (source_is_array, destination_is_array) == (True, True):
-                count['array2array'] += 1
-            elif (source_is_array, destination_is_array) == (True, False):
-                count['array2scalar'] += 1
-            elif (source_is_array, destination_is_array) == (False, True):
-                count['scalar2array'] += 1
-            else:
-                raise Exception("Port is invalid % port")
-        return count
-
-    @classmethod
-    def _is_for_loop_starting(cls, port_type_count):
-        # One part is array-to-scalar
-        # Any other parts are straight pass-through
-        if port_type_count['array2scalar'] == 1 and port_type_count['scalar2array'] == 0:
-            return True
-
-    @classmethod
-    def _is_for_loop_ending(cls, port_type_count):
-        if port_type_count['scalar2array'] == 1 and port_type_count['array2scalar'] == 0:
-            return True
-
-    @classmethod
-    def _is_no_loop_start_or_end(cls, port_type_count):
-        if port_type_count['scalar2array'] == 0 and port_type_count['array2scalar'] == 0:
-            return True
-"""
-
-
-class InputSet:
-    # Handles the set of inputs needed to create one StepDefinition
-
-    def __init__(self, step):
-        self.step = step
-        self.inputs = {}
-
-    def add_input(self, destination_port_name, source):
-        # Source is a DataObject or an output port
-        self.inputs[destination_port_name] = source
-
-    def is_data_ready(self):
-        return all([source.is_available() for source in self.inputs.values()])
-
-    def create_step_run_if_new(self):
-        step_definition = StepDefinition.create(self.step._render_step_definition(self))
-        # Does it have a valid StepRun? Then create it.
-        existing_step_run = step_definition.get_step_run()
-        if existing_step_run is None:
-            StepRun.create({
-                    'step_definition': step_definition.to_serializable_obj(),
-                    'steps': [self.step.to_serializable_obj()]
-                    })
-        elif not existing_step_run.has_step(self.step):
-            existing_step_run.add_step(self.step)
-            
-    def get_data_object(self, port_name):
-        return self.inputs[port_name].get_data_object()
-
-class OversimplifiedInputSetManager:
-
-    # Only handles the case of a single input in each port with no parallel processing
-
-    def __init__(self, step):
-        self.step = step
-
-    def are_step_runs_pending(self):
-        # TODO. Oversimplified.
-        if step.step_runs.exists():
-            return False
-
-    def get_available_input_sets(self):
-        # For each Port on current Step (here only one)
-        # Get source (StepRun, Port) or DataObject (here only one)
-        # For Each source, return a set of data needed to create a StepRun
-
-        # Assuming that each port has only 1 input, not an array
-
-        input_set = InputSet()
-        for port in self.step.input_ports.all():
-            import pdb; pdb.set_trace()
-        ####            input_set.add_input(port.name, port.source)
-            pass
-
-        return [input_set]
-        
-
-
 
 class Step(MutableModel, AnalysisAppBaseModel):
 
@@ -276,7 +149,6 @@ class Step(MutableModel, AnalysisAppBaseModel):
     resources = models.ForeignKey('RequestResourceSet')
     workflow = models.ForeignKey('Workflow', null=True, related_name='steps')
     are_results_complete = models.BooleanField(default=False)
-    # step_runs: StepRun foreign key
 
     def __init__(self, *args ,**kwargs):
         super(Step, self).__init__(*args, **kwargs)
@@ -290,7 +162,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
 
     def _are_all_step_runs_complete(self):
         # are any step_runs yet to be created or any existing step_runs incomplete
-        return not (self.input_set_manager._are_step_runs_pending()
+        return not (self.input_set_manager.are_step_runs_pending()
                 or self.step_runs.filter(are_results_complete=False).exists())
 
     def _update_existing_step_runs(self):
@@ -299,7 +171,8 @@ class Step(MutableModel, AnalysisAppBaseModel):
 
     def _update_new_step_runs(self):
         for input_set in self.input_set_manager.get_available_input_sets():
-            input_set.create_step_run_if_new()
+            if input_set.is_data_ready():
+                self.create_or_get_step_run(input_set)
 
     def _reset_status(self):
         for step_run in self.step_runs.filter(are_results_complete=True):
@@ -319,24 +192,51 @@ class Step(MutableModel, AnalysisAppBaseModel):
             return None
 
     def get_connector(self, destination_port_name):
-        connectors = self.get_bindings
+        connectors = filter(lambda c: c.destination.port==destination_port_name, self.get_connectors())
+        if len(connectors == 0):
+            return None
+        if len(connectors == 1):
+            return connectors[0]
+        else:
+            raise Exception("Found multiple connectors with port name %s" % destination_port_name)
 
     def get_connectors(self):
-        connectors = [c for c in self.get_bindings()] + \
+        return [c for c in self.get_bindings()] + \
             [c for c in self.get_data_pipes()]
 
     def get_bindings(self):
         return self.workflow.data_bindings.filter(destination__step=self.name)
 
     def get_data_pipes(self):
-        return self.workflow.data_pipes.filter(destination__step=self.step)
+        return self.workflow.data_pipes.filter(destination__step=self)
+
+    def create_or_get_step_run(self, input_set):
+        step_definition = self.create_step_definition(input_set)
+        step_run = step_definition.attach_step_run_if_one_exists(self, input_set)
+        if step_run is None:
+            step_run = self.create_step_run(input_set)
+        return step_run
+
+    def create_step_run(self, input_set):
+        return StepRun.create({
+            'step_definition': self._render_step_definition(input_set),
+            'steps': [self.to_serializable_obj()],
+            'output_ports': [port._render_step_run_output_port() for port in self.output_ports.all()],
+            'input_ports': [self.get_input_port(input_port_name)._render_step_run_input_port(source) 
+                            for input_port_name, source in input_set.inputs.iteritems()]
+            })
+
+    def create_step_definition(self, input_set):
+        return StepDefinition.create(self._render_step_definition(input_set))
 
     def _render_step_definition(self, input_set):
+        assert input_set.is_data_ready(), "Refusing to create StepDefinition until all DataObjects are available for this InputSet"
         return {
-                'input_ports': [port._render_step_definition_input_port(input_set.get_data_object(port.name)) for port in self.input_ports.all()],
-                'output_ports': [port._render_step_definition_output_port() for port in self.output_ports.all()],
                 'command': self._render_command(),
-                'environment': self.get('environment')._render_step_definition_environment()
+                'environment': self.get('environment')._render_step_definition_environment(),
+                'output_ports': [port._render_step_definition_output_port() for port in self.output_ports.all()],
+                'input_ports': [self.get_input_port(port_name)._render_step_definition_input_port(source.get_data_object())
+                                for port_name, source in input_set.inputs.iteritems()],
                 }
 
     def _render_command(self):
@@ -390,6 +290,12 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
             'is_array': self.is_array
             }
 
+    def _render_step_run_output_port(self):
+        return {
+            'name': self.name,
+            'step_definition_output_port': self._render_step_definition_output_port()
+            }
+
 
 class RequestInputPort(MutableModel, AnalysisAppBaseModel):
 
@@ -422,6 +328,12 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             'data_object': data_object.to_serializable_obj()
             }
 
+    def _render_step_run_input_port(self, source):
+        return {
+            'name': self.name,
+            'step_definition_input_port': self._render_step_definition_input_port(source.get_data_object())
+            }
+        
 
 class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
@@ -429,9 +341,12 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
     FOREIGN_KEY_CHILDREN = ['data_object', 'destination']
 
-    data_object = models.ForeignKey('DataObject') # File or FileArray
-    destination = models.ForeignKey('RequestDataBindingPortIdentifier')
+    data_object = models.ForeignKey('DataObject')
+    destination = models.ForeignKey('RequestDataBindingDestinationPortIdentifier')
     workflow = models.ForeignKey('Workflow', related_name='data_bindings', null=True)
+
+    def is_data_pipe(self):
+        return False
 
     def is_data_ready(self):
         self.get_data_object().is_available()
@@ -473,6 +388,9 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
     destination = models.ForeignKey('RequestDataPipeDestinationPortIdentifier')
     workflow = models.ForeignKey('Workflow', related_name='data_pipes', null=True)
 
+    def is_data_pipe(self):
+        return True
+
     def get_source_step(self):
         return self.workflow.get_step(self.source.step)
 
@@ -493,7 +411,7 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
             }
 
 
-class PortIdentifier(MutableModel, AnalysisAppBaseModel):
+class RequestPortIdentifier(MutableModel, AnalysisAppBaseModel):
 
     step = models.CharField(max_length = 256)
     port = models.CharField(max_length = 256)
@@ -502,17 +420,17 @@ class PortIdentifier(MutableModel, AnalysisAppBaseModel):
         abstract = True
 
 
-class RequestDataBindingPortIdentifier(PortIdentifier):
+class RequestDataBindingDestinationPortIdentifier(RequestPortIdentifier):
 
     _class_name = ('request_data_binding_port_identifier', 'request_data_binding_port_identifiers')
 
 
-class RequestDataPipeSourcePortIdentifier(PortIdentifier):
+class RequestDataPipeSourcePortIdentifier(RequestPortIdentifier):
 
     _class_name = ('request_data_pipe_source_port_identifier', 'request_data_pipe_source_port_identifiers')
 
 
-class RequestDataPipeDestinationPortIdentifier(PortIdentifier):
+class RequestDataPipeDestinationPortIdentifier(RequestPortIdentifier):
 
     _class_name = ('request_data_pipe_destination_port_identifier', 'request_data_pipe_destination_port_identifiers')
 

@@ -6,9 +6,6 @@ import subprocess
 import errno 
 from django.conf import settings
 
-from analysis.models import StepResult
-
-
 logger = logging.getLogger('XppfDaemon')
 
 # Location of Python in virtualenv on worker node
@@ -71,6 +68,7 @@ class ClusterWorkerManager:
 
         proc = subprocess.Popen(cmd, shell=True)
 
+        step_run.update({'is_running': True})
         #TODO save proc.pid for follow-up
 
 	# For now, return process so caller can follow up
