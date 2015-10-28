@@ -1,0 +1,37 @@
+{
+    "requester": "someone@example.net",
+    "constants": {
+        "chromosome": "chr1",
+        "input_dir": "/home/xppf/NA12878-Macrogen",
+        "inputbamfile": "NA12878_sorted.bam",
+        "outputbamfile": "NA12878-Macrogen-chr1.bam",
+        "samtools_container": "isaacliao/samtools-0.1.19"
+    },
+    "workflows": [
+        {
+            "name": "chromosome_extractor",
+            "imports": [
+                "${input_dir}/${inputbamfile}"
+            ],
+            "steps": [
+                {
+                    "name": "extract_chr1",
+                    "command": "samtools view -b ${inputbamfile} {chromosome} > ${outputbamfile}",
+                    "input_files": [
+                        "${inputbamfile}"
+                    ],
+                    "output_files": [
+                        "${outputbamfile}"
+                    ],
+                    "environment": {
+                        "docker_image": "${samtools_container}"
+                    },
+                    "resources": {
+                        "cores": "1",
+                        "memory": "10GB"
+                    }
+                }
+            ]
+        }
+    ]
+}

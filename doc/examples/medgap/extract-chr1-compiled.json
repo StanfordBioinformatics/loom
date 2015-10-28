@@ -1,0 +1,46 @@
+{
+    "workflows": [
+        {
+            "data_pipes": [], 
+            "data_bindings": [
+                {
+                    "destination": {
+                        "step": "extract_chr1", 
+                        "port": "extract_chr1_NA12878_sorted.bam_in"
+                    }, 
+                    "file": {
+                        "hash_value": "a753753af426061a906699d5df98a5f9", 
+                        "hash_function": "md5"
+                    }
+                }
+            ], 
+            "steps": [
+                {
+                    "name": "extract_chr1", 
+                    "input_ports": [
+                        {
+                            "name": "extract_chr1_NA12878_sorted.bam_in", 
+                            "file_path": "NA12878_sorted.bam"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "isaacliao/samtools-0.1.19"
+                    }, 
+                    "command": "samtools view -b NA12878_sorted.bam {chromosome} > NA12878-Macrogen-chr1.bam", 
+                    "output_ports": [
+                        {
+                            "name": "extract_chr1_NA12878-Macrogen-chr1.bam_out", 
+                            "file_path": "NA12878-Macrogen-chr1.bam"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "10GB"
+                    }
+                }
+            ], 
+            "name": "chromosome_extractor"
+        }
+    ], 
+    "requester": "someone@example.net"
+}

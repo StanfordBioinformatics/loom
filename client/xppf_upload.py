@@ -3,11 +3,12 @@
 import datetime
 import errno
 import json
+import logging
 import os
 import requests
 import shutil
+import socket
 import subprocess
-import logging
 
 from xppf.client import settings_manager
 from xppf.common import md5calc
@@ -19,7 +20,7 @@ class XppfUploadException(Exception):
 
 class XppfUpload:
 
-    LOCALHOST = ['localhost', '127.0.0.1']
+    LOCALHOST = ['localhost', '127.0.0.1', socket.gethostname()]
     IMPORTED_FILES_DIR = 'imported_files'
 
     def __init__(self, args=None):
@@ -27,7 +28,7 @@ class XppfUpload:
             args=self._get_args()
         self.settings_manager = settings_manager.SettingsManager(settings_file = args.settings, require_default_settings=args.require_default_settings)
 
-        self.local_path = args.file
+        self.local_paths = args.files
         self.file_server = self.settings_manager.get_file_server_for_client() 
 
     def _get_args(self):
@@ -39,7 +40,7 @@ class XppfUpload:
     def get_parser(cls):
         import argparse
         parser = argparse.ArgumentParser('xppffile')
-        parser.add_argument('file')
+        parser.add_argument('files', nargs='+')
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
                             help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
@@ -47,17 +48,22 @@ class XppfUpload:
 
     def run(self):
 
-        print "Calculating md5sum for the file %s" % self.local_path
-        file_obj = self._create_file_obj()
+	for local_path in self.local_paths:
+            self.local_path = local_path
+            if hasattr(self, '_remote_path'):
+                del self._remote_path
 
-        print "Registering file with the XPPF server"
-        self.file_id = self._post_file_obj(file_obj)
+            print "Calculating md5sum for the file %s" % self.local_path
+            file_obj = self._create_file_obj()
 
-        print "Copying file to server"
-        self._copy_file()
+            print "Registering file with the XPPF server"
+            self.file_id = self._post_file_obj(file_obj)
 
-        file_storage_location_obj = self._create_file_storage_location_obj(file_obj)
-        file_storage_location_id = self._post_file_storage_location_obj(file_storage_location_obj)
+            print "Copying file to server"
+            self._copy_file()
+
+            file_storage_location_obj = self._create_file_storage_location_obj(file_obj)
+            file_storage_location_id = self._post_file_storage_location_obj(file_storage_location_obj)
 
         return
 
@@ -96,7 +102,7 @@ class XppfUpload:
                 else:
                     raise
             shutil.copyfile(self.local_path, self.get_remote_path())
-        elif self._is_elasticluster():
+        elif self._is_outside_elasticluster():
             """ Use elasticluster and GCE-specific parameters for file transfer. 
             TODO: Consider using elasticluster's ssh and sftp commands instead.
                   - Would decouple XPPF from cloud specifics (key management, username, fileserver IP).
@@ -140,8 +146,8 @@ class XppfUpload:
                  ':'.join([self.file_server, self.get_remote_path()])]
                 )
 
-    def _is_elasticluster(self):
-        return self.settings_manager.get_client_type() in ('INSIDE_ELASTICLUSTER', 'OUTSIDE_ELASTICLUSTER')
+    def _is_outside_elasticluster(self):
+        return self.settings_manager.get_client_type() in ('OUTSIDE_ELASTICLUSTER')
 
     def _is_localhost(self):
         return self.file_server in self.LOCALHOST

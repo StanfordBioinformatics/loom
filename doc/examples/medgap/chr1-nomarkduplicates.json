@@ -4,7 +4,7 @@
         "GATKkey": "stanford.edu.key",
         "GATKthreads": "4",
         "bwa_container": "isaacliao/bwa-0.7.4",
-        "chromosome": "chr22",
+        "chromosome": "chr1",
         "dbsnp": "dbsnp_138.hg19.vcf",
         "dockermount": "/working_dir",
         "fix_bai_name_container": "isaacliao/fix_bai_name",
@@ -12,7 +12,7 @@
         "goldindels": "Mills_and_1000G_gold_standard.indels.hg19.vcf",
         "hapmap": "hapmap_3.3.hg19.vcf",
         "input_dir": "/home/xppf/NA12878-Macrogen",
-        "inputbamfile": "NA12878-Macrogen-chr22.bam",
+        "inputbamfile": "NA12878-Macrogen-chr1.bam",
         "omni": "1000G_omni2.5.hg19.vcf",
         "outputbamfile": "genome.recal.bam",
         "outputvcffile": "genome.recal.vcf",
@@ -198,21 +198,20 @@
                     }
                 },
                 {
-                    "command": "java -Xms5g -Xmx5g -jar /opt/picard-tools-1.32/MarkDuplicates.jar TMP_DIR=${dockermount} I=${chromosome}.bam O=${chromosome}.nodup.bam M=${chromosome}.bam.metrics VALIDATION_STRINGENCY=SILENT ASSUME_SORTED=true REMOVE_DUPLICATES=false",
+                    "command": "cp ${chromosome}.bam ${chromosome}.nodup.bam",
                     "environment": {
-                        "docker_image": "${picard_container}"
+                        "docker_image": "ubuntu"
                     },
                     "input_files": [
                         "${chromosome}.bam"
                     ],
-                    "name": "markduplicates",
+                    "name": "markduplicates-passthrough",
                     "output_files": [
-                        "${chromosome}.nodup.bam",
-                        "${chromosome}.bam.metrics"
+                        "${chromosome}.nodup.bam"
                     ],
                     "resources": {
-                        "cores": "4",
-                        "memory": "10GB"
+                        "cores": "1",
+                        "memory": "1GB"
                     }
                 },
                 {
