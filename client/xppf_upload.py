@@ -3,11 +3,12 @@
 import datetime
 import errno
 import json
+import logging
 import os
 import requests
 import shutil
+import socket
 import subprocess
-import logging
 
 from xppf.client import settings_manager
 from xppf.common import md5calc
@@ -19,7 +20,7 @@ class XppfUploadException(Exception):
 
 class XppfUpload:
 
-    LOCALHOST = ['localhost', '127.0.0.1']
+    LOCALHOST = ['localhost', '127.0.0.1', socket.gethostname()]
     IMPORTED_FILES_DIR = 'imported_files'
 
     def __init__(self, args=None):
@@ -47,8 +48,10 @@ class XppfUpload:
 
     def run(self):
 
-        for local_path in self.local_paths:
+	for local_path in self.local_paths:
             self.local_path = local_path
+            if hasattr(self, '_remote_path'):
+                del self._remote_path
 
             print "Calculating md5sum for the file %s" % self.local_path
             file_obj = self._create_file_obj()

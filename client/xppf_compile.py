@@ -101,13 +101,17 @@ def upload_imports(obj):
                 otherfiles.append(filepath)
         # Upload VCF's and BAM's first so that index files are newer.
         dataprocesses = []
+        otherprocesses = []
         for filepath in datafiles:    
             process = subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
             dataprocesses.append(process)
         for process in dataprocesses:
             process.wait()
         for filepath in otherfiles:
-            subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
+            process = subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
+            otherprocesses.append(process)
+        for process in otherprocesses:
+            process.wait()
 
 def delete_workflow_imports(obj):
     """Delete imports dicts from workflows since they're not needed any more."""

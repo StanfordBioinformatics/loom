@@ -198,21 +198,20 @@
                     }
                 },
                 {
-                    "command": "java -Xms5g -Xmx5g -jar /opt/picard-tools-1.32/MarkDuplicates.jar TMP_DIR=${dockermount} I=${chromosome}.bam O=${chromosome}.nodup.bam M=${chromosome}.bam.metrics VALIDATION_STRINGENCY=SILENT ASSUME_SORTED=true REMOVE_DUPLICATES=false",
+                    "command": "cp ${chromosome}.bam ${chromosome}.nodup.bam",
                     "environment": {
-                        "docker_image": "${picard_container}"
+                        "docker_image": "ubuntu"
                     },
                     "input_files": [
                         "${chromosome}.bam"
                     ],
-                    "name": "markduplicates",
+                    "name": "markduplicates-passthrough",
                     "output_files": [
-                        "${chromosome}.nodup.bam",
-                        "${chromosome}.bam.metrics"
+                        "${chromosome}.nodup.bam"
                     ],
                     "resources": {
-                        "cores": "4",
-                        "memory": "10GB"
+                        "cores": "1",
+                        "memory": "1GB"
                     }
                 },
                 {
