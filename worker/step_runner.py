@@ -58,11 +58,11 @@ class InputManager:
 
 class _AbstractPortOutputManager:
 
-    def __init__(self, settings, step_run, logger, output_port):
+    def __init__(self, settings, step_run, logger, step_definition_output_port):
         self.settings = settings
         self.step_run = step_run
         self.logger = logger
-        self.output_port = output_port
+        self.output_port = step_definition_output_port
 
     def _get_files_by_glob(self):
         glob_string = self.output_port.get('glob')
@@ -77,10 +77,10 @@ class _AbstractPortOutputManager:
             }
         return file
 
-    def _save_result(self, result):
+    def _save_result(self, result_info):
         data = {
             'step_run': self.step_run,
-            'step_result': result,
+            'step_result': result_info,
             }
         response = requests.post(self.settings['MASTER_URL']+'/api/submitresult', data=json.dumps(data))
         response.raise_for_status()
@@ -97,7 +97,7 @@ class _AbstractPortOutputManager:
             }
         return location
 
-    def _get_result(self, data_object):
+    def _get_result_info(self, data_object):
         return {
             'data_object': data_object,
             'output_port': self.output_port,
@@ -108,9 +108,9 @@ class _FilePortOutputManager(_AbstractPortOutputManager):
     def process_output(self):
         file_path = self._get_file_path()
         file_object = self._get_file_object(file_path)
-        result = self._get_result(file_object)
+        result_info = self._get_result_info(file_object)
         location = self._get_location(file_object, file_path)
-        self._save_result(result)
+        self._save_result(result_info)
         self._save_location(location)
 
     def _get_file_path(self):
@@ -132,8 +132,8 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
     def process_output(self):
         file_paths = self._get_file_paths()
         file_array = self._get_file_array_object(file_paths)
-        result = self._get_result(file_array)
-        self._save_result(result)
+        result_info = self._get_result_info(file_array)
+        self._save_result(result_info)
         locations = self._get_locations(file_array, file_paths)
         for location in locations:
             self._save_location(location)

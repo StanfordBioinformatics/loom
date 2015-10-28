@@ -97,8 +97,9 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
                 'file_storage_locations': file_storage_locations}
 
     def get_input_bundle(self):
-        # Each InputBundle contains info needed by StepRunner
-        # to make inputs locally available before executing command
+        """Each InputBundle contains info needed by StepRunner
+        to make inputs locally available before executing command
+        """
         return {
             'files_and_locations': self.get_files_and_locations_list(),
             'input_port': self.to_serializable_obj()
@@ -106,16 +107,21 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
 
 
 class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
+
     _class_name = ('step_definition_output_port', 'step_definition_output_ports')
+
     file_name = models.CharField(max_length = 256, null=True)
     glob = models.CharField(max_length = 256, null=True)
     is_array = models.BooleanField()
 
 
 class StepDefinitionEnvironment(ImmutableModel, AnalysisAppBaseModel):
+
     _class_name = ('step_definition_environment', 'step_definition_environments')
 
 
 class StepDefinitionDockerImage(StepDefinitionEnvironment):
+
     _class_name = ('step_definition_docker_image', 'step_definition_docker_images')
+
     docker_image = models.CharField(max_length = 100)

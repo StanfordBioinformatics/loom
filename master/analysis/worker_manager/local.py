@@ -26,13 +26,9 @@ class LocalWorkerManager:
             settings.MASTER_URL_FOR_WORKER,
             )
         logger.debug(cmd)
-
+        print cmd
         proc = subprocess.Popen(cmd, shell=True)
-
-        #TODO save proc.pid for follow-up
-
-	#For now, return process so caller can follow up
-
         step_run.update({'is_running': True})
-
+        # TODO save proc.pid for follow-up
+	# For now, return process so caller can follow up
 	return proc

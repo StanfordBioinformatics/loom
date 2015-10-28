@@ -1,26 +1,25 @@
-#!/usr/bin/env python
-
 from datetime import datetime
 import json
+import logging
 import os
 import requests
 import subprocess
 import sys
 import time
 import unittest
-import logging
 
 from django.conf import settings
 
-sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common import fixtures
-from xppf.common.testserver import TestServer
+from analysis.models import RunRequest
 from analysis.worker_manager.factory import WorkerManagerFactory
 from analysis.worker_manager.cluster import ClusterWorkerManager
 from analysis.worker_manager.local import LocalWorkerManager
-from analysis.models.work_in_progress import WorkInProgress
+from xppf.common import fixtures
+from xppf.common.testserver import TestServer
+
 
 logger = logging.getLogger('xppf')
+
 
 class TestWorkerManagers(unittest.TestCase):
 
@@ -38,6 +37,7 @@ class TestWorkerManagers(unittest.TestCase):
         settings.MASTER_URL_FOR_WORKER = self.MASTER_URL_BEFORE
         settings.RACK_ENV = self.RACK_ENV_BEFORE
 
+    """
     def test_local_worker_manager(self):
         settings.WORKER_TYPE = 'LOCAL'
         settings.MASTER_URL_FOR_WORKER = 'http://127.0.0.1:8000'
@@ -45,6 +45,7 @@ class TestWorkerManagers(unittest.TestCase):
 
         # Give tests some time to finish before shutting down the server. 
         time.sleep(5)
+        """
 
     def test_cluster_worker_manager(self):
         settings.WORKER_TYPE = 'ELASTICLUSTER'
@@ -55,8 +56,6 @@ class TestWorkerManagers(unittest.TestCase):
         time.sleep(5)
 
     def _run_hello_world(self):
-        WorkInProgress.submit_new_request(fixtures.hello_world_json)
-        WorkInProgress.update_and_run()
+        RunRequest.create(fixtures.hello_world_run_request_obj)
+        RunRequest.update_and_run()
 
-if __name__=='__main__':
-    unittest.main()

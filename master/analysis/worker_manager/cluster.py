@@ -42,13 +42,24 @@ class ClusterWorkerManager:
             step_run._id,
             settings.MASTER_URL_FOR_WORKER,
             )
-        # Retrieve resource requirements 
-        if step_run.step_set.count() < 1:
-            raise Exception('No step found for a step run')
-        if step_run.step_set.count() > 1:
-            raise Exception('More than one step found for a step run')
-        step = step_run.step_set.get()
-        resources = step.resources
+        if step_run.steps.count() == 0:
+            raise Exception("No Step found for StepRun %s" % step_run._id)
+        # Retrieve resource requirements
+        # If step_run has more than one step, requirements
+        # should be identical in all steps.
+        last_resources = None
+        for step in step_run.steps.all():
+            resources = step.resources
+            resources_json = resources.to_json()
+            if last_resources is None:
+                pass
+            else:
+                assert resources_json == last_resources, \
+                    "Steps with different resource requirements were attached"\
+                    " to the same StepRun. This indicates a bug in the code and"\
+                    " should be avoided when attaching a Step to an existing"\
+                    " StepRun."
+            last_resources = resources_json
 
         # Make sure sbatch is on the path
         import distutils.spawn
@@ -63,14 +74,10 @@ class ClusterWorkerManager:
             resources.memory,
             cmd
             )
-
         logger.debug(cmd)
-
         proc = subprocess.Popen(cmd, shell=True)
-
         step_run.update({'is_running': True})
         #TODO save proc.pid for follow-up
-
 	# For now, return process so caller can follow up
 	# However, this is just the job submit process (sbatch), not the step runner!
 	return proc

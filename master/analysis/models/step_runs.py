@@ -18,46 +18,11 @@ class StepResult(MutableModel, AnalysisAppBaseModel):
     output_port = models.OneToOneField('StepRunOutputPort', related_name='step_result')
 
 
-class StepRunOutputPort(MutableModel, AnalysisAppBaseModel):
-
-    _class_name = ('step_run_output_port', 'step_run_output_ports')
-
-    FOREIGN_KEY_CHILDREN = ['step_definition_output_port']
-
-    name = models.CharField(max_length = 256)
-    step_run = models.ForeignKey('StepRun', related_name='output_ports', null=True)
-    step_definition_output_port = models.ForeignKey('StepDefinitionOutputPort', null=True)
-
-    def get_data_object(self):
-        try:
-            return self.step_result.get('data_object')
-        except exceptions.ObjectDoesNotExist:
-            return None
-
-    def is_available(self):
-        data_object = self.get_data_object()
-        if data_object is None:
-            return False
-        else:
-            return data_object.is_available()
-
-
-class StepRunInputPort(MutableModel, AnalysisAppBaseModel):
-
-    _class_name = ('step_run_input_port', 'step_run_input_ports')
-
-    FOREIGN_KEY_CHILDREN = ['step_definition_input_port']
-
-    name = models.CharField(max_length = 256)
-    step_run = models.ForeignKey('StepRun', related_name='input_ports', null=True)
-    step_definition_input_port = models.ForeignKey('StepDefinitionInputPort', null=True)
-
-
 class StepRun(MutableModel, AnalysisAppBaseModel):
     """One instance of executing a step. A step can have many InputSets
-    if there is a parallel workflow, and each InputSet will generate at 
-    least one StepRun. A step can also have distinct StepRuns for reruns
-    with the same InputSet.
+    if there is a parallel workflow, and each InputSet will generate one 
+    StepRun. A step can also have distinct StepRuns for reruns with the 
+    same InputSet.
     """
 
     _class_name = ('step_run', 'step_runs')
@@ -86,8 +51,9 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
         self.update({'are_results_complete': False})
 
     def get_input_bundles(self):
-        # Bundles info for a port into a list with port, file, and file locations.
-        # Returns a list of these bundles, one for each input port binding
+        """Bundles info for a port into a list with port, file, and file locations.
+        Returns a list of these bundles, one for each input port binding
+        """
         return self.step_definition.get_input_bundles()
 
     def has_step(self, step):
@@ -139,6 +105,41 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
 
     def __str__(self):
         return self.step_definition.command
+
+
+class StepRunOutputPort(MutableModel, AnalysisAppBaseModel):
+
+    _class_name = ('step_run_output_port', 'step_run_output_ports')
+
+    FOREIGN_KEY_CHILDREN = ['step_definition_output_port']
+
+    name = models.CharField(max_length = 256)
+    step_run = models.ForeignKey('StepRun', related_name='output_ports', null=True)
+    step_definition_output_port = models.ForeignKey('StepDefinitionOutputPort', null=True)
+
+    def get_data_object(self):
+        try:
+            return self.step_result.get('data_object')
+        except exceptions.ObjectDoesNotExist:
+            return None
+
+    def is_available(self):
+        data_object = self.get_data_object()
+        if data_object is None:
+            return False
+        else:
+            return data_object.is_available()
+
+
+class StepRunInputPort(MutableModel, AnalysisAppBaseModel):
+
+    _class_name = ('step_run_input_port', 'step_run_input_ports')
+
+    FOREIGN_KEY_CHILDREN = ['step_definition_input_port']
+
+    name = models.CharField(max_length = 256)
+    step_run = models.ForeignKey('StepRun', related_name='input_ports', null=True)
+    step_definition_input_port = models.ForeignKey('StepDefinitionInputPort', null=True)
 
 
 class StepRunDataBinding(MutableModel, AnalysisAppBaseModel):

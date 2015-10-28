@@ -1,14 +1,14 @@
 import logging
+
 from django.conf import settings
-from .dummy import DummyWorkerManager
-from .local import LocalWorkerManager
-from .cluster import ClusterWorkerManager
+
+from analysis.worker_manager.local import LocalWorkerManager
+from analysis.worker_manager.cluster import ClusterWorkerManager
 
 logger = logging.getLogger('XppfDaemon')
 
 class WorkerManagerFactory:
     LOCAL = 'LOCAL'
-    DUMMY = 'DUMMY'
     CLUSTER = 'ELASTICLUSTER'
 
     @classmethod
@@ -16,9 +16,7 @@ class WorkerManagerFactory:
         logger.debug('Getting worker manager of type "%s"' % settings.WORKER_TYPE)
         if settings.WORKER_TYPE == cls.LOCAL:
             return LocalWorkerManager()
-        if settings.WORKER_TYPE == cls.CLUSTER:
+        elif settings.WORKER_TYPE == cls.CLUSTER:
             return ClusterWorkerManager()
-        elif settings.WORKER_TYPE == cls.DUMMY:
-            return DummyWorkerManager()
         else:
             raise Exception('Invalid selection WORKER_TYPE=%s' % settings.WORKER_TYPE)

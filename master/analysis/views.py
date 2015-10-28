@@ -62,7 +62,7 @@ def submitrequest(request):
     try:
         run_request = RunRequest.create(data_json)
         logger.info('Created run request %s' % run_request._id)
-        return JsonResponse({"message": "created new %s with id %s" % (run_request.get_name(), run_request._id)})
+        return JsonResponse({"message": "created new %s with id %s" % (run_request.get_name(), run_request._id)}, status=201)
     except Exception as e:
         logger.error('Failed to create run request with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=400)

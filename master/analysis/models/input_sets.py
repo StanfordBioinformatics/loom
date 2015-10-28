@@ -19,7 +19,7 @@ class InputSet:
 class AbstractInputSetManager:
     """An InputSetManager creates InputSets, each of which contains the inputs
     for a single StepRun. There are various types to handle branching, gathering,
-    and simplae non-branching nodes in the workflow.
+    and simple non-branching nodes in the workflow.
     """
 
     def __init__(self, step):
@@ -27,13 +27,10 @@ class AbstractInputSetManager:
 
 
 class SimpleInputSetManager(AbstractInputSetManager):
-    """SimpleInputSetManager handles only simple
-    cases where no loops are beginning or ending. (A loop may be in progress, however, if it started 
+    """SimpleInputSetManager handles only simple cases where no loops are 
+    beginning or ending. (A loop may be in progress, however, if it started 
     prior to the current step and will close later)
     """
-
-    def __init__(self, step):
-        self.step = step
 
     def are_step_runs_pending(self):
         # TODO. Will fail for parallel

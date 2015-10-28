@@ -23,10 +23,6 @@ def now():
 
 class _BaseModel(models.Model):
 
-    def __init__(self, *args, **kwargs):
-        # warnings.warn("Constructor was called directly. Use the 'create' or 'update' method instead on %s" % type(self))
-        super(_BaseModel, self).__init__(*args, **kwargs)
-
     @classmethod
     def get_by_id(cls, _id):
         return cls.objects.get(_id=_id).downcast()

@@ -38,7 +38,7 @@ class TestStepRunner(unittest.TestCase):
 
     def _run_hello_world(self):
         url = self.test_server.server_url+'/api/submitrequest/'
-        response = requests.post(url, data=fixtures.hello_world_json)
+        response = requests.post(url, data=json.dumps(fixtures.hello_world_run_request_obj))
         self.assertEqual(response.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (response.status_code, url))
         self.test_server.dry_run_job_queues()
 

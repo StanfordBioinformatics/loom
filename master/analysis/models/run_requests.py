@@ -369,12 +369,9 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
         return self.get_destination_step().get_input_port(self.destination.port).is_array
 
     def get_destination_step(self):
-        self._verify_workflow()
-        return self.workflow.get_step(self.destination.step)
-
-    def _verify_workflow(self):
         if not self.workflow:
             raise Exception("No workflow defined for RequestDataBinding %s" % self.to_obj())
+        return self.workflow.get_step(self.destination.step)
 
     def get_destination_port(self):
         return self.get_destination_step().get_input_port(self.destination.port)

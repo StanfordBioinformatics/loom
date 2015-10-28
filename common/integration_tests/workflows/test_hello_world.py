@@ -10,7 +10,7 @@ hello_file = os.path.join(
     os.path.dirname(__file__), 
     '../../../../xppf/doc/examples/hello_world/hello.txt')
 
-class TestHello_WorldWorkflow(AbstractWorkflowTester):
+class TestHelloWorldWorkflow(AbstractWorkflowTester):
 
     def setUp(self):
 
