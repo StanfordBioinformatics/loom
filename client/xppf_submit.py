@@ -7,14 +7,14 @@ from xppf.client import settings_manager
 
 _OK_RESPONSE_CODE = 200
 
-class XppfRunException(Exception):
+class XppfSubmitException(Exception):
     pass
 
-class XppfRun:
+class XppfSubmit:
     """
-    This method provides commands for submitting and managing xppf pipeline runs.
+    This method provides commands for submitting pipeline runs.
     An xppf server must already be running to use this client.
-    Users should call this through ../bin/xppfrun to ensure the environment is configured.
+    Users should call this through ../bin/xppfsubmit to ensure the environment is configured.
     """
 
     def __init__(self, args=None):
@@ -31,7 +31,7 @@ class XppfRun:
     @classmethod
     def get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser('xppfrun')
+        parser = argparse.ArgumentParser('xppfsubmit')
         parser.add_argument('pipeline_file')
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
                             help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
@@ -59,7 +59,7 @@ class XppfRun:
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            raise XppfRunException("%s\n%s" % (e.message, response.text))
+            raise XppfSubmitException("%s\n%s" % (e.message, response.text))
 
         return response
 
@@ -74,5 +74,5 @@ class XppfRun:
             raise Exception("Failed to parse pipeline file file because it is not in valid JSON format: %s" % self.pipeline_file)
 
 if __name__=='__main__':
-    response =  XppfRun().run()
+    response =  XppfSubmit().run()
     print response.text
