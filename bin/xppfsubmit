@@ -3,5 +3,5 @@
 
 ROOTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )
 export PYTHONPATH=${ROOTDIR}:$PYTHONPATH
-python $ROOTDIR/xppf/client/xppf_run.py "$@"
+python $ROOTDIR/xppf/client/xppf_submit "$@"
 
