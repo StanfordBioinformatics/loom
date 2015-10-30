@@ -5,7 +5,7 @@ from django.test import TestCase
 from analysis.models import Step, RequestSubmission
 from analysis.models.template_helper import StepTemplateHelper
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common.fixtures import *
+from loom.common.fixtures import *
 
 class TestTemplateHelper(TestCase):
 

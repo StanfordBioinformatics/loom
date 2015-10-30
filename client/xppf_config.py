@@ -5,7 +5,7 @@ import requests
 import subprocess
 import sys
 
-from xppf.client import settings_manager
+from loom.client import settings_manager
 
 class XppfConfig:
     """

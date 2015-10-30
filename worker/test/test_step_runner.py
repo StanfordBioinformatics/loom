@@ -10,10 +10,10 @@ import tempfile
 import time
 import unittest
 
-from xppf.client import xppf_server_controls
-from xppf.common import fixtures
-from xppf.common.testserver import TestServer
-from xppf.worker.step_runner import StepRunner
+from loom.client import xppf_server_controls
+from loom.common import fixtures
+from loom.common.testserver import TestServer
+from loom.worker.step_runner import StepRunner
 
 class TestStepRunner(unittest.TestCase):
 

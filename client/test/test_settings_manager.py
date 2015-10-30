@@ -5,7 +5,7 @@ import os
 import unittest
 import tempfile
 
-from xppf.client import settings_manager
+from loom.client import settings_manager
 
 class TestSettingsManager(unittest.TestCase):
 

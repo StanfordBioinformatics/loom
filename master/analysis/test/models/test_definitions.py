@@ -6,7 +6,7 @@ import os
 import sys
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common.fixtures import *
+from loom.common.fixtures import *
 
 
 class TestDefinitionModels(ImmutableModelsTestCase):

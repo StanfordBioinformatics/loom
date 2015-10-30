@@ -8,11 +8,11 @@ import sys
 import time
 
 from analysis.models import RequestSubmission
-from xppf.client import xppf_server_controls
+from loom.client import xppf_server_controls
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common.fixtures import *
-from xppf.common.helper import Helper
+from loom.common.fixtures import *
+from loom.common.helper import Helper
 
 class TestXppfRun(TestCase):
 

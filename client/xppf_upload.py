@@ -10,8 +10,8 @@ import shutil
 import socket
 import subprocess
 
-from xppf.client import settings_manager
-from xppf.common import md5calc
+from loom.client import settings_manager
+from loom.common import md5calc
 
 
 class XppfUploadException(Exception):
