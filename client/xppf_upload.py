@@ -56,7 +56,7 @@ class XppfUpload:
             print "Calculating md5sum for the file %s" % self.local_path
             file_obj = self._create_file_obj()
 
-            print "Registering file with the XPPF server"
+            print "Registering file with the loom server"
             self.file_id = self._post_file_obj(file_obj)
 
             print "Copying file to server"

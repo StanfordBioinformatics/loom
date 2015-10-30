@@ -2,4 +2,4 @@
 
 ROOTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )
 export PYTHONPATH=${ROOTDIR}:$PYTHONPATH
-python ${ROOTDIR}/xppf/client/xppf_server_controls.py "$@"
+python ${ROOTDIR}/loom/client/xppf_server_controls.py "$@"
