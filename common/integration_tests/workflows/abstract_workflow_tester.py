@@ -1,3 +1,4 @@
+import json
 import unittest
 from xppf.client import xppf_run, xppf_upload
 from xppf.common.helper import Helper
@@ -14,7 +15,7 @@ class AbstractWorkflowTester(unittest.TestCase):
         if not len(r) == 1:
             return False
         r = r[0]
-        return r.get('is_complete')
+        return r.get('are_results_complete')
 
     def start_server(self):
         self.test_server = TestServer()
@@ -35,7 +36,7 @@ class AbstractWorkflowTester(unittest.TestCase):
         uploader.run()
 
     def wait_for_job(self):
-        Helper.wait_for_true(self.is_workflow_complete, timeout_seconds=20)
+        Helper.wait_for_true(self.is_workflow_complete, timeout_seconds=30)
 
     def stop_server(self):
         self.test_server.stop()

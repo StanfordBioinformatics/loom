@@ -1,4 +1,6 @@
 import os
+import unittest
+
 from xppf.common.fixtures import *
 from xppf.common.integration_tests.workflows.abstract_workflow_tester import AbstractWorkflowTester
 
@@ -24,3 +26,6 @@ class TestHelloWorldWorkflow(AbstractWorkflowTester):
 
     def testWorkflow(self):
         self.assertTrue(True)
+
+if __name__ == '__main__':
+    unittest.main()

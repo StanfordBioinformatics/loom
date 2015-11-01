@@ -12,7 +12,7 @@ MANAGE_EXECUTABLE = os.path.abspath(
         )
     )
 
-SLEEP_TIME_SECONDS = 5
+SLEEP_TIME_SECONDS = 3
 
 class App():
    

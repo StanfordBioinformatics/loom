@@ -96,7 +96,7 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     def get_connector(self, step_name, destination_port_name):
         return self.get_step(step_name).get_connector(destination_port_name)
 
-    def _get_binding(self, step_name, port_name):
+    def _get_data_binding(self, step_name, port_name):
         bindings = self.data_bindings.filter(destination__step=step_name, destination__port=port_name)
         if bindings.count() > 1:
             raise Exception("Multiple bindings were found on workflow %s for step %s, port %s" % (self, step_name, port_name))
@@ -165,13 +165,21 @@ class Step(MutableModel, AnalysisAppBaseModel):
     def _update_status(self):
         self._update_existing_step_runs()
         self._update_new_step_runs()
-        if self._are_all_step_runs_complete():
+        if not self.are_step_runs_pending():
             self.update({'are_results_complete': True})
 
-    def _are_all_step_runs_complete(self):
+    def are_step_runs_pending(self):
         """Are any step_runs yet to be created or any existing step_runs incomplete"""
-        return not (self.get_input_set_manager().are_step_runs_pending()
-                or self.step_runs.filter(are_results_complete=False).exists())
+        if self.are_results_complete:
+            return False
+        elif self.step_runs.filter(are_results_complete=False).exists():
+            return True
+        elif self.get_input_set_manager().are_previous_steps_pending():
+            return True
+        elif self._are_any_input_sets_unassigned():
+            return True
+        else:
+            return False
 
     def _update_existing_step_runs(self):
         for step_run in self.step_runs.filter(are_results_complete=False):
@@ -181,6 +189,22 @@ class Step(MutableModel, AnalysisAppBaseModel):
         for input_set in self.get_input_set_manager().get_available_input_sets():
             if input_set.is_data_ready():
                 self.create_or_get_step_run(input_set)
+
+    def _are_any_input_sets_unassigned(self):
+        for input_set in self.get_input_set_manager()\
+                .get_available_input_sets():
+            if input_set.is_data_ready():
+                if self._is_input_set_unassigned(input_set):
+                    return True
+        return False
+
+    def _is_input_set_unassigned(self, input_set):
+        """True if input_set does not have a StepRun attached to 
+        this Step
+        """
+        step_definition = self.create_step_definition(input_set)
+        return not step_definition.does_attached_step_run_exist(
+            self, input_set)
 
     def _reset_status(self):
         for step_run in self.step_runs.filter(are_results_complete=True):
@@ -288,6 +312,12 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
     glob = models.CharField(max_length = 256, null=True)
     step = models.ForeignKey('Step', related_name='output_ports', null=True)
 
+    def is_data_object(self):
+        return False
+
+    def get_step_run_ports(self):
+        return [step_run.get_output_port(self.name) for step_run in self.step.step_runs.all()]
+
     def _render_step_definition_output_port(self):
         return {
             'file_name': StepTemplateHelper(self.step).render(self.file_name),
@@ -312,21 +342,49 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
     is_array = models.BooleanField(default = False)
 
     def get_connector(self):
-        connector = self._get_binding()
+        connector = self._get_data_binding()
         if connector is None:
             connector = self._get_data_pipe()
         return connector
 
-    def _get_binding(self):
+    def get_source(self):
+        return self.get_connector().get_source()
+
+    def get_source_step(self):
+        source = self.get_source()
+        if source.is_data_object():
+            return None
+        else:
+            return source.step
+
+    def is_from_same_source_step(self, other_port):
+        try:
+            return other_port.get_source_step()._id \
+                == self.get_source_step()._id
+        except AttributeError:
+            # Happens if step is None, e.g. for a port with DataBinding
+            return False
+
+    def has_parallel_inputs(self):
+        step = self.get_source_step()
+        if step is None:
+            return False
+        else:
+            return step.step_runs.count() > 1
+
+    def _get_data_binding(self):
         if not self.step.workflow:
             return None
-        return self.step.workflow._get_binding(port_name=self.name, step_name=self.step.name)
+        return self.step.workflow._get_data_binding(port_name=self.name, step_name=self.step.name)
 
     def _get_data_pipe(self):
         if not self.step.workflow:
             return None
         return self.step.workflow._get_data_pipe(
             port_name=self.name, step_name=self.step.name)
+
+    def has_data_binding(self):
+        return self._get_data_binding() is not None
 
     def _render_step_definition_input_port(self, data_object):
         return {
@@ -362,8 +420,11 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
     def get_data_object(self):
         return self.get('data_object', downcast=True)
 
+    def get_source(self):
+        return self.get_data_object()
+
     def is_source_an_array(self):
-        return self.data_object.is_array
+        return self.get_source().is_array()
 
     def is_destination_an_array(self):
         return self.get_destination_step().get_input_port(self.destination.port).is_array
@@ -375,6 +436,9 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
     def get_destination_port(self):
         return self.get_destination_step().get_input_port(self.destination.port)
+
+    def has_multiple_runs(self):
+        return False
 
     def _render_step_definition_data_bindings(self, step):
         return {
@@ -405,8 +469,11 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
     def get_destination_step(self):
         return self.workflow.get_step(self.destination.step)
 
+    def get_source(self):
+        return self.get_source_step().get_output_port(self.source.port)
+
     def is_source_an_array(self):
-        return self.get_source_step().get_output_port(self.source.port).is_array
+        return self.get_source().is_array
 
     def is_destination_an_array(self):
         return self.get_destination_step().get_input_port(self.destination.port).is_array

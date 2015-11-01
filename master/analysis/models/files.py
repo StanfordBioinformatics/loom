@@ -13,9 +13,15 @@ class DataObject(ImmutableModel, AnalysisAppBaseModel):
 
     _class_name = ('data_object', 'data_objects')
 
+    def is_data_object(self):
+        return True
+
     def get_data_object(self):
         """For use as a source, which may be a DataObject or a StepRunPort"""
         return self
+
+    def is_available(self):
+        return self.downcast().is_available()
 
     @property
     def is_array(self):
@@ -37,6 +43,9 @@ class File(DataObject):
 
     def is_array(self):
         return False
+
+    def file_count():
+        return 1
 
     def is_available(self):
         return self.file_contents.has_storage_location()
@@ -100,6 +109,9 @@ class FileArray(DataObject):
 
     def is_array(self):
         return True
+
+    def file_count(self):
+        return self.files.count()
 
     def is_available(self):
         return all([file.is_available() for file in self.files.all()])

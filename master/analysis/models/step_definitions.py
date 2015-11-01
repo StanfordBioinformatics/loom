@@ -51,6 +51,9 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
 
         return None
 
+    def does_attached_step_run_exist(self, step, input_set):
+        return self.get_step_run_by_step(step) is not None
+
     def get_step_run_by_step(self, step):
         # TODO add cutoff time for forced reruns
         # TODO: return oldest by default
