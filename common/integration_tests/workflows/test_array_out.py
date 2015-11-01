@@ -1,10 +1,10 @@
 import os
-from xppf.common.fixtures import *
-from xppf.common.integration_tests.workflows.abstract_workflow_tester import AbstractWorkflowTester
+from loom.common.fixtures import *
+from loom.common.integration_tests.workflows.abstract_workflow_tester import AbstractWorkflowTester
 
 array_out_json_path = os.path.join(
     os.path.dirname(__file__), 
-    '../../../../xppf/common/fixtures/workflows/array_out/array_out.json')
+    '../../../common/fixtures/workflows/array_out/array_out.json')
 
 class TestArrayInWorkflow(AbstractWorkflowTester):
 

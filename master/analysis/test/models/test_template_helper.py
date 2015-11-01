@@ -2,9 +2,11 @@ from analysis.models.run_requests import Step, RunRequest
 from analysis.models.template_helper import StepTemplateHelper
 from django.conf import settings
 from django.test import TestCase
+
 import os
 import sys
-from xppf.common.fixtures import *
+from loom.common.fixtures import *
+
 
 class TestTemplateHelper(TestCase):
 

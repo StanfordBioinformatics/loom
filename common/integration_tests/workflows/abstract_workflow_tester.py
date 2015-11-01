@@ -1,8 +1,8 @@
 import json
 import unittest
-from xppf.client import xppf_run, xppf_upload
-from xppf.common.helper import Helper
-from xppf.common.testserver import TestServer
+from loom.client import xppf_run, xppf_upload
+from loom.common.helper import Helper
+from loom.common.testserver import TestServer
 
 class AbstractWorkflowTester(unittest.TestCase):
 

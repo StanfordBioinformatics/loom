@@ -14,8 +14,8 @@ from analysis.models import RunRequest
 from analysis.worker_manager.factory import WorkerManagerFactory
 from analysis.worker_manager.cluster import ClusterWorkerManager
 from analysis.worker_manager.local import LocalWorkerManager
-from xppf.common import fixtures
-from xppf.common.testserver import TestServer
+from loom.common import fixtures
+from loom.common.testserver import TestServer
 
 
 logger = logging.getLogger('xppf')

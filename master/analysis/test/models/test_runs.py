@@ -4,7 +4,8 @@ from django.conf import settings
 from django.test import TestCase
 import os
 import sys
-from xppf.common import fixtures
+
+from loom.common import fixtures
 
 
 class TestRunsModels(ImmutableModelsTestCase):

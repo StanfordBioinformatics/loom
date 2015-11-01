@@ -3,7 +3,8 @@ from django.conf import settings
 from django.test import TestCase
 import os
 import sys
-from xppf.common.fixtures import *
+
+from loom.common.fixtures import *
 from .common import ImmutableModelsTestCase
 
 

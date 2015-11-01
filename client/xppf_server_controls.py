@@ -5,7 +5,7 @@ import requests
 import subprocess
 import sys
 
-from xppf.client import settings_manager
+from loom.client import settings_manager
 
 DAEMON_EXECUTABLE = os.path.abspath(
     os.path.join(
@@ -66,9 +66,18 @@ class XppfServerControls:
         env = self._add_server_to_python_path(env)
         env = self._set_database(env)
         env = self._export_django_settings(env)
+        self._create_logdirs()
         self._start_daemon(env)
         self._start_webserver(env)
 
+    def _create_logdirs(self):
+        for logfile in (self.settings_manager.get_access_logfile(),
+                        self.settings_manager.get_error_logfile(),
+                        self.settings_manager.get_daemon_logfile()):
+            logdir = os.path.dirname(logfile)
+            if not os.path.exists(logdir):
+                os.makedirs(logdir)
+        
     def _start_webserver(self, env):
         cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s" % (
                 self.settings_manager.get_server_wsgi_module(), 

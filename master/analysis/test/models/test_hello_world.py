@@ -3,7 +3,7 @@ from django.test import TestCase
 import os
 import sys
 from analysis.models import *
-from xppf.common.fixtures import hello_world
+from loom.common.fixtures import hello_world
 from .common import ImmutableModelsTestCase
 
 class TestHelloWorld(ImmutableModelsTestCase):

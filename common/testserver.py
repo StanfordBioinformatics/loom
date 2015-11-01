@@ -6,8 +6,8 @@ from datetime import datetime
 import requests
 import subprocess
 import time
-from xppf.common.helper import Helper
-from xppf.client import xppf_server_controls
+from loom.common.helper import Helper
+from loom.client import xppf_server_controls
 
 
 class TestServer:

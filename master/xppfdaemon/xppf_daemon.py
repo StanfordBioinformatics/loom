@@ -51,12 +51,13 @@ class XppfDaemon:
 
     def start_server(self):
         if self._is_daemon_running():
+            print "Daemon running, not starting"
             return
         if not self.debug:
             # Disable daemon if debug is on
             daemon_context = self._get_daemon_context()
-            daemon_context.open()
-        App(logfile=self.logfile).run() # This is the main function of the daemon
+            with daemon_context:
+                App(logfile=self.logfile).run() # This is the main function of the daemon
 
     def stop_server(self):
         pid = self._get_pid()

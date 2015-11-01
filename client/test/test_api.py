@@ -6,8 +6,8 @@ from datetime import datetime
 import requests
 import time
 
-from xppf.client import xppf_server_controls
-from xppf.common.testserver import TestServer
+from loom.client import xppf_server_controls
+from loom.common.testserver import TestServer
 
 class TestXppfRun(unittest.TestCase):
 

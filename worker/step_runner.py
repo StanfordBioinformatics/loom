@@ -12,7 +12,7 @@ import time
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from xppf.common import md5calc
+from loom.common import md5calc
 
 
 class InputManager:
@@ -335,8 +335,9 @@ class StepRunner:
         if self.settings.get('WORKER_LOGFILE') is None:
             return logging.StreamHandler()
         else:
+            if not os.path.exists(os.path.dirname(self.settings['WORKER_LOGFILE'])):
+                os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
             return logging.FileHandler(self.settings['WORKER_LOGFILE'])
-
 
 if __name__=='__main__':
     StepRunner().run()

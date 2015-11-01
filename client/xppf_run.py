@@ -3,7 +3,7 @@
 import json
 import requests
 
-from xppf.client import settings_manager
+from loom.client import settings_manager
 
 _OK_RESPONSE_CODE = 200
 

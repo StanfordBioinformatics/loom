@@ -3,8 +3,8 @@ from django.conf import settings
 from django.test import TestCase
 import os
 import sys
-from xppf.common import fixtures
-from xppf.common.fixtures.workflows import hello_world
+from loom.common import fixtures
+from loom.common.fixtures.workflows import hello_world
 from .common import ImmutableModelsTestCase
 
 
