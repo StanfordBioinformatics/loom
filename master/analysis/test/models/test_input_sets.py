@@ -133,10 +133,9 @@ class TestAbstractInputSetManager(TestCase):
     dummy_step = 'DUMMY_STEP'
 
     def setUp(self):
-        self.input_set_manager = AbstractInputSetManager(self.dummy_step)
-
-    def test_init(self):
-        self.assertEqual(self.input_set_manager.step, self.dummy_step)
+        self.input_set_manager = AbstractInputSetManager(
+            self.dummy_step,
+            skip_init_for_testing=True)
 
     def test_are_previous_steps_pending(self):
         with self.assertRaises(Exception):
