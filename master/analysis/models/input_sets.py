@@ -1,3 +1,6 @@
+class NoInputs(Exception):
+    pass
+
 class InputSet(object):
     """Represents the set of inputs needed for running one analysis step 
     (one StepRun)
@@ -67,6 +70,8 @@ class AbstractInputSetManager(object):
             ).get_step_run_ports()
         # For use with nonparallel only. Otherwise a StepRun must be selected 
         #   for the source.
+        if len(step_run_output_ports) == 0:
+            raise NoInputs()
         assert len(step_run_output_ports) == 1, \
             "Expected nonparallel, but found multiple step runs on source"
         input_set.add_input(step_input_port.name, 
@@ -157,7 +162,10 @@ class SimpleInputSetManager(AbstractInputSetManager):
 
     def _get_available_input_sets_nonparallel(self):
         input_set = InputSet()
-        self._add_nonparallel_inputs_to_set(input_set)
+        try:
+            self._add_nonparallel_inputs_to_set(input_set)
+        except NoInputs:
+            return []
         return [input_set]
 
     def _add_nonparallel_inputs_to_set(self, input_set):
@@ -180,7 +188,10 @@ class SimpleInputSetManager(AbstractInputSetManager):
             for step_input_port in self.parallel_input_ports:
                 self._add_parallel_input_to_set(
                     input_set, step_input_port, step_run)
-            self._add_nonparallel_inputs_to_set(input_set)
+            try:
+                self._add_nonparallel_inputs_to_set(input_set)
+            except NoInputs:
+                continue
             input_sets.append(input_set)
         return input_sets
 
@@ -199,7 +210,7 @@ class SimpleInputSetManager(AbstractInputSetManager):
 class LoopBeginInputSetManager(AbstractInputSetManager):
 
     def __init__(self, step, skip_init_for_testing=False):
-        super(SimpleInputSetManager, self).__init__(
+        super(LoopBeginInputSetManager, self).__init__(
             step,
             skip_init_for_testing=skip_init_for_testing)
         if not skip_init_for_testing:
@@ -213,7 +224,7 @@ class LoopBeginInputSetManager(AbstractInputSetManager):
         array to array or scalar to scalar are classified
         as nonbranching_input_ports.
         """
-        self.branching_input_ports = None
+        self.branching_input_port = None
         self.nonbranching_input_ports = []
         for port in self.input_ports:
             if self._is_branching(port):
@@ -223,17 +234,17 @@ class LoopBeginInputSetManager(AbstractInputSetManager):
 
     def _add_branching_input_port(self, port):
         self._validate_branching_input_port(port)
-        self.branching_input_ports = port
+        self.branching_input_port = port
 
     def _validate_branching_input_port(self, port):
         """One branching port is always allowed.
         More than one are allowed only if they come from the same Step.
         """
-        if self.branching_input_ports is not None:
+        if self.branching_input_port is not None:
             raise Exception("Only one port can be array-to-scalar (begin for"
                             " loop). Multiple array-to-scalar branching ports"
                             " were found: %s and %s" % 
-                            (self.branching_input_ports[0].name, 
+                            (self.branching_input_port.name, 
                              port.name))
 
     def _add_nonbranching_input_port(self, port):
@@ -248,22 +259,34 @@ class LoopBeginInputSetManager(AbstractInputSetManager):
         InputSet for for each member of that array.
         """
         input_sets = []
-        for source in self.self._get_branching_sources():
+        for source  in self._get_branch_sources():
             input_set = InputSet()
-            self._add_branching_input_to_set(input_set, source)
+            self._add_branching_input_to_set(input_set, 
+                                             self.branching_input_port, source)
             self._add_nonbranching_inputs_to_set(input_set)
             input_sets.append(input_set)
         return input_sets
 
-    def _get_branching_sources(self):
-        source_array = self.branching_input.get_source()
+    def _get_branch_sources(self):
+        source_array = self.branching_input_port.get_source()
         if source_array is None:
             return []
-        elif source_array.is_available():
-            return []
+        elif source_array.is_data_object():
+            return source_array.render_as_list()
         else:
-            data_object_array = source_array.get_data_object()
-            return data_object_array.render_as_list()
+            step_run_ports = source_array.get_step_run_ports()
+            if len(step_run_ports) > 1:
+                raise Exception("Can't branch from an input with"
+                                " parallel runs. Branching failed"
+                                " on step %s, port %s" % 
+                                (self.branching_input_port.name,
+                                 self.branching_input_port.step.name,
+                                 ))
+            if not step_run_ports[0].is_available():
+                return []
+            else:
+                data_object_array = step_run_ports[0].get_data_object()
+                return data_object_array.render_as_list()
 
     def _add_nonbranching_inputs_to_set(self, input_set):
         for step_input_port in self.nonbranching_input_ports:
@@ -287,8 +310,12 @@ class LoopBeginInputSetManager(AbstractInputSetManager):
                 and not connector.is_destination_an_array()
 
 class LoopEndInputSetManager(AbstractInputSetManager):
-    pass
 
+    def are_previous_steps_pending(self):
+        return True
+
+    def get_available_input_sets(self):
+        return []
 
 class InputSetManagerFactory:
     """Selects the correct InputSetManager for the current step."""
