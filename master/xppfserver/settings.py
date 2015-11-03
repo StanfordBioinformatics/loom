@@ -121,11 +121,16 @@ LOGGING = {
         },
     'handlers': {
         'django_handler': _get_django_handler(),
+        'django_request_handler': _get_django_handler(),
         'xppf_handler': _get_xppf_handler(),
         },
     'loggers': {
         'django': {
             'handlers': ['django_handler'],
+            'level': LOG_LEVEL,
+            },
+        'django.request': {
+            'handlers': ['django_request_handler'],
             'level': LOG_LEVEL,
             },
         'xppf': {
