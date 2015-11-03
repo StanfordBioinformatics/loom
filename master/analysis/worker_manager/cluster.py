@@ -9,7 +9,7 @@ from django.conf import settings
 from analysis.models import StepResult
 
 
-logger = logging.getLogger('XppfDaemon')
+logger = logging.getLogger('LoomDaemon')
 
 # Location of Python in virtualenv on worker node
 PYTHON_EXECUTABLE = os.path.abspath(

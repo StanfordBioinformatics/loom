@@ -9,9 +9,9 @@ import subprocess
 import time
 from main import App
 
-class XppfDaemon:
+class LoomDaemon:
     """
-    The XPPF daemon runs alongside the XPPF server.
+    The loom daemon runs alongside the loom server.
 
     It periodically calls a heartbeat function that 
     triggers work queue updates, starts jobs, and 
@@ -27,7 +27,7 @@ class XppfDaemon:
         self.debug = args.debug
         self.pidfile = args.pidfile[0]
 
-        self.logfile = self._get_argument(args.logfile, '/tmp/xppf_daemon.log')
+        self.logfile = self._get_argument(args.logfile, '/tmp/loom_daemon.log')
         self.loglevel = self._get_argument(args.loglevel, 'INFO')
 
     def _get_argument(self, arg_value, default):
@@ -93,7 +93,7 @@ class XppfDaemon:
 
     @classmethod
     def get_parser(cls):
-        parser = argparse.ArgumentParser('XPPF daemon')
+        parser = argparse.ArgumentParser('loom daemon')
         parser.add_argument('command', choices=['start', 'stop'])
         parser.add_argument('--pidfile', '-p', help="Location of file to record the daemon's pid", required=True, nargs=1, metavar='PIDFILE')
         parser.add_argument('--logfile', '-l', help="Location of daemon log file", nargs=1, metavar='LOGFILE')
@@ -102,4 +102,4 @@ class XppfDaemon:
         return parser
 
 if __name__=='__main__':
-    XppfDaemon().run()
+    LoomDaemon().run()

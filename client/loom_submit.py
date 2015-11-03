@@ -3,18 +3,18 @@
 import json
 import requests
 
-from xppf.client import settings_manager
+from loom.client import settings_manager
 
 _OK_RESPONSE_CODE = 200
 
-class XppfSubmitException(Exception):
+class LoomSubmitException(Exception):
     pass
 
-class XppfSubmit:
+class LoomSubmit:
     """
     This method provides commands for submitting pipeline runs.
-    An xppf server must already be running to use this client.
-    Users should call this through ../bin/xppfsubmit to ensure the environment is configured.
+    An loom server must already be running to use this client.
+    Users should call this through ../bin/loomsubmit to ensure the environment is configured.
     """
 
     def __init__(self, args=None):
@@ -31,10 +31,10 @@ class XppfSubmit:
     @classmethod
     def get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser('xppfsubmit')
+        parser = argparse.ArgumentParser('loomsubmit')
         parser.add_argument('pipeline_file')
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
-                            help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
+                            help="Settings indicate what server to talk to and how to launch it. Use 'loomserver savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         return parser
 
@@ -59,7 +59,7 @@ class XppfSubmit:
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            raise XppfSubmitException("%s\n%s" % (e.message, response.text))
+            raise LoomSubmitException("%s\n%s" % (e.message, response.text))
 
         return response
 
@@ -74,5 +74,5 @@ class XppfSubmit:
             raise Exception("Failed to parse pipeline file file because it is not in valid JSON format: %s" % self.pipeline_file)
 
 if __name__=='__main__':
-    response =  XppfSubmit().run()
+    response =  LoomSubmit().run()
     print response.text

@@ -1,0 +1,82 @@
+{
+    "workflows": [
+        {
+            "data_pipes": [
+                {
+                    "source": {
+                        "step": "world_step", 
+                        "port": "world_step_world.txt_out"
+                    }, 
+                    "destination": {
+                        "step": "hello_world_step", 
+                        "port": "hello_world_step_world.txt_in"
+                    }
+                }
+            ], 
+            "data_bindings": [
+                {
+                    "destination": {
+                        "step": "hello_world_step", 
+                        "port": "hello_world_step_hello.txt_in"
+                    }, 
+                    "data_object": {
+                        "file_contents": {
+                            "hash_value": "b1946ac92492d2347c6235b4d2611184", 
+                            "hash_function": "md5"
+                        }, 
+                        "metadata": ""
+                    }
+                }
+            ], 
+            "steps": [
+                {
+                    "name": "world_step", 
+                    "input_ports": [], 
+                    "environment": {
+                        "docker_image": "ubuntu"
+                    }, 
+                    "command": "echo world > world.txt", 
+                    "output_ports": [
+                        {
+                            "name": "world_step_world.txt_out", 
+                            "file_path": "world.txt"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "1GB"
+                    }
+                }, 
+                {
+                    "name": "hello_world_step", 
+                    "input_ports": [
+                        {
+                            "name": "hello_world_step_hello.txt_in", 
+                            "file_path": "hello.txt"
+                        }, 
+                        {
+                            "name": "hello_world_step_world.txt_in", 
+                            "file_path": "world.txt"
+                        }
+                    ], 
+                    "environment": {
+                        "docker_image": "ubuntu"
+                    }, 
+                    "command": "cat hello.txt world.txt > hello_world.txt", 
+                    "output_ports": [
+                        {
+                            "name": "hello_world_step_hello_world.txt_out", 
+                            "file_path": "hello_world.txt"
+                        }
+                    ], 
+                    "resources": {
+                        "cores": "1", 
+                        "memory": "1GB"
+                    }
+                }
+            ], 
+            "name": "hello_world"
+        }
+    ], 
+    "requester": "someone@example.net"
+}

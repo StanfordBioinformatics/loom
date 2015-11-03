@@ -4,7 +4,7 @@ from .dummy import DummyWorkerManager
 from .local import LocalWorkerManager
 from .cluster import ClusterWorkerManager
 
-logger = logging.getLogger('XppfDaemon')
+logger = logging.getLogger('LoomDaemon')
 
 class WorkerManagerFactory:
     LOCAL = 'LOCAL'

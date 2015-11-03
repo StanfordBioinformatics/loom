@@ -7,7 +7,7 @@ from .step_results import StepResult
 from .common import AnalysisAppBaseModel
 from analysis.worker_manager.factory import WorkerManagerFactory
 
-logger = logging.getLogger('xppf')
+logger = logging.getLogger('loom')
 
 class WorkInProgress(AnalysisAppBaseModel):
     _class_name = ('work_in_progress', 'work_in_progress')

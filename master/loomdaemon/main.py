@@ -29,7 +29,7 @@ class App():
             time.sleep(SLEEP_TIME_SECONDS)
 
     def _init_logger(self, logfile):
-        self.logger = logging.getLogger("XppfDaemon")
+        self.logger = logging.getLogger("LoomDaemon")
         self.logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
         handler = self._init_handler(logfile)

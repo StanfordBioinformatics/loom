@@ -5,23 +5,23 @@ import requests
 import subprocess
 import sys
 
-from xppf.client import settings_manager
+from loom.client import settings_manager
 
-class XppfConfig:
+class LoomConfig:
     """
-    This class provides methods for configuring the xppf installation, specifically the subcommands:
+    This class provides methods for configuring the loom installation, specifically the subcommands:
     - local
     - elasticluster
     - elasticluster_frontend (primarily used by elasticluster setup)
     - savesettings
     - clearsettings
 
-    Users should call this through ../bin/xppfconfig.
-    On first run, settings are saved to the user's home directory in .xppf/settings.json.
-    By default, this will configure xppf for local deployment.
-    To switch to elasticluster deployment, run 'xppfconfig elasticluster'.
-    To switch back to local deployment, run 'xppfconfig local'.
-    For finer-grained control, .xppf/settings.json can be directly edited to set specific values.
+    Users should call this through ../bin/loomconfig.
+    On first run, settings are saved to the user's home directory in .loom/settings.json.
+    By default, this will configure loom for local deployment.
+    To switch to elasticluster deployment, run 'loomconfig elasticluster'.
+    To switch back to local deployment, run 'loomconfig local'.
+    For finer-grained control, .loom/settings.json can be directly edited to set specific values.
     """
 
     def __init__(self, args=None):
@@ -36,10 +36,10 @@ class XppfConfig:
     @classmethod
     def _get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser("xppfconfig")
+        parser = argparse.ArgumentParser("loomconfig")
         parser.add_argument('command', choices=['local', 'elasticluster', 'elasticluster_frontend', 'savesettings', 'clearsettings'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
-                            help="Settings indicate how to launch the server components, and how the client and worker components can reach them. Use 'xppfconfig savesettings -s SETTINGS_FILE' to save.")
+                            help="Settings indicate how to launch the server components, and how the client and worker components can reach them. Use 'loomconfig savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--verbose', '-v', action='store_true', help='Provide feedback to the console about changes to settings files.')
         return parser
@@ -97,4 +97,4 @@ class XppfConfig:
         self.settings_manager.delete_saved_settings()
 
 if __name__=='__main__':
-    XppfConfig().main()
+    LoomConfig().main()

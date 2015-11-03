@@ -9,7 +9,7 @@ from .template_helper import StepTemplateHelper
 from immutable.models import MutableModel
 
 import logging
-logger = logging.getLogger('xppf')
+logger = logging.getLogger('loom')
 
 """
 This module contains RequestSubmissions and other classes related to

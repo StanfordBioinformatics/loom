@@ -8,19 +8,19 @@ import sys
 import time
 
 from analysis.models import RequestSubmission
-from xppf.client import xppf_server_controls
+from loom.client import loom_server_controls
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common.fixtures import *
-from xppf.common.helper import Helper
+from loom.common.fixtures import *
+from loom.common.helper import Helper
 
-class TestXppfRun(TestCase):
+class TestLoomRun(TestCase):
 
     def setUp(self):
         # Start server
-        xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
+        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
         args = xsc_parser.parse_args(['start', '--require_default_settings'])
-        self.xs = xppf_server_controls.XppfServerControls(args=args)
+        self.xs = loom_server_controls.LoomServerControls(args=args)
         self.xs.main()
         self.server_url = self.xs.settings_manager.get_server_url_for_client()
 
@@ -29,9 +29,9 @@ class TestXppfRun(TestCase):
 
     def tearDown(self):
         # Stop server
-        xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
+        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
-        xs = xppf_server_controls.XppfServerControls(args=args)
+        xs = loom_server_controls.LoomServerControls(args=args)
         xs.main()
 
         # Confirm server stopped

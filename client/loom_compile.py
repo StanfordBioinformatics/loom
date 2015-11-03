@@ -105,19 +105,19 @@ def upload_imports(obj):
         otherprocesses = []
         rootdir = os.getenv('ROOTDIR')
         for filepath in datafiles:    
-            process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/xppf/bin/xppfupload %s" % (rootdir, rootdir, filepath), shell=True)
+            process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/loom/bin/loomupload %s" % (rootdir, rootdir, filepath), shell=True)
             dataprocesses.append(process)
         for process in dataprocesses:
             process.wait()
         for filepath in otherfiles:
-            process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/xppf/bin/xppfupload %s" % (rootdir, rootdir, filepath), shell=True)
+            process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/loom/bin/loomupload %s" % (rootdir, rootdir, filepath), shell=True)
             otherprocesses.append(process)
         for process in otherprocesses:
             process.wait()
 
 def submit_workflow(filepath):
     rootdir = os.getenv('ROOTDIR')
-    process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/xppf/bin/xppfsubmit %s" % (rootdir, rootdir, filepath), shell=True)
+    process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/loom/bin/loomsubmit %s" % (rootdir, rootdir, filepath), shell=True)
 
 def delete_workflow_imports(obj):
     """Delete imports dicts from workflows since they're not needed any more."""
@@ -197,7 +197,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
     parser.add_argument('inputfilename')
     parser.add_argument('--hash', action='store_true', default=False, help='Force recalculating hashes.')
-    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files using xppfupload.')
+    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files using loomupload.')
     parser.add_argument('--submit', action='store_true', default=False, help='Submit <inputfileroot>-compiled.json to the server.')
     parser.add_argument('-o', '--outputfilename', help='Output filename. Defaults to <inputfileroot>-compiled.json.')
     args = parser.parse_args()

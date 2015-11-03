@@ -10,15 +10,15 @@ import shutil
 import socket
 import subprocess
 
-from xppf.client import settings_manager
-from xppf.common import md5calc
+from loom.client import settings_manager
+from loom.common import md5calc
 
 
-class XppfUploadException(Exception):
+class LoomUploadException(Exception):
     pass
 
 
-class XppfUpload:
+class LoomUpload:
 
     LOCALHOST = ['localhost', '127.0.0.1', socket.gethostname()]
     IMPORTED_FILES_DIR = 'imported_files'
@@ -39,10 +39,10 @@ class XppfUpload:
     @classmethod
     def get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser('xppffile')
+        parser = argparse.ArgumentParser('loomfile')
         parser.add_argument('files', nargs='+')
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
-                            help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
+                            help="Settings indicate what server to talk to and how to launch it. Use 'loomserver savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         return parser
 
@@ -56,7 +56,7 @@ class XppfUpload:
             print "Calculating md5sum for the file %s" % self.local_path
             file_obj = self._create_file_obj()
 
-            print "Registering file with the XPPF server"
+            print "Registering file with the loom server"
             self.file_id = self._post_file_obj(file_obj)
 
             print "Copying file to server"
@@ -88,7 +88,7 @@ class XppfUpload:
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            raise XppfUploadException("%s\n%s" % (e.message, response.text))
+            raise LoomUploadException("%s\n%s" % (e.message, response.text))
         return response.json().get('_id')
 
     def _copy_file(self):
@@ -105,7 +105,7 @@ class XppfUpload:
         elif self._is_outside_elasticluster():
             """ Use elasticluster and GCE-specific parameters for file transfer. 
             TODO: Consider using elasticluster's ssh and sftp commands instead.
-                  - Would decouple XPPF from cloud specifics (key management, username, fileserver IP).
+                  - Would decouple loom from cloud specifics (key management, username, fileserver IP).
                   - However, nesting virtualenvs seems problematic, and would have to locate
                     elasticluster installation or let user specify.
             """
@@ -191,9 +191,9 @@ class XppfUpload:
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            raise XppfUploadException("%s\n%s" % (e.message, response.text))
+            raise LoomUploadException("%s\n%s" % (e.message, response.text))
         return response.json().get('_id')
 
 
 if __name__=='__main__':
-    response =  XppfUpload().run()
+    response = LoomUpload().run()

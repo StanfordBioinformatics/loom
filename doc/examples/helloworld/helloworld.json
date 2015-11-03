@@ -1,48 +1,81 @@
 {
-    "requester": "someone@example.net",
-    "constants": {
-        "input_dir": "/Users/iliao/xppf/xppf/doc/examples/helloworld"
-    },
-    "workflows": [
+  "requester": "someone@example.net", 
+  "workflows": [
+    {
+      "data_pipes": [
         {
-            "name": "hello_world",
-            "imports": [
-                "${input_dir}/hello.txt"
-            ],
-            "steps": [
-                {
-                    "name": "world_step",
-                    "command": "echo world > world.txt",
-                    "environment": {
-                        "docker_image": "ubuntu"
-                    },
-                    "output_files": [
-                        "world.txt"
-                    ],
-                    "resources": {
-                        "cores": "1",
-                        "memory": "1GB"
-                    }
-                },
-                {
-                    "name": "hello_world_step",
-                    "command": "cat hello.txt world.txt > hello_world.txt",
-                    "environment": {
-                        "docker_image": "ubuntu"
-                    },
-                    "input_files": [
-                        "hello.txt",
-                        "world.txt"
-                    ],
-                    "output_files": [
-                        "hello_world.txt"
-                    ],
-                    "resources": {
-                        "cores": "1",
-                        "memory": "1GB"
-                    }
-                }
-            ]
+          "source": {
+            "step": "world_step", 
+            "port": "world_out"
+          }, 
+          "destination": {
+            "step": "hello_world_step", 
+            "port": "world_in"
+          }
         }
-    ]
+      ], 
+      "data_bindings": [
+        {
+          "destination": {
+            "step": "hello_world_step", 
+            "port": "hello_in"
+          }, 
+          "data_object": {
+            "file_contents": {
+              "hash_value": "b1946ac92492d2347c6235b4d2611184", 
+              "hash_function": "md5"
+            }, 
+            "metadata": "{\"filename\": \"hello.txt\"}"
+          }
+        }
+      ], 
+      "steps": [
+        {
+          "environment": {
+            "docker_image": "ubuntu"
+          }, 
+          "command": "echo world > world.txt", 
+          "name": "world_step", 
+          "resources": {
+            "cores": "1", 
+            "memory": "1GB"
+          }, 
+          "output_ports": [
+            {
+              "name": "world_out", 
+              "file_path": "world.txt"
+            }
+          ]
+        }, 
+        {
+          "name": "hello_world_step", 
+          "input_ports": [
+            {
+              "name": "hello_in", 
+              "file_path": "hello.txt"
+            }, 
+            {
+              "name": "world_in", 
+              "file_path": "world.txt"
+            }
+          ], 
+          "environment": {
+            "docker_image": "ubuntu"
+          }, 
+          "command": "cat hello.txt world.txt > hello_world.txt", 
+          "output_ports": [
+            {
+              "name": "hello_world_out", 
+              "file_path": "hello_world.txt"
+            }
+          ], 
+          "resources": {
+            "cores": "1", 
+            "memory": "1GB"
+          }
+        }
+      ], 
+      "name": "hello_world"
+    }
+  ]
 }

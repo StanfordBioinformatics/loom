@@ -13,14 +13,14 @@ import logging
 from django.conf import settings
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common import fixtures
-from xppf.common.testserver import TestServer
-from xppf.master.analysis.worker_manager.factory import WorkerManagerFactory
-from xppf.master.analysis.worker_manager.cluster import ClusterWorkerManager
-from xppf.master.analysis.worker_manager.local import LocalWorkerManager
+from loom.common import fixtures
+from loom.common.testserver import TestServer
+from loom.master.analysis.worker_manager.factory import WorkerManagerFactory
+from loom.master.analysis.worker_manager.cluster import ClusterWorkerManager
+from loom.master.analysis.worker_manager.local import LocalWorkerManager
 from analysis.models.work_in_progress import WorkInProgress
 
-logger = logging.getLogger('xppf')
+logger = logging.getLogger('loom')
 
 class TestWorkerManagers(unittest.TestCase):
 

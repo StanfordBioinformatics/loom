@@ -1,5 +1,0 @@
-#!/bin/bash
-
-XPPFROOT=$(pwd)/$(dirname $0)/..
-export PYTHONPATH=${XPPFROOT}/..:$PYTHONPATH
-python $XPPFROOT/client/xppf_config.py "$@"

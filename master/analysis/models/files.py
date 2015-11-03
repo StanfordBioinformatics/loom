@@ -3,7 +3,7 @@ import jsonfield
 from .common import AnalysisAppBaseModel
 from immutable.models import ImmutableModel, MutableModel
 
-from xppf.common.exceptions import AbstractMethodException
+from loom.common.exceptions import AbstractMethodException
 
 
 class DataObject(ImmutableModel, AnalysisAppBaseModel):

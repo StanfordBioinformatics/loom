@@ -6,7 +6,7 @@ import sys
 from analysis.models import *
 
 sys.path.append(os.path.join(settings.BASE_DIR, '../../..'))
-from xppf.common.fixtures import *
+from loom.common.fixtures import *
 
 
 class TestWorkInProgress(TestCase):
