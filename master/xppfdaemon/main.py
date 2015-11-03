@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import logging
 import os
 import subprocess
 import time
+from loom.master.xppfdaemon import xppf_daemon_logger
 
 MANAGE_EXECUTABLE = os.path.abspath(
     os.path.join(
@@ -17,32 +17,20 @@ SLEEP_TIME_SECONDS = 3
 class App():
    
     def __init__(self, logfile=None):
-        self._init_logger(logfile)
+        self.logfile = logfile
+        self.logger = xppf_daemon_logger.get_logger(logfile)
 
     def run(self):
         while True:
+            cmd = '%s run_job_queues' % MANAGE_EXECUTABLE
+            if self.logfile:
+                cmd += ' --logfile %s' % self.logfile
             retcode = subprocess.call(
-                '%s run_job_queues' % MANAGE_EXECUTABLE, 
+                cmd,
                 shell=True
                 )
             self.logger.info('Running job queues')
             time.sleep(SLEEP_TIME_SECONDS)
-
-    def _init_logger(self, logfile):
-        self.logger = logging.getLogger("XppfDaemon")
-        self.logger.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
-        handler = self._init_handler(logfile)
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-
-    def _init_handler(self, logfile):
-        if logfile is None:
-            return logging.StreamHandler()
-        else:
-            if not os.path.exists(os.path.dirname(logfile)):
-                os.makedirs(os.path.dirname(logfile)) 
-            return logging.FileHandler(logfile)
 
 if __name__=='__main__':
     App().run()
