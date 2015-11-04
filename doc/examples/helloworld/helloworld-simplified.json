@@ -1,7 +1,7 @@
 {
     "requester": "someone@example.net",
     "constants": {
-        "input_dir": "/Users/iliao/xppf/xppf/doc/examples/helloworld"
+        "input_dir": "/Users/iliao/loom/loom/doc/examples/helloworld"
     },
     "workflows": [
         {
