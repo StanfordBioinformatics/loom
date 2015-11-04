@@ -10,17 +10,17 @@ from loom.client import settings_manager
 DAEMON_EXECUTABLE = os.path.abspath(
     os.path.join(
     os.path.dirname(__file__),
-    '../master/xppfdaemon/xppf_daemon.py'
+    '../master/loomdaemon/loom_daemon.py'
     ))
 
-class XppfServerControls:
+class LoomServerControls:
     """
-    This class provides methods for managing the xppf server, specifically the commands:
+    This class provides methods for managing the loom server, specifically the commands:
     - start
     - stop
     - status
 
-    Users should call this through ../bin/xppfserver to ensure the environment is configured.
+    Users should call this through ../bin/loomserver to ensure the environment is configured.
     """
 
     def __init__(self, args=None):
@@ -33,10 +33,10 @@ class XppfServerControls:
     @classmethod
     def _get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser("xppfserver")
+        parser = argparse.ArgumentParser("loomserver")
         parser.add_argument('command', choices=['start', 'stop', 'status'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
-                            help="Settings files indicate which server to talk to and how the server can be reached. Defaults to ~/.xppf/settings.json (created on first run if not found). Use xppfconfig to choose from available presets, or edit the file directly.")
+                            help="Settings files indicate which server to talk to and how the server can be reached. Defaults to ~/.loom/settings.json (created on first run if not found). Use loom config to choose from available presets, or edit the file directly.")
         parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--fg_webserver', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
@@ -101,7 +101,7 @@ class XppfServerControls:
         process.wait()
         (stdout, stderr) = process.communicate()
         if not process.returncode == 0:
-            raise Exception('XPPF Webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
+            raise Exception('Loom webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
 
     def _start_daemon(self, env):
         if self.args.no_daemon == True:
@@ -111,7 +111,7 @@ class XppfServerControls:
         loglevel = self.settings_manager.get_log_level()
         cmd = "%s start --pidfile %s --logfile %s --loglevel %s" % (DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
         if self.args.verbose:
-            print("Starting XPPF daemon with command:\n%s" % cmd)
+            print("Starting loom daemon with command:\n%s" % cmd)
         process = subprocess.Popen(
             cmd,
             shell=True,
@@ -121,7 +121,7 @@ class XppfServerControls:
         process.wait()
         (stdout, stderr) = process.communicate()
         if not process.returncode == 0:
-            raise Exception('XPPF Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
+            raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
     def status(self):
         try:
@@ -188,4 +188,4 @@ class XppfServerControls:
         return env
 
 if __name__=='__main__':
-    XppfServerControls().main()
+    LoomServerControls().main()

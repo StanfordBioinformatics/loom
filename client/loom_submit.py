@@ -7,14 +7,14 @@ from loom.client import settings_manager
 
 _OK_RESPONSE_CODE = 200
 
-class XppfRunException(Exception):
+class LoomSubmitException(Exception):
     pass
 
-class XppfRun:
+class LoomSubmit:
     """
-    This method provides commands for submitting and managing xppf pipeline runs.
-    An xppf server must already be running to use this client.
-    Users should call this through ../bin/xppfrun to ensure the environment is configured.
+    This method provides commands for submitting pipeline runs.
+    An loom server must already be running to use this client.
+    Users should call this through ../bin/loomsubmit to ensure the environment is configured.
     """
 
     def __init__(self, args=None):
@@ -31,10 +31,10 @@ class XppfRun:
     @classmethod
     def get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser('xppfrun')
+        parser = argparse.ArgumentParser('loomsubmit')
         parser.add_argument('pipeline_file')
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
-                            help="Settings indicate what server to talk to and how to launch it. Use 'xppfserver savesettings -s SETTINGS_FILE' to save.")
+                            help="Settings indicate what server to talk to and how to launch it. Use 'loomserver savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         return parser
 
@@ -50,8 +50,6 @@ class XppfRun:
         pipeline = self.read_pipeline_file()
 
         try:
-            #print self.settings_manager.settings
-            #print "Server URL for client: " + self.settings_manager.get_server_url_for_client()
             response = requests.post(self.settings_manager.get_server_url_for_client()+'/api/submitrequest', data=json.dumps(pipeline))
         except requests.exceptions.ConnectionError as e:
             raise Exception("No response from server. (%s)" % e)
@@ -59,7 +57,7 @@ class XppfRun:
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            raise XppfRunException("%s\n%s" % (e.message, response.text))
+            raise LoomSubmitException("%s\n%s" % (e.message, response.text))
 
         return response
 
@@ -74,5 +72,5 @@ class XppfRun:
             raise Exception("Failed to parse pipeline file file because it is not in valid JSON format: %s" % self.pipeline_file)
 
 if __name__=='__main__':
-    response =  XppfRun().run()
+    response =  LoomSubmit().run()
     print response.text

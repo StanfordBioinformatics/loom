@@ -1,9 +1,9 @@
 from django.db import transaction
 from django.core.management.base import BaseCommand, CommandError
 from analysis.models import RunRequest
-from xppfdaemon import xppf_daemon_logger
+from loomdaemon import loom_daemon_logger
 
-logger = xppf_daemon_logger.get_logger()
+logger = loom_daemon_logger.get_logger()
 
 class Command(BaseCommand):
     help = 'Checks and updates work in progress'

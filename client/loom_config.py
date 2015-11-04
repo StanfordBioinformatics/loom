@@ -7,21 +7,21 @@ import sys
 
 from loom.client import settings_manager
 
-class XppfConfig:
+class LoomConfig:
     """
-    This class provides methods for configuring the xppf installation, specifically the subcommands:
+    This class provides methods for configuring the loom installation, specifically the subcommands:
     - local
     - elasticluster
     - elasticluster_frontend (primarily used by elasticluster setup)
     - savesettings
     - clearsettings
 
-    Users should call this through ../bin/xppfconfig.
-    On first run, settings are saved to the user's home directory in .xppf/settings.json.
-    By default, this will configure xppf for local deployment.
-    To switch to elasticluster deployment, run 'xppfconfig elasticluster'.
-    To switch back to local deployment, run 'xppfconfig local'.
-    For finer-grained control, .xppf/settings.json can be directly edited to set specific values.
+    Users should call this through ../bin/loomconfig.
+    On first run, settings are saved to the user's home directory in .loom/settings.json.
+    By default, this will configure loom for local deployment.
+    To switch to elasticluster deployment, run 'loomconfig elasticluster'.
+    To switch back to local deployment, run 'loomconfig local'.
+    For finer-grained control, .loom/settings.json can be directly edited to set specific values.
     """
 
     def __init__(self, args=None):
@@ -36,10 +36,10 @@ class XppfConfig:
     @classmethod
     def _get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser("xppfconfig")
+        parser = argparse.ArgumentParser("loomconfig")
         parser.add_argument('command', choices=['local', 'elasticluster', 'elasticluster_frontend', 'savesettings', 'clearsettings'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
-                            help="Settings indicate how to launch the server components, and how the client and worker components can reach them. Use 'xppfconfig savesettings -s SETTINGS_FILE' to save.")
+                            help="Settings indicate how to launch the server components, and how the client and worker components can reach them. Use 'loomconfig savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--verbose', '-v', action='store_true', help='Provide feedback to the console about changes to settings files.')
         return parser
@@ -51,7 +51,7 @@ class XppfConfig:
 
     def _validate_args(self, args):
         if args.command == 'clearsettings' and args.settings is not None:
-            raise Exception("The '--settings' flag cannot be used with the 'clearsettings' command")
+            raise ArgumentError("The '--settings' flag cannot be used with the 'clearsettings' command")
 
     def _set_main_function(self, args):
         # Map user input command to class method
@@ -65,7 +65,7 @@ class XppfConfig:
         try:
             self.main = command_to_method_map[args.command]
         except KeyError:
-            raise Exception('Did not recognize command %s' % args.command)
+            raise ArgumentError('Did not recognize command %s' % args.command)
 
     def _set_default_settings(self, args):
         if args.require_default_settings == False:
@@ -96,5 +96,9 @@ class XppfConfig:
     def clear_settings(self):
         self.settings_manager.delete_saved_settings()
 
+    class ArgumentError(Exception):
+        """Exception for unrecognized or invalid combinations of arguments in this module."""
+        pass
+
 if __name__=='__main__':
-    XppfConfig().main()
+    LoomConfig().main()

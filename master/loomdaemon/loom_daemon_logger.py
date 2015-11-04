@@ -10,7 +10,7 @@ def _get_handler(logfile):
     return logging.FileHandler(logfile)
 
 def get_logger(logfile=None):
-    logger = logging.getLogger("XppfDaemon")
+    logger = logging.getLogger("LoomDaemon")
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
     handler = _get_handler(logfile)

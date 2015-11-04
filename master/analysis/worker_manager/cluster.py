@@ -6,7 +6,7 @@ import subprocess
 import errno 
 from django.conf import settings
 
-logger = logging.getLogger('XppfDaemon')
+logger = logging.getLogger('LoomDaemon')
 
 # Location of Python in virtualenv on worker node
 PYTHON_EXECUTABLE = os.path.abspath(

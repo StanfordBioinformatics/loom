@@ -18,7 +18,7 @@ from loom.common import fixtures
 from loom.common.testserver import TestServer
 
 
-logger = logging.getLogger('xppf')
+logger = logging.getLogger('loom')
 
 
 class TestWorkerManagers(unittest.TestCase):

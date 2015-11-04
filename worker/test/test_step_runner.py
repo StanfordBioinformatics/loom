@@ -10,7 +10,7 @@ import tempfile
 import time
 import unittest
 
-from loom.client import xppf_server_controls
+from loom.client import loom_server_controls
 from loom.common import fixtures
 from loom.common.testserver import TestServer
 from loom.worker.step_runner import StepRunner

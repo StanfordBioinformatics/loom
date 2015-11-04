@@ -1,5 +1,5 @@
 #!/bin/bash
 
-XPPFROOT=$(pwd)/$(dirname $0)/..
-export PYTHONPATH=${XPPFROOT}/..:$PYTHONPATH
-python $XPPFROOT/client/xppf_config.py "$@"
+ROOTDIR=$(pwd)/$(dirname $0)/..
+export PYTHONPATH=${ROOTDIR}/..:$PYTHONPATH
+python $ROOTDIR/client/loom_config.py "$@"

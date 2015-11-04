@@ -5,23 +5,23 @@ import jsonschema
 import os
 import re
 
-XPPF_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+LOOM_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 class SettingsManager:
     """
-    This class manages xppf client, worker, fileserver, and webserver settings.
-    Users should interact with this class through ../bin/xppfconfig, with these subcommands:
+    This class manages loom client, worker, fileserver, and webserver settings.
+    Users should interact with this class through ../bin/loomconfig, with these subcommands:
     - local
     - elasticluster
     - elasticluster_frontend (primarily used by elasticluster setup)
     - savesettings
     - clearsettings
 
-    On first run, settings are saved to the user's home directory in .xppf/settings.json.
-    By default, this will configure xppf for local deployment.
-    To switch to elasticluster deployment, run 'xppfconfig elasticluster'.
-    To switch back to local deployment, run 'xppfconfig local'.
-    For finer-grained control, .xppf/settings.json can be directly edited to set specific values.
+    On first run, settings are saved to the user's home directory in .loom/settings.json.
+    By default, this will configure loom for local deployment.
+    To switch to elasticluster deployment, run 'loomconfig elasticluster'.
+    To switch back to local deployment, run 'loomconfig local'.
+    For finer-grained control, .loom/settings.json can be directly edited to set specific values.
     """
 
     # Instance variables
@@ -32,25 +32,25 @@ class SettingsManager:
     verbose = False
 
     # Constants
-    DEFAULT_SETTINGS_FILE = os.path.join(os.getenv('HOME'), '.xppf', 'settings.json')
-    DEFAULT_REMOTE_USERNAME = 'xppf'
+    DEFAULT_SETTINGS_FILE = os.path.join(os.getenv('HOME'), '.loom', 'settings.json')
+    DEFAULT_REMOTE_USERNAME = 'loom'
     DEFAULT_PRESETS = {
         'CURRENT_PRESET': 'LOCAL_SETTINGS',
 
         # Client, workers, and master all on local machine
         'LOCAL_SETTINGS': {
-            'WEBSERVER_PIDFILE': '/tmp/xppf_webserver.pid',
+            'WEBSERVER_PIDFILE': '/tmp/loom_webserver.pid',
             'BIND_IP': '127.0.0.1',
             'BIND_PORT': '8000',
             'PROTOCOL': 'http',
-            'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
-            'SERVER_PATH': os.path.join(XPPF_ROOT, 'master'),
-            'DAEMON_PIDFILE': '/tmp/xppf_daemon.pid',
-            'ACCESS_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_access.log'),
-            'ERROR_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_http_error.log'),
-            'DJANGO_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_django.log'),
-            'WEBSERVER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_webserver.log'),
-            'DAEMON_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_daemon.log'),
+            'SERVER_WSGI_MODULE': 'loomserver.wsgi',
+            'SERVER_PATH': os.path.join(LOOM_ROOT, 'master'),
+            'DAEMON_PIDFILE': '/tmp/loom_daemon.pid',
+            'ACCESS_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_http_access.log'),
+            'ERROR_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_http_error.log'),
+            'DJANGO_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_django.log'),
+            'WEBSERVER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_webserver.log'),
+            'DAEMON_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
@@ -63,7 +63,7 @@ class SettingsManager:
             'WORKER_TYPE': 'LOCAL',
             'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
             'FILE_SERVER_FOR_WORKER': 'localhost',
-            'WORKER_LOGFILE': os.path.join(XPPF_ROOT, 'log', 'xppf_worker.log'),
+            'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
             'CLIENT_TYPE': 'LOCAL',
@@ -79,18 +79,18 @@ class SettingsManager:
 
         # Client is outside of elasticluster, workers and master in elasticluster
         'ELASTICLUSTER_SETTINGS': {
-            'WEBSERVER_PIDFILE': '/tmp/xppf_webserver.pid',
+            'WEBSERVER_PIDFILE': '/tmp/loom_webserver.pid',
             'BIND_IP': '0.0.0.0', # Accept connections from external IP's
             'BIND_PORT': '8000',
             'PROTOCOL': 'http',
-            'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
-            'SERVER_PATH': os.path.join(XPPF_ROOT, 'master'),
-            'DAEMON_PIDFILE': '/tmp/xppf_daemon.pid',
-            'ACCESS_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_access.log'),
-            'ERROR_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_error.log'),
-            'DJANGO_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_django.log'),
-            'WEBSERVER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_webserver.log'),
-            'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_daemon.log'),
+            'SERVER_WSGI_MODULE': 'loomserver.wsgi',
+            'SERVER_PATH': os.path.join(LOOM_ROOT, 'master'),
+            'DAEMON_PIDFILE': '/tmp/loom_daemon.pid',
+            'ACCESS_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_http_access.log'),
+            'ERROR_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_http_error.log'),
+            'DJANGO_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_django.log'),
+            'WEBSERVER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_webserver.log'),
+            'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
@@ -100,13 +100,13 @@ class SettingsManager:
             #   webserver at MASTER_URL by step_runner
 
             # Workers (and master) in elasticluster 
-            # Allows workers to reach XPPF master at "frontend001" instead of having to find IP after deployment
+            # Allows workers to reach LOOM master at "frontend001" instead of having to find IP after deployment
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
             'FILE_SERVER_FOR_WORKER': 'frontend001',
-            'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_worker.log'),
+            'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
 
-            # Info needed by client (xppf_run and xppf_upload)
+            # Info needed by client (loom_run and loom_upload)
 
             # Client outside of elasticluster, get IP's from elasticluster config file
             'CLIENT_TYPE': 'OUTSIDE_ELASTICLUSTER',
@@ -119,20 +119,20 @@ class SettingsManager:
         },
 
         # Client is in elasticluster on frontend node, workers are not 
-        # This configuration is used by elasticluster to set up xppf and start xppfserver on the frontend node
+        # This configuration is used by elasticluster to set up loom and start loomserver on the frontend node
         'ELASTICLUSTER_FRONTEND_SETTINGS': {
-            'WEBSERVER_PIDFILE': '/tmp/xppf_webserver.pid',
+            'WEBSERVER_PIDFILE': '/tmp/loom_webserver.pid',
             'BIND_IP': '0.0.0.0', # Accept connections from external IP's
             'BIND_PORT': '8000',
             'PROTOCOL': 'http',
-            'SERVER_WSGI_MODULE': 'xppfserver.wsgi',
-            'SERVER_PATH': os.path.join(XPPF_ROOT, 'master'),
-            'DAEMON_PIDFILE': '/tmp/xppf_daemon.pid',
-            'ACCESS_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_access.log'),
-            'ERROR_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_http_error.log'),
-            'DJANGO_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_django.log'),
-            'WEBSERVER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_webserver.log'),
-            'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_daemon.log'),
+            'SERVER_WSGI_MODULE': 'loomserver.wsgi',
+            'SERVER_PATH': os.path.join(LOOM_ROOT, 'master'),
+            'DAEMON_PIDFILE': '/tmp/loom_daemon.pid',
+            'ACCESS_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_http_access.log'),
+            'ERROR_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_http_error.log'),
+            'DJANGO_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_django.log'),
+            'WEBSERVER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_webserver.log'),
+            'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
@@ -142,13 +142,13 @@ class SettingsManager:
             #   webserver at MASTER_URL by step_runner
 
             # Workers (and master) in elasticluster 
-            # Allows workers to reach XPPF master at "frontend001" instead of having to find IP after deployment
+            # Allows workers to reach LOOM master at "frontend001" instead of having to find IP after deployment
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
             'FILE_SERVER_FOR_WORKER': 'frontend001',
-            'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'xppf_worker.log'),
+            'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
 
-            # Info needed by client (xppf_run and xppf_upload)
+            # Info needed by client (loom_run and loom_upload)
 
             # Client inside elasticluster on frontend node
             'CLIENT_TYPE': 'INSIDE_ELASTICLUSTER',
@@ -210,8 +210,6 @@ class SettingsManager:
             self._initialize(settings_file=settings_file, require_default_settings=require_default_settings, verbose=verbose)
 
     def _initialize(self, settings_file=None, require_default_settings=False, verbose=False):
-        self._validate_input_args(settings_file=settings_file, require_default_settings=require_default_settings)
-
         self.verbose = verbose
         self.settings_file = settings_file
         self.require_default_settings = require_default_settings
@@ -219,14 +217,11 @@ class SettingsManager:
         if self.settings_file is None:
             self.settings_file = SettingsManager.DEFAULT_SETTINGS_FILE
 
-        if self.require_default_settings:
-            self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
+        if os.path.exists(self.settings_file) and not self.require_default_settings:
+            self.load_settings_from_file()
         else:
-            if os.path.exists(self.settings_file):
-                self.load_settings_from_file()
-            else:
-                self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
-                self.save_settings_to_file()
+            self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
+            self.save_settings_to_file()
 
         # Get IP's from elasticluster if needed
         if self.settings['CLIENT_TYPE'] == 'OUTSIDE_ELASTICLUSTER':
@@ -275,7 +270,7 @@ class SettingsManager:
         Preconditions:
         - Inventory file is in default location ($HOME/.elasticluster/storage)
         - User only has one cluster running through elasticluster (TODO: support multiple clusters by taking cluster name as input)
-        - XPPF webserver and fileserver are on frontend001
+        - LOOM webserver and fileserver are on frontend001
         """
         inventory_search_path = os.path.join(os.getenv('HOME'), '.elasticluster', 'storage', 'ansible-inventory.*')
         import glob
@@ -295,11 +290,6 @@ class SettingsManager:
                     ip = match.group(1) 
                     return ip
             raise Exception("No entry for frontend001 found in Ansible inventory file %s" % inventory_file)
-
-    @staticmethod
-    def _validate_input_args(settings_file=None, require_default_settings=False):
-        if (settings_file is not None) and require_default_settings:
-            raise Exception("You cannot specify a settings file and require default settings at the same time.")
 
     @staticmethod
     def _clean_settings(settings):
@@ -431,7 +421,7 @@ class SettingsManager:
     def get_django_env_settings(self):
         """
         These are settings that will be passed out as environment variables before launching 
-        the webserver. This allows master/xppfserver/settings.py to use these settings.
+        the webserver. This allows master/loomserver/settings.py to use these settings.
         Passing settings this way only works if the webserver is on the same machine as the
         client launching it.
 
