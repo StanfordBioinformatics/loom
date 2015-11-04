@@ -31,7 +31,7 @@ class TestLoomConfig(unittest.TestCase):
         current_preset = TestLoomConfig.getCurrentPreset()
         self.assertEqual(current_preset, 'LOCAL_SETTINGS', 'Current preset in settings file not set to local')
     
-    def test_set_local(self):
+    def test_set_elasticluster(self):
         subprocess.call([sys.executable, SCRIPT_PATH, "--settings", TEST_SETTINGS_FILE, "elasticluster"])
         self.assertSettingsFileCreated()
         current_preset = TestLoomConfig.getCurrentPreset()
