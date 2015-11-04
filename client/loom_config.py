@@ -51,7 +51,7 @@ class LoomConfig:
 
     def _validate_args(self, args):
         if args.command == 'clearsettings' and args.settings is not None:
-            raise Exception("The '--settings' flag cannot be used with the 'clearsettings' command")
+            raise ArgumentError("The '--settings' flag cannot be used with the 'clearsettings' command")
 
     def _set_main_function(self, args):
         # Map user input command to class method
@@ -65,7 +65,7 @@ class LoomConfig:
         try:
             self.main = command_to_method_map[args.command]
         except KeyError:
-            raise Exception('Did not recognize command %s' % args.command)
+            raise ArgumentError('Did not recognize command %s' % args.command)
 
     def _set_default_settings(self, args):
         if args.require_default_settings == False:
@@ -95,6 +95,10 @@ class LoomConfig:
 
     def clear_settings(self):
         self.settings_manager.delete_saved_settings()
+
+    class ArgumentError(Exception):
+        """Exception for unrecognized or invalid combinations of arguments in this module."""
+        pass
 
 if __name__=='__main__':
     LoomConfig().main()

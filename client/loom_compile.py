@@ -49,7 +49,9 @@ def add_data_bindings(obj, hashes):
             for step in workflow["steps"]:
                 for input_port in step["input_ports"]:
                     if os.path.basename(input_port["file_path"]) == os.path.basename(filepath):
-                        new_data_binding = {"destination": {"step": step["name"], "port": input_port["name"]}, "data_object": {"file_contents": {"hash_value": hash_value, "hash_function": HASH_FUNCTION}, "metadata": ""}}
+                        metadata = {"filename": os.path.basename(filepath)}
+                        metadata_string = json.dumps(metadata)
+                        new_data_binding = {"destination": {"step": step["name"], "port": input_port["name"]}, "data_object": {"file_contents": {"hash_value": hash_value, "hash_function": HASH_FUNCTION}, "metadata": metadata_string}}
                         workflow["data_bindings"].append(new_data_binding)
 
 def calculate_hashes(obj):

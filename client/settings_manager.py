@@ -210,8 +210,6 @@ class SettingsManager:
             self._initialize(settings_file=settings_file, require_default_settings=require_default_settings, verbose=verbose)
 
     def _initialize(self, settings_file=None, require_default_settings=False, verbose=False):
-        self._validate_input_args(settings_file=settings_file, require_default_settings=require_default_settings)
-
         self.verbose = verbose
         self.settings_file = settings_file
         self.require_default_settings = require_default_settings
@@ -219,14 +217,11 @@ class SettingsManager:
         if self.settings_file is None:
             self.settings_file = SettingsManager.DEFAULT_SETTINGS_FILE
 
-        if self.require_default_settings:
-            self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
+        if os.path.exists(self.settings_file) and not self.require_default_settings:
+            self.load_settings_from_file()
         else:
-            if os.path.exists(self.settings_file):
-                self.load_settings_from_file()
-            else:
-                self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
-                self.save_settings_to_file()
+            self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
+            self.save_settings_to_file()
 
         # Get IP's from elasticluster if needed
         if self.settings['CLIENT_TYPE'] == 'OUTSIDE_ELASTICLUSTER':
@@ -295,11 +290,6 @@ class SettingsManager:
                     ip = match.group(1) 
                     return ip
             raise Exception("No entry for frontend001 found in Ansible inventory file %s" % inventory_file)
-
-    @staticmethod
-    def _validate_input_args(settings_file=None, require_default_settings=False):
-        if (settings_file is not None) and require_default_settings:
-            raise Exception("You cannot specify a settings file and require default settings at the same time.")
 
     @staticmethod
     def _clean_settings(settings):

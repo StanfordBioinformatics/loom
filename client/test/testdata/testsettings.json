@@ -49,15 +49,15 @@
     "WORKER_TYPE": "ELASTICLUSTER"
   },
   "LOCAL_SETTINGS": {
-    "ACCESS_LOGFILE": "/Users/iliao/loom/loom/log/loom_http_access.log",
+    "ACCESS_LOGFILE": "/tmp/test_loom_http_access.log",
     "BIND_IP": "127.0.0.1",
     "BIND_PORT": "8000",
     "CLIENT_TYPE": "LOCAL",
-    "DAEMON_LOGFILE": "/Users/iliao/loom/loom/log/loom_daemon.log",
-    "DAEMON_PIDFILE": "/tmp/loom_daemon.pid",
-    "DJANGO_LOGFILE": "/Users/iliao/loom/loom/log/loom_django.log",
-    "ERROR_LOGFILE": "/Users/iliao/loom/loom/log/loom_http_error.log",
-    "FILE_ROOT": "/Users/iliao/working_dir",
+    "DAEMON_LOGFILE": "/tmp/test_loom_daemon.log",
+    "DAEMON_PIDFILE": "/tmp/test_loom_daemon.pid",
+    "DJANGO_LOGFILE": "/tmp/test_loom_django.log",
+    "ERROR_LOGFILE": "/tmp/test_loom_http_error.log",
+    "FILE_ROOT": "/tmp/test_loom_working_dir",
     "FILE_SERVER_FOR_CLIENT": "localhost",
     "FILE_SERVER_FOR_WORKER": "localhost",
     "LOG_LEVEL": "DEBUG",
@@ -65,11 +65,11 @@
     "MASTER_URL_FOR_WORKER": "http://127.0.0.1:8000",
     "PROTOCOL": "http",
     "REMOTE_USERNAME": "loom",
-    "SERVER_PATH": "/Users/iliao/loom/loom/master",
+    "SERVER_PATH": "/tmp",
     "SERVER_WSGI_MODULE": "loomserver.wsgi",
-    "WEBSERVER_LOGFILE": "/Users/iliao/loom/loom/log/loom_webserver.log",
-    "WEBSERVER_PIDFILE": "/tmp/loom_webserver.pid",
-    "WORKER_LOGFILE": "/Users/iliao/loom/loom/log/loom_worker.log",
+    "WEBSERVER_LOGFILE": "/tmp/test_loom_webserver.log",
+    "WEBSERVER_PIDFILE": "/tmp/test_loom_webserver.pid",
+    "WORKER_LOGFILE": "/tmp/test_loom_worker.log",
     "WORKER_TYPE": "LOCAL"
   }
 }
