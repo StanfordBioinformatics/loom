@@ -50,9 +50,9 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'xppfserver.urls'
+ROOT_URLCONF = 'loomserver.urls'
 
-WSGI_APPLICATION = 'xppfserver.wsgi.application'
+WSGI_APPLICATION = 'loomserver.wsgi.application'
 
 if RACK_ENV == 'development':
     DATABASES = {
@@ -86,7 +86,7 @@ def _get_django_handler():
             }
     return handler
 
-def _get_xppf_handler():
+def _get_loom_handler():
     WEBSERVER_LOGFILE = os.getenv('WEBSERVER_LOGFILE', None)
     if WEBSERVER_LOGFILE  is not None:
         if not os.path.exists(os.path.dirname(WEBSERVER_LOGFILE)):
@@ -122,7 +122,7 @@ LOGGING = {
     'handlers': {
         'django_handler': _get_django_handler(),
         'django_request_handler': _get_django_handler(),
-        'xppf_handler': _get_xppf_handler(),
+        'loom_handler': _get_loom_handler(),
         },
     'loggers': {
         'django': {
@@ -133,8 +133,8 @@ LOGGING = {
             'handlers': ['django_request_handler'],
             'level': LOG_LEVEL,
             },
-        'xppf': {
-            'handlers': ['xppf_handler'],
+        'loom': {
+            'handlers': ['loom_handler'],
             'level': LOG_LEVEL,
             },
         },

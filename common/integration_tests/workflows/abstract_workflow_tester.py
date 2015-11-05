@@ -1,6 +1,6 @@
 import json
 import unittest
-from loom.client import xppf_run, xppf_upload
+from loom.client import loom_submit, loom_upload
 from loom.common.helper import Helper
 from loom.common.testserver import TestServer
 
@@ -22,17 +22,17 @@ class AbstractWorkflowTester(unittest.TestCase):
         self.test_server.start(no_daemon=False)
 
     def start_job(self, run_request_json_path):
-        run_parser = xppf_run.XppfRun.get_parser()
+        run_parser = loom_submit.LoomSubmit.get_parser()
         args = run_parser.parse_args(['--require_default_settings', run_request_json_path])
-        self.runner = xppf_run.XppfRun(args=args)
+        self.runner = loom_submit.LoomSubmit(args=args)
         response = self.runner.run()
         self.assertEqual(response.status_code, 201)
         self.request_id = response.json().get('_id')
         
     def upload(self, file_path):
-        upload_parser = self.uploader = xppf_upload.XppfUpload.get_parser()
+        upload_parser = self.uploader = loom_upload.LoomUpload.get_parser()
         args = upload_parser.parse_args(['--require_default_settings', file_path])
-        uploader = xppf_upload.XppfUpload(args=args)
+        uploader = loom_upload.LoomUpload(args=args)
         uploader.run()
 
     def wait_for_job(self):

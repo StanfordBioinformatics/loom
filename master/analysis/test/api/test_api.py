@@ -9,13 +9,13 @@ from django.conf import settings
 from django.test import TestCase
 
 from analysis.models import RunRequest
-from loom.client import xppf_server_controls
+from loom.client import loom_server_controls
 from loom.common import fixtures
 from loom.common.helper import Helper
 from loom.common.testserver import TestServer
 
 
-class TestXppfRun(TestCase):
+class TestLoomRun(TestCase):
 
     def setUp(self):
         self.test_server = TestServer()

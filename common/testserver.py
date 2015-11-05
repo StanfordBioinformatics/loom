@@ -7,23 +7,23 @@ import requests
 import subprocess
 import time
 from loom.common.helper import Helper
-from loom.client import xppf_server_controls
+from loom.client import loom_server_controls
 
 
 class TestServer:
     """
-    Launches a test XPPF server
+    Launches a test loom server
     and executes management commands on it.
     The test server has its database flushed each time it starts.
     """
 
     def start(self, no_daemon=True):
-        xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
+        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
         arglist = ['start', '--require_default_settings', '--test_database']
         if no_daemon == True:
             arglist.append('--no_daemon')
         args = xsc_parser.parse_args(arglist)
-        self.xs = xppf_server_controls.XppfServerControls(args=args)
+        self.xs = loom_server_controls.LoomServerControls(args=args)
         self.xs.main() # start server
         self.server_url = self.xs.settings_manager.get_server_url_for_client()
 
@@ -31,18 +31,18 @@ class TestServer:
         Helper.wait_for_true(self._webserver_started, timeout_seconds=5)
 
     def stop(self):
-        xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
+        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
-        self.xs = xppf_server_controls.XppfServerControls(args=args)
+        self.xs = loom_server_controls.LoomServerControls(args=args)
         self.xs.main() # stop server
 
         # Confirm server stopped
         Helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)
 
     def status(self):
-        xsc_parser = xppf_server_controls.XppfServerControls._get_parser()
+        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
         args = xsc_parser.parse_args(['status', '--require_default_settings'])
-        xs = xppf_server_controls.XppfServerControls(args=args)
+        xs = loom_server_controls.LoomServerControls(args=args)
         xs.main() # get server status
 
     def _webserver_started(self):

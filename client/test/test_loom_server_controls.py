@@ -5,10 +5,10 @@ import unittest
 from datetime import datetime
 import time
 
-from loom.client import xppf_server_controls
+from loom.client import loom_server_controls
 from loom.common.testserver import TestServer
 
-class TestXppfServerControls(unittest.TestCase):
+class TestLoomServerControls(unittest.TestCase):
 
     def setUp(self):
         self.test_server = TestServer()
@@ -18,11 +18,11 @@ class TestXppfServerControls(unittest.TestCase):
         self.test_server.stop()
 
     def test_status(self):
-        parser = xppf_server_controls.XppfServerControls._get_parser()
+        parser = loom_server_controls.LoomServerControls._get_parser()
         args = parser.parse_args(['status', '--require_default_settings'])
 
         # call by args. This just prints output to screen
-        xs = xppf_server_controls.XppfServerControls(args=args)
+        xs = loom_server_controls.LoomServerControls(args=args)
         xs.main()
         
         # call by status method directly to check response

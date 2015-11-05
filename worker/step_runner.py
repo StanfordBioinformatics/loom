@@ -324,7 +324,7 @@ class StepRunner:
         return parser
 
     def _init_logger(self):
-        self.logger = logging.getLogger("XppfWorker")
+        self.logger = logging.getLogger("LoomWorker")
         self.logger.setLevel(self.settings['LOG_LEVEL'])
         formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
         handler = self._init_handler()

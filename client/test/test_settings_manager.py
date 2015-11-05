@@ -22,7 +22,7 @@ class TestSettingsManager(unittest.TestCase):
         sm = settings_manager.SettingsManager(settings_file = os.path.join(self.TEST_DATA_DIR, 'testsettings.json'))
 
         # Verify settings came from saved file
-        self.assertEqual(sm.get_webserver_pidfile(), '/tmp/test_xppf_webserver.pid')
+        self.assertEqual(sm.get_webserver_pidfile(), '/tmp/test_loom_webserver.pid')
 
     def test_save_settings_to_file(self):
         settingsdir = tempfile.mkdtemp()

@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.core.management.base import BaseCommand, CommandError
 from analysis.models import RunRequest
-from xppfdaemon import xppf_daemon_logger
+from loomdaemon import loom_daemon_logger
 
 
 class Command(BaseCommand):
@@ -17,7 +17,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         logfile = options.get('logfile')
-        logger = xppf_daemon_logger.get_logger(logfile)
+        logger = loom_daemon_logger.get_logger(logfile)
         try:
             RunRequest.update_and_run()
         except Exception as e:

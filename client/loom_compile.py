@@ -30,12 +30,13 @@ def step_files_to_ports(obj):
     for workflow in obj["workflows"]:
         for step in workflow["steps"]:
             step["input_ports"] = []
-            for input_file in step["input_files"]:
-                step["input_ports"].append({"name": "%s_%s_in" % (step["name"], input_file),"file_path": input_file})
-            del(step["input_files"])
+            if "input_files" in step:
+                for input_file in step["input_files"]:
+                    step["input_ports"].append({"name": "%s_%s_in" % (step["name"], input_file),"file_name": input_file})
+                del(step["input_files"])
             step["output_ports"] = []
             for output_file in step["output_files"]:
-                step["output_ports"].append({"name": "%s_%s_out" % (step["name"], output_file),"file_path": output_file})
+                step["output_ports"].append({"name": "%s_%s_out" % (step["name"], output_file),"file_name": output_file})
             del(step["output_files"])
 
 def add_data_bindings(obj, hashes):
@@ -47,8 +48,10 @@ def add_data_bindings(obj, hashes):
             hash_value = hashes[workflow["name"]][filepath]
             for step in workflow["steps"]:
                 for input_port in step["input_ports"]:
-                    if os.path.basename(input_port["file_path"]) == os.path.basename(filepath):
-                        new_data_binding = {"destination": {"step": step["name"], "port": input_port["name"]}, "file": {"hash_value": hash_value, "hash_function": HASH_FUNCTION}}
+                    if os.path.basename(input_port["file_name"]) == os.path.basename(filepath):
+                        metadata = {"filename": os.path.basename(filepath)}
+                        metadata_string = json.dumps(metadata)
+                        new_data_binding = {"destination": {"step": step["name"], "port": input_port["name"]}, "data_object": {"file_contents": {"hash_value": hash_value, "hash_function": HASH_FUNCTION}, "metadata": metadata_string}}
                         workflow["data_bindings"].append(new_data_binding)
 
 def calculate_hashes(obj):
@@ -102,16 +105,21 @@ def upload_imports(obj):
         # Upload VCF's and BAM's first so that index files are newer.
         dataprocesses = []
         otherprocesses = []
+        rootdir = os.getenv('ROOTDIR')
         for filepath in datafiles:    
-            process = subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
+            process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/loom/bin/loomupload %s" % (rootdir, rootdir, filepath), shell=True)
             dataprocesses.append(process)
         for process in dataprocesses:
             process.wait()
         for filepath in otherfiles:
-            process = subprocess.Popen("export RACK_ENV=development && . /opt/xppf/env/bin/activate && /opt/xppf/xppf/bin/xppfupload %s" % filepath, shell=True)
+            process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/loom/bin/loomupload %s" % (rootdir, rootdir, filepath), shell=True)
             otherprocesses.append(process)
         for process in otherprocesses:
             process.wait()
+
+def submit_workflow(filepath):
+    rootdir = os.getenv('ROOTDIR')
+    process = subprocess.Popen("export RACK_ENV=development && . %s/bin/activate && %s/loom/bin/loomsubmit %s" % (rootdir, rootdir, filepath), shell=True)
 
 def delete_workflow_imports(obj):
     """Delete imports dicts from workflows since they're not needed any more."""
@@ -137,10 +145,10 @@ def check_ports(obj):
                 else:
                     output_port_names.add(output_port["name"])
 
-                if output_port["file_path"] in output_filenames:
+                if output_port["file_name"] in output_filenames:
                     raise Exception("Duplicate output filename in step %s" % step["name"])
                 else:
-                    output_filenames.add(output_port["file_path"])
+                    output_filenames.add(output_port["file_name"])
 
         # Collect destinations of data_bindings and check for duplicates
         destinations = set()
@@ -161,9 +169,9 @@ def check_ports(obj):
                     input_port_names.add(input_port["name"])
 
                 # Make sure every input port maps to an output file or a data binding
-                if input_port["file_path"] not in output_filenames and \
+                if input_port["file_name"] not in output_filenames and \
                    (step["name"], input_port["name"]) not in destinations:
-                    raise Exception("Input port \"%s\" in step \"%s\" has no matching data binding destination or output file named \"%s\"" % (input_port["name"], step["name"], input_port["file_path"]))
+                    raise Exception("Input port \"%s\" in step \"%s\" has no matching data binding destination or output file named \"%s\"" % (input_port["name"], step["name"], input_port["file_name"]))
 
 def add_data_pipes(obj):
     """Build data pipes from output ports to input ports."""
@@ -174,15 +182,15 @@ def add_data_pipes(obj):
         sources = {} # Keys are filenames from output ports
         for step in workflow["steps"]:
             for output_port in step["output_ports"]:
-                if output_port["file_path"] in sources:
-                    raise Exception("Duplicate file_path in output ports")
-                sources[output_port["file_path"]] = {"step": step["name"], "port": output_port["name"]}
+                if output_port["file_name"] in sources:
+                    raise Exception("Duplicate file_name in output ports")
+                sources[output_port["file_name"]] = {"step": step["name"], "port": output_port["name"]}
         
         # Add a data pipe for each destination
         for step in workflow["steps"]:
             for input_port in step["input_ports"]:
-                if input_port["file_path"] in sources:
-                    new_pipe = {"source": sources[input_port["file_path"]], "destination": {"step": step["name"], "port": input_port["name"]}}
+                if input_port["file_name"] in sources:
+                    new_pipe = {"source": sources[input_port["file_name"]], "destination": {"step": step["name"], "port": input_port["name"]}}
                     data_pipes.append(new_pipe)
 
         workflow["data_pipes"] = data_pipes
@@ -190,8 +198,9 @@ def add_data_pipes(obj):
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Preprocess template JSON, compute hashvalues of files, and upload files.')
     parser.add_argument('inputfilename')
-    parser.add_argument('--updatehashes', action='store_true', default=False, help='Force recalculating hashes.')
-    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files using xppfcompile.')
+    parser.add_argument('--hash', action='store_true', default=False, help='Force recalculating hashes.')
+    parser.add_argument('--upload', action='store_true', default=False, help='Upload input files using loomupload.')
+    parser.add_argument('--submit', action='store_true', default=False, help='Submit <inputfileroot>-compiled.json to the server.')
     parser.add_argument('-o', '--outputfilename', help='Output filename. Defaults to <inputfileroot>-compiled.json.')
     args = parser.parse_args()
     return args 
@@ -247,7 +256,7 @@ def main():
     obj = substitute_constants(args.inputfilename)
 
     # Generate hashes for all imports, or load from file
-    hashes = get_hashes(obj, hashesfilename, args.updatehashes)
+    hashes = get_hashes(obj, hashesfilename, args.hash)
 
     # Convert input_files and output_files in all steps into ports
     step_files_to_ports(obj)
@@ -265,6 +274,9 @@ def main():
     check_ports(obj)
     add_data_pipes(obj)
     save_json(obj, outputfilename)
+    
+    if args.submit:
+        submit_workflow(outputfilename)
 
 if __name__ == "__main__":
     main() 

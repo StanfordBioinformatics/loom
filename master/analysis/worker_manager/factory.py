@@ -5,7 +5,7 @@ from django.conf import settings
 from analysis.worker_manager.local import LocalWorkerManager
 from analysis.worker_manager.cluster import ClusterWorkerManager
 
-logger = logging.getLogger('XppfDaemon')
+logger = logging.getLogger('LoomDaemon')
 
 class WorkerManagerFactory:
     LOCAL = 'LOCAL'

@@ -3,7 +3,7 @@
 import os
 import subprocess
 import time
-from loom.master.xppfdaemon import xppf_daemon_logger
+from loom.master.loomdaemon import loom_daemon_logger
 
 MANAGE_EXECUTABLE = os.path.abspath(
     os.path.join(
@@ -18,7 +18,7 @@ class App():
    
     def __init__(self, logfile=None):
         self.logfile = logfile
-        self.logger = xppf_daemon_logger.get_logger(logfile)
+        self.logger = loom_daemon_logger.get_logger(logfile)
 
     def run(self):
         while True:
