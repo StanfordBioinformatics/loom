@@ -12,6 +12,8 @@ import time
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+import loom.common.filehandler
 from loom.common import md5calc
 
 
@@ -45,10 +47,17 @@ class InputManager:
             self._prepare_input(f, port)
 
     def _prepare_input(self, file_and_locations, port):
-        cmd = ['ln',
-               self._select_location(file_and_locations.get('file_storage_locations')),
-               self._get_file_name(port)]
-        subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
+        if self.settings['FILE_SERVER_TYPE'] == 'LOCAL':
+            cmd = ['ln',
+                   self._select_location(file_and_locations.get('file_storage_locations')),
+                   self._get_file_name(port)]
+            subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
+        elif self.settings['FILE_SERVER_TYPE'] == 'REMOTE':
+            filehandler = loom.common.filehandler.RemoteFileHandler()
+        elif self.settings['FILE_SERVER_TYPE'] == 'GOOGLE_CLOUD':
+            filehandler = loom.common.filehandler.GoogleCloudFileHandler()
+        else:
+            raise StepRunnerError('Unrecognized file server type: %s' % self.settings['FILE_SERVER_TYPE'])
 
     def _get_file_name(self, input_port):
         return input_port['file_name']
@@ -338,6 +347,11 @@ class StepRunner:
             if not os.path.exists(os.path.dirname(self.settings['WORKER_LOGFILE'])):
                 os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
             return logging.FileHandler(self.settings['WORKER_LOGFILE'])
+
+
+class StepRunnerError(Exception):
+    pass
+
 
 if __name__=='__main__':
     StepRunner().run()

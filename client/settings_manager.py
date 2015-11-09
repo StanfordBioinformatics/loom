@@ -54,6 +54,10 @@ class SettingsManager:
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
+            # Where to get inputs and place outputs.
+            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
+            'FILE_SERVER_TYPE': 'LOCAL',
+
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
             # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
@@ -62,19 +66,20 @@ class SettingsManager:
             # Workers on same machine as server
             'WORKER_TYPE': 'LOCAL',
             'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
-            'FILE_SERVER_FOR_WORKER': 'localhost',
+            'FILE_SERVER_FOR_WORKER': 'unused',
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
             'CLIENT_TYPE': 'LOCAL',
             'MASTER_URL_FOR_CLIENT': 'http://127.0.0.1:8000',
-            'FILE_SERVER_FOR_CLIENT': 'localhost', 
+            'FILE_SERVER_FOR_CLIENT': 'unused', 
 
             # Needed by both worker and client
             'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'IMPORT_DIR': 'imported_files',
     
             # Not currently used for local mode
-            'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
+            'REMOTE_USERNAME': 'unused'
         },
 
         # Client is outside of elasticluster, workers and master in elasticluster
@@ -93,6 +98,10 @@ class SettingsManager:
             'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
+
+            # Where to get inputs and place outputs.
+            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
+            'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
 
             # Info needed by workers
             # - MASTER_URL_FOR_WORKER passed as argument to step_runner
@@ -115,6 +124,7 @@ class SettingsManager:
 
             # Needed by both worker and client
             'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'IMPORT_DIR': 'imported_files',
             'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         },
 
@@ -135,6 +145,10 @@ class SettingsManager:
             'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
+
+            # Where to get inputs and place outputs.
+            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
+            'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
 
             # Info needed by workers
             # - MASTER_URL_FOR_WORKER passed as argument to step_runner
@@ -157,6 +171,7 @@ class SettingsManager:
 
             # Needed by both worker and client
             'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'IMPORT_DIR': 'imported_files',
             'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         }
     }
@@ -183,10 +198,12 @@ class SettingsManager:
             'MASTER_URL_FOR_WORKER': {"type": "string"},
             'FILE_SERVER_FOR_WORKER': {"type": "string"},
             'FILE_ROOT': {"type": "string"},
+            'IMPORT_DIR': {"type": "string"},
             'CLIENT_TYPE': {"type": "string"},
             'MASTER_URL_FOR_CLIENT': {"type": "string"},
             'FILE_SERVER_FOR_CLIENT': {"type": "string"},
-            'REMOTE_USERNAME': {"type": "string"}
+            'REMOTE_USERNAME': {"type": "string"},
+            'FILE_SERVER_TYPE': {"enum": ["LOCAL", "REMOTE", "GOOGLE_CLOUD"]}
         },
         "additionalProperties": False
     }
@@ -345,6 +362,9 @@ class SettingsManager:
     def get_daemon_pid(self):
         return self._get_pid(self.get_daemon_pidfile())
 
+    def get_file_server_type(self):
+        return self.settings['FILE_SERVER_TYPE']
+
     def get_file_server_for_worker(self):
         return self.settings['FILE_SERVER_FOR_WORKER']
 
@@ -353,6 +373,9 @@ class SettingsManager:
 
     def get_file_root(self):
         return self.settings['FILE_ROOT']
+
+    def get_import_dir(self):
+        return self.settings['IMPORT_DIR']
 
     def get_client_type(self):
         return self.settings['CLIENT_TYPE']
