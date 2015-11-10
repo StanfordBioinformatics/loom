@@ -1,5 +1,41 @@
+from .files import FileArray
+
+
 class NoInputs(Exception):
     pass
+
+class NoFilesForSourceArray(Exception):
+    pass
+
+class SourceArray(object):
+    """Stores a list of StepRunOutputPorts as sources, and is used to
+    assemble results from these into a FileArray for input to a
+    StepRunInputPort.
+    """
+    def __init__(self, source_list):
+        self.source_list = source_list
+        if self._length == 0:
+            raise NoFilesForSourceArray()
+
+    def is_available(self):
+        return all([source.is_available() for source in self.source_list])
+
+    def get_data_object(self):
+        if self._length == 0:
+            raise NoFilesForSourceArray()
+        if not self.is_available():
+            raise Exception("Inputs not ready")
+        return FileArray.create(self._render_file_array())
+
+    def _render_file_array(self):
+        return {'files': [
+                source.get_data_object().to_serializable_obj() 
+                for source in self.source_list
+                ]}
+
+    def _length(self):
+        return len(self.source_list)
+
 
 class InputSet(object):
     """Represents the set of inputs needed for running one analysis step 
@@ -13,7 +49,7 @@ class InputSet(object):
         if self.inputs.get(destination_port_name) is not None:
             raise Exception("Input already exists for port %s" %
                             destination_port_name)
-        # Source is a DataObject or a StepRunOutputPort
+        # Source is a DataObject, StepRunOutputPort, or SourceArray
         self.inputs[destination_port_name] = source
 
     def is_data_ready(self):
@@ -35,8 +71,8 @@ class AbstractInputSetManager(object):
             self.input_ports = step.input_ports.all()
 
     def are_previous_steps_pending(self):
-        """True if any inputs have StepRuns pending,
-        or if any input_sets do not yet have StepRuns.
+        """True if any previous steps have incomplete StepRuns
+        or unassigned InputSets
         """
         return any([step.are_step_runs_pending() for step in 
                 self._get_all_source_steps()])
@@ -261,9 +297,12 @@ class LoopBeginInputSetManager(AbstractInputSetManager):
         input_sets = []
         for source  in self._get_branch_sources():
             input_set = InputSet()
-            self._add_branching_input_to_set(input_set, 
-                                             self.branching_input_port, source)
-            self._add_nonbranching_inputs_to_set(input_set)
+            try:
+                self._add_branching_input_to_set(
+                    input_set, self.branching_input_port, source)
+                self._add_nonbranching_inputs_to_set(input_set)
+            except NoInputs:
+                continue
             input_sets.append(input_set)
         return input_sets
 
@@ -311,11 +350,90 @@ class LoopBeginInputSetManager(AbstractInputSetManager):
 
 class LoopEndInputSetManager(AbstractInputSetManager):
 
-    def are_previous_steps_pending(self):
-        return True
+    def __init__(self, step, skip_init_for_testing=False):
+        super(LoopEndInputSetManager, self).__init__(
+            step,
+            skip_init_for_testing=skip_init_for_testing)
+        if not skip_init_for_testing:
+            self._classify_merging_ports()
+
+    def _classify_merging_ports(self):
+        """Find which StepInputPorts have merging inputs,
+        array StepInputPorts connected to scalar DataObjects
+        or scalar StepOutputPorts are classified as
+        merging_input_ports. StepInputPorts that are
+        array to array or scalar to scalar are classified
+        as nonbranching_input_ports.
+        """
+        self.merging_input_ports = []
+        self.nonmerging_input_ports = []
+        for port in self.input_ports:
+            if self._is_merging(port):
+                self._add_merging_input_port(port)
+            else:
+                self._add_nonmerging_input_port(port)
+
+    def _add_merging_input_port(self, port):
+        self._validate_merging_input_port(port)
+        self.merging_input_ports.append(port)
+
+    def _validate_merging_input_port(self, port):
+        """One merging port is always allowed.
+        More than one are allowed only if they come from the same Step.
+        """
+        if len(self.merging_input_ports) > 0 and \
+                not port.is_from_same_source_step(
+            self.merging_input_ports[0]):
+            raise Exception("Only one port can have parallel runs if the ports"
+                            " do not connect to the same source step. Parallel"
+                            " runs were found on ports %s and %s" % 
+                            (self.merging_input_ports[0].name, 
+                             port.name))
+
+    def _add_nonmerging_input_port(self, port):
+        """Add without validation. Zero or more nonbranching ports always 
+        allowed.
+        """
+        self.nonmerging_input_ports.append(port)
 
     def get_available_input_sets(self):
-        return []
+        input_set = InputSet()
+        try:
+            self._add_merging_inputs_to_set(input_set)
+            self._add_nonmerging_inputs_to_set(input_set)
+        except NoInputs:
+            return []
+        return [input_set]
+
+    def _add_merging_inputs_to_set(self, input_set):
+        for input_port in self.merging_input_ports:
+            self._add_merging_input_to_set(input_set, input_port)
+
+    def _add_merging_input_to_set(self, input_set, input_port):
+        sources_list = input_port.get_source().get_step_run_ports()
+        source = SourceArray(sources_list)
+        input_set.add_input(input_port.name, source)
+
+    def _get_step_run_output_ports_by_destination(self, input_port):
+        return input_port.get_source.get_step_run_output_ports()
+
+    def _add_nonmerging_inputs_to_set(self, input_set):
+        for step_input_port in self.nonmerging_input_ports:
+            self._add_nonmerging_input_to_set(input_set, step_input_port)
+
+    def _add_nonmerging_input_to_set(self, input_set, step_input_port):
+        if step_input_port.has_data_binding():
+            self._add_input_set_with_data_object_as_source_to_set(
+                input_set, step_input_port)
+        else:
+            self._add_input_set_with_port_as_source_to_set(
+                input_set, step_input_port)
+
+    def _is_merging(self, port):
+        connector = port.get_connector()
+        return connector.is_destination_an_array()\
+                and not connector.is_source_an_array()
+
 
 class InputSetManagerFactory:
     """Selects the correct InputSetManager for the current step."""

@@ -31,6 +31,11 @@ class TestFileArray(ImmutableModelsTestCase):
         self.roundTripJson(file_array)
         self.roundTripObj(file_array)
 
+    def testFileArrayEmptyFiles(self):
+        file_array = FileArray.create({'files': []})
+        self.roundTripJson(file_array)
+        self.roundTripObj(file_array)
+
     def testIsAvailable(self):
         file1 = File.create(file_obj)
         file2 = File.create(file_obj_2)

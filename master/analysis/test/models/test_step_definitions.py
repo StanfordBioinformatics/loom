@@ -1,4 +1,5 @@
 from analysis.models import *
+import copy
 from django.conf import settings
 from django.test import TestCase
 import os
@@ -59,6 +60,12 @@ class TestStepDefinitionInputPort(TestCase):
         self.port = StepDefinitionInputPort.create(self.port_obj) 
             # Same instance as the one attached to self.step_definition, since it's immutable
 
+    def test_port_with_empty_array(self):
+        port_obj = {u'file_name': u'', u'is_array': True, u'data_object': {'files': []}}
+        port_obj['data_object'] = {'files': []}
+        port = StepDefinitionInputPort.create(port_obj)
+        o = port.to_obj()
+        
     def test_get_files_and_locations_list(self):
         fl_list = self.port.get_files_and_locations_list()
         self.assertEqual(fl_list[0]['file']['file_contents']['hash_value'], self.port.data_object.file_contents.hash_value)
@@ -66,3 +73,4 @@ class TestStepDefinitionInputPort(TestCase):
     def test_get_input_bundles(self):
         input_bundles = self.step_definition.get_input_bundles()
         self.assertEqual(input_bundles[0]['input_port']['data_object']['file_contents']['hash_value'], self.step_definition.input_ports.first().get('data_object').file_contents.hash_value)
+            
