@@ -46,12 +46,9 @@ class InputManager:
 
     def _prepare_input(self, file_and_locations, port):
         cmd = ['ln',
-               self._select_location(file_and_locations.get('file_storage_locations')),
-               self._get_file_name(port)]
+               self._select_location(file_and_locations['file_storage_locations']),
+               file_and_locations['file_name']]
         subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
-
-    def _get_file_name(self, input_port):
-        return input_port['file_name']
 
     def _select_location(self, locations):
         return locations[0]['file_path']

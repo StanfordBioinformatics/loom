@@ -42,8 +42,9 @@ class InputSet(object):
     (one StepRun)
     """
 
-    def __init__(self):
+    def __init__(self, ready=True):
         self.inputs = {}
+        self.ready = ready
 
     def add_input(self, destination_port_name, source):
         if self.inputs.get(destination_port_name) is not None:
@@ -53,7 +54,10 @@ class InputSet(object):
         self.inputs[destination_port_name] = source
 
     def is_data_ready(self):
-        return all([source.is_available() for source in self.inputs.values()])
+        if self.ready == False:
+            return False
+        else:
+            return all([source.is_available() for source in self.inputs.values()])
 
     def get_data_object(self, destination_port_name):
         return self.inputs[destination_port_name].get_data_object()
@@ -397,6 +401,8 @@ class LoopEndInputSetManager(AbstractInputSetManager):
         self.nonmerging_input_ports.append(port)
 
     def get_available_input_sets(self):
+        if self.are_previous_steps_pending():
+            return [self._get_blocker_input_set()]
         input_set = InputSet()
         try:
             self._add_merging_inputs_to_set(input_set)
@@ -404,6 +410,9 @@ class LoopEndInputSetManager(AbstractInputSetManager):
         except NoInputs:
             return []
         return [input_set]
+
+    def _get_blocker_input_set(self):
+        return InputSet(ready=False)
 
     def _add_merging_inputs_to_set(self, input_set):
         for input_port in self.merging_input_ports:

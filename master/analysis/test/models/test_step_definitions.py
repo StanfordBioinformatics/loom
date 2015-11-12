@@ -26,7 +26,7 @@ class TestDefinitionModels(ImmutableModelsTestCase):
 
     def testInputPort(self):
         o = StepDefinitionInputPort.create(step_definition_input_port_obj)
-        self.assertEqual(o.file_name, step_definition_input_port_obj['file_name'])
+        self.assertEqual(o.file_names.first().name, step_definition_input_port_obj['file_names'][0]['name'])
         self.roundTripJson(o)
         self.roundTripObj(o)
 
@@ -61,7 +61,7 @@ class TestStepDefinitionInputPort(TestCase):
             # Same instance as the one attached to self.step_definition, since it's immutable
 
     def test_port_with_empty_array(self):
-        port_obj = {u'file_name': u'', u'is_array': True, u'data_object': {'files': []}}
+        port_obj = {u'file_names': [{'name': u''}], u'is_array': True, u'data_object': {'files': []}}
         port_obj['data_object'] = {'files': []}
         port = StepDefinitionInputPort.create(port_obj)
         o = port.to_obj()

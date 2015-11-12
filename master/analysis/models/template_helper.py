@@ -5,8 +5,9 @@ class StepTemplateContext:
     text in the Step.
     """
 
-    def __init__(self, step):
+    def __init__(self, step, input_set):
         self.step = step
+        self.input_set = input_set
 
     def get_context(self):
         return {
@@ -22,17 +23,33 @@ class StepTemplateContext:
         return input_ports_context
 
     def _get_input_port_context(self, port):
-        # TODO support input from arrays
-        # if port.is_from_scalar():
-        #     return self._get_scalar_input_port_context(port)
-        # else:
-        #     return self._get_array_input_port_context(port)
-        return self._get_scalar_input_port_context(port)
+        if port.is_array:
+            return self._get_array_input_port_context(port)
+        else:
+            return self._get_scalar_input_port_context(port)
 
     def _get_scalar_input_port_context(self, port):
         return {
             'file_name': port.file_name
             }
+
+    def _get_array_input_port_context(self, port):
+        data_object = self.input_set.get_data_object(port.name)
+        if data_object.is_array():
+            return [{'file_name': name}
+                    for name in self.get_file_name_list(data_object, port.file_name)]
+        else:
+            return {'file_name': port.file_name}
+
+    @classmethod
+    def get_file_name_list(cls, data_object, file_name_prefix):
+        if data_object.is_array():
+            return [
+                "%s_%s" % (i+1, file_name_prefix)
+                for i in range(data_object.files.count())
+                ]
+        else:
+            return [file_name_prefix]
 
     def _get_output_ports_context(self):
         output_ports_context = {}
@@ -71,9 +88,9 @@ class StepTemplateContext:
 
 class StepTemplateHelper:
 
-    def __init__(self, step):
+    def __init__(self, step, input_set):
         self.step = step
-        self.context = StepTemplateContext(self.step).get_context()
+        self.context = StepTemplateContext(self.step, input_set).get_context()
 
     def render(self, template_string):
         if template_string == None:
