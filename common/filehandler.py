@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import abc
 import datetime
 import errno
 import json
@@ -20,91 +21,124 @@ class FileHandlerError(Exception):
 
 
 class FileHandler:
+    """Abstract base class for filehandlers.
+    On instantiation, communicates with master server to retrieve settings and
+    determine which concrete subclass to instantiate.
+    """
+    __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
+    def __new__(cls, master_url, fileserver):
+        return FileHandler._factory(master_url, fileserver)
+
+    @staticmethod
+    def _factory(master_url, fileserver):
+        settings = FileHandler._get_settings(master_url)
+        if settings['FILE_SERVER_TYPE'] == 'LOCAL':
+            return LocalFileHandler(master_url, fileserver, settings)
+        elif settings['FILE_SERVER_TYPE'] == 'REMOTE':
+            return RemoteFileHandler(master_url, fileserver, settings)
+        elif settings['FILE_SERVER_TYPE'] == 'GOOGLE_CLOUD':
+            return GoogleCloudFileHandler(master_url, fileserver, settings)
+        else:
+            raise FileHandlerError('Unrecognized file server type: %s' % settings['FILE_SERVER_TYPE'])
+
+    @staticmethod
+    def _get_settings(master_url):
+        url = master_url + '/api/filehandlerinfo/'
+        response = requests.get(url)
+        response.raise_for_status()
+        settings = response.json()['filehandlerinfo']
+        return settings
+
+    # Required overrides. Perform file transfer or create location differently depending on fileserver type.
+    @abc.abstractmethod
+    def upload(self, local_path, destination_location):
         pass
 
-    def upload_file(self, local_path, step_dir, file_server, master_url):
-        """Uploaded files are placed in step_dir and named with filename.""" 
-        self.local_path = local_path
-        self.step_dir = step_dir
-        self.file_server = file_server
-        self.master_url = master_url
+    @abc.abstractmethod
+    def download(self, source_location, local_path):
+        pass
 
-        self._register_file()
-        self.remote_path = self.get_remote_upload_path()
-        self._register_file_storage_location()
+    @abc.abstractmethod
+    def get_step_output_destination(self, local_path, file_object=None):
+        """Uploaded files are placed in a directory of the same name as the
+        local directory, and named with the same filename. 
 
-        print "Copying file to server"
-        self._upload_file()
-
-    def import_file(self, local_path, import_dir, file_server, master_url):
-        """Imported files are placed in import_dir and named with timestamp, file ID, and filename.""" 
-        self.local_path = local_path
-        self.import_dir = import_dir
-        self.file_server = file_server
-        self.master_url = master_url
-
-        self._register_file()
-        self.remote_path = self.get_remote_import_path()
-        self._register_file_storage_location()
-
-        print "Copying file to server"
-        self._upload_file()
-
-    def download(self, local_path):
-        self.local_path = local_path
-
-        print "Copying file from server"
-        self._download_file()
-
-    def _register_file(self):
-        print "Calculating md5sum for the file %s" % self.local_path
-        self.file_obj = self._create_file_obj()
-
-        print "Registering file with the loom server"
-        self.file_id = self._post_file_obj(self.file_obj)
-
-    def _register_file_storage_location(self):
-        file_storage_location_obj = self._create_file_storage_location_obj(self.file_obj)
-        file_storage_location_id = self._post_file_storage_location_obj(file_storage_location_obj)
-
-    def _create_file_obj(self):
-        return {
-            'file_contents': self._create_file_contents_obj()
+        Used by LocalFileHandler and RemoteFileHandler; overridden by GoogleCloudFileHandler.
+        """
+        if file_object is None:
+            file_object = create_file_object(local_path)
+        location = {
+            'file_contents': file_object['file_contents'],
+            'file_path': local_path,
+            'host_url': self.fileserver
             }
+        return location
 
-    def _create_file_contents_obj(self):
-        return {
-            'hash_value': md5calc.calculate_md5sum(self.local_path),
-            'hash_function': 'md5',
+    @abc.abstractmethod
+    def get_import_destination(self, local_path, file_object=None, file_id=None):
+        """Imported files are placed in IMPORT_DIR and named with timestamp, file ID, and filename. 
+
+        Used by LocalFileHandler and RemoteFileHandler; overridden by GoogleCloudFileHandler.
+        """
+        if file_object is None:
+            file_object = create_file_object(local_path)
+        if file_id is None:
+            file_id = post_file_obj(file_object) #TODO: hidden side effect; get file id without posting
+        location = {
+            'file_contents': file_object['file_contents'],
+            'file_path': self._get_import_destination_path(file_id, local_path), 
+            'host_url': self.fileserver
             }
+        return location
 
-    def _post_file_obj(self, file_obj):
-        try:
-            url = self.master_url
-            response = requests.post(url+'/api/files', data=json.dumps(file_obj))
-        except requests.exceptions.ConnectionError as e:
-            raise FileHandlerError("No response from server %s\n%s" % (url, e))
-        
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            raise FileHandlerError("%s\n%s" % (e.message, response.text))
-        return response.json().get('_id')
-
-    def get_remote_import_path(self):
+    @abc.abstractmethod
+    def _get_import_destination_path(self, file_id, local_path):
+        """Overridden by GoogleCloudFileHandler."""
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
         return os.path.join(
-            self.import_dir,
-            "%s_%s_%s" % (timestamp, self.file_id[0:10], os.path.split(self.local_path)[1]),
+            self.settings['FILE_ROOT'],
+            self.settings['IMPORT_DIR'],
+            "%s_%s_%s" % (timestamp, file_id[0:10], os.path.split(local_path)[1]),
         )
 
-    def get_remote_upload_path(self):
-        return os.path.join(
-            self.step_dir,
-            os.path.split(self.local_path)[1]
-        )
+    @abc.abstractmethod
+    def get_step_output_destination(self, local_path, file_object=None):
+        """Uploaded files are placed in a directory of the same name as the
+        local directory, and named with the same filename. 
+
+        Used by LocalFileHandler and RemoteFileHandler; overridden by GoogleCloudFileHandler.
+        """
+        if file_object is None:
+            file_object = get_file_object(local_path)
+        location = {
+            'file_contents': file_object['file_contents'],
+            'file_path': local_path,
+            'host_url': self.fileserver,
+            }
+        return location
+
+    @abc.abstractmethod
+    def get_import_destination(self, local_path, file_object=None, file_id=None):
+        """Imported files are placed in IMPORT_DIR and named with timestamp, file ID, and filename. 
+
+        Used by LocalFileHandler and RemoteFileHandler; overridden by GoogleCloudFileHandler.
+        """
+        if file_object is None:
+            file_object = get_file_object(local_path)
+        if file_id is None:
+            file_id = self._post_file_obj(file_object)
+        location = {
+            'file_contents': file_object['file_contents'],
+            'file_path': self._get_import_destination_path(file_id, local_path), 
+            'host_url': self.fileserver
+            }
+        return location
+        def get_remote_upload_path(self):
+            return os.path.join(
+                self.step_dir,
+                os.path.split(self.local_path)[1]
+            )
 
     def get_cluster_remote_path(self, username):
         if not hasattr(self,'_remote_path'):
@@ -118,80 +152,68 @@ class FileHandler:
             )
         return self._remote_path
 
-    def _create_file_storage_location_obj(self, file_obj):
-        return {
-            'file_contents': file_obj['file_contents'],
-            'file_path': self.remote_path,
-            'host_url': self.file_server,
-            }
-        return {
-            'file_contents': file_obj['file_contents'],
-            'google_cloud_project_id': 'asdf',
-            'bucket': 'asdf',
-            'path': 'asdf'
-            }
-
-    def _post_file_storage_location_obj(self, file_storage_location_obj):
-        try:
-            url = self.master_url
-            response = requests.post(url+'/api/file_storage_locations', data=json.dumps(file_storage_location_obj))
-        except requests.exceptions.ConnectionError as e:
-            raise FileHandlerError("No response from server %s\n%s)" % (url, e))
-        
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            raise FileHandlerError("%s\n%s" % (e.message, response.text))
-        return response.json().get('_id')
-
 
 class LocalFileHandler(FileHandler):
-    """Subclass of FileHandler that uses cp to copy files."""
+    """Subclass of FileHandler that uses cp or ln to 'copy' files."""
 
-    def __init__(self):
+    def __new__(cls, master_url, fileserver, settings):
         pass
 
-    def _upload_file(self):
-        path = self.remote_path
+    def __init__(master_url, fileserver, settings):
+        self.master_url = master_url
+        self.fileserver = fileserver
+        self.settings = settings
+
+    def upload(self, local_path, destination_location):
+        destination_path = destination_location['file_path']
         try:
-            os.makedirs(os.path.dirname(path))
+            os.makedirs(os.path.dirname(destination_path))
         except OSError as e:
-            if e.errno == errno.EEXIST and os.path.isdir(os.path.dirname(path)):
+            if e.errno == errno.EEXIST and os.path.isdir(os.path.dirname(destination_path)):
                 pass
             else:
                 raise
-        shutil.copyfile(self.local_path, path)
+        shutil.copyfile(local_path, destination_path)
 
-
-class GoogleCloudFileHandler(FileHandler):
-    """Subclass of FileHandler that uses gcloud library to copy files."""
-
-    def __init__(self, master_url, project_id, bucket, file_root):
-        super(GoogleCloudFileHandler, self).__init__(master_url)
-        self.project_id = project_id
-        self.bucket = bucket
-        self.file_root = file_root
+    def download(self, source_location, local_path):
+        """Save space by hardlinking file instead of copying. However, won't
+        work if the two locations are on different filesystems.
+        """
+        cmd = ['ln', source_location['file_path'], local_path]
+        subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
 
 
 class RemoteFileHandler(FileHandler):
     """Subclass of FileHandler that uses ssh and scp to copy files."""
 
-    def __init__(self, master_url, file_server, file_root):
-        super(RemoteFileHandler, self).__init__(master_url)
-        self.file_server = file_server
+    def __new__(cls, master_url, fileserver, settings):
+        pass
 
-    def _upload_file(self):
+    def __init__(master_url, fileserver, settings):
+        self.master_url = master_url
+        self.fileserver = fileserver
+        self.settings = settings
+
+    def upload(self, local_path, destination_location):
+        destination_path = destination_location['file_path']
         subprocess.call(
             ['ssh',
-             self.file_server,
+             self.fileserver,
              'mkdir',
              '-p',
-             os.path.dirname(self.remote_path)]
+             os.path.dirname(destination_path)]
              )
         subprocess.call(
             ['scp',
-             self.local_path,
-             ':'.join([self.file_server, self.remote_path])]
+             local_path,
+             ':'.join([self.fileserver, destination_path])]
+            )
+
+    def download(self, source_location, local_path):
+        subprocess.call(
+            ['scp',
+             ':'.join([source_location['host_url'], source_location['file_path']]),
+             local_path]
             )
 
     def _upload_file_to_elasticluster(self):
@@ -224,9 +246,65 @@ class RemoteFileHandler(FileHandler):
              ':'.join([username+'@'+self.file_server, self.get_cluster_remote_path(username)])]
             )
 
-    def _download_file(self):
-        subprocess.call(
-            ['scp',
-             ':'.join([self.file_server, self.remote_path]),
-             self.local_path]
-            )
+
+class GoogleCloudFileHandler(FileHandler):
+    """Subclass of FileHandler that uses gcloud library to copy files."""
+
+    def __new__(cls, master_url, fileserver, settings):
+        pass
+
+    def __init__(master_url, fileserver, settings):
+        self.master_url = master_url
+        self.fileserver = fileserver
+        self.settings = settings
+
+    def get_location(self, file_object, file_path):
+        location = {
+            'file_contents': file_object['file_contents'],
+            'file_path': file_path,
+            'bucket_id': self.settings['BUCKET_ID']
+            }
+        return location
+
+
+
+FileHandler.register(LocalFileHandler)
+FileHandler.register(RemoteFileHandler)
+FileHandler.register(GoogleCloudFileHandler)
+
+
+# Utility functions used by FileHandler as well as external modules.
+def create_file_object(file_path):
+    file = {
+        'file_contents': {
+            'hash_value': md5calc.calculate_md5sum(file_path),
+            'hash_function': 'md5',
+            }
+        }
+    return file
+
+def post_file_object(url, file_obj):
+    """Register a file object with the server."""
+    try:
+        response = requests.post(url+'/api/files', data=json.dumps(file_obj))
+    except requests.exceptions.ConnectionError as e:
+        raise FileHandlerError("No response from server %s\n%s" % (url, e))
+    
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        raise FileHandlerError("%s\n%s" % (e.message, response.text))
+    return response.json().get('_id')
+
+def post_location(url, file_storage_location_obj):
+    """Register a file storage location with the server."""
+    try:
+        response = requests.post(url+'/api/file_storage_locations', data=json.dumps(file_storage_location_obj))
+    except requests.exceptions.ConnectionError as e:
+        raise FileHandlerError("No response from server %s\n%s)" % (url, e))
+    
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        raise FileHandlerError("%s\n%s" % (e.message, response.text))
+    return response.json().get('_id')

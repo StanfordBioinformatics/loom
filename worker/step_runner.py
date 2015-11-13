@@ -13,8 +13,7 @@ import time
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-import loom.common.filehandler
-from loom.common import md5calc
+from loom.common import md5calc, filehandler
 
 
 class InputManager:
@@ -47,17 +46,10 @@ class InputManager:
             self._prepare_input(f, port)
 
     def _prepare_input(self, file_and_locations, port):
-        if self.settings['FILE_SERVER_TYPE'] == 'LOCAL':
-            cmd = ['ln',
-                   self._select_location(file_and_locations.get('file_storage_locations')),
-                   self._get_file_name(port)]
-            subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
-        elif self.settings['FILE_SERVER_TYPE'] == 'REMOTE':
-            filehandler = loom.common.filehandler.RemoteFileHandler()
-        elif self.settings['FILE_SERVER_TYPE'] == 'GOOGLE_CLOUD':
-            filehandler = loom.common.filehandler.GoogleCloudFileHandler()
-        else:
-            raise StepRunnerError('Unrecognized file server type: %s' % self.settings['FILE_SERVER_TYPE'])
+        remote_location = self._select_location(file_and_locations.get('file_storage_locations'))
+        local_path = os.path.join(self.settings['WORKING_DIR'], self._get_file_name(port))
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'], self.settings['FILE_SERVER_FOR_WORKER'])
+        filehandler_obj.download(remote_location, local_path)
 
     def _get_file_name(self, input_port):
         return input_port['file_name']
@@ -77,25 +69,12 @@ class _AbstractPortOutputManager:
         glob_string = self.output_port.get('glob')
         return glob.glob1(self.settings['WORKING_DIR'], glob_string)
 
-    def _get_file_object(self, file_path):
-        file = {
-            'file_contents': {
-                'hash_value': md5calc.calculate_md5sum(file_path),
-                'hash_function': 'md5',
-                }
-            }
-        return file
-
     def _save_result(self, result_info):
         data = {
             'step_run': self.step_run,
             'step_result': result_info,
             }
         response = requests.post(self.settings['MASTER_URL']+'/api/submitresult', data=json.dumps(data))
-        response.raise_for_status()
-
-    def _save_location(self, location):
-        response = requests.post(self.settings['MASTER_URL']+'/api/file_storage_locations', data=json.dumps(location))
         response.raise_for_status()
 
     def _get_location(self, file_object, file_path):
@@ -116,11 +95,14 @@ class _FilePortOutputManager(_AbstractPortOutputManager):
 
     def process_output(self):
         file_path = self._get_file_path()
-        file_object = self._get_file_object(file_path)
+        file_object = filehandler.create_file_object(file_path)
         result_info = self._get_result_info(file_object)
-        location = self._get_location(file_object, file_path)
         self._save_result(result_info)
-        self._save_location(location)
+
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'], self.settings['FILE_SERVER_FOR_WORKER'])
+        location = filehandler_obj.get_step_output_destination(file_path, file_object=file_object)
+        filehandler_obj.upload(file_path, location)
+        filehandler.post_location(self.settings['MASTER_URL'], location)
 
     def _get_file_path(self):
         file_name = self.output_port.get('file_name')
@@ -143,9 +125,19 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
         file_array = self._get_file_array_object(file_paths)
         result_info = self._get_result_info(file_array)
         self._save_result(result_info)
-        locations = self._get_locations(file_array, file_paths)
+
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'], self.settings['FILE_SERVER_FOR_WORKER'])
+        locations = get_locations(file_array, file_paths, filehandler_obj)
+        
         for location in locations:
-            self._save_location(location)
+            filehandler.post_location(self.settings['MASTER_URL'], location)
+            filehandler_obj.upload(file_path, location)
+
+    def get_locations(self, file_array, file_paths, filehandler_obj):
+        locations = []
+        for (file_object, file_path) in zip(file_array['files'], file_paths):
+            locations.append(filehandler_obj.get_step_output_destination(file_path, file_object))
+        return locations
 
     def _get_file_paths(self):
         paths = []
@@ -167,13 +159,6 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
         for path in file_paths:
             file_array['files'].append(self._get_file_object(path))
         return file_array
-
-    def _get_locations(self, file_array, file_paths):
-        locations = []
-        for (file_object, file_path) in zip(file_array['files'], file_paths):
-            locations.append(self._get_location(file_object, file_path))
-        return locations
-
 
 class PortOutputManager:
 
@@ -262,7 +247,7 @@ class StepRunner:
     def _get_working_dir_setting(self):
         return {'WORKING_DIR': 
                 os.path.join(
-                self.settings['FILE_ROOT'],
+                self.settings['FILE_ROOT_FOR_WORKER'],
                 self.STEP_RUNS_DIR,
                 "%s_%s" % (
                     datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss"),

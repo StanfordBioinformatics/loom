@@ -49,11 +49,22 @@ def status(request):
 def workerinfo(request):
     workerinfo = {
         'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
-        'FILE_ROOT': settings.FILE_ROOT,
+        'FILE_ROOT_FOR_WORKER': settings.FILE_ROOT_FOR_WORKER,
         'WORKER_LOGFILE': settings.WORKER_LOGFILE,
         'LOG_LEVEL': settings.LOG_LEVEL,
         }
     return JsonResponse({'workerinfo': workerinfo})
+
+@require_http_methods(["GET"])
+def filehandlerinfo(request):
+    filehandlerinfo = {
+        'FILE_SERVER_TYPE': settings.FILE_SERVER_TYPE,
+        'FILE_ROOT': settings.FILE_ROOT,
+        'IMPORT_DIR': settings.IMPORT_DIR,
+        'STEP_RUNS_DIR': settings.STEP_RUNS_DIR,
+        'BUCKET_ID': settings.BUCKET_ID,
+        }
+    return JsonResponse({'filehandlerinfo': filehandlerinfo})
 
 @csrf_exempt
 @require_http_methods(["POST"])

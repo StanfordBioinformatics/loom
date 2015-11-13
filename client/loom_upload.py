@@ -26,22 +26,10 @@ class LoomUpload:
 
         # Get relevant settings
         self.master_url = settings_manager.get_server_url_for_client()
-        self.file_server = settings_manager.get_file_server_for_client()
-        file_root = settings_manager.get_file_root()
+        file_root = settings_manager.get_file_root_for_client()
         import_dir = settings_manager.get_import_dir()
         self.import_path = os.path.join(file_root, import_dir)
-
-        file_server_type = settings_manager.get_file_server_type() 
-
-        # Initialize appropriate type of file handler
-        if file_server_type == 'LOCAL':
-            self.filehandler = filehandler.LocalFileHandler()
-        elif file_server_type == 'REMOTE':
-            self.filehandler = filehandler.RemoteFileHandler(master_url)
-        elif file_server_type == 'GOOGLE_CLOUD':
-            self.filehandler = filehandler.GoogleCloudFileHandler(master_url)
-        else:
-            raise LoomUploadError('Unrecognized file server type %s' % self.filehandler)
+        self.filehandler = filehandler.FileHandler(self.master_url, file_root)
 
     def _get_args(self):
         parser = self.get_parser()
@@ -60,7 +48,8 @@ class LoomUpload:
 
     def run(self):
         for local_path in self.local_paths:
-            self.filehandler.import_file(local_path, self.import_path, self.file_server, self.master_url)
+            location = self.filehandler.get_import_destination(local_path)
+            self.filehandler.upload(local_path, location)
 
 
 class LoomUploadError(Exception):

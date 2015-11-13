@@ -23,7 +23,7 @@
     shell: source /opt/loom/env/bin/activate;export RACK_ENV=development;/opt/loom/loom/master/manage.py makemigrations;/opt/loom/loom/master/manage.py migrate;./loomconfig elasticluster_frontend;./loomserver start
     args:
       executable: /bin/bash
-      chdir: /opt/xppf/xppf/bin
+      chdir: /opt/loom/loom/bin
 
 # docker_ubuntu already installs git and pip
 - hosts: loom_worker
