@@ -36,7 +36,7 @@ class AbstractWorkflowTester(unittest.TestCase):
         uploader.run()
 
     def wait_for_job(self):
-        Helper.wait_for_true(self.is_workflow_complete, timeout_seconds=30)
+        Helper.wait_for_true(self.is_workflow_complete, timeout_seconds=90)
 
     def stop_server(self):
         self.test_server.stop()

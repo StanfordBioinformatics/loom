@@ -35,7 +35,6 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
     environment = models.ForeignKey('StepDefinitionEnvironment')
 
     def attach_step_run_if_one_exists(self, step, input_set):
-
         # If there is a valid step_run attached to this step, return it.
         step_run = self.get_step_run_by_step(step)
         if step_run is not None:
@@ -66,7 +65,7 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
         # TODO add cutoff time for forced reruns
         # TODO: return oldest by default
         try:
-            self.step_runs.first()
+            return self.step_runs.first()
         except exceptions.DoesNotExist:
             return None
 
