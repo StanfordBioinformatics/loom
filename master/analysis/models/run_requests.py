@@ -164,9 +164,11 @@ class Step(MutableModel, AnalysisAppBaseModel):
 
     def _update_status(self):
         self._update_existing_step_runs()
+        waiting_for_files = not self.is_bound_data_ready()
         self._update_new_step_runs()
         if not self.are_step_runs_pending():
-            self.update({'are_results_complete': True})
+            if not waiting_for_files:
+                self.update({'are_results_complete': True})
 
     def are_step_runs_pending(self):
         """Are any step_runs yet to be created or any existing step_runs incomplete"""
@@ -238,6 +240,10 @@ class Step(MutableModel, AnalysisAppBaseModel):
 
     def get_bindings(self):
         return self.workflow.data_bindings.filter(destination__step=self.name)
+
+    def is_bound_data_ready(self):
+        return all([binding.is_data_ready()
+                    for binding in self.get_bindings().all()])
 
     def get_data_pipes(self):
         return self.workflow.data_pipes.filter(destination__step=self)
@@ -424,7 +430,7 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
         return False
 
     def is_data_ready(self):
-        self.get_data_object().is_available()
+        return self.get_data_object().is_available()
 
     def get_data_object(self):
         return self.get('data_object', downcast=True)
