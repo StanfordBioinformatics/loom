@@ -27,7 +27,13 @@ class TestMutableModel(TestCase):
     def testCreateWithListOfChildren(self):
         model_json = '{"listofchildren": [{"name": "ishmael"}, {"name": "jake"}]}'
         model = SampleMutableParent.create(model_json)
+        model.to_obj()
         self.assertEqual(model.listofchildren.count(), 2)
+
+    def testCreateWithEmptyList(self):
+        model_json = '{"listofchildren": []}'
+        model = SampleMutableParent.create(model_json)
+        self.assertEqual(model.listofchildren.count(), 0)
 
     def testCreateWithListOfChildrenReverseForeignKey(self):
         model_json = '{"listofchildren_foreignkey": [{"name": "ishmael"}, {"name": "jake"}]}'
@@ -180,6 +186,19 @@ class TestImmutableModel(TestCase):
         parent = SampleImmutableParent.create(parent_obj)
         parent_reverse = SampleImmutableParent.create(parent_reverse_obj)
         self.assertEqual(parent._id, parent_reverse._id)
+
+    def testCreateWithEmptyList(self):
+        model_json = '{"childlist": []}'
+        model = SampleImmutableParent.create(model_json)
+        self.assertEqual(model.childlist.count(), 0)
+        self.roundTripJson(model)
+        self.roundTripJson(model)
+
+    def testCreateEmtpyChild(self):
+        model_json = '{"p1": {"childlist": []}}'
+        model = SampleGrandparent.create(model_json)
+        self.roundTripJson(model)
+        self.roundTripObj(model)
 
     def roundTripJson(self, model):
         cls = model.__class__

@@ -17,6 +17,7 @@ class Helper:
             model = model_class.create(data_json)
             return JsonResponse({"message": "created %s" % model_class.get_name(), "_id": str(model._id)}, status=201)
         except Exception as e:
+            logger.error('Failed to create %s with data "%s". %s' % (model_class, data_json, e.message))
             return JsonResponse({"message": e.message}, status=400)
 
     @classmethod
@@ -39,6 +40,7 @@ class Helper:
             model.update(data_json)
             return JsonResponse({"message": "updated %s _id=%s" % (model_class.get_name(), model._id)}, status=201)
         except Exception as e:
+            logger.error('Failed to update %s with data "%s". %s' % (model_class, data_json, e.message))
             return JsonResponse({"message": e.message}, status=400)
 
 @require_http_methods(["GET"])
@@ -75,6 +77,7 @@ def submitresult(request):
         result = StepRun.submit_result(data_json)
         return JsonResponse({"message": "created new %s" % result.get_name(), "_id": str(result._id)}, status=201)
     except Exception as e:
+        logger.error('Failed to create result with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=500)
 
 @csrf_exempt
