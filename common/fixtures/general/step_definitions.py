@@ -7,7 +7,7 @@ docker_image_obj = {
     }
 
 step_definition_input_port_obj = {
-    'file_name':'copy/my/file/here.txt',
+    'file_names':[{'name': 'copy/my/file/here.txt'}],
     "is_array": False,
     "data_object": file_obj
     }

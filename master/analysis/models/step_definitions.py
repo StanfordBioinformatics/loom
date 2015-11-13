@@ -31,11 +31,10 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
 
     input_ports = models.ManyToManyField('StepDefinitionInputPort')
     output_ports = models.ManyToManyField('StepDefinitionOutputPort')
-    command = models.CharField(max_length = 256)
+    command = models.CharField(max_length=256)
     environment = models.ForeignKey('StepDefinitionEnvironment')
 
     def attach_step_run_if_one_exists(self, step, input_set):
-
         # If there is a valid step_run attached to this step, return it.
         step_run = self.get_step_run_by_step(step)
         if step_run is not None:
@@ -66,13 +65,15 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
         # TODO add cutoff time for forced reruns
         # TODO: return oldest by default
         try:
-            self.step_runs.first()
+            return self.step_runs.first()
         except exceptions.DoesNotExist:
             return None
 
     def get_input_bundles(self):
         return [port.get_input_bundle() for port in self.input_ports.all()]
 
+class FileName(ImmutableModel, AnalysisAppBaseModel):
+    name = models.CharField(max_length=256)
 
 class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
     """Since a StepDefinition can't be defined without existing DataObjects,
@@ -84,20 +85,23 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
 
     _class_name = ('step_definition_input_port', 'step_definition_input_ports')
 
-    FOREIGN_KEY_CHILDREN = ['data_object']
+    FOREIGN_KEY_CHILDREN = ['data_object', 'file_names']
 
-    file_name = models.CharField(max_length = 256)
     is_array = models.BooleanField()
     data_object = models.ForeignKey(DataObject)
+    file_names = models.ManyToManyField('FileName', related_name='port')
 
     def get_files_and_locations_list(self):
         file_list = self.get('data_object').render_as_list()
-        return [self._get_file_and_locations(file) for file in file_list]
+        file_names = [model.name for model in self.file_names.all()]
+        assert len(file_list) == len(file_names), "Length of file names does not match length of files"
+        return [self._get_file_and_locations(file, name) for file, name in zip(file_list, file_names)]
 
-    def _get_file_and_locations(self, file):
+    def _get_file_and_locations(self, file, file_name):
         file_storage_locations = [l.to_serializable_obj() for l in FileStorageLocation.get_by_file(file).all()]
         return {'file': file.to_serializable_obj(),
-                'file_storage_locations': file_storage_locations}
+                'file_storage_locations': file_storage_locations,
+                'file_name': file_name}
 
     def get_input_bundle(self):
         """Each InputBundle contains info needed by StepRunner
@@ -107,7 +111,6 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
             'files_and_locations': self.get_files_and_locations_list(),
             'input_port': self.to_serializable_obj()
             }
-
 
 class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
 

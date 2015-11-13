@@ -7,7 +7,7 @@ from analysis.models.files import DataObject
 from analysis.models.input_sets import InputSetManagerFactory
 from analysis.models.step_definitions import StepDefinition, StepDefinitionOutputPort
 from analysis.models.step_runs import StepRun
-from analysis.models.template_helper import StepTemplateHelper
+from analysis.models.template_helper import StepTemplateHelper, StepTemplateContext
 from immutable.models import MutableModel
 
 
@@ -253,8 +253,8 @@ class Step(MutableModel, AnalysisAppBaseModel):
         return StepRun.create({
             'step_definition': self._render_step_definition(input_set),
             'steps': [self.to_serializable_obj()],
-            'output_ports': [port._render_step_run_output_port() for port in self.output_ports.all()],
-            'input_ports': [self.get_input_port(input_port_name)._render_step_run_input_port(source) 
+            'output_ports': [port._render_step_run_output_port(input_set) for port in self.output_ports.all()],
+            'input_ports': [self.get_input_port(input_port_name)._render_step_run_input_port(source, input_set) 
                             for input_port_name, source in input_set.inputs.iteritems()]
             })
 
@@ -264,15 +264,15 @@ class Step(MutableModel, AnalysisAppBaseModel):
     def _render_step_definition(self, input_set):
         assert input_set.is_data_ready(), "Refusing to create StepDefinition until all DataObjects are available for this InputSet"
         return {
-                'command': self._render_command(),
+                'command': self._render_command(input_set),
                 'environment': self.get('environment')._render_step_definition_environment(),
-                'output_ports': [port._render_step_definition_output_port() for port in self.output_ports.all()],
-                'input_ports': [self.get_input_port(port_name)._render_step_definition_input_port(source.get_data_object())
+                'output_ports': [port._render_step_definition_output_port(input_set) for port in self.output_ports.all()],
+                'input_ports': [self.get_input_port(port_name)._render_step_definition_input_port(source.get_data_object(), input_set)
                                 for port_name, source in input_set.inputs.iteritems()],
                 }
 
-    def _render_command(self):
-        return StepTemplateHelper(self).render(self.command)
+    def _render_command(self, input_set):
+        return StepTemplateHelper(self, input_set).render(self.command)
 
     def _render_step_definition_data_bindings(self):
         return [c._render_step_definition_data_bindings(self) for c in self.get_connectors()]
@@ -318,17 +318,17 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
     def get_step_run_ports(self):
         return [step_run.get_output_port(self.name) for step_run in self.step.step_runs.all()]
 
-    def _render_step_definition_output_port(self):
+    def _render_step_definition_output_port(self, input_set):
         return {
-            'file_name': StepTemplateHelper(self.step).render(self.file_name),
-            'glob': StepTemplateHelper(self.step).render(self.glob),
+            'file_name': StepTemplateHelper(self.step, input_set).render(self.file_name),
+            'glob': StepTemplateHelper(self.step, input_set).render(self.glob),
             'is_array': self.is_array
             }
 
-    def _render_step_run_output_port(self):
+    def _render_step_run_output_port(self, input_set):
         return {
             'name': self.name,
-            'step_definition_output_port': self._render_step_definition_output_port()
+            'step_definition_output_port': self._render_step_definition_output_port(input_set)
             }
 
 
@@ -346,6 +346,9 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
         if connector is None:
             connector = self._get_data_pipe()
         return connector
+
+    def is_source_an_array(self):
+        return self.get_connector().is_source_an_array()
 
     def get_source(self):
         return self.get_connector().get_source()
@@ -386,17 +389,23 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
     def has_data_binding(self):
         return self._get_data_binding() is not None
 
-    def _render_step_definition_input_port(self, data_object):
+    def _render_step_definition_input_port(self, data_object, input_set):
         return {
-            'file_name': StepTemplateHelper(self.step).render(self.file_name),
+            'file_names': self._render_file_names(data_object, input_set),
             'is_array': self.is_array,
             'data_object': data_object.to_serializable_obj()
             }
 
-    def _render_step_run_input_port(self, source):
+    def _render_file_names(self, data_object, input_set):
+        return [
+            {'name': StepTemplateHelper(self.step, input_set).render(name)}
+            for name in StepTemplateContext.get_file_name_list(data_object, self.file_name)
+            ]
+
+    def _render_step_run_input_port(self, source, input_set):
         return {
             'name': self.name,
-            'step_definition_input_port': self._render_step_definition_input_port(source.get_data_object())
+            'step_definition_input_port': self._render_step_definition_input_port(source.get_data_object(), input_set)
             }
 
 

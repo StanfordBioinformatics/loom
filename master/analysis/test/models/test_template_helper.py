@@ -8,11 +8,21 @@ import sys
 from loom.common.fixtures import *
 
 
+class FakeDataObject(object):
+
+    def is_array(self):
+        return False
+
+class FakeInputSet(object):
+
+    def get_data_object(self):
+        return FakeDataObject()
+
 class TestTemplateHelper(TestCase):
 
     def test_file_name(self):
         step = Step.create(step_with_templated_command_obj)
-        command = StepTemplateHelper(step).render(step.command)
+        command = StepTemplateHelper(step, FakeInputSet()).render(step.command)
         inputfile = step_with_templated_command_obj['input_ports'][0]['file_name']
         outputfile = step_with_templated_command_obj['output_ports'][0]['file_name']
         self.assertTrue(inputfile in command)
@@ -28,7 +38,7 @@ class TestTemplateHelper(TestCase):
         rs_const = run_request.constants['rs']
         wf_const = workflow.constants['wf']
 
-        command = StepTemplateHelper(step).render(step.command)
+        command = StepTemplateHelper(step, FakeInputSet()).render(step.command)
 
         self.assertTrue(step_id in command)
         self.assertTrue(rs_id_overridden not in command)

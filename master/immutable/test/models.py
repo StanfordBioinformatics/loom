@@ -38,6 +38,10 @@ class SampleImmutableParent(ImmutableModel):
     child = models.OneToOneField(SampleImmutableChild, related_name='parent', null=True)
     childlist = models.ManyToManyField(SampleImmutableChild2)
 
+class SampleGrandparent(ImmutableModel):
+    FOREIGN_KEY_CHILDREN = ['p1']
+    p1 = models.OneToOneField('SampleImmutableParent', related_name='parent', null=True)
+
 class BadMutableChild(MutableModel):
     name = models.CharField(max_length=100)
 

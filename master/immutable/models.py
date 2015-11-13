@@ -309,7 +309,7 @@ class _BaseModel(models.Model):
         obj = {}
         for field in self._meta.get_fields():
             field_obj = self._get_field_as_obj(field)
-            if (field_obj is None) or (field_obj == []) or (field_obj == ''):
+            if field_obj in [None, [], '']:
                 continue
             obj[field.name] = field_obj
         return obj

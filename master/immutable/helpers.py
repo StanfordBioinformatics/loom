@@ -88,13 +88,13 @@ class StripBlanks(object):
         if isinstance(obj, list):
             cls._branch_from_list(obj)
         elif isinstance(obj, dict):
+            cls._branch_from_list(obj.values())
             to_remove = []
             for (key, value) in obj.iteritems():
-                if value in [None, [], {}]:
+                if value in [None, [], '']:
                     to_remove.append(key)
             for key in to_remove:
                 obj.pop(key)
-            cls._branch_from_list(obj.values())
         else:
             pass
         return obj
