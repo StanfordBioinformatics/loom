@@ -29,7 +29,7 @@ class LoomUpload:
         file_root = settings_manager.get_file_root_for_client()
         import_dir = settings_manager.get_import_dir()
         self.import_path = os.path.join(file_root, import_dir)
-        self.filehandler = filehandler.FileHandler(self.master_url, file_root)
+        self.filehandler = filehandler.FileHandler(self.master_url)
 
     def _get_args(self):
         parser = self.get_parser()
@@ -48,7 +48,7 @@ class LoomUpload:
 
     def run(self):
         for local_path in self.local_paths:
-            location = self.filehandler.get_import_destination(local_path)
+            location = self.filehandler.get_import_location(local_path)
             self.filehandler.upload(local_path, location)
 
 

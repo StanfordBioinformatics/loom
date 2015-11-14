@@ -58,11 +58,13 @@ def workerinfo(request):
 @require_http_methods(["GET"])
 def filehandlerinfo(request):
     filehandlerinfo = {
+        'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
         'FILE_SERVER_TYPE': settings.FILE_SERVER_TYPE,
         'FILE_ROOT': settings.FILE_ROOT,
         'IMPORT_DIR': settings.IMPORT_DIR,
         'STEP_RUNS_DIR': settings.STEP_RUNS_DIR,
         'BUCKET_ID': settings.BUCKET_ID,
+        'PROJECT_ID': settings.PROJECT_ID,
         }
     return JsonResponse({'filehandlerinfo': filehandlerinfo})
 

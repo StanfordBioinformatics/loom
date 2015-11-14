@@ -58,6 +58,7 @@ class SettingsManager:
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
             'FILE_SERVER_TYPE': 'LOCAL',
             'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'PROJECT_ID': 'unused',
             'BUCKET_ID': 'unused',
 
             # Info needed by workers
@@ -106,7 +107,8 @@ class SettingsManager:
             # Where to get inputs and place outputs.
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
             'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
-            'FILE_ROOT': 'loom',
+            'FILE_ROOT': 'loom_working_dir',
+            'PROJECT_ID': 'gbsc-gcp-project-mvp-dev',
             'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
 
             # Info needed by workers
@@ -156,7 +158,8 @@ class SettingsManager:
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
             'FILE_SERVER_TYPE': 'REMOTE',
             'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
-            'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
+            'BUCKET_ID': 'unused',
+            'PROJECT_ID': 'unused',
 
             # Info needed by workers
             # - MASTER_URL_FOR_WORKER passed as argument to step_runner
@@ -208,6 +211,7 @@ class SettingsManager:
             'FILE_SERVER_TYPE': 'LOCAL',
             'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
             'BUCKET_ID': 'unused',
+            'PROJECT_ID': 'unused',
 
             # Info needed by workers
             # - MASTER_URL_FOR_WORKER passed as argument to step_runner
@@ -254,8 +258,9 @@ class SettingsManager:
             # Where to get inputs and place outputs.
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
             'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
-            'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'FILE_ROOT': 'loom_working_dir',
             'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
+            'PROJECT_ID': 'gbsc-gcp-project-mvp-dev',
 
             # Info needed by workers
             # - MASTER_URL_FOR_WORKER passed as argument to step_runner
@@ -283,54 +288,6 @@ class SettingsManager:
             'STEP_RUNS_DIR': 'step_runs',
             'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         },
-        'ELASTICLUSTER_GOOGLE_STORAGE_FRONTEND_SETTINGS': {
-            'WEBSERVER_PIDFILE': '/tmp/loom_webserver.pid',
-            'BIND_IP': '0.0.0.0', # Accept connections from external IP's
-            'BIND_PORT': '8000',
-            'PROTOCOL': 'http',
-            'SERVER_WSGI_MODULE': 'loomserver.wsgi',
-            'SERVER_PATH': os.path.join(LOOM_ROOT, 'master'),
-            'DAEMON_PIDFILE': '/tmp/loom_daemon.pid',
-            'ACCESS_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_http_access.log'),
-            'ERROR_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_http_error.log'),
-            'DJANGO_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_django.log'),
-            'WEBSERVER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_webserver.log'),
-            'DAEMON_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_daemon.log'),
-            #'LOG_LEVEL': 'INFO',
-            'LOG_LEVEL': 'DEBUG',
-
-            # Where to get inputs and place outputs.
-            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
-            'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
-            'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
-            'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
-
-            # Info needed by workers
-            # - MASTER_URL_FOR_WORKER passed as argument to step_runner
-            # - FILE_SERVER_FOR_WORKER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
-            #   webserver at MASTER_URL by step_runner
-
-            # Workers (and master) in elasticluster 
-            # Allows workers to reach loom master at "frontend001" instead of having to find IP after deployment
-            'WORKER_TYPE': 'ELASTICLUSTER',
-            'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
-            'FILE_SERVER_FOR_WORKER': 'frontend001',
-            'FILE_ROOT_FOR_WORKER': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
-            'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
-
-            # Info needed by client (loom_run and loom_upload)
-
-            # Client outside of elasticluster, get IP's from elasticluster config file
-            'CLIENT_TYPE': 'OUTSIDE_ELASTICLUSTER',
-            'MASTER_URL_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
-            'FILE_SERVER_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
-            'FILE_ROOT_FOR_CLIENT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
-
-            # Needed by both worker and client
-            'IMPORT_DIR': 'imported_files',
-            'STEP_RUNS_DIR': 'step_runs',
-            'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
-        }
     }
 
     SETTINGS_SCHEMA = {
@@ -365,6 +322,7 @@ class SettingsManager:
             'FILE_SERVER_TYPE': {"enum": ["LOCAL", "REMOTE", "GOOGLE_CLOUD"]},
             'FILE_ROOT': {"type": "string"},
             'BUCKET_ID': {"type": "string"},
+            'PROJECT_ID': {"type": "string"},
         },
         "additionalProperties": False
     }
@@ -375,11 +333,10 @@ class SettingsManager:
         "properties": {
             "CURRENT_PRESET": {"type": "string"},
             "LOCAL_SETTINGS": {"type": "object"},
+            "LOCAL_GOOGLE_STORAGE_SETTINGS": {"type": "object"},
             "ELASTICLUSTER_SETTINGS": {"type": "object"},
             "ELASTICLUSTER_FRONTEND_SETTINGS": {"type": "object"},
-            "LOCAL_GOOGLE_STORAGE_SETTINGS": {"type": "object"},
             "ELASTICLUSTER_GOOGLE_STORAGE_SETTINGS": {"type": "object"},
-            "ELASTICLUSTER_GOOGLE_STORAGE_FRONTEND_SETTINGS": {"type": "object"}
         },
         "additionalProperties": False
     }
@@ -635,6 +592,7 @@ class SettingsManager:
             'IMPORT_DIR',
             'STEP_RUNS_DIR',
             'BUCKET_ID',
+            'PROJECT_ID',
             ]
         for key in setting_keys_to_export:
             value = self.settings.get(key)
@@ -646,8 +604,16 @@ class SettingsManager:
         self.presets['CURRENT_PRESET'] = 'LOCAL_SETTINGS'
         self.save_settings_to_file()
 
+    def set_local_gcloud(self):
+        self.presets['CURRENT_PRESET'] = 'LOCAL_GOOGLE_STORAGE_SETTINGS'
+        self.save_settings_to_file()
+
     def set_elasticluster(self):
         self.presets['CURRENT_PRESET'] = 'ELASTICLUSTER_SETTINGS'
+        self.save_settings_to_file()
+
+    def set_elasticluster_gcloud(self):
+        self.presets['CURRENT_PRESET'] = 'ELASTICLUSTER_GOOGLE_STORAGE_SETTINGS'
         self.save_settings_to_file()
 
     def set_elasticluster_frontend(self):

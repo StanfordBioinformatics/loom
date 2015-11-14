@@ -104,8 +104,9 @@ class GoogleCloudStorageLocation(FileStorageLocation):
 
     _class_name = ('google_cloud_storage_location', 'google_cloud_storage_locations')
 
+    project_id = models.CharField(max_length = 256)
     bucket_id = models.CharField(max_length = 256)
-    file_path = models.CharField(max_length = 256)
+    blob_path = models.CharField(max_length = 256)
 
 class FileArray(DataObject):
     """Array of files to be treated as a single entity for input/output of analysis

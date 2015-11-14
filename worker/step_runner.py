@@ -48,7 +48,7 @@ class InputManager:
     def _prepare_input(self, file_and_locations, port):
         remote_location = self._select_location(file_and_locations.get('file_storage_locations'))
         local_path = os.path.join(self.settings['WORKING_DIR'], self._get_file_name(port))
-        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'], self.settings['FILE_SERVER_FOR_WORKER'])
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
         filehandler_obj.download(remote_location, local_path)
 
     def _get_file_name(self, input_port):
@@ -99,8 +99,8 @@ class _FilePortOutputManager(_AbstractPortOutputManager):
         result_info = self._get_result_info(file_object)
         self._save_result(result_info)
 
-        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'], self.settings['FILE_SERVER_FOR_WORKER'])
-        location = filehandler_obj.get_step_output_destination(file_path, file_object=file_object)
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+        location = filehandler_obj.get_step_output_location(file_path, file_object=file_object)
         filehandler_obj.upload(file_path, location)
         filehandler.post_location(self.settings['MASTER_URL'], location)
 
@@ -126,7 +126,7 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
         result_info = self._get_result_info(file_array)
         self._save_result(result_info)
 
-        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'], self.settings['FILE_SERVER_FOR_WORKER'])
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
         locations = get_locations(file_array, file_paths, filehandler_obj)
         
         for location in locations:
@@ -136,7 +136,7 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
     def get_locations(self, file_array, file_paths, filehandler_obj):
         locations = []
         for (file_object, file_path) in zip(file_array['files'], file_paths):
-            locations.append(filehandler_obj.get_step_output_destination(file_path, file_object))
+            locations.append(filehandler_obj.get_step_output_location(file_path, file_object))
         return locations
 
     def _get_file_paths(self):

@@ -11,7 +11,9 @@ class LoomConfig:
     """
     This class provides methods for configuring the loom installation, specifically the subcommands:
     - local
+    - local_gcloud
     - elasticluster
+    - elasticluster_gcloud
     - elasticluster_frontend (primarily used by elasticluster setup)
     - savesettings
     - clearsettings
@@ -37,7 +39,7 @@ class LoomConfig:
     def _get_parser(cls):
         import argparse
         parser = argparse.ArgumentParser("loomconfig")
-        parser.add_argument('command', choices=['local', 'elasticluster', 'elasticluster_frontend', 'savesettings', 'clearsettings'])
+        parser.add_argument('command', choices=['local', 'local_gcloud', 'elasticluster', 'elasticluster_gcloud', 'elasticluster_frontend', 'savesettings', 'clearsettings'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
                             help="Settings indicate how to launch the server components, and how the client and worker components can reach them. Use 'loomconfig savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
@@ -57,7 +59,9 @@ class LoomConfig:
         # Map user input command to class method
         command_to_method_map = {
             'local': self.set_local,
+            'local_gcloud': self.set_local_gcloud,
             'elasticluster': self.set_elasticluster,
+            'elasticluster_gcloud': self.set_elasticluster_gcloud,
             'elasticluster_frontend': self.set_elasticluster_frontend,
             'savesettings': self.save_settings,
             'clearsettings': self.clear_settings
@@ -81,6 +85,12 @@ class LoomConfig:
         # Passing values to Django using environment variables only works if webserver is local to client
         os.environ.update(self.settings_manager.get_django_env_settings()) 
 
+    def set_local_gcloud(self):
+        self.settings_manager.set_local_gcloud()
+
+        # Passing values to Django using environment variables only works if webserver is local to client
+        os.environ.update(self.settings_manager.get_django_env_settings()) 
+
     def set_elasticluster_frontend(self):
         self.settings_manager.set_elasticluster_frontend()
 
@@ -89,6 +99,9 @@ class LoomConfig:
 
     def set_elasticluster(self):
         self.settings_manager.set_elasticluster()
+
+    def set_elasticluster_gcloud(self):
+        self.settings_manager.set_elasticluster_gcloud()
 
     def save_settings(self):
         self.settings_manager.save_settings_to_file()

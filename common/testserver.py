@@ -70,6 +70,7 @@ class TestServer:
         env = os.environ.copy()
         env['RACK_ENV'] = 'test'
         env['FILE_ROOT'] = '/tmp/'
+        env['FILE_SERVER_FOR_WORKER'] = '127.0.0.1'
         return env
 
     @classmethod
