@@ -46,16 +46,15 @@ class InputManager:
             self._prepare_input(f, port)
 
     def _prepare_input(self, file_and_locations, port):
-        remote_location = self._select_location(file_and_locations.get('file_storage_locations'))
+        remote_location = file_and_locations.get('file_storage_locations')[0]
         local_path = os.path.join(self.settings['WORKING_DIR'], self._get_file_name(port))
         filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+        self.logger.debug('Downloading input %s from %s' % (local_path, remote_location))
         filehandler_obj.download(remote_location, local_path)
 
     def _get_file_name(self, input_port):
         return input_port['file_name']
 
-    def _select_location(self, locations):
-        return locations[0]['file_path']
 
 class _AbstractPortOutputManager:
 
@@ -101,6 +100,7 @@ class _FilePortOutputManager(_AbstractPortOutputManager):
 
         filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
         location = filehandler_obj.get_step_output_location(file_path, file_object=file_object)
+        self.logger.debug('Uploading output %s to %s' % (file_path, location))
         filehandler_obj.upload(file_path, location)
         filehandler.post_location(self.settings['MASTER_URL'], location)
 
@@ -131,6 +131,7 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
         
         for location in locations:
             filehandler.post_location(self.settings['MASTER_URL'], location)
+            self.logger.debug('Uploading output %s to %s' % (file_path, location))
             filehandler_obj.upload(file_path, location)
 
     def get_locations(self, file_array, file_paths, filehandler_obj):

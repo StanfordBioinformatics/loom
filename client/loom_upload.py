@@ -50,6 +50,8 @@ class LoomUpload:
         for local_path in self.local_paths:
             location = self.filehandler.get_import_location(local_path)
             self.filehandler.upload(local_path, location)
+            #filehandler.post_file_object(self.master_url, location)
+            filehandler.post_location(self.master_url, location)
 
 
 class LoomUploadError(Exception):

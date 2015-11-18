@@ -4,7 +4,6 @@ import abc
 import datetime
 import errno
 import json
-import logging
 import os
 import shutil
 import socket
@@ -14,6 +13,11 @@ import gcloud.storage
 import requests
 
 from loom.common import md5calc
+
+# Google Storage JSON API imports
+from apiclient.http import MediaIoBaseDownload
+from oauth2client.client import GoogleCredentials
+import apiclient.discovery
 
 
 class FileHandlerError(Exception):
@@ -83,7 +87,7 @@ class AbstractPosixPathFileHandler(AbstractFileHandler):
         location = {
             'file_contents': file_object['file_contents'],
             'file_path': self._get_step_output_path(local_path),
-            'host_url': self.settings['FILESERVER_FOR_WORKER']
+            'host_url': self.settings['FILE_SERVER_FOR_WORKER']
             }
         return location
 
@@ -106,7 +110,7 @@ class AbstractPosixPathFileHandler(AbstractFileHandler):
         location = {
             'file_contents': file_object['file_contents'],
             'file_path': self._get_import_path(file_id, local_path), 
-            'host_url': self.settings['FILESERVER_FOR_WORKER']
+            'host_url': self.settings['FILE_SERVER_FOR_WORKER']
             }
         return location
 
@@ -123,22 +127,15 @@ class LocalFileHandler(AbstractPosixPathFileHandler):
     """Subclass of FileHandler that uses cp or ln to 'copy' files."""
 
     def upload(self, local_path, destination_location):
-        destination_path = destination_location['file_path']
-        try:
-            os.makedirs(os.path.dirname(destination_path))
-        except OSError as e:
-            if e.errno == errno.EEXIST and os.path.isdir(os.path.dirname(destination_path)):
-                pass
-            else:
-                raise
-        shutil.copyfile(local_path, destination_path)
+        """Don't need to do anything, because the working directory is the destination."""
+        return
 
     def download(self, source_location, local_path):
-        """Save space by hardlinking file instead of copying. However, won't
+        """Save space by hardlinking file into the working dir instead of copying. However, won't
         work if the two locations are on different filesystems.
         """
         cmd = ['ln', source_location['file_path'], local_path]
-        subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
+        subprocess.call(cmd)
 
 
 class RemoteFileHandler(AbstractPosixPathFileHandler):
@@ -218,9 +215,26 @@ class GoogleCloudFileHandler(AbstractFileHandler):
         blob = self._get_blob(destination_location)
         blob.upload_from_filename(local_path)
 
-    def download(self, source_location, local_path):
+    # Gives "Uninitialized download" error, opened a support ticket
+    def download_with_gcloud_python(self, source_location, local_path):
         blob = self._get_blob(source_location)
-        blob.upload_from_filename(local_path)
+        blob.download_to_filename(local_path)
+
+    def download(self, destination_location, local_path):
+        """Download using Google Storage JSON API instead of gcloud-python."""
+        blob_path = destination_location['blob_path']
+        bucket_id = destination_location['bucket_id']
+        credentials = GoogleCredentials.get_application_default()
+        service = apiclient.discovery.build('storage', 'v1', credentials=credentials)
+        file_request = service.objects().get_media(bucket=bucket_id, object=blob_path)
+        with open(local_path, 'w') as local_file:
+            downloader = MediaIoBaseDownload(local_file, file_request, chunksize=1024*1024)
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
+                if status:
+                    print 'Download %d%%.' % int(status.progress() * 100)
+                print 'Download Complete!'
 
     def _get_blob(self, location):
         """Instantiate, configure, and return a gcloud blob."""
@@ -250,6 +264,7 @@ class GoogleCloudFileHandler(AbstractFileHandler):
         filename = os.path.basename(local_path)
         step_run_dir = os.path.basename(os.path.dirname(local_path))
         return os.path.join(
+            self.settings['FILE_ROOT'],
             self.settings['STEP_RUNS_DIR'],
             step_run_dir,
             filename
@@ -272,6 +287,7 @@ class GoogleCloudFileHandler(AbstractFileHandler):
     def _get_import_path(self, file_id, local_path):
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
         return os.path.join(
+            self.settings['FILE_ROOT'],
             self.settings['IMPORT_DIR'],
             "%s_%s_%s" % (timestamp, file_id[0:10], os.path.basename(local_path)),
         )
