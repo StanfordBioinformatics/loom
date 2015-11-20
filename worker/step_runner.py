@@ -194,6 +194,12 @@ class OutputManager:
     def process_all_outputs(self):
         for output_port in self.output_ports:
             PortOutputManager.process_output(self.settings, self.step_run, self.logger, output_port)
+        self._upload_logfile()
+
+    def _upload_logfile(self):
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+        location = filehandler_obj.get_step_output_location(self.settings['STEP_LOGFILE'])
+        filehandler_obj.upload(self.settings['STEP_LOGFILE'], location)
 
 
 class StepRunner:
@@ -219,6 +225,7 @@ class StepRunner:
     def run(self):
         try:
             self._prepare_working_directory(self.settings['WORKING_DIR'])
+            self._add_steprundir_logfile()
             self.input_manager.prepare_all_inputs()
 
             process = self._execute()
@@ -250,9 +257,10 @@ class StepRunner:
                 os.path.join(
                 self.settings['FILE_ROOT_FOR_WORKER'],
                 self.STEP_RUNS_DIR,
-                "%s_%s" % (
+                "%s_%s_%s" % (
                     datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss"),
-                    self.settings['RUN_ID']
+                    self.settings['RUN_ID'],
+                    self.step_run['steps'][0]['name']
                     )
                 )
                 }
@@ -334,6 +342,13 @@ class StepRunner:
                 os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
             return logging.FileHandler(self.settings['WORKER_LOGFILE'])
 
+    def _add_steprundir_logfile(self):
+        formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
+        self.settings.update({'STEP_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'step.log')})
+        handler = logging.FileHandler(self.settings['STEP_LOGFILE'])
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        
 
 class StepRunnerError(Exception):
     pass

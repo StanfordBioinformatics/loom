@@ -73,25 +73,19 @@ class AbstractFileHandler:
     def get_import_location(self, local_path, file_object=None, file_id=None):
         pass
 
-
-class AbstractPosixPathFileHandler(AbstractFileHandler):
-    """Base class for filehandlers that deal with POSIX-style file paths."""
-    __metaclass__ = abc.ABCMeta
-
-    def get_step_output_location(self, local_path, file_object=None):
-        """Uploaded files are placed in a directory of the same name as the
-        local directory, and named with the same filename. 
-        """
-        if file_object is None:
-            file_object = create_file_object(local_path)
-        location = {
-            'file_contents': file_object['file_contents'],
-            'file_path': self._get_step_output_path(local_path),
-            'host_url': self.settings['FILE_SERVER_FOR_WORKER']
-            }
-        return location
+    def _get_import_path(self, file_id, local_path):
+        """Imported files are placed in IMPORT_DIR and named with timestamp, file ID, and filename.""" 
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
+        return os.path.join(
+            self.settings['FILE_ROOT'],
+            self.settings['IMPORT_DIR'],
+            "%s_%s_%s" % (timestamp, file_id[0:10], os.path.basename(local_path)),
+        )
 
     def _get_step_output_path(self, local_path):
+        """Step outputs are placed in a directory of the same name as the
+        local directory, and named with the same filename. 
+        """
         filename = os.path.basename(local_path)
         step_run_dir = os.path.basename(os.path.dirname(local_path))
         return os.path.join(
@@ -101,8 +95,22 @@ class AbstractPosixPathFileHandler(AbstractFileHandler):
             filename
         )
 
+
+class AbstractPosixPathFileHandler(AbstractFileHandler):
+    """Base class for filehandlers that deal with POSIX-style file paths."""
+    __metaclass__ = abc.ABCMeta
+
+    def get_step_output_location(self, local_path, file_object=None):
+        if file_object is None:
+            file_object = create_file_object(local_path)
+        location = {
+            'file_contents': file_object['file_contents'],
+            'file_path': self._get_step_output_path(local_path),
+            'host_url': self.settings['FILE_SERVER_FOR_WORKER']
+            }
+        return location
+
     def get_import_location(self, local_path, file_object=None, file_id=None):
-        """Imported files are placed in IMPORT_DIR and named with timestamp, file ID, and filename.""" 
         if file_object is None:
             file_object = create_file_object(local_path)
         if file_id is None:
@@ -114,20 +122,17 @@ class AbstractPosixPathFileHandler(AbstractFileHandler):
             }
         return location
 
-    def _get_import_path(self, file_id, local_path):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
-        return os.path.join(
-            self.settings['FILE_ROOT'],
-            self.settings['IMPORT_DIR'],
-            "%s_%s_%s" % (timestamp, file_id[0:10], os.path.split(local_path)[1]),
-        )
-
 
 class LocalFileHandler(AbstractPosixPathFileHandler):
     """Subclass of FileHandler that uses cp or ln to 'copy' files."""
 
     def upload(self, local_path, destination_location):
-        """Don't need to do anything, because the working directory is the destination."""
+        """For imports, create imports directory and copy file.
+        For step outputs, don't need to do anything, because the working directory is the destination."""
+        destination_path = destination_location['file_path']
+        if local_path != destination_path:
+            os.makedirs(os.path.dirname(destination_path))
+            shutil.copyfile(local_path, destination_path)
         return
 
     def download(self, source_location, local_path):
@@ -247,9 +252,6 @@ class GoogleCloudFileHandler(AbstractFileHandler):
         return blob
 
     def get_step_output_location(self, local_path, file_object=None):
-        """Uploaded files are placed in a directory of the same name as the
-        local directory, and named with the same filename. 
-        """
         if file_object is None:
             file_object = create_file_object(local_path)
         location = {
@@ -260,18 +262,7 @@ class GoogleCloudFileHandler(AbstractFileHandler):
             }
         return location
 
-    def _get_step_output_path(self, local_path):
-        filename = os.path.basename(local_path)
-        step_run_dir = os.path.basename(os.path.dirname(local_path))
-        return os.path.join(
-            self.settings['FILE_ROOT'],
-            self.settings['STEP_RUNS_DIR'],
-            step_run_dir,
-            filename
-        )
-
     def get_import_location(self, local_path, file_object=None, file_id=None):
-        """Imported files are placed in IMPORT_DIR and named with timestamp, file ID, and filename.""" 
         if file_object is None:
             file_object = create_file_object(local_path)
         if file_id is None:
@@ -283,14 +274,6 @@ class GoogleCloudFileHandler(AbstractFileHandler):
             'blob_path': self._get_import_path(file_id, local_path), 
             }
         return location
-
-    def _get_import_path(self, file_id, local_path):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
-        return os.path.join(
-            self.settings['FILE_ROOT'],
-            self.settings['IMPORT_DIR'],
-            "%s_%s_%s" % (timestamp, file_id[0:10], os.path.basename(local_path)),
-        )
 
 
 # Utility functions used by FileHandlers as well as external modules.
