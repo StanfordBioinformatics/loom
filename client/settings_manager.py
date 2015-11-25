@@ -70,14 +70,13 @@ class SettingsManager:
             'WORKER_TYPE': 'LOCAL',
             'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
             'FILE_SERVER_FOR_WORKER': 'unused',
-            'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'), # Where to create step run directories on the worker
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
             'CLIENT_TYPE': 'LOCAL',
             'MASTER_URL_FOR_CLIENT': 'http://127.0.0.1:8000',
             'FILE_SERVER_FOR_CLIENT': 'unused', 
-            'FILE_ROOT_FOR_CLIENT': os.path.join(os.getenv('HOME'), 'working_dir'),
 
             # Needed by both worker and client
             'IMPORT_DIR': 'imported_files',
@@ -127,7 +126,6 @@ class SettingsManager:
             'CLIENT_TYPE': 'LOCAL',
             'MASTER_URL_FOR_CLIENT': 'http://127.0.0.1:8000',
             'FILE_SERVER_FOR_CLIENT': 'unused', 
-            'FILE_ROOT_FOR_CLIENT': os.path.join(os.getenv('HOME'), 'working_dir'),
 
             # Needed by filehandler
             'IMPORT_DIR': 'imported_files',
@@ -180,7 +178,6 @@ class SettingsManager:
             'CLIENT_TYPE': 'OUTSIDE_ELASTICLUSTER',
             'MASTER_URL_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
             'FILE_SERVER_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
-            'FILE_ROOT_FOR_CLIENT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
 
             # Needed by both worker and client
             'IMPORT_DIR': 'imported_files',
@@ -271,8 +268,8 @@ class SettingsManager:
             # Allows workers to reach loom master at "frontend001" instead of having to find IP after deployment
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
-            'FILE_SERVER_FOR_WORKER': 'frontend001',
-            'FILE_ROOT_FOR_WORKER': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'FILE_SERVER_FOR_WORKER': 'unused',
+            'FILE_ROOT_FOR_WORKER': '/var/cache/loom_working_dir',
             'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
 
             # Info needed by client (loom_run and loom_upload)
@@ -281,7 +278,6 @@ class SettingsManager:
             'CLIENT_TYPE': 'OUTSIDE_ELASTICLUSTER',
             'MASTER_URL_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
             'FILE_SERVER_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
-            'FILE_ROOT_FOR_CLIENT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
 
             # Needed by both worker and client
             'IMPORT_DIR': 'imported_files',
@@ -317,7 +313,6 @@ class SettingsManager:
             'CLIENT_TYPE': {"type": "string"},
             'MASTER_URL_FOR_CLIENT': {"type": "string"},
             'FILE_SERVER_FOR_CLIENT': {"type": "string"},
-            'FILE_ROOT_FOR_CLIENT': {"type": "string"},
             'REMOTE_USERNAME': {"type": "string"},
             'FILE_SERVER_TYPE': {"enum": ["LOCAL", "REMOTE", "GOOGLE_CLOUD"]},
             'FILE_ROOT': {"type": "string"},
@@ -495,9 +490,6 @@ class SettingsManager:
     def get_file_root(self):
         return self.settings['FILE_ROOT']
 
-    def get_file_root_for_client(self):
-        return self.settings['FILE_ROOT_FOR_CLIENT']
-
     def get_import_dir(self):
         return self.settings['IMPORT_DIR']
 
@@ -586,7 +578,6 @@ class SettingsManager:
             'FILE_ROOT_FOR_WORKER',
             'MASTER_URL_FOR_CLIENT',
             'FILE_SERVER_FOR_CLIENT',
-            'FILE_ROOT_FOR_CLIENT',
             'FILE_SERVER_TYPE',
             'FILE_ROOT',
             'IMPORT_DIR',
