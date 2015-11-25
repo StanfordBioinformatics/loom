@@ -26,9 +26,6 @@ class LoomUpload:
 
         # Get relevant settings
         self.master_url = settings_manager.get_server_url_for_client()
-        file_root = settings_manager.get_file_root_for_client()
-        import_dir = settings_manager.get_import_dir()
-        self.import_path = os.path.join(file_root, import_dir)
         self.filehandler = filehandler.FileHandler(self.master_url)
 
     def _get_args(self):
