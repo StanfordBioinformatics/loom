@@ -28,7 +28,7 @@ class LoomDaemon:
         self.pidfile = args.pidfile[0]
 
         self.logfile = self._get_argument(args.logfile, '/tmp/loom_daemon.log')
-        self.loglevel = self._get_argument(args.loglevel, 'INFO')
+        self.loglevel = self._get_argument(args.loglevel, 'DEBUG')
 
     def _get_argument(self, arg_value, default):
         if arg_value is None:

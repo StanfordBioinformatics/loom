@@ -11,7 +11,7 @@ def _get_handler(logfile):
 
 def get_logger(logfile=None):
     logger = logging.getLogger("LoomDaemon")
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
     handler = _get_handler(logfile)
     handler.setFormatter(formatter)
