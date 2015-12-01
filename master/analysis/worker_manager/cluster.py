@@ -12,7 +12,7 @@ logger = logging.getLogger('LoomDaemon')
 PYTHON_EXECUTABLE = os.path.abspath(
     os.path.join(
         settings.BASE_DIR,
-        '../../../env/bin/python',
+        '../../../bin/python',
         ))
 
 # Location of step runner on worker node
