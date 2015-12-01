@@ -169,7 +169,7 @@ class SettingsManager:
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
             'FILE_SERVER_FOR_WORKER': 'unused',
-            'FILE_ROOT_FOR_WORKER': '/var/cache/loom_working_dir',
+            'FILE_ROOT_FOR_WORKER': '/var/tmp/loom_working_dir',
             'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
 
             # Info needed by client (loom_run and loom_upload)
@@ -220,7 +220,7 @@ class SettingsManager:
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
             'FILE_SERVER_FOR_WORKER': 'unused',
-            'FILE_ROOT_FOR_WORKER': '/var/cache/loom_working_dir',
+            'FILE_ROOT_FOR_WORKER': '/var/tmp/loom_working_dir',
             'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
 
             # Info needed by client (loom_run and loom_upload)
