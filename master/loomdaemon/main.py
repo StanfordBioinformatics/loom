@@ -16,9 +16,9 @@ SLEEP_TIME_SECONDS = 3
 
 class App():
    
-    def __init__(self, logfile=None):
+    def __init__(self, logfile=None, loglevel=None):
         self.logfile = logfile
-        self.logger = loom_daemon_logger.get_logger(logfile)
+        self.logger = loom_daemon_logger.get_logger(logfile, loglevel)
 
     def run(self):
         while True:

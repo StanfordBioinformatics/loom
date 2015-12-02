@@ -57,7 +57,7 @@ class LoomDaemon:
             # Disable daemon if debug is on
             daemon_context = self._get_daemon_context()
             with daemon_context:
-                App(logfile=self.logfile).run() # This is the main function of the daemon
+                App(logfile=self.logfile, loglevel=self.loglevel).run() # This is the main function of the daemon
 
     def stop_server(self):
         pid = self._get_pid()
