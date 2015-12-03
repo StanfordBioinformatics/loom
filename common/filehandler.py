@@ -220,12 +220,11 @@ class GoogleCloudFileHandler(AbstractFileHandler):
         blob = self._get_blob(destination_location)
         blob.upload_from_filename(local_path)
 
-    # Gives "Uninitialized download" error, opened a support ticket
-    def download_with_gcloud_python(self, source_location, local_path):
+    def download(self, source_location, local_path):
         blob = self._get_blob(source_location)
         blob.download_to_filename(local_path)
 
-    def download(self, destination_location, local_path):
+    def download_with_json_api(self, destination_location, local_path):
         """Download using Google Storage JSON API instead of gcloud-python."""
         blob_path = destination_location['blob_path']
         bucket_id = destination_location['bucket_id']
@@ -247,8 +246,10 @@ class GoogleCloudFileHandler(AbstractFileHandler):
         project_id = location['project_id']
         bucket_id = location['bucket_id']
         client = gcloud.storage.client.Client(project_id)
-        bucket = gcloud.storage.bucket.Bucket(client, bucket_id)
-        blob = gcloud.storage.blob.Blob(blob_path, bucket)
+        bucket = client.get_bucket(bucket_id)
+        blob = bucket.get_blob(blob_path)
+        if blob is None:
+            blob = gcloud.storage.blob.Blob(blob_path, bucket)
         return blob
 
     def get_step_output_location(self, local_path, file_object=None):

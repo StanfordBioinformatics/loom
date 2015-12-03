@@ -194,12 +194,16 @@ class OutputManager:
     def process_all_outputs(self):
         for output_port in self.output_ports:
             PortOutputManager.process_output(self.settings, self.step_run, self.logger, output_port)
-        self._upload_logfile()
+        self._upload_logfiles()
 
-    def _upload_logfile(self):
+    def _upload_logfiles(self):
         filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
         location = filehandler_obj.get_step_output_location(self.settings['STEP_LOGFILE'])
         filehandler_obj.upload(self.settings['STEP_LOGFILE'], location)
+        location = filehandler_obj.get_step_output_location(self.settings['STDOUT_LOGFILE'])
+        filehandler_obj.upload(self.settings['STDOUT_LOGFILE'], location)
+        location = filehandler_obj.get_step_output_location(self.settings['STDERR_LOGFILE'])
+        filehandler_obj.upload(self.settings['STDERR_LOGFILE'], location)
 
 
 class StepRunner:
@@ -225,11 +229,15 @@ class StepRunner:
     def run(self):
         try:
             self._prepare_working_directory(self.settings['WORKING_DIR'])
-            self._add_steprundir_logfile()
+            self._add_logfiles()
             self.input_manager.prepare_all_inputs()
 
-            process = self._execute()
+            stdoutlog = open(self.settings['STDOUT_LOGFILE'], 'w')
+            stderrlog = open(self.settings['STDERR_LOGFILE'], 'w')
+            process = self._execute(stdoutlog, stderrlog)
             self._wait_for_process(process)
+            stdoutlog.close()
+            stderrlog.close()
 
             self.output_manager.process_all_outputs()
             self._flag_run_as_complete(self.step_run)
@@ -275,7 +283,7 @@ class StepRunner:
             else:
                 raise
 
-    def _execute(self):
+    def _execute(self, stdoutlog, stderrlog):
         step_definition = self.step_run.get('step_definition')
         environment = step_definition.get('environment')
         docker_image = environment.get('docker_image')
@@ -285,7 +293,7 @@ class StepRunner:
         raw_full_command = 'docker run --rm -v ${host_dir}:${container_dir}:rw -w ${container_dir} $docker_image sh -c \'$user_command\'' #TODO - need sudo?
         full_command = string.Template(raw_full_command).substitute(container_dir=container_dir, host_dir=host_dir, docker_image=docker_image, user_command=user_command)
         self.logger.debug(full_command)
-        return subprocess.Popen(full_command, shell=True)
+        return subprocess.Popen(full_command, shell=True, stdout=stdoutlog, stderr=stderrlog)
 
     def _wait_for_process(self, process, poll_interval_seconds=1, timeout_seconds=86400):
         start_time = datetime.now()
@@ -342,9 +350,13 @@ class StepRunner:
                 os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
             return logging.FileHandler(self.settings['WORKER_LOGFILE'])
 
-    def _add_steprundir_logfile(self):
+    def _add_logfiles(self):
+        """Add logfiles for the worker, stdout, and stderr."""
+        self.settings.update({'STEP_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'worker_log.txt')})
+        self.settings.update({'STDOUT_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'stdout_log.txt')})
+        self.settings.update({'STDERR_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'stderr_log.txt')})
+
         formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
-        self.settings.update({'STEP_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'step.log')})
         handler = logging.FileHandler(self.settings['STEP_LOGFILE'])
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
