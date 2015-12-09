@@ -13,6 +13,8 @@ import time
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
+from django.utils import dateparse
+
 from loom.common import md5calc, filehandler
 
 
@@ -208,8 +210,6 @@ class OutputManager:
 
 class StepRunner:
 
-    STEP_RUNS_DIR = 'step_runs'
-
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
@@ -221,6 +221,9 @@ class StepRunner:
         self.settings.update(self._get_additional_settings())
         self._init_logger()
         self._init_step_run()
+        self.logger.debug('Initing run request')
+        self._init_workflow()
+        self.logger.debug('Getting working dir settings')
         self.settings.update(self._get_working_dir_setting())
 
         self.input_manager = InputManager(self.settings, self.step_run, self.logger)
@@ -258,25 +261,47 @@ class StepRunner:
         response = requests.get(url)
         response.raise_for_status()
         self.step_run = response.json()
+        self.step = self.step_run['steps'][0]
         self.logger.debug('Retrieved StepRun %s' % self.step_run)
 
+    def _init_workflow(self):
+        url = self.settings['MASTER_URL'] + '/api/run_requests'
+        response = requests.get(url)
+        response.raise_for_status()
+        run_requests = response.json()['run_requests']
+        for run_request in run_requests:
+            for workflow in run_request['workflows']:
+                for step in workflow['steps']:
+                    if step['_id'] == self.step['_id']:
+                        self.workflow = workflow
+                        return
+        raise Exception('Step ID not found')
+
     def _get_working_dir_setting(self):
+        workflow_datetime_created = dateparse.parse_datetime(self.workflow['datetime_created'])
+        workflow_datetime_created_string = workflow_datetime_created.strftime("%Y%m%d-%Hh%Mm%Ss")
+
         return {'WORKING_DIR': 
                 os.path.join(
                 self.settings['FILE_ROOT_FOR_WORKER'],
-                self.STEP_RUNS_DIR,
+                'workflows',
+                "%s_%s_%s" % (
+                    workflow_datetime_created_string,
+                    self.workflow['_id'],
+                    self.workflow['name']
+                    ),
                 "%s_%s_%s" % (
                     datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss"),
                     self.settings['RUN_ID'],
-                    self.step_run['steps'][0]['name']
+                    self.step['name']
                     )
                 )
                 }
 
     def _prepare_working_directory(self, working_dir):
+        self.logger.debug('Trying to create working directory %s' % working_dir)
         try:
             os.makedirs(working_dir)
-            self.logger.debug('Created working directory %s' % working_dir)
         except OSError as e:
             if e.errno == errno.EEXIST and os.path.isdir(working_dir):
                 self.logger.debug('Found working directory %s' % working_dir)

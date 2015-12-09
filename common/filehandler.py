@@ -83,14 +83,17 @@ class AbstractFileHandler:
         )
 
     def _get_step_output_path(self, local_path):
-        """Step outputs are placed in a directory of the same name as the
-        local directory, and named with the same filename. 
+        """Step outputs are placed in directories of the same name as the
+        local directories, and named with the same filename. 
         """
         filename = os.path.basename(local_path)
         step_run_dir = os.path.basename(os.path.dirname(local_path))
+        workflow_dir = os.path.basename(os.path.dirname(os.path.dirname(local_path)))
+        workflows_dir = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(local_path))))
         return os.path.join(
             self.settings['FILE_ROOT'],
-            self.settings['STEP_RUNS_DIR'],
+            workflows_dir,
+            workflow_dir,
             step_run_dir,
             filename
         )
@@ -131,7 +134,13 @@ class LocalFileHandler(AbstractPosixPathFileHandler):
         For step outputs, don't need to do anything, because the working directory is the destination."""
         destination_path = destination_location['file_path']
         if local_path != destination_path:
-            os.makedirs(os.path.dirname(destination_path))
+            try:
+                os.makedirs(os.path.dirname(destination_path))
+            except OSError as e:
+                if e.errno == errno.EEXIST:
+                    print 'Directory already exists: ', os.path.dirname(destination_path)
+                else:
+                    raise e
             shutil.copyfile(local_path, destination_path)
         return
 

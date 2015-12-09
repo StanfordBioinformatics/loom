@@ -69,7 +69,7 @@ class SettingsManager:
             # Workers on same machine as server
             'WORKER_TYPE': 'LOCAL',
             'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
-            'FILE_SERVER_FOR_WORKER': 'unused',
+            'FILE_SERVER_FOR_WORKER': 'localhost',
             'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'), # Where to create step run directories on the worker
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
