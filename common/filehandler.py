@@ -138,7 +138,7 @@ class LocalFileHandler(AbstractPosixPathFileHandler):
                 os.makedirs(os.path.dirname(destination_path))
             except OSError as e:
                 if e.errno == errno.EEXIST:
-                    print 'Directory already exists: ', os.path.dirname(destination_path)
+                    pass
                 else:
                     raise e
             shutil.copyfile(local_path, destination_path)
