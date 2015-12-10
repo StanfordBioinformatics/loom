@@ -12,7 +12,7 @@ logger = logging.getLogger('LoomDaemon')
 PYTHON_EXECUTABLE = os.path.abspath(
     os.path.join(
         settings.BASE_DIR,
-        '../../../env/bin/python',
+        '../../../bin/python',
         ))
 
 # Location of step runner on worker node
@@ -27,9 +27,9 @@ class ClusterWorkerManager:
     @classmethod
     def _create_file_root(cls):
         try:
-            os.makedirs(settings.FILE_ROOT)
+            os.makedirs(settings.FILE_ROOT_FOR_WORKER)
         except OSError as e:
-            if e.errno == errno.EEXIST and os.path.isdir(settings.FILE_ROOT):
+            if e.errno == errno.EEXIST and os.path.isdir(settings.FILE_ROOT_FOR_WORKER):
                 pass
             else:
                 raise
@@ -69,7 +69,7 @@ class ClusterWorkerManager:
         # Use Slurm to call the step runner on a worker node
     	ClusterWorkerManager._create_file_root()
         cmd = "sbatch -D %s -n %s --mem=%s --wrap='%s'" % (
-	    settings.FILE_ROOT,
+	    settings.FILE_ROOT_FOR_WORKER,
             resources.cores,
             resources.memory,
             cmd

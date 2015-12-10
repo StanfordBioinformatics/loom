@@ -54,6 +54,13 @@ class SettingsManager:
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
+            # Where to get inputs and place outputs.
+            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
+            'FILE_SERVER_TYPE': 'LOCAL',
+            'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'PROJECT_ID': 'unused',
+            'BUCKET_ID': 'unused',
+
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
             # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
@@ -63,18 +70,69 @@ class SettingsManager:
             'WORKER_TYPE': 'LOCAL',
             'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
             'FILE_SERVER_FOR_WORKER': 'localhost',
+            'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'), # Where to create step run directories on the worker
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
             'CLIENT_TYPE': 'LOCAL',
             'MASTER_URL_FOR_CLIENT': 'http://127.0.0.1:8000',
-            'FILE_SERVER_FOR_CLIENT': 'localhost', 
+            'FILE_SERVER_FOR_CLIENT': 'unused', 
 
             # Needed by both worker and client
-            'FILE_ROOT': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'IMPORT_DIR': 'imported_files',
+            'STEP_RUNS_DIR': 'step_runs',
     
             # Not currently used for local mode
-            'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
+            'REMOTE_USERNAME': 'unused'
+        },
+
+        # Client, workers, and master all on local machine, fileserver is Google Cloud
+        'LOCAL_GOOGLE_STORAGE_SETTINGS': {
+            'WEBSERVER_PIDFILE': '/tmp/loom_webserver.pid',
+            'BIND_IP': '127.0.0.1',
+            'BIND_PORT': '8000',
+            'PROTOCOL': 'http',
+            'SERVER_WSGI_MODULE': 'loomserver.wsgi',
+            'SERVER_PATH': os.path.join(LOOM_ROOT, 'master'),
+            'DAEMON_PIDFILE': '/tmp/loom_daemon.pid',
+            'ACCESS_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_http_access.log'),
+            'ERROR_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_http_error.log'),
+            'DJANGO_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_django.log'),
+            'WEBSERVER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_webserver.log'),
+            'DAEMON_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_daemon.log'),
+            #'LOG_LEVEL': 'INFO',
+            'LOG_LEVEL': 'DEBUG',
+
+            # Where to get inputs and place outputs.
+            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
+            'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
+            'FILE_ROOT': 'loom_working_dir',
+            'PROJECT_ID': 'gbsc-gcp-project-mvp-dev',
+            'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
+
+            # Info needed by workers
+            # - MASTER_URL passed as argument to step_runner
+            # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
+            #   webserver at MASTER_URL by step_runner
+
+            # Workers on same machine as server
+            'WORKER_TYPE': 'LOCAL',
+            'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
+            'FILE_SERVER_FOR_WORKER': 'unused',
+            'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
+
+            # Client on same machine as server
+            'CLIENT_TYPE': 'LOCAL',
+            'MASTER_URL_FOR_CLIENT': 'http://127.0.0.1:8000',
+            'FILE_SERVER_FOR_CLIENT': 'unused', 
+
+            # Needed by filehandler
+            'IMPORT_DIR': 'imported_files',
+            'STEP_RUNS_DIR': 'step_runs',
+    
+            # Not currently used for local mode
+            'REMOTE_USERNAME': 'unused'
         },
 
         # Client is outside of elasticluster, workers and master in elasticluster
@@ -94,16 +152,24 @@ class SettingsManager:
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
+            # Where to get inputs and place outputs.
+            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
+            'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
+            'FILE_ROOT': 'loom_working_dir',
+            'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
+            'PROJECT_ID': 'gbsc-gcp-project-mvp-dev',
+
             # Info needed by workers
             # - MASTER_URL_FOR_WORKER passed as argument to step_runner
             # - FILE_SERVER_FOR_WORKER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
             #   webserver at MASTER_URL by step_runner
 
             # Workers (and master) in elasticluster 
-            # Allows workers to reach LOOM master at "frontend001" instead of having to find IP after deployment
+            # Allows workers to reach loom master at "frontend001" instead of having to find IP after deployment
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
-            'FILE_SERVER_FOR_WORKER': 'frontend001',
+            'FILE_SERVER_FOR_WORKER': 'unused',
+            'FILE_ROOT_FOR_WORKER': '/var/tmp', # must exist on all worker nodes by the time Slurm sbatch is called
             'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
 
             # Info needed by client (loom_run and loom_upload)
@@ -114,7 +180,8 @@ class SettingsManager:
             'FILE_SERVER_FOR_CLIENT': 'Error, not initialized',  # retrieved by _get_frontend_ip_from_elasticluster()
 
             # Needed by both worker and client
-            'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'IMPORT_DIR': 'imported_files',
+            'STEP_RUNS_DIR': 'step_runs',
             'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         },
 
@@ -136,6 +203,13 @@ class SettingsManager:
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
+            # Where to get inputs and place outputs.
+            # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
+            'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
+            'FILE_ROOT': 'loom_working_dir',
+            'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
+            'PROJECT_ID': 'gbsc-gcp-project-mvp-dev',
+
             # Info needed by workers
             # - MASTER_URL_FOR_WORKER passed as argument to step_runner
             # - FILE_SERVER_FOR_WORKER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
@@ -145,7 +219,9 @@ class SettingsManager:
             # Allows workers to reach LOOM master at "frontend001" instead of having to find IP after deployment
             'WORKER_TYPE': 'ELASTICLUSTER',
             'MASTER_URL_FOR_WORKER': 'http://frontend001:8000',
-            'FILE_SERVER_FOR_WORKER': 'frontend001',
+            'FILE_SERVER_FOR_WORKER': 'unused',
+            'FILE_ROOT_FOR_WORKER': '/var/tmp', # must exist on all worker nodes by the time Slurm sbatch is called
+
             'WORKER_LOGFILE': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir', 'log', 'loom_worker.log'),
 
             # Info needed by client (loom_run and loom_upload)
@@ -153,10 +229,11 @@ class SettingsManager:
             # Client inside elasticluster on frontend node
             'CLIENT_TYPE': 'INSIDE_ELASTICLUSTER',
             'MASTER_URL_FOR_CLIENT': 'http://frontend001:8000',
-            'FILE_SERVER_FOR_CLIENT': 'frontend001',
+            'FILE_SERVER_FOR_CLIENT': 'unused',
 
             # Needed by both worker and client
-            'FILE_ROOT': os.path.join('/home', DEFAULT_REMOTE_USERNAME, 'working_dir'),
+            'IMPORT_DIR': 'imported_files',
+            'STEP_RUNS_DIR': 'step_runs',
             'REMOTE_USERNAME': DEFAULT_REMOTE_USERNAME
         }
     }
@@ -182,11 +259,17 @@ class SettingsManager:
             "WORKER_TYPE": {"type": "string"},
             'MASTER_URL_FOR_WORKER': {"type": "string"},
             'FILE_SERVER_FOR_WORKER': {"type": "string"},
-            'FILE_ROOT': {"type": "string"},
+            'FILE_ROOT_FOR_WORKER': {"type": "string"},
+            'IMPORT_DIR': {"type": "string"},
+            'STEP_RUNS_DIR': {"type": "string"},
             'CLIENT_TYPE': {"type": "string"},
             'MASTER_URL_FOR_CLIENT': {"type": "string"},
             'FILE_SERVER_FOR_CLIENT': {"type": "string"},
-            'REMOTE_USERNAME': {"type": "string"}
+            'REMOTE_USERNAME': {"type": "string"},
+            'FILE_SERVER_TYPE': {"enum": ["LOCAL", "REMOTE", "GOOGLE_CLOUD"]},
+            'FILE_ROOT': {"type": "string"},
+            'BUCKET_ID': {"type": "string"},
+            'PROJECT_ID': {"type": "string"},
         },
         "additionalProperties": False
     }
@@ -197,8 +280,9 @@ class SettingsManager:
         "properties": {
             "CURRENT_PRESET": {"type": "string"},
             "LOCAL_SETTINGS": {"type": "object"},
+            "LOCAL_GOOGLE_STORAGE_SETTINGS": {"type": "object"},
             "ELASTICLUSTER_SETTINGS": {"type": "object"},
-            "ELASTICLUSTER_FRONTEND_SETTINGS": {"type": "object"}
+            "ELASTICLUSTER_FRONTEND_SETTINGS": {"type": "object"},
         },
         "additionalProperties": False
     }
@@ -345,6 +429,9 @@ class SettingsManager:
     def get_daemon_pid(self):
         return self._get_pid(self.get_daemon_pidfile())
 
+    def get_file_server_type(self):
+        return self.settings['FILE_SERVER_TYPE']
+
     def get_file_server_for_worker(self):
         return self.settings['FILE_SERVER_FOR_WORKER']
 
@@ -353,6 +440,9 @@ class SettingsManager:
 
     def get_file_root(self):
         return self.settings['FILE_ROOT']
+
+    def get_import_dir(self):
+        return self.settings['IMPORT_DIR']
 
     def get_client_type(self):
         return self.settings['CLIENT_TYPE']
@@ -425,7 +515,7 @@ class SettingsManager:
         Passing settings this way only works if the webserver is on the same machine as the
         client launching it.
 
-        TODO: pass settings to Django server when client is on a different machine
+        TODO: decide how to pass settings to Django server when client is on a different machine
         """
         export_settings = {}
         setting_keys_to_export = [
@@ -436,9 +526,15 @@ class SettingsManager:
             'WORKER_TYPE',
             'MASTER_URL_FOR_WORKER',
             'FILE_SERVER_FOR_WORKER',
+            'FILE_ROOT_FOR_WORKER',
             'MASTER_URL_FOR_CLIENT',
             'FILE_SERVER_FOR_CLIENT',
+            'FILE_SERVER_TYPE',
             'FILE_ROOT',
+            'IMPORT_DIR',
+            'STEP_RUNS_DIR',
+            'BUCKET_ID',
+            'PROJECT_ID',
             ]
         for key in setting_keys_to_export:
             value = self.settings.get(key)
@@ -448,6 +544,10 @@ class SettingsManager:
 
     def set_local(self):
         self.presets['CURRENT_PRESET'] = 'LOCAL_SETTINGS'
+        self.save_settings_to_file()
+
+    def set_local_gcloud(self):
+        self.presets['CURRENT_PRESET'] = 'LOCAL_GOOGLE_STORAGE_SETTINGS'
         self.save_settings_to_file()
 
     def set_elasticluster(self):

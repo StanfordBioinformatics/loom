@@ -31,6 +31,9 @@ class TestStepRunner(unittest.TestCase):
         args = parser.parse_args(['--run_id', self.step1_run_id, '--master_url', self.test_server.server_url])
         self.step_runner = StepRunner(args=args)
         self.step_runner.settings['WORKING_DIR'] = self.file_root
+        
+        self.stdout_filename = os.path.join(self.file_root, 'stdout.txt')
+        self.stderr_filename = os.path.join(self.file_root, 'stderr.txt')
 
     def tearDown(self):
         shutil.rmtree(self.file_root)
@@ -48,7 +51,9 @@ class TestStepRunner(unittest.TestCase):
         self.assertEqual(step_run.get('_id'), self.step1_run_id)
 
     def test_execute(self):
-        process = self.step_runner._execute()
+        with open(self.stdout_filename, 'w') as stdoutlog:
+            with open(self.stderr_filename, 'w') as stderrlog:
+                process = self.step_runner._execute(stdoutlog, stderrlog)
         self.step_runner._wait_for_process(process)
 
 if __name__=='__main__':

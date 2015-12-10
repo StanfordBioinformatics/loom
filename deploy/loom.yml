@@ -1,0 +1,42 @@
+# Playbook that deploys xppf master and workers
+# TODO: upload to ansible galaxy
+
+- hosts: loom_master
+  tasks:
+  - name: Install git, pip, and virtualenv
+    apt:
+      pkg: "{{ item }}"
+      state: latest
+      update_cache: yes
+    with_items:
+      - git
+      - python-pip
+      - python-virtualenv
+  - name: Pull loom from GitHub
+    git: repo=https://github.com/StanfordBioinformatics/loom.git
+         dest=/opt/loom/loom
+         version=production
+  - name: Set up virtualenv for loom and install dependencies
+    pip: virtualenv=/opt/loom/env
+         requirements=/opt/loom/loom/master/requirements.txt
+  - name: Start loom webserver and daemon
+    shell: source /opt/loom/env/bin/activate;export RACK_ENV=development;/opt/loom/loom/master/manage.py makemigrations;/opt/loom/loom/master/manage.py migrate;./loomconfig elasticluster_frontend;./loomserver start
+    args:
+      executable: /bin/bash
+      chdir: /opt/loom/loom/bin
+
+# docker_ubuntu already installs git and pip
+- hosts: loom_worker
+  tasks:
+  - name: Install virtualenv
+    apt:
+      pkg: python-virtualenv
+      state: latest
+      update_cache: yes
+  - name: Pull loom from GitHub
+    git: repo=https://github.com/StanfordBioinformatics/loom.git
+         dest=/opt/loom/loom
+         version=production
+  - name: Set up virtualenv for loom and install dependencies
+    pip: virtualenv=/opt/loom/env
+         requirements=/opt/loom/loom/worker/requirements.txt

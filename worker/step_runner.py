@@ -12,7 +12,10 @@ import time
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from loom.common import md5calc
+
+from django.utils import dateparse
+
+from loom.common import md5calc, filehandler
 
 
 class InputManager:
@@ -45,13 +48,15 @@ class InputManager:
             self._prepare_input(f, port)
 
     def _prepare_input(self, file_and_locations, port):
-        cmd = ['ln',
-               self._select_location(file_and_locations['file_storage_locations']),
-               file_and_locations['file_name']]
-        subprocess.call(cmd, cwd=self.settings['WORKING_DIR'])
+        remote_location = file_and_locations.get('file_storage_locations')[0]
+        local_path = os.path.join(self.settings['WORKING_DIR'], self._get_file_name(port))
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+        self.logger.debug('Downloading input %s from %s' % (local_path, remote_location))
+        filehandler_obj.download(remote_location, local_path)
 
-    def _select_location(self, locations):
-        return locations[0]['file_path']
+    def _get_file_name(self, input_port):
+        return input_port['file_name']
+
 
 class _AbstractPortOutputManager:
 
@@ -65,25 +70,12 @@ class _AbstractPortOutputManager:
         glob_string = self.output_port.get('glob')
         return glob.glob1(self.settings['WORKING_DIR'], glob_string)
 
-    def _get_file_object(self, file_path):
-        file = {
-            'file_contents': {
-                'hash_value': md5calc.calculate_md5sum(file_path),
-                'hash_function': 'md5',
-                }
-            }
-        return file
-
     def _save_result(self, result_info):
         data = {
             'step_run': self.step_run,
             'step_result': result_info,
             }
         response = requests.post(self.settings['MASTER_URL']+'/api/submitresult', data=json.dumps(data))
-        response.raise_for_status()
-
-    def _save_location(self, location):
-        response = requests.post(self.settings['MASTER_URL']+'/api/file_storage_locations', data=json.dumps(location))
         response.raise_for_status()
 
     def _get_location(self, file_object, file_path):
@@ -104,11 +96,15 @@ class _FilePortOutputManager(_AbstractPortOutputManager):
 
     def process_output(self):
         file_path = self._get_file_path()
-        file_object = self._get_file_object(file_path)
+        file_object = filehandler.create_file_object(file_path)
         result_info = self._get_result_info(file_object)
-        location = self._get_location(file_object, file_path)
         self._save_result(result_info)
-        self._save_location(location)
+
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+        location = filehandler_obj.get_step_output_location(file_path, file_object=file_object)
+        self.logger.debug('Uploading output %s to %s' % (file_path, location))
+        filehandler_obj.upload(file_path, location)
+        filehandler.post_location(self.settings['MASTER_URL'], location)
 
     def _get_file_path(self):
         file_name = self.output_port.get('file_name')
@@ -131,9 +127,20 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
         file_array = self._get_file_array_object(file_paths)
         result_info = self._get_result_info(file_array)
         self._save_result(result_info)
-        locations = self._get_locations(file_array, file_paths)
+
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+        locations = get_locations(file_array, file_paths, filehandler_obj)
+        
         for location in locations:
-            self._save_location(location)
+            filehandler.post_location(self.settings['MASTER_URL'], location)
+            self.logger.debug('Uploading output %s to %s' % (file_path, location))
+            filehandler_obj.upload(file_path, location)
+
+    def get_locations(self, file_array, file_paths, filehandler_obj):
+        locations = []
+        for (file_object, file_path) in zip(file_array['files'], file_paths):
+            locations.append(filehandler_obj.get_step_output_location(file_path, file_object))
+        return locations
 
     def _get_file_paths(self):
         paths = []
@@ -155,13 +162,6 @@ class _FileArrayPortOutputManager(_AbstractPortOutputManager):
         for path in file_paths:
             file_array['files'].append(self._get_file_object(path))
         return file_array
-
-    def _get_locations(self, file_array, file_paths):
-        locations = []
-        for (file_object, file_path) in zip(file_array['files'], file_paths):
-            locations.append(self._get_location(file_object, file_path))
-        return locations
-
 
 class PortOutputManager:
 
@@ -196,11 +196,19 @@ class OutputManager:
     def process_all_outputs(self):
         for output_port in self.output_ports:
             PortOutputManager.process_output(self.settings, self.step_run, self.logger, output_port)
+        self._upload_logfiles()
+
+    def _upload_logfiles(self):
+        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+        location = filehandler_obj.get_step_output_location(self.settings['STEP_LOGFILE'])
+        filehandler_obj.upload(self.settings['STEP_LOGFILE'], location)
+        location = filehandler_obj.get_step_output_location(self.settings['STDOUT_LOGFILE'])
+        filehandler_obj.upload(self.settings['STDOUT_LOGFILE'], location)
+        location = filehandler_obj.get_step_output_location(self.settings['STDERR_LOGFILE'])
+        filehandler_obj.upload(self.settings['STDERR_LOGFILE'], location)
 
 
 class StepRunner:
-
-    STEP_RUNS_DIR = 'step_runs'
 
     def __init__(self, args=None):
         if args is None:
@@ -213,6 +221,9 @@ class StepRunner:
         self.settings.update(self._get_additional_settings())
         self._init_logger()
         self._init_step_run()
+        self.logger.debug('Initing run request')
+        self._init_workflow()
+        self.logger.debug('Getting working dir settings')
         self.settings.update(self._get_working_dir_setting())
 
         self.input_manager = InputManager(self.settings, self.step_run, self.logger)
@@ -221,10 +232,15 @@ class StepRunner:
     def run(self):
         try:
             self._prepare_working_directory(self.settings['WORKING_DIR'])
+            self._add_logfiles()
             self.input_manager.prepare_all_inputs()
 
-            process = self._execute()
+            stdoutlog = open(self.settings['STDOUT_LOGFILE'], 'w')
+            stderrlog = open(self.settings['STDERR_LOGFILE'], 'w')
+            process = self._execute(stdoutlog, stderrlog)
             self._wait_for_process(process)
+            stdoutlog.close()
+            stderrlog.close()
 
             self.output_manager.process_all_outputs()
             self._flag_run_as_complete(self.step_run)
@@ -245,31 +261,54 @@ class StepRunner:
         response = requests.get(url)
         response.raise_for_status()
         self.step_run = response.json()
+        self.step = self.step_run['steps'][0]
         self.logger.debug('Retrieved StepRun %s' % self.step_run)
 
+    def _init_workflow(self):
+        url = self.settings['MASTER_URL'] + '/api/run_requests'
+        response = requests.get(url)
+        response.raise_for_status()
+        run_requests = response.json()['run_requests']
+        for run_request in run_requests:
+            for workflow in run_request['workflows']:
+                for step in workflow['steps']:
+                    if step['_id'] == self.step['_id']:
+                        self.workflow = workflow
+                        return
+        raise Exception('Step ID not found')
+
     def _get_working_dir_setting(self):
+        workflow_datetime_created = dateparse.parse_datetime(self.workflow['datetime_created'])
+        workflow_datetime_created_string = workflow_datetime_created.strftime("%Y%m%d-%Hh%Mm%Ss")
+
         return {'WORKING_DIR': 
                 os.path.join(
-                self.settings['FILE_ROOT'],
-                self.STEP_RUNS_DIR,
-                "%s_%s" % (
+                self.settings['FILE_ROOT_FOR_WORKER'],
+                'workflows',
+                "%s_%s_%s" % (
+                    workflow_datetime_created_string,
+                    self.workflow['_id'],
+                    self.workflow['name']
+                    ),
+                "%s_%s_%s" % (
                     datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss"),
-                    self.settings['RUN_ID']
+                    self.settings['RUN_ID'],
+                    self.step['name']
                     )
                 )
                 }
 
     def _prepare_working_directory(self, working_dir):
+        self.logger.debug('Trying to create working directory %s' % working_dir)
         try:
             os.makedirs(working_dir)
-            self.logger.debug('Created working directory %s' % working_dir)
         except OSError as e:
             if e.errno == errno.EEXIST and os.path.isdir(working_dir):
                 self.logger.debug('Found working directory %s' % working_dir)
             else:
                 raise
 
-    def _execute(self):
+    def _execute(self, stdoutlog, stderrlog):
         step_definition = self.step_run.get('step_definition')
         environment = step_definition.get('environment')
         docker_image = environment.get('docker_image')
@@ -279,7 +318,7 @@ class StepRunner:
         raw_full_command = 'docker run --rm -v ${host_dir}:${container_dir}:rw -w ${container_dir} $docker_image sh -c \'$user_command\'' #TODO - need sudo?
         full_command = string.Template(raw_full_command).substitute(container_dir=container_dir, host_dir=host_dir, docker_image=docker_image, user_command=user_command)
         self.logger.debug(full_command)
-        return subprocess.Popen(full_command, shell=True)
+        return subprocess.Popen(full_command, shell=True, stdout=stdoutlog, stderr=stderrlog)
 
     def _wait_for_process(self, process, poll_interval_seconds=1, timeout_seconds=86400):
         start_time = datetime.now()
@@ -335,6 +374,22 @@ class StepRunner:
             if not os.path.exists(os.path.dirname(self.settings['WORKER_LOGFILE'])):
                 os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
             return logging.FileHandler(self.settings['WORKER_LOGFILE'])
+
+    def _add_logfiles(self):
+        """Add logfiles for the worker, stdout, and stderr."""
+        self.settings.update({'STEP_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'worker_log.txt')})
+        self.settings.update({'STDOUT_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'stdout_log.txt')})
+        self.settings.update({'STDERR_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'stderr_log.txt')})
+
+        formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
+        handler = logging.FileHandler(self.settings['STEP_LOGFILE'])
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        
+
+class StepRunnerError(Exception):
+    pass
+
 
 if __name__=='__main__':
     StepRunner().run()
