@@ -1,0 +1,2 @@
+# Include version file in source distribution
+include VERSION
