@@ -8,10 +8,10 @@ import sys
 import time
 import unittest
 
-from loom.client import loom_config
+from loom.client import config
 
 TEST_SETTINGS_FILE = '/tmp/test_loom_settings.json'
-SCRIPT_PATH = loom_config.__file__.rstrip('c')
+SCRIPT_PATH = config.__file__.rstrip('c')
 
 class TestLoomConfig(unittest.TestCase):
 

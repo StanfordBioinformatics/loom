@@ -38,4 +38,3 @@ Loom is under active development. To get involved, contact nhammond@stanford.edu
 
 * Nathan Hammond
 * Isaac Liao
-* Ziliang Qian

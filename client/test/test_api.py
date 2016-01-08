@@ -6,7 +6,6 @@ from datetime import datetime
 import requests
 import time
 
-from loom.client import loom_server_controls
 from loom.common.testserver import TestServer
 
 class TestApi(unittest.TestCase):

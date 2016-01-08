@@ -454,7 +454,7 @@ class MutableModel(_BaseModel):
 
 class ImmutableModel(_BaseModel):
 
-    _id = models.TextField(primary_key=True)
+    _id = models.CharField(primary_key=True, max_length=255)
 
     @classmethod
     def create(cls, data_obj_or_json):

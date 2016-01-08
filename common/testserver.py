@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import os
 import unittest
 from datetime import datetime
@@ -7,7 +8,7 @@ import requests
 import subprocess
 import time
 from loom.common.helper import Helper
-from loom.client import loom_server_controls
+from loom.client import server
 
 
 class TestServer:
@@ -18,32 +19,32 @@ class TestServer:
     """
 
     def start(self, no_daemon=True):
-        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
+        xsc_parser = server.ServerControls.get_parser()
         arglist = ['start', '--require_default_settings', '--test_database']
         if no_daemon == True:
             arglist.append('--no_daemon')
         args = xsc_parser.parse_args(arglist)
-        self.xs = loom_server_controls.LoomServerControls(args=args)
-        self.xs.main() # start server
+        self.xs = server.ServerControls(args=args)
+        self.xs.run() # start server
         self.server_url = self.xs.settings_manager.get_server_url_for_client()
 
         # Confirm server started
         Helper.wait_for_true(self._webserver_started, timeout_seconds=5)
 
     def stop(self):
-        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
+        xsc_parser = server.ServerControls.get_parser()
         args = xsc_parser.parse_args(['stop', '--require_default_settings'])
-        self.xs = loom_server_controls.LoomServerControls(args=args)
-        self.xs.main() # stop server
+        self.xs = server.ServerControls(args=args)
+        self.xs.run() # stop server
 
         # Confirm server stopped
         Helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)
 
     def status(self):
-        xsc_parser = loom_server_controls.LoomServerControls._get_parser()
+        xsc_parser = server.ServerControls.get_parser()
         args = xsc_parser.parse_args(['status', '--require_default_settings'])
-        xs = loom_server_controls.LoomServerControls(args=args)
-        xs.main() # get server status
+        xs = server.ServerControls(args=args)
+        xs.run() # get server status
 
     def _webserver_started(self):
         return os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
@@ -75,7 +76,6 @@ class TestServer:
 
     @classmethod
     def _get_parser(cls):
-        import argparse
         parser = argparse.ArgumentParser("testserver")
         parser.add_argument('command', choices=['start', 'stop', 'status'])
         return parser

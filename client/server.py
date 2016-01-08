@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import os
 import requests
 import subprocess
@@ -13,7 +14,7 @@ DAEMON_EXECUTABLE = os.path.abspath(
     '../master/loomdaemon/loom_daemon.py'
     ))
 
-class LoomServerControls:
+class ServerControls:
     """
     This class provides methods for managing the loom server, specifically the commands:
     - start
@@ -28,12 +29,12 @@ class LoomServerControls:
             args=self._get_args()
         self.args = args
         self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
-        self._set_main_function(args)
+        self._set_run_function(args)
 
     @classmethod
-    def _get_parser(cls):
-        import argparse
-        parser = argparse.ArgumentParser("loomserver")
+    def get_parser(cls, parser=None):
+        if parser == None:
+            parser = argparse.ArgumentParser(__file__)
         parser.add_argument('command', choices=['start', 'stop', 'status'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
                             help="Settings files indicate which server to talk to and how the server can be reached. Defaults to ~/.loom/settings.json (created on first run if not found). Use loom config to choose from available presets, or edit the file directly.")
@@ -45,11 +46,11 @@ class LoomServerControls:
         return parser
 
     def _get_args(self):
-        parser = self._get_parser()
+        parser = self.get_parser()
         args = parser.parse_args()
         return args
 
-    def _set_main_function(self, args):
+    def _set_run_function(self, args):
         # Map user input command to class method
         command_to_method_map = {
             'status': self.status,
@@ -57,7 +58,7 @@ class LoomServerControls:
             'stop': self.stop
         }
         try:
-            self.main = command_to_method_map[args.command]
+            self.run = command_to_method_map[args.command]
         except KeyError:
             raise Exception('Did not recognize command %s' % args.command)
 
@@ -127,7 +128,7 @@ class LoomServerControls:
         try:
             response = requests.get(self.settings_manager.get_server_url_for_client() + '/api/status')
             if response.status_code == 200:
-                print "server is ok"
+                print "server is up"
             else:
                 print "unexpected status code %s from server" % response.status_code
             return response
@@ -188,4 +189,4 @@ class LoomServerControls:
         return env
 
 if __name__=='__main__':
-    LoomServerControls().main()
+    ServerControls().run()

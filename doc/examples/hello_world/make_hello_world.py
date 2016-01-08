@@ -88,9 +88,4 @@ hello_world_workflow = {
         ]
     }
 
-request_run = {
-    'workflows': [hello_world_workflow],
-    'requester': 'someone@example.net',
-    }
-
-print json.dumps(request_run, separators=(',', ':'), indent=2)
+print json.dumps(hello_world_workflow, separators=(',', ':'), indent=2)

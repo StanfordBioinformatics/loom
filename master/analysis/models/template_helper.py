@@ -63,8 +63,7 @@ class StepTemplateContext:
             }
 
     def _get_constants_context(self):
-        constants = self._get_run_request_constants()
-        constants.update(self._get_workflow_constants())
+        constants = self._get_workflow_constants()
         constants.update(self._get_step_constants())
         return constants
 
@@ -79,12 +78,6 @@ class StepTemplateContext:
                 return self.step.workflow.constants
         return {}
 
-    def _get_run_request_constants(self):
-        if self.step.workflow is not None:
-            if self.step.workflow.run_request is not None:
-                if self.step.workflow.run_request.constants is not None:
-                    return self.step.workflow.run_request.constants
-        return {}
 
 class StepTemplateHelper:
 

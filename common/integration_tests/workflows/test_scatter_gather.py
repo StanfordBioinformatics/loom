@@ -6,7 +6,7 @@ array_in_json_path = os.path.join(
     os.path.dirname(__file__), 
     '../../../common/fixtures/workflows/scatter_gather/scatter_gather.json')
 
-class TestArrayInWorkflow(AbstractWorkflowTester):
+class TestScatterGatherWorkflow(AbstractWorkflowTester):
 
     def setUp(self):
 

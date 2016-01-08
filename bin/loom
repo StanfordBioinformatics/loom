@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 export ROOTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )
 export PYTHONPATH=${ROOTDIR}:$PYTHONPATH
-python $ROOTDIR/loom/client/loom_compile.py --upload --submit "$@"
+python $ROOTDIR/loom/client/main.py "$@"

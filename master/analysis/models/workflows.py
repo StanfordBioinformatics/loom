@@ -12,57 +12,9 @@ from immutable.models import MutableModel
 
 
 """
-This module contains RunRequests and other classes related to
+This module contains Workflows and other classes related to
 receiving a request for analysis from a user.
 """
-
-
-class RunRequest(MutableModel, AnalysisAppBaseModel):
-    """A single instance of a user request for work. May contain
-    many workflows.
-    """
-
-    _class_name = ('run_request', 'run_requests')
-
-    FOREIGN_KEY_CHILDREN = ['workflows']
-    JSON_FIELDS = ['constants']
-
-    requester = models.CharField(max_length = 100)
-    constants = jsonfield.JSONField(null=True)
-    are_results_complete = models.BooleanField(default=False)
-
-    @classmethod
-    def update_and_run(cls):
-        cls.update_all_statuses()
-        StepRun.run_all()
-
-    @classmethod
-    def update_and_dry_run(cls):
-        cls.update_all_statuses()
-
-    @classmethod
-    def update_all_statuses(cls):
-        for run_request in cls.objects.filter(are_results_complete=False):
-            run_request._update_status()
-
-    def _update_status(self):
-        for workflow in self.workflows.filter(are_results_complete=False):
-            workflow._update_status()
-        if self.workflows.filter(are_results_complete=False).count() == 0:
-            self.update({'are_results_complete': True})
-
-    def _reset_status(self):
-        for workflow in self.workflows.filter(are_results_complete=True):
-            workflow.reset_status()
-            self.update({'are_results_complete': False})
-
-    @classmethod
-    def get_sorted(cls, count=None):
-        run_requests = cls.objects.order_by('datetime_created').reverse()
-        if count is not None and (run_requests.count() > count):
-            run_requests = run_requests[:count]
-        return [r for r in run_requests]
-
 
 class Workflow(MutableModel, AnalysisAppBaseModel):
     """Each workflow may contain many processing steps, with results from one
@@ -77,8 +29,21 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     # name is used for grouping working directories on the file server.
     name = models.CharField(max_length = 256, null=True)
     constants = jsonfield.JSONField(null=True)
-    run_request = models.ForeignKey('RunRequest', related_name='workflows', null=True)
     are_results_complete = models.BooleanField(default=False)
+
+    @classmethod
+    def update_and_run(cls):
+        cls.update_all_statuses()
+        StepRun.run_all()
+
+    @classmethod
+    def update_and_dry_run(cls):
+        cls.update_all_statuses()
+
+    @classmethod
+    def update_all_statuses(cls):
+        for workflow in cls.objects.filter(are_results_complete=False):
+            workflow._update_status()
 
     def _update_status(self):
         for step in self.steps.filter(are_results_complete=False):
@@ -89,6 +54,13 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
     def _reset_status(self):
         for step in self.steps.filter(are_results_complete=True):
             step.reset_status()
+
+    @classmethod
+    def get_sorted(cls, count=None):
+        workflows = cls.objects.order_by('datetime_created').reverse()
+        if count is not None and (workflows.count() > count):
+            workflows = workflows[:count]
+        return [wf for wf in workflows]
 
     def get_step(self, name):
         return self.steps.get(name=name)

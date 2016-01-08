@@ -4,7 +4,7 @@ from analysis.models import *
 urlpatterns = patterns(
     '',
     url(r'^status/?$', 'analysis.views.status'),
-    url(r'^submitrequest/?$', 'analysis.views.submitrequest'),
+    url(r'^submitworkflow/?$', 'analysis.views.submitworkflow'),
     url(r'^submitresult/?$', 'analysis.views.submitresult'),
     url(r'^closerun/?$', 'analysis.views.closerun'),
     url(r'^workerinfo/?$', 'analysis.views.workerinfo'),
@@ -16,7 +16,6 @@ model_classes = [
     FileArray,
     Workflow,
     FileStorageLocation,
-    RunRequest,
     Step,
     StepDefinition,
     StepRun,

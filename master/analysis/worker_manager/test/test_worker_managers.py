@@ -1,19 +1,10 @@
-from datetime import datetime
-import json
 import logging
-import os
-import requests
-import subprocess
-import sys
 import time
 import unittest
 
 from django.conf import settings
 
-from analysis.models import RunRequest
-from analysis.worker_manager.factory import WorkerManagerFactory
-from analysis.worker_manager.cluster import ClusterWorkerManager
-from analysis.worker_manager.local import LocalWorkerManager
+from analysis.models import Workflow
 from loom.common import fixtures
 from loom.common.testserver import TestServer
 
@@ -56,6 +47,6 @@ class TestWorkerManagers(unittest.TestCase):
         time.sleep(5)
 
     def _run_hello_world(self):
-        RunRequest.create(fixtures.hello_world_run_request_obj)
-        RunRequest.update_and_run()
+        Workflow.create(fixtures.hello_world_workflow_obj)
+        Workflow.update_and_run()
 

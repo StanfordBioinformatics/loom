@@ -54,18 +54,32 @@ ROOT_URLCONF = 'loomserver.urls'
 
 WSGI_APPLICATION = 'loomserver.wsgi.application'
 
+MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
+
 if RACK_ENV == 'development':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'development_db.sqlite3'),
+#            'ENGINE': 'django.db.backends.mysql',
+#            'NAME': 'loom',
+#            'USER': 'root',
+#            'PASSWORD': MYSQL_PASSWORD,
+#            'HOST': 'localhost',
+#            'PORT': '3306',      
         }
     }
 elif RACK_ENV == 'test':
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'test_db.sqlite3'),
+#            'ENGINE': 'django.db.backends.sqlite3',
+#            'NAME': os.path.join(BASE_DIR, 'test_db.sqlite3'),
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'loom_test',
+            'USER': 'root',
+            'PASSWORD': MYSQL_PASSWORD,
+            'HOST': 'localhost',
+            'PORT': '3306',
         }
     }
 else:

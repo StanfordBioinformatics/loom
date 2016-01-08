@@ -86,11 +86,6 @@ workflow_obj = {
     'data_pipes': [data_pipe_obj],
     }
 
-run_request_obj = {
-    'workflows': [workflow_obj],
-    'requester': 'someone@example.com',
-    }
-
 step_with_templated_command_obj = {
     'name': 'step1',
     'constants': {'id': 'step123'},
@@ -108,13 +103,4 @@ workflow_with_templated_command_obj = {
         'id': 'workflow123',
         'wf': 'x',
         }
-    }
-
-run_request_with_templated_command_obj = {
-    'workflows': [workflow_with_templated_command_obj],
-    'constants': {
-        'id': 'requestsubmission123',
-        'rs': 'y'
-        },
-    'requester': 'you@there'
     }
