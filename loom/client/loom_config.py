@@ -110,3 +110,6 @@ class LoomConfig:
 
 if __name__=='__main__':
     LoomConfig().main()
+
+def entrypoint():
+    LoomConfig().main()
