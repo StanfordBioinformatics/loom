@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import os
 import requests
 import subprocess
@@ -7,7 +8,7 @@ import sys
 
 from loom.client import settings_manager
 
-class LoomConfig:
+class Config:
     """
     This class provides methods for configuring the loom installation, specifically the subcommands:
     - local
@@ -35,9 +36,9 @@ class LoomConfig:
         self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings, verbose=args.verbose)
 
     @classmethod
-    def _get_parser(cls):
-        import argparse
-        parser = argparse.ArgumentParser("loomconfig")
+    def get_parser(cls, parser=None):
+        if parser == None:
+            parser = argparse.ArgumentParser(__file__)
         parser.add_argument('command', choices=['local', 'local_gcloud', 'elasticluster', 'elasticluster_frontend', 'savesettings', 'clearsettings'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
                             help="Settings indicate how to launch the server components, and how the client and worker components can reach them. Use 'loomconfig savesettings -s SETTINGS_FILE' to save.")
@@ -46,7 +47,7 @@ class LoomConfig:
         return parser
 
     def _get_args(self):
-        parser = self._get_parser()
+        parser = self.get_parser()
         args = parser.parse_args()
         return args
 
@@ -65,7 +66,7 @@ class LoomConfig:
             'clearsettings': self.clear_settings
         }
         try:
-            self.main = command_to_method_map[args.command]
+            self.run = command_to_method_map[args.command]
         except KeyError:
             raise ArgumentError('Did not recognize command %s' % args.command)
 
@@ -109,7 +110,4 @@ class LoomConfig:
         pass
 
 if __name__=='__main__':
-    LoomConfig().main()
-
-def entrypoint():
-    LoomConfig().main()
+    Config().run()

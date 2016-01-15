@@ -161,8 +161,8 @@ class TestInputlessInputSetManager(TestCase):
 class TestSimpleInputSetManager(TestCase):
 
     def setUp(self):
-        self.request = RunRequest.create(fixtures.hello_world_run_request_obj)
-        self.step = self.request.workflows.first().get_step('hello_world_step')
+        self.workflow = Workflow.create(fixtures.hello_world_workflow_obj)
+        self.step = self.workflow.get_step('hello_world_step')
         self.input_set_manager = InputlessInputSetManager(self.step)
 
     def test_init(self):

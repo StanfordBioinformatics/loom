@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, RunRequest, StepRun, StepResult
+from analysis.models import File, Workflow, StepRun, StepResult
 
 logger = logging.getLogger('loom')
 
@@ -72,14 +72,14 @@ def filehandlerinfo(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def submitrequest(request):
+def submitworkflow(request):
     data_json = request.body
     try:
-        run_request = RunRequest.create(data_json)
-        logger.info('Created run request %s' % run_request._id)
-        return JsonResponse({"message": "created %s" % run_request.get_name(), "_id": str(run_request._id)}, status=201)
+        workflow = Workflow.create(data_json)
+        logger.info('Created workflow %s' % workflow._id)
+        return JsonResponse({"message": "created %s" % workflow.get_name(), "_id": str(workflow._id)}, status=201)
     except Exception as e:
-        logger.error('Failed to create run request with data "%s". %s' % (data_json, e.message))
+        logger.error('Failed to create workflow with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=400)
 
 @csrf_exempt
@@ -119,7 +119,7 @@ def show_input_port_bundles(request, id):
 @csrf_exempt
 @require_http_methods(["GET"])
 def dashboard(request):
-    # Display all active RunRequests plus the last n closed RunRequests
+    # Display all active Workflows plus the last n closed Workflows
 
     def _get_count(request):
         DEFAULT_COUNT_STR = '10'
@@ -150,20 +150,10 @@ def dashboard(request):
                 ]
             }
 
-    def _get_run_request_info(r):
-        return {
-            'created_at': r.datetime_created,
-            'are_results_complete': r.are_results_complete,
-            'id': r.get_field_as_serializable('_id'),
-            'workflows': [ 
-                _get_workflow_info(w) for w in r.workflows.order_by('datetime_created').reverse().all()
-                ]
-            }
-
     count = _get_count(request)
-    run_requests = RunRequest.get_sorted(count=count)
-    if len(run_requests) == 0:
-        run_requests_info = []
-    run_requests_info = [_get_run_request_info(r) for r in run_requests]
+    workflows = Workflow.get_sorted(count=count)
+    if len(workflows) == 0:
+        workflows = []
+    workflow_info = [_get_workflow_info(wf) for wf in workflows]
 
-    return JsonResponse({'run_requests': run_requests_info}, status=200)
+    return JsonResponse({'workflows': workflow_info}, status=200)

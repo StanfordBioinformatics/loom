@@ -10,7 +10,6 @@ import tempfile
 import time
 import unittest
 
-from loom.client import loom_server_controls
 from loom.common import fixtures
 from loom.common.testserver import TestServer
 from loom.worker.step_runner import StepRunner
@@ -40,8 +39,8 @@ class TestStepRunner(unittest.TestCase):
         self.test_server.stop()
 
     def _run_hello_world(self):
-        url = self.test_server.server_url+'/api/submitrequest/'
-        response = requests.post(url, data=json.dumps(fixtures.hello_world_run_request_obj))
+        url = self.test_server.server_url+'/api/submitworkflow/'
+        response = requests.post(url, data=json.dumps(fixtures.hello_world_workflow_obj))
         self.assertEqual(response.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (response.status_code, url))
         self.test_server.dry_run_job_queues()
 

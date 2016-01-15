@@ -1,10 +1,7 @@
 {
-    "requester": "someone@example.net",
-    "constants": {
-        "input_dir": "/Users/iliao/loom/loom/doc/examples/helloworld"
-    },
-    "workflows": [
-        {
+            "constants": {
+                "input_dir": "/Users/iliao/loom/loom/doc/examples/helloworld"
+            },
             "name": "hello_world",
             "imports": [
                 "${input_dir}/hello.txt"
@@ -43,6 +40,4 @@
                     }
                 }
             ]
-        }
-    ]
 }

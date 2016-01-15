@@ -8,8 +8,7 @@ import time
 from django.conf import settings
 from django.test import TestCase
 
-from analysis.models import RunRequest
-from loom.client import loom_server_controls
+from analysis.models import Workflow
 from loom.common import fixtures
 from loom.common.helper import Helper
 from loom.common.testserver import TestServer
@@ -26,20 +25,20 @@ class TestLoomRun(TestCase):
 
     def test_create_show_index_immutable(self):
         # Test create
-        r = requests.post(self.test_server.server_url+'/api/run_requests', data=json.dumps(fixtures.hello_world_run_request_obj))
+        r = requests.post(self.test_server.server_url+'/api/workflows', data=json.dumps(fixtures.hello_world_workflow_obj))
         r.raise_for_status()
-        self.assertTrue('{"message": "created run_request", "_id":' in r.text)
+        self.assertTrue('{"message": "created workflow", "_id":' in r.text)
 
         # Test show
         id = r.json().get('_id')
-        r = requests.get(self.test_server.server_url+'/api/run_requests/'+ str(id))
+        r = requests.get(self.test_server.server_url+'/api/workflows/'+ str(id))
         r.raise_for_status()
         self.assertEqual(r.json()['_id'], str(id))
 
         # Test index
-        r = requests.get(self.test_server.server_url+'/api/run_requests/')
+        r = requests.get(self.test_server.server_url+'/api/workflows/')
         r.raise_for_status()
-        ids = map(lambda x:x['_id'], r.json()['run_requests'])
+        ids = map(lambda x:x['_id'], r.json()['workflows'])
         self.assertTrue(id in ids)
 
     def test_create_show_index_update_mutable(self):

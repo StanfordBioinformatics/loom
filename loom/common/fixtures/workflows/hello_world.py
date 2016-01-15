@@ -77,7 +77,7 @@ hello_world_step = {
         ],
 }
 
-hello_world_workflow = {
+hello_world_workflow_obj = {
     'name': 'hello_world',
     'steps': [
         world_step,
@@ -105,11 +105,6 @@ hello_world_workflow = {
                 }
             }
         ]
-    }
-
-hello_world_run_request_obj = {
-    'workflows': [hello_world_workflow],
-    'requester': 'someone@example.net',
     }
 
 world_step_definition_output_port = {
@@ -183,4 +178,4 @@ hello_world_step_run = {
     }
 
 if __name__=='__main__':
-    print json.dumps(hello_world_run_request_obj, separators=(',', ':'), indent=2)
+    print json.dumps(hello_world_workflow_obj, separators=(',', ':'), indent=2)

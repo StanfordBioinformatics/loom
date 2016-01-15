@@ -55,8 +55,8 @@ class InputManager:
         filehandler_obj.download(remote_location, local_path)
 
     def _get_file_name(self, input_port):
-        return input_port['file_name']
-
+        # TODO this does not work for arrays
+        return input_port['file_names'][0]['name']
 
 class _AbstractPortOutputManager:
 
@@ -210,6 +210,8 @@ class OutputManager:
 
 class StepRunner:
 
+    STEP_RUNS_DIR = 'step_runs'
+    
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
@@ -221,9 +223,8 @@ class StepRunner:
         self.settings.update(self._get_additional_settings())
         self._init_logger()
         self._init_step_run()
-        self.logger.debug('Initing run request')
+        self._init_step()
         self._init_workflow()
-        self.logger.debug('Getting working dir settings')
         self.settings.update(self._get_working_dir_setting())
 
         self.input_manager = InputManager(self.settings, self.step_run, self.logger)
@@ -261,21 +262,22 @@ class StepRunner:
         response = requests.get(url)
         response.raise_for_status()
         self.step_run = response.json()
-        self.step = self.step_run['steps'][0]
         self.logger.debug('Retrieved StepRun %s' % self.step_run)
+        
+    def _init_step(self):
+        self.step = self.step_run['steps'][0]
 
     def _init_workflow(self):
-        url = self.settings['MASTER_URL'] + '/api/run_requests'
+        url = self.settings['MASTER_URL'] + '/api/workflows'
         response = requests.get(url)
         response.raise_for_status()
-        run_requests = response.json()['run_requests']
-        for run_request in run_requests:
-            for workflow in run_request['workflows']:
-                for step in workflow['steps']:
-                    if step['_id'] == self.step['_id']:
-                        self.workflow = workflow
-                        return
-        raise Exception('Step ID not found')
+        workflows = response.json()['workflows']
+        for workflow in workflows:
+            for step in workflow['steps']:
+                if step['_id'] == self.step['_id']:
+                    self.workflow = workflow
+                    return
+            raise Exception('Step ID not found')
 
     def _get_working_dir_setting(self):
         workflow_datetime_created = dateparse.parse_datetime(self.workflow['datetime_created'])
@@ -307,7 +309,7 @@ class StepRunner:
                 self.logger.debug('Found working directory %s' % working_dir)
             else:
                 raise
-
+            
     def _execute(self, stdoutlog, stderrlog):
         step_definition = self.step_run.get('step_definition')
         environment = step_definition.get('environment')

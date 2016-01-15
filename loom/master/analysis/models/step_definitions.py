@@ -14,7 +14,7 @@ edited after they are created.
 
 StepDefinitions from different sources or even different 
 servers are identical and considered equivalent, although 
-multiple related request or run objects may exist from the
+multiple related workflow or run objects may exist from the
 same analysis being run at different times or on different
 servers.
 """

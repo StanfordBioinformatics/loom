@@ -5,10 +5,10 @@ import unittest
 from datetime import datetime
 import time
 
-from loom.client import loom_server_controls
+from loom.client import server
 from loom.common.testserver import TestServer
 
-class TestLoomServerControls(unittest.TestCase):
+class TestServerControls(unittest.TestCase):
 
     def setUp(self):
         self.test_server = TestServer()
@@ -18,12 +18,12 @@ class TestLoomServerControls(unittest.TestCase):
         self.test_server.stop()
 
     def test_status(self):
-        parser = loom_server_controls.LoomServerControls._get_parser()
+        parser = server.ServerControls.get_parser()
         args = parser.parse_args(['status', '--require_default_settings'])
 
         # call by args. This just prints output to screen
-        xs = loom_server_controls.LoomServerControls(args=args)
-        xs.main()
+        xs = server.ServerControls(args=args)
+        xs.run()
         
         # call by status method directly to check response
         response = xs.status()

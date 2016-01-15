@@ -2,7 +2,7 @@
 
 import argparse
 import daemon
-from daemon import runner
+from daemon.pidfile import PIDLockFile
 import os
 import re
 import subprocess
@@ -69,7 +69,7 @@ class LoomDaemon:
     def _get_daemon_context(self):
         return daemon.DaemonContext(
             working_directory='.',
-            pidfile=daemon.pidfile.PIDLockFile(self.pidfile)
+            pidfile=PIDLockFile(self.pidfile)
             )
 
     def _get_pid(self):

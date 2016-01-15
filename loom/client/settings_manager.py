@@ -288,12 +288,18 @@ class SettingsManager:
     }
     
 
-    def __init__(self, settings_file=None, require_default_settings=False, skip_init=False, verbose=False):
-        # skip_init is for testing purposes
-        if not skip_init:
-            self._initialize(settings_file=settings_file, require_default_settings=require_default_settings, verbose=verbose)
+    def __init__(self, **kwargs):
+        if not self._do_skip_init(**kwargs):
+            self._initialize(**kwargs)
 
-    def _initialize(self, settings_file=None, require_default_settings=False, verbose=False):
+    def _do_skip_init(self, **kwargs):
+        try:
+            skip_init = kwargs.pop('skip_init')
+        except KeyError:
+            skip_init = False
+        return skip_init
+
+    def _initialize(self, settings_file=None, require_default_settings=False, verbose=False, save_settings=True):
         self.verbose = verbose
         self.settings_file = settings_file
         self.require_default_settings = require_default_settings
@@ -305,7 +311,8 @@ class SettingsManager:
             self.load_settings_from_file()
         else:
             self.load_settings_from_presets(SettingsManager.DEFAULT_PRESETS)
-            self.save_settings_to_file()
+            if save_settings:
+                self.save_settings_to_file()
 
         # Get IP's from elasticluster if needed
         if self.settings['CLIENT_TYPE'] == 'OUTSIDE_ELASTICLUSTER':

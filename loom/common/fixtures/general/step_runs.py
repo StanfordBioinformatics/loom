@@ -1,5 +1,5 @@
 from .data_objects import file_obj
-from .run_requests import step_1_obj
+from .workflows import step_1_obj
 from .step_definitions import step_definition_obj, step_definition_output_port_obj
 
 # StepRun and related objects

@@ -7,10 +7,10 @@ We observed that many bioinformaticians are doing analysis in a way that
 is not repeatable or traceable, and that cannot be easily migrated to a
 new compute environment. For example:
 
-- Depending on local software installations and environment settings
-- Executing commands manually
-- Failing to record analysis details and results in a database
-- Depending on file names and paths that may change and cannot be verified
+-  Depending on local software installations and environment settings
+-  Executing commands manually
+-  Failing to record analysis details and results in a database
+-  Depending on file names and paths that may change and cannot be verified
 
 Loom is designed as an easy-to-use analysis platform that remedies these
 problems to make analysis repeatable, your results traceable, and your
@@ -58,9 +58,9 @@ Make sure your analysis is repeatable
 Never lose track of how a result was generated
 ----------------------------------------------
 
--  When answering questions like "Where did this file come from?", "What
-   software version did we use to produce this result", or "What
-   settings did we use for this?", you should never be scrambling
+-  When answering questions like “Where did this file come from?”, “What
+   software version did we use to produce this result”, or “What
+   settings did we use for this?”, you should never be scrambling
    through your notes or digging through output logs. Loom keeps track
    of result provenance and can tell you all the steps that were
    performed from import of the original input data to producing the
@@ -77,4 +77,3 @@ Contributors
 
 -  Nathan Hammond
 -  Isaac Liao
--  Ziliang Qian

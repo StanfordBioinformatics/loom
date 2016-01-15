@@ -292,8 +292,11 @@ def create_file_object(file_path):
         'file_contents': {
             'hash_value': md5calc.calculate_md5sum(file_path),
             'hash_function': 'md5',
-            }
+        },
+        'metadata': {
+            'filename': os.path.basename(file_path)
         }
+    }
     return file
 
 def post_file_object(url, file_obj):
