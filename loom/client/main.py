@@ -45,4 +45,8 @@ class Main(object):
         self.args.SubcommandClass(self.args).run()
 
 if __name__=='__main__':
+    main()
+
+# pip entrypoint requires a function with no arguments 
+def main():
     Main().run()
