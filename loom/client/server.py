@@ -110,7 +110,7 @@ class ServerControls:
         pidfile = self.settings_manager.get_daemon_pidfile()
         logfile = self.settings_manager.get_daemon_logfile()
         loglevel = self.settings_manager.get_log_level()
-        cmd = "%s start --pidfile %s --logfile %s --loglevel %s" % (DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
+        cmd = "%s %s start --pidfile %s --logfile %s --loglevel %s" % (sys.executable, DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
         if self.args.verbose:
             print("Starting loom daemon with command:\n%s" % cmd)
         process = subprocess.Popen(
@@ -150,7 +150,7 @@ class ServerControls:
 
     def _stop_daemon(self):
         subprocess.call(
-            "%s --pidfile %s stop" % (DAEMON_EXECUTABLE, self.settings_manager.get_daemon_pidfile()),
+            "%s %s --pidfile %s stop" % (sys.executable, DAEMON_EXECUTABLE, self.settings_manager.get_daemon_pidfile()),
             shell=True
             )
         self._cleanup_pidfile(self.settings_manager.get_daemon_pidfile())
