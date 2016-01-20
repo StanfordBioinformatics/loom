@@ -335,7 +335,9 @@ class StepRunner:
         if returncode == 0:
             return
         else:
-            raise Exception('Process returned with error %s' % str(returncode))
+            err_message = 'Worker process failed with error %s. \nFor more information check the stderr log file at %s'% (str(returncode), self.settings['STDERR_LOGFILE'])
+            self.logger.error(err_message)
+            raise Exception(err_message)
 
     def _flag_run_as_complete(self, step_run):
         update_data = {'are_results_complete': True, 'is_running': False}

@@ -1,53 +1,56 @@
-class ConvertToJsonError(Exception):
+class Error(Exception):
     pass
 
-class InvalidJsonError(Exception):
+class ConvertToJsonError(Error):
     pass
 
-class ConvertToDictError(Exception):
+class InvalidJsonError(Error):
     pass
 
-class MissingValidationSchemaError(Exception):
+class ConvertToDictError(Error):
     pass
 
-class ModelValidationError(Exception):
+class MissingValidationSchemaError(Error):
     pass
 
-class InvalidValidationSchemaError(Exception):
+class ModelValidationError(Error):
     pass
 
-class ModelNotFoundError(Exception):
+class InvalidValidationSchemaError(Error):
     pass
 
-class UpdateIdMismatchError(Exception):
+class ModelNotFoundError(Error):
     pass
 
-class NoSaveAllowedError(Exception):
+class UpdateIdMismatchError(Error):
     pass
 
-class AttributeDoesNotExist(Exception):
+class NoSaveAllowedError(Error):
     pass
 
-class MutableChildError(Exception):
+class AttributeDoesNotExist(Error):
     pass
 
-class CouldNotFindSubclassError(Exception):
+class MutableChildError(Error):
     pass
 
-class CouldNotFindUniqueSubclassError(Exception):
+class CouldNotFindSubclassError(Error):
     pass
 
-class ForeignKeyInChildError(Exception):
+class CouldNotFindUniqueSubclassError(Error):
     pass
 
-class ImmutableChildWithForeignKeyException(Exception):
+class ForeignKeyInChildError(Error):
     pass
 
-class AttemptedToUpdateImmutableError(Exception):
+class ImmutableChildWithForeignKeyError(Error):
     pass
 
-class UniqueIdMismatchError(Exception):
+class AttemptedToUpdateImmutableError(Error):
     pass
 
-class ParentNestedInChildException(Exception):
+class UniqueIdMismatchError(Error):
+    pass
+
+class ParentNestedInChildError(Error):
     pass

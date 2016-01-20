@@ -230,7 +230,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
     def create_step_run(self, input_set):
         return StepRun.create({
             'step_definition': self._render_step_definition(input_set),
-            'steps': [self.to_serializable_obj()],
+            'steps': [self.to_obj()],
             'output_ports': [port._render_step_run_output_port(input_set) for port in self.output_ports.all()],
             'input_ports': [self.get_input_port(input_port_name)._render_step_run_input_port(source, input_set) 
                             for input_port_name, source in input_set.inputs.iteritems()]
@@ -371,7 +371,7 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
         return {
             'file_names': self._render_file_names(data_object, input_set),
             'is_array': self.is_array,
-            'data_object': data_object.to_serializable_obj()
+            'data_object': data_object.to_obj()
             }
 
     def _render_file_names(self, data_object, input_set):

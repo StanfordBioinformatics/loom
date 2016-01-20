@@ -39,8 +39,8 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
     @classmethod
     def create_step_run(cls, step_definition, step):
         cls.create({
-                'step': step.to_serializable_obj(),
-                'step_definition': step_definition.to_serializable_obj()
+                'step': step.to_obj(),
+                'step_definition': step_definition.to_obj()
                 })
 
     def _update_status(self):
@@ -90,8 +90,8 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
         step_run_output_port = self.get_step_run_output_port_by_step_definition_output_port(step_definition_output_port)
         return StepResult.create(
             {
-                'data_object': data_object.to_serializable_obj(),
-                'output_port': step_run_output_port.to_serializable_obj()
+                'data_object': data_object.to_obj(),
+                'output_port': step_run_output_port.to_obj()
                 }
             )
 

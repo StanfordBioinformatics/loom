@@ -98,8 +98,8 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
         return [self._get_file_and_locations(file, name) for file, name in zip(file_list, file_names)]
 
     def _get_file_and_locations(self, file, file_name):
-        file_storage_locations = [l.to_serializable_obj() for l in FileStorageLocation.get_by_file(file).all()]
-        return {'file': file.to_serializable_obj(),
+        file_storage_locations = [l.to_obj() for l in FileStorageLocation.get_by_file(file).all()]
+        return {'file': file.to_obj(),
                 'file_storage_locations': file_storage_locations,
                 'file_name': file_name}
 
@@ -109,7 +109,7 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
         """
         return {
             'files_and_locations': self.get_files_and_locations_list(),
-            'input_port': self.to_serializable_obj()
+            'input_port': self.to_obj()
             }
 
 class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):

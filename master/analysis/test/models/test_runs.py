@@ -25,7 +25,7 @@ class TestRunsModels(ImmutableModelsTestCase):
         file = File.create(fixtures.file_obj)
         result = StepResult.create(
             {
-                'output_port': step_run.output_ports.first().to_serializable_obj(),
+                'output_port': step_run.output_ports.first().to_obj(),
                 'data_object': file.to_obj()
              }
             )

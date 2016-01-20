@@ -47,6 +47,13 @@ class TestMutableModel(TestCase):
         self.assertEqual(model.singlechild.name, 'ishmael')
         self.assertEqual(model.listofchildren.count(), 2)
 
+    def testCreateAllFieldsSorted(self):
+        model_json = '{"name": "papa", "singlechild": {"name": "ishmael"}, "listofchildren": [{"name": "ishmael"}, {"name": "jake"}]}'
+        model = SampleMutableParentSorted.create(model_json)
+        self.assertEqual(model.name, 'papa')
+        self.assertEqual(model.singlechild.name, 'ishmael')
+        self.assertEqual(model.listofchildren.count(), 2)
+
     def testToJson(self):
         model_json = '{"name": "papa", "singlechild": {"name": "ishmael"}, "listofchildren": [{"name": "ishmael"}, {"name": "jake"}]}'
         model = SampleMutableParent.create(model_json)
@@ -178,7 +185,7 @@ class TestImmutableModel(TestCase):
         with self.assertRaises(MutableChildError):
             model = BadImmutableParent.create(self.parent_json)
 
-    def test_change_list_order(self):
+    def test_change_list_order_unsorted_field(self):
         child1_obj = {'name': 'one'}
         child2_obj = {'name': 'two'}
         parent_obj = {'childlist': [child1_obj, child2_obj], 'name': 'one'}
@@ -186,6 +193,15 @@ class TestImmutableModel(TestCase):
         parent = SampleImmutableParent.create(parent_obj)
         parent_reverse = SampleImmutableParent.create(parent_reverse_obj)
         self.assertEqual(parent._id, parent_reverse._id)
+
+#    def test_change_list_order_sorted_field(self):
+#        child1_obj = {'name': 'one'}
+#        child2_obj = {'name': 'two'}
+#        parent_obj = {'childlist': [child1_obj, child2_obj], 'name': 'one'}
+#        parent_reverse_obj = {'childlist': [child2_obj, child1_obj], 'name': 'one'}
+#        parent = SampleImmutableParentSorted.create(parent_obj)
+#        parent_reverse = SampleImmutableParent.create(parent_reverse_obj)
+#        self.assertFalse(parent._id==parent_reverse._id)
 
     def testCreateWithEmptyList(self):
         model_json = '{"childlist": []}'

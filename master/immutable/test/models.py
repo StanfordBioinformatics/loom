@@ -1,6 +1,6 @@
 from django.db import models
 from immutable.models import ImmutableModel, MutableModel
-
+from sortedm2m.fields import SortedManyToManyField
 
 # Test models are defined here, not in the main app directory,
 # to prevent creating the test models' database tables in a
@@ -23,7 +23,13 @@ class SampleMutableChild3(MutableModel):
 class SampleMutableParent(MutableModel):
     FOREIGN_KEY_CHILDREN = ['listofchildren_foreignkey', 'singlechild']
     name = models.CharField(max_length=100)
-    listofchildren = models.ManyToManyField(SampleMutableChild2)
+    listofchildren = SortedManyToManyField(SampleMutableChild2)
+    singlechild = models.ForeignKey(SampleMutableChild, null=True, related_name = 'parents')
+
+class SampleMutableParentSorted(MutableModel):
+    FOREIGN_KEY_CHILDREN = ['listofchildren_foreignkey', 'singlechild']
+    name = models.CharField(max_length=100)
+    listofchildren = SortedManyToManyField(SampleMutableChild2)
     singlechild = models.ForeignKey(SampleMutableChild, null=True, related_name = 'parents')
 
 class SampleImmutableChild(ImmutableModel):
@@ -37,6 +43,12 @@ class SampleImmutableParent(ImmutableModel):
     name = models.CharField(max_length=100)
     child = models.OneToOneField(SampleImmutableChild, related_name='parent', null=True)
     childlist = models.ManyToManyField(SampleImmutableChild2)
+
+class SampleImmutableParentSorted(ImmutableModel):
+    FOREIGN_KEY_CHILDREN = ['child']
+    name = models.CharField(max_length=100)
+    child = models.OneToOneField(SampleImmutableChild, related_name='parent', null=True)
+    childlist = SortedManyToManyField(SampleImmutableChild2)
 
 class SampleGrandparent(ImmutableModel):
     FOREIGN_KEY_CHILDREN = ['p1']

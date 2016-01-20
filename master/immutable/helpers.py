@@ -4,14 +4,14 @@ import hashlib
 import json
 import uuid
 
-from immutable.exceptions import *
+from .exceptions import *
 
 
 JSON_DUMP_OPTIONS = {'separators': (',',':'), 'sort_keys': True}
 
 def obj_to_json(data_obj):
     try:
-        data_obj = NonserializableTypeConverter.convert(data_obj)
+        data_obj = NonserializableTypeConverter.convert_struct(data_obj)
         return json.dumps(data_obj, **JSON_DUMP_OPTIONS)
     except Exception as e:
         raise ConvertToJsonError('Could not convert object to JSON. "%s". %s' % (data_obj, e.message))
@@ -48,8 +48,7 @@ class StripKey(object):
             cls.strip_key(obj, key)
 
 class NonserializableTypeConverter(object):
-    """
-    Crawls a python data structure and
+    """Crawls a python data structure and
     converts non-serializable data types
     into a serializable type
     """
@@ -60,25 +59,31 @@ class NonserializableTypeConverter(object):
 
     @classmethod
     def convert(cls, obj):
+        if type(obj) in cls.special_type_converters.keys():
+            obj = cls.special_type_converters[type(obj)](obj)
+        return obj
+    
+    @classmethod
+    def convert_struct(cls, obj):
         #Main recursive loop
         if isinstance(obj, list):
             cls._branch_from_list(obj)
         elif isinstance(obj, dict):
             for key in obj.keys():
-                obj[key] = cls.convert(obj[key])
+                obj[key] = cls.convert_struct(obj[key])
         else:
             if type(obj) in cls.special_type_converters.keys():
                 obj = cls.special_type_converters[type(obj)](obj)
+#            obj = cls.convert(obj)
         return obj
 
     @classmethod
     def _branch_from_list(cls, objlist):
         for i in range(len(objlist)):
-            objlist[i] = cls.convert(objlist[i])
+            objlist[i] = cls.convert_struct(objlist[i])
 
 class StripBlanks(object):
-    """
-    Crawls a python data structure and removes
+    """Crawls a python data structure and removes
     any keys with values None, [], or {}
     """
 
