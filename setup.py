@@ -75,6 +75,9 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=[]),
 
+    # Include files that are checked into source control
+    include_package_data=True,
+
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:
     # py_modules=["my_module"],
@@ -83,7 +86,8 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=[  'Django>=1.8',
+    install_requires=[  'setuptools-git>=1.1',
+                        'Django>=1.8',
                         'django-extensions>=1.5.5',
                         'docutils>=0.12',
                         'gcloud>=0.8.0',
