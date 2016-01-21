@@ -33,10 +33,13 @@ setup(
 
     # The project's main homepage.
     url='https://github.com/StanfordBioinformatics/loom',
+    download_url='https://github.com/StanfordBioinformatics/loom/tarball/'+version,
 
     # Author details
     author='Nathan Hammond',
     author_email='nhammond@stanford.edu',
+    maintainer='Isaac Liao',
+    maintainer_email='iliao@stanford.edu',
 
     # Choose your license
     license='GNU Affero GPL',
@@ -70,7 +73,7 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    packages=find_packages(exclude=[]),
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:

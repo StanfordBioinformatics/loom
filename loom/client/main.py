@@ -10,6 +10,7 @@ from loom.client import config
 from loom.client import run
 from loom.client import server
 from loom.client import upload
+from loom.client import test_runner
 
 class Main(object):
 
@@ -38,6 +39,10 @@ class Main(object):
         config_subparser = subparsers.add_parser('config', help='configure the Loom server')
         config.Config.get_parser(config_subparser)
         config_subparser.set_defaults(SubcommandClass=config.Config)
+
+        test_subparser = subparsers.add_parser('test', help='run all unit tests')
+        test_runner.TestRunner.get_parser(test_subparser)
+        test_subparser.set_defaults(SubcommandClass=test_runner.TestRunner)
 
         return parser
 
