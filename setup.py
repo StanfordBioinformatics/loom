@@ -87,7 +87,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[  'setuptools-git>=1.1',
-                        'Django>=1.8',
+                        'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',
                         'docutils>=0.12',
                         'gcloud>=0.8.0',
