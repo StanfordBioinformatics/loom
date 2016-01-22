@@ -170,7 +170,7 @@ class LoomServerControls:
         # If test database requested, set RACK_ENV to test and reset database
         if self.args.test_database:
             env['RACK_ENV'] = 'test'
-            manage_cmd = '%s/manage.py' % self.settings_manager.get_server_path()
+            manage_cmd = '%s %s/manage.py' % (sys.executable, self.settings_manager.get_server_path())
             commands = [
                 '%s flush --noinput' % manage_cmd,
                 '%s migrate' % manage_cmd,

@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import sys
 import time
 from loom.master.loomdaemon import loom_daemon_logger
 
@@ -22,7 +23,7 @@ class App():
 
     def run(self):
         while True:
-            cmd = '%s run_job_queues' % MANAGE_EXECUTABLE
+            cmd = '%s %s run_job_queues' % (sys.executable, MANAGE_EXECUTABLE)
             if self.logfile:
                 cmd += ' --logfile %s' % self.logfile
             retcode = subprocess.call(
