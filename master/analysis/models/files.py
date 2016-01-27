@@ -1,8 +1,6 @@
-from django.db import models
-import jsonfield
-
 from analysis.models.common import AnalysisAppBaseModel
-from immutable.models import ImmutableModel, MutableModel
+from universalmodels import fields
+from universalmodels.models import ImmutableModel, InstanceModel
 from loom.common.exceptions import AbstractMethodException
 
 
@@ -35,11 +33,8 @@ class File(DataObject):
 
     _class_name = ('file', 'files')
 
-    FOREIGN_KEY_CHILDREN = ['file_contents']
-    JSON_FIELDS = ['metadata']
-
-    metadata = jsonfield.JSONField(null=True)
-    file_contents = models.ForeignKey('FileContents')
+    metadata = fields.JSONField(null=True)
+    file_contents = fields.ForeignKey('FileContents')
 
     def is_array(self):
         return False
@@ -64,29 +59,28 @@ class FileContents(ImmutableModel, AnalysisAppBaseModel):
 
     _class_name = ('file_contents', 'file_contents')
 
-    hash_value = models.CharField(max_length = 100)
-    hash_function = models.CharField(max_length = 100)
+    hash_value = fields.CharField(max_length = 100)
+    hash_function = fields.CharField(max_length = 100)
 
     def has_storage_location(self):
         return self.filestoragelocation_set.exists()
 
 
-class FileStorageLocation(MutableModel, AnalysisAppBaseModel):
+class FileStorageLocation(InstanceModel, AnalysisAppBaseModel):
     """Base class for any type of location where a specified set 
     of file contents can be found.
     """
 
     _class_name = ('file_storage_location', 'file_storage_locations')
 
-    FOREIGN_KEY_CHILDREN = ['file_contents']
-
-    file_contents = models.ForeignKey('FileContents', null=True)
+    file_contents = fields.ForeignKey('FileContents', null=True)
 
     @classmethod
     def get_by_file(self, file):
-        return self.objects.filter(file_contents=file.file_contents).all()
+        locations = self.objects.filter(file_contents=file.file_contents).all()
+        return locations
 
-
+    
 class ServerFileStorageLocation(FileStorageLocation):
     """File server where a specified set of file contents can be found and 
     accessed by ssh.
@@ -94,9 +88,10 @@ class ServerFileStorageLocation(FileStorageLocation):
 
     _class_name = ('file_server_location', 'file_server_locations')
 
-    host_url = models.CharField(max_length = 256)
-    file_path = models.CharField(max_length = 256)
+    host_url = fields.CharField(max_length = 256)
+    file_path = fields.CharField(max_length = 256)
 
+    
 class GoogleCloudStorageLocation(FileStorageLocation):
     """Project, bucket, and path where a specified set of file contents can be found and 
     accessed using Google Cloud Storage.
@@ -104,10 +99,11 @@ class GoogleCloudStorageLocation(FileStorageLocation):
 
     _class_name = ('google_cloud_storage_location', 'google_cloud_storage_locations')
 
-    project_id = models.CharField(max_length = 256)
-    bucket_id = models.CharField(max_length = 256)
-    blob_path = models.CharField(max_length = 256)
+    project_id = fields.CharField(max_length = 256)
+    bucket_id = fields.CharField(max_length = 256)
+    blob_path = fields.CharField(max_length = 256)
 
+    
 class FileArray(DataObject):
     """Array of files to be treated as a single entity for input/output of analysis
     steps or to be split for parallel workflows.
@@ -115,7 +111,7 @@ class FileArray(DataObject):
 
     _class_name = ('file_array', 'file_arrays')
     
-    files = models.ManyToManyField(File)
+    files = fields.ManyToManyField(File)
 
     def is_array(self):
         return True

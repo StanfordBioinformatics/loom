@@ -31,7 +31,7 @@ class NoSaveAllowedError(Error):
 class AttributeDoesNotExist(Error):
     pass
 
-class MutableChildError(Error):
+class InstanceModelChildError(Error):
     pass
 
 class CouldNotFindSubclassError(Error):
@@ -53,4 +53,16 @@ class UniqueIdMismatchError(Error):
     pass
 
 class ParentNestedInChildError(Error):
+    pass
+
+class InvalidInputTypeError(Error):
+    pass
+
+class InvalidInputError(Error):
+    pass
+
+class IllegalRelationError(Error):
+    pass
+
+class UnsupportedFieldTypeError(Error):
     pass

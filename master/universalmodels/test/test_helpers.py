@@ -1,6 +1,6 @@
 from django.test import TestCase
 import uuid
-from immutable.helpers import NonserializableTypeConverter
+from universalmodels.helpers import NonserializableTypeConverter
 
 class TestNonserializableTypeConverter(TestCase):
 

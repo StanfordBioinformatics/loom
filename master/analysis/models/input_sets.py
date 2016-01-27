@@ -29,7 +29,7 @@ class SourceArray(object):
 
     def _render_file_array(self):
         return {'files': [
-                source.get_data_object().to_obj() 
+                source.get_data_object().to_struct() 
                 for source in self.source_list
                 ]}
 

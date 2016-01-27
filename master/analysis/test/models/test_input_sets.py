@@ -161,7 +161,7 @@ class TestInputlessInputSetManager(TestCase):
 class TestSimpleInputSetManager(TestCase):
 
     def setUp(self):
-        self.workflow = Workflow.create(fixtures.hello_world_workflow_obj)
+        self.workflow = Workflow.create(fixtures.hello_world_workflow_struct)
         self.step = self.workflow.get_step('hello_world_step')
         self.input_set_manager = InputlessInputSetManager(self.step)
 

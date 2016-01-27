@@ -16,7 +16,8 @@ world_file = os.path.join(
     '../../../common/fixtures/workflows/array_in/world.txt')
 
 class TestArrayInWorkflow(AbstractWorkflowTester):
-
+    pass
+    """
     def setUp(self):
 
         self.start_server()
@@ -30,3 +31,4 @@ class TestArrayInWorkflow(AbstractWorkflowTester):
 
     def testWorkflow(self):
         self.assertTrue(True)
+    """

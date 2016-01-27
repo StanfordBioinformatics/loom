@@ -7,7 +7,8 @@ array_out_json_path = os.path.join(
     '../../../common/fixtures/workflows/array_out/array_out.json')
 
 class TestArrayInWorkflow(AbstractWorkflowTester):
-
+    pass
+    """
     def setUp(self):
 
         self.start_server()
@@ -19,3 +20,4 @@ class TestArrayInWorkflow(AbstractWorkflowTester):
 
     def testWorkflow(self):
         self.assertTrue(True)
+    """

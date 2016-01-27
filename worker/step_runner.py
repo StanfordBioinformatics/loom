@@ -280,8 +280,10 @@ class StepRunner:
             raise Exception('Step ID not found')
 
     def _get_working_dir_setting(self):
-        workflow_datetime_created = dateparse.parse_datetime(self.workflow['datetime_created'])
-        workflow_datetime_created_string = workflow_datetime_created.strftime("%Y%m%d-%Hh%Mm%Ss")
+        workflow_datetime_created = dateparse.parse_datetime(
+            self.workflow['datetime_created'])
+        workflow_datetime_created_string = workflow_datetime_created.strftime(
+            "%Y%m%d-%Hh%Mm%Ss")
 
         return {'WORKING_DIR': 
                 os.path.join(
@@ -335,7 +337,9 @@ class StepRunner:
         if returncode == 0:
             return
         else:
-            err_message = 'Worker process failed with error %s. \nFor more information check the stderr log file at %s'% (str(returncode), self.settings['STDERR_LOGFILE'])
+            err_message = 'Worker process failed with error %s. \nFor more '\
+            'information check the stderr log file at "%s"' \
+                % (str(returncode), self.settings.get('STDERR_LOGFILE'))
             self.logger.error(err_message)
             raise Exception(err_message)
 

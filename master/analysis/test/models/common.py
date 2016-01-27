@@ -8,8 +8,8 @@ class ImmutableModelsTestCase(TestCase):
         model = cls.create(model.to_json())
         self.assertEqual(str(model._id), str(id1))
 
-    def roundTripObj(self, model):
+    def roundTripStruct(self, model):
         cls = model.__class__
         id1 = model._id
-        model = cls.create(model.to_obj())
+        model = cls.create(model.to_struct())
         self.assertEqual(str(model._id), str(id1))

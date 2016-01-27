@@ -97,7 +97,7 @@ class StepTemplateHelper:
                 return template_string
             if counter > max_iter:
                 raise Exception("There appears to be a cyclical reference in your {{ templates }}. "
-                                "Maximum iterations exceeded in rendering a template string for this step: %s" % step.to_obj())
+                                "Maximum iterations exceeded in rendering a template string for this step: %s" % step.to_struct())
             template_string = updated_template_string
 
     def _render_once(self, template_string):
