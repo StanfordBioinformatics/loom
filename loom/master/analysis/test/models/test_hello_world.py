@@ -9,7 +9,7 @@ from .common import ImmutableModelsTestCase
 class TestHelloWorld(ImmutableModelsTestCase):
   
     def testHelloWorld(self):
-        workflow = Workflow.create(hello_world.hello_world_workflow_obj)
+        workflow = Workflow.create(hello_world.hello_world_workflow_struct)
 
         self.roundTripJson(workflow)
-        self.roundTripObj(workflow)
+        self.roundTripStruct(workflow)

@@ -49,8 +49,8 @@ class TestLoomConfig(unittest.TestCase):
     @staticmethod
     def getCurrentPreset():
         with open(TEST_SETTINGS_FILE) as fp:
-            settings_obj = json.load(fp)
-        return settings_obj['CURRENT_PRESET']
+            settings = json.load(fp)
+        return settings['CURRENT_PRESET']
 
 
 if __name__=='__main__':

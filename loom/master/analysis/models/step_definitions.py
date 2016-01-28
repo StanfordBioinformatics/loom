@@ -1,9 +1,9 @@
-from django.db import models
 from django.core import exceptions
 
-from analysis.models.common import AnalysisAppBaseModel
-from analysis.models.files import FileStorageLocation, DataObject
-from immutable.models import ImmutableModel
+from universalmodels import fields
+from .common import AnalysisAppBaseModel
+from .files import FileStorageLocation, DataObject
+from universalmodels.models import ImmutableModel
 
 
 """Models in this module form the core definition of an anlysis step.
@@ -27,12 +27,10 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
 
     _class_name = ('step_definition', 'step_definitions')
 
-    FOREIGN_KEY_CHILDREN = ['environment']
-
-    input_ports = models.ManyToManyField('StepDefinitionInputPort')
-    output_ports = models.ManyToManyField('StepDefinitionOutputPort')
-    command = models.CharField(max_length=256)
-    environment = models.ForeignKey('StepDefinitionEnvironment')
+    input_ports = fields.ManyToManyField('StepDefinitionInputPort')
+    output_ports = fields.ManyToManyField('StepDefinitionOutputPort')
+    command = fields.CharField(max_length=256)
+    environment = fields.ForeignKey('StepDefinitionEnvironment')
 
     def attach_step_run_if_one_exists(self, step, input_set):
         # If there is a valid step_run attached to this step, return it.
@@ -73,7 +71,7 @@ class StepDefinition(ImmutableModel, AnalysisAppBaseModel):
         return [port.get_input_bundle() for port in self.input_ports.all()]
 
 class FileName(ImmutableModel, AnalysisAppBaseModel):
-    name = models.CharField(max_length=256)
+    name = fields.CharField(max_length=256)
 
 class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
     """Since a StepDefinition can't be defined without existing DataObjects,
@@ -85,11 +83,9 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
 
     _class_name = ('step_definition_input_port', 'step_definition_input_ports')
 
-    FOREIGN_KEY_CHILDREN = ['data_object', 'file_names']
-
-    is_array = models.BooleanField()
-    data_object = models.ForeignKey(DataObject)
-    file_names = models.ManyToManyField('FileName', related_name='port')
+    is_array = fields.BooleanField()
+    data_object = fields.ForeignKey(DataObject)
+    file_names = fields.ManyToManyField('FileName', related_name='port')
 
     def get_files_and_locations_list(self):
         file_list = self.get('data_object').render_as_list()
@@ -98,9 +94,8 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
         return [self._get_file_and_locations(file, name) for file, name in zip(file_list, file_names)]
 
     def _get_file_and_locations(self, file, file_name):
-        file_storage_locations = [l.to_serializable_obj() for l in FileStorageLocation.get_by_file(file).all()]
-        return {'file': file.to_serializable_obj(),
-                'file_storage_locations': file_storage_locations,
+        return {'file': file.to_struct(),
+                'file_storage_locations': [location.to_struct() for location in FileStorageLocation.get_by_file(file)],
                 'file_name': file_name}
 
     def get_input_bundle(self):
@@ -109,16 +104,16 @@ class StepDefinitionInputPort(ImmutableModel, AnalysisAppBaseModel):
         """
         return {
             'files_and_locations': self.get_files_and_locations_list(),
-            'input_port': self.to_serializable_obj()
+            'input_port': self.to_struct()
             }
 
 class StepDefinitionOutputPort(ImmutableModel, AnalysisAppBaseModel):
 
     _class_name = ('step_definition_output_port', 'step_definition_output_ports')
 
-    file_name = models.CharField(max_length = 256, null=True)
-    glob = models.CharField(max_length = 256, null=True)
-    is_array = models.BooleanField()
+    file_name = fields.CharField(max_length = 256, null=True)
+    glob = fields.CharField(max_length = 256, null=True)
+    is_array = fields.BooleanField()
 
 
 class StepDefinitionEnvironment(ImmutableModel, AnalysisAppBaseModel):
@@ -130,4 +125,4 @@ class StepDefinitionDockerImage(StepDefinitionEnvironment):
 
     _class_name = ('step_definition_docker_image', 'step_definition_docker_images')
 
-    docker_image = models.CharField(max_length = 100)
+    docker_image = fields.CharField(max_length = 100)

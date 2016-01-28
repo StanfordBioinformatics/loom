@@ -4,30 +4,35 @@
 import os
 import socket
 import sys
+import warnings
 
 BASE_DIR = os.path.dirname(__file__)
 
-# SECRET_KEY used for sessions, CSFR form verification, and anything else using cryptographic signing.
-SECRET_KEY = os.getenv('SECRET_KEY')
+def get_secret_key():
+    SECRET_FILE = os.path.join(BASE_DIR, 'secret.txt')
+    try:
+        SECRET_KEY = open(SECRET_FILE).read().strip()
+        return SECRET_KEY
+    except IOError:
+        try:
+            import random
+            warnings.warn('SECRET_KEY was not set. Generating key and saving it to %s' % SECRET_FILE)
+            SECRET_KEY = ''.join([random.SystemRandom().choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(50)])
+            secret = file(SECRET_FILE, 'w')
+            secret.write(SECRET_KEY)
+            secret.close()
+            return SECRET_KEY
+        except IOError:
+            Exception('Please create a %s file with random characters \
+            to generate your secret key!' % SECRET_FILE)
 
-RACK_ENV = os.getenv('RACK_ENV', 'production')
+SECRET_KEY = get_secret_key()
 
-if not RACK_ENV in ['test', 'production', 'development']:
-    raise Exception('Invalid RACK_ENV setting of "%s".\n '\
-                    'Valid values for the env variable RACK_ENV are "production" and "development"' % RACK_ENV)
-
-if RACK_ENV == 'development' or RACK_ENV == 'test':
+if os.getenv('LOOM_DEBUG_TRUE'):
     DEBUG = True
     TEMPLATE_DEBUG = True
-    if SECRET_KEY is None:
-        SECRET_KEY = 'l^+hmt%zh$e1j&ca=d3z%0xn6ej_*i!x70fbf^62l3(qou850f'
-else:
-    # PRODUCTION SETTINGS
-    if SECRET_KEY is None:
-        raise Exception('In production you must set the SECRET_KEY env variable to a random, secret string.\n'\
-                        'In development, you can set RACK_ENV=development to silence this error and turn on debug features.')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1']
 
 INSTALLED_APPS = (
 #    'django.contrib.auth',
@@ -35,7 +40,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'immutable',
+    'universalmodels',
     'analysis',
     'editor',
 )
@@ -56,34 +61,20 @@ WSGI_APPLICATION = 'loomserver.wsgi.application'
 
 MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
 
-if RACK_ENV == 'development':
+if not os.getenv('LOOM_TEST_DATABASE'):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'development_db.sqlite3'),
-#            'ENGINE': 'django.db.backends.mysql',
-#            'NAME': 'loom',
-#            'USER': 'root',
-#            'PASSWORD': MYSQL_PASSWORD,
-#            'HOST': 'localhost',
-#            'PORT': '3306',      
-        }
-    }
-elif RACK_ENV == 'test':
-    DATABASES = {
-        'default': {
-#            'ENGINE': 'django.db.backends.sqlite3',
-#            'NAME': os.path.join(BASE_DIR, 'test_db.sqlite3'),
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'loom_test',
-            'USER': 'root',
-            'PASSWORD': MYSQL_PASSWORD,
-            'HOST': 'localhost',
-            'PORT': '3306',
+            'NAME': os.path.join(BASE_DIR, 'loom.sqlite3'),
         }
     }
 else:
-    raise Exception('TODO: create database settings for production environment.')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'test_loom.sqlite3'),
+        }
+    }
 
 def _get_django_handler():
     DJANGO_LOGFILE = os.getenv('DJANGO_LOGFILE', None)

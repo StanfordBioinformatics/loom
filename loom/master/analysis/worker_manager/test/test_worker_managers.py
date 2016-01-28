@@ -19,14 +19,11 @@ class TestWorkerManagers(unittest.TestCase):
         self.test_server.start()
         self.WORKER_TYPE_BEFORE = settings.WORKER_TYPE
         self.MASTER_URL_BEFORE = settings.MASTER_URL_FOR_WORKER
-        self.RACK_ENV_BEFORE = settings.RACK_ENV
-        settings.RACK_ENV = 'test'
 
     def tearDown(self):
         self.test_server.stop()
         settings.WORKER_TYPE = self.WORKER_TYPE_BEFORE
         settings.MASTER_URL_FOR_WORKER = self.MASTER_URL_BEFORE
-        settings.RACK_ENV = self.RACK_ENV_BEFORE
 
     """
     def test_local_worker_manager(self):
@@ -47,6 +44,6 @@ class TestWorkerManagers(unittest.TestCase):
         time.sleep(5)
 
     def _run_hello_world(self):
-        Workflow.create(fixtures.hello_world_workflow_obj)
+        Workflow.create(fixtures.hello_world_workflow_struct)
         Workflow.update_and_run()
 

@@ -1,14 +1,13 @@
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
-from django.db import models
-import jsonfield
 
-from analysis.models.common import AnalysisAppBaseModel
-from analysis.models.files import DataObject
-from analysis.models.input_sets import InputSetManagerFactory
-from analysis.models.step_definitions import StepDefinition, StepDefinitionOutputPort
-from analysis.models.step_runs import StepRun
-from analysis.models.template_helper import StepTemplateHelper, StepTemplateContext
-from immutable.models import MutableModel
+from .common import AnalysisAppBaseModel
+from .files import DataObject
+from .input_sets import InputSetManagerFactory
+from .step_definitions import StepDefinition, StepDefinitionOutputPort
+from .step_runs import StepRun
+from .template_helper import StepTemplateHelper, StepTemplateContext
+from universalmodels import fields
+from universalmodels.models import InstanceModel
 
 
 """
@@ -16,21 +15,20 @@ This module contains Workflows and other classes related to
 receiving a request for analysis from a user.
 """
 
-class Workflow(MutableModel, AnalysisAppBaseModel):
+class Workflow(InstanceModel, AnalysisAppBaseModel):
     """Each workflow may contain many processing steps, with results from one
     step optionally feeding into another step as input.
     """
 
     _class_name = ('workflow', 'workflows')
 
-    FOREIGN_KEY_CHILDREN = ['steps', 'data_bindings', 'data_pipes']
-    JSON_FIELDS = ['constants']
-
-    # name is used for grouping working directories on the file server.
-    name = models.CharField(max_length = 256, null=True)
-    constants = jsonfield.JSONField(null=True)
-    are_results_complete = models.BooleanField(default=False)
-
+    name = fields.CharField(max_length = 256, null=True)
+    constants = fields.JSONField(null=True)
+    steps = fields.OneToManyField('Step', related_name='workflow')
+    data_bindings = fields.OneToManyField('RequestDataBinding')
+    data_pipes = fields.OneToManyField('RequestDataPipe')
+    are_results_complete = fields.BooleanField(default=False)
+    
     @classmethod
     def update_and_run(cls):
         cls.update_all_statuses()
@@ -113,23 +111,23 @@ class Workflow(MutableModel, AnalysisAppBaseModel):
             raise ValidationError("No port named %s on step %s" % (source.port, source.step))
 
 
-class Step(MutableModel, AnalysisAppBaseModel):
+class Step(InstanceModel, AnalysisAppBaseModel):
     """A step is the template for a task to be run. However it may represent many StepRuns
     in a workflow with parallel steps.
     """
 
     _class_name = ('step', 'steps')
 
-    FOREIGN_KEY_CHILDREN = ['environment', 'resources', 'step_definition', 'step_run', 'input_ports', 'output_ports']
-    JSON_FIELDS = ['constants']
-
-    name = models.CharField(max_length = 256)
-    command = models.CharField(max_length = 256)
-    constants = jsonfield.JSONField(null=True)
-    environment = models.ForeignKey('RequestEnvironment')
-    resources = models.ForeignKey('RequestResourceSet')
-    workflow = models.ForeignKey('Workflow', null=True, related_name='steps')
-    are_results_complete = models.BooleanField(default=False)
+    name = fields.CharField(max_length = 256)
+    command = fields.CharField(max_length = 256)
+    constants = fields.JSONField(null=True)
+    environment = fields.OneToOneField('RequestEnvironment')
+    input_ports = fields.OneToManyField('RequestInputPort')
+    output_ports = fields.OneToManyField('RequestOutputPort')
+    resources = fields.OneToOneField('RequestResourceSet')
+    step_definition = fields.OneToManyField('StepDefinition')
+    step_run = fields.OneToManyField('StepRun')
+    are_results_complete = fields.BooleanField(default=False)
 
     def get_input_set_manager(self):
         return InputSetManagerFactory.get_input_set_manager(self)
@@ -230,7 +228,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
     def create_step_run(self, input_set):
         return StepRun.create({
             'step_definition': self._render_step_definition(input_set),
-            'steps': [self.to_serializable_obj()],
+            'steps': [self.to_struct()],
             'output_ports': [port._render_step_run_output_port(input_set) for port in self.output_ports.all()],
             'input_ports': [self.get_input_port(input_port_name)._render_step_run_input_port(source, input_set) 
                             for input_port_name, source in input_set.inputs.iteritems()]
@@ -256,7 +254,7 @@ class Step(MutableModel, AnalysisAppBaseModel):
         return [c._render_step_definition_data_bindings(self) for c in self.get_connectors()]
 
 
-class RequestEnvironment(MutableModel, AnalysisAppBaseModel):
+class RequestEnvironment(InstanceModel, AnalysisAppBaseModel):
 
     _class_name = ('request_environment', 'request_environments')
 
@@ -265,30 +263,29 @@ class RequestDockerImage(RequestEnvironment):
 
     _class_name = ('request_docker_image', 'request_docker_images')
 
-    docker_image = models.CharField(max_length = 100)
+    docker_image = fields.CharField(max_length = 100)
 
     def _render_step_definition_environment(self):
         # TODO translate a docker image name into an ID
         return {'docker_image': self.docker_image}
 
 
-class RequestResourceSet(MutableModel, AnalysisAppBaseModel):
+class RequestResourceSet(InstanceModel, AnalysisAppBaseModel):
 
     _class_name = ('request_resource_set', 'request_resource_sets')
 
-    memory = models.CharField(max_length = 20)
-    cores = models.IntegerField()
+    memory = fields.CharField(max_length = 20)
+    cores = fields.IntegerField()
 
 
-class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
+class RequestOutputPort(InstanceModel, AnalysisAppBaseModel):
 
     _class_name = ('request_output_port', 'request_output_ports')
 
-    name = models.CharField(max_length = 256)
-    is_array = models.BooleanField(default = False)
-    file_name = models.CharField(max_length = 256, null=True)
-    glob = models.CharField(max_length = 256, null=True)
-    step = models.ForeignKey('Step', related_name='output_ports', null=True)
+    name = fields.CharField(max_length = 256)
+    is_array = fields.BooleanField(default = False)
+    file_name = fields.CharField(max_length = 256, null=True)
+    glob = fields.CharField(max_length = 256, null=True)
 
     def is_data_object(self):
         return False
@@ -310,14 +307,13 @@ class RequestOutputPort(MutableModel, AnalysisAppBaseModel):
             }
 
 
-class RequestInputPort(MutableModel, AnalysisAppBaseModel):
+class RequestInputPort(InstanceModel, AnalysisAppBaseModel):
 
     _class_name = ('request_input_port', 'request_input_ports')
 
-    name = models.CharField(max_length = 256)
-    file_name = models.CharField(max_length = 256)
-    step = models.ForeignKey('Step', related_name='input_ports', null=True)
-    is_array = models.BooleanField(default = False)
+    name = fields.CharField(max_length = 256)
+    file_name = fields.CharField(max_length = 256)
+    is_array = fields.BooleanField(default = False)
 
     def get_connector(self):
         connector = self._get_data_binding()
@@ -371,7 +367,7 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
         return {
             'file_names': self._render_file_names(data_object, input_set),
             'is_array': self.is_array,
-            'data_object': data_object.to_serializable_obj()
+            'data_object': data_object.to_struct()
             }
 
     def _render_file_names(self, data_object, input_set):
@@ -387,16 +383,13 @@ class RequestInputPort(MutableModel, AnalysisAppBaseModel):
             }
 
 
-class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
+class RequestDataBinding(InstanceModel, AnalysisAppBaseModel):
     """Connects an already existing DataObject to the input port of a step"""
 
     _class_name = ('request_data_binding', 'request_data_bindings')
 
-    FOREIGN_KEY_CHILDREN = ['data_object', 'destination']
-
-    data_object = models.ForeignKey('DataObject')
-    destination = models.ForeignKey('RequestDataBindingDestinationPortIdentifier')
-    workflow = models.ForeignKey('Workflow', related_name='data_bindings', null=True)
+    data_object = fields.ForeignKey('DataObject')
+    destination = fields.ForeignKey('RequestDataBindingDestinationPortIdentifier')
 
     def is_data_pipe(self):
         return False
@@ -418,7 +411,7 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
     def get_destination_step(self):
         if not self.workflow:
-            raise Exception("No workflow defined for RequestDataBinding %s" % self.to_obj())
+            raise Exception("No workflow defined for RequestDataBinding %s" % self.to_struct())
         return self.workflow.get_step(self.destination.step)
 
     def get_destination_port(self):
@@ -429,23 +422,20 @@ class RequestDataBinding(MutableModel, AnalysisAppBaseModel):
 
     def _render_step_definition_data_bindings(self, step):
         return {
-            'data_object': self.data_object.to_obj(),
+            'data_object': self.data_object.to_struct(),
             'input_port': self.get_destination_port()._render_step_definition_input_port()
             }
 
 
-class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
+class RequestDataPipe(InstanceModel, AnalysisAppBaseModel):
     """Connects an output port of a previous step to an input port
     of the current step.
     """
 
     _class_name = ('request_data_pipe', 'request_data_pipes')
 
-    FOREIGN_KEY_CHILDREN = ['source', 'destination']
-
-    source = models.ForeignKey('RequestDataPipeSourcePortIdentifier')
-    destination = models.ForeignKey('RequestDataPipeDestinationPortIdentifier')
-    workflow = models.ForeignKey('Workflow', related_name='data_pipes', null=True)
+    source = fields.ForeignKey('RequestDataPipeSourcePortIdentifier')
+    destination = fields.ForeignKey('RequestDataPipeDestinationPortIdentifier')
 
     def is_data_pipe(self):
         return True
@@ -468,15 +458,15 @@ class RequestDataPipe(MutableModel, AnalysisAppBaseModel):
     def _render_step_definition_data_bindings(self, step):
         port = step.get_input_port(self.destination.port)
         return {
-            'data_object': self.get_data_object().to_obj(),
+            'data_object': self.get_data_object().to_struct(),
             'input_port': port._render_step_definition_input_port()
             }
 
 
-class RequestPortIdentifier(MutableModel, AnalysisAppBaseModel):
+class RequestPortIdentifier(InstanceModel, AnalysisAppBaseModel):
 
-    step = models.CharField(max_length = 256)
-    port = models.CharField(max_length = 256)
+    step = fields.CharField(max_length = 256)
+    port = fields.CharField(max_length = 256)
 
     class Meta:
         abstract = True

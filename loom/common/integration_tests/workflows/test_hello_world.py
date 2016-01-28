@@ -6,11 +6,11 @@ from loom.common.integration_tests.workflows.abstract_workflow_tester import Abs
 
 hello_world_json_path = os.path.join(
     os.path.dirname(__file__), 
-    '../../../doc/examples/hello_world/hello_world.json')
+    '../../../../doc/examples/hello_world/hello_world.json')
 
 hello_file = os.path.join(
     os.path.dirname(__file__), 
-    '../../../doc/examples/hello_world/hello.txt')
+    '../../../../doc/examples/hello_world/hello.txt')
 
 class TestHelloWorldWorkflow(AbstractWorkflowTester):
 

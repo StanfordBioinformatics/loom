@@ -25,7 +25,7 @@ class TestLoomRun(TestCase):
 
     def test_create_show_index_immutable(self):
         # Test create
-        r = requests.post(self.test_server.server_url+'/api/workflows', data=json.dumps(fixtures.hello_world_workflow_obj))
+        r = requests.post(self.test_server.server_url+'/api/workflows', data=json.dumps(fixtures.hello_world_workflow_struct))
         r.raise_for_status()
         self.assertTrue('{"message": "created workflow", "_id":' in r.text)
 
@@ -43,7 +43,7 @@ class TestLoomRun(TestCase):
 
     def test_create_show_index_update_mutable(self):
         # Test create
-        r = requests.post(self.test_server.server_url+'/api/file_storage_locations', data=json.dumps(fixtures.server_file_storage_location_obj))
+        r = requests.post(self.test_server.server_url+'/api/file_storage_locations', data=json.dumps(fixtures.server_file_storage_location_struct))
         r.raise_for_status()
         self.assertEqual(r.json()['message'], "created file_storage_location")
 

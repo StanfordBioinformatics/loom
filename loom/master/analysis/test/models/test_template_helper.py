@@ -21,15 +21,15 @@ class FakeInputSet(object):
 class TestTemplateHelper(TestCase):
 
     def test_file_name(self):
-        step = Step.create(step_with_templated_command_obj)
+        step = Step.create(step_with_templated_command_struct)
         command = StepTemplateHelper(step, FakeInputSet()).render(step.command)
-        inputfile = step_with_templated_command_obj['input_ports'][0]['file_name']
-        outputfile = step_with_templated_command_obj['output_ports'][0]['file_name']
+        inputfile = step_with_templated_command_struct['input_ports'][0]['file_name']
+        outputfile = step_with_templated_command_struct['output_ports'][0]['file_name']
         self.assertTrue(inputfile in command)
         self.assertTrue(outputfile in command)
 
     def test_substitution(self):
-        workflow = Workflow.create(workflow_with_templated_command_obj)
+        workflow = Workflow.create(workflow_with_templated_command_struct)
         step = workflow.steps.first()
 
         step_id = step.constants['id']

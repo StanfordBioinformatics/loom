@@ -40,7 +40,7 @@ class TestStepRunner(unittest.TestCase):
 
     def _run_hello_world(self):
         url = self.test_server.server_url+'/api/submitworkflow/'
-        response = requests.post(url, data=json.dumps(fixtures.hello_world_workflow_obj))
+        response = requests.post(url, data=json.dumps(fixtures.hello_world_workflow_struct))
         self.assertEqual(response.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (response.status_code, url))
         self.test_server.dry_run_job_queues()
 
