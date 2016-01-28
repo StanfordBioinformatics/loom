@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import argparse
 import os
 import requests
 import subprocess
@@ -14,7 +13,7 @@ DAEMON_EXECUTABLE = os.path.abspath(
     '../master/loomdaemon/loom_daemon.py'
     ))
 
-class ServerControls:
+class LoomServerControls:
     """
     This class provides methods for managing the loom server, specifically the commands:
     - start
@@ -29,12 +28,12 @@ class ServerControls:
             args=self._get_args()
         self.args = args
         self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
-        self._set_run_function(args)
+        self._set_main_function(args)
 
     @classmethod
-    def get_parser(cls, parser=None):
-        if parser == None:
-            parser = argparse.ArgumentParser(__file__)
+    def _get_parser(cls):
+        import argparse
+        parser = argparse.ArgumentParser("loomserver")
         parser.add_argument('command', choices=['start', 'stop', 'status'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
                             help="Settings files indicate which server to talk to and how the server can be reached. Defaults to ~/.loom/settings.json (created on first run if not found). Use loom config to choose from available presets, or edit the file directly.")
@@ -46,11 +45,11 @@ class ServerControls:
         return parser
 
     def _get_args(self):
-        parser = self.get_parser()
+        parser = self._get_parser()
         args = parser.parse_args()
         return args
 
-    def _set_run_function(self, args):
+    def _set_main_function(self, args):
         # Map user input command to class method
         command_to_method_map = {
             'status': self.status,
@@ -58,7 +57,7 @@ class ServerControls:
             'stop': self.stop
         }
         try:
-            self.run = command_to_method_map[args.command]
+            self.main = command_to_method_map[args.command]
         except KeyError:
             raise Exception('Did not recognize command %s' % args.command)
 
@@ -110,7 +109,7 @@ class ServerControls:
         pidfile = self.settings_manager.get_daemon_pidfile()
         logfile = self.settings_manager.get_daemon_logfile()
         loglevel = self.settings_manager.get_log_level()
-        cmd = "%s %s start --pidfile %s --logfile %s --loglevel %s" % (sys.executable, DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
+        cmd = "%s start --pidfile %s --logfile %s --loglevel %s" % (DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
         if self.args.verbose:
             print("Starting loom daemon with command:\n%s" % cmd)
         process = subprocess.Popen(
@@ -128,7 +127,7 @@ class ServerControls:
         try:
             response = requests.get(self.settings_manager.get_server_url_for_client() + '/api/status')
             if response.status_code == 200:
-                print "server is up"
+                print "server is ok"
             else:
                 print "unexpected status code %s from server" % response.status_code
             return response
@@ -150,7 +149,7 @@ class ServerControls:
 
     def _stop_daemon(self):
         subprocess.call(
-            "%s %s --pidfile %s stop" % (sys.executable, DAEMON_EXECUTABLE, self.settings_manager.get_daemon_pidfile()),
+            "%s --pidfile %s stop" % (DAEMON_EXECUTABLE, self.settings_manager.get_daemon_pidfile()),
             shell=True
             )
         self._cleanup_pidfile(self.settings_manager.get_daemon_pidfile())
@@ -170,7 +169,7 @@ class ServerControls:
     def _set_database(self, env):
         # If test database requested, set RACK_ENV to test and reset database
         if self.args.test_database:
-            env['LOOM_TEST_DATABASE'] = 'true'
+            env['RACK_ENV'] = 'test'
             manage_cmd = '%s %s/manage.py' % (sys.executable, self.settings_manager.get_server_path())
             commands = [
                 '%s flush --noinput' % manage_cmd,
@@ -189,4 +188,4 @@ class ServerControls:
         return env
 
 if __name__=='__main__':
-    ServerControls().run()
+    LoomServerControls().main()

@@ -2,7 +2,7 @@ from .data_objects import file_struct
 from .workflows import step_1_struct
 from .step_definitions import step_definition_struct, step_definition_output_port_struct
 
-# StepRun and related models
+# StepRun and related objects
 
 step_result_struct = {
     'output_port': step_definition_output_port_struct,

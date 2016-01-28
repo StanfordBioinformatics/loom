@@ -6,6 +6,7 @@ import unittest
 from datetime import datetime
 import requests
 import subprocess
+import sys
 import time
 from loom.common.helper import Helper
 from loom.client import server
@@ -54,13 +55,13 @@ class TestServer:
 
     def run_job_queues(self):
         env = self._get_test_env()
-        subprocess.call('%s run_job_queues' % self._get_manage_cmd(),
+        subprocess.call('%s %s run_job_queues' % (sys.executable, self._get_manage_cmd()),
                         shell=True,
                         env=self._get_test_env())
 
     def dry_run_job_queues(self):
         env = self._get_test_env()
-        subprocess.call('%s dry_run_job_queues' % self._get_manage_cmd(),
+        subprocess.call('%s %s dry_run_job_queues' % (sys.executable, self._get_manage_cmd()),
                         shell=True,
                         env=self._get_test_env())
 
