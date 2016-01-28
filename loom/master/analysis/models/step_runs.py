@@ -28,7 +28,6 @@ class StepRun(InstanceModel, AnalysisAppBaseModel):
     # If multiple steps have the same StepDefinition, they can share a StepRun
     steps = fields.ManyToManyField('Step', related_name='step_runs') 
     step_definition = fields.ForeignKey('StepDefinition', null=True, related_name='step_runs')
-    process_location = fields.ForeignKey('ProcessLocation', null=True)
     are_results_complete = fields.BooleanField(default=False)
     is_running = fields.BooleanField(default=False)
     input_ports = fields.OneToManyField('StepRunInputPort', related_name='step_run')
@@ -173,14 +172,3 @@ class StepRunDataPipeSourcePortIdentifier(StepRunPortIdentifier):
 
     _class_name = ('step_run_data_pipe_source_port_identifier', 'step_run_data_pipe_source_port_identifiers')
     step_run = fields.ForeignKey('StepRun')
-
-class ProcessLocation(InstanceModel, AnalysisAppBaseModel):
-
-    _class_name = ('process_location', 'process_locations')
-
-
-class LocalProcessLocation(ProcessLocation):
-
-    _class_name = ('local_process_location', 'local_process_locations')
-
-    pid = fields.IntegerField()

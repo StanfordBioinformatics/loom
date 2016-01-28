@@ -13,10 +13,6 @@ step_run_minimal_struct = {
     'steps': [step_1_struct],
     }
 
-process_location_struct = {
-    'pid': 1234
-    }
-
 step_run_input_port = {
     'name': 'input1'
     }
@@ -29,7 +25,6 @@ step_run_with_everything_struct = {
     'steps': [step_1_struct],
     'step_definition': step_definition_struct,
     'are_results_complete': True,
-    'process_location': process_location_struct,
     'input_ports': [step_run_input_port],
     'output_ports': [step_run_output_port]
     }

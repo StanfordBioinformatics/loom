@@ -6,6 +6,8 @@ import socket
 import sys
 import warnings
 
+include_models = os.getenv('GRAPH_MODELS_INCLUDE_MODELS')
+
 BASE_DIR = os.path.dirname(__file__)
 
 def get_secret_key():
@@ -162,3 +164,8 @@ IMPORT_DIR = os.getenv('IMPORT_DIR')
 STEP_RUNS_DIR = os.getenv('STEP_RUNS_DIR')
 BUCKET_ID = os.getenv('BUCKET_ID')
 PROJECT_ID = os.getenv('PROJECT_ID')
+
+# Graph Models settings to generate model schema plots
+GRAPH_MODELS = {
+    'include_models': include_models,
+}
