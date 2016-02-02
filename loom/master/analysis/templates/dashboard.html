@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Loom</title>
+  </head>
+  <body>
+    {% if workflow_info %}
+    {% for workflow in workflow_info %}
+    {{ workflow }}
+    {% endfor %}
+    {% else %}
+    No workflows
+    {% endif %}
+  </body>
+</html>
