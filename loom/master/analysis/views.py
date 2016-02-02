@@ -109,14 +109,12 @@ def show_or_update(request, id, model_class):
     else:
         return Helper.show(request, id, model_class)
 
-@csrf_exempt
 @require_http_methods(["GET"])
 def show_input_port_bundles(request, id):
     step_run = StepRun.get_by_id(id)
     input_port_bundles = step_run.get_input_bundles()
     return JsonResponse({"input_port_bundles": input_port_bundles}, status=200)
 
-@csrf_exempt
 @require_http_methods(["GET"])
 def dashboard(request):
     # Display all active Workflows plus the last n closed Workflows
@@ -161,4 +159,7 @@ def dashboard(request):
         workflows = []
     workflow_info = [_get_workflow_info(wf) for wf in workflows]
 
-    return JsonResponse({'workflows': workflow_info}, status=200)
+    return render(request,
+                  'dashboard.html',
+                  {'workflow_info': workflow_info})
+
