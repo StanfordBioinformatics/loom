@@ -1,6 +1,4 @@
-from django.test import TestCase
-
-class ImmutableModelsTestCase(TestCase):
+class UniversalModelTestMixin(object):
 
     def roundTripJson(self, model):
         cls = model.__class__

@@ -1,3 +1,4 @@
+'''
 from jinja2 import DictLoader, Environment
 
 class StepTemplateContext:
@@ -105,3 +106,4 @@ class StepTemplateHelper:
         env = Environment(loader=loader)
         template = env.get_template('template')
         return template.render(**self.context)
+'''

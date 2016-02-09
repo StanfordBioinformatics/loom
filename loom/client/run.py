@@ -20,13 +20,10 @@ class MissingConstantsException(Exception):
     pass
 
 class WorkflowRunner(object):
-    """Run a workflow
-    There are two formats of workflow accepted
-    1. full format
-    2. shorthand format
-    The shorthand format includes a list of files to upload and a 
-    simplified syntax for defining a Workflow
-    Both types may be in either YAML or JSON format.
+    """Run a workflow.
+    First upload input files and create corresponding DataObjects
+    with file hashes in the workflow, then submit workflow to run.
+    Workflow may be in either YAML or JSON format.
     """
 
     def __init__(self, args=None):
@@ -71,10 +68,9 @@ class WorkflowRunner(object):
     def run(self):
         self._read_workflow_file()
         self._substitute_command_line_constants()
-        if self._is_input_workflow_full_format():
-            self._process_as_full_format()
-        else:
-            self._process_as_shorthand_format()
+        self._validate_workflow()
+        self._process_data_uploads()
+        self._submit_workflow()
 
     def _read_workflow_file(self):
         try:
@@ -95,29 +91,6 @@ class WorkflowRunner(object):
         except yaml.parser.ParserError:
             raise Exception('Input file is not valid YAML or JSON format')
 
-    def _is_input_workflow_full_format(self):
-        # TODO - full validation needed, incl case where data_imports undefined on simplified workflow
-        return not 'data_imports' in self.workflow.keys()
-
-    def _process_as_full_format(self):
-        self._submit_workflow()
-
-    def _process_as_shorthand_format(self):
-        self._process_data_imports()
-#        self._make_connectors()
-        self._submit_workflow()
-
-    def _validate_workflow(self):
-        #TODO
-        pass
-
-    def _get_command_line_constants(self):
-        command_line_constants = {}
-        for constant in self.args.constants:
-            (key, value) = constant.split('=')
-            command_line_constants[key] = value
-        return command_line_constants
-
     def _substitute_command_line_constants(self):
         workflow_constants = self.workflow.setdefault('constants', {})
         workflow_constants.update(self._get_command_line_constants())
@@ -127,18 +100,30 @@ class WorkflowRunner(object):
                                 'You can set it from the commandline with '
                                 '"loomrun FILENAME %s=VALUE"' % (key, key))
 
-    def _process_data_imports(self):
-        self.input_files = {}
-        for data_import in self.workflow.setdefault('data_imports', []):
-            self._process_data_import(data_import)
-        del(self.workflow['data_imports'])
+    def _get_command_line_constants(self):
+        command_line_constants = {}
+        for constant in self.args.constants:
+            (key, value) = constant.split('=')
+            command_line_constants[key] = value
+        return command_line_constants
 
-    def _process_data_import(self, data_import):
-        filename = self.render(data_import['filename'])
-        if data_import['type'] == 'file':
+    def _validate_workflow(self):
+        #TODO
+        pass
+
+    def _process_data_uploads(self):
+        inputs = self.workflow.setdefault('inputs', [])
+        counter = 0
+        for input in inputs:
+            print "Processing input %s of %s" % (counter, len(inputs))
+            self._process_data_upload(input)
+
+    def _process_data_upload(self, input):
+        filename = self.render(data_upload['filename'])
+        if data_upload['type'] == 'file':
             file_id = self._upload_file(filename)
             self.input_files[filename] = file_id
-            
+
     def _upload_file(self, raw_filename):
         filename = self.render(raw_filename)
         if not os.path.isfile(filename):

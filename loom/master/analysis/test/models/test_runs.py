@@ -1,3 +1,4 @@
+'''
 from analysis.models import *
 from .common import ImmutableModelsTestCase
 from django.conf import settings
@@ -43,3 +44,4 @@ class TestStepRun(TestCase):
     def testGetInputPortBundles(self):
         # TODO
         pass
+'''

@@ -1,3 +1,4 @@
+'''
 from django.core import exceptions
 
 from universalmodels import fields
@@ -126,3 +127,4 @@ class StepDefinitionDockerImage(StepDefinitionEnvironment):
     _class_name = ('step_definition_docker_image', 'step_definition_docker_images')
 
     docker_image = fields.CharField(max_length = 100)
+'''

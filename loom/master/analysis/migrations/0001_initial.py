@@ -5,8 +5,9 @@ from django.db import models, migrations
 import jsonfield.fields
 import sortedone2many.fields
 import django.utils.timezone
-import sortedm2m.fields
 import uuid
+import sortedm2m.fields
+import analysis.models.common
 
 
 class Migration(migrations.Migration):
@@ -16,13 +17,14 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='DataObject',
+            name='AbstractDataObject',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
             name='FileContents',
@@ -34,16 +36,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-        ),
-        migrations.CreateModel(
-            name='FileName',
-            fields=[
-                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-                ('name', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
             name='FileStorageLocation',
@@ -55,9 +48,10 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='ProcessLocation',
+            name='RequestedEnvironment',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -66,327 +60,139 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='RequestDataBinding',
+            name='RequestedResourceSet',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestDataBindingDestinationPortIdentifier',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('step', models.CharField(max_length=256)),
-                ('port', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestDataPipe',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestDataPipeDestinationPortIdentifier',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('step', models.CharField(max_length=256)),
-                ('port', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestDataPipeSourcePortIdentifier',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('step', models.CharField(max_length=256)),
-                ('port', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestEnvironment',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestInputPort',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256)),
-                ('file_name', models.CharField(max_length=256)),
-                ('is_array', models.BooleanField(default=False)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestOutputPort',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256)),
-                ('is_array', models.BooleanField(default=False)),
-                ('file_name', models.CharField(max_length=256, null=True)),
-                ('glob', models.CharField(max_length=256, null=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='RequestResourceSet',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('memory', models.CharField(max_length=20)),
+                ('memory', models.CharField(max_length=255)),
+                ('disk_space', models.CharField(max_length=255)),
                 ('cores', models.IntegerField()),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='Step',
+            name='StepRunRequest',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256)),
-                ('command', models.CharField(max_length=256)),
+                ('name', models.CharField(max_length=255)),
+                ('command', models.CharField(max_length=255)),
+                ('interpreter', models.CharField(max_length=255)),
                 ('constants', jsonfield.fields.JSONField(null=True)),
-                ('are_results_complete', models.BooleanField(default=False)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='StepDefinition',
-            fields=[
-                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-                ('command', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='StepDefinitionEnvironment',
-            fields=[
-                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='StepDefinitionInputPort',
-            fields=[
-                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-                ('is_array', models.BooleanField()),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='StepDefinitionOutputPort',
-            fields=[
-                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-                ('file_name', models.CharField(max_length=256, null=True)),
-                ('glob', models.CharField(max_length=256, null=True)),
-                ('is_array', models.BooleanField()),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='StepResult',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='StepRun',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('are_results_complete', models.BooleanField(default=False)),
+                ('is_complete', models.BooleanField(default=False)),
                 ('is_running', models.BooleanField(default=False)),
+                ('has_error', models.BooleanField(default=False)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunDataBinding',
+            name='StepRunRequestInput',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('from_channel', models.CharField(max_length=255)),
+                ('to_path', models.CharField(max_length=255)),
+                ('rename', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunDataBindingDestinationPortIdentifier',
+            name='StepRunRequestOutput',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('port', models.CharField(max_length=256, null=True)),
-                ('step_run', models.ForeignKey(to='analysis.StepRun')),
+                ('from_path', models.CharField(max_length=255)),
+                ('to_channel', models.CharField(max_length=255)),
+                ('rename', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunDataPipe',
+            name='WorkflowRunRequest',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('force_rerun', models.BooleanField(default=False)),
+                ('is_running', models.BooleanField(default=False)),
+                ('is_complete', models.BooleanField(default=False)),
+                ('has_error', models.BooleanField(default=False)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunDataPipeDestinationPortIdentifier',
+            name='WorkflowRunRequestInput',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('port', models.CharField(max_length=256, null=True)),
-                ('step_run', models.ForeignKey(to='analysis.StepRun')),
+                ('from_path', models.CharField(max_length=255)),
+                ('to_channel', models.CharField(max_length=255)),
+                ('rename', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunDataPipeSourcePortIdentifier',
+            name='WorkflowRunRequestOutput',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('port', models.CharField(max_length=256, null=True)),
-                ('step_run', models.ForeignKey(to='analysis.StepRun')),
+                ('from_channel', models.CharField(max_length=255)),
+                ('rename', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunInputPort',
+            name='DataObjectArray',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256)),
-                ('step_definition_input_port', models.ForeignKey(to='analysis.StepDefinitionInputPort', null=True)),
+                ('abstractdataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractDataObject')),
             ],
             options={
                 'abstract': False,
             },
+            bases=('analysis.abstractdataobject',),
         ),
         migrations.CreateModel(
-            name='StepRunOutputPort',
+            name='FileDataObject',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256)),
-                ('step_definition_output_port', models.ForeignKey(to='analysis.StepDefinitionOutputPort', null=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='Workflow',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256, null=True)),
-                ('constants', jsonfield.fields.JSONField(null=True)),
-                ('are_results_complete', models.BooleanField(default=False)),
-                ('data_bindings', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.RequestDataBinding')),
-                ('data_pipes', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.RequestDataPipe')),
-                ('steps', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow', to='analysis.Step')),
-            ],
-            options={
-                'abstract': False,
-            },
-        ),
-        migrations.CreateModel(
-            name='File',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('metadata', jsonfield.fields.JSONField(null=True)),
+                ('abstractdataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractDataObject')),
+                ('file_name', models.CharField(max_length=255)),
+                ('metadata', jsonfield.fields.JSONField()),
                 ('file_contents', models.ForeignKey(to='analysis.FileContents')),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.dataobject',),
-        ),
-        migrations.CreateModel(
-            name='FileArray',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('files', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.File')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.dataobject',),
+            bases=('analysis.abstractdataobject',),
         ),
         migrations.CreateModel(
             name='GoogleCloudStorageLocation',
@@ -402,29 +208,30 @@ class Migration(migrations.Migration):
             bases=('analysis.filestoragelocation',),
         ),
         migrations.CreateModel(
-            name='LocalProcessLocation',
+            name='JSONDataObject',
             fields=[
-                ('processlocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.ProcessLocation')),
-                ('pid', models.IntegerField()),
+                ('abstractdataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractDataObject')),
+                ('name', models.CharField(max_length=256)),
+                ('json_data', jsonfield.fields.JSONField()),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.processlocation',),
+            bases=('analysis.abstractdataobject',),
         ),
         migrations.CreateModel(
-            name='RequestDockerImage',
+            name='RequestedDockerImage',
             fields=[
-                ('requestenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.RequestEnvironment')),
-                ('docker_image', models.CharField(max_length=100)),
+                ('requestedenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.RequestedEnvironment')),
+                ('docker_image', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.requestenvironment',),
+            bases=('analysis.requestedenvironment',),
         ),
         migrations.CreateModel(
-            name='ServerFileStorageLocation',
+            name='ServerStorageLocation',
             fields=[
                 ('filestoragelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.FileStorageLocation')),
                 ('host_url', models.CharField(max_length=256)),
@@ -435,150 +242,54 @@ class Migration(migrations.Migration):
             },
             bases=('analysis.filestoragelocation',),
         ),
-        migrations.CreateModel(
-            name='StepDefinitionDockerImage',
-            fields=[
-                ('stepdefinitionenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.StepDefinitionEnvironment')),
-                ('docker_image', models.CharField(max_length=100)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.stepdefinitionenvironment',),
-        ),
         migrations.AddField(
-            model_name='steprundatapipe',
-            name='destination',
-            field=models.ForeignKey(to='analysis.StepRunDataPipeDestinationPortIdentifier'),
-        ),
-        migrations.AddField(
-            model_name='steprundatapipe',
-            name='source',
-            field=models.ForeignKey(to='analysis.StepRunDataPipeSourcePortIdentifier'),
-        ),
-        migrations.AddField(
-            model_name='steprundatabinding',
-            name='destination',
-            field=models.ForeignKey(to='analysis.StepRunDataBindingDestinationPortIdentifier'),
-        ),
-        migrations.AddField(
-            model_name='steprundatabinding',
-            name='source',
-            field=models.ForeignKey(to='analysis.DataObject'),
-        ),
-        migrations.AddField(
-            model_name='steprun',
-            name='input_ports',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.StepRunInputPort'),
-        ),
-        migrations.AddField(
-            model_name='steprun',
-            name='output_ports',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.StepRunOutputPort'),
-        ),
-        migrations.AddField(
-            model_name='steprun',
-            name='process_location',
-            field=models.ForeignKey(to='analysis.ProcessLocation', null=True),
-        ),
-        migrations.AddField(
-            model_name='steprun',
-            name='step_definition',
-            field=models.ForeignKey(related_name='step_runs', to='analysis.StepDefinition', null=True),
-        ),
-        migrations.AddField(
-            model_name='steprun',
-            name='steps',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_runs', to='analysis.Step'),
-        ),
-        migrations.AddField(
-            model_name='stepresult',
+            model_name='workflowrunrequestinput',
             name='data_object',
-            field=models.ForeignKey(related_name='step_results', to='analysis.DataObject'),
+            field=models.OneToOneField(to='analysis.AbstractDataObject'),
         ),
         migrations.AddField(
-            model_name='stepresult',
-            name='output_port',
-            field=models.OneToOneField(related_name='step_result', to='analysis.StepRunOutputPort'),
+            model_name='workflowrunrequest',
+            name='inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_request', to='analysis.WorkflowRunRequestInput'),
         ),
         migrations.AddField(
-            model_name='stepdefinitioninputport',
-            name='data_object',
-            field=models.ForeignKey(to='analysis.DataObject'),
+            model_name='workflowrunrequest',
+            name='outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_request', to='analysis.WorkflowRunRequestOutput'),
         ),
         migrations.AddField(
-            model_name='stepdefinitioninputport',
-            name='file_names',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='port', to='analysis.FileName'),
+            model_name='workflowrunrequest',
+            name='step_run_requests',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_request', to='analysis.StepRunRequest'),
         ),
         migrations.AddField(
-            model_name='stepdefinition',
+            model_name='steprunrequest',
             name='environment',
-            field=models.ForeignKey(to='analysis.StepDefinitionEnvironment'),
+            field=models.OneToOneField(to='analysis.RequestedEnvironment'),
         ),
         migrations.AddField(
-            model_name='stepdefinition',
-            name='input_ports',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.StepDefinitionInputPort'),
-        ),
-        migrations.AddField(
-            model_name='stepdefinition',
-            name='output_ports',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.StepDefinitionOutputPort'),
-        ),
-        migrations.AddField(
-            model_name='step',
-            name='environment',
-            field=models.OneToOneField(to='analysis.RequestEnvironment'),
-        ),
-        migrations.AddField(
-            model_name='step',
-            name='input_ports',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.RequestInputPort'),
-        ),
-        migrations.AddField(
-            model_name='step',
-            name='output_ports',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.RequestOutputPort'),
-        ),
-        migrations.AddField(
-            model_name='step',
+            model_name='steprunrequest',
             name='resources',
-            field=models.OneToOneField(to='analysis.RequestResourceSet'),
+            field=models.OneToOneField(to='analysis.RequestedResourceSet'),
         ),
         migrations.AddField(
-            model_name='step',
-            name='step_definition',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepDefinition'),
+            model_name='steprunrequest',
+            name='step_run_request_inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRunRequestInput'),
         ),
         migrations.AddField(
-            model_name='step',
-            name='step_run',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRun'),
-        ),
-        migrations.AddField(
-            model_name='requestdatapipe',
-            name='destination',
-            field=models.ForeignKey(to='analysis.RequestDataPipeDestinationPortIdentifier'),
-        ),
-        migrations.AddField(
-            model_name='requestdatapipe',
-            name='source',
-            field=models.ForeignKey(to='analysis.RequestDataPipeSourcePortIdentifier'),
-        ),
-        migrations.AddField(
-            model_name='requestdatabinding',
-            name='data_object',
-            field=models.ForeignKey(to='analysis.DataObject'),
-        ),
-        migrations.AddField(
-            model_name='requestdatabinding',
-            name='destination',
-            field=models.ForeignKey(to='analysis.RequestDataBindingDestinationPortIdentifier'),
+            model_name='steprunrequest',
+            name='step_run_request_outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRunRequestOutput'),
         ),
         migrations.AddField(
             model_name='filestoragelocation',
             name='file_contents',
             field=models.ForeignKey(to='analysis.FileContents', null=True),
+        ),
+        migrations.AddField(
+            model_name='dataobjectarray',
+            name='data_objects',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='parent', to='analysis.AbstractDataObject'),
         ),
     ]

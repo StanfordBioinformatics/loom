@@ -1,3 +1,4 @@
+'''
 from django.core import exceptions
 
 from .common import AnalysisAppBaseModel
@@ -172,3 +173,4 @@ class StepRunDataPipeSourcePortIdentifier(StepRunPortIdentifier):
 
     _class_name = ('step_run_data_pipe_source_port_identifier', 'step_run_data_pipe_source_port_identifiers')
     step_run = fields.ForeignKey('StepRun')
+'''

@@ -1,3 +1,4 @@
+'''
 from analysis.models import *
 import copy
 from django.conf import settings
@@ -74,3 +75,4 @@ class TestStepDefinitionInputPort(TestCase):
         input_bundles = self.step_definition.get_input_bundles()
         self.assertEqual(input_bundles[0]['input_port']['data_object']['file_contents']['hash_value'], self.step_definition.input_ports.first().get('data_object').file_contents.hash_value)
             
+'''

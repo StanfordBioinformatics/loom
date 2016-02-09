@@ -1,3 +1,4 @@
+'''
 from analysis.models.workflows import Step, Workflow
 from analysis.models.template_helper import StepTemplateHelper
 from django.conf import settings
@@ -42,3 +43,4 @@ class TestTemplateHelper(TestCase):
         self.assertTrue(wf_id_overridden not in command)
         self.assertTrue(wf_const in command)
         
+'''
