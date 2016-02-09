@@ -33,7 +33,9 @@ setup(
 
     # The project's main homepage.
     url='https://github.com/StanfordBioinformatics/loom',
-    download_url='https://github.com/StanfordBioinformatics/loom/tarball/'+version,
+
+    # Could use a utility like Travis CI to automatically create pip releases from GitHub tags.
+    #download_url='https://github.com/StanfordBioinformatics/loom/tarball/'+version,
 
     # Author details
     author='Nathan Hammond',
