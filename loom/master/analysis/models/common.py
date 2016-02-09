@@ -1,5 +1,5 @@
 from django.db import models
-from immutable.models import ImmutableModel, MutableModel
+from universalmodels.models import ImmutableModel, InstanceModel
 
 
 class AnalysisAppBaseModel(models.Model):

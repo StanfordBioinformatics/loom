@@ -11,26 +11,26 @@ from loom.common import fixtures
 class TestRunsModels(ImmutableModelsTestCase):
 
     def testMinimalStepRun(self):
-        o = StepRun.create(fixtures.step_run_minimal_obj)
+        o = StepRun.create(fixtures.step_run_minimal_struct)
         self.roundTripJson(o)
-        self.roundTripObj(o)
+        self.roundTripStruct(o)
 
     def testStepRunWithEverything(self):
-        o = StepRun.create(fixtures.step_run_with_everything_obj)
+        o = StepRun.create(fixtures.step_run_with_everything_struct)
         self.roundTripJson(o)
-        self.roundTripObj(o)
+        self.roundTripStruct(o)
 
     def testStepResult(self):
-        step_run = StepRun.create(fixtures.step_run_with_everything_obj)
-        file = File.create(fixtures.file_obj)
+        step_run = StepRun.create(fixtures.step_run_with_everything_struct)
+        file = File.create(fixtures.file_struct)
         result = StepResult.create(
             {
-                'output_port': step_run.output_ports.first().to_serializable_obj(),
-                'data_object': file.to_obj()
+                'output_port': step_run.output_ports.first().to_struct(),
+                'data_object': file.to_struct()
              }
             )
         self.roundTripJson(result)
-        self.roundTripObj(result)
+        self.roundTripStruct(result)
 
 class TestStepRun(TestCase):
 

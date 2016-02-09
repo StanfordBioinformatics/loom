@@ -77,7 +77,7 @@ hello_world_step = {
         ],
 }
 
-hello_world_workflow_obj = {
+hello_world_workflow_struct = {
     'name': 'hello_world',
     'steps': [
         world_step,
@@ -178,4 +178,4 @@ hello_world_step_run = {
     }
 
 if __name__=='__main__':
-    print json.dumps(hello_world_workflow_obj, separators=(',', ':'), indent=2)
+    print json.dumps(hello_world_workflow_struct, separators=(',', ':'), indent=2)

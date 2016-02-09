@@ -24,13 +24,13 @@ class Helper:
     def index(cls, request, model_class):
         model_list = []
         for model in model_class.objects.all():
-            model_list.append(model.downcast().to_serializable_obj())
+            model_list.append(model.downcast().to_struct())
         return JsonResponse({model_class.get_name(plural=True): model_list}, status=200)
 
     @classmethod
     def show(cls, request, id, model_class):
         model = model_class.get_by_id(id)
-        return JsonResponse(model.to_serializable_obj(), status=200)
+        return JsonResponse(model.to_struct(), status=200)
 
     @classmethod
     def update(cls, request, id, model_class):
@@ -132,20 +132,25 @@ def dashboard(request):
             count = int(DEFAULT_COUNT_STR)
         return count
 
-    def _get_step_info(s):
+    def _get_step_info(step_model):
+        # Render model as an object to make sure nonserializable types are converted.
+        step = step_model.to_struct()
         return {
-            'id': s.get_field_as_serializable('_id'),
-            'name': s.name,
-            'are_results_complete': s.are_results_complete,
-            'command': s.command,
+            'id': step['_id'],
+            'name': step['name'],
+            'are_results_complete': step['are_results_complete'],
+            'command': step['command'],
             }
 
     def _get_workflow_info(w):
+        # Render model as an object to make sure nonserializable types are converted.
+        workflow = w.to_struct()
         return {
-            'id': w.get_field_as_serializable('_id'),
-            'name': w.name,
-            'are_results_complete': w.are_results_complete,
+            'id': workflow['_id'],
+            'name': workflow['name'],
+            'are_results_complete': workflow['are_results_complete'],
             'steps': [
+                # ...but we use the model here since it is easier to order steps.
                 _get_step_info(s) for s in w.steps.order_by('datetime_created').reverse().all()
                 ]
             }

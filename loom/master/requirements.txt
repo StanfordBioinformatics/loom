@@ -1,9 +1,11 @@
 Django==1.8
+django-extensions==1.5.5
+django-sortedone2many==0.1.8
+django-sortedm2m==1.1.1
+gunicorn==19.3.0
 Jinja2==2.8
 jsonfield==1.0.3
-gunicorn==19.3.0
 jsonschema==2.4.0
-django-extensions==1.5.5
 python-daemon==2.0.5
 MySQL-python==1.2.5
 -r ../common/requirements.txt

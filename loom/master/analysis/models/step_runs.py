@@ -1,24 +1,22 @@
 from django.core import exceptions
-from django.db import models
 
-from analysis.models.common import AnalysisAppBaseModel
-from analysis.models.step_definitions import StepDefinitionOutputPort
-from analysis.models.files import DataObject
-from immutable.models import MutableModel, ImmutableModel
+from .common import AnalysisAppBaseModel
+from .step_definitions import StepDefinitionOutputPort
+from .files import DataObject
+from universalmodels import fields
+from universalmodels.models import InstanceModel, ImmutableModel
 
 
-class StepResult(MutableModel, AnalysisAppBaseModel):
+class StepResult(InstanceModel, AnalysisAppBaseModel):
     """Assigns a DataObject result to one OutputPort of one StepRun"""
 
     _class_name = ('step_result', 'step_results')
 
-    FOREIGN_KEY_CHILDREN = ['data_object', 'output_port']
-
-    data_object = models.ForeignKey('DataObject', related_name='step_results')
-    output_port = models.OneToOneField('StepRunOutputPort', related_name='step_result')
+    data_object = fields.ForeignKey('DataObject', related_name='step_results')
+    output_port = fields.OneToOneField('StepRunOutputPort', related_name='step_result')
 
 
-class StepRun(MutableModel, AnalysisAppBaseModel):
+class StepRun(InstanceModel, AnalysisAppBaseModel):
     """One instance of executing a step. A step can have many InputSets
     if there is a parallel workflow, and each InputSet will generate one 
     StepRun. A step can also have distinct StepRuns for reruns with the 
@@ -27,20 +25,19 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
 
     _class_name = ('step_run', 'step_runs')
 
-    FOREIGN_KEY_CHILDREN = ['step', 'step_definition', 'process_location', 'input_ports', 'output_ports']
-
     # If multiple steps have the same StepDefinition, they can share a StepRun
-    steps = models.ManyToManyField('Step', related_name='step_runs') 
-    step_definition = models.ForeignKey('StepDefinition', null=True, related_name='step_runs')
-    process_location = models.ForeignKey('ProcessLocation', null=True)
-    are_results_complete = models.BooleanField(default=False)
-    is_running = models.BooleanField(default=False)
-
+    steps = fields.ManyToManyField('Step', related_name='step_runs') 
+    step_definition = fields.ForeignKey('StepDefinition', null=True, related_name='step_runs')
+    are_results_complete = fields.BooleanField(default=False)
+    is_running = fields.BooleanField(default=False)
+    input_ports = fields.OneToManyField('StepRunInputPort', related_name='step_run')
+    output_ports = fields.OneToManyField('StepRunOutputPort', related_name='step_run')
+    
     @classmethod
     def create_step_run(cls, step_definition, step):
         cls.create({
-                'step': step.to_serializable_obj(),
-                'step_definition': step_definition.to_serializable_obj()
+                'step': step.to_struct(),
+                'step_definition': step_definition.to_struct()
                 })
 
     def _update_status(self):
@@ -90,32 +87,29 @@ class StepRun(MutableModel, AnalysisAppBaseModel):
         step_run_output_port = self.get_step_run_output_port_by_step_definition_output_port(step_definition_output_port)
         return StepResult.create(
             {
-                'data_object': data_object.to_serializable_obj(),
-                'output_port': step_run_output_port.to_serializable_obj()
+                'data_object': data_object.to_struct(),
+                'output_port': step_run_output_port.to_struct()
                 }
             )
 
     @classmethod
-    def submit_result(cls, result_info_obj_or_json):
-        result_info_obj = StepResult._any_to_obj(result_info_obj_or_json)
-        step_definition_output_port = StepDefinitionOutputPort.get_by_definition(result_info_obj.get('step_result').get('output_port'))
-        data_object = DataObject.create(result_info_obj.get('step_result').get('data_object'))
-        step_run = StepRun.get_by_definition(result_info_obj.get('step_run'))
+    def submit_result(cls, result_info_struct_or_json):
+        result_info_struct = StepResult._any_to_struct(result_info_struct_or_json)
+        step_definition_output_port = StepDefinitionOutputPort.get_by_definition(result_info_struct.get('step_result').get('output_port'))
+        data_object = DataObject.create(result_info_struct.get('step_result').get('data_object'))
+        step_run = StepRun.get_by_definition(result_info_struct.get('step_run'))
         return step_run.add_step_result(data_object, step_definition_output_port)
 
     def __str__(self):
         return self.step_definition.command
 
 
-class StepRunOutputPort(MutableModel, AnalysisAppBaseModel):
+class StepRunOutputPort(InstanceModel, AnalysisAppBaseModel):
 
     _class_name = ('step_run_output_port', 'step_run_output_ports')
 
-    FOREIGN_KEY_CHILDREN = ['step_definition_output_port']
-
-    name = models.CharField(max_length = 256)
-    step_run = models.ForeignKey('StepRun', related_name='output_ports', null=True)
-    step_definition_output_port = models.ForeignKey('StepDefinitionOutputPort', null=True)
+    name = fields.CharField(max_length = 256)
+    step_definition_output_port = fields.ForeignKey('StepDefinitionOutputPort', null=True)
 
     def get_data_object(self):
         try:
@@ -131,69 +125,50 @@ class StepRunOutputPort(MutableModel, AnalysisAppBaseModel):
             return data_object.is_available()
 
 
-class StepRunInputPort(MutableModel, AnalysisAppBaseModel):
+class StepRunInputPort(InstanceModel, AnalysisAppBaseModel):
 
     _class_name = ('step_run_input_port', 'step_run_input_ports')
 
-    FOREIGN_KEY_CHILDREN = ['step_definition_input_port']
-
-    name = models.CharField(max_length = 256)
-    step_run = models.ForeignKey('StepRun', related_name='input_ports', null=True)
-    step_definition_input_port = models.ForeignKey('StepDefinitionInputPort', null=True)
+    name = fields.CharField(max_length = 256)
+    step_definition_input_port = fields.ForeignKey('StepDefinitionInputPort', null=True)
 
 
-class StepRunDataBinding(MutableModel, AnalysisAppBaseModel):
+class StepRunDataBinding(InstanceModel, AnalysisAppBaseModel):
     """ Connects existing DataObject as input for a StepRun"""
 
     _class_name = ('step_run_data_binding', 'step_run_data_bindings')
 
-    destination =  models.ForeignKey('StepRunDataBindingDestinationPortIdentifier')
-    source = models.ForeignKey('DataObject')
+    destination =  fields.ForeignKey('StepRunDataBindingDestinationPortIdentifier')
+    source = fields.ForeignKey('DataObject')
 
 
-class StepRunDataPipe(MutableModel, AnalysisAppBaseModel):
+class StepRunDataPipe(InstanceModel, AnalysisAppBaseModel):
     """Connects output from another StepRun as input for a StepRun"""
 
     _class_name = ('step_run_data_pipe', 'step_run_data_pipes')
 
-    destination =  models.ForeignKey('StepRunDataPipeDestinationPortIdentifier')
-    source =  models.ForeignKey('StepRunDataPipeSourcePortIdentifier')
+    destination =  fields.ForeignKey('StepRunDataPipeDestinationPortIdentifier')
+    source =  fields.ForeignKey('StepRunDataPipeSourcePortIdentifier')
 
 
-class StepRunPortIdentifier(MutableModel, AnalysisAppBaseModel):
+class StepRunPortIdentifier(InstanceModel, AnalysisAppBaseModel):
 
-    FOREIGN_KEY_CHILDREN = ['port']
-
-    step_run = models.ForeignKey('StepRun')
-    port = models.CharField(max_length = 256, null=True)
+    port = fields.CharField(max_length = 256, null=True)
 
     class Meta:
-
         abstract = True
-
 
 class StepRunDataBindingDestinationPortIdentifier(StepRunPortIdentifier):
 
     _class_name = ('step_run_data_binding_destination_port_identifier', 'step_run_data_binding_destination_port_identifiers')
-
+    step_run = fields.ForeignKey('StepRun')
 
 class StepRunDataPipeDestinationPortIdentifier(StepRunPortIdentifier):
 
     _class_name = ('step_run_data_pipe_destination_port_identifier', 'step_run_data_pipe_destination_port_identifiers')
-
+    step_run = fields.ForeignKey('StepRun')
 
 class StepRunDataPipeSourcePortIdentifier(StepRunPortIdentifier):
 
     _class_name = ('step_run_data_pipe_source_port_identifier', 'step_run_data_pipe_source_port_identifiers')
-
-
-class ProcessLocation(MutableModel, AnalysisAppBaseModel):
-
-    _class_name = ('process_location', 'process_locations')
-
-
-class LocalProcessLocation(ProcessLocation):
-
-    _class_name = ('local_process_location', 'local_process_locations')
-
-    pid = models.IntegerField()
+    step_run = fields.ForeignKey('StepRun')
