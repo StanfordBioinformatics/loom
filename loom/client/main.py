@@ -3,14 +3,17 @@
 import argparse
 import os
 import sys
-rootdir=os.path.abspath('../..')
-sys.path.append(rootdir)
+
+if __name__ == "__main__" and __package__ is None:
+    rootdir=os.path.abspath('../..')
+    sys.path.append(rootdir)
 
 from loom.client import config
 from loom.client import run
 from loom.client import server
 from loom.client import upload
 from loom.client import test_runner
+
 
 class Main(object):
 
@@ -33,8 +36,8 @@ class Main(object):
         server_subparser.set_defaults(SubcommandClass=server.ServerControls)
 
         upload_subparser = subparsers.add_parser('upload', help='register and upload files to the Loom server')
-        upload.Upload.get_parser(upload_subparser)
-        upload_subparser.set_defaults(SubcommandClass=upload.Upload)
+        upload.Uploader.get_parser(upload_subparser)
+        upload_subparser.set_defaults(SubcommandClass=upload.Uploader)
 
         config_subparser = subparsers.add_parser('config', help='configure the Loom server')
         config.Config.get_parser(config_subparser)

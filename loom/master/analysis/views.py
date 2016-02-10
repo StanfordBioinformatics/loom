@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from analysis.models import File, Workflow, StepRun, StepResult
+from analysis.models import WorkflowRunRequest
 
 logger = logging.getLogger('loom')
 
@@ -69,7 +69,7 @@ def filehandlerinfo(request):
         'PROJECT_ID': settings.PROJECT_ID,
         }
     return JsonResponse({'filehandlerinfo': filehandlerinfo})
-
+"""
 @csrf_exempt
 @require_http_methods(["POST"])
 def submitworkflow(request):
@@ -92,6 +92,7 @@ def submitresult(request):
     except Exception as e:
         logger.error('Failed to create result with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=500)
+"""
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
@@ -109,12 +110,15 @@ def show_or_update(request, id, model_class):
     else:
         return Helper.show(request, id, model_class)
 
+"""
 @csrf_exempt
 @require_http_methods(["GET"])
 def show_input_port_bundles(request, id):
     step_run = StepRun.get_by_id(id)
     input_port_bundles = step_run.get_input_bundles()
     return JsonResponse({"input_port_bundles": input_port_bundles}, status=200)
+
+"""
 
 @csrf_exempt
 @require_http_methods(["GET"])
@@ -156,7 +160,7 @@ def dashboard(request):
             }
 
     count = _get_count(request)
-    workflows = Workflow.get_sorted(count=count)
+    workflows = WorkflowRunRequest.get_sorted(count=count)
     if len(workflows) == 0:
         workflows = []
     workflow_info = [_get_workflow_info(wf) for wf in workflows]

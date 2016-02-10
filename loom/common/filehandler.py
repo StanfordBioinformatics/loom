@@ -13,6 +13,7 @@ import gcloud.storage
 import requests
 
 from loom.common import md5calc
+from loom.common.exceptions import *
 
 # Google Storage JSON API imports
 from apiclient.http import MediaIoBaseDownload
@@ -39,7 +40,10 @@ def FileHandler(master_url):
 
 def _get_settings(master_url):
     url = master_url + '/api/filehandlerinfo/'
-    response = requests.get(url)
+    try:
+        response = requests.get(url)
+    except requests.exceptions.ConnectionError:
+        raise ServerConnectionError('Unable to connect to server at %s. Is the server running?' % master_url)
     response.raise_for_status()
     settings = response.json()['filehandlerinfo']
     return settings
@@ -73,13 +77,13 @@ class AbstractFileHandler:
     def get_import_location(self, local_path, file_object=None, file_id=None):
         pass
 
-    def _get_import_path(self, file_id, local_path):
+    def _get_import_path(self, file_id, file_name):
         """Imported files are placed in IMPORT_DIR and named with timestamp, file ID, and filename.""" 
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
         return os.path.join(
             self.settings['FILE_ROOT'],
             self.settings['IMPORT_DIR'],
-            "%s_%s_%s" % (timestamp, file_id[0:10], os.path.basename(local_path)),
+            "%s_%s_%s" % (timestamp, file_id[0:10], file_name),
         )
 
     def _get_step_output_path(self, local_path):
@@ -115,12 +119,16 @@ class AbstractPosixPathFileHandler(AbstractFileHandler):
 
     def get_import_location(self, local_path, file_object=None, file_id=None):
         if file_object is None:
-            file_object = create_file_object(local_path)
+            file_name = os.path.basename(local_path)
+            file_object = create_file_object(local_path, file_name=file_name)
+        else:
+            # If file_object is given, its file_name takes priority over local_path
+            file_name = file_object['file_name']
         if file_id is None:
             file_id = post_file_object(self.master_url, file_object) #hidden side effect; get file id without posting?
         location = {
             'file_contents': file_object['file_contents'],
-            'file_path': self._get_import_path(file_id, local_path), 
+            'file_path': self._get_import_path(file_id, file_name),
             'host_url': self.settings['FILE_SERVER_FOR_WORKER']
             }
         return location
@@ -274,35 +282,40 @@ class GoogleCloudFileHandler(AbstractFileHandler):
 
     def get_import_location(self, local_path, file_object=None, file_id=None):
         if file_object is None:
-            file_object = create_file_object(local_path)
+            file_name = os.path.basename(local_path)
+            file_object = create_file_object(local_path, file_name=file_name)
+        else:
+            # If file_object is given, its file_name takes priority over local_path
+            file_name = file_object['file_name']
         if file_id is None:
             file_id = post_file_object(self.master_url, file_object) #hidden side effect; get file id without posting?
         location = {
             'file_contents': file_object['file_contents'],
             'project_id': self.settings['PROJECT_ID'],
             'bucket_id': self.settings['BUCKET_ID'],
-            'blob_path': self._get_import_path(file_id, local_path), 
+            'blob_path': self._get_import_path(file_id, file_name),
             }
         return location
 
 
 # Utility functions used by FileHandlers as well as external modules.
-def create_file_object(file_path):
+def create_file_object(file_path, file_name=None):
+    if file_name is None:
+        file_name = os.path.basename(file_path)
+
     file = {
         'file_contents': {
             'hash_value': md5calc.calculate_md5sum(file_path),
             'hash_function': 'md5',
         },
-        'metadata': {
-            'filename': os.path.basename(file_path)
-        }
+        'file_name': file_name
     }
     return file
 
 def post_file_object(url, file_obj):
     """Register a file object with the server."""
     try:
-        response = requests.post(url+'/api/files', data=json.dumps(file_obj))
+        response = requests.post(url+'/api/file_data_objects', data=json.dumps(file_obj))
     except requests.exceptions.ConnectionError as e:
         raise FileHandlerError("No response from server %s\n%s" % (url, e))
     
