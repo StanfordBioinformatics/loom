@@ -7,6 +7,9 @@ class UploadException(Error):
 class NotAFileError(Error):
     pass
 
+class NoFilesFoundError(Error):
+    pass
+
 class InvalidFileNameError(Error):
     pass
 

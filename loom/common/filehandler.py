@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
 import abc
+from copy import copy
 import datetime
 import errno
-import json
 import os
 import shutil
-import socket
 import subprocess
 
 import gcloud.storage
@@ -14,6 +13,7 @@ import requests
 
 from loom.common import md5calc
 from loom.common.exceptions import *
+from loom.common.objecthandler import ObjectHandler
 
 # Google Storage JSON API imports
 from apiclient.http import MediaIoBaseDownload
@@ -21,13 +21,10 @@ from oauth2client.client import GoogleCredentials
 import apiclient.discovery
 
 
-class FileHandlerError(Exception):
-    pass
-
-
 def FileHandler(master_url):
-    """Factory method that communicates with master server to retrieve settings and
-    determine which concrete subclass to instantiate."""
+    """Factory method that communicates with master server to retrieve settings 
+    and determine which concrete subclass to instantiate.
+    """
     settings = _get_settings(master_url)
     if settings['FILE_SERVER_TYPE'] == 'LOCAL':
         return LocalFileHandler(master_url, settings)
@@ -36,29 +33,34 @@ def FileHandler(master_url):
     elif settings['FILE_SERVER_TYPE'] == 'GOOGLE_CLOUD':
         return GoogleCloudFileHandler(master_url, settings)
     else:
-        raise FileHandlerError('Unrecognized file server type: %s' % settings['FILE_SERVER_TYPE'])
+        raise UnrecognizedFileServerTypeError(
+            'Unrecognized file server type: %s' % settings['FILE_SERVER_TYPE'])
 
 def _get_settings(master_url):
     url = master_url + '/api/filehandlerinfo/'
     try:
         response = requests.get(url)
     except requests.exceptions.ConnectionError:
-        raise ServerConnectionError('Unable to connect to server at %s. Is the server running?' % master_url)
-    response.raise_for_status()
+        raise ServerConnectionError(
+            'Unable to connect to server at %s. Is the server running?' \
+            % master_url)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        raise BadResponseError("%s\n%s" % (e.message, response.text))
     settings = response.json()['filehandlerinfo']
     return settings
 
 
 class AbstractFileHandler:
     """Abstract base class for filehandlers.
-
-    Public interface and required overrides. Perform file transfer or create locations
-    differently depending on fileserver type.
+    Public interface and required overrides. Perform file transfer or create 
+    locations differently depending on fileserver type.
     """
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, master_url, settings):
-        self.master_url = master_url
+        self.objecthandler = ObjectHandler(master_url)
         self.settings = settings
 
     @abc.abstractmethod
@@ -74,26 +76,32 @@ class AbstractFileHandler:
         pass
 
     @abc.abstractmethod
-    def get_import_location(self, local_path, file_object=None, file_id=None):
+    def get_import_location(self, file_object, timestamp):
         pass
 
-    def _get_import_path(self, file_id, file_name):
-        """Imported files are placed in IMPORT_DIR and named with timestamp, file ID, and filename.""" 
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
+    def _get_import_path(self, file_object, timestamp):
+        """Imported files are placed in IMPORT_DIR and named with timestamp, 
+        file ID, and filename.
+        """
+        file_id = file_object.get('_id')
+        if file_id is None:
+            raise UndefinedFileIDError("File ID must be defined")
         return os.path.join(
             self.settings['FILE_ROOT'],
             self.settings['IMPORT_DIR'],
-            "%s_%s_%s" % (timestamp, file_id[0:10], file_name),
+            "%s_%s_%s" % (timestamp, file_id[0:10], file_object['file_name']),
         )
 
     def _get_step_output_path(self, local_path):
         """Step outputs are placed in directories of the same name as the
-        local directories, and named with the same filename. 
+        local directories, and named with the same filename.
         """
         filename = os.path.basename(local_path)
         step_run_dir = os.path.basename(os.path.dirname(local_path))
-        workflow_dir = os.path.basename(os.path.dirname(os.path.dirname(local_path)))
-        workflows_dir = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(local_path))))
+        workflow_dir = os.path.basename(os.path.dirname(
+            os.path.dirname(local_path)))
+        workflows_dir = os.path.basename(os.path.dirname(
+            os.path.dirname(os.path.dirname(local_path))))
         return os.path.join(
             self.settings['FILE_ROOT'],
             workflows_dir,
@@ -102,6 +110,58 @@ class AbstractFileHandler:
             filename
         )
 
+    @classmethod
+    def create_file_data_object_from_local_path(cls, file_path, file_name=None):
+        if file_name is None:
+            file_name = os.path.basename(file_path)
+        file_data_object = {
+            'file_contents': {
+                'hash_value': md5calc.calculate_md5sum(file_path),
+                'hash_function': 'md5',
+            },
+            'file_name': file_name
+        }
+        return file_data_object
+
+    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record=None):
+        upload_request_time = self.objecthandler.get_server_time()
+        file_objects = []
+        destination_locations = []
+        data_objects = copy(file_objects) # Many include an array object
+        if file_names == None:
+            file_names = [None] * len(local_paths)
+            
+        # Create Files
+        for (local_path, file_name) in zip(local_paths, file_names):
+            file_object = self.create_file_data_object_from_local_path(local_path, file_name=file_name)
+            server_file_object = self.objecthandler.post_file_data_object(file_object)
+            file_objects.append(server_file_object)
+
+        # Create Array
+        if len(local_paths) > 1:
+            array_object = self.objecthandler.post_data_object_array(
+                {'data_objects': file_objects}
+            )
+            data_objects.append(array_object)
+
+        # Create source_record
+        if source_record:
+            debug_source_record = {'data_objects': data_objects,
+                                   'source_description': source_record}
+            self.objecthandler.post_data_source_record(
+                {'data_objects': data_objects,
+                 'source_description': source_record}
+            )
+
+        # Create storage locations
+        for file_object in file_objects:
+            destination_locations.append(self.get_import_location(file_object, upload_request_time))
+        
+        # Upload files and post storage locations
+        for (local_path, destination_location) in zip(local_paths, destination_locations):
+            self.upload(local_path, destination_location)
+            self.objecthandler.post_file_storage_location(destination_location)
+
 
 class AbstractPosixPathFileHandler(AbstractFileHandler):
     """Base class for filehandlers that deal with POSIX-style file paths."""
@@ -109,7 +169,7 @@ class AbstractPosixPathFileHandler(AbstractFileHandler):
 
     def get_step_output_location(self, local_path, file_object=None):
         if file_object is None:
-            file_object = create_file_object(local_path)
+            file_object = create_file_data_object_from_local_path(local_path)
         location = {
             'file_contents': file_object['file_contents'],
             'file_path': self._get_step_output_path(local_path),
@@ -117,29 +177,23 @@ class AbstractPosixPathFileHandler(AbstractFileHandler):
             }
         return location
 
-    def get_import_location(self, local_path, file_object=None, file_id=None):
-        if file_object is None:
-            file_name = os.path.basename(local_path)
-            file_object = create_file_object(local_path, file_name=file_name)
-        else:
-            # If file_object is given, its file_name takes priority over local_path
-            file_name = file_object['file_name']
-        if file_id is None:
-            file_id = post_file_object(self.master_url, file_object) #hidden side effect; get file id without posting?
+    def get_import_location(self, file_object, timestamp):
         location = {
             'file_contents': file_object['file_contents'],
-            'file_path': self._get_import_path(file_id, file_name),
+            'file_path': self._get_import_path(file_object, timestamp),
             'host_url': self.settings['FILE_SERVER_FOR_WORKER']
             }
         return location
 
 
 class LocalFileHandler(AbstractPosixPathFileHandler):
-    """Subclass of FileHandler that uses cp or ln to 'copy' files."""
-
+    """Subclass of FileHandler that uses cp or ln to 'copy' files.
+    """
     def upload(self, local_path, destination_location):
         """For imports, create imports directory and copy file.
-        For step outputs, don't need to do anything, because the working directory is the destination."""
+        For step outputs, don't need to do anything, because the working 
+        directory is the destination.
+        """
         destination_path = destination_location['file_path']
         if local_path != destination_path:
             try:
@@ -153,37 +207,40 @@ class LocalFileHandler(AbstractPosixPathFileHandler):
         return
 
     def download(self, source_location, local_path):
-        """Save space by hardlinking file into the working dir instead of copying. However, won't
-        work if the two locations are on different filesystems.
+        """Save space by hardlinking file into the working dir instead of 
+        copying. However, won't work if the two locations are on different 
+        filesystems.
         """
         cmd = ['ln', source_location['file_path'], local_path]
-        subprocess.call(cmd)
-
+        subprocess.check_call(cmd)
 
 class RemoteFileHandler(AbstractPosixPathFileHandler):
     """Subclass of FileHandler that uses ssh and scp to copy files."""
 
     def upload(self, local_path, destination_location):
         destination_path = destination_location['file_path']
-        subprocess.call(
+        subprocess.check_call(
             ['ssh',
              self.fileserver,
              'mkdir',
              '-p',
              os.path.dirname(destination_path)]
-             )
-        subprocess.call(
+        )
+        subprocess.check_call(
             ['scp',
              local_path,
              ':'.join([self.fileserver, destination_path])]
-            )
+        )
 
     def download(self, source_location, local_path):
-        subprocess.call(
+        subprocess.check_call(
             ['scp',
-             ':'.join([source_location['host_url'], source_location['file_path']]),
+             ':'.join(
+                 [source_location['host_url'],
+                  source_location['file_path']]
+             ),
              local_path]
-            )
+        )
 
     def get_cluster_remote_path(self, username):
         if not hasattr(self,'_remote_path'):
@@ -271,7 +328,7 @@ class GoogleCloudFileHandler(AbstractFileHandler):
 
     def get_step_output_location(self, local_path, file_object=None):
         if file_object is None:
-            file_object = create_file_object(local_path)
+            file_object = create_file_data_object_from_local_path(local_path)
         location = {
             'file_contents': file_object['file_contents'],
             'project_id': self.settings['PROJECT_ID'],
@@ -280,60 +337,11 @@ class GoogleCloudFileHandler(AbstractFileHandler):
             }
         return location
 
-    def get_import_location(self, local_path, file_object=None, file_id=None):
-        if file_object is None:
-            file_name = os.path.basename(local_path)
-            file_object = create_file_object(local_path, file_name=file_name)
-        else:
-            # If file_object is given, its file_name takes priority over local_path
-            file_name = file_object['file_name']
-        if file_id is None:
-            file_id = post_file_object(self.master_url, file_object) #hidden side effect; get file id without posting?
+    def get_import_location(self, file_object, timestamp):
         location = {
             'file_contents': file_object['file_contents'],
             'project_id': self.settings['PROJECT_ID'],
             'bucket_id': self.settings['BUCKET_ID'],
-            'blob_path': self._get_import_path(file_id, file_name),
+            'blob_path': self._get_import_path(file_object, timestamp),
             }
         return location
-
-
-# Utility functions used by FileHandlers as well as external modules.
-def create_file_object(file_path, file_name=None):
-    if file_name is None:
-        file_name = os.path.basename(file_path)
-
-    file = {
-        'file_contents': {
-            'hash_value': md5calc.calculate_md5sum(file_path),
-            'hash_function': 'md5',
-        },
-        'file_name': file_name
-    }
-    return file
-
-def post_file_object(url, file_obj):
-    """Register a file object with the server."""
-    try:
-        response = requests.post(url+'/api/file_data_objects', data=json.dumps(file_obj))
-    except requests.exceptions.ConnectionError as e:
-        raise FileHandlerError("No response from server %s\n%s" % (url, e))
-    
-    try:
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        raise FileHandlerError("%s\n%s" % (e.message, response.text))
-    return response.json().get('_id')
-
-def post_location(url, file_storage_location_obj):
-    """Register a file storage location with the server."""
-    try:
-        response = requests.post(url+'/api/file_storage_locations', data=json.dumps(file_storage_location_obj))
-    except requests.exceptions.ConnectionError as e:
-        raise FileHandlerError("No response from server %s\n%s)" % (url, e))
-    
-    try:
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        raise FileHandlerError("%s\n%s" % (e.message, response.text))
-    return response.json().get('_id')

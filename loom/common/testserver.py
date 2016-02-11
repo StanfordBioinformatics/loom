@@ -8,7 +8,7 @@ import requests
 import subprocess
 import sys
 import time
-from loom.common.helper import Helper
+from loom.common import helper
 from loom.client import server
 
 
@@ -30,7 +30,7 @@ class TestServer:
         self.server_url = self.xs.settings_manager.get_server_url_for_client()
 
         # Confirm server started
-        Helper.wait_for_true(self._webserver_started, timeout_seconds=5)
+        helper.wait_for_true(self._webserver_started, timeout_seconds=5)
 
     def stop(self):
         xsc_parser = server.ServerControls.get_parser()
@@ -39,7 +39,7 @@ class TestServer:
         self.xs.run() # stop server
 
         # Confirm server stopped
-        Helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)
+        helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)
 
     def status(self):
         xsc_parser = server.ServerControls.get_parser()

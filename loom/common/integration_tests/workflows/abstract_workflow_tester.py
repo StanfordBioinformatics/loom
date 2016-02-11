@@ -1,7 +1,7 @@
 import json
 import unittest
 from loom.client import submit, upload
-from loom.common.helper import Helper
+from loom.common import helper
 from loom.common.testserver import TestServer
 
 class AbstractWorkflowTester(unittest.TestCase):
@@ -36,7 +36,7 @@ class AbstractWorkflowTester(unittest.TestCase):
         uploader.run()
 
     def wait_for_job(self):
-        Helper.wait_for_true(self.is_workflow_complete, timeout_seconds=30, sleep_interval=3)
+        helper.wait_for_true(self.is_workflow_complete, timeout_seconds=30, sleep_interval=3)
 
     def stop_server(self):
         self.test_server.stop()

@@ -27,6 +27,19 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
+            name='DataSourceRecord',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('source_description', models.TextField(max_length=10000)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
+        ),
+        migrations.CreateModel(
             name='FileContents',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
@@ -286,6 +299,11 @@ class Migration(migrations.Migration):
             model_name='filestoragelocation',
             name='file_contents',
             field=models.ForeignKey(to='analysis.FileContents', null=True),
+        ),
+        migrations.AddField(
+            model_name='datasourcerecord',
+            name='data_objects',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='data_source_record', to='analysis.AbstractDataObject'),
         ),
         migrations.AddField(
             model_name='dataobjectarray',

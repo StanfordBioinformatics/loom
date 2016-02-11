@@ -3,19 +3,21 @@ from analysis.models import *
 
 urlpatterns = patterns(
     '',
-    url(r'^status/?$', 'analysis.views.status'),
-    url(r'^submitworkflow/?$', 'analysis.views.submitworkflow'),
-    url(r'^submitresult/?$', 'analysis.views.submitresult'),
-    url(r'^closerun/?$', 'analysis.views.closerun'),
-    url(r'^workerinfo/?$', 'analysis.views.workerinfo'),
-    url(r'^filehandlerinfo/?$', 'analysis.views.filehandlerinfo'),
-    )    
+    url(r'^status/$', 'analysis.views.status'),
+    url(r'^submitworkflow/$', 'analysis.views.submitworkflow'),
+    url(r'^submitresult/$', 'analysis.views.submitresult'),
+    url(r'^closerun/$', 'analysis.views.closerun'),
+    url(r'^workerinfo/$', 'analysis.views.workerinfo'),
+    url(r'^filehandlerinfo/$', 'analysis.views.filehandlerinfo'),
+    url(r'^servertime/$', 'analysis.views.servertime'),
+)    
 
 model_classes = [
     FileDataObject,
     DataObjectArray,
     WorkflowRunRequest,
     FileStorageLocation,
+    DataSourceRecord,
     ]
 
 for cls in model_classes:

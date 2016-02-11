@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.utils import timezone
 from analysis.models import WorkflowRunRequest
 
 logger = logging.getLogger('loom')
@@ -15,7 +16,7 @@ class Helper:
         data_json = request.body
         try:
             model = model_class.create(data_json)
-            return JsonResponse({"message": "created %s" % model_class.get_name(), "_id": str(model._id)}, status=201)
+            return JsonResponse({"message": "created %s" % model_class.get_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
         except Exception as e:
             logger.error('Failed to create %s with data "%s". %s' % (model_class, data_json, e.message))
             return JsonResponse({"message": e.message}, status=400)
@@ -46,6 +47,10 @@ class Helper:
 @require_http_methods(["GET"])
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
+
+@require_http_methods(["GET"])
+def servertime(request):
+    return JsonResponse({"time": timezone.now().isoformat()}, status=200)
 
 @require_http_methods(["GET"])
 def workerinfo(request):

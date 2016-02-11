@@ -4,7 +4,7 @@ import unittest
 
 from django.conf import settings
 
-from analysis.models import Workflow
+from analysis.models import WorkflowRunRequest
 from loom.common import fixtures
 from loom.common.testserver import TestServer
 
@@ -33,7 +33,6 @@ class TestWorkerManagers(unittest.TestCase):
 
         # Give tests some time to finish before shutting down the server. 
         time.sleep(5)
-        """
 
     def test_cluster_worker_manager(self):
         settings.WORKER_TYPE = 'ELASTICLUSTER'
@@ -47,3 +46,4 @@ class TestWorkerManagers(unittest.TestCase):
         Workflow.create(fixtures.hello_world_workflow_struct)
         Workflow.update_and_run()
 
+    """
