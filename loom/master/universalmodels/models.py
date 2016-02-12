@@ -21,7 +21,19 @@ class _BaseModel(models.Model):
 
     @classmethod
     def get_by_id(cls, _id):
-        return cls.objects.get(_id=_id).downcast()
+        MIN_LENGTH = 1
+        if len(_id) < MIN_LENGTH:
+            raise cls.DoesNotExist('ID length must be at least %s' % MIN_LENGTH)
+        obj = cls.objects.filter(_id__startswith=_id)
+        if obj.count() == 1:
+            return obj.first().downcast()
+        elif obj.count() > 1:
+            raise cls.DoesNotExist(
+                'The ID "%s" matches more than one object. '\
+                'Try using more characters in an abbreviated ID '\
+                'or use the full ID string' % _id)
+        else:
+            raise cls.DoesNotExist('No object found with ID %s' % _id)
 
     @classmethod
     def get_by_definition(cls, data_struct_or_json):

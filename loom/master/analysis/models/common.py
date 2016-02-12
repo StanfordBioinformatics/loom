@@ -51,6 +51,9 @@ class _ClassNameMixin(object):
     
 class AnalysisAppInstanceModel(InstanceModel, _ClassNameMixin):
 
+    def __unicode__(self):
+        return self._id
+                
     class Meta:
         abstract = True
         app_label = 'analysis'
@@ -58,6 +61,9 @@ class AnalysisAppInstanceModel(InstanceModel, _ClassNameMixin):
 
 class AnalysisAppImmutableModel(ImmutableModel, _ClassNameMixin):
 
+    def __unicode__(self):
+        return self._id
+                
     class Meta:
         abstract = True
         app_label = 'analysis'

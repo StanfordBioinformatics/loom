@@ -10,10 +10,12 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(rootdir)
     
 from loom.client import settings_manager
-from loom.client.common import get_settings_manager, \
+from loom.client.common import \
+    get_settings_manager, \
     add_settings_options_to_parser
 from loom.client.exceptions import *
 from loom.common import filehandler
+from loom.common.helper import get_stdout_logger
 
 
 class AbstractUploader(object):
@@ -40,7 +42,7 @@ class FileUploader(AbstractUploader):
         parser = super(FileUploader, cls).get_parser(parser)
         parser.add_argument(
             'file_paths',
-            metavar='FILE_PATHS', help='File(s) to be uploaded. '\
+            metavar='FILE_PATHS', nargs='+', help='File(s) to be uploaded. '\
             'Comma-separated list with no spaces. Wildcards are allowed. '\
             'Quotes may be needed to protect wildcards.')
         parser.add_argument(
@@ -57,18 +59,19 @@ class FileUploader(AbstractUploader):
         return parser
 
     def run(self):
+        terminal = get_stdout_logger()
         self._get_local_paths()
         self._get_file_names()
         self._get_filehandler()
         self._get_source_record_text()
-        self._upload_files()
+        self._upload_files(terminal)
 
     def _get_local_paths(self):
         """Get all local file paths that match glob patterns
         given by the user.
         """
         self.local_paths = []
-        for pattern in self.args.file_paths.strip(',').split(','):
+        for pattern in self.args.file_paths:
             self.local_paths.extend(glob.glob(
                 os.path.expanduser(pattern)))
         self._validate_local_paths()
@@ -128,11 +131,12 @@ class FileUploader(AbstractUploader):
             'Provide enough detail to ensure traceability.\n> '
         )
 
-    def _upload_files(self):
+    def _upload_files(self, terminal):
         self.filehandler.upload_files_from_local_paths(
             self.local_paths,
             file_names=self.file_names,
-            source_record=self.source_record_text
+            source_record=self.source_record_text,
+            logger=terminal
         )
 
 

@@ -131,7 +131,12 @@ class AbstractFileHandler:
         }
         return file_data_object
 
-    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record=None):
+    def _log(self, logger, message):
+        if not logger:
+            return
+        logger.info(message)
+    
+    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record=None, logger=None):
         upload_request_time = self.objecthandler.get_server_time()
         file_objects = []
         destination_locations = []
@@ -141,9 +146,14 @@ class AbstractFileHandler:
             
         # Create Files
         for (local_path, file_name) in zip(local_paths, file_names):
+            if file_name is None:
+                self._log(logger, "Uploading %s..." % local_path)
+            else:
+                self._log(logger, "Uploading %s as %s..." % (local_path, file_name))
             file_object = self.create_file_data_object_from_local_path(local_path, file_name=file_name)
             server_file_object = self.objecthandler.post_file_data_object(file_object)
             file_objects.append(server_file_object)
+            self._log(logger, "...Created file %s with id %s." % (server_file_object['file_name'], server_file_object['_id']))
 
         # Create Array
         if len(local_paths) > 1:
@@ -151,6 +161,7 @@ class AbstractFileHandler:
                 {'data_objects': file_objects}
             )
             data_objects.append(array_object)
+            self._log(logger, "Created array with id %s containing files %s" % (array_object['_id'], ', '.join([o['file_name'] for o in file_objects])))
 
         # Create source_record
         if source_record:
@@ -170,14 +181,38 @@ class AbstractFileHandler:
             self.upload(local_path, destination_location)
             self.objecthandler.post_file_storage_location(destination_location)
 
-    def download_file_or_array(self, file_id, local_paths=None):
+    def download_file_or_array(self, file_id, local_names=None, target_directory=None, logger=None):
+        # local_names may be simple filenames, relative paths, or absolute paths, and may use ~
         files = self.objecthandler.get_file_or_array_by_id(file_id)
-        if local_paths is None:
-            import pdb; pdb.set_trace()
-            local_paths = [file['file_name'] for file in files]
+        if local_names is None:
+            # Using file_names from server as local_names. These should never be an absolute path.
+            local_names = [file['file_name'] for file in files]
+            self._verify_not_absolute(local_names)
+        else:
+            # Expand ~ in user-provided local_names
+            local_names = [os.path.expanduser(name) for name in local_names]
+
+        if target_directory is not None:
+            # We should never use target directory along with absolute paths.
+            if self._has_absolute_path(local_names):
+                raise AbsolutePathInFileNameError('Cannot set download directory since one or more '\
+                                                  'file names use an absolute path. %s' % local_names)
+            local_paths = [os.path.join(os.path.expanduser(target_directory), name) for name in local_names]
+        else:
+            local_paths = local_names
         for (file, local_path) in zip(files,local_paths):
+            self._log(logger, 'Downloading file %s with id %s to %s...' % (file['file_name'], file['_id'], local_path))
             self.download_by_file_id(file['_id'], local_path)
-        
+            self._log(logger, '...complete.')
+
+    def _verify_not_absolute(self, file_names):
+        if self._has_absolute_path(file_names):
+            raise AbsolutePathInFileNameError('Refusing to download a file whose name is an absolute path.')
+
+    def _has_absolute_path(self, file_names):
+        return any([file_name.startswith('/') for file_name in file_names])
+
+
 class AbstractPosixPathFileHandler(AbstractFileHandler):
     """Base class for filehandlers that deal with POSIX-style file paths."""
     __metaclass__ = abc.ABCMeta

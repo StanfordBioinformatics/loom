@@ -12,6 +12,7 @@ from loom.client.common import get_settings_manager, \
     add_settings_options_to_parser
 from loom.client.exceptions import *
 from loom.common import filehandler
+from loom.common.helper import get_stdout_logger
 
 
 class AbstractDownloader(object):
@@ -52,10 +53,11 @@ class FileDownloader(AbstractDownloader):
         return parser
 
     def run(self):
+        terminal = get_stdout_logger()
         self._get_file_id()
         self._get_renames()
         self._get_filehandler()
-        self._download_files()
+        self._download_files(terminal)
 
     def _get_filehandler(self):
         self.filehandler = filehandler.FileHandler(self.master_url)
@@ -66,37 +68,14 @@ class FileDownloader(AbstractDownloader):
     def _get_renames(self):
         self.renames = None
         if self.args.rename is not None:
-            relative_path_renames = []
-            for name in self.args.rename.strip(',').split(','):
-                relative_path_renames.append(os.path.expanduser(name))
-            self.renames = self._prepend_directory(relative_path_renames)
-            self._validate_renames()
+            self.renames = self.args.rename.strip(',').split(',')
 
-    def _prepend_directory(self, renames):
-        if self.args.directory is None:
-            return renames
-        absolute_path_renames = []
-        for name in renames:
-            if name.startswith('/'):
-                absolute_path_renames.append(
-                    os.path.join(self.args.directory, name)
-                )
-            else:
-                absolute_path_renames.append(name)
-        return absolute_path_renames
-
-    def _validate_renames(self):
-        for name in self.renames:
-            dirname = os.path.dirname(name)
-            if dirname:
-                if not os.path.isdir(dirname):
-                    raise DestinationDirectoryNotFoundError(
-                        'No directory found for download to %s' % name)
-
-    def _download_files(self):
+    def _download_files(self, terminal):
         self.filehandler.download_file_or_array(
             self.file_id,
-            local_paths=self.renames
+            local_names=self.renames,
+            target_directory=self.args.directory,
+            logger=terminal
         )
     
         

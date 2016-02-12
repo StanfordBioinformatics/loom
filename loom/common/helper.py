@@ -1,7 +1,7 @@
-from datetime import datetime
-import time
-
 def wait_for_true(test_method, timeout_seconds=20, sleep_interval=None):
+    from datetime import datetime
+    import time
+
     if sleep_interval == None:
         sleep_interval = timeout_seconds/10.0
     start_time = datetime.now()
@@ -10,3 +10,27 @@ def wait_for_true(test_method, timeout_seconds=20, sleep_interval=None):
         time_running = datetime.now() - start_time
         if time_running.seconds > timeout_seconds:
             raise Exception("Timeout")
+
+def get_stdout_logger(level=None, formatter=None, name=None):
+    import logging
+    import sys
+
+    if level == None:
+        level = logging.DEBUG
+
+    if name == None:
+        name = 'terminal'
+        
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(level)
+
+    if formatter == None:
+        formatter = logging.Formatter('%(message)s')
+        
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    return logger

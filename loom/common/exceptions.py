@@ -15,3 +15,6 @@ class UndefinedFileIDError(Error):
 
 class ObjectNotFoundError(Error):
     pass
+
+class AbsolutePathInFileNameError(Error):
+    pass
