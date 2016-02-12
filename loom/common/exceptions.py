@@ -12,3 +12,6 @@ class UnrecognizedFileServerType(Error):
 
 class UndefinedFileIDError(Error):
     pass
+
+class ObjectNotFoundError(Error):
+    pass

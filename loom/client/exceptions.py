@@ -15,3 +15,6 @@ class InvalidFileNameError(Error):
 
 class WrongRenameLengthError(Error):
     pass
+
+class DestinationDirectoryNotFoundError(Error):
+    pass

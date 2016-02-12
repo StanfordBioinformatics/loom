@@ -58,7 +58,6 @@ class FileDataObject(AbstractDataObject):
         """
         return self.file_contents.has_storage_location()
 
-
 class FileContents(AnalysisAppImmutableModel):
     """Represents file contents, identified by a hash. Ignores file name.
     """
@@ -67,7 +66,7 @@ class FileContents(AnalysisAppImmutableModel):
     hash_function = fields.CharField(max_length=100)
 
     def has_storage_location(self):
-        return self.filestoragelocation_set.exists()
+        return self.file_storage_locations.exists()
 
 
 class FileStorageLocation(AnalysisAppInstanceModel):
@@ -75,7 +74,7 @@ class FileStorageLocation(AnalysisAppInstanceModel):
     of file contents can be found.
     """
 
-    file_contents = fields.ForeignKey('FileContents', null=True)
+    file_contents = fields.ForeignKey('FileContents', null=True, related_name='file_storage_locations')
 
     @classmethod
     def get_by_file(self, file):

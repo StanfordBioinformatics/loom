@@ -1,11 +1,12 @@
 import logging
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from analysis.models import WorkflowRunRequest
+from analysis.models import WorkflowRunRequest, FileDataObject
 
 logger = logging.getLogger('loom')
 
@@ -30,7 +31,10 @@ class Helper:
 
     @classmethod
     def show(cls, request, id, model_class):
-        model = model_class.get_by_id(id)
+        try:
+            model = model_class.get_by_id(id)
+        except ObjectDoesNotExist:
+            return JsonResponse({"message": "Not Found"}, status=404)
         return JsonResponse(model.to_struct(), status=200)
 
     @classmethod
@@ -124,6 +128,14 @@ def show_input_port_bundles(request, id):
     return JsonResponse({"input_port_bundles": input_port_bundles}, status=200)
 
 """
+
+@require_http_methods(["GET"])
+def storage_locations_by_file(request, id):
+    try:
+        file = FileDataObject.get_by_id(id)
+    except ObjectDoesNotExist:
+        return JsonResponse({"message": "Not Found"}, status=404)
+    return JsonResponse({"file_storage_locations": [o.to_struct() for o in file.file_contents.file_storage_locations.all()]}, status=200)
 
 @csrf_exempt
 @require_http_methods(["GET"])

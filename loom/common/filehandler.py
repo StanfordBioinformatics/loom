@@ -92,6 +92,14 @@ class AbstractFileHandler:
             "%s_%s_%s" % (timestamp, file_id[0:10], file_object['file_name']),
         )
 
+    def download_by_file_id(self, file_id, local_path):
+        storage_locations = self.objecthandler.get_file_storage_locations_by_file(file_id)
+        # Attempt to download from each location
+        for location in storage_locations:
+            self.download(location, local_path)
+            # TODO handle download failures
+            break
+    
     def _get_step_output_path(self, local_path):
         """Step outputs are placed in directories of the same name as the
         local directories, and named with the same filename.
@@ -162,7 +170,14 @@ class AbstractFileHandler:
             self.upload(local_path, destination_location)
             self.objecthandler.post_file_storage_location(destination_location)
 
-
+    def download_file_or_array(self, file_id, local_paths=None):
+        files = self.objecthandler.get_file_or_array_by_id(file_id)
+        if local_paths is None:
+            import pdb; pdb.set_trace()
+            local_paths = [file['file_name'] for file in files]
+        for (file, local_path) in zip(files,local_paths):
+            self.download_by_file_id(file['_id'], local_path)
+        
 class AbstractPosixPathFileHandler(AbstractFileHandler):
     """Base class for filehandlers that deal with POSIX-style file paths."""
     __metaclass__ = abc.ABCMeta

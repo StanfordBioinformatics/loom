@@ -227,6 +227,7 @@ class _BaseModel(models.Model):
             fields.DateTimeField,
             fields.IntegerField,
             fields.JSONField,
+            fields.TextField,
             fields.UUIDField
         ]
         field_class = self._meta.get_field(key).__class__

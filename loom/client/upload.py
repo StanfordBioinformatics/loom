@@ -13,7 +13,7 @@ from loom.client import settings_manager
 from loom.client.common import get_settings_manager, \
     add_settings_options_to_parser
 from loom.client.exceptions import *
-from loom.common import md5calc, filehandler
+from loom.common import filehandler
 
 
 class AbstractUploader(object):
@@ -94,7 +94,7 @@ class FileUploader(AbstractUploader):
         else:
             self.file_names = self.args.rename.strip(',').split(',')
         self._validate_file_names()
-        
+
     def _validate_file_names(self):
         for name in self.file_names:
             if not re.match(r'^[0-9a-zA-Z_\.]+[0-9a-zA-Z_\-\.]*$', name):
@@ -129,7 +129,11 @@ class FileUploader(AbstractUploader):
         )
 
     def _upload_files(self):
-        self.filehandler.upload_files_from_local_paths(self.local_paths, file_names=self.file_names, source_record=self.source_record_text)
+        self.filehandler.upload_files_from_local_paths(
+            self.local_paths,
+            file_names=self.file_names,
+            source_record=self.source_record_text
+        )
 
 
 class Uploader:
@@ -157,7 +161,7 @@ class Uploader:
             parser = argparse.ArgumentParser(__file__)
 
         subparsers = parser.add_subparsers(help='select a data type to upload')
-        file_subparser = subparsers.add_parser('file', help='upload a file')
+        file_subparser = subparsers.add_parser('file', help='upload a file or an array of files')
         FileUploader.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileUploader)
 

@@ -9,6 +9,7 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(rootdir)
 
 from loom.client import config
+from loom.client import download
 from loom.client import run
 from loom.client import server
 from loom.client import upload
@@ -27,7 +28,7 @@ class Main(object):
         parser = argparse.ArgumentParser('loom')
         subparsers = parser.add_subparsers(help='select a subcommand')
 
-        run_subparser = subparsers.add_parser('run', help='run a pipeline')
+        run_subparser = subparsers.add_parser('run', help='run a workflow')
         run.WorkflowRunner.get_parser(run_subparser)
         run_subparser.set_defaults(SubcommandClass=run.WorkflowRunner)
 
@@ -35,10 +36,14 @@ class Main(object):
         server.ServerControls.get_parser(server_subparser)
         server_subparser.set_defaults(SubcommandClass=server.ServerControls)
 
-        upload_subparser = subparsers.add_parser('upload', help='register and upload files to the Loom server')
+        upload_subparser = subparsers.add_parser('upload', help='upload files or other data to the Loom server')
         upload.Uploader.get_parser(upload_subparser)
         upload_subparser.set_defaults(SubcommandClass=upload.Uploader)
 
+        download_subparser = subparsers.add_parser('download', help='download files or other data from the Loom server')
+        download.Downloader.get_parser(download_subparser)
+        download_subparser.set_defaults(SubcommandClass=download.Downloader)
+        
         config_subparser = subparsers.add_parser('config', help='configure the Loom server')
         config.Config.get_parser(config_subparser)
         config_subparser.set_defaults(SubcommandClass=config.Config)
