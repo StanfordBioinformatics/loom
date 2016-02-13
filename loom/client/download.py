@@ -42,10 +42,10 @@ class FileDownloader(AbstractDownloader):
             metavar='FILE_ID', help='File or file array to be downloaded.')
         parser.add_argument(
             '--rename',
+            nargs='+',
             metavar='NEW_FILE_NAMES',
-            help='Rename the downloaded file(s). For a file array, use a '\
-            'Comma-separated list with no spaces. Must be equal in length '\
-            'to the number of files in the array')
+            help='Rename the downloaded file(s). For a file array, the number '\
+            'of names must be equal to the number of files in the array')
         parser.add_argument(
             '--directory',
             metavar='DIRECTORY',
@@ -68,7 +68,7 @@ class FileDownloader(AbstractDownloader):
     def _get_renames(self):
         self.renames = None
         if self.args.rename is not None:
-            self.renames = self.args.rename.strip(',').split(',')
+            self.renames = self.args.rename
 
     def _download_files(self, terminal):
         self.filehandler.download_file_or_array(
@@ -77,8 +77,8 @@ class FileDownloader(AbstractDownloader):
             target_directory=self.args.directory,
             logger=terminal
         )
-    
-        
+
+
 class Downloader:
     """Sets up and executes commands under "download" on the main parser.
     """

@@ -96,6 +96,8 @@ class AbstractFileHandler:
         storage_locations = self.objecthandler.get_file_storage_locations_by_file(file_id)
         # Attempt to download from each location
         for location in storage_locations:
+            if os.path.exists(local_path):
+                raise FileAlreadyExistsError('File "%s" already exists' % local_path)
             self.download(location, local_path)
             # TODO handle download failures
             break
@@ -136,13 +138,15 @@ class AbstractFileHandler:
             return
         logger.info(message)
     
-    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record=None, logger=None):
+    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record='', logger=None):
         upload_request_time = self.objecthandler.get_server_time()
         file_objects = []
         destination_locations = []
-        data_objects = copy(file_objects) # Many include an array object
         if file_names == None:
             file_names = [None] * len(local_paths)
+        if len(file_names) != len(local_paths):
+            raise WrongNumberOfFileNamesError('Cannot process %s file_names for %s files. '\
+                                              'The lengths must match.' % (len(file_names), len(local_paths)))
             
         # Create Files
         for (local_path, file_name) in zip(local_paths, file_names):
@@ -156,6 +160,7 @@ class AbstractFileHandler:
             self._log(logger, "...Created file %s with id %s." % (server_file_object['file_name'], server_file_object['_id']))
 
         # Create Array
+        data_objects = copy(file_objects) # Many include an array object
         if len(local_paths) > 1:
             array_object = self.objecthandler.post_data_object_array(
                 {'data_objects': file_objects}
@@ -163,10 +168,8 @@ class AbstractFileHandler:
             data_objects.append(array_object)
             self._log(logger, "Created array with id %s containing files %s" % (array_object['_id'], ', '.join([o['file_name'] for o in file_objects])))
 
-        # Create source_record
+        # Create source_record if one exists
         if source_record:
-            debug_source_record = {'data_objects': data_objects,
-                                   'source_description': source_record}
             self.objecthandler.post_data_source_record(
                 {'data_objects': data_objects,
                  'source_description': source_record}
@@ -184,6 +187,9 @@ class AbstractFileHandler:
     def download_file_or_array(self, file_id, local_names=None, target_directory=None, logger=None):
         # local_names may be simple filenames, relative paths, or absolute paths, and may use ~
         files = self.objecthandler.get_file_or_array_by_id(file_id)
+        if len(local_names) != len(files):
+            raise WrongNumberOfFileNamesError('Cannot process %s file_names for an array of length %s. '\
+                                              'The lengths must match.' % (len(local_names), len(files)))
         if local_names is None:
             # Using file_names from server as local_names. These should never be an absolute path.
             local_names = [file['file_name'] for file in files]
