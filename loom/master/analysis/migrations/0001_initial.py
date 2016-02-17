@@ -27,6 +27,18 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
+            name='AbstractWorkflowInput',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
+        ),
+        migrations.CreateModel(
             name='DataSourceRecord',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
@@ -91,18 +103,14 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunRequest',
+            name='Step',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=255)),
+                ('step_name', models.CharField(max_length=255)),
                 ('command', models.CharField(max_length=255)),
                 ('interpreter', models.CharField(max_length=255)),
-                ('constants', jsonfield.fields.JSONField(null=True)),
-                ('is_complete', models.BooleanField(default=False)),
-                ('is_running', models.BooleanField(default=False)),
-                ('has_error', models.BooleanField(default=False)),
             ],
             options={
                 'abstract': False,
@@ -110,7 +118,7 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunRequestInput',
+            name='StepInput',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -125,13 +133,42 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.common._ClassNameMixin),
         ),
         migrations.CreateModel(
-            name='StepRunRequestOutput',
+            name='StepOutput',
             fields=[
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('from_path', models.CharField(max_length=255)),
                 ('to_channel', models.CharField(max_length=255)),
+                ('rename', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
+        ),
+        migrations.CreateModel(
+            name='Workflow',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('workflow_name', models.CharField(max_length=255)),
+                ('force_rerun', models.BooleanField(default=False)),
+                ('steps', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow', to='analysis.Step')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.common._ClassNameMixin),
+        ),
+        migrations.CreateModel(
+            name='WorkflowOutput',
+            fields=[
+                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('from_channel', models.CharField(max_length=255)),
                 ('rename', models.CharField(max_length=255)),
             ],
             options={
@@ -145,10 +182,6 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('force_rerun', models.BooleanField(default=False)),
-                ('is_running', models.BooleanField(default=False)),
-                ('is_complete', models.BooleanField(default=False)),
-                ('has_error', models.BooleanField(default=False)),
             ],
             options={
                 'abstract': False,
@@ -161,23 +194,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('from_path', models.CharField(max_length=255)),
-                ('to_channel', models.CharField(max_length=255)),
-                ('rename', models.CharField(max_length=255)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
-        ),
-        migrations.CreateModel(
-            name='WorkflowRunRequestOutput',
-            fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('from_channel', models.CharField(max_length=255)),
-                ('rename', models.CharField(max_length=255)),
+                ('input_name', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -255,10 +272,34 @@ class Migration(migrations.Migration):
             },
             bases=('analysis.filestoragelocation',),
         ),
+        migrations.CreateModel(
+            name='WorkflowInput',
+            fields=[
+                ('abstractworkflowinput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowInput')),
+                ('to_channel', models.CharField(max_length=255)),
+                ('data_object', models.ForeignKey(to='analysis.AbstractDataObject')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractworkflowinput',),
+        ),
+        migrations.CreateModel(
+            name='WorkflowInputPlaceholder',
+            fields=[
+                ('abstractworkflowinput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowInput')),
+                ('input_name', models.CharField(max_length=255)),
+                ('to_channel', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractworkflowinput',),
+        ),
         migrations.AddField(
             model_name='workflowrunrequestinput',
             name='data_object',
-            field=models.OneToOneField(to='analysis.AbstractDataObject'),
+            field=models.ForeignKey(to='analysis.AbstractDataObject'),
         ),
         migrations.AddField(
             model_name='workflowrunrequest',
@@ -267,38 +308,43 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='workflowrunrequest',
-            name='outputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_request', to='analysis.WorkflowRunRequestOutput'),
+            name='workflow',
+            field=models.ForeignKey(related_name='workflow_run_requests', to='analysis.Workflow'),
         ),
         migrations.AddField(
-            model_name='workflowrunrequest',
-            name='step_run_requests',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_request', to='analysis.StepRunRequest'),
+            model_name='workflow',
+            name='workflow_inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow', to='analysis.AbstractWorkflowInput'),
         ),
         migrations.AddField(
-            model_name='steprunrequest',
+            model_name='workflow',
+            name='workflow_outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow', to='analysis.WorkflowOutput'),
+        ),
+        migrations.AddField(
+            model_name='step',
             name='environment',
             field=models.OneToOneField(to='analysis.RequestedEnvironment'),
         ),
         migrations.AddField(
-            model_name='steprunrequest',
+            model_name='step',
             name='resources',
             field=models.OneToOneField(to='analysis.RequestedResourceSet'),
         ),
         migrations.AddField(
-            model_name='steprunrequest',
-            name='step_run_request_inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRunRequestInput'),
+            model_name='step',
+            name='step_inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepInput'),
         ),
         migrations.AddField(
-            model_name='steprunrequest',
-            name='step_run_request_outputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRunRequestOutput'),
+            model_name='step',
+            name='step_outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepOutput'),
         ),
         migrations.AddField(
             model_name='filestoragelocation',
             name='file_contents',
-            field=models.ForeignKey(to='analysis.FileContents', null=True),
+            field=models.ForeignKey(related_name='file_storage_locations', to='analysis.FileContents', null=True),
         ),
         migrations.AddField(
             model_name='datasourcerecord',

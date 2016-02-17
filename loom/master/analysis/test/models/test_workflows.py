@@ -4,11 +4,11 @@ from django.test import TestCase
 import os
 import sys
 from loom.common import fixtures
-from loom.common.fixtures.workflow_run_requests import hello_world
+from loom.common.fixtures.workflows import hello_world
 from .common import UniversalModelTestMixin
 
 
-class TestWorkflowRunRequestModels(TestCase, UniversalModelTestMixin):
+class TestWorkflowModels(TestCase, UniversalModelTestMixin):
 
     def testRequestedDockerImage(self):
         o = RequestedDockerImage.create(fixtures.docker_image_struct)
@@ -28,18 +28,26 @@ class TestWorkflowRunRequestModels(TestCase, UniversalModelTestMixin):
         self.roundTripJson(o)
         self.roundTripStruct(o)
 
-    def testStepRunRequest(self):
-        o = StepRunRequest.create(fixtures.step_run_request_1_struct)
-        self.assertEqual(o.name, fixtures.step_run_request_1_struct['name'])
+    def testStep(self):
+        o = Step.create(fixtures.step_1_struct)
+        self.assertEqual(o.step_name, fixtures.step_1_struct['step_name'])
         self.roundTripJson(o)
         self.roundTripStruct(o)
 
+    def testWorkflow(self):
+        o = Workflow.create(fixtures.workflow_struct)
+        self.assertEqual(o.steps.count(), len(fixtures.workflow_struct['steps']))
+        self.roundTripJson(o)
+        self.roundTripStruct(o)
+
+class TestWorkflowRunRequestModels(TestCase, UniversalModelTestMixin):
+    
     def testWorkflowRunRequest(self):
         o = WorkflowRunRequest.create(fixtures.workflow_run_request_struct)
-        self.assertEqual(o.step_run_requests.count(), len(fixtures.workflow_run_request_struct['step_run_requests']))
+        self.assertEqual(o.inputs.first().input_name, fixtures.workflow_run_request_struct['inputs'][0]['input_name'])
         self.roundTripJson(o)
         self.roundTripStruct(o)
-
+        
 class TestWorkflowRunRequestMethods(TestCase):
     
     def testWorkflowRunRequestsReverseSorted(self):
@@ -57,7 +65,7 @@ class TestWorkflowRunRequestMethods(TestCase):
         wf_list = WorkflowRunRequest.order_by_most_recent()
         self.assertEqual(len(wf_list), count)
 
-    def testWorkflowRunRequestWithCount(self):
+    def testWorkRunRequestflowWithCount(self):
         count = 5
         for i in range(count):
             WorkflowRunRequest.create(fixtures.workflow_run_request_struct)
@@ -74,4 +82,3 @@ class TestWorkflowRunRequestMethods(TestCase):
 
         # If count is greater than available elements, all elements should be present
         self.assertEqual(len(wf_list_untruncated), count)
-        

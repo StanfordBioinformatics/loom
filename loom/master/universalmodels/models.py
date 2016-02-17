@@ -267,7 +267,7 @@ class _BaseModel(models.Model):
             setattr(self, key, child)
 
     @classmethod
-    def _verify_x_to_one_child_is_legal(cls):
+    def _verify_x_to_one_child_is_legal(cls, parent_class):
         """Override for verification in subclasses
         """
         pass
@@ -292,7 +292,7 @@ class _BaseModel(models.Model):
     def _verify_relation_is_legal(self, key):
         if self._is_one_to_x_field(key):
             self._meta.get_field(key).related_model.\
-                _verify_x_to_one_child_is_legal()
+                _verify_x_to_one_child_is_legal(self.__class__)
         
     def _verify_list_input(self, key, value):
         if not isinstance(value, list):
@@ -410,7 +410,7 @@ class _BaseModel(models.Model):
         if len(matching_models) == 0:
             raise CouldNotFindSubclassError(
                 "Failed to find a subclass of model %s that matches "\
-                "these fields: %s" % (AbstractModel.__name__, fields.keys()))
+                "these fields: %s" % (AbstractModel.__name__, fields))
         elif len(matching_models) > 1:
             raise CouldNotFindUniqueSubclassError(
                 "Failed to find a unique subclass of model %s that "\
@@ -644,10 +644,12 @@ class ImmutableModel(_BaseModel):
         return _id
 
     @classmethod
-    def _verify_x_to_one_child_is_legal(cls):
+    def _verify_x_to_one_child_is_legal(cls, parent_class):
         raise IllegalRelationError(
             'Many-to-one and one-to-one relationships cannot have immutable '\
-            'children. Immutable models can always have multiple parents.')
+            'children like. Immutable models can always have multiple parents.'\
+            'Check the relationship of %s to %s.'
+            % (parent_class.__name__, cls.__name__))
         
     def save(self):
         raise NoSaveAllowedError(
