@@ -133,14 +133,19 @@ class FileUploader(AbstractUploader):
             with open(source_record_file) as f:
                 self.source_record_text = f.read()
         else:
-            self.source_record_text = self._prompt_for_source_record_text()
+            self.source_record_text = self.prompt_for_source_record_text()
 
-    def _prompt_for_source_record_text(self):
-        return raw_input(
-            'Enter a complete description of the data source. '\
-            'Provide enough detail to ensure traceability.\n'\
-            'Press [enter] to skip.\n> '
-        )
+    @classmethod
+    def prompt_for_source_record_text(cls, source_name=None):
+        if source_name:
+            text = 'Enter a complete description of the data source "%s". '\
+                   'Provide enough detail to ensure traceability.\n'\
+                   'Press [enter] to skip.\n> ' % source_name
+        else:
+            text = 'Enter a complete description of the data source. '\
+                   'Provide enough detail to ensure traceability.\n'\
+                   'Press [enter] to skip.\n> '
+        return raw_input(text)
 
     def _upload_files(self, terminal):
         self.filehandler.upload_files_from_local_paths(
@@ -157,7 +162,7 @@ class WorkflowUploader(AbstractUploader):
     def get_parser(cls, parser):
         parser = super(WorkflowUploader, cls).get_parser(parser)
         parser.add_argument(
-            'workflow_file',
+            'workflow',
             metavar='WORKFLOW_FILE', help='Workflow to be uploaded, in YAML or JSON format.')
         parser.add_argument(
             '--rename',
@@ -167,24 +172,27 @@ class WorkflowUploader(AbstractUploader):
         return parser
 
     def run(self):
-        self._get_workflow()
+        self.workflow = self.get_workflow(self.args.workflow)
         self._set_workflow_name(self._get_workflow_name())
         self._get_objecthandler()
         self._upload_workflow()
 
-    def _get_workflow(self):
+    @classmethod
+    def get_workflow(cls, workflow_file):
         try:
-            with open(self.args.workflow_file) as f:
-                self.workflow = yaml.load(f)
+            with open(workflow_file) as f:
+                workflow = yaml.load(f)
         except IOError:
-            raise Exception('Could not find or could not read file %s' % self.args.workflow_file)
+            raise NoFileError('Could not find or could not read file %s' % workflow_file)
         except yaml.parser.ParserError:
-            raise Exception('Input file is not valid YAML or JSON format')
-        self._validate_workflow()
+            raise InvalidFormatError('Input file is not valid YAML or JSON format')
+        cls._validate_workflow(workflow)
+        return workflow
 
-    def _validate_workflow(self):
-        if not isinstance(self.workflow, dict):
-            raise ValidationError('This is not a valid workflow: "%s"' % self.workflow)
+    @classmethod
+    def _validate_workflow(cls, workflow):
+        if not isinstance(workflow, dict):
+            raise ValidationError('This is not a valid workflow: "%s"' % workflow)
 
     def _set_workflow_name(self, workflow_name):
         self.workflow['workflow_name'] = workflow_name
@@ -195,7 +203,7 @@ class WorkflowUploader(AbstractUploader):
         elif self.workflow.get('workflow_name') is not None:
             return self.workflow.get('workflow_name')
         else:
-            return os.path.basename(self.args.workflow_file)
+            return os.path.basename(self.args.workflow)
 
     def _get_objecthandler(self):
         self.objecthandler = ObjectHandler(self.master_url)

@@ -150,14 +150,7 @@ class AbstractFileHandler:
             
         # Create Files
         for (local_path, file_name) in zip(local_paths, file_names):
-            if file_name is None:
-                self._log(logger, "Uploading %s..." % local_path)
-            else:
-                self._log(logger, "Uploading %s as %s..." % (local_path, file_name))
-            file_object = self.create_file_data_object_from_local_path(local_path, file_name=file_name)
-            server_file_object = self.objecthandler.post_file_data_object(file_object)
-            file_objects.append(server_file_object)
-            self._log(logger, "...Created file %s with id %s." % (server_file_object['file_name'], server_file_object['_id']))
+            file_objects.append(self.upload_file_from_local_path(local_path, file_name, logger=logger))
 
         # Create Array
         data_objects = copy(file_objects) # Many include an array object
@@ -169,11 +162,7 @@ class AbstractFileHandler:
             self._log(logger, "Created array with id %s containing files %s" % (array_object['_id'], ', '.join([o['file_name'] for o in file_objects])))
 
         # Create source_record if one exists
-        if source_record:
-            self.objecthandler.post_data_source_record(
-                {'data_objects': data_objects,
-                 'source_description': source_record}
-            )
+        self._create_source_record(data_objects, source_record=source_record)
 
         # Create storage locations
         for file_object in file_objects:
@@ -183,6 +172,25 @@ class AbstractFileHandler:
         for (local_path, destination_location) in zip(local_paths, destination_locations):
             self.upload(local_path, destination_location)
             self.objecthandler.post_file_storage_location(destination_location)
+
+    def upload_file_from_local_path(self, local_path, file_name=None, source_record='', logger=None):
+        if file_name is None:
+            self._log(logger, "Uploading %s..." % local_path)
+        else:
+            self._log(logger, "Uploading %s as %s..." % (local_path, file_name))
+        file_object = self.create_file_data_object_from_local_path(local_path, file_name=file_name)
+        server_file_object = self.objecthandler.post_file_data_object(file_object)
+        # Create source_record if one exists
+        self._create_source_record([file_object], source_record=source_record)
+        self._log(logger, "...Created file %s with id %s." % (server_file_object['file_name'], server_file_object['_id']))
+        return server_file_object
+
+    def _create_source_record(self, data_objects, source_record=None):
+        if source_record:
+            self.objecthandler.post_data_source_record(
+                {'data_objects': data_objects,
+                 'source_description': source_record}
+            )
 
     def download_file_or_array(self, file_id, local_names=None, target_directory=None, logger=None):
         # local_names may be simple filenames, relative paths, or absolute paths, and may use ~

@@ -13,6 +13,9 @@ class NoFilesFoundError(Error):
 class InvalidFileNameError(Error):
     pass
 
+class InvalidInputError(Error):
+    pass
+
 class DestinationDirectoryNotFoundError(Error):
     pass
 
@@ -20,4 +23,13 @@ class ArgumentError(Error):
     pass
 
 class ValidationError(Error):
+    pass
+
+class NoFileError(Error):
+    pass
+
+class InvalidFormatError(Error):
+    pass
+
+class UnmatchedInputError(Error):
     pass
