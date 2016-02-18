@@ -13,12 +13,12 @@ urlpatterns = patterns(
 )    
 
 model_classes = [
-    FileDataObject,
     DataObjectArray,
-    WorkflowRunRequest,
-    FileStorageLocation,
     DataSourceRecord,
-    ]
+    FileDataObject,
+    FileStorageLocation,
+    Workflow
+]
 
 for cls in model_classes:
     urlpatterns.append(url(r'^%s/$' % cls.get_name(plural=True), 'analysis.views.create_or_index', {'model_class': cls}))

@@ -19,3 +19,5 @@ class DestinationDirectoryNotFoundError(Error):
 class ArgumentError(Error):
     pass
 
+class ValidationError(Error):
+    pass

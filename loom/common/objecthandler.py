@@ -61,7 +61,7 @@ class ObjectHandler(object):
         return self._post_object(
             file_data_object,
             'file_data_objects/') 
-    
+
     def post_file_storage_location(self, file_storage_location):
         return self._post_object(
             file_storage_location,
@@ -73,6 +73,16 @@ class ObjectHandler(object):
             'data_source_records/'
         )
 
+    def post_workflow(self, workflow):
+        return self._post_object(
+            workflow,
+            'workflows/')
+
+    def get_workflow(self, workflow_id):
+        return self._get_object(
+            'workflows/'+workflow_id
+        )
+    
     def get_server_time(self):
         return self._get('servertime/')['time']
 

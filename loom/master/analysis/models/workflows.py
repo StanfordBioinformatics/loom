@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 
-from .common import AnalysisAppInstanceModel
+from .common import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from .data_objects import AbstractDataObject
 from universalmodels import fields
 
@@ -16,8 +16,8 @@ class WorkflowRunRequest(AnalysisAppInstanceModel):
     set of inputs
     """
 
-    workflow = fields.ForeignKey('Workflow', related_name='workflow_run_requests')
-    inputs = fields.OneToManyField('WorkflowRunRequestInput', related_name='workflow_run_request')
+    workflow = fields.ForeignKey('Workflow')
+    inputs = fields.OneToManyField('WorkflowRunRequestInput')
 
     @classmethod
     def order_by_most_recent(cls, count=None):
@@ -37,20 +37,20 @@ class WorkflowRunRequestInput(AnalysisAppInstanceModel):
     data_object = fields.ForeignKey('AbstractDataObject')
 
 
-class Workflow(AnalysisAppInstanceModel):
+class Workflow(AnalysisAppImmutableModel):
     """Each Workflow may contain many processing steps, with results from one
     step optionally feeding into another step as input.
+    Workflows are ImmutableModels in order to prevent clutter. If the same workflow
+    is uploaded multiple times, duplicate objects will not be created.
     """
 
     workflow_name = fields.CharField(max_length=255)
-    steps = fields.OneToManyField('Step', related_name='workflow')
-    workflow_inputs = fields.OneToManyField('AbstractWorkflowInput', related_name='workflow')
-    workflow_outputs = fields.OneToManyField('WorkflowOutput', related_name='workflow')
-
-    force_rerun = fields.BooleanField(default=False)
+    steps = fields.ManyToManyField('Step')
+    workflow_inputs = fields.ManyToManyField('AbstractWorkflowInput')
+    workflow_outputs = fields.ManyToManyField('WorkflowOutput')
 
 
-class Step(AnalysisAppInstanceModel):
+class Step(AnalysisAppImmutableModel):
     """Steps are smaller units of processing within a Workflow. A Step can give rise to a single process,
     or it may iterate over an array to produce many parallel processing tasks.
     """
@@ -58,14 +58,14 @@ class Step(AnalysisAppInstanceModel):
     step_name = fields.CharField(max_length=255)
     command = fields.CharField(max_length=255)
     interpreter = fields.CharField(max_length=255)
-    environment = fields.OneToOneField('RequestedEnvironment')
-    resources = fields.OneToOneField('RequestedResourceSet')
+    environment = fields.ForeignKey('RequestedEnvironment')
+    resources = fields.ForeignKey('RequestedResourceSet')
 
-    step_inputs = fields.OneToManyField('StepInput')
-    step_outputs = fields.OneToManyField('StepOutput')
+    step_inputs = fields.ManyToManyField('StepInput')
+    step_outputs = fields.ManyToManyField('StepOutput')
 
 
-class RequestedEnvironment(AnalysisAppInstanceModel):
+class RequestedEnvironment(AnalysisAppImmutableModel):
 
     pass
 
@@ -75,14 +75,14 @@ class RequestedDockerImage(RequestedEnvironment):
     docker_image = fields.CharField(max_length=255)
 
 
-class RequestedResourceSet(AnalysisAppInstanceModel):
+class RequestedResourceSet(AnalysisAppImmutableModel):
 
     memory = fields.CharField(max_length=255)
     disk_space = fields.CharField(max_length=255)
     cores = fields.IntegerField()
 
 
-class AbstractWorkflowInput(AnalysisAppInstanceModel):
+class AbstractWorkflowInput(AnalysisAppImmutableModel):
 
     pass
 
@@ -99,20 +99,20 @@ class WorkflowInputPlaceholder(AbstractWorkflowInput):
     to_channel = fields.CharField(max_length=255)
 
 
-class WorkflowOutput(AnalysisAppInstanceModel):
+class WorkflowOutput(AnalysisAppImmutableModel):
 
     from_channel = fields.CharField(max_length=255)
     rename = fields.CharField(max_length=255)
 
 
-class StepInput(AnalysisAppInstanceModel):
+class StepInput(AnalysisAppImmutableModel):
 
     from_channel = fields.CharField(max_length=255)
     to_path = fields.CharField(max_length=255)
     rename = fields.CharField(max_length=255)
 
 
-class StepOutput(AnalysisAppInstanceModel):
+class StepOutput(AnalysisAppImmutableModel):
 
     from_path = fields.CharField(max_length=255)
     to_channel = fields.CharField(max_length=255)

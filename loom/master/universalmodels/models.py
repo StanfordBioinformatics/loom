@@ -647,7 +647,7 @@ class ImmutableModel(_BaseModel):
     def _verify_x_to_one_child_is_legal(cls, parent_class):
         raise IllegalRelationError(
             'Many-to-one and one-to-one relationships cannot have immutable '\
-            'children like. Immutable models can always have multiple parents.'\
+            'children. Immutable models can always have multiple parents. '\
             'Check the relationship of %s to %s.'
             % (parent_class.__name__, cls.__name__))
         

@@ -29,9 +29,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AbstractWorkflowInput',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -78,9 +76,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RequestedEnvironment',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -90,9 +86,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RequestedResourceSet',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('memory', models.CharField(max_length=255)),
                 ('disk_space', models.CharField(max_length=255)),
                 ('cores', models.IntegerField()),
@@ -105,9 +99,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Step',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('step_name', models.CharField(max_length=255)),
                 ('command', models.CharField(max_length=255)),
                 ('interpreter', models.CharField(max_length=255)),
@@ -120,9 +112,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='StepInput',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('from_channel', models.CharField(max_length=255)),
                 ('to_path', models.CharField(max_length=255)),
                 ('rename', models.CharField(max_length=255)),
@@ -135,9 +125,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='StepOutput',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('from_path', models.CharField(max_length=255)),
                 ('to_channel', models.CharField(max_length=255)),
                 ('rename', models.CharField(max_length=255)),
@@ -150,12 +138,9 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Workflow',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('workflow_name', models.CharField(max_length=255)),
-                ('force_rerun', models.BooleanField(default=False)),
-                ('steps', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow', to='analysis.Step')),
+                ('steps', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.Step')),
             ],
             options={
                 'abstract': False,
@@ -165,9 +150,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='WorkflowOutput',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('from_channel', models.CharField(max_length=255)),
                 ('rename', models.CharField(max_length=255)),
             ],
@@ -304,42 +287,42 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='workflowrunrequest',
             name='inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_request', to='analysis.WorkflowRunRequestInput'),
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.WorkflowRunRequestInput'),
         ),
         migrations.AddField(
             model_name='workflowrunrequest',
             name='workflow',
-            field=models.ForeignKey(related_name='workflow_run_requests', to='analysis.Workflow'),
+            field=models.ForeignKey(to='analysis.Workflow'),
         ),
         migrations.AddField(
             model_name='workflow',
             name='workflow_inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow', to='analysis.AbstractWorkflowInput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.AbstractWorkflowInput'),
         ),
         migrations.AddField(
             model_name='workflow',
             name='workflow_outputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow', to='analysis.WorkflowOutput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.WorkflowOutput'),
         ),
         migrations.AddField(
             model_name='step',
             name='environment',
-            field=models.OneToOneField(to='analysis.RequestedEnvironment'),
+            field=models.ForeignKey(to='analysis.RequestedEnvironment'),
         ),
         migrations.AddField(
             model_name='step',
             name='resources',
-            field=models.OneToOneField(to='analysis.RequestedResourceSet'),
+            field=models.ForeignKey(to='analysis.RequestedResourceSet'),
         ),
         migrations.AddField(
             model_name='step',
             name='step_inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepInput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.StepInput'),
         ),
         migrations.AddField(
             model_name='step',
             name='step_outputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepOutput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.StepOutput'),
         ),
         migrations.AddField(
             model_name='filestoragelocation',

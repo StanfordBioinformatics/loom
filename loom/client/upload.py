@@ -4,17 +4,18 @@ import glob
 import os
 import re
 import sys
+import yaml
 
 if __name__ == "__main__" and __package__ is None:
     rootdir=os.path.abspath('../..')
     sys.path.append(rootdir)
     
 from loom.client import settings_manager
-from loom.client.common import \
-    get_settings_manager, \
-    add_settings_options_to_parser
+from loom.client.common import get_settings_manager
+from loom.client.common import add_settings_options_to_parser
 from loom.client.exceptions import *
 from loom.common import filehandler
+from loom.common.objecthandler import ObjectHandler
 from loom.common.helper import get_stdout_logger
 
 
@@ -150,6 +151,60 @@ class FileUploader(AbstractUploader):
         )
 
 
+class WorkflowUploader(AbstractUploader):
+
+    @classmethod
+    def get_parser(cls, parser):
+        parser = super(WorkflowUploader, cls).get_parser(parser)
+        parser.add_argument(
+            'workflow_file',
+            metavar='WORKFLOW_FILE', help='Workflow to be uploaded, in YAML or JSON format.')
+        parser.add_argument(
+            '--rename',
+            metavar='NEW_WORKFLOW_NAME',
+            help='Rename the uploaded workflow. (Workflow names '\
+            'do not have to be unique since workflows will be given a unique ID.)')
+        return parser
+
+    def run(self):
+        self._get_workflow()
+        self._set_workflow_name(self._get_workflow_name())
+        self._get_objecthandler()
+        self._upload_workflow()
+
+    def _get_workflow(self):
+        try:
+            with open(self.args.workflow_file) as f:
+                self.workflow = yaml.load(f)
+        except IOError:
+            raise Exception('Could not find or could not read file %s' % self.args.workflow_file)
+        except yaml.parser.ParserError:
+            raise Exception('Input file is not valid YAML or JSON format')
+        self._validate_workflow()
+
+    def _validate_workflow(self):
+        if not isinstance(self.workflow, dict):
+            raise ValidationError('This is not a valid workflow: "%s"' % self.workflow)
+
+    def _set_workflow_name(self, workflow_name):
+        self.workflow['workflow_name'] = workflow_name
+
+    def _get_workflow_name(self):
+        if self.args.rename is not None:
+            return self.args.rename
+        elif self.workflow.get('workflow_name') is not None:
+            return self.workflow.get('workflow_name')
+        else:
+            return os.path.basename(self.args.workflow_file)
+
+    def _get_objecthandler(self):
+        self.objecthandler = ObjectHandler(self.master_url)
+        
+    def _upload_workflow(self):
+        workflow_from_server = self.objecthandler.post_workflow(self.workflow)
+        print 'Uploaded workflow "%s" with id %s' % \
+            (workflow_from_server['workflow_name'], workflow_from_server['_id'])
+    
 class Uploader:
     """Sets up and executes commands under "upload" on the main parser.
     """
@@ -175,9 +230,14 @@ class Uploader:
             parser = argparse.ArgumentParser(__file__)
 
         subparsers = parser.add_subparsers(help='select a data type to upload')
+
         file_subparser = subparsers.add_parser('file', help='upload a file or an array of files')
         FileUploader.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileUploader)
+
+        workflow_subparser = subparsers.add_parser('workflow', help='upload a workflow')
+        WorkflowUploader.get_parser(workflow_subparser)
+        workflow_subparser.set_defaults(SubSubcommandClass=WorkflowUploader)
 
         return parser
 
