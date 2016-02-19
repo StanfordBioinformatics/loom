@@ -1,0 +1,31 @@
+<div class="table-responsive">
+    <table class="table table-striped" ng-controller="WorkflowListCtrl">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Complete</th>
+                <th>Started</th>
+                <th>Updated</th>
+                <th>Ended</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr ng-repeat="workflow in workflows['workflows']">
+                <td><a href="#/workflows/{{workflow._id}}">
+                    {{workflow.name}}
+                </a></td><td>
+                    {{workflow.are_results_complete}}
+                </td><td>
+                    {{workflow.datetime_created | date:'medium'}}
+                </td><td>
+                    {{workflow.datetime_updated | date:'medium'}}
+                </td><td>
+                    TODO
+                </td><td>
+                    TODO
+                </td><td>
+            </tr>
+        </tbody>
+    </table>
+</div>
