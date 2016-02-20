@@ -1,5 +1,5 @@
 from analysis.exceptions import DataObjectValidationError
-from analysis.models.common import AnalysisAppInstanceModel, \
+from analysis.models.base import AnalysisAppInstanceModel, \
     AnalysisAppImmutableModel
 from universalmodels import fields
 
@@ -14,7 +14,7 @@ class AbstractDataObject(AnalysisAppImmutableModel):
 
 class DataSourceRecord(AnalysisAppInstanceModel):
     data_objects = fields.ManyToManyField(AbstractDataObject,
-                                          related_name = 'data_source_record')
+                                          related_name = 'data_source_records')
     source_description = fields.TextField(max_length=10000)
 
     
@@ -47,6 +47,8 @@ class FileDataObject(AbstractDataObject):
     """Represents a file, including its contents (identified by a hash), its 
     file name, and user-defined metadata.
     """
+
+    NAME_FIELD = 'file_name'
 
     file_name = fields.CharField(max_length=255)
     file_contents = fields.ForeignKey('FileContents')

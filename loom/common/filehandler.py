@@ -145,24 +145,15 @@ class AbstractFileHandler:
         if file_names == None:
             file_names = [None] * len(local_paths)
         if len(file_names) != len(local_paths):
-            raise WrongNumberOfFileNamesError('Cannot process %s file_names for %s files. '\
+            raise WrongNumberOfFileNamesError('Cannot process %s file name(s) for %s file(s). '\
                                               'The lengths must match.' % (len(file_names), len(local_paths)))
             
         # Create Files
         for (local_path, file_name) in zip(local_paths, file_names):
-            file_objects.append(self.upload_file_from_local_path(local_path, file_name, logger=logger))
-
-        # Create Array
-        data_objects = copy(file_objects) # Many include an array object
-        if len(local_paths) > 1:
-            array_object = self.objecthandler.post_data_object_array(
-                {'data_objects': file_objects}
-            )
-            data_objects.append(array_object)
-            self._log(logger, "Created array with id %s containing files %s" % (array_object['_id'], ', '.join([o['file_name'] for o in file_objects])))
+            file_objects.append(self.upload_file_from_local_path(local_path, file_name=file_name, logger=logger))
 
         # Create source_record if one exists
-        self._create_source_record(data_objects, source_record=source_record)
+        self._create_source_record(file_objects, source_record=source_record)
 
         # Create storage locations
         for file_object in file_objects:
@@ -175,14 +166,14 @@ class AbstractFileHandler:
 
     def upload_file_from_local_path(self, local_path, file_name=None, source_record='', logger=None):
         if file_name is None:
-            self._log(logger, "Uploading %s..." % local_path)
+            self._log(logger, "Uploading %s ..." % local_path)
         else:
-            self._log(logger, "Uploading %s as %s..." % (local_path, file_name))
+            self._log(logger, "Uploading %s as %s ..." % (local_path, file_name))
         file_object = self.create_file_data_object_from_local_path(local_path, file_name=file_name)
         server_file_object = self.objecthandler.post_file_data_object(file_object)
         # Create source_record if one exists
         self._create_source_record([file_object], source_record=source_record)
-        self._log(logger, "...Created file %s with id %s." % (server_file_object['file_name'], server_file_object['_id']))
+        self._log(logger, "Created file %s@%s" % (server_file_object['file_name'], server_file_object['_id']))
         return server_file_object
 
     def _create_source_record(self, data_objects, source_record=None):
@@ -192,38 +183,44 @@ class AbstractFileHandler:
                  'source_description': source_record}
             )
 
-    def download_file_or_array(self, file_id, local_names=None, target_directory=None, logger=None):
-        # local_names may be simple filenames, relative paths, or absolute paths, and may use ~
-        files = self.objecthandler.get_file_or_array_by_id(file_id)
-        if len(local_names) != len(files):
-            raise WrongNumberOfFileNamesError('Cannot process %s file_names for an array of length %s. '\
-                                              'The lengths must match.' % (len(local_names), len(files)))
-        if local_names is None:
-            # Using file_names from server as local_names. These should never be an absolute path.
-            local_names = [file['file_name'] for file in files]
-            self._verify_not_absolute(local_names)
-        else:
-            # Expand ~ in user-provided local_names
-            local_names = [os.path.expanduser(name) for name in local_names]
+    def download_files(self, file_ids, local_names=None, target_directory=None, logger=None):
+        if local_names == None:
+            local_names = [None] * len(file_ids)
+        if len(local_names) != len(file_ids):
+            raise WrongNumberOfFileNamesError('Cannot process %s file_names for %s files. '\
+                                              'The lengths must match.' % (len(local_names), len(file_ids)))
 
-        if target_directory is not None:
-            # We should never use target directory along with absolute paths.
-            if self._has_absolute_path(local_names):
-                raise AbsolutePathInFileNameError('Cannot set download directory since one or more '\
-                                                  'file names use an absolute path. %s' % local_names)
-            local_paths = [os.path.join(os.path.expanduser(target_directory), name) for name in local_names]
-        else:
-            local_paths = local_names
-        for (file, local_path) in zip(files,local_paths):
-            self._log(logger, 'Downloading file %s with id %s to %s...' % (file['file_name'], file['_id'], local_path))
+        for (file_id, local_name) in zip(file_ids, local_names):
+            file_list = self.objecthandler.get_file_data_object_index(file_id)
+            if len(file_list) > 1:
+                raise MultipleFilesMatchError('Multiple files matched the identifier "%s".\n'\
+                                              'Use "loom show file %s" to see the matching files.'\
+                                              % (file_id, file_id))
+            if len(file_list) < 1:
+                raise NoFilesMatchError('No files matched the identifier "%s".' % file_id)
+            file = file_list[0]
+            # If no local name specified, use the file name from the object.
+            if local_name is None:
+                local_name = file['file_name']
+                # Don't overwrite anyone's root directory based on a file path from the server.
+                self._verify_not_absolute(local_name)
+            if target_directory is not None:
+                # We should never use target directory along with absolute paths.
+                if self._is_absolute_path(local_name):
+                    raise AbsolutePathInFileNameError('Cannot set download directory since the file name "%s" '\
+                                                      'uses an absolute path.' % local_name)
+                local_path = os.path.join(os.path.expanduser(target_directory), local_name)
+            else:
+                local_path = local_name
+            self._log(logger, 'Downloading file %s@%s to %s...' % (file['file_name'], file['_id'], local_path))
             self.download_by_file_id(file['_id'], local_path)
             self._log(logger, '...complete.')
 
-    def _verify_not_absolute(self, file_names):
-        if self._has_absolute_path(file_names):
+    def _verify_not_absolute(self, file_name):
+        if self._is_absolute_path(file_name):
             raise AbsolutePathInFileNameError('Refusing to download a file whose name is an absolute path.')
 
-    def _has_absolute_path(self, file_names):
+    def _is_absolute_path(self, file_names):
         return any([file_name.startswith('/') for file_name in file_names])
 
 

@@ -5,9 +5,9 @@ from django.db import models, migrations
 import jsonfield.fields
 import sortedone2many.fields
 import django.utils.timezone
-import uuid
+import analysis.models.base
 import sortedm2m.fields
-import analysis.models.common
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='AbstractWorkflowInput',
@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='DataSourceRecord',
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='FileContents',
@@ -59,7 +59,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='FileStorageLocation',
@@ -71,7 +71,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='RequestedEnvironment',
@@ -81,7 +81,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='RequestedResourceSet',
@@ -94,7 +94,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='Step',
@@ -107,7 +107,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='StepInput',
@@ -120,7 +120,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='StepOutput',
@@ -133,7 +133,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='Workflow',
@@ -145,7 +145,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='WorkflowOutput',
@@ -157,7 +157,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='WorkflowRunRequest',
@@ -169,7 +169,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='WorkflowRunRequestInput',
@@ -182,7 +182,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.common._ClassNameMixin),
+            bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
             name='DataObjectArray',
@@ -332,7 +332,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='datasourcerecord',
             name='data_objects',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='data_source_record', to='analysis.AbstractDataObject'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='data_source_records', to='analysis.AbstractDataObject'),
         ),
         migrations.AddField(
             model_name='dataobjectarray',

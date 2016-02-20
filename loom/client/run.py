@@ -3,6 +3,11 @@
 import argparse
 import os
 import warnings
+import sys
+
+if __name__ == "__main__" and __package__ is None:
+    rootdir=os.path.abspath('../..')
+    sys.path.append(rootdir)
 
 from loom.client.common import get_settings_manager
 from loom.client.common import add_settings_options_to_parser
@@ -27,7 +32,7 @@ class WorkflowRunner(object):
     def _get_args(self):
         parser = self.get_parser()
         args = parser.parse_args()
-        self._validate_inputs(args.inputs)
+        self._validate_inputs(args.input_values)
         return args
 
     @classmethod
@@ -35,7 +40,8 @@ class WorkflowRunner(object):
         if parser == None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('workflow', metavar='WORKFLOW', help='Workflow ID or file path')
-        parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID',  nargs='*', help='Data object ID or file path for inputs')
+        parser.add_argument('input_values', metavar='INPUT_NAME=DATA_ID',  nargs='*', help='Data object ID or file path for inputs')
+        parser.add_argument('--inputs', metavar='INPUT_FILE', help='File containing input values (JSON or YAML), an alternative to providing them as arguments')
         parser = add_settings_options_to_parser(parser)
         return parser
 
@@ -61,7 +67,7 @@ class WorkflowRunner(object):
                 self._raise_validate_inputs_error(input)
 
     def _raise_validate_inputs_error(self, input):
-        raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value' % input)
+        raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
 
     def _get_objecthandler(self):
         self.objecthandler = ObjectHandler(self.master_url)
@@ -114,23 +120,29 @@ class WorkflowRunner(object):
                 self.inputs_required[input['input_name']] = input
 
     def _is_indefinite_input(self, input):
+        """Used to identify inputs that will be provided at run time, in
+        contrast to inputs that are  specified in the workflow
+        """
         return input.get('input_name') is not None
 
     def _get_inputs_provided(self):
         self.inputs_provided = {}
-        if not self.args.inputs:
+        if not self.args.input_values:
             return
         else:
-            for input in self.args.inputs:
-                (name, val) = input.split('=')
+            for input in self.args.input_values:
+                (name, raw_val) = input.split('=')
+                val = raw_val.split(',')
                 self.inputs_provided[name] = val
                 if name not in self.inputs_required.keys():
                     raise UnmatchedInputError('Unmatched input "%s" is not in workflow' % name)
-        for (input_name, input_id) in self.inputs_provided.iteritems():
-            data_object = self._get_input(input_id)
-            self._add_input(input_name, data_object)
+        for (input_name, vals) in self.inputs_provided.iteritems():
+            import pdb; pdb.set_trace()
+            input = self._get_input(vals)
+            self._add_input(input_name, input)
 
-    def _get_input(self, input_id):
+    def _get_input(self, vals):
+        input_id = vals[0]
         input_from_server = self._get_input_from_server(input_id)
         input_file = self._get_input_file(input_id)
         if not (input_from_server or input_file):

@@ -24,3 +24,9 @@ class WrongNumberOfFileNamesError(Error):
 
 class FileAlreadyExistsError(Error):
     pass
+
+class NoFilesMatchError(Error):
+    pass
+
+class MultipleFilesMatchError(Error):
+    pass

@@ -64,12 +64,14 @@ workflow_output_1_struct = {
 }
 
 workflow_struct = {
+    'workflow_name': 'workflow1',
     'steps': [step_1_struct, step_2_struct],
     'workflow_inputs': [workflow_input_1_struct, workflow_input_2_struct],
     'workflow_outputs': [workflow_output_1_struct]
     }
 
 workflow_with_templated_command_struct = {
+    'workflow_name': 'workflow1',
     'steps': [step_1_struct, step_2_struct],
     'constants': {
         'id': 'workflow123',

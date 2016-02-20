@@ -1,4 +1,5 @@
 from django.test import TestCase
+import uuid
 
 from analysis.exceptions import *
 from analysis.models import *
@@ -70,7 +71,7 @@ class TestFileStorageLocation(TestCase, UniversalModelTestMixin):
         storage_location = FileStorageLocation.create(fixtures.server_storage_location_struct)
         file = FileDataObject.create(fixtures.file_struct)
         retrieved_storage_location = FileStorageLocation.get_by_file(file).first()
-        self.assertEqual(storage_location._id, retrieved_storage_location._id)
+        self.assertEqual(uuid.UUID(str(storage_location._id)), uuid.UUID(str(retrieved_storage_location._id)))
 
 
 class TestServerStorageLocation(TestCase, UniversalModelTestMixin):

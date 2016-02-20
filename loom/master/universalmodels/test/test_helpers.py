@@ -6,7 +6,7 @@ class TestNonserializableTypeConverter(TestCase):
 
     def testConvertScalar(self):
         id = uuid.uuid4()
-        self.assertEqual(str(id), NonserializableTypeConverter.convert(id))
+        self.assertEqual(id.hex, NonserializableTypeConverter.convert(id))
 
     def testConvertList(self):
         l = [uuid.uuid4(), 'x']

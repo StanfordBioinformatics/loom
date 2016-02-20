@@ -17,17 +17,24 @@ class Helper:
         data_json = request.body
         try:
             model = model_class.create(data_json)
-            return JsonResponse({"message": "created %s" % model_class.get_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
+            return JsonResponse({"message": "created %s" % model_class.get_class_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
         except Exception as e:
             logger.error('Failed to create %s with data "%s". %s' % (model_class, data_json, e.message))
             return JsonResponse({"message": e.message}, status=400)
 
     @classmethod
     def index(cls, request, model_class):
-        model_list = []
-        for model in model_class.objects.all():
-            model_list.append(model.downcast().to_struct())
-        return JsonResponse({model_class.get_name(plural=True): model_list}, status=200)
+        query_string = request.GET.get('q')
+        if query_string is None:
+            model_list = model_class.objects.all()
+        else:
+            model_list = model_class.get_by_name_or_id(query_string)
+        return JsonResponse(
+            {
+                model_class.get_class_name(plural=True):
+                [model.to_struct() for model in model_list]
+            },
+            status=200)
 
     @classmethod
     def show(cls, request, id, model_class):
@@ -43,7 +50,7 @@ class Helper:
         data_json = request.body
         try:
             model.update(data_json)
-            return JsonResponse({"message": "updated %s _id=%s" % (model_class.get_name(), model._id)}, status=201)
+            return JsonResponse({"message": "updated %s _id=%s" % (model_class.get_class_name(), model._id)}, status=201)
         except Exception as e:
             logger.error('Failed to update %s with data "%s". %s' % (model_class, data_json, e.message))
             return JsonResponse({"message": e.message}, status=400)
@@ -86,7 +93,7 @@ def submitworkflow(request):
     try:
         workflow = Workflow.create(data_json)
         logger.info('Created workflow %s' % workflow._id)
-        return JsonResponse({"message": "created %s" % workflow.get_name(), "_id": str(workflow._id)}, status=201)
+        return JsonResponse({"message": "created %s" % workflow.get_class_name(), "_id": str(workflow._id)}, status=201)
     except Exception as e:
         logger.error('Failed to create workflow with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=400)
@@ -97,7 +104,7 @@ def submitresult(request):
     data_json = request.body
     try:
         result = StepRun.submit_result(data_json)
-        return JsonResponse({"message": "created new %s" % result.get_name(), "_id": str(result._id)}, status=201)
+        return JsonResponse({"message": "created new %s" % result.get_class_name(), "_id": str(result._id)}, status=201)
     except Exception as e:
         logger.error('Failed to create result with data "%s". %s' % (data_json, e.message))
         return JsonResponse({"message": e.message}, status=500)
@@ -136,6 +143,14 @@ def storage_locations_by_file(request, id):
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     return JsonResponse({"file_storage_locations": [o.to_struct() for o in file.file_contents.file_storage_locations.all()]}, status=200)
+
+@require_http_methods(["GET"])
+def data_source_records_by_file(request, id):
+    try:
+        file = FileDataObject.get_by_id(id)
+    except ObjectDoesNotExist:
+        return JsonResponse({"message": "Not Found"}, status=404)
+    return JsonResponse({"data_source_records": [o.to_struct() for o in file.data_source_records.all()]}, status=200)
 
 @csrf_exempt
 @require_http_methods(["GET"])

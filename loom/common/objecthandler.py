@@ -27,7 +27,7 @@ class ObjectHandler(object):
         try:
             response = query_function()
         except requests.exceptions.ConnectionError as e:
-            raise ServerConnectionError("No response from server.\n%s" % (url, e))
+            raise ServerConnectionError("No response from server.\n%s" % e.message)
         if raise_for_status:
             try:
                 response.raise_for_status()
@@ -45,7 +45,14 @@ class ObjectHandler(object):
         elif response.status_code == 200:
             return response.json()
         else:
-            raise BadResponseError("Status code %s.\n%s" % response.status_code)
+            raise BadResponseError("Status code %s." % response.status_code)
+
+    def _get_object_index(self, relative_url, raise_for_status=False):
+        response = self._get(relative_url)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise BadResponseError("Status code %s." % response.status_code)
 
     def get_server_time(self):
         """Use this, not local system time,  when generating a time stamp in the client
@@ -54,11 +61,10 @@ class ObjectHandler(object):
         return response.json()['time']
 
     # ---- Post/Get [object_type] methods ----
-    
+
     def get_data_object_array(self, array_id):
         return self._get_object(
-            'data_object_arrays/'+array_id
-        )
+            'data_object_arrays/'+array_id)
 
     def post_data_object_array(self, data_object_array):
         return self._post_object(
@@ -67,28 +73,19 @@ class ObjectHandler(object):
 
     def get_file_data_object(self, file_id):
         return self._get_object(
-            'file_data_objects/'+file_id
-        )
+            'file_data_objects/'+file_id)
+
+    def get_file_data_object_index(self, query_string=''):
+        if query_string:
+            url = 'file_data_objects/?q='+query_string
+        else:
+            url = 'file_data_objects/'
+        return self._get_object_index(url)['file_data_objects']
 
     def post_file_data_object(self, file_data_object):
         return self._post_object(
             file_data_object,
             'file_data_objects/') 
-
-    def get_file_or_array_by_id(self, file_id):
-        file_data_object = self.get_file_data_object(file_id)
-        if file_data_object is not None:
-            return [file_data_object]
-        else:
-            # Not a file. See if it is an array.
-            data_object_array = self.get_data_object_array(file_id)
-            if data_object_array is None:
-                raise ObjectNotFoundError("Could not find file or file array with ID %s" % file_id)
-            file_data_objects = data_object_array['data_objects']
-            # Arrays can be of any type. Verify that these are files.
-            if not all([o.get('file_contents') for o in data_object_array['data_objects']]):
-                raise ObjectNotFoundError("Could not find file or file array with ID %s" % file_id)
-            return file_data_objects
 
     def get_file_storage_locations_by_file(self, file_id):
         return self._get_object(
@@ -106,11 +103,16 @@ class ObjectHandler(object):
             'data_source_records/'
         )
 
+    def get_source_records_by_file(self, file_id):
+        return self._get_object_index(
+            'file_data_objects/' + file_id + '/data_source_records/'
+        )['data_source_records']
+    
     def get_workflow(self, workflow_id):
         return self._get_object(
             'workflows/'+workflow_id
         )
-    
+
     def post_workflow(self, workflow):
         return self._post_object(
             workflow,
@@ -120,7 +122,7 @@ class ObjectHandler(object):
         return self._get_object(
             'workflow_run_requestss/'+workflow_run_request_id
         )
-        
+
     def post_workflow_run_request(self, workflow_run_request):
         return self._post_object(
             workflow_run_request,

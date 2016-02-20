@@ -1,7 +1,5 @@
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
-
-from .common import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from .data_objects import AbstractDataObject
+from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from analysis.models.data_objects import AbstractDataObject
 from universalmodels import fields
 
 
@@ -44,6 +42,8 @@ class Workflow(AnalysisAppImmutableModel):
     is uploaded multiple times, duplicate objects will not be created.
     """
 
+    NAME_FIELD = 'workflow_name'
+    
     workflow_name = fields.CharField(max_length=255)
     steps = fields.ManyToManyField('Step')
     workflow_inputs = fields.ManyToManyField('AbstractWorkflowInput')

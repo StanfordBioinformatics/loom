@@ -3,3 +3,9 @@ class Error(Exception):
 
 class DataObjectValidationError(Error):
     pass
+
+class UnknownNameFieldError(Error):
+    pass
+
+class IdTooShortError(Error):
+    pass

@@ -40,42 +40,34 @@ class FileDownloader(AbstractDownloader):
     def get_parser(cls, parser):
         parser = super(FileDownloader, cls).get_parser(parser)
         parser.add_argument(
-            'file_id',
-            metavar='FILE_ID', help='File or file array to be downloaded.')
-        parser.add_argument(
-            '--rename',
+            'file_ids',
             nargs='+',
-            metavar='NEW_FILE_NAMES',
-            help='Rename the downloaded file(s). For a file array, the number '\
-            'of names must be equal to the number of files in the array')
+            metavar='FILE_ID',
+            help='File or list of files to be downloaded')
         parser.add_argument(
             '--directory',
             metavar='DIRECTORY',
             help='Destination directory for downloads')
+        parser.add_argument(
+            '--rename',
+            nargs='+',
+            metavar='NEW_FILE_NAME',
+            help='Rename the downloaded file(s). The number of names '\
+            'must be equal to the number of files downloaded.')
         return parser
 
     def run(self):
         terminal = get_stdout_logger()
-        self._get_file_id()
-        self._get_renames()
         self._get_filehandler()
         self._download_files(terminal)
 
     def _get_filehandler(self):
         self.filehandler = filehandler.FileHandler(self.master_url)
 
-    def _get_file_id(self):
-        self.file_id = self.args.file_id
-
-    def _get_renames(self):
-        self.renames = None
-        if self.args.rename is not None:
-            self.renames = self.args.rename
-
     def _download_files(self, terminal):
-        self.filehandler.download_file_or_array(
-            self.file_id,
-            local_names=self.renames,
+        self.filehandler.download_files(
+            self.args.file_ids,
+            local_names=self.args.rename,
             target_directory=self.args.directory,
             logger=terminal
         )

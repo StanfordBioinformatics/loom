@@ -21,19 +21,7 @@ class _BaseModel(models.Model):
 
     @classmethod
     def get_by_id(cls, _id):
-        MIN_LENGTH = 1
-        if len(_id) < MIN_LENGTH:
-            raise cls.DoesNotExist('ID length must be at least %s' % MIN_LENGTH)
-        obj = cls.objects.filter(_id__startswith=_id)
-        if obj.count() == 1:
-            return obj.first().downcast()
-        elif obj.count() > 1:
-            raise cls.DoesNotExist(
-                'The ID "%s" matches more than one object. '\
-                'Try using more characters in an abbreviated ID '\
-                'or use the full ID string' % _id)
-        else:
-            raise cls.DoesNotExist('No object found with ID %s' % _id)
+        return cls.objects.get(_id=_id).downcast()
 
     @classmethod
     def get_by_definition(cls, data_struct_or_json):
@@ -537,7 +525,7 @@ class InstanceModel(_BaseModel):
     value globally unique. They can be updated after creation, in contrast 
     to ImmutableModels where the primary key is a hash of the contents.
     """
-    _id = models.UUIDField(primary_key=True, default=uuid.uuid4,
+    _id = models.UUIDField(primary_key=True, default=lambda: uuid.uuid4().hex,
                            editable=False)
     datetime_created = fields.DateTimeField(default=timezone.now)
     datetime_updated = fields.DateTimeField(default=timezone.now)
@@ -594,7 +582,7 @@ class InstanceModel(_BaseModel):
     def _verify_update_id_matches_model(self, _id):
         if _id is None:
             return
-        if str(_id) != str(self._id):
+        if uuid.UUID(str(_id)) != uuid.UUID(str(self._id)):
             raise UpdateIdMismatchError(
                 'Update does not match model. The update JSON gave an _id '\
                 'of "%s", but this model has _id "%s."' % (_id, self._id))

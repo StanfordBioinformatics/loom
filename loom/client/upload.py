@@ -97,15 +97,15 @@ class FileUploader(AbstractUploader):
         """If --rename is used, process the list of file names. Otherwise use
         current file names.
         """
-        self.file_names = []
         if self.args.rename is None:
-            for path in self.local_paths:
-                self.file_names.append(os.path.basename(path))
+            self.file_names = None
         else:
             self.file_names = self.args.rename
         self._validate_file_names()
 
     def _validate_file_names(self):
+        if self.file_names == None:
+            return
         for name in self.file_names:
             if not re.match(r'^[0-9a-zA-Z_\.]+[0-9a-zA-Z_\-\.]*$', name):
                 raise InvalidFileNameError(
@@ -239,7 +239,7 @@ class Uploader:
 
         subparsers = parser.add_subparsers(help='select a data type to upload')
 
-        file_subparser = subparsers.add_parser('file', help='upload a file or an array of files')
+        file_subparser = subparsers.add_parser('file', help='upload a file or list files')
         FileUploader.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileUploader)
 

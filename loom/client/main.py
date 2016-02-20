@@ -12,6 +12,7 @@ from loom.client import config
 from loom.client import download
 from loom.client import run
 from loom.client import server
+from loom.client import show
 from loom.client import upload
 from loom.client import test_runner
 
@@ -43,7 +44,11 @@ class Main(object):
         download_subparser = subparsers.add_parser('download', help='download files or other data from the Loom server')
         download.Downloader.get_parser(download_subparser)
         download_subparser.set_defaults(SubcommandClass=download.Downloader)
-        
+
+        show_subparser = subparsers.add_parser('show', help='query and show data objects from the Loom server')
+        show.Show.get_parser(show_subparser)
+        show_subparser.set_defaults(SubcommandClass=show.Show)
+
         config_subparser = subparsers.add_parser('config', help='configure the Loom server')
         config.Config.get_parser(config_subparser)
         config_subparser.set_defaults(SubcommandClass=config.Config)
