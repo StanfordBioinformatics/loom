@@ -21,17 +21,17 @@ from oauth2client.client import GoogleCredentials
 import apiclient.discovery
 
 
-def FileHandler(master_url):
+def FileHandler(master_url, *args, **kwargs):
     """Factory method that communicates with master server to retrieve settings 
     and determine which concrete subclass to instantiate.
     """
     settings = _get_settings(master_url)
     if settings['FILE_SERVER_TYPE'] == 'LOCAL':
-        return LocalFileHandler(master_url, settings)
+        return LocalFileHandler(master_url, settings, *args, **kwargs)
     elif settings['FILE_SERVER_TYPE'] == 'REMOTE':
-        return RemoteFileHandler(master_url, settings)
+        return RemoteFileHandler(master_url, settings, *args, **kwargs)
     elif settings['FILE_SERVER_TYPE'] == 'GOOGLE_CLOUD':
-        return GoogleCloudFileHandler(master_url, settings)
+        return GoogleCloudFileHandler(master_url, settings, *args, **kwargs)
     else:
         raise UnrecognizedFileServerTypeError(
             'Unrecognized file server type: %s' % settings['FILE_SERVER_TYPE'])
@@ -59,9 +59,10 @@ class AbstractFileHandler:
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, master_url, settings):
+    def __init__(self, master_url, settings, logger=None):
         self.objecthandler = ObjectHandler(master_url)
         self.settings = settings
+        self.logger = logger
 
     @abc.abstractmethod
     def upload(self, local_path, destination_location):
@@ -133,12 +134,12 @@ class AbstractFileHandler:
         }
         return file_data_object
 
-    def _log(self, logger, message):
-        if not logger:
+    def _log(self, message):
+        if not self.logger:
             return
-        logger.info(message)
+        self.logger.info(message)
     
-    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record='', logger=None):
+    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record=''):
         upload_request_time = self.objecthandler.get_server_time()
         file_objects = []
         destination_locations = []
@@ -150,7 +151,7 @@ class AbstractFileHandler:
             
         # Create Files
         for (local_path, file_name) in zip(local_paths, file_names):
-            file_objects.append(self.upload_file_from_local_path(local_path, file_name=file_name, logger=logger))
+            file_objects.append(self.upload_file_from_local_path(local_path, file_name=file_name))
 
         # Create source_record if one exists
         self._create_source_record(file_objects, source_record=source_record)
@@ -164,16 +165,16 @@ class AbstractFileHandler:
             self.upload(local_path, destination_location)
             self.objecthandler.post_file_storage_location(destination_location)
 
-    def upload_file_from_local_path(self, local_path, file_name=None, source_record='', logger=None):
+    def upload_file_from_local_path(self, local_path, file_name=None, source_record=''):
         if file_name is None:
-            self._log(logger, "Uploading %s ..." % local_path)
+            self._log("Uploading %s ..." % local_path)
         else:
-            self._log(logger, "Uploading %s as %s ..." % (local_path, file_name))
+            self._log("Uploading %s as %s ..." % (local_path, file_name))
         file_object = self.create_file_data_object_from_local_path(local_path, file_name=file_name)
-        server_file_object = self.objecthandler.post_file_data_object(file_object)
+        server_file_object = self.objecthandler.post_data_object(file_object)
         # Create source_record if one exists
         self._create_source_record([file_object], source_record=source_record)
-        self._log(logger, "Created file %s@%s" % (server_file_object['file_name'], server_file_object['_id']))
+        self._log("Created file %s@%s" % (server_file_object['file_name'], server_file_object['_id']))
         return server_file_object
 
     def _create_source_record(self, data_objects, source_record=None):
@@ -183,7 +184,7 @@ class AbstractFileHandler:
                  'source_description': source_record}
             )
 
-    def download_files(self, file_ids, local_names=None, target_directory=None, logger=None):
+    def download_files(self, file_ids, local_names=None, target_directory=None):
         if local_names == None:
             local_names = [None] * len(file_ids)
         if len(local_names) != len(file_ids):
@@ -212,9 +213,9 @@ class AbstractFileHandler:
                 local_path = os.path.join(os.path.expanduser(target_directory), local_name)
             else:
                 local_path = local_name
-            self._log(logger, 'Downloading file %s@%s to %s...' % (file['file_name'], file['_id'], local_path))
+            self._log('Downloading file %s@%s to %s...' % (file['file_name'], file['_id'], local_path))
             self.download_by_file_id(file['_id'], local_path)
-            self._log(logger, '...complete.')
+            self._log('...complete.')
 
     def _verify_not_absolute(self, file_name):
         if self._is_absolute_path(file_name):

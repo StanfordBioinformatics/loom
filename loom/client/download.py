@@ -57,19 +57,17 @@ class FileDownloader(AbstractDownloader):
         return parser
 
     def run(self):
-        terminal = get_stdout_logger()
         self._get_filehandler()
-        self._download_files(terminal)
+        self._download_files()
 
     def _get_filehandler(self):
-        self.filehandler = filehandler.FileHandler(self.master_url)
+        self.filehandler = filehandler.FileHandler(self.master_url, logger=get_stdout_logger())
 
-    def _download_files(self, terminal):
+    def _download_files(self):
         self.filehandler.download_files(
             self.args.file_ids,
             local_names=self.args.rename,
-            target_directory=self.args.directory,
-            logger=terminal
+            target_directory=self.args.directory
         )
 
 class WorkflowDownloader(AbstractDownloader):

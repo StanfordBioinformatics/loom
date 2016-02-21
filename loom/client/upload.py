@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import glob
+import json
 import os
 import re
 import sys
@@ -13,6 +14,7 @@ if __name__ == "__main__" and __package__ is None:
 from loom.client import settings_manager
 from loom.client.common import get_settings_manager
 from loom.client.common import add_settings_options_to_parser
+from loom.client.common import read_as_json_or_yaml
 from loom.client.exceptions import *
 from loom.common import filehandler
 from loom.common.objecthandler import ObjectHandler
@@ -63,12 +65,11 @@ class FileUploader(AbstractUploader):
         return parser
 
     def run(self):
-        terminal = get_stdout_logger()
         self._get_local_paths()
         self._get_file_names()
         self._get_filehandler()
         self._get_source_record_text()
-        self._upload_files(terminal)
+        self._upload_files()
 
     def _get_local_paths(self):
         """Get all local file paths that match glob patterns
@@ -114,7 +115,7 @@ class FileUploader(AbstractUploader):
                     'with "-".' % name)
 
     def _get_filehandler(self):
-        self.filehandler = filehandler.FileHandler(self.master_url)
+        self.filehandler = filehandler.FileHandler(self.master_url, logger=get_stdout_logger())
 
     def _get_source_record_text(self):
         if self.args.skip_source_record:
@@ -138,21 +139,20 @@ class FileUploader(AbstractUploader):
     @classmethod
     def prompt_for_source_record_text(cls, source_name=None):
         if source_name:
-            text = 'Enter a complete description of the data source "%s". '\
+            text = '\nEnter a complete description of the data source "%s". '\
                    'Provide enough detail to ensure traceability.\n'\
                    'Press [enter] to skip.\n> ' % source_name
         else:
-            text = 'Enter a complete description of the data source. '\
+            text = '\nEnter a complete description of the data source. '\
                    'Provide enough detail to ensure traceability.\n'\
                    'Press [enter] to skip.\n> '
         return raw_input(text)
 
-    def _upload_files(self, terminal):
+    def _upload_files(self):
         self.filehandler.upload_files_from_local_paths(
             self.local_paths,
             file_names=self.file_names,
-            source_record=self.source_record_text,
-            logger=terminal
+            source_record=self.source_record_text
         )
 
 
@@ -179,13 +179,7 @@ class WorkflowUploader(AbstractUploader):
 
     @classmethod
     def get_workflow(cls, workflow_file):
-        try:
-            with open(workflow_file) as f:
-                workflow = yaml.load(f)
-        except IOError:
-            raise NoFileError('Could not find or could not read file %s' % workflow_file)
-        except yaml.parser.ParserError:
-            raise InvalidFormatError('Input file is not valid YAML or JSON format')
+        workflow = read_as_json_or_yaml(workflow_file)
         cls._validate_workflow(workflow)
         return workflow
 

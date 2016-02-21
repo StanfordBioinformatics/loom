@@ -4,7 +4,7 @@ from analysis.models.base import AnalysisAppInstanceModel, \
 from universalmodels import fields
 
 
-class AbstractDataObject(AnalysisAppImmutableModel):
+class DataObject(AnalysisAppImmutableModel):
     """A unit of data passed into or created by analysis steps.
     This may be a file, an array of files, a JSON data object, 
     or an array of JSON objects.
@@ -13,15 +13,15 @@ class AbstractDataObject(AnalysisAppImmutableModel):
 
 
 class DataSourceRecord(AnalysisAppInstanceModel):
-    data_objects = fields.ManyToManyField(AbstractDataObject,
+    data_objects = fields.ManyToManyField(DataObject,
                                           related_name = 'data_source_records')
     source_description = fields.TextField(max_length=10000)
 
     
-class DataObjectArray(AbstractDataObject):
+class DataObjectArray(DataObject):
     """An array of data objects, all of the same type.
     """
-    data_objects = fields.ManyToManyField('AbstractDataObject',
+    data_objects = fields.ManyToManyField('DataObject',
                                           related_name = 'parent')
 
     @classmethod
@@ -43,7 +43,7 @@ class DataObjectArray(AbstractDataObject):
                     self.data_objects.all()])
 
     
-class FileDataObject(AbstractDataObject):
+class FileDataObject(DataObject):
     """Represents a file, including its contents (identified by a hash), its 
     file name, and user-defined metadata.
     """
@@ -102,16 +102,31 @@ class GoogleCloudStorageLocation(FileStorageLocation):
     bucket_id = fields.CharField(max_length=256)
     blob_path = fields.CharField(max_length=256)
 
+class DatabaseDataObject(DataObject):
 
-class JSONDataObject(AbstractDataObject):
+    def is_available(self):
+        """An object stored in the database is always available.
+        """
+        return True
+
+    class Meta:
+        abstract = True
+
+class JSONDataObject(DatabaseDataObject):
     """Contains any valid JSON value. This could be 
     an integer, string, float, boolean, list, or dict
     """
 
-    name = fields.CharField(max_length=256)
     json_data = fields.JSONField()
 
-    def is_available(self):
-        """A JSON object is always available since it is stored in the database
-        """
-        return True
+class StringDataObject(DatabaseDataObject):
+
+    string_value = fields.TextField()
+
+class BooleanDataObject(DatabaseDataObject):
+
+    boolean_value = fields.BooleanField()
+
+class IntegerDataObject(DatabaseDataObject):
+
+    integer_value = fields.IntegerField()

@@ -1,5 +1,5 @@
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import AbstractDataObject
+from analysis.models.data_objects import DataObject
 from universalmodels import fields
 
 
@@ -32,7 +32,7 @@ class WorkflowRunRequestInput(AnalysisAppInstanceModel):
     """
 
     input_name = fields.CharField(max_length=255)
-    data_object = fields.ForeignKey('AbstractDataObject')
+    data_object = fields.ForeignKey('DataObject')
 
 
 class Workflow(AnalysisAppImmutableModel):
@@ -89,7 +89,7 @@ class AbstractWorkflowInput(AnalysisAppImmutableModel):
 
 class WorkflowInput(AbstractWorkflowInput):
 
-    data_object = fields.ForeignKey(AbstractDataObject)
+    data_object = fields.ForeignKey(DataObject)
     to_channel = fields.CharField(max_length=255)
 
 
@@ -97,6 +97,24 @@ class WorkflowInputPlaceholder(AbstractWorkflowInput):
 
     input_name = fields.CharField(max_length=255)
     to_channel = fields.CharField(max_length=255)
+    type = fields.CharField(
+        max_length=255,
+        choices=(
+            ('file', 'File'),
+            ('file_array', 'File Array'),
+            ('boolean', 'Boolean'),
+            ('boolean_array', 'Boolean Array'),
+            ('string', 'String'),
+            ('string_array', 'String Array'),
+            ('integer', 'Integer'),
+            ('integer_array', 'Integer Array'),
+            ('float', 'Float'),
+            ('float_array', 'Float Array'),
+            ('json', 'JSON'),
+            ('json_array', 'JSON Array')
+        )
+    )
+    prompt = fields.CharField(max_length=255)
 
 
 class WorkflowOutput(AnalysisAppImmutableModel):

@@ -13,6 +13,7 @@ urlpatterns = patterns(
 )    
 
 model_classes = [
+    DataObject,
     DataObjectArray,
     DataSourceRecord,
     FileDataObject,

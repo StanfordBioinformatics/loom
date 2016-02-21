@@ -62,6 +62,11 @@ class ObjectHandler(object):
 
     # ---- Post/Get [object_type] methods ----
 
+    def post_data_object(self, data_object):
+        return self._post_object(
+            data_object,
+            'data_objects/')
+
     def get_data_object_array(self, array_id):
         return self._get_object(
             'data_object_arrays/'+array_id)
@@ -81,11 +86,6 @@ class ObjectHandler(object):
         else:
             url = 'file_data_objects/'
         return self._get_object_index(url)['file_data_objects']
-
-    def post_file_data_object(self, file_data_object):
-        return self._post_object(
-            file_data_object,
-            'file_data_objects/') 
 
     def get_file_storage_locations_by_file(self, file_id):
         return self._get_object(

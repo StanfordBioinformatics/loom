@@ -14,7 +14,6 @@ from loom.client.common import get_settings_manager
 from loom.client.common import add_settings_options_to_parser
 from loom.client.exceptions import *
 from loom.common import filehandler, objecthandler
-from loom.common.helper import get_stdout_logger
 
 
 class AbstractShowHandler(object):

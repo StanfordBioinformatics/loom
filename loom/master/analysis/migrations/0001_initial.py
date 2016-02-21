@@ -4,10 +4,10 @@ from __future__ import unicode_literals
 from django.db import models, migrations
 import jsonfield.fields
 import sortedone2many.fields
+import universalmodels.models
 import django.utils.timezone
 import analysis.models.base
 import sortedm2m.fields
-import uuid
 
 
 class Migration(migrations.Migration):
@@ -16,16 +16,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='AbstractDataObject',
-            fields=[
-                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, analysis.models.base._ModelMixin),
-        ),
         migrations.CreateModel(
             name='AbstractWorkflowInput',
             fields=[
@@ -37,9 +27,19 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='DataObject',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='DataSourceRecord',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('source_description', models.TextField(max_length=10000)),
@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='FileStorageLocation',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
             ],
@@ -162,7 +162,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='WorkflowRunRequest',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
             ],
@@ -174,7 +174,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='WorkflowRunRequestInput',
             fields=[
-                ('_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('input_name', models.CharField(max_length=255)),
@@ -185,19 +185,30 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='DataObjectArray',
+            name='BooleanDataObject',
             fields=[
-                ('abstractdataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractDataObject')),
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
+                ('boolean_value', models.BooleanField()),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.abstractdataobject',),
+            bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
+            name='DataObjectArray',
+            fields=[
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
             name='FileDataObject',
             fields=[
-                ('abstractdataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractDataObject')),
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
                 ('file_name', models.CharField(max_length=255)),
                 ('metadata', jsonfield.fields.JSONField()),
                 ('file_contents', models.ForeignKey(to='analysis.FileContents')),
@@ -205,7 +216,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=('analysis.abstractdataobject',),
+            bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
             name='GoogleCloudStorageLocation',
@@ -221,16 +232,26 @@ class Migration(migrations.Migration):
             bases=('analysis.filestoragelocation',),
         ),
         migrations.CreateModel(
+            name='IntegerDataObject',
+            fields=[
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
+                ('integer_value', models.IntegerField()),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
             name='JSONDataObject',
             fields=[
-                ('abstractdataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractDataObject')),
-                ('name', models.CharField(max_length=256)),
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
                 ('json_data', jsonfield.fields.JSONField()),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.abstractdataobject',),
+            bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
             name='RequestedDockerImage',
@@ -256,11 +277,22 @@ class Migration(migrations.Migration):
             bases=('analysis.filestoragelocation',),
         ),
         migrations.CreateModel(
+            name='StringDataObject',
+            fields=[
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
+                ('string_value', models.TextField()),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
             name='WorkflowInput',
             fields=[
                 ('abstractworkflowinput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowInput')),
                 ('to_channel', models.CharField(max_length=255)),
-                ('data_object', models.ForeignKey(to='analysis.AbstractDataObject')),
+                ('data_object', models.ForeignKey(to='analysis.DataObject')),
             ],
             options={
                 'abstract': False,
@@ -273,6 +305,8 @@ class Migration(migrations.Migration):
                 ('abstractworkflowinput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowInput')),
                 ('input_name', models.CharField(max_length=255)),
                 ('to_channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'file_array', b'File Array'), (b'boolean', b'Boolean'), (b'boolean_array', b'Boolean Array'), (b'string', b'String'), (b'string_array', b'String Array'), (b'integer', b'Integer'), (b'integer_array', b'Integer Array'), (b'float', b'Float'), (b'float_array', b'Float Array'), (b'json', b'JSON'), (b'json_array', b'JSON Array')])),
+                ('prompt', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -282,7 +316,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='workflowrunrequestinput',
             name='data_object',
-            field=models.ForeignKey(to='analysis.AbstractDataObject'),
+            field=models.ForeignKey(to='analysis.DataObject'),
         ),
         migrations.AddField(
             model_name='workflowrunrequest',
@@ -332,11 +366,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='datasourcerecord',
             name='data_objects',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='data_source_records', to='analysis.AbstractDataObject'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='data_source_records', to='analysis.DataObject'),
         ),
         migrations.AddField(
             model_name='dataobjectarray',
             name='data_objects',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='parent', to='analysis.AbstractDataObject'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='parent', to='analysis.DataObject'),
         ),
     ]

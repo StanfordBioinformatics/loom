@@ -16,6 +16,8 @@ if not settings.USE_TZ == True:
     raise Error("Setting USE_TZ=True in the django settings module "\
                 "is required, to support timezone-aware datetimes.")
 
+def uuid_str():
+    return uuid.uuid4().hex
 
 class _BaseModel(models.Model):
 
@@ -525,7 +527,7 @@ class InstanceModel(_BaseModel):
     value globally unique. They can be updated after creation, in contrast 
     to ImmutableModels where the primary key is a hash of the contents.
     """
-    _id = models.UUIDField(primary_key=True, default=lambda: uuid.uuid4().hex,
+    _id = models.UUIDField(primary_key=True, default=uuid_str,
                            editable=False)
     datetime_created = fields.DateTimeField(default=timezone.now)
     datetime_updated = fields.DateTimeField(default=timezone.now)
