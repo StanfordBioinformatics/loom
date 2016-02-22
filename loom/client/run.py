@@ -65,7 +65,12 @@ class FileInputProcessor(AbstractInputProcessor):
         return data_object
 
     def _get_input_from_server(self, input_id):
-        return self.objecthandler.get_file_data_object(input_id)
+        data_object_list = self.objecthandler.get_file_data_object_index(query_string=input_id)
+        if len(data_object_list) == 0:
+            raise Exception('No file input found for "%s".' % input_id)
+        elif len(data_object_list) > 1:
+            raise Exception('Multiple inputs found for "%s".' % input_id)
+        return data_object_list[0]
 
     def _get_input_file(self, raw_input_id):
         """If input_id is the path to a file, return that path. Otherwise None.
