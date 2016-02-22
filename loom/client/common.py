@@ -3,6 +3,7 @@ import json
 import yaml
 
 from loom.client import settings_manager
+from loom.client.exceptions import *
 
 def add_settings_options_to_parser(parser):
     parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',

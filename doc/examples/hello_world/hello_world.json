@@ -1,58 +1,55 @@
 {
-    "name": "hello_world",
-    "constants": {
-        "input_dir": "/Users/iliao/loom/loom/doc/examples/helloworld"
-    },
-    "inputs": [
+    "workflow_name": "hello_world",
+    "workflow_inputs": [
 	{
-            "from_path": "${input_dir}/hello.txt",
-	    "into_channel": "hello"
+	    "type": "file",
+	    "prompt": "Enter the 'hello' file",
+	    "input_name": "hello_input",
+	    "to_channel": "hello"
 	}
     ],
-    "outputs": [
+    "workflow_outputs": [
 	{
-	    "from_channel": "hello_world_out",
+	    "from_channel": "hello_world_out"
 	}
-    ]
+    ],
     "steps": [
         {
-            "name": "world_step",
-            "command": "echo world > world.txt",
+            "step_name": "world_step",
+            "command": "echo world > {{ world }}",
             "environment": {
                 "docker_image": "ubuntu"
             },
             "resources": {
-                "cores": "1",
+                "cores": 1,
                 "memory": "1GB"
-            }
-	    "stepoutputs": [
+            },
+	    "step_outputs": [
 		{
                     "from_path": "world.txt",
 		    "to_channel": "world"
 		}
-            ],
+            ]
         },
         {
-            "name": "hello_world_step",
-            "command": "cat {{ hello }} {{ world }} > hello_world.txt",
+            "step_name": "hello_world_step",
+            "command": "cat {{ hello }} {{ world }} > {{ hello_world }}",
             "environment": {
                 "docker_image": "ubuntu"
             },
 	    "resources": {
-                "cores": "1",
+                "cores": 1,
                 "memory": "1GB"
             },
-            "stepinputs": [
+            "step_inputs": [
 		{
-		    "from_channel": "hello",
-		    "to_path": "hello.txt"
+		    "from_channel": "hello"
 		},
                 {
-		    "from_channel": "world",
-		    "to_path": "world.txt"
+		    "from_channel": "world"
 		}
             ],
-            "stepoutputs": [
+            "step_outputs": [
 		{
                     "from_path": "hello_world.txt",
 		    "to_channel": "hello_world_out"
