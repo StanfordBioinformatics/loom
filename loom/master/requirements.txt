@@ -1,5 +1,6 @@
 Django==1.8
 django-extensions==1.5.5
+django-sortedone2many==0.1.8
 django-sortedm2m==1.1.1
 gunicorn==19.3.0
 Jinja2==2.8
