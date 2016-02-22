@@ -40,39 +40,39 @@ class TestWorkflowModels(TestCase, UniversalModelTestMixin):
         self.roundTripJson(o)
         self.roundTripStruct(o)
 
-class TestWorkflowRunRequestModels(TestCase, UniversalModelTestMixin):
+class TestWorkflowRunModels(TestCase, UniversalModelTestMixin):
     
-    def testWorkflowRunRequest(self):
-        o = WorkflowRunRequest.create(fixtures.workflow_run_request_struct)
-        self.assertEqual(o.inputs.first().input_name, fixtures.workflow_run_request_struct['inputs'][0]['input_name'])
+    def testWorkflowRun(self):
+        o = WorkflowRun.create(fixtures.workflow_run_struct)
+        self.assertEqual(o.inputs.first().input_name, fixtures.workflow_run_struct['inputs'][0]['input_name'])
         self.roundTripJson(o)
         self.roundTripStruct(o)
         
-class TestWorkflowRunRequestMethods(TestCase):
+class TestWorkflowRunMethods(TestCase):
     
-    def testWorkflowRunRequestsReverseSorted(self):
+    def testWorkflowRunsReverseSorted(self):
         count = 5
         for i in range(count):
-            WorkflowRunRequest.create(fixtures.workflow_run_request_struct)
-        wf_list = WorkflowRunRequest.order_by_most_recent()
+            WorkflowRun.create(fixtures.workflow_run_struct)
+        wf_list = WorkflowRun.order_by_most_recent()
         for i in range(1, count):
             self.assertTrue(wf_list[i-1].datetime_created > wf_list[i].datetime_created)
 
-    def testWorkflowRunRequestNoCount(self):
+    def testWorkflowRunNoCount(self):
         count = 5
         for i in range(count):
-            WorkflowRunRequest.create(fixtures.workflow_run_request_struct)
-        wf_list = WorkflowRunRequest.order_by_most_recent()
+            WorkflowRun.create(fixtures.workflow_run_struct)
+        wf_list = WorkflowRun.order_by_most_recent()
         self.assertEqual(len(wf_list), count)
 
     def testWorkRunRequestflowWithCount(self):
         count = 5
         for i in range(count):
-            WorkflowRunRequest.create(fixtures.workflow_run_request_struct)
+            WorkflowRun.create(fixtures.workflow_run_struct)
 
-        wf_list_full = WorkflowRunRequest.order_by_most_recent()
-        wf_list_truncated = WorkflowRunRequest.order_by_most_recent(count-1)
-        wf_list_untruncated = WorkflowRunRequest.order_by_most_recent(count+1)
+        wf_list_full = WorkflowRun.order_by_most_recent()
+        wf_list_truncated = WorkflowRun.order_by_most_recent(count-1)
+        wf_list_untruncated = WorkflowRun.order_by_most_recent(count+1)
 
         # Truncated list should start with the newest record
         self.assertEqual(wf_list_full[0].datetime_created, wf_list_truncated[0].datetime_created)

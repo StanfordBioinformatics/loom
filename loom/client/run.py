@@ -267,11 +267,11 @@ class WorkflowRunner(object):
         self._get_objecthandler()
         self._get_filehandler()
         self._get_workflow()
-        self._initialize_workflow_run_request()
+        self._initialize_workflow_run()
         self._get_inputs_required()
         self._get_inputs_provided()
         self._prompt_for_missing_inputs()
-        self._create_workflow_run_request()
+        self._create_workflow_run()
 
     def _validate_args(self, args):
         self._validate_input_source(args)
@@ -334,8 +334,8 @@ class WorkflowRunner(object):
         except InvalidFormatError as e:
             raise InvalidFormatError('The file %s is not in a valid format for a workflow. %s' % (self.args.workflow, e.message))
 
-    def _initialize_workflow_run_request(self):
-        self.workflow_run_request = {
+    def _initialize_workflow_run(self):
+        self.workflow_run = {
             'workflow': self.workflow,
             'inputs': []
         }
@@ -393,7 +393,7 @@ class WorkflowRunner(object):
         self._add_input_to_run_request(name, data_object)
         
     def _add_input_to_run_request(self, input_name, data_object):
-        self.workflow_run_request['inputs'].append({
+        self.workflow_run['inputs'].append({
             'input_name': input_name,
             'data_object': data_object
         })
@@ -411,10 +411,10 @@ class WorkflowRunner(object):
                 ).prompt_for_input(input_name, input['prompt'])
                 self._add_input_to_run_request(input_name, data_object)
 
-    def _create_workflow_run_request(self):
-        workflow_run_request_from_server = self.objecthandler.post_workflow_run_request(self.workflow_run_request)
+    def _create_workflow_run(self):
+        workflow_run_from_server = self.objecthandler.post_workflow_run(self.workflow_run)
         print 'Created run request %s for workflow "%s"' \
-            % (workflow_run_request_from_server['_id'],
+            % (workflow_run_from_server['_id'],
                self.workflow['workflow_name'])
 
 if __name__=='__main__':

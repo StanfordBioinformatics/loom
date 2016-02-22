@@ -19,7 +19,7 @@ model_classes = [
     FileDataObject,
     FileStorageLocation,
     Workflow,
-    WorkflowRunRequest
+    WorkflowRun
 ]
 
 for cls in model_classes:

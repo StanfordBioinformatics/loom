@@ -81,12 +81,12 @@ workflow_with_templated_command_struct = {
     'workflow_outputs': [workflow_output_1_struct]
     }
 
-workflow_run_request_input_struct = {
+workflow_run_input_struct = {
     'input_name': 'input1',
     'data_object': file_struct
 }
 
-workflow_run_request_struct = {
+workflow_run_struct = {
     'workflow': workflow_struct,
-    'inputs': [workflow_run_request_input_struct]
+    'inputs': [workflow_run_input_struct]
 }

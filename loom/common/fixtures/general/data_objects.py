@@ -30,7 +30,6 @@ file_array_struct = {
 }
 
 json_struct = {
-    'name': 'test_json',
     'json_data': {'some': 'data', 'and': ['other', 'data']},
 }
 

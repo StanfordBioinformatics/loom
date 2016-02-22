@@ -8,7 +8,7 @@ import time
 from django.conf import settings
 from django.test import TestCase
 
-from analysis.models import WorkflowRunRequest
+from analysis.models import WorkflowRun
 from loom.common import fixtures
 from loom.common.testserver import TestServer
 

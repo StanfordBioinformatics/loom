@@ -9,26 +9,26 @@ receiving a request for analysis from a user.
 """
 
 
-class WorkflowRunRequest(AnalysisAppInstanceModel):
-    """WorkflowRunRequest represents a request to execute a Workflow on a particular
+class WorkflowRun(AnalysisAppInstanceModel):
+    """WorkflowRun represents a request to execute a Workflow on a particular
     set of inputs
     """
 
     workflow = fields.ForeignKey('Workflow')
-    inputs = fields.OneToManyField('WorkflowRunRequestInput')
+    inputs = fields.OneToManyField('WorkflowRunInput')
 
     @classmethod
     def order_by_most_recent(cls, count=None):
-        workflow_run_requests = cls.objects.order_by('datetime_created').reverse()
-        if count is not None and (workflow_run_requests.count() > count):
-            return workflow_run_requests[:count]
+        workflow_runs = cls.objects.order_by('datetime_created').reverse()
+        if count is not None and (workflow_runs.count() > count):
+            return workflow_runs[:count]
         else:
-            return workflow_run_requests
+            return workflow_runs
 
 
-class WorkflowRunRequestInput(AnalysisAppInstanceModel):
-    """WorkflowRunRequestInput serves as a binding between a DataObject and a Workflow input
-    in a WorkflowRunRequest
+class WorkflowRunInput(AnalysisAppInstanceModel):
+    """WorkflowRunInput serves as a binding between a DataObject and a Workflow input
+    in a WorkflowRun
     """
 
     input_name = fields.CharField(max_length=255)

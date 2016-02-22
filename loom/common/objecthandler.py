@@ -118,12 +118,12 @@ class ObjectHandler(object):
             workflow,
             'workflows/')
 
-    def get_workflow_run_request(self, workflow_run_request_id):
+    def get_workflow_run(self, workflow_run_id):
         return self._get_object(
-            'workflow_run_requestss/'+workflow_run_request_id
+            'workflow_runss/'+workflow_run_id
         )
 
-    def post_workflow_run_request(self, workflow_run_request):
+    def post_workflow_run(self, workflow_run):
         return self._post_object(
-            workflow_run_request,
-            'workflow_run_requests/')
+            workflow_run,
+            'workflow_runs/')

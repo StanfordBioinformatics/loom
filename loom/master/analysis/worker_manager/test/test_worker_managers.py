@@ -4,7 +4,7 @@ import unittest
 
 from django.conf import settings
 
-from analysis.models import WorkflowRunRequest
+from analysis.models import WorkflowRun
 from loom.common import fixtures
 from loom.common.testserver import TestServer
 

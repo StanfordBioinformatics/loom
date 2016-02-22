@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from analysis.models import WorkflowRunRequest, FileDataObject
+from analysis.models import WorkflowRun, FileDataObject
 
 logger = logging.getLogger('loom')
 
@@ -192,7 +192,7 @@ def dashboard(request):
             }
 
     count = _get_count(request)
-    workflows = WorkflowRunRequest.get_sorted(count=count)
+    workflows = WorkflowRun.get_sorted(count=count)
     if len(workflows) == 0:
         workflows = []
     workflow_info = [_get_workflow_info(wf) for wf in workflows]

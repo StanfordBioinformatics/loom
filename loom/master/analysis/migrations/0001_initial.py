@@ -160,7 +160,7 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='WorkflowRunRequest',
+            name='WorkflowRun',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -172,7 +172,7 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='WorkflowRunRequestInput',
+            name='WorkflowRunInput',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -314,17 +314,17 @@ class Migration(migrations.Migration):
             bases=('analysis.abstractworkflowinput',),
         ),
         migrations.AddField(
-            model_name='workflowrunrequestinput',
+            model_name='workflowruninput',
             name='data_object',
             field=models.ForeignKey(to='analysis.DataObject'),
         ),
         migrations.AddField(
-            model_name='workflowrunrequest',
+            model_name='workflowrun',
             name='inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.WorkflowRunRequestInput'),
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.WorkflowRunInput'),
         ),
         migrations.AddField(
-            model_name='workflowrunrequest',
+            model_name='workflowrun',
             name='workflow',
             field=models.ForeignKey(to='analysis.Workflow'),
         ),
