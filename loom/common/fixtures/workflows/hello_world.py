@@ -3,179 +3,83 @@
 import json
 import os
 
-
-# Contents of this file are "hello"
-file_contents = {
-    "hash_function": "md5",
-    "hash_value": "b1946ac92492d2347c6235b4d2611184",
-}
-
-hello_file = {
-    'file_contents': file_contents,
-    'metadata': '{"file_name": "hello.txt"}'
-}
-
-world_file = {
-    'file_contents': {
-        "hash_function": "md5", 
-        "hash_value": "591785b794601e212b260e25925636fd"
-        },
-    'metadata': '{"file_name": "world.txt"}'
-    }
-
-hello_world_file = {
-    'file_contents': {
-        'hash_function': 'md5',
-        'hash_value': '0f723ae7f9bf07744445e93ac5595156'
-        },
-    'metadata': '{"file_name": "hello_world.txt"}'
-    }
-
-
-env = {
-    'docker_image': 'ubuntu',
-}
-
-resources = {
-    'memory': '1GB',
-    'cores': '1',
-    }
-
-world_step = {
-    'name': 'world_step',
-    'command': 'echo world > %s' % 'world.txt',
-    'environment': env,
-    'resources': resources,
-    'output_ports': [
-        {
-            'name': 'world_out',
-            'file_name': 'world.txt',
-            }
-        ],
-}
-
-hello_world_step = {
-    'name': 'hello_world_step',
-    'command': 'cat %s %s > %s' % ('hello.txt', 'world.txt', 'hello_world.txt'),
-    'environment': env,
-    'resources': resources,
-    'input_ports': [
-        {
-            'name': 'hello_in',
-            'file_name': 'hello.txt',
-            },
-        {
-            'name': 'world_in',
-            'file_name': 'world.txt',
-            }
-        ],
-    'output_ports': [
-        {
-            'name': 'hello_world_out',
-            "file_name": "hello_world.txt",
-            }
-        ],
-}
-
 hello_world_workflow_struct = {
-    'name': 'hello_world',
-    'steps': [
-        world_step,
-        hello_world_step
-        ],
-    'data_bindings': [
-        {
-            'data_object': hello_file,
-            'destination': {
-                'step': 'hello_world_step',
-                'port': 'hello_in',
-                }
+        "workflow_outputs": [
+            {
+                "from_channel": "hello_world_out",
             }
         ],
-    'data_pipes':
-        [
-        {
-            'source': {
-                'step': 'world_step',
-                'port': 'world_out'
+        "workflow_name": "hello_world",
+        "steps": [
+            {
+                "environment": {
+                    "docker_image": "ubuntu"
                 },
-            'destination': {
-                'step': 'hello_world_step',
-                'port': 'world_in',
-                }
+                "command": "echo world > {{ world }}",
+                "step_name": "world_step",
+                "resources": {
+                    "cores": 1,
+                    "memory": "1GB"
+                },
+                "step_outputs": [
+                    {
+                        "from_path": "world.txt",
+                        "to_channel": "world"
+                    }
+                ]
+            },
+            {
+                "step_inputs": [
+                    {
+                        "from_channel": "hello",
+                    },
+                    {
+                        "from_channel": "world",
+                    }
+                ],
+                "environment": {
+                    "docker_image": "ubuntu"
+                },
+                "command": "cat {{ hello }} {{ world }} > {{ hello_world }}",
+                "step_name": "hello_world_step",
+                "resources": {
+                    "cores": 1,
+                    "memory": "1GB"
+                },
+                "step_outputs": [
+                    {
+                        "from_path": "hello_world.txt",
+                        "to_channel": "hello_world_out"
+                    }
+                ]
+            }
+        ],
+        "workflow_inputs": [
+            {
+                "type": "file",
+                "prompt": "Enter the 'hello' file",
+                "input_name": "hello_input",
+                "to_channel": "hello"
             }
         ]
     }
 
-world_step_definition_output_port = {
-    'file_name': 'world.txt',
-    'is_array': False
-    }
+hello_world_workflow_run_struct = {
+    "workflow_run_inputs": [
+        {
+            "input_name": "hello_input",
+            "data_object": {
+                "file_name": "hello.txt",
+                "file_contents": {
+                    "hash_value": "b1946ac92492d2347c6235b4d2611184",
+                    "hash_function": "md5"
+                }
+            }
+        }
+    ],
+    "workflow": hello_world_workflow_struct
+}
 
-world_step_definition = {
-    'output_ports': [world_step_definition_output_port],
-    'command': world_step['command'],
-    'environment': world_step['environment'],
-    }
-
-world_step_run_output_port = {
-    'name': 'world',
-    'step_definition_output_port': world_step_definition_output_port,
-    }
-
-world_step_run = {
-    'step_definition': world_step_definition,
-    'output_ports': [world_step_run_output_port]
-    }
-
-hello_world_step_definition_output_port = {
-    "file_name": "hello_world.txt",
-    "is_array": False,
-    }
-
-hello_world_step_definition_hello_input_port = {
-    "file_name": "hello.txt",
-    "data_object": hello_file,
-    "is_array": False,
-    }
-
-hello_world_step_definition_world_input_port = {
-    "file_name": "world.txt",
-    "data_object": world_file,
-    "is_array": False
-    }
-
-hello_world_step_definition = {
-    'input_ports': [
-        hello_world_step_definition_hello_input_port,
-        hello_world_step_definition_world_input_port
-
-                      ],
-    'output_ports': [hello_world_step_definition_output_port],
-    'command': hello_world_step['command'],
-    'environment': hello_world_step['environment'],
-    }
-
-hello_world_step_run_output_port = {
-    'name': 'hello_world',
-    'step_definition_output_port': hello_world_step_definition_output_port,
-    }
-
-hello_world_step_run_hello_input_port = {
-    'name': 'hello',
-    'step_definition_input_port': hello_world_step_definition_hello_input_port
-    }
-
-hello_world_step_run_world_input_port = {
-    'name': 'world',
-    'step_definition_input_port': hello_world_step_definition_world_input_port
-    }
-
-hello_world_step_run = {
-    'step_definition': hello_world_step_definition,
-    'input_ports': [hello_world_step_run_hello_input_port, hello_world_step_run_world_input_port],
-    'output_ports': [hello_world_step_run_output_port]
-    }
 
 if __name__=='__main__':
-    print json.dumps(hello_world_workflow_struct, separators=(',', ':'), indent=2)
+    print json.dumps(hello_world_workflow_run_struct, separators=(',', ':'), indent=2)

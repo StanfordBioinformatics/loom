@@ -67,7 +67,7 @@ class FileInputProcessor(AbstractInputProcessor):
     def _get_input_from_server(self, input_id):
         data_object_list = self.objecthandler.get_file_data_object_index(query_string=input_id)
         if len(data_object_list) == 0:
-            raise Exception('No file input found for "%s".' % input_id)
+            return None
         elif len(data_object_list) > 1:
             raise Exception('Multiple inputs found for "%s".' % input_id)
         return data_object_list[0]
@@ -342,7 +342,7 @@ class WorkflowRunner(object):
     def _initialize_workflow_run(self):
         self.workflow_run = {
             'workflow': self.workflow,
-            'inputs': []
+            'workflow_run_inputs': []
         }
 
     def _get_inputs_required(self):
@@ -398,7 +398,7 @@ class WorkflowRunner(object):
         self._add_input_to_run_request(name, data_object)
         
     def _add_input_to_run_request(self, input_name, data_object):
-        self.workflow_run['inputs'].append({
+        self.workflow_run['workflow_run_inputs'].append({
             'input_name': input_name,
             'data_object': data_object
         })

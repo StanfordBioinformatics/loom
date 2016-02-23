@@ -15,7 +15,8 @@ class WorkflowRun(AnalysisAppInstanceModel):
     """
 
     workflow = fields.ForeignKey('Workflow')
-    inputs = fields.OneToManyField('WorkflowRunInput')
+    workflow_run_inputs = fields.OneToManyField('WorkflowRunInput')
+    channels = fields.OneToManyField('Channel')
 
     @classmethod
     def order_by_most_recent(cls, count=None):
@@ -25,7 +26,60 @@ class WorkflowRun(AnalysisAppInstanceModel):
         else:
             return workflow_runs
 
+    @classmethod
+    def create(cls, *args, **kwargs):
+        workflow_run = super(WorkflowRun, cls).create(*args, **kwargs)
+        workflow_run._create_channels()
+        workflow_run._create_subchannels()
+        workflow_run._add_inputs_to_channels()
+        # TODO Assign workflow status (probably w/ default field)
+        return workflow_run
 
+    def _create_channels(self):
+        # One per workflow_input and one per step_output
+        for workflow_input in self.workflow.workflow_inputs.all():
+            channel_name = workflow_input.get_channel_name()
+            self._add_channel(channel_name)
+        for step in self.workflow.steps.all():
+            for step_output in step.step_outputs.all():
+                self._add_channel(step_output.to_channel)
+                
+    def _add_channel(self, channel_name):
+        self.channels.add(
+            Channel.create(
+                {'channel_name': channel_name}
+            )
+        )
+
+    def _get_channel_by_name(self, channel_name):
+        return self.channels.get(channel_name=channel_name)
+
+    def _get_data_object(self, workflow_input):
+        return workflow_input.get_data_object(self)
+
+    def _create_subchannels(self):
+        # One per workflow_ouput and step_input
+        for workflow_output in self.workflow.workflow_outputs.all():
+            channel_name = workflow_output.from_channel
+            channel = self._get_channel_by_name(channel_name)
+            channel.add_workflow_output_subchannel(workflow_output)
+        for step in self.workflow.steps.all():
+            for step_input in step.step_inputs.all():
+                channel_name = step_input.from_channel
+                channel = self._get_channel_by_name(channel_name)
+                channel.add_step_input_subchannel(step, step_input)
+        
+    def _add_inputs_to_channels(self):
+        for workflow_input in self.workflow.workflow_inputs.all():
+            channel_name = workflow_input.get_channel_name()
+            channel = self._get_channel_by_name(channel_name)
+            data_object = self._get_data_object(workflow_input)
+            channel.add_data_object(data_object)
+
+    def get_workflow_run_input_by_name(self, input_name):
+        return self.workflow_run_inputs.get(input_name=input_name)
+        
+    
 class WorkflowRunInput(AnalysisAppInstanceModel):
     """WorkflowRunInput serves as a binding between a DataObject and a Workflow input
     in a WorkflowRun
@@ -35,6 +89,54 @@ class WorkflowRunInput(AnalysisAppInstanceModel):
     data_object = fields.ForeignKey('DataObject')
 
 
+class Channel(AnalysisAppInstanceModel):
+    """Channel acts as a queue for data objects being being passed into or out of steps.
+    """
+
+    channel_name = fields.CharField(max_length=255)
+    subchannels = fields.OneToManyField('Subchannel')
+    is_open = fields.BooleanField(default=True)
+
+    def add_data_object(self, data_object):
+        for subchannel in self.subchannels.all():
+            subchannel.add_data_object(data_object)
+    
+    def add_workflow_output_subchannel(self, workflow_output):
+        self.subchannels.add(
+            Subchannel.create(
+                {'workflow_output': workflow_output.to_struct()}
+            )
+        )
+
+    def add_step_input_subchannel(self, step, step_input):
+        self.subchannels.add(
+            Subchannel.create(
+                {
+                    'step': step.to_struct(),
+                    'step_input': step_input.to_struct()
+                }
+            )
+        )
+                                   
+class Subchannel(AnalysisAppInstanceModel):
+    """Every channel can have only one source but 0 or many destinations, representing
+    the possibility that a file produce by one step can be used by 0 or many other 
+    steps. Each of these destinations has its own queue, implemented as a Subchannel.
+    """
+
+    data_objects = fields.OneToManyField('DataObject')
+    # The following are pointers to the data destination,
+    # either a step, step_input pair, or a workflow_output.
+    # Why are pointers to the destination here instead of the reverse?
+    # Because Workflows and their children  are immutable, so
+    # we can't add channels to those objects.
+    step = fields.ForeignKey('Step', null=True)
+    step_input = fields.ForeignKey('StepInput', null=True)
+    workflow_output = fields.ForeignKey('WorkflowOutput', null=True)
+
+    def add_data_object(self, data_object):
+        self.data_objects.add(data_object)
+
 class Workflow(AnalysisAppImmutableModel):
     """Each Workflow may contain many processing steps, with results from one
     step optionally feeding into another step as input.
@@ -43,7 +145,7 @@ class Workflow(AnalysisAppImmutableModel):
     """
 
     NAME_FIELD = 'workflow_name'
-    
+
     workflow_name = fields.CharField(max_length=255)
     steps = fields.ManyToManyField('Step')
     workflow_inputs = fields.ManyToManyField('AbstractWorkflowInput')
@@ -84,14 +186,19 @@ class RequestedResourceSet(AnalysisAppImmutableModel):
 
 class AbstractWorkflowInput(AnalysisAppImmutableModel):
 
-    pass
+    def get_data_object(self, workflow_run):
+        return self.downcast().get_data_object(workflow_run)
 
+    def get_channel_name(self):
+        return self.downcast().to_channel
 
 class WorkflowInput(AbstractWorkflowInput):
 
     data_object = fields.ForeignKey(DataObject)
     to_channel = fields.CharField(max_length=255)
 
+    def get_data_object(self, workflow_run):
+        return self.data_object
 
 class WorkflowInputPlaceholder(AbstractWorkflowInput):
 
@@ -116,6 +223,8 @@ class WorkflowInputPlaceholder(AbstractWorkflowInput):
     )
     prompt = fields.CharField(max_length=255)
 
+    def get_data_object(self, workflow_run):
+        return workflow_run.get_workflow_run_input_by_name(self.input_name).data_object
 
 class WorkflowOutput(AnalysisAppImmutableModel):
 

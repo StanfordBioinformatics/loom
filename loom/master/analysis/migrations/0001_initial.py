@@ -27,6 +27,20 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='Channel',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('channel_name', models.CharField(max_length=255)),
+                ('is_open', models.BooleanField(default=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='DataObject',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
@@ -136,6 +150,18 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='Subchannel',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='Workflow',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
@@ -165,6 +191,8 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('channels', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Channel')),
+                ('workflow', models.ForeignKey(to='analysis.Workflow')),
             ],
             options={
                 'abstract': False,
@@ -320,13 +348,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='workflowrun',
-            name='inputs',
+            name='workflow_run_inputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.WorkflowRunInput'),
-        ),
-        migrations.AddField(
-            model_name='workflowrun',
-            name='workflow',
-            field=models.ForeignKey(to='analysis.Workflow'),
         ),
         migrations.AddField(
             model_name='workflow',
@@ -337,6 +360,26 @@ class Migration(migrations.Migration):
             model_name='workflow',
             name='workflow_outputs',
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.WorkflowOutput'),
+        ),
+        migrations.AddField(
+            model_name='subchannel',
+            name='data_objects',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='subchannel',
+            name='step',
+            field=models.ForeignKey(to='analysis.Step', null=True),
+        ),
+        migrations.AddField(
+            model_name='subchannel',
+            name='step_input',
+            field=models.ForeignKey(to='analysis.StepInput', null=True),
+        ),
+        migrations.AddField(
+            model_name='subchannel',
+            name='workflow_output',
+            field=models.ForeignKey(to='analysis.WorkflowOutput', null=True),
         ),
         migrations.AddField(
             model_name='step',
@@ -367,6 +410,11 @@ class Migration(migrations.Migration):
             model_name='datasourcerecord',
             name='data_objects',
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='data_source_records', to='analysis.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='channel',
+            name='subchannels',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Subchannel'),
         ),
         migrations.AddField(
             model_name='dataobjectarray',

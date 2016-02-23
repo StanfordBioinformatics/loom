@@ -82,3 +82,9 @@ class TestWorkflowRunMethods(TestCase):
 
         # If count is greater than available elements, all elements should be present
         self.assertEqual(len(wf_list_untruncated), count)
+
+class TestWorkflowRunInitChannels(TestCase):
+
+    def testInitializeWorkflow(self):
+        wfrun = WorkflowRun.create(fixtures.hello_world_workflow_run_struct)
+        self.assertTrue(True)
