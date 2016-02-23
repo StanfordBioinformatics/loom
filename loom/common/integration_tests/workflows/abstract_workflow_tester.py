@@ -1,6 +1,6 @@
 import json
 import unittest
-from loom.client import submit, upload
+from loom.client import upload
 from loom.common import helper
 from loom.common.testserver import TestServer
 
