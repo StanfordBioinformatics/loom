@@ -14,6 +14,17 @@ DAEMON_EXECUTABLE = os.path.abspath(
     '../master/loomdaemon/loom_daemon.py'
     ))
 
+def is_server_running(master_url):
+    try:
+        response = requests.get(master_url + '/api/status')
+        if response.status_code == 200:
+            return True
+        else:
+            raise Exception("unexpected status code %s from server" % response.status_code)
+    except requests.exceptions.ConnectionError:
+        return False
+
+
 class ServerControls:
     """
     This class provides methods for managing the loom server, specifically the commands:
@@ -125,14 +136,9 @@ class ServerControls:
             raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
     def status(self):
-        try:
-            response = requests.get(self.settings_manager.get_server_url_for_client() + '/api/status')
-            if response.status_code == 200:
-                print "server is up"
-            else:
-                print "unexpected status code %s from server" % response.status_code
-            return response
-        except requests.exceptions.ConnectionError:
+        if is_server_running(self.settings_manager.get_server_url_for_client()):
+            print "server is up"
+        else:
             print "no response from server"
 
     def stop(self):

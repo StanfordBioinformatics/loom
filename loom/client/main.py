@@ -8,6 +8,7 @@ if __name__ == "__main__" and __package__ is None:
     rootdir=os.path.abspath('../..')
     sys.path.append(rootdir)
 
+from loom.client import browser
 from loom.client import config
 from loom.client import download
 from loom.client import run
@@ -52,6 +53,10 @@ class Main(object):
         config_subparser = subparsers.add_parser('config', help='configure the Loom server')
         config.Config.get_parser(config_subparser)
         config_subparser.set_defaults(SubcommandClass=config.Config)
+
+        browser_subparser = subparsers.add_parser('browser', help='launch the Loom web browser')
+        browser.Browser.get_parser(browser_subparser)
+        browser_subparser.set_defaults(SubcommandClass=browser.Browser)
 
         test_subparser = subparsers.add_parser('test', help='run all unit tests')
         test_runner.TestRunner.get_parser(test_subparser)
