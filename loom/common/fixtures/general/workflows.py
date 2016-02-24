@@ -88,5 +88,5 @@ workflow_run_input_struct = {
 
 workflow_run_struct = {
     'workflow': workflow_struct,
-    'inputs': [workflow_run_input_struct]
+    'workflow_run_inputs': [workflow_run_input_struct]
 }
