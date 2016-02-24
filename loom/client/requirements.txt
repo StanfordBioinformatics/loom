@@ -1,0 +1,2 @@
+-r ../master/requirements.txt
+PyYAML==3.11

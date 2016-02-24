@@ -15,7 +15,9 @@ from loom.common.testserver import TestServer
 from loom.worker.step_runner import StepRunner
 
 class TestStepRunner(unittest.TestCase):
+    pass
 
+    """
     def setUp(self):
         self.test_server = TestServer()
         self.test_server.start()
@@ -54,6 +56,7 @@ class TestStepRunner(unittest.TestCase):
             with open(self.stderr_filename, 'w') as stderrlog:
                 process = self.step_runner._execute(stdoutlog, stderrlog)
         self.step_runner._wait_for_process(process)
-
+   """
+    
 if __name__=='__main__':
     unittest.main()

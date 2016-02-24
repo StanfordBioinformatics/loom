@@ -14,6 +14,8 @@ class WorkflowRun(AnalysisAppInstanceModel):
     set of inputs
     """
 
+    NAME_FIELD = 'workflow__workflow_name'
+    
     workflow = fields.ForeignKey('Workflow')
     workflow_run_inputs = fields.OneToManyField('WorkflowRunInput')
     channels = fields.OneToManyField('Channel')

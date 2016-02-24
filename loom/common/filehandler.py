@@ -192,14 +192,7 @@ class AbstractFileHandler:
                                               'The lengths must match.' % (len(local_names), len(file_ids)))
 
         for (file_id, local_name) in zip(file_ids, local_names):
-            file_list = self.objecthandler.get_file_data_object_index(file_id)
-            if len(file_list) > 1:
-                raise MultipleFilesMatchError('Multiple files matched the identifier "%s".\n'\
-                                              'Use "loom show file %s" to see the matching files.'\
-                                              % (file_id, file_id))
-            if len(file_list) < 1:
-                raise NoFilesMatchError('No files matched the identifier "%s".' % file_id)
-            file = file_list[0]
+            file = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
             # If no local name specified, use the file name from the object.
             if local_name is None:
                 local_name = file['file_name']

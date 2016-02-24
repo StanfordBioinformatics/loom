@@ -65,12 +65,11 @@ class FileInputProcessor(AbstractInputProcessor):
         return data_object
 
     def _get_input_from_server(self, input_id):
-        data_object_list = self.objecthandler.get_file_data_object_index(query_string=input_id)
+        data_object_list = self.objecthandler.get_file_data_object_index(query_string=input_id, max=1)
         if len(data_object_list) == 0:
             return None
-        elif len(data_object_list) > 1:
-            raise Exception('Multiple inputs found for "%s".' % input_id)
-        return data_object_list[0]
+        else:
+            return data_object_list[0]
 
     def _get_input_file(self, raw_input_id):
         """If input_id is the path to a file, return that path. Otherwise None.
@@ -329,7 +328,12 @@ class WorkflowRunner(object):
             return os.path.basename(workflow_path)
                     
     def _get_workflow_from_server(self):
-        return self.objecthandler.get_workflow(self.args.workflow)
+        workflow_id = self.args.workflow
+        workflow_list = self.objecthandler.get_workflow_index(query_string=workflow_id, max=1)
+        if len(workflow_list) == 0:
+            return None
+        else:
+            return workflow_list[0]
 
     def _get_workflow_from_file(self):
         try:

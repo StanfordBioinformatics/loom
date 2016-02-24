@@ -80,12 +80,17 @@ class ObjectHandler(object):
         return self._get_object(
             'file_data_objects/'+file_id)
 
-    def get_file_data_object_index(self, query_string=''):
+    def get_file_data_object_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
             url = 'file_data_objects/?q='+query_string
         else:
             url = 'file_data_objects/'
-        return self._get_object_index(url)['file_data_objects']
+        file_data_objects =  self._get_object_index(url)['file_data_objects']
+        if len(file_data_objects) < min:
+            raise Error('Found %s File Data Objects, expected at least %s' %(len(file_data_objects), min))
+        if len(file_data_objects) > max:
+            raise Error('Found %s File Data Objects, expected at most %s' %(len(file_data_objects), max))
+        return file_data_objects
 
     def get_file_storage_locations_by_file(self, file_id):
         return self._get_object(
@@ -113,6 +118,18 @@ class ObjectHandler(object):
             'workflows/'+workflow_id
         )
 
+    def get_workflow_index(self, query_string='', min=0, max=float('inf')):
+        if query_string:
+            url = 'workflows/?q='+query_string
+        else:
+            url = 'workflows/'
+        workflows = self._get_object_index(url)['workflows']
+        if len(workflows) < min:
+            raise Error('Found %s workflows, expected at least %s' %(len(workflows), min))
+        if len(workflows) > max:
+            raise Error('Found %s workflows, expected at most %s' %(len(workflows), max))
+        return workflows
+
     def post_workflow(self, workflow):
         return self._post_object(
             workflow,
@@ -122,6 +139,18 @@ class ObjectHandler(object):
         return self._get_object(
             'workflow_runss/'+workflow_run_id
         )
+
+    def get_workflow_run_index(self, query_string='', min=0, max=float('inf')):
+        if query_string:
+            url = 'workflow_runs/?q='+query_string
+        else:
+            url = 'workflow_runs/'
+        workflow_runs = self._get_object_index(url)['workflow_runs']
+        if len(workflow_runs) < min:
+            raise Error('Found %s workflow runs, expected at least %s' %(len(workflow_runs), min))
+        if len(workflow_runs) > max:
+            raise Error('Found %s workflow runs, expected at most %s' %(len(workflow_runs), max))
+        return workflow_runs
 
     def post_workflow_run(self, workflow_run):
         return self._post_object(

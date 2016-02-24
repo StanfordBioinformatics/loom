@@ -26,8 +26,7 @@ class TestServerControls(unittest.TestCase):
         xs.run()
         
         # call by status method directly to check response
-        response = xs.status()
-        self.assertEqual(response.status_code, 200)
+        self.assertTrue(server.is_server_running(xs.settings_manager.get_server_url_for_client()))
 
 if __name__=='__main__':
     unittest.main()
