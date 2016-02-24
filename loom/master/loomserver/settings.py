@@ -33,6 +33,8 @@ SECRET_KEY = get_secret_key()
 if os.getenv('LOOM_DEBUG_TRUE'):
     DEBUG = True
     TEMPLATE_DEBUG = True
+DEBUG = True
+TEMPLATE_DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1']
 

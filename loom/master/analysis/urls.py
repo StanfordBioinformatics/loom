@@ -30,3 +30,4 @@ for cls in model_classes:
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file_storage_locations/$' % FileDataObject.get_class_name(plural=True), 'analysis.views.storage_locations_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/data_source_records/$' % FileDataObject.get_class_name(plural=True), 'analysis.views.data_source_records_by_file'))
 urlpatterns.append(url(r'^dashboard/$', 'analysis.views.dashboard'))
+urlpatterns.append(url(r'^/$', 'analysis.views.browser'))

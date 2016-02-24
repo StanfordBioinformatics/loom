@@ -1,0 +1,49 @@
+<div ng-show="$state.is('workflows.workflow')">
+    <div class="table-responsive" >
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>ID</th>
+                    <th>Complete</th>
+                    <th>Status</th>
+                    <th>Docker Image</th>
+                    <th>Command</th>
+                    <th>Cores</th>
+                    <th>Memory</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="step in workflow_run.workflow.steps">
+                    <td><a ui-sref="workflows.workflow.step({stepId:step._id})">
+                        {{step.step_name}}
+                    </a></td>
+                    <td><a ui-sref="workflows.workflow.step({stepId:step._id})">
+                        {{step._id}}
+                    </a></td>
+                    <td>
+                        TODO {{step.are_results_complete}}
+                    </td>
+                    <td>
+                        TODO
+                    </td>
+                    <td>
+                        {{step.environment.docker_image}}
+                    </td>
+                    <td>
+                        {{step.command}}
+                    </td>
+                    <td>
+                        {{step.resources.cores}}
+                    </td>
+                    <td>
+                        {{step.resources.memory}}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- Nested child view for detailed step view -->
+<div ui-view></div>
+
