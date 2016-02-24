@@ -1,31 +1,44 @@
-<div class="table-responsive">
-    <table class="table table-striped" ng-controller="WorkflowListCtrl">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Complete</th>
-                <th>Started</th>
-                <th>Updated</th>
-                <th>Ended</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr ng-repeat="workflow in workflows['workflows']">
-                <td><a href="#/workflows/{{workflow._id}}">
-                    {{workflow.name}}
-                </a></td><td>
-                    {{workflow.are_results_complete}}
-                </td><td>
-                    {{workflow.datetime_created | date:'medium'}}
-                </td><td>
-                    {{workflow.datetime_updated | date:'medium'}}
-                </td><td>
-                    TODO
-                </td><td>
-                    TODO
-                </td><td>
-            </tr>
-        </tbody>
-    </table>
+<div ng-show="$state.is('workflows')">
+    <div class="table-responsive" >
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>ID</th>
+                    <th>Complete</th>
+                    <th>Started</th>
+                    <th>Updated</th>
+                    <th>Ended</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="workflow in workflows">
+                    <td><a ui-sref="workflows.workflow({workflowId:workflow._id})">
+                        {{workflow.name}}
+                    </a></td>
+                    <td><a ui-sref="workflows.workflow({workflowId:workflow._id})">
+                        {{workflow._id}}
+                    </a></td>
+                    <td>
+                        {{workflow.are_results_complete}}
+                    </td>
+                    <td>
+                        {{workflow.datetime_created | date:'medium'}}
+                    </td>
+                    <td>
+                        {{workflow.datetime_updated | date:'medium'}}
+                    </td>
+                    <td>
+                        TODO
+                    </td>
+                    <td>
+                        TODO
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
+<!-- Nested child view for detailed workflow view -->
+<div ui-view></div>

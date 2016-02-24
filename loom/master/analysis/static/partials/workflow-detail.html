@@ -1,1 +1,61 @@
-Placeholder for detailed view of workflow <code>{{workflowId}}</code> and a list of its steps.
+<div ng-show="$state.is('workflows.workflow')">
+    <div class="table-responsive" >
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>ID</th>
+                    <th>Complete</th>
+                    <th>Started</th>
+                    <th>Updated</th>
+                    <th>Ended</th>
+                    <th>Status</th>
+                    <th>Docker Image</th>
+                    <th>Command</th>
+                    <th>Cores</th>
+                    <th>Memory</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="step in workflow.steps">
+                    <td><a ui-sref="workflows.workflow.step({stepId:step._id})">
+                        {{step.name}}
+                    </a></td>
+                    <td><a ui-sref="workflows.workflow.step({stepId:step._id})">
+                        {{step._id}}
+                    </a></td>
+                    <td>
+                        {{step.are_results_complete}}
+                    </td>
+                    <td>
+                        {{step.datetime_created | date:'medium'}}
+                    </td>
+                    <td>
+                        {{step.datetime_updated | date:'medium'}}
+                    </td>
+                    <td>
+                        TODO
+                    </td>
+                    <td>
+                        TODO
+                    </td>
+                    <td>
+                        {{step.environment.docker_image}}
+                    </td>
+                    <td>
+                        {{step.command}}
+                    </td>
+                    <td>
+                        {{step.resources.cores}}
+                    </td>
+                    <td>
+                        {{step.resources.memory}}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- Nested child view for detailed step view -->
+<div ui-view></div>
+

@@ -1,0 +1,8 @@
+<h2 class="sub-header"> 
+    <ol class="breadcrumb"> 
+        <li><a href="#">Workflows</a></li> 
+        <li ng-show="$state.includes('workflows.workflow')"><a ui-sref="workflows.workflow({workflowId:$loom.workflow._id})">{{$loom.workflow.name}}@{{$loom.workflow._id | limitTo:8}}</a></li> 
+        <li ng-show="$state.includes('workflows.workflow')" class="active">Steps</li> 
+        <li ng-show="$state.includes('workflows.workflow.step')"><a ui-sref="workflows.workflow.step({stepId:$loom.step._id})">{{$loom.step.name}}@{{$loom.step._id | limitTo:8}}</a></li> 
+    </ol> 
+</h2> 
