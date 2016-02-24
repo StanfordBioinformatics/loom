@@ -120,7 +120,7 @@ class _ModelMixin(object):
 class AnalysisAppInstanceModel(InstanceModel, _ModelMixin):
 
     def __unicode__(self):
-        return self._id
+        return self._id.hex
 
     class Meta:
         abstract = True

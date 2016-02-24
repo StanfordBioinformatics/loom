@@ -99,7 +99,7 @@ class WorkflowDownloader(AbstractDownloader):
         self.objecthandler = objecthandler.ObjectHandler(self.master_url)
 
     def _get_workflow(self):
-        self.workflow = self.objecthandler.get_workflow(self.args.workflow_id)
+        self.workflow = self.objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
 
     def _get_file_name(self):
         if self.args.file_name is not None:
