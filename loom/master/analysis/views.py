@@ -198,3 +198,6 @@ def dashboard(request):
     workflow_info = [_get_workflow_info(wf) for wf in workflows]
 
     return JsonResponse({'workflows': workflow_info}, status=200)
+
+def browser(request):
+    return render(request, 'browser.html')
