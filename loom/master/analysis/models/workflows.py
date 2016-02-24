@@ -18,8 +18,31 @@ class WorkflowRun(AnalysisAppInstanceModel):
     
     workflow = fields.ForeignKey('Workflow')
     workflow_run_inputs = fields.OneToManyField('WorkflowRunInput')
+    step_runs = fields.OneToManyField('StepRun')
     channels = fields.OneToManyField('Channel')
+    status = fields.CharField(
+        max_length=255,
+        default='running',
+        choices=(('running', 'Running'),
+                 ('error', 'Error'),
+                 ('canceled', 'Canceled'),
+                 ('complete', 'Complete')
+        )
+    )
+    status_message = fields.CharField(
+        max_length=1000,
+        default='Workflow is running'
+    )
 
+    @classmethod
+    def update_and_run_all(cls):
+        for workflow_run in cls.objects.filter(status='running'):
+            workflow_run.update_and_run()
+
+    def update_and_run(self):
+        for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
+            step_run.update_and_run()
+    
     @classmethod
     def order_by_most_recent(cls, count=None):
         workflow_runs = cls.objects.order_by('datetime_created').reverse()
@@ -31,12 +54,24 @@ class WorkflowRun(AnalysisAppInstanceModel):
     @classmethod
     def create(cls, *args, **kwargs):
         workflow_run = super(WorkflowRun, cls).create(*args, **kwargs)
+        workflow_run._create_step_runs()
         workflow_run._create_channels()
         workflow_run._create_subchannels()
         workflow_run._add_inputs_to_channels()
         # TODO Assign workflow status (probably w/ default field)
         return workflow_run
 
+    def _create_step_runs(self):
+        for step in self.workflow.steps.all():
+            self._add_step_run(step)
+
+    def _add_step_run(self, step):
+        self.step_runs.add(
+            StepRun.create({
+                'step': step.to_struct()
+            })
+        )
+    
     def _create_channels(self):
         # One per workflow_input and one per step_output
         for workflow_input in self.workflow.workflow_inputs.all():
@@ -153,6 +188,27 @@ class Workflow(AnalysisAppImmutableModel):
     workflow_inputs = fields.ManyToManyField('AbstractWorkflowInput')
     workflow_outputs = fields.ManyToManyField('WorkflowOutput')
 
+class StepRun(AnalysisAppInstanceModel):
+
+    step = fields.ForeignKey('Step')
+    status = fields.CharField(
+        max_length=255,
+        default='waiting',
+        choices=(
+            ('waiting', 'Waiting'),
+            ('running', 'Running'),
+            ('error', 'Error'),
+            ('canceled', 'Canceled'),
+            ('complete', 'Complete')
+        )
+    )
+    status_message = fields.CharField(
+        max_length=1000,
+        default='Waiting...no details available yet.'
+    )
+
+    def update_and_run(self):
+        pass
 
 class Step(AnalysisAppImmutableModel):
     """Steps are smaller units of processing within a Workflow. A Step can give rise to a single process,

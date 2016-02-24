@@ -150,6 +150,21 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='StepRun',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('status', models.CharField(default=b'waiting', max_length=255, choices=[(b'waiting', b'Waiting'), (b'running', b'Running'), (b'error', b'Error'), (b'canceled', b'Canceled'), (b'complete', b'Complete')])),
+                ('status_message', models.CharField(default=b'Waiting...no details available yet.', max_length=1000)),
+                ('step', models.ForeignKey(to='analysis.Step')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='Subchannel',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
@@ -191,7 +206,10 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'error', b'Error'), (b'canceled', b'Canceled'), (b'complete', b'Complete')])),
+                ('status_message', models.CharField(default=b'Workflow is running', max_length=1000)),
                 ('channels', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Channel')),
+                ('step_runs', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRun')),
                 ('workflow', models.ForeignKey(to='analysis.Workflow')),
             ],
             options={
