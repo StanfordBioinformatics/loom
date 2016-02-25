@@ -10,7 +10,8 @@
     ],
     "workflow_outputs": [
 	{
-	    "from_channel": "hello_world_out"
+	    "from_channel": "hello_world_out",
+	    "output_name": "hello_world"
 	}
     ],
     "steps": [

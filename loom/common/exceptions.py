@@ -7,7 +7,7 @@ class ServerConnectionError(Error):
 class BadResponseError(Error):
     pass
 
-class UnrecognizedFileServerType(Error):
+class UnrecognizedFileServerTypeError(Error):
     pass
 
 class UndefinedFileIDError(Error):
