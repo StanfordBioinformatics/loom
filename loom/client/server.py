@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 import requests
 import subprocess
 import sys
@@ -174,20 +175,35 @@ class ServerControls:
         return env
 
     def _set_database(self, env):
-        # If test database requested, set RACK_ENV to test and reset database
+        manage_cmd = [sys.executable, '%s/manage.py' % self.settings_manager.get_server_path()]
         if self.args.test_database:
+            # If test database requested, set LOOM_TEST_DATABSE to true and reset database
             env['LOOM_TEST_DATABASE'] = 'true'
-            manage_cmd = '%s %s/manage.py' % (sys.executable, self.settings_manager.get_server_path())
             commands = [
-                '%s flush --noinput' % manage_cmd,
-                '%s migrate' % manage_cmd,
+                manage_cmd + ['flush', '--noinput'],
+                manage_cmd + ['migrate'],
                 ]
             for command in commands:
                 stdout = subprocess.Popen(
                     command,
-                    shell=True, 
                     stdout=subprocess.PIPE,
                     env=env).communicate()
+        else:
+            stdout = subprocess.Popen(
+                manage_cmd + ['migrate', '-l'],
+                stdout=subprocess.PIPE,
+                env=env).communicate()
+            if re.search('\[ \]', stdout[0]):
+                yes_or_no = None
+                while not (yes_or_no == 'yes' or yes_or_no == 'no'):
+                    yes_or_no = raw_input("The Loom database needs to be initialized or updated. Proceed? (yes/no)\n> ")
+                if yes_or_no == 'yes':
+                    stdout = subprocess.Popen(
+                        manage_cmd + ['migrate'],
+                        stdout=subprocess.PIPE,
+                        env=env).communicate()
+                else:
+                    raise Exception("Declined to apply database migrations. Exiting now.")
         return env
 
     def _export_django_settings(self, env):
