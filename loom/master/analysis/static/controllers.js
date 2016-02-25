@@ -28,12 +28,8 @@ loomControllers.controller('WorkflowDetailCtrl', ['$scope', '$http', '$loom', '$
 
 loomControllers.controller('StepDetailCtrl', ['$scope', '$http', '$loom', '$stateParams',
     function($scope, $http, $loom, $stateParams) {
-        /*
-        $http.get('http://' + window.location.host + '/api/steps/' + $stateParams.stepId).success(function(response) {
-            $loom.step = response;
-            $scope.stepId = $stateParams.stepId;
+        $http.get('http://' + window.location.host + '/api/step_runs/' + $stateParams.stepId).success(function(response) {
+            $loom.step_run = response;
+            $scope.step_run = $loom.step_run;
         });
-        */
-        $loom.stepId = $stateParams.stepId;
-        $scope.stepId = $loom.stepId;
     }]);

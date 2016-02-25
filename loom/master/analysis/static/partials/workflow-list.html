@@ -5,11 +5,10 @@
                 <tr>
                     <th>Name</th>
                     <th>ID</th>
-                    <th>Complete</th>
+                    <th>Status</th>
+                    <th>Status Message</th>
                     <th>Started</th>
                     <th>Updated</th>
-                    <th>Ended</th>
-                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -18,22 +17,19 @@
                         {{workflow_run.workflow.workflow_name}}
                     </a></td>
                     <td><a ui-sref="workflows.workflow({workflowId:workflow_run._id})">
-                        {{workflow_run._id}}
+                        {{workflow_run._id | limitTo:8}}
                     </a></td>
                     <td>
-                        TODO {{workflow_run.are_results_complete}}
+                        {{workflow_run.status}}
+                    </td>
+                    <td>
+                        {{workflow_run.status_message}}
                     </td>
                     <td>
                         {{workflow_run.datetime_created | date:'medium'}}
                     </td>
                     <td>
                         {{workflow_run.datetime_updated | date:'medium'}}
-                    </td>
-                    <td>
-                        TODO
-                    </td>
-                    <td>
-                        TODO
                     </td>
                 </tr>
             </tbody>
