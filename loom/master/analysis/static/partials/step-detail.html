@@ -7,6 +7,8 @@
                     <th>Command</th>
                     <th>Cores</th>
                     <th>Memory</th>
+                    <th>Inputs</th>
+                    <th>Outputs</th>
                 </tr>
             </thead>
             <tbody>
@@ -22,6 +24,16 @@
                     </td>
                     <td>
                         {{step_run.step.resources.memory}}
+                    </td>
+                    <td>
+                        <p ng-repeat="input in step_run.step.step_inputs">
+                            {{input.from_channel}}        
+                        </p>
+                    </td>
+                    <td>
+                        <p ng-repeat="output in step_run.step.step_outputs">
+                            {{output.to_channel}}        
+                        </p>
                     </td>
                 </tr>
             </tbody>

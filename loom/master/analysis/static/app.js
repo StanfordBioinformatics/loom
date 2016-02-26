@@ -20,6 +20,11 @@ loomApp.config(['$stateProvider', '$urlRouterProvider', function($stateProvider,
             url:'/{stepId}', 
             templateUrl: 'partials/step-detail.html',
             controller: 'StepDetailCtrl'
+        })
+        .state('files', {
+            url:'/files', 
+            templateUrl: 'partials/files-list.html',
+            controller: 'FilesListCtrl'
         });
 }]);
 
