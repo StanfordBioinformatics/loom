@@ -88,7 +88,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=[  'setuptools-git>=1.1',
+    install_requires=[  
                         'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',
                         'django-sortedone2many>=0.1.8',
@@ -118,6 +118,9 @@ setup(
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
                         'uritemplate>=0.6',
+                        # For packaging 
+                        'setuptools-git>=1.1',
+                        'twine',
     ],
 
     # List additional groups of dependencies here (e.g. development
