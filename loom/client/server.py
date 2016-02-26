@@ -45,7 +45,7 @@ class ServerControls:
 
     @classmethod
     def get_parser(cls, parser=None):
-        if parser == None:
+        if parser is None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('command', choices=['start', 'stop', 'status'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',

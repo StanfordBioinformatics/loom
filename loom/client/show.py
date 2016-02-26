@@ -183,7 +183,7 @@ class Show:
 
         # If called from main, use the subparser provided.
         # Otherwise create a top-level parser here.
-        if parser == None:
+        if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
         subparsers = parser.add_subparsers(help='select the type of object to  show')

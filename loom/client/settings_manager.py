@@ -500,7 +500,7 @@ class SettingsManager:
 
     def delete_saved_settings(self):
         try:
-            if self.settings_file == None:
+            if self.settings_file is None:
                 self.settings_file = SettingsManager.DEFAULT_SETTINGS_FILE
             os.remove(self.settings_file)
             if self.verbose:

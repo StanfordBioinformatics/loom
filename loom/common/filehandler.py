@@ -143,7 +143,7 @@ class AbstractFileHandler:
         upload_request_time = self.objecthandler.get_server_time()
         file_objects = []
         destination_locations = []
-        if file_names == None:
+        if file_names is None:
             file_names = [None] * len(local_paths)
         if len(file_names) != len(local_paths):
             raise WrongNumberOfFileNamesError('Cannot process %s file name(s) for %s file(s). '\
@@ -185,7 +185,7 @@ class AbstractFileHandler:
             )
 
     def download_files(self, file_ids, local_names=None, target_directory=None):
-        if local_names == None:
+        if local_names is None:
             local_names = [None] * len(file_ids)
         if len(local_names) != len(file_ids):
             raise WrongNumberOfFileNamesError('Cannot process %s file_names for %s files. '\

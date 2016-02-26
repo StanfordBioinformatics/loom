@@ -37,7 +37,7 @@ class Config:
 
     @classmethod
     def get_parser(cls, parser=None):
-        if parser == None:
+        if parser is None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('command', choices=['local', 'local_gcloud', 'elasticluster', 'elasticluster_frontend', 'savesettings', 'clearsettings'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 

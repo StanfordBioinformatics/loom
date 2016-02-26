@@ -245,7 +245,7 @@ class WorkflowRunner(object):
     """
 
     def __init__(self, args=None):
-        if args == None:
+        if args is None:
             args = self._get_args()
         self.args = args
         self.settings_manager = get_settings_manager(self.args)
@@ -259,7 +259,7 @@ class WorkflowRunner(object):
 
     @classmethod
     def get_parser(cls, parser=None):
-        if parser == None:
+        if parser is None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('workflow', metavar='WORKFLOW', help='Workflow ID or file path')
         parser.add_argument('input_values', metavar='INPUT_NAME=DATA_ID',  nargs='*', help='Data object ID or file path for inputs')

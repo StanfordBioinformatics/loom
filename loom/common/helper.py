@@ -2,7 +2,7 @@ def wait_for_true(test_method, timeout_seconds=20, sleep_interval=None):
     from datetime import datetime
     import time
 
-    if sleep_interval == None:
+    if sleep_interval is None:
         sleep_interval = timeout_seconds/10.0
     start_time = datetime.now()
     while not test_method():
@@ -15,10 +15,10 @@ def get_stdout_logger(level=None, formatter=None, name=None):
     import logging
     import sys
 
-    if level == None:
+    if level is None:
         level = logging.DEBUG
 
-    if name == None:
+    if name is None:
         name = 'terminal'
         
     logger = logging.getLogger(name)
@@ -27,7 +27,7 @@ def get_stdout_logger(level=None, formatter=None, name=None):
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(level)
 
-    if formatter == None:
+    if formatter is None:
         formatter = logging.Formatter('%(message)s')
         
     ch.setFormatter(formatter)

@@ -19,7 +19,7 @@ class TestRunner:
 
     @classmethod
     def get_parser(cls, parser=None):
-        if parser == None:
+        if parser is None:
             parser = argparse.ArgumentParser(__file__)
         return parser
 

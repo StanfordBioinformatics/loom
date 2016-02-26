@@ -21,7 +21,7 @@ from loom.client import test_runner
 class Main(object):
 
     def __init__(self, args=None):
-        if args == None:
+        if args is None:
             parser = self.get_parser()
             args = parser.parse_args()
         self.args = args

@@ -105,7 +105,7 @@ class FileUploader(AbstractUploader):
         self._validate_file_names()
 
     def _validate_file_names(self):
-        if self.file_names == None:
+        if self.file_names is None:
             return
         for name in self.file_names:
             if not re.match(r'^[0-9a-zA-Z_\.]+[0-9a-zA-Z_\-\.]*$', name):
@@ -228,7 +228,7 @@ class Uploader:
 
         # If called from main, use the subparser provided.
         # Otherwise create a top-level parser here.
-        if parser == None:
+        if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
         subparsers = parser.add_subparsers(help='select a data type to upload')
