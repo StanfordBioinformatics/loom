@@ -18,15 +18,14 @@ def get_secret_key():
     except IOError:
         try:
             import random
-            warnings.warn('SECRET_KEY was not set. Generating key and saving it to %s' % SECRET_FILE)
             SECRET_KEY = ''.join([random.SystemRandom().choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(50)])
             secret = file(SECRET_FILE, 'w')
             secret.write(SECRET_KEY)
             secret.close()
             return SECRET_KEY
         except IOError:
-            Exception('Please create a %s file with random characters \
-            to generate your secret key!' % SECRET_FILE)
+            Exception('Failed to create file for secret key. Please create file "%s"' \
+            ' with a random secret key' % SECRET_FILE)
 
 SECRET_KEY = get_secret_key()
 
