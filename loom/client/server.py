@@ -138,9 +138,9 @@ class ServerControls:
 
     def status(self):
         if is_server_running(self.settings_manager.get_server_url_for_client()):
-            print "server is up"
+            print 'OK. The server is running.'
         else:
-            print "no response from server"
+            print 'No response. Do you need to run "loom server start"?'
 
     def stop(self):
         self._stop_webserver()

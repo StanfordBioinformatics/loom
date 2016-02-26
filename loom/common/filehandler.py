@@ -42,7 +42,7 @@ def _get_settings(master_url):
         response = requests.get(url)
     except requests.exceptions.ConnectionError:
         raise ServerConnectionError(
-            'Unable to connect to server at %s. Is the server running?' \
+            'No response from server at %s. Do you need to run "loom server start"?' \
             % master_url)
     try:
         response.raise_for_status()
