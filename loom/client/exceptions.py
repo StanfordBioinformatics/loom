@@ -33,3 +33,9 @@ class InvalidFormatError(Error):
 
 class UnmatchedInputError(Error):
     pass
+
+class IdMatchedTooFewFileDataObjectsError(Error):
+    pass
+
+class IdMatchedTooManyFileDataObjectsError(Error):
+    pass

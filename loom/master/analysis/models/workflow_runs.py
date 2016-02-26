@@ -140,7 +140,7 @@ class WorkflowRun(AnalysisAppInstanceModel):
     
     def _add_input_data_objects_to_channels(self):
         for workflow_run_input in self.workflow_run_inputs.all():
-            channel_name = workflow_run_input.workflow_input.get_channel_name()
+            channel_name = workflow_run_input.workflow_input.channel_name
             channel = self._get_channel_by_name(channel_name)
             data_object = workflow_run_input.workflow_input.get_data_object(self)
             channel.add_data_object(data_object)

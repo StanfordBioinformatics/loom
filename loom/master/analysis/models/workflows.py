@@ -21,7 +21,7 @@ class Workflow(AnalysisAppImmutableModel):
 
     workflow_name = fields.CharField(max_length=255)
     steps = fields.ManyToManyField('Step')
-    workflow_inputs = fields.ManyToManyField('AbstractWorkflowInput')
+    workflow_inputs = fields.ManyToManyField('WorkflowInput')
     workflow_outputs = fields.ManyToManyField('WorkflowOutput')
 
 
@@ -57,25 +57,8 @@ class RequestedResourceSet(AnalysisAppImmutableModel):
     cores = fields.IntegerField()
 
 
-class AbstractWorkflowInput(AnalysisAppImmutableModel):
+class WorkflowInput(AnalysisAppImmutableModel):
 
-    def get_data_object(self, workflow_run):
-        return self.downcast().get_data_object(workflow_run)
-
-    def get_channel_name(self):
-        return self.downcast().to_channel
-
-class WorkflowInput(AbstractWorkflowInput):
-
-    data_object = fields.ForeignKey(DataObject)
-    to_channel = fields.CharField(max_length=255)
-
-    def get_data_object(self, workflow_run):
-        return self.data_object
-
-class WorkflowInputPlaceholder(AbstractWorkflowInput):
-
-    input_name = fields.CharField(max_length=255)
     to_channel = fields.CharField(max_length=255)
     type = fields.CharField(
         max_length=255,
@@ -95,9 +78,8 @@ class WorkflowInputPlaceholder(AbstractWorkflowInput):
         )
     )
     prompt = fields.CharField(max_length=255)
+    value = fields.JSONField(null=True)
 
-    def get_data_object(self, workflow_run):
-        return workflow_run.get_workflow_run_input_by_name(self.input_name).data_object
 
 class WorkflowOutput(AnalysisAppImmutableModel):
 

@@ -30,3 +30,10 @@ class NoFilesMatchError(Error):
 
 class MultipleFilesMatchError(Error):
     pass
+
+class IdMatchedTooFewFileDataObjectsError(Error):
+    pass
+
+class IdMatchedTooManyFileDataObjectsError(Error):
+    pass
+    

@@ -5,10 +5,6 @@ import os
 import warnings
 import sys
 
-if __name__ == "__main__" and __package__ is None:
-    rootdir=os.path.abspath('../..')
-    sys.path.append(rootdir)
-
 from loom.client.common import get_settings_manager
 from loom.client.common import add_settings_options_to_parser
 from loom.client.common import read_as_json_or_yaml

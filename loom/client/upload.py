@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import argparse
 import glob
 import json
@@ -6,10 +7,6 @@ import os
 import re
 import sys
 import yaml
-
-if __name__ == "__main__" and __package__ is None:
-    rootdir=os.path.abspath('../..')
-    sys.path.append(rootdir)
     
 from loom.client import settings_manager
 from loom.client.common import get_settings_manager
@@ -17,8 +14,9 @@ from loom.client.common import add_settings_options_to_parser
 from loom.client.common import read_as_json_or_yaml
 from loom.client.exceptions import *
 from loom.common import filehandler
-from loom.common.objecthandler import ObjectHandler
+from loom.common import exceptions as common_exceptions
 from loom.common.helper import get_stdout_logger
+from loom.common.objecthandler import ObjectHandler
 
 
 class AbstractUploader(object):
@@ -175,7 +173,8 @@ class WorkflowUploader(AbstractUploader):
         self.workflow = self.get_workflow(self.args.workflow)
         self._set_workflow_name(self._get_workflow_name())
         self._get_objecthandler()
-        self._upload_workflow()
+        self._expand_file_ids()
+        return self._upload_workflow()
 
     @classmethod
     def get_workflow(cls, workflow_file):
@@ -201,11 +200,48 @@ class WorkflowUploader(AbstractUploader):
 
     def _get_objecthandler(self):
         self.objecthandler = ObjectHandler(self.master_url)
-        
+
+    def _expand_file_ids(self):
+        """Wherever a workflow lists a file identifier as input, query
+        the server to make sure exactly one match exists, and enter the full identifier in
+        the workflow.
+        """
+        if self.workflow.get('workflow_inputs') is None:
+            return
+        else:
+            for counter_i in range(len(self.workflow['workflow_inputs'])):
+                workflow_input = self.workflow['workflow_inputs'][counter_i]
+                if workflow_input.get('value') is None:
+                    continue
+                if workflow_input['type'] == 'file':
+                    file_id = self._get_file_id(workflow_input['value'])
+                    self.workflow['workflow_inputs'][counter_i]['value'] = file_id
+                elif workflow_input['type'] == 'file_array':
+                    if not isinstance(workflow_input['value'], list):
+                        raise Exception
+                    for counter_j in range(len(workflow_input['value'])):
+                        file_id = self._get_file_id(workflow_input['value'][counter_j])
+                        workflow_input['value'][counter_j] = file_id
+            
+    def _get_file_id(self, file_id):
+        try:
+            file_data_object = self.objecthandler.get_file_data_object_index(file_id, min=1, max=1)[0]
+        except common_exceptions.IdMatchedTooFewFileDataObjectsError as e:
+            raise IdMatchedTooFewFileDataObjectsError(
+                "The file ID %s did not match any files on the server. "\
+                "Upload the file before uploading the workflow."
+            )
+        except common_exceptions.IdMatchedTooManyFileDataObjectsError:
+            raise IdMatchedTooManyFileDataObjectsError(
+                "The file ID %s matched multiple files on the server. Try using an ID that is more precise."
+            )
+        return file_data_object['file_name'] + '@' + file_data_object['_id']
+            
     def _upload_workflow(self):
         workflow_from_server = self.objecthandler.post_workflow(self.workflow)
         print 'Uploaded workflow "%s" with id %s' % \
             (workflow_from_server['workflow_name'], workflow_from_server['_id'])
+        return workflow_from_server
     
 class Uploader:
     """Sets up and executes commands under "upload" on the main parser.

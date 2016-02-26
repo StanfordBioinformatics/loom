@@ -87,9 +87,9 @@ class ObjectHandler(object):
             url = 'file_data_objects/'
         file_data_objects =  self._get_object_index(url)['file_data_objects']
         if len(file_data_objects) < min:
-            raise Error('Found %s File Data Objects, expected at least %s' %(len(file_data_objects), min))
+            raise IdMatchedTooFewFileDataObjectsError('Found %s File Data Objects, expected at least %s' %(len(file_data_objects), min))
         if len(file_data_objects) > max:
-            raise Error('Found %s File Data Objects, expected at most %s' %(len(file_data_objects), max))
+            raise IdMatchedTooManyFileDataObjectsError('Found %s File Data Objects, expected at most %s' %(len(file_data_objects), max))
         return file_data_objects
 
     def get_file_storage_locations_by_file(self, file_id):

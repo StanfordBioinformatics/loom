@@ -1,13 +1,10 @@
 #!/usr/bin/env python
+
 import argparse
 import json
 import os
 import sys
 import yaml
-
-if __name__ == "__main__" and __package__ is None:
-    rootdir=os.path.abspath('../..')
-    sys.path.append(rootdir)
     
 from loom.client import settings_manager
 from loom.client.common import get_settings_manager

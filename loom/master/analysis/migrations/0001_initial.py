@@ -2,12 +2,12 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-import jsonfield.fields
 import sortedone2many.fields
 import universalmodels.models
-import django.utils.timezone
 import analysis.models.base
 import sortedm2m.fields
+import jsonfield.fields
+import django.utils.timezone
 
 
 class Migration(migrations.Migration):
@@ -16,16 +16,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='AbstractWorkflowInput',
-            fields=[
-                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, analysis.models.base._ModelMixin),
-        ),
         migrations.CreateModel(
             name='Channel',
             fields=[
@@ -215,6 +205,20 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='WorkflowInput',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+                ('to_channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'file_array', b'File Array'), (b'boolean', b'Boolean'), (b'boolean_array', b'Boolean Array'), (b'string', b'String'), (b'string_array', b'String Array'), (b'integer', b'Integer'), (b'integer_array', b'Integer Array'), (b'float', b'Float'), (b'float_array', b'Float Array'), (b'json', b'JSON'), (b'json_array', b'JSON Array')])),
+                ('prompt', models.CharField(max_length=255)),
+                ('value', jsonfield.fields.JSONField(null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='WorkflowOutput',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
@@ -372,32 +376,6 @@ class Migration(migrations.Migration):
             },
             bases=('analysis.dataobject',),
         ),
-        migrations.CreateModel(
-            name='WorkflowInput',
-            fields=[
-                ('abstractworkflowinput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowInput')),
-                ('to_channel', models.CharField(max_length=255)),
-                ('data_object', models.ForeignKey(to='analysis.DataObject')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.abstractworkflowinput',),
-        ),
-        migrations.CreateModel(
-            name='WorkflowInputPlaceholder',
-            fields=[
-                ('abstractworkflowinput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowInput')),
-                ('input_name', models.CharField(max_length=255)),
-                ('to_channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'file_array', b'File Array'), (b'boolean', b'Boolean'), (b'boolean_array', b'Boolean Array'), (b'string', b'String'), (b'string_array', b'String Array'), (b'integer', b'Integer'), (b'integer_array', b'Integer Array'), (b'float', b'Float'), (b'float_array', b'Float Array'), (b'json', b'JSON'), (b'json_array', b'JSON Array')])),
-                ('prompt', models.CharField(max_length=255)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.abstractworkflowinput',),
-        ),
         migrations.AddField(
             model_name='workflowrunoutput',
             name='data_object',
@@ -419,6 +397,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.DataObject', null=True),
         ),
         migrations.AddField(
+            model_name='workflowruninput',
+            name='workflow_input',
+            field=models.ForeignKey(to='analysis.WorkflowInput'),
+        ),
+        migrations.AddField(
             model_name='workflowrun',
             name='workflow_run_inputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.WorkflowRunInput'),
@@ -431,7 +414,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='workflow',
             name='workflow_inputs',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.AbstractWorkflowInput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.WorkflowInput'),
         ),
         migrations.AddField(
             model_name='workflow',
@@ -492,11 +475,6 @@ class Migration(migrations.Migration):
             model_name='channel',
             name='subchannels',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Subchannel'),
-        ),
-        migrations.AddField(
-            model_name='workflowruninput',
-            name='workflow_input',
-            field=models.ForeignKey(to='analysis.WorkflowInput'),
         ),
         migrations.AddField(
             model_name='dataobjectarray',

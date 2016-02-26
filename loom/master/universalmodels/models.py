@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db import transaction
 from django.utils import timezone
+import json
 import uuid
 
 from .exceptions import *
@@ -266,6 +267,9 @@ class _BaseModel(models.Model):
         """Handle all supported nonrelation field types. This includes JSONField
         """
         self._verify_nonrelation_input(key, value)
+        if self._is_json_field(key):
+            # First convert struct to JSON for a JSONField
+            value = json.dumps(value)
         try:
             setattr(self, key, value)
         except:

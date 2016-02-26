@@ -1,0 +1,54 @@
+{
+    "workflow_name": "test_workflow",
+    "workflow_inputs": [
+	{
+	    "type": "string_array",
+	    "value": ["Cambodia", "India"],
+	    "to_channel": "my_strings"
+	},
+	{
+	    "type": "boolean_array",
+	    "value": [true, false],
+	    "to_channel": "my_bools"
+	},
+	{
+	    "type": "float_array",
+	    "value": [0.0001, 3.5, 710.1],
+	    "to_channel": "my_floats"
+	},
+	{
+	    "type": "json_array",
+	    "value": [{"species": "elephant", "extinct": false, "names": ["Jumbo", "Surus"]}, {"data": null}],
+	    "to_channel": "my_jsons"
+	}
+    ],
+    "workflow_outputs": [
+	{
+	    "from_channel": "final_output"
+	}
+    ],
+    "steps": [
+        {
+            "step_name": "string step",
+            "command": "echo {{ my_strings }} > {{ final_output }}",
+            "environment": {
+                "docker_image": "ubuntu"
+            },
+            "resources": {
+                "cores": 1,
+                "memory": "1GB"
+            },
+	    "step_inputs": [
+		{
+		    "from_channel": "my_strings"
+		}
+	    ],
+	    "step_outputs": [
+		{
+		    "from_path": "text.out",
+		    "to_channel": "final_output"
+		}
+            ]
+        }
+    ]
+}
