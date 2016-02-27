@@ -5,39 +5,31 @@
                 <tr>
                     <th>Name</th>
                     <th>ID</th>
-                    <th>Complete</th>
                     <th>Status</th>
-                    <th>Docker Image</th>
-                    <th>Command</th>
-                    <th>Cores</th>
-                    <th>Memory</th>
+                    <th>Status Message</th>
+                    <th>Started</th>
+                    <th>Updated</th>
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="step in workflow_run.workflow.steps">
-                    <td><a ui-sref="workflows.workflow.step({stepId:step._id})">
-                        {{step.step_name}}
+                <tr ng-repeat="step_run in workflow_run.step_runs">
+                    <td><a ui-sref="workflows.workflow.step({stepId:step_run._id})">
+                        {{step_run.step.step_name}}
                     </a></td>
-                    <td><a ui-sref="workflows.workflow.step({stepId:step._id})">
-                        {{step._id}}
+                    <td><a ui-sref="workflows.workflow.step({stepId:step_run._id})">
+                        {{step_run.step._id | limitTo:8}}
                     </a></td>
                     <td>
-                        TODO {{step.are_results_complete}}
+                        {{step_run.status}}
                     </td>
                     <td>
-                        TODO
+                        {{step_run.status_message}}
                     </td>
                     <td>
-                        {{step.environment.docker_image}}
+                        {{step_run.datetime_created | date:'medium'}}
                     </td>
                     <td>
-                        {{step.command}}
-                    </td>
-                    <td>
-                        {{step.resources.cores}}
-                    </td>
-                    <td>
-                        {{step.resources.memory}}
+                        {{step_run.datetime_updated | date:'medium'}}
                     </td>
                 </tr>
             </tbody>

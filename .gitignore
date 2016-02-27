@@ -3,6 +3,6 @@
 *.swp
 .DS_Store
 .idea
-dist
-build
-*.egg-info
+/dist
+/build
+/*.egg-info

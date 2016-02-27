@@ -1,0 +1,32 @@
+<div class="table-responsive" >
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Description</th>
+                <th>Hash</th>
+                <th>Created</th>
+                <th>Updated</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr ng-repeat="file in files">
+                <td>
+                    {{file.file_name}}
+                </td>
+                <td>
+                    {{file.source_description}}
+                </td>
+                <td>
+                    {{file.file_contents.hash_value}}
+                </td>
+                <td>
+                    {{file.datetime_created | date:'medium'}}
+                </td>
+                <td>
+                    {{file.datetime_updated | date:'medium'}}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>

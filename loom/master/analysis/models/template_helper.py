@@ -87,7 +87,7 @@ class StepTemplateHelper:
         self.context = StepTemplateContext(self.step, input_set).get_context()
 
     def render(self, template_string):
-        if template_string == None:
+        if template_string is None:
             return None
         max_iter = 1000
         counter = 0

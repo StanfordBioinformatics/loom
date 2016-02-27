@@ -507,7 +507,7 @@ class _BaseModel(models.Model):
         """Returns the contents of model related by a one-to-one field
         """
         related_model = getattr(self, field)
-        if related_model == None:
+        if related_model is None:
             return None
         else:
             return related_model.downcast().to_struct()
