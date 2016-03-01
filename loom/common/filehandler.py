@@ -122,15 +122,13 @@ class AbstractFileHandler:
         )
 
     @classmethod
-    def create_file_data_object_from_local_path(cls, file_path, file_name=None):
-        if file_name is None:
-            file_name = os.path.basename(file_path)
+    def create_file_data_object_from_local_path(cls, file_path):
         file_data_object = {
             'file_contents': {
                 'hash_value': md5calc.calculate_md5sum(file_path),
                 'hash_function': 'md5',
             },
-            'file_name': file_name
+            'file_name': os.path.basename(file_path)
         }
         return file_data_object
 
@@ -139,46 +137,40 @@ class AbstractFileHandler:
             return
         self.logger.info(message)
     
-    def upload_files_from_local_paths(self, local_paths, file_names=None, source_record=''):
+    def upload_files_from_local_paths(self, local_paths, source_record=None):
         upload_request_time = self.objecthandler.get_server_time()
         file_objects = []
         destination_locations = []
-        if file_names is None:
-            file_names = [None] * len(local_paths)
-        if len(file_names) != len(local_paths):
-            raise WrongNumberOfFileNamesError('Cannot process %s file name(s) for %s file(s). '\
-                                              'The lengths must match.' % (len(file_names), len(local_paths)))
-            
-        # Create Files
-        for (local_path, file_name) in zip(local_paths, file_names):
-            file_objects.append(self.upload_file_from_local_path(local_path, file_name=file_name))
-
+        # Upload files, create FileDataObjects and StorageLocations
+        for local_path in local_paths:
+            file_objects.append(self.upload_file_from_local_path(local_path, upload_request_time=upload_request_time))
         # Create source_record if one exists
         self._create_source_record(file_objects, source_record=source_record)
+        return file_objects
+            
+    def upload_file_from_local_path(self, local_path, source_record=None, upload_request_time=None):
+        """Upload files, create FileDataObjects and StorageLocations
+        """
+        if upload_request_time is None:
+            upload_request_time = self.objecthandler.get_server_time()
+        self._log("Uploading %s ..." % local_path)
+        file_object = self.create_file_data_object_from_local_path(local_path)
+        file_object = self.objecthandler.post_data_object(file_object)
 
-        # Create storage locations
-        for file_object in file_objects:
-            destination_locations.append(self.get_import_location(file_object, upload_request_time))
-        
-        # Upload files and post storage locations
-        for (local_path, destination_location) in zip(local_paths, destination_locations):
+        # Create source_record if one exists
+        self._create_source_record([file_object], source_record=source_record)
+        self._log("Created file %s@%s" % (file_object['file_name'], file_object['_id']))
+
+        storage_locations = self.objecthandler.get_file_storage_locations_by_file(file_object['_id'])
+        if len(storage_locations) == 0:
+            destination_location = self.get_import_location(file_object, upload_request_time)
             self.upload(local_path, destination_location)
             self.objecthandler.post_file_storage_location(destination_location)
 
-    def upload_file_from_local_path(self, local_path, file_name=None, source_record=''):
-        if file_name is None:
-            self._log("Uploading %s ..." % local_path)
-        else:
-            self._log("Uploading %s as %s ..." % (local_path, file_name))
-        file_object = self.create_file_data_object_from_local_path(local_path, file_name=file_name)
-        server_file_object = self.objecthandler.post_data_object(file_object)
-        # Create source_record if one exists
-        self._create_source_record([file_object], source_record=source_record)
-        self._log("Created file %s@%s" % (server_file_object['file_name'], server_file_object['_id']))
-        return server_file_object
+        return file_object
 
     def _create_source_record(self, data_objects, source_record=None):
-        if source_record:
+        if source_record is not None:
             self.objecthandler.post_data_source_record(
                 {'data_objects': data_objects,
                  'source_description': source_record}

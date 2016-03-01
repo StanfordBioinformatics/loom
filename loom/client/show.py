@@ -7,7 +7,7 @@ import sys
 import yaml
     
 from loom.client import settings_manager
-from loom.client.common import get_settings_manager
+from loom.client.common import get_settings_manager_from_parsed_args
 from loom.client.common import add_settings_options_to_parser
 from loom.client.exceptions import *
 from loom.common import filehandler, objecthandler
@@ -21,7 +21,7 @@ class AbstractShowHandler(object):
         """Common init tasks for all Show classes
         """
         self.args = args
-        self.settings_manager = get_settings_manager(self.args)
+        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
         self.master_url = self.settings_manager.get_server_url_for_client()
 
     @classmethod
@@ -125,11 +125,11 @@ class ShowWorkflowRunHandler(AbstractShowHandler):
             'workflow_run_id',
             nargs='?',
             metavar='WORKFLOW_RUN_IDENTIFIER',
-            help='Name or ID of workflow run(s) to show.')
+            help='Name or ID of run(s) to show.')
         parser.add_argument(
             '--detail',
             action='store_true',
-            help='Show detailed view of workflow runs')
+            help='Show detailed view of runs')
         parser = super(ShowWorkflowRunHandler, cls).get_parser(parser)
         return parser
 
@@ -152,10 +152,10 @@ class ShowWorkflowRunHandler(AbstractShowHandler):
         workflow_run_identifier = workflow_run['workflow']['workflow_name'] + '@' + workflow_run['_id']
         if self.args.detail:
             text = '---------------------------------------\n'
-            text += 'Workflow Run: %s\n' % workflow_run_identifier
+            text += 'Run: %s\n' % workflow_run_identifier
             text += ' - Contents: %s' % (workflow_run)
         else:
-            text = 'Workflow Run: %s' % workflow_run_identifier
+            text = 'Run: %s' % workflow_run_identifier
         return text
 
 
@@ -183,19 +183,31 @@ class Show:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select the type of object to  show')
+        subparsers = parser.add_subparsers(help='select the type of object to  show', metavar='{file,workflow,run}')
 
         file_subparser = subparsers.add_parser('file', help='show files')
         ShowFileHandler.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=ShowFileHandler)
 
+        hidden_file_subparser = subparsers.add_parser('files')
+        ShowFileHandler.get_parser(hidden_file_subparser)
+        hidden_file_subparser.set_defaults(SubSubcommandClass=ShowFileHandler)
+
         workflow_subparser = subparsers.add_parser('workflow', help='show workflows')
         ShowWorkflowHandler.get_parser(workflow_subparser)
         workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflowHandler)
 
-        workflow_run_subparser = subparsers.add_parser('run', help='show workflow runs')
+        hidden_workflow_subparser = subparsers.add_parser('workflows')
+        ShowWorkflowHandler.get_parser(hidden_workflow_subparser)
+        hidden_workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflowHandler)
+
+        workflow_run_subparser = subparsers.add_parser('run', help='show runs')
         ShowWorkflowRunHandler.get_parser(workflow_run_subparser)
         workflow_run_subparser.set_defaults(SubSubcommandClass=ShowWorkflowRunHandler)
+
+        hidden_workflow_run_subparser = subparsers.add_parser('runs')
+        ShowWorkflowRunHandler.get_parser(hidden_workflow_run_subparser)
+        hidden_workflow_run_subparser.set_defaults(SubSubcommandClass=ShowWorkflowRunHandler)
 
         return parser
 

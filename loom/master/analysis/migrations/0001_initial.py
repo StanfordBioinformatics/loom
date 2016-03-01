@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import models, migrations
+from django.db import migrations, models
 import sortedone2many.fields
 import universalmodels.models
 import analysis.models.base
@@ -173,7 +173,8 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('step_output', models.ForeignKey(to='analysis.StepOutput')),
+                ('channel', models.ForeignKey(to='analysis.Channel', null=True)),
+                ('step_output', models.ForeignKey(to='analysis.StepOutput', null=True)),
             ],
             options={
                 'abstract': False,
@@ -424,12 +425,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='subchannel',
             name='data_objects',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.DataObject'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
         ),
         migrations.AddField(
             model_name='stepruninput',
             name='subchannel',
-            field=models.ForeignKey(to='analysis.Subchannel'),
+            field=models.ForeignKey(to='analysis.Subchannel', null=True),
         ),
         migrations.AddField(
             model_name='steprun',

@@ -16,7 +16,7 @@ class TestNonrelationFields(TestCase):
 
     def testJsonField(self):
         model = NonRelationFieldsInstanceModel.create({
-            'json_field': '{"customdata": "customvalue"}',
+            'json_field': {"customdata": "customvalue"},
             'boolean_field': True,
             'char_field': 'characters',
             'int_field': 3

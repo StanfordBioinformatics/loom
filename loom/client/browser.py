@@ -11,7 +11,7 @@ import argparse
     
 from loom.client import settings_manager
 from loom.client import server
-from loom.client.common import get_settings_manager
+from loom.client.common import get_settings_manager_from_parsed_args
 from loom.client.common import add_settings_options_to_parser
 from loom.client.exceptions import *
                 
@@ -27,7 +27,7 @@ class Browser:
         if args is None:
             args = self._get_args()
         self.args = args
-        self.settings_manager = get_settings_manager(self.args)
+        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
         self.master_url = self.settings_manager.get_server_url_for_client()
         
     def _get_args(self):

@@ -13,21 +13,22 @@ def add_settings_options_to_parser(parser):
     parser.add_argument('--no_save_settings', action='store_true', help=argparse.SUPPRESS)
     return parser
 
-def get_settings_manager(args):
+def get_settings_manager_from_parsed_args(args):
     return settings_manager.SettingsManager(
         settings_file=args.settings,
         require_default_settings=args.require_default_settings,
         save_settings=not args.no_save_settings
     )
 
-def _read_as_json(file):
-    try:
-        with open(file) as f:
-            return json.load(f)
-    except:
-        return None
-
 def read_as_json_or_yaml(file):
+    
+    def _read_as_json(file):
+        try:
+            with open(file) as f:
+                return json.load(f)
+        except:
+            return None
+    
     # Try as YAML. If that fails due to bad format, try as JSON
     try:
         with open(file) as f:

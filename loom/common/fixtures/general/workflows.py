@@ -50,12 +50,14 @@ step_2_struct = {
     }
 
 workflow_input_1_struct = {
-    'input_name': 'input1',
+    'type': 'string',
+    'value': 'hey',
     'to_channel': 'input1'
 }
 
 workflow_input_2_struct = {
-    'data_object': file_struct,
+    'type': 'string',
+    'value': 'there',
     'to_channel': 'input2'
 }
 
@@ -80,13 +82,3 @@ workflow_with_templated_command_struct = {
     'workflow_inputs': [workflow_input_1_struct, workflow_input_2_struct],
     'workflow_outputs': [workflow_output_1_struct]
     }
-
-workflow_run_input_struct = {
-    'input_name': 'input1',
-    'data_object': file_struct
-}
-
-workflow_run_struct = {
-    'workflow': workflow_struct,
-    'workflow_run_inputs': [workflow_run_input_struct]
-}

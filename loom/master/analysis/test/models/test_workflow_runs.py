@@ -9,13 +9,18 @@ from .common import UniversalModelTestMixin
 
 
 class TestWorkflowRunModels(TestCase, UniversalModelTestMixin):
-    """
+
     def testWorkflowRun(self):
         o = WorkflowRun.create(fixtures.workflow_run_struct)
-        self.assertEqual(o.inputs.first().input_name, fixtures.workflow_run_struct['inputs'][0]['input_name'])
+        self.assertEqual(
+            o.workflow_run_inputs.first().workflow_input.to_channel,
+            fixtures.workflow_run_struct['workflow_run_inputs'][0]\
+            ['workflow_input']['to_channel']
+        )
         self.roundTripJson(o)
         self.roundTripStruct(o)
-        
+
+"""
 class TestWorkflowRunMethods(TestCase):
 
     def testWorkflowRunsReverseSorted(self):
@@ -50,10 +55,10 @@ class TestWorkflowRunMethods(TestCase):
 
         # If count is greater than available elements, all elements should be present
         self.assertEqual(len(wf_list_untruncated), count)
-    """
     
 class TestWorkflowRunInitChannels(TestCase):
 
     def testInitializeWorkflow(self):
         wfrun = WorkflowRun.create(fixtures.hello_world_workflow_run_struct)
         self.assertTrue(True)
+"""

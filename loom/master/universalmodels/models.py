@@ -268,11 +268,15 @@ class _BaseModel(models.Model):
         """
         self._verify_nonrelation_input(key, value)
         if self._is_json_field(key):
-            # First convert struct to JSON for a JSONField
-            value = json.dumps(value)
+            # If field is a string, first wrap in "" to make the field
+            # behave as it does for conversion of other python types
+            # to/from json
+            if isinstance(value, basestring):
+                value = '"' + value + '"'
         try:
             setattr(self, key, value)
         except:
+            import pdb; pdb.set_trace()
             raise InvalidInputError(
                 'Unable to set field %s to value %s on model %s'
                 % (key, value, self))

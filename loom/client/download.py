@@ -6,11 +6,11 @@ import os
 import sys
 import yaml
 from loom.client import settings_manager
-from loom.client.common import get_settings_manager
+from loom.client.common import get_settings_manager_from_parsed_args
 from loom.client.common import add_settings_options_to_parser
 from loom.client.exceptions import *
 from loom.common import filehandler, objecthandler
-from loom.common.helper import get_stdout_logger
+from loom.common.helper import get_console_logger
 
 
 class AbstractDownloader(object):
@@ -21,7 +21,7 @@ class AbstractDownloader(object):
         """Common init tasks for all Download classes
         """
         self.args = args
-        self.settings_manager = get_settings_manager(self.args)
+        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
         self.master_url = self.settings_manager.get_server_url_for_client()
 
     @classmethod
@@ -57,7 +57,7 @@ class FileDownloader(AbstractDownloader):
         self._download_files()
 
     def _get_filehandler(self):
-        self.filehandler = filehandler.FileHandler(self.master_url, logger=get_stdout_logger())
+        self.filehandler = filehandler.FileHandler(self.master_url, logger=get_console_logger())
 
     def _download_files(self):
         self.filehandler.download_files(
@@ -137,15 +137,23 @@ class Downloader:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select a data type to download')
+        subparsers = parser.add_subparsers(help='select a data type to download', metavar='{file,workflow}')
 
         file_subparser = subparsers.add_parser('file', help='download a file or an array of files')
         FileDownloader.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileDownloader)
 
+        hidden_file_subparser = subparsers.add_parser('files')
+        FileDownloader.get_parser(hidden_file_subparser)
+        hidden_file_subparser.set_defaults(SubSubcommandClass=FileDownloader)
+
         workflow_subparser = subparsers.add_parser('workflow', help='download a workflow')
         WorkflowDownloader.get_parser(workflow_subparser)
         workflow_subparser.set_defaults(SubSubcommandClass=WorkflowDownloader)
+
+        hidden_workflow_subparser = subparsers.add_parser('workflows')
+        WorkflowDownloader.get_parser(hidden_workflow_subparser)
+        hidden_workflow_subparser.set_defaults(SubSubcommandClass=WorkflowDownloader)
 
         return parser
 

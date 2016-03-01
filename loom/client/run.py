@@ -5,25 +5,30 @@ import os
 import warnings
 import sys
 
-from loom.client.common import get_settings_manager
+from loom.client.common import get_settings_manager_from_parsed_args
 from loom.client.common import add_settings_options_to_parser
 from loom.client.common import read_as_json_or_yaml
 from loom.client.exceptions import *
 from loom.client.upload import WorkflowUploader, FileUploader
 from loom.common.filehandler import FileHandler
-from loom.common.helper import get_stdout_logger
+from loom.common.helper import get_console_logger
 from loom.common.objecthandler import ObjectHandler
 
 
 class AbstractInputProcessor(object):
+    """Process input values provided by the user when submitting a run,
+    according to their type
+    """
 
     def __init__(self, objecthandler, filehandler):
         self.objecthandler = objecthandler
         self.filehandler = filehandler
 
     def _list_to_single(self, input_id_list):
+        if not isinstance(input_id_list, list):
+            raise ValidationError('Expected list but got "%s"' % input_id_list)
         if len(input_id_list) != 1:
-            raise Exception('Expected 1 input but found %s: "%s"'\
+            raise ValidationError('Expected 1 input but found %s: "%s"'\
                             % (len(input_id_list), input_id_list))
         return input_id_list[0]
 
@@ -37,8 +42,8 @@ class AbstractInputProcessor(object):
     
 class FileInputProcessor(AbstractInputProcessor):
 
-    def load_data_object(self, input_id_list, convert_from_list=True):
-        if convert_from_list:
+    def load_data_object(self, input_id_list, value_is_list_format=True):
+        if value_is_list_format:
             input_id = self._list_to_single(input_id_list)
         else:
             input_id = input_id_list
@@ -48,12 +53,12 @@ class FileInputProcessor(AbstractInputProcessor):
         input_from_server = self._get_input_from_server(input_id)
         input_file = self._get_input_file(input_id)
         if not (input_from_server or input_file):
-            raise Exception('Could not find input that matches "%s"' % input_id)
+            raise UnmatchedInputError('Could not find input that matches "%s"' % input_id)
         if input_from_server and not input_file:
             data_object = input_from_server
             return data_object
         if input_from_server and input_file:
-            warnings.warn('The input name "%s" matches both a local file and a file on the server. '\
+            self.logger.warn('The input "%s" matches both a local file and a file on the server. '\
                           'Using the local file.')
         # Input is from local source, not server. Upload it now.
         source_record_text = FileUploader.prompt_for_source_record_text(input_file)
@@ -80,15 +85,16 @@ class FileInputProcessor(AbstractInputProcessor):
         input_id = None
         while not input_id:
             input_id = raw_input(
-                '\n"%s": "%s"\nThis input is required. Enter a file path or data identifier.\n> ' % (input_name, prompt)
+                '\n"%s": "%s"\nThis input is required. Enter a file path or identifier.\n> ' % (input_name, prompt)
             )
         data_object = self._get_input(input_id)
         return data_object
 
+
 class FileArrayInputProcessor(FileInputProcessor):
 
     #Override
-    def load_data_object(self, input_id_list, convert_from_list=True):
+    def load_data_object(self, input_id_list, value_is_list_format=True):
         file_data_objects = []
         for input_id in input_id_list:
             file_data_objects.append(self._get_input(input_id))
@@ -96,22 +102,31 @@ class FileArrayInputProcessor(FileInputProcessor):
         return file_array_data_object
 
     def prompt_for_input(self, input_name, prompt):
-        input_id_list = None
-        while not input_id_list:
-            input_id_list = raw_input(
-                '\n"%s": "%s"\nThis input is required. Enter a space-separated list of file paths or data identifiers.\n> ' % (input_name, prompt)
-            )
-        input_ids = input_id_list.split(' ')
+        input_ids = []
+        input_id = None
+        while input_id or not input_ids:
+            # Continue until at least one value is provided
+            # Then stop on the first blank
+            if not input_ids:
+                # No inputs yet. Hitting return will just bring up the prompt until they enter something.
+                text = '\n"%s": "%s"\nThis input is required. \nEnter a list of file paths or identifiers, one per line. > ' % (input_name, prompt)
+            else:
+                text = 'Next value, or press [enter] to finish. > '
+            input_id = raw_input(text)
+            if not input_id:
+                continue
+            input_ids.append(input_id)
         file_data_objects = []
         for input_id in input_ids:
             file_data_objects.append(self._get_input(input_id))
         file_array_data_object = self._create_array(file_data_objects)
         return file_array_data_object
 
+
 class DatabaseObjectMixin(object):
 
-    def load_data_object(self, value_list, convert_from_list=None):
-        if convert_from_list:
+    def load_data_object(self, value_list, value_is_list_format=None):
+        if value_is_list_format:
             value = self._list_to_single(value_list)
         else:
             value = value_list
@@ -130,7 +145,7 @@ class DatabaseObjectMixin(object):
 class DatabaseObjectArrayMixin(object):
 
     # override
-    def load_data_object(self, value_list, convert_from_list=None):
+    def load_data_object(self, value_list, value_is_list_format=None):
         data_objects = []
         for value in value_list:
             data_objects.append(self._get_input(value))
@@ -166,7 +181,8 @@ class StringInputProcessor(DatabaseObjectMixin, AbstractInputProcessor):
 class StringArrayInputProcessor(DatabaseObjectArrayMixin, StringInputProcessor):
 
     pass
-"""
+
+
 class BooleanInputProcessor(DatabaseObjectMixin, AbstractInputProcessor):
 
     human_readable_type_lc = "boolean"
@@ -179,23 +195,18 @@ class BooleanInputProcessor(DatabaseObjectMixin, AbstractInputProcessor):
         )
 
     def _to_bool(self, value):
-        if value.lower() == 'true' or \
-           value.lower() == 't' or \
-           value.lower() == 'yes' or \
-           value.lower() == 'y':
+        if value.lower() == 'true':
             return True
-        if value.lower() == 'false' or \
-           value.lower() == 'f' or \
-           value.lower() == 'no' or \
-           value.lower() == 'n':
+        elif value.lower() == 'false':
             return False
         else:
             raise Exception('Couldn\'t convert "%s" to a boolean. Value should be "true" or "false".')
 
+
 class BooleanArrayInputProcessor(DatabaseObjectArrayMixin, BooleanInputProcessor):
 
     pass
-"""
+
 class IntegerInputProcessor(DatabaseObjectMixin, AbstractInputProcessor):
 
     human_readable_type_lc = "integer"
@@ -223,8 +234,8 @@ def InputProcessor(type, objecthandler, filehandler):
         'file_array': FileArrayInputProcessor,
         'string': StringInputProcessor,
         'string_array': StringArrayInputProcessor,
-#        'boolean': BooleanInputProcessor,
-#        'boolean_array': BooleanArrayInputProcessor,
+        'boolean': BooleanInputProcessor,
+        'boolean_array': BooleanArrayInputProcessor,
         'integer': IntegerInputProcessor,
         'integer_array': IntegerArrayInputProcessor
     }
@@ -240,12 +251,15 @@ class WorkflowRunner(object):
     Prompt for inputs if needed.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, logger=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.settings_manager = get_settings_manager(self.args)
+        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
         self.master_url = self.settings_manager.get_server_url_for_client()
+        if logger is None:
+            logger = get_console_logger(name=__file__)
+        self.logger = logger
 
     def _get_args(self):
         parser = self.get_parser()
@@ -268,22 +282,24 @@ class WorkflowRunner(object):
         self._get_filehandler()
         self._get_workflow()
         self._initialize_workflow_run()
+        self._process_predefined_inputs()
         self._get_inputs_required()
         self._get_inputs_provided()
         self._prompt_for_missing_inputs()
+        self._process_inputs_provided()
         self._create_workflow_run()
 
     def _validate_args(self, args):
         self._validate_input_source(args)
-        self._validate_inputs(args.input_values)
+        self._validate_command_line_inputs(args.input_values)
 
     def _validate_input_source(self, args):
         if args.inputs and args.input_values:
-            raise Exception('Provide inputs either in a separate file, using the "--inputs" flag, '\
-                            'or with "INPUT=VALUE" command line arguments. '\
-                            'You cannot use both forms simultaneously.')
+            raise Exception('Either provide a separate inputs file with the "--inputs" flag, '\
+                            'or provide inputs as command line arguments with "INPUT=VALUE" format.'\
+                            'You cannot use both forms of input together.')
         
-    def _validate_inputs(self, inputs):
+    def _validate_command_line_inputs(self, inputs):
         if not inputs:
             return
         for input in inputs:
@@ -300,23 +316,39 @@ class WorkflowRunner(object):
         self.objecthandler = ObjectHandler(self.master_url)
 
     def _get_filehandler(self):
-        self.filehandler = FileHandler(self.master_url, logger=get_stdout_logger())
+        self.filehandler = FileHandler(self.master_url, logger=self.logger)
 
     def _get_workflow(self):
         workflow_from_server = self._get_workflow_from_server()
         workflow_from_file = self._get_workflow_from_file()
         if not (workflow_from_server or workflow_from_file):
             raise Exception('Could not find workflow that matches "%s"' % self.args.workflow)
-        if workflow_from_server and not workflow_from_file:
+        elif workflow_from_server and not workflow_from_file:
             self.workflow = workflow_from_server
+            self._validate_workflow()
             return
-        if workflow_from_server and workflow_from_file:
+        elif workflow_from_server and workflow_from_file:
             warnings.warn('The workflow name "%s" matches both a local file and a workflow on the server. '\
                           'Using the local file.')
-        # Workflow is from local source, not server. Post it now.
-        workflow_from_file['workflow_name'] = self._get_workflow_name(workflow_from_file, self.args.workflow)
-        self.workflow = self.objecthandler.post_workflow(workflow_from_file)
+        else:
+            # Workflow is from local source, not server.
+            self.workflow = workflow_from_file
+            self._validate_workflow()
 
+    def _validate_workflow(self):
+        if self.workflow.get('workflow_inputs'):
+            if not isinstance(self.workflow['workflow_inputs'], list):
+                raise ValidationError('Workflow is invalid. "workflow_inputs" should contain a list but it contains "%s"'\
+                                      % self.workflow.get('workflow_inputs'))
+            for input in self.workflow['workflow_inputs']:
+                if not isinstance(input, dict):
+                    raise ValidationError('Workflow is invalid. Workflow input should be a dict but it contains "%s"'\
+                                          % input)
+                if not input.get('to_channel'):
+                    raise ValidationError('Workflow is invalid. "to_channel" is not defined for this input: "%s"' % input)
+                if not input.get('type'):
+                    raise ValidationError('Workflow is invalid. "type" is not defined for this input: "%s"' % input)
+            
     def _get_workflow_name(self, workflow, workflow_path):
         if workflow.get('workflow_name') is not None:
             return workflow.get('workflow_name')
@@ -327,17 +359,13 @@ class WorkflowRunner(object):
         workflow_id = self.args.workflow
         workflow_list = self.objecthandler.get_workflow_index(query_string=workflow_id, max=1)
         if len(workflow_list) == 0:
+            # Don't raise an error for no workflow here, because we may still match a local file
             return None
         else:
             return workflow_list[0]
 
     def _get_workflow_from_file(self):
-        try:
-            return WorkflowUploader.get_workflow(self.args.workflow)
-        except NoFileError:
-            return None
-        except InvalidFormatError as e:
-            raise InvalidFormatError('The file %s is not in a valid format for a workflow. %s' % (self.args.workflow, e.message))
+        return WorkflowUploader.default_run(self.args.workflow)
 
     def _initialize_workflow_run(self):
         self.workflow_run = {
@@ -345,22 +373,31 @@ class WorkflowRunner(object):
             'workflow_run_inputs': []
         }
 
-    def _get_inputs_required(self):
-        """Produces a dict of inputs required by the workflow
+    def _process_predefined_inputs(self):
+        """Process inputs with values predefined in the workflow.
         """
-        self.inputs_required = {}
+        if not self.workflow.get('workflow_inputs'):
+            return
         for input in self.workflow['workflow_inputs']:
-            if self._is_indefinite_input(input):
-                self.inputs_required[input['input_name']] = input
+            if self._has_value(input):
+                self._process_input(input['to_channel'], input['value'], input['type'], input, value_is_list_format=False)
 
-    def _is_indefinite_input(self, input):
-        """Used to identify inputs that will be provided at run time, in
-        contrast to inputs that are  specified in the workflow
+    def _has_value(self, input):
+        """True if input already has a value assigned. Otherwise the user will be 
+        prompted for a value
         """
-        return input.get('input_name') is not None
+        return input.get('value') is not None
+    
+    def _get_inputs_required(self):
+        self.inputs_required = {}
+        if not self.workflow.get('workflow_inputs'):
+            return
+        for workflow_input in self.workflow['workflow_inputs']:
+            if not self._has_value(workflow_input):
+                self.inputs_required[workflow_input['to_channel']] = workflow_input
 
     def _get_inputs_provided(self):
-        """Produces a dict of inputs provided by the user, either 
+        """Produces a dict of inputs provided with the run command, either
         as command line arguments or in a file.
         """
         self.inputs_provided = {}
@@ -372,13 +409,14 @@ class WorkflowRunner(object):
             self._get_inputs_from_command_line()
 
     def _get_inputs_from_file(self):
-        self.inputs_provided = read_as_json_or_yaml(self.args.inputs)
-        if not isinstance(self.inputs_provided, dict):
-            raise Exception('The input file "%s" should have the format {"input_name": <<value>>, "input2_name": <<value>>, ...}')
-        for key, value in self.inputs_provided.iteritems():
+        inputs_from_file = read_as_json_or_yaml(self.args.inputs)
+        if not isinstance(self.inputs_from_file, dict):
+            raise ValidationError('The input file "%s" should have the format {"input_name": <<value>>, "input2_name": <<value>>, ...}'
+                                  % self.args.inputs)
+        for key, value in inputs_from_file.iteritems():
             if key not in self.inputs_required.keys():
                 raise UnmatchedInputError('Unmatched input "%s" in "%s" is not in the workflow' % (name, self.args.inputs))
-            self._process_input(key, value, convert_from_list=False)
+            self.inputs_provided[key] = {'value': value, 'value_is_list_format': False}
 
     def _get_inputs_from_command_line(self):
         for kv_pair in self.args.input_values:
@@ -387,19 +425,27 @@ class WorkflowRunner(object):
             self.inputs_provided[name] = value_list
             if name not in self.inputs_required.keys():
                 raise UnmatchedInputError('Unmatched input "%s" is not in workflow' % name)
-            self._process_input(name, value_list, convert_from_list=True)
+            self.inputs_provided[name] = {'value': value_list, 'value_is_list_format': True}
 
-    def _process_input(self, name, value_list, convert_from_list=True):
+    def _process_inputs_provided(self):
+        for (input_name, input_info) in self.inputs_provided.iteritems():
+            data_object = InputProcessor(
+                self.inputs_required[input_name]['type'],
+                objecthandler=self.objecthandler,
+                filehandler=self.filehandler
+            ).load_data_object(input_info['value'], value_is_list_format=input_info['value_is_list_format'])
+            
+    def _process_input(self, name, value, type, workflow_input, value_is_list_format=True):
         data_object = InputProcessor(
-            self.inputs_required[name]['type'],
+            type,
             objecthandler=self.objecthandler,
             filehandler=self.filehandler
-        ).load_data_object(value_list, convert_from_list=convert_from_list)
-        self._add_input_to_run_request(name, data_object)
+        ).load_data_object(value, value_is_list_format=value_is_list_format)
+        self._add_workflow_run_input(name, data_object, workflow_input)
         
-    def _add_input_to_run_request(self, input_name, data_object):
+    def _add_workflow_run_input(self, input_name, data_object, workflow_input):
         self.workflow_run['workflow_run_inputs'].append({
-            'input_name': input_name,
+            'workflow_input': workflow_input,
             'data_object': data_object
         })
 
@@ -414,13 +460,13 @@ class WorkflowRunner(object):
                     objecthandler=self.objecthandler,
                     filehandler=self.filehandler
                 ).prompt_for_input(input_name, input['prompt'])
-                self._add_input_to_run_request(input_name, data_object)
+                self._add_workflow_run_input(input_name, data_object, self.inputs_required[input_name])
 
     def _create_workflow_run(self):
         workflow_run_from_server = self.objecthandler.post_workflow_run(self.workflow_run)
-        print 'Created run request %s for workflow "%s"' \
+        self.logger.info('Created run request %s for workflow "%s"' \
             % (workflow_run_from_server['_id'],
-               self.workflow['workflow_name'])
+               self.workflow['workflow_name']))
 
 if __name__=='__main__':
     WorkflowRunner().run()

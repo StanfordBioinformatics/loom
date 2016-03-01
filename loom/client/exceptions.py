@@ -39,3 +39,6 @@ class IdMatchedTooFewFileDataObjectsError(Error):
 
 class IdMatchedTooManyFileDataObjectsError(Error):
     pass
+
+class IdDoesNotMatchError(Error):
+    pass

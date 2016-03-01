@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.data_objects import DataObject
 from universalmodels import fields
@@ -55,62 +56,72 @@ class WorkflowRun(AnalysisAppInstanceModel):
     @classmethod
     def create(cls, *args, **kwargs):
         workflow_run = super(WorkflowRun, cls).create(*args, **kwargs)
-        workflow_run._create_inputs_and_outputs()
-        workflow_run._create_step_runs()
-        workflow_run._create_channels()
+        # WorkflowRunInputs must be already created by the client
+        workflow_run._sync_outputs()
+        workflow_run._sync_step_runs()
+        workflow_run._sync_channels()
         # TODO Assign workflow status (probably w/ default field)
         return workflow_run
 
-    def _create_inputs_and_outputs(self):
-        for workflow_input in self.workflow.workflow_inputs.all():
-            self._create_workflow_run_input(workflow_input)
+    def _sync_outputs(self):
         for workflow_output in self.workflow.workflow_outputs.all():
-            self._create_workflow_run_output(workflow_output)
+            self._sync_output(workflow_output)
 
-    def _create_workflow_run_input(self, workflow_input):
-        self.workflow_run_inputs.add(
-            WorkflowRunInput.create(
-                {'workflow_input': workflow_input.to_struct()}
-            )
-        )
-
-    def _create_workflow_run_output(self, workflow_output):
-        self.workflow_run_outputs.add(
-            WorkflowRunOutput.create(
-                {'workflow_output': workflow_output.to_struct()}
-            )
-        )
-
-    def _create_step_runs(self):
-        for step in self.workflow.steps.all():
-            self._create_step_run(step)
-
-    def _create_step_run(self, step):
-        step_run = StepRun.create(
-            {'step': step.to_struct()}
-        )
-        self.step_runs.add(step_run)
-        for step_input in step_run.step.step_inputs.all():
-            step_run.step_run_inputs.add(
-                StepRunInput.create(
-                    {'step_input': step_input.to_struct()}
-                ))
-        for step_output in step_run.step.step_outputs.all():
-            step_run.step_run_outputs.add(
-                StepRunOutput.create(
-                    {'step_output': step_output.to_struct()}
+    def _sync_output(self, workflow_output):
+        """Create a workflow_run_output corresponding each workflow_output if it does not already exist.
+        """
+        try:
+            self.workflow_run_outputs.get(workflow_output___id=workflow_output._id)
+            return
+        except ObjectDoesNotExist:
+            self.workflow_run_outputs.add(
+                WorkflowRunOutput.create(
+                    {'workflow_output': workflow_output.to_struct()}
                 )
             )
+
+    def _sync_step_runs(self):
+        for step in self.workflow.steps.all():
+            self._sync_step_run(step)
+
+    def _sync_step_run(self, step):
+        """Create a step_run corresponding each step if it does not already exist.
+        """
+        try:
+            self.step_runs.get(step___id=step._id)
+            return
+        except ObjectDoesNotExist:
+            step_run = StepRun.create(
+                {'step': step.to_struct()}
+            )
+            self.step_runs.add(step_run)
+            for step_input in step_run.step.step_inputs.all():
+                step_run.step_run_inputs.add(
+                    StepRunInput.create(
+                        {'step_input': step_input.to_struct()}
+                    ))
+            for step_output in step_run.step.step_outputs.all():
+                step_run.step_run_outputs.add(
+                    StepRunOutput.create(
+                        {'step_output': step_output.to_struct()}
+                    )
+                )
     
-    def _create_channels(self):
+    def _sync_channels(self):
         # One per workflow_run_input and one per step_run_output
         for workflow_run_input in self.workflow_run_inputs.all():
             channel_name = workflow_run_input.workflow_input.to_channel
-            self._add_channel(workflow_run_input, channel_name)
-        for step_run in self.steps_runs.all():
+            try:
+                self._get_channel_by_name(channel_name)
+            except ObjectDoesNotExist:
+                self._add_channel(workflow_run_input, channel_name)
+        for step_run in self.step_runs.all():
             for step_run_output in step_run.step_run_outputs.all():
                 channel_name = step_run_output.step_output.to_channel
-                self._add_channel(step_run_output, channel_name)
+                try:
+                    self._get_channel_by_name(channel_name)
+                except ObjectDoesNotExist:
+                    self._add_channel(step_run_output, channel_name)
         self._create_subchannels()
         self._add_input_data_objects_to_channels()
                 
@@ -132,18 +143,16 @@ class WorkflowRun(AnalysisAppInstanceModel):
                 channel_name = step_run_input.step_input.from_channel
                 self._add_subchannel(step_run_input, channel_name)
 
-    def _add_subchannel(workflow_run_output_or_step_run_input, channel_name):
+    def _add_subchannel(self, workflow_run_output_or_step_run_input, channel_name):
         channel = self._get_channel_by_name(channel_name)
-        subchannel = Subchannel.create()
-        channel.add_subchannel(subchannel)
-        workflow_run_output_or_step_run_input.add_subchannel(subchannel)
+        if workflow_run_output_or_step_run_input.subchannel is None:
+            subchannel = channel.create_subchannel(workflow_run_output_or_step_run_input)
     
     def _add_input_data_objects_to_channels(self):
         for workflow_run_input in self.workflow_run_inputs.all():
-            channel_name = workflow_run_input.workflow_input.channel_name
+            channel_name = workflow_run_input.workflow_input.to_channel
             channel = self._get_channel_by_name(channel_name)
-            data_object = workflow_run_input.workflow_input.get_data_object(self)
-            channel.add_data_object(data_object)
+            channel.add_data_object(workflow_run_input.data_object)
 
     def get_workflow_run_input_by_name(self, input_name):
         return self.workflow_run_inputs.get(input_name=input_name)
@@ -184,7 +193,7 @@ class Channel(AnalysisAppInstanceModel):
             subchannel.add_data_object(data_object)
     
     def create_subchannel(self, workflow_run_output_or_step_run_input):
-        subchannel = Subchannel.create()
+        subchannel = Subchannel.create({})
         self.subchannels.add(subchannel)
         workflow_run_output_or_step_run_input.add_subchannel(subchannel)
 
@@ -195,7 +204,7 @@ class Subchannel(AnalysisAppInstanceModel):
     steps. Each of these destinations has its own queue, implemented as a Subchannel.
     """
 
-    data_objects = fields.OneToManyField('DataObject')
+    data_objects = fields.ManyToManyField('DataObject')
 
     def add_data_object(self, data_object):
         self.data_objects.add(data_object)
@@ -229,19 +238,19 @@ class StepRun(AnalysisAppInstanceModel):
         pass
     
     def update_and_run(self):
-        import pdb; pdb.set_trace()
         pass
 
 
 class StepRunInput(AnalysisAppInstanceModel):
     step_input = fields.ForeignKey('StepInput')
-    subchannel = fields.ForeignKey('Subchannel')
+    subchannel = fields.ForeignKey('Subchannel', null=True)
 
     def add_subchannel(self, subchannel):
         self.update({'subchannel': subchannel.to_struct()})
 
 class StepRunOutput(AnalysisAppInstanceModel):
-    step_output = fields.ForeignKey('StepOutput')
-
+    step_output = fields.ForeignKey('StepOutput', null=True)
+    channel = fields.ForeignKey('Channel', null=True)
+    
     def add_channel(self, channel):
         self.update({'channel': channel.to_struct()})
