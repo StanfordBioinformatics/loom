@@ -30,18 +30,6 @@ class TestLoomConfig(unittest.TestCase):
         self.assertSettingsFileCreated()
         current_preset = TestLoomConfig.getCurrentPreset()
         self.assertEqual(current_preset, 'LOCAL_SETTINGS', 'Current preset in settings file not set to local')
-    
-    def test_set_elasticluster(self):
-        subprocess.call([sys.executable, SCRIPT_PATH, "--settings", TEST_SETTINGS_FILE, "elasticluster"])
-        self.assertSettingsFileCreated()
-        current_preset = TestLoomConfig.getCurrentPreset()
-        self.assertEqual(current_preset, 'ELASTICLUSTER_SETTINGS', 'Current preset in settings file not set to elasticluster')
-
-    def test_set_elasticluster_frontend(self):
-        subprocess.call([sys.executable, SCRIPT_PATH, "--settings", TEST_SETTINGS_FILE, "elasticluster_frontend"])
-        self.assertSettingsFileCreated()
-        current_preset = TestLoomConfig.getCurrentPreset()
-        self.assertEqual(current_preset, 'ELASTICLUSTER_FRONTEND_SETTINGS', 'Current preset in settings file not set to elasticluster_frontend')
 
     def assertSettingsFileCreated(self):
         self.assertTrue(os.path.exists(TEST_SETTINGS_FILE), 'Settings file %s was not created' % TEST_SETTINGS_FILE)
