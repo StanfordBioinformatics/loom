@@ -39,7 +39,7 @@ class Config:
     def get_parser(cls, parser=None):
         if parser == None:
             parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('command', choices=['local', 'local_gcloud', 'elasticluster', 'elasticluster_frontend', 'savesettings', 'clearsettings'])
+        parser.add_argument('command', choices=['local', 'local_gcloud', 'gcloud', 'gcloud_master', 'savesettings', 'clearsettings'])
         parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', 
                             help="Settings indicate how to launch the server components, and how the client and worker components can reach them. Use 'loomconfig savesettings -s SETTINGS_FILE' to save.")
         parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
@@ -60,8 +60,8 @@ class Config:
         command_to_method_map = {
             'local': self.set_local,
             'local_gcloud': self.set_local_gcloud,
-            'elasticluster': self.set_elasticluster,
-            'elasticluster_frontend': self.set_elasticluster_frontend,
+            'gcloud': self.set_gcloud_client,
+            'gcloud_master': self.set_gcloud_master,
             'savesettings': self.save_settings,
             'clearsettings': self.clear_settings
         }
@@ -90,14 +90,13 @@ class Config:
         # Passing values to Django using environment variables only works if webserver is local to client
         os.environ.update(self.settings_manager.get_django_env_settings()) 
 
-    def set_elasticluster_frontend(self):
-        self.settings_manager.set_elasticluster_frontend()
+    def set_gcloud_client(self):
+        self.settings_manager.set_gcloud_client()
 
+    def set_gcloud_master(self):
+        self.settings_manager.set_gcloud_master()
         # Passing values to Django using environment variables only works if webserver is local to client
         os.environ.update(self.settings_manager.get_django_env_settings()) 
-
-    def set_elasticluster(self):
-        self.settings_manager.set_elasticluster()
 
     def save_settings(self):
         self.settings_manager.save_settings_to_file()
