@@ -12,7 +12,7 @@ from loom.common.testserver import TestServer
 logger = logging.getLogger('loom')
 
 
-class TestWorkerManagers(unittest.TestCase):
+class TestTaskManagers(unittest.TestCase):
 
     def setUp(self):
         self.test_server = TestServer()
