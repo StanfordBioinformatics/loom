@@ -85,18 +85,15 @@ class WorkflowOutput(AnalysisAppImmutableModel):
 
     from_channel = fields.CharField(max_length=255)
     output_name = fields.CharField(max_length=255)
-    rename = fields.CharField(max_length=255)
 
 
 class StepInput(AnalysisAppImmutableModel):
 
     from_channel = fields.CharField(max_length=255)
     to_path = fields.CharField(max_length=255)
-    rename = fields.CharField(max_length=255)
 
 
 class StepOutput(AnalysisAppImmutableModel):
 
     from_path = fields.CharField(max_length=255)
     to_channel = fields.CharField(max_length=255)
-    rename = fields.CharField(max_length=255)

@@ -1,6 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 import re
+import uuid
 
 from analysis.exceptions import *
 from universalmodels.models import ImmutableModel, InstanceModel
@@ -120,7 +121,7 @@ class _ModelMixin(object):
 class AnalysisAppInstanceModel(InstanceModel, _ModelMixin):
 
     def __unicode__(self):
-        return self._id.hex
+        return uuid.UUID(str(self._id)).hex
 
     class Meta:
         abstract = True

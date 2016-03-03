@@ -1,4 +1,5 @@
 from analysis.models import *
+from analysis.exceptions import *
 from django.conf import settings
 from django.test import TestCase
 import os
@@ -20,6 +21,21 @@ class TestWorkflowRunModels(TestCase, UniversalModelTestMixin):
         self.roundTripJson(o)
         self.roundTripStruct(o)
 
+
+class TestStepRun(TestCase, UniversalModelTestMixin):
+
+    def testAreInputsReady(self):
+        workflow_run = WorkflowRun.create(fixtures.workflow_run_struct)
+        self.assertTrue(workflow_run.step_runs.all()[0]._are_inputs_ready())
+        self.assertFalse(workflow_run.step_runs.all()[1]._are_inputs_ready())
+
+    def testGetTaskInputs(self):
+        workflow_run = WorkflowRun.create(fixtures.workflow_run_struct)
+        self.assertEqual(len(workflow_run.step_runs.all()[0]._get_task_inputs()), 0)
+
+        with self.assertRaises(MissingInputsError):
+            inputs = self.assertIsNone(workflow_run.step_runs.all()[1]._get_task_inputs())
+    
 """
 class TestWorkflowRunMethods(TestCase):
 

@@ -119,7 +119,6 @@ class Migration(migrations.Migration):
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('from_channel', models.CharField(max_length=255)),
                 ('to_path', models.CharField(max_length=255)),
-                ('rename', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -132,7 +131,6 @@ class Migration(migrations.Migration):
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('from_path', models.CharField(max_length=255)),
                 ('to_channel', models.CharField(max_length=255)),
-                ('rename', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -194,6 +192,89 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='TaskDefinition',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+                ('command', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionEnvironment',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionInput',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionOutput',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+                ('path', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRun',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'error', b'Error'), (b'canceled', b'Canceled'), (b'complete', b'Complete')])),
+                ('task_definition', models.ForeignKey(related_name='task_runs', to='analysis.TaskDefinition', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunInput',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('name', models.CharField(max_length=256)),
+                ('task_definition_input', models.ForeignKey(to='analysis.TaskDefinitionInput', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunOutput',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('name', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='Workflow',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
@@ -225,7 +306,6 @@ class Migration(migrations.Migration):
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
                 ('from_channel', models.CharField(max_length=255)),
                 ('output_name', models.CharField(max_length=255)),
-                ('rename', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -241,7 +321,7 @@ class Migration(migrations.Migration):
                 ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'error', b'Error'), (b'canceled', b'Canceled'), (b'complete', b'Complete')])),
                 ('status_message', models.CharField(default=b'Workflow is running', max_length=1000)),
                 ('channels', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Channel')),
-                ('step_runs', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRun')),
+                ('step_runs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run', to='analysis.StepRun')),
                 ('workflow', models.ForeignKey(to='analysis.Workflow')),
             ],
             options={
@@ -377,6 +457,17 @@ class Migration(migrations.Migration):
             },
             bases=('analysis.dataobject',),
         ),
+        migrations.CreateModel(
+            name='TaskDefinitionDockerImage',
+            fields=[
+                ('taskdefinitionenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskDefinitionEnvironment')),
+                ('docker_image', models.CharField(max_length=100)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskdefinitionenvironment',),
+        ),
         migrations.AddField(
             model_name='workflowrunoutput',
             name='data_object',
@@ -423,6 +514,46 @@ class Migration(migrations.Migration):
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.WorkflowOutput'),
         ),
         migrations.AddField(
+            model_name='taskrunoutput',
+            name='data_object',
+            field=models.ForeignKey(to='analysis.DataObject', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrunoutput',
+            name='task_definition_output',
+            field=models.ForeignKey(to='analysis.TaskDefinitionOutput', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
+            name='task_run_inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunInput'),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
+            name='task_run_outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunOutput'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinitioninput',
+            name='data_object',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinition',
+            name='environment',
+            field=models.ForeignKey(to='analysis.TaskDefinitionEnvironment'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinition',
+            name='inputs',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.TaskDefinitionInput'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinition',
+            name='outputs',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.TaskDefinitionOutput'),
+        ),
+        migrations.AddField(
             model_name='subchannel',
             name='data_objects',
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
@@ -441,6 +572,11 @@ class Migration(migrations.Migration):
             model_name='steprun',
             name='step_run_outputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.StepRunOutput'),
+        ),
+        migrations.AddField(
+            model_name='steprun',
+            name='task_runs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.TaskRun'),
         ),
         migrations.AddField(
             model_name='step',

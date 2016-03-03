@@ -1,6 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist
+from analysis.exceptions import *
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.data_objects import DataObject
+from analysis.models.task_definitions import TaskDefinition
+from analysis.models.task_runs import TaskRun
 from universalmodels import fields
 
 
@@ -16,11 +19,11 @@ class WorkflowRun(AnalysisAppInstanceModel):
     """
 
     NAME_FIELD = 'workflow__workflow_name'
-    
+
     workflow = fields.ForeignKey('Workflow')
     workflow_run_inputs = fields.OneToManyField('WorkflowRunInput')
     workflow_run_outputs = fields.OneToManyField('WorkflowRunOutput')
-    step_runs = fields.OneToManyField('StepRun')
+    step_runs = fields.OneToManyField('StepRun', related_name='workflow_run')
     channels = fields.OneToManyField('Channel')
     status = fields.CharField(
         max_length=255,
@@ -39,11 +42,11 @@ class WorkflowRun(AnalysisAppInstanceModel):
     @classmethod
     def update_and_run_all(cls):
         for workflow_run in cls.objects.filter(status='running'):
-            workflow_run.update_and_run()
+            workflow_run.update()
 
     def update_and_run(self):
         for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
-            step_run.update_and_run()
+            step_run.update()
     
     @classmethod
     def order_by_most_recent(cls, count=None):
@@ -170,6 +173,7 @@ class WorkflowRunInput(AnalysisAppInstanceModel):
     def add_channel(self, channel):
         self.update({'channel': channel.to_struct()})
 
+
 class WorkflowRunOutput(AnalysisAppInstanceModel):
 
     workflow_output = fields.ForeignKey('WorkflowOutput')
@@ -178,6 +182,7 @@ class WorkflowRunOutput(AnalysisAppInstanceModel):
 
     def add_subchannel(self, subchannel):
         self.update({'subchannel': subchannel.to_struct()})
+
 
 class Channel(AnalysisAppInstanceModel):
     """Channel acts as a queue for data objects being being passed into or out of steps.
@@ -212,6 +217,14 @@ class Subchannel(AnalysisAppInstanceModel):
     def is_open(self):
         return self.channel.is_open
 
+    def is_empty(self):
+        return self.data_objects.count() == 0
+
+    def pop(self):
+        data_object = self.data_objects.first()
+        self.data_objects = self.data_objects.all()[1:]
+        return data_object
+
 
 class StepRun(AnalysisAppInstanceModel):
 
@@ -233,13 +246,50 @@ class StepRun(AnalysisAppInstanceModel):
     )
     step_run_inputs = fields.OneToManyField('StepRunInput')
     step_run_outputs = fields.OneToManyField('StepRunOutput')
-    
-    def get_input_channels(self):
-        pass
-    
-    def update_and_run(self):
-        pass
+    task_runs = fields.OneToManyField('TaskRun')
 
+    def update_and_run(self):
+        while True:
+            if not self._are_inputs_ready():
+                break
+            else:
+                inputs = self._get_task_inputs()
+                task_definition = self._create_task_definition(inputs)
+                task_run = self._create_task_run(task_definition)
+                task_run.execute()
+        for task_run in self.task_runs.all():
+            task_run.check_status()
+                
+    def _get_task_inputs(self):
+        if not self._are_inputs_ready():
+            raise MissingInputsError('Inputs are missing')
+        inputs = {}
+        for step_run_input in self.step_run_inputs.all():
+            name = step_run_input.step_input.from_channel
+            data_object = step_run_input.subchannel.pop()
+            inputs[name] = data_object
+        return inputs
+    
+    def _are_inputs_ready(self):
+        if self.step_run_inputs.count() == 0:
+            # Edge case -- no inputs. How do we know if it's already been executed?
+            # If there exists a healthy TaskRun, say no.
+            return self.task_runs.count() == 0
+        # Return False if any input channel has 0 items in queue
+        for step_run_input in self.step_run_inputs.all():
+            if step_run_input.subchannel.data_objects.count() == 0:
+                return False
+        return True
+    
+    def _create_task_definition(self, inputs):
+        task_definition_struct = TaskDefinition.render(self, inputs)
+        return TaskDefinition.create(task_definition_struct)
+
+    def _create_task_run(self, task_definition):
+        task_run = TaskRun.create_from_definition(task_definition)
+        self.task_runs.add(task_run)
+        return task_run
+        
 
 class StepRunInput(AnalysisAppInstanceModel):
     step_input = fields.ForeignKey('StepInput')
@@ -247,6 +297,7 @@ class StepRunInput(AnalysisAppInstanceModel):
 
     def add_subchannel(self, subchannel):
         self.update({'subchannel': subchannel.to_struct()})
+
 
 class StepRunOutput(AnalysisAppInstanceModel):
     step_output = fields.ForeignKey('StepOutput', null=True)
