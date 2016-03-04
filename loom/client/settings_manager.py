@@ -210,8 +210,6 @@ class SettingsManager:
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
             'FILE_SERVER_TYPE': 'GOOGLE_CLOUD',
             'FILE_ROOT': 'loom_working_dir',
-            'PROJECT_ID': 'gbsc-gcp-project-scgs-dev',
-            'BUCKET_ID': 'gbsc-gcp-project-scgs-dev-group',
 
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
@@ -236,7 +234,11 @@ class SettingsManager:
             'STEP_RUNS_DIR': 'step_runs',
     
             # Not currently used for local mode
-            'REMOTE_USERNAME': 'unused'
+            'REMOTE_USERNAME': 'unused',
+
+            # Shared by any cloud components
+            'PROJECT_ID': 'gbsc-gcp-project-scgs-dev',
+            'BUCKET_ID': 'gbsc-gcp-project-scgs-dev-group'
         }
     }
 
