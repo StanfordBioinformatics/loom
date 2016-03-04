@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('channel_name', models.CharField(max_length=255)),
-                ('is_open', models.BooleanField(default=True)),
+                ('is_closed_to_new_data', models.BooleanField(default=False)),
             ],
             options={
                 'abstract': False,
@@ -143,8 +143,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'waiting', max_length=255, choices=[(b'waiting', b'Waiting'), (b'running', b'Running'), (b'error', b'Error'), (b'canceled', b'Canceled'), (b'complete', b'Complete')])),
-                ('status_message', models.CharField(default=b'Waiting...no details available yet.', max_length=1000)),
+                ('status', models.CharField(default=b'waiting', max_length=255, choices=[(b'waiting', b'Waiting'), (b'running', b'Running'), (b'completed', b'Completed')])),
                 ('step', models.ForeignKey(to='analysis.Step')),
             ],
             options={
@@ -185,6 +184,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('channel_name', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -239,8 +239,8 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'error', b'Error'), (b'canceled', b'Canceled'), (b'complete', b'Complete')])),
-                ('task_definition', models.ForeignKey(related_name='task_runs', to='analysis.TaskDefinition', null=True)),
+                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'completed', b'Completed')])),
+                ('task_definition', models.ForeignKey(related_name='task_runs', to='analysis.TaskDefinition')),
             ],
             options={
                 'abstract': False,
@@ -253,8 +253,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256)),
-                ('task_definition_input', models.ForeignKey(to='analysis.TaskDefinitionInput', null=True)),
+                ('task_definition_input', models.ForeignKey(to='analysis.TaskDefinitionInput')),
             ],
             options={
                 'abstract': False,
@@ -267,7 +266,6 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('name', models.CharField(max_length=256)),
             ],
             options={
                 'abstract': False,
@@ -318,8 +316,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'error', b'Error'), (b'canceled', b'Canceled'), (b'complete', b'Complete')])),
-                ('status_message', models.CharField(default=b'Workflow is running', max_length=1000)),
+                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'completed', b'Completed')])),
                 ('channels', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Channel')),
                 ('step_runs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run', to='analysis.StepRun')),
                 ('workflow', models.ForeignKey(to='analysis.Workflow')),
@@ -521,7 +518,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='taskrunoutput',
             name='task_definition_output',
-            field=models.ForeignKey(to='analysis.TaskDefinitionOutput', null=True),
+            field=models.ForeignKey(to='analysis.TaskDefinitionOutput'),
         ),
         migrations.AddField(
             model_name='taskrun',
@@ -536,7 +533,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='taskdefinitioninput',
             name='data_object',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
+            field=models.ForeignKey(to='analysis.DataObject'),
         ),
         migrations.AddField(
             model_name='taskdefinition',
@@ -559,9 +556,19 @@ class Migration(migrations.Migration):
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
         ),
         migrations.AddField(
+            model_name='steprunoutput',
+            name='task_run_outputs',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_outputs', to='analysis.TaskRunOutput'),
+        ),
+        migrations.AddField(
             model_name='stepruninput',
             name='subchannel',
             field=models.ForeignKey(to='analysis.Subchannel', null=True),
+        ),
+        migrations.AddField(
+            model_name='stepruninput',
+            name='task_run_inputs',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.TaskRunInput'),
         ),
         migrations.AddField(
             model_name='steprun',

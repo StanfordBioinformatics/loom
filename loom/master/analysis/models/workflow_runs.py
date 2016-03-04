@@ -3,7 +3,7 @@ from analysis.exceptions import *
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
-from analysis.models.task_runs import TaskRun
+from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput
 from universalmodels import fields
 
 
@@ -29,14 +29,8 @@ class WorkflowRun(AnalysisAppInstanceModel):
         max_length=255,
         default='running',
         choices=(('running', 'Running'),
-                 ('error', 'Error'),
-                 ('canceled', 'Canceled'),
-                 ('complete', 'Complete')
+                 ('completed', 'Completed')
         )
-    )
-    status_message = fields.CharField(
-        max_length=1000,
-        default='Workflow is running'
     )
 
     @classmethod
@@ -44,9 +38,12 @@ class WorkflowRun(AnalysisAppInstanceModel):
         for workflow_run in cls.objects.filter(status='running'):
             workflow_run.update()
 
-    def update_and_run(self):
+    def update_and_run(self, dummy_run=False):
         for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
-            step_run.update()
+            step_run.update_and_run(dummy_run=dummy_run)
+        if all([step_run.status == 'completed' for step_run in self.step_runs.all()]):
+            self.update({'status': 'completed'})
+
     
     @classmethod
     def order_by_most_recent(cls, count=None):
@@ -156,6 +153,7 @@ class WorkflowRun(AnalysisAppInstanceModel):
             channel_name = workflow_run_input.workflow_input.to_channel
             channel = self._get_channel_by_name(channel_name)
             channel.add_data_object(workflow_run_input.data_object)
+            channel.update({'is_closed_to_new_data': True})
 
     def get_workflow_run_input_by_name(self, input_name):
         return self.workflow_run_inputs.get(input_name=input_name)
@@ -190,17 +188,19 @@ class Channel(AnalysisAppInstanceModel):
 
     channel_name = fields.CharField(max_length=255)
     subchannels = fields.OneToManyField('Subchannel')
-    # is_open==True indicates that more objects may arrive later
-    is_open = fields.BooleanField(default=True)
+    is_closed_to_new_data = fields.BooleanField(default=False)
 
     def add_data_object(self, data_object):
         for subchannel in self.subchannels.all():
             subchannel.add_data_object(data_object)
     
     def create_subchannel(self, workflow_run_output_or_step_run_input):
-        subchannel = Subchannel.create({})
+        subchannel = Subchannel.create({'channel_name': self.channel_name})
         self.subchannels.add(subchannel)
         workflow_run_output_or_step_run_input.add_subchannel(subchannel)
+
+    def close(self):
+        self.update({'is_closed_to_new_data': True})
 
 
 class Subchannel(AnalysisAppInstanceModel):
@@ -209,16 +209,17 @@ class Subchannel(AnalysisAppInstanceModel):
     steps. Each of these destinations has its own queue, implemented as a Subchannel.
     """
 
+    channel_name = fields.CharField(max_length=255)
     data_objects = fields.ManyToManyField('DataObject')
 
     def add_data_object(self, data_object):
         self.data_objects.add(data_object)
 
-    def is_open(self):
-        return self.channel.is_open
-
     def is_empty(self):
         return self.data_objects.count() == 0
+
+    def is_dead(self):
+        return self.channel.is_closed_to_new_data and self.is_empty()
 
     def pop(self):
         data_object = self.data_objects.first()
@@ -229,50 +230,53 @@ class Subchannel(AnalysisAppInstanceModel):
 class StepRun(AnalysisAppInstanceModel):
 
     step = fields.ForeignKey('Step')
-    status = fields.CharField(
-        max_length=255,
-        default='waiting',
-        choices=(
-            ('waiting', 'Waiting'),
-            ('running', 'Running'),
-            ('error', 'Error'),
-            ('canceled', 'Canceled'),
-            ('complete', 'Complete')
-        )
-    )
-    status_message = fields.CharField(
-        max_length=1000,
-        default='Waiting...no details available yet.'
-    )
     step_run_inputs = fields.OneToManyField('StepRunInput')
     step_run_outputs = fields.OneToManyField('StepRunOutput')
     task_runs = fields.OneToManyField('TaskRun')
+    status = fields.CharField(
+        max_length=255,
+        default='waiting',
+        choices=(('waiting', 'Waiting'),
+                 ('running', 'Running'),
+                 ('completed', 'Completed')
+        )
+    )
 
-    def update_and_run(self):
+    def update_and_run(self, dummy_run=False):
         while True:
             if not self._are_inputs_ready():
                 break
             else:
-                inputs = self._get_task_inputs()
-                task_definition = self._create_task_definition(inputs)
-                task_run = self._create_task_run(task_definition)
-                task_run.execute()
-        for task_run in self.task_runs.all():
-            task_run.check_status()
+                self.update({'status': 'running'})
+                self._create_task_run(dummy_run=dummy_run)
+        for task_run in self.task_runs.filter(status='running'):
+            task_run.update_status()
+        # Are input sources all finished?
+        if all([input.subchannel.is_dead() for input in self.step_run_inputs.all()]):
+            # Are all the lingering runs finished?
+            if all([task_run.status == 'completed' for task_run in self.task_runs.all()]):
+                #Then mark the StepRun completed and close all the channels it feeds
+                self._mark_completed()
                 
+    def _mark_completed(self):
+        for output in self.step_run_outputs.all():
+            output.close()
+        self.update({'status': 'completed'})
+
     def _get_task_inputs(self):
         if not self._are_inputs_ready():
             raise MissingInputsError('Inputs are missing')
-        inputs = {}
+        input_data_objects = {}
         for step_run_input in self.step_run_inputs.all():
             name = step_run_input.step_input.from_channel
             data_object = step_run_input.subchannel.pop()
-            inputs[name] = data_object
-        return inputs
+            input_data_objects[name] = data_object
+        return input_data_objects
     
     def _are_inputs_ready(self):
         if self.step_run_inputs.count() == 0:
-            # Edge case -- no inputs. How do we know if it's already been executed?
+            # Special case: Task has no inputs. We can't determine if this has been processed by
+            # checking for an empty queue.
             # If there exists a healthy TaskRun, say no.
             return self.task_runs.count() == 0
         # Return False if any input channel has 0 items in queue
@@ -280,28 +284,98 @@ class StepRun(AnalysisAppInstanceModel):
             if step_run_input.subchannel.data_objects.count() == 0:
                 return False
         return True
-    
-    def _create_task_definition(self, inputs):
-        task_definition_struct = TaskDefinition.render(self, inputs)
-        return TaskDefinition.create(task_definition_struct)
 
-    def _create_task_run(self, task_definition):
-        task_run = TaskRun.create_from_definition(task_definition)
-        self.task_runs.add(task_run)
-        return task_run
+    def _create_task_run(self, dummy_run=False):
+        input_data_objects = self._get_task_inputs()
         
+        task_run_inputs = self._create_task_run_inputs(input_data_objects)
+        task_run_outputs = self._create_task_run_outputs()
+        task_definition = self._create_task_definition(task_run_inputs, task_run_outputs)
+
+        task_run = TaskRun.create({
+            'task_run_inputs': task_run_inputs,
+            'task_run_outputs': task_run_outputs,
+            'task_definition': task_definition
+        })
+        
+        self.task_runs.add(task_run)
+        task_run.execute(dummy_run=dummy_run)
+
+    def _create_task_run_inputs(self, input_data_objects):
+        task_run_inputs = []
+        for channel_name, data_object in input_data_objects.iteritems():
+            task_run_input = TaskRunInput.create(
+                {
+                    'task_definition_input': {
+                        'data_object': data_object.to_struct()
+                    }
+                }
+            )
+            step_run_input = self._get_input_by_channel(channel_name)
+            step_run_input.add_task_run_input(task_run_input)
+            task_run_inputs.append(task_run_input.to_struct())
+            return task_run_inputs
+
+    def _create_task_run_outputs(self):
+        task_run_outputs = []
+        for step_run_output in self.step_run_outputs.all():
+            task_run_output = TaskRunOutput.create({
+                'task_definition_output': {
+                    'path': step_run_output.step_output.from_path
+                }
+            })
+            step_run_output.add_task_run_output(task_run_output)
+            task_run_outputs.append(task_run_output.to_struct())
+            return task_run_outputs
+
+    def _create_task_definition(self, task_run_inputs, task_run_outputs):
+        task_definition_inputs = [i['task_definition_input'] for i in task_run_inputs]
+        task_definition_outputs = [o['task_definition_output'] for o in task_run_outputs]
+        return {
+            'inputs': task_definition_inputs,
+            'outputs': task_definition_outputs,
+            'command': self._get_task_definition_command(self.step.command, task_definition_inputs, task_definition_outputs),
+            'environment': self._get_task_definition_environment(self.step.environment)
+        }
+
+    def _get_task_definition_command(self, step_command, task_definition_inputs, task_definition_outputs):
+        # TODO template rendering of input/output names in command
+        return step_command
+
+    def _get_task_definition_environment(self, requested_environment):
+        # TODO get specific docker image ID
+        return {
+            'docker_image': requested_environment.downcast().docker_image
+        }
+
+    def _get_input_by_channel(self, channel_name):
+        return self.step_run_inputs.get(subchannel__channel_name=channel_name)
+
+    def _get_output_by_channel():
+        return self.step_run_outputs.get(channel__channel_name=channel_name)
+
 
 class StepRunInput(AnalysisAppInstanceModel):
     step_input = fields.ForeignKey('StepInput')
+    task_run_inputs = fields.ManyToManyField('TaskRunInput')
     subchannel = fields.ForeignKey('Subchannel', null=True)
 
     def add_subchannel(self, subchannel):
         self.update({'subchannel': subchannel.to_struct()})
 
+    def add_task_run_input(self, task_run_input):
+        self.task_run_inputs.add(task_run_input)
 
 class StepRunOutput(AnalysisAppInstanceModel):
     step_output = fields.ForeignKey('StepOutput', null=True)
+    task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
     channel = fields.ForeignKey('Channel', null=True)
-    
+
     def add_channel(self, channel):
         self.update({'channel': channel.to_struct()})
+
+    def add_task_run_output(self, task_run_output):
+        self.task_run_outputs.add(task_run_output)
+
+    def close(self):
+        self.channel.close()

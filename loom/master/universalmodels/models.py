@@ -244,7 +244,7 @@ class _BaseModel(models.Model):
         if valuelist is None:
             # This will remove all objects from this relation
             return
-        self._verify_list_input(self, valuelist)
+        self._verify_list_input(key, valuelist)
         for valuedict in valuelist:
             child = self._create_or_update_child(key, valuedict)
             unsaved_for_this_key.append(child)
@@ -276,7 +276,6 @@ class _BaseModel(models.Model):
         try:
             setattr(self, key, value)
         except:
-            import pdb; pdb.set_trace()
             raise InvalidInputError(
                 'Unable to set field %s to value %s on model %s'
                 % (key, value, self))

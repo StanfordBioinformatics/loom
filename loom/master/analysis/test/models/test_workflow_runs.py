@@ -21,6 +21,72 @@ class TestWorkflowRunModels(TestCase, UniversalModelTestMixin):
         self.roundTripJson(o)
         self.roundTripStruct(o)
 
+class TestWorkflowRunEndToEnd(TestCase, UniversalModelTestMixin):
+    
+    def testStraightPipeSuccessfulRun(self):
+        workflow = fixtures.straight_pipe_workflow_struct
+        input_data_object = fixtures.straight_pipe_workflow_input_file_struct
+        workflow_run_struct = {
+            'workflow': workflow,
+            'workflow_run_inputs': [
+                {
+                    'workflow_input': workflow['workflow_inputs'][0],
+                    'data_object': input_data_object
+                }
+            ]
+        }
+        
+        workflow_run = WorkflowRun.create(workflow_run_struct)
+
+        # The WorkflowRun should be in 'running' status
+        self.assertEqual(workflow_run.status, 'running')
+        # There should be two StepRuns
+        self.assertEqual(workflow_run.step_runs.count(), 2)
+        # They should both be in 'waiting' status
+        self.assertEqual(workflow_run.step_runs.all()[0].status, 'waiting')
+        self.assertEqual(workflow_run.step_runs.all()[1].status, 'waiting')
+        # There should be no TaskRuns
+        self.assertEqual(workflow_run.step_runs.all()[0].task_runs.count(), 0)
+        self.assertEqual(workflow_run.step_runs.all()[1].task_runs.count(), 0)
+
+        # Call update_and_run
+        workflow_run.update_and_run(dummy_run=True)
+        
+        """
+        # The WorkflowRun should be in 'running' status
+        self.assertEqual(workflow_run.status, 'running')
+        # There should be two StepRuns
+        self.assertEqual(workflow_run.step_runs.count(), 2)
+        # The first should be in 'completed' status, the second in 'waiting'
+        self.assertEqual(workflow_run.step_runs.all()[0].status, 'completed')
+        self.assertEqual(workflow_run.step_runs.all()[1].status, 'waiting')
+        # There should be one TaskRun on the first step, none on the second
+        self.assertEqual(workflow_run.step_runs.all()[0].task_runs.count(), 1)
+        self.assertEqual(workflow_run.step_runs.all()[1].task_runs.count(), 0)
+        # The TaskRun should be in 'completed' status and should have a result
+        self.assertEqual(workflow_run.step_runs.all()[0].task_runs.first().status, 'completed')
+        self.assertTrue(workflow_run.step_runs.first().task_runs.first().task_run_outputs.first().has_result())
+
+        # Call update_and_run
+        workflow_run.update_and_run(dummy_run=True)
+        """
+        
+        # The WorkflowRun should be in 'completed' status
+        self.assertEqual(workflow_run.status, 'completed')
+        # There should be two StepRuns
+        self.assertEqual(workflow_run.step_runs.count(), 2)
+        # The both should be in 'completed' status.
+        self.assertEqual(workflow_run.step_runs.all()[0].status, 'completed')
+        self.assertEqual(workflow_run.step_runs.all()[1].status, 'completed')
+        # There should be one TaskRun on each step
+        self.assertEqual(workflow_run.step_runs.all()[0].task_runs.count(), 1)
+        self.assertEqual(workflow_run.step_runs.all()[1].task_runs.count(), 1)
+        # The TaskRuns should be in 'completed' status and should have a result
+        self.assertEqual(workflow_run.step_runs.all()[0].task_runs.first().status, 'completed')
+        self.assertTrue(workflow_run.step_runs.all()[0].task_runs.first().task_run_outputs.first().has_result())
+        self.assertEqual(workflow_run.step_runs.all()[1].task_runs.first().status, 'completed')
+        self.assertTrue(workflow_run.step_runs.all()[1].task_runs.first().task_run_outputs.first().has_result())
+        
 
 class TestStepRun(TestCase, UniversalModelTestMixin):
 
