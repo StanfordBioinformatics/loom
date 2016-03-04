@@ -239,7 +239,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'completed', b'Completed')])),
+                ('status', models.CharField(default=b'ready_to_run', max_length=255, choices=[(b'ready_to_run', b'Ready to run'), (b'running', b'Running'), (b'completed', b'Completed')])),
                 ('task_definition', models.ForeignKey(related_name='task_runs', to='analysis.TaskDefinition')),
             ],
             options={

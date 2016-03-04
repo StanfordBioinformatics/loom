@@ -18,34 +18,22 @@ class TaskRun(AnalysisAppInstanceModel):
     task_run_outputs = fields.OneToManyField('TaskRunOutput', related_name='task_run')
     status = fields.CharField(
         max_length=255,
-        default='running',
+        default='ready_to_run',
         choices=(
+            ('ready_to_run', 'Ready to run'),
             ('running', 'Running'),
             ('completed', 'Completed')
         )
     )
 
     @classmethod
-    def create_from_task_definition(cls, task_definition):
-        return cls.create(
-            {
-                'task_definition': task_definition.to_struct(),
-                'task_run_inputs': [
-                    {'task_definition_input': input.to_struct()}\
-                    for input in task_definition.inputs.all()
-                ],
-                'task_run_outputs': [
-                    {'task_definition_output': output.to_struct()}\
-                    for output in task_definition.outputs.all()
-                ]
-            }
-        )
-
-    def execute(self, dummy_run=False):
-        if dummy_run:
-            DummyTaskManager.run_task(self)
-        else:
-            raise Exception('TODO - connect a real task manager')
+    def dummy_run_all(cls):
+        for task_run in TaskRun.objects.filter(status='ready_to_run'):
+            task_run.dummy_run()
+                 
+    def dummy_run(self):
+        self.update({'status': 'running'})
+        DummyTaskManager.run_task(self)
 
     def submit_result(self, out_id, data_object):
         output = self.task_run_outputs.get(_id=out_id)

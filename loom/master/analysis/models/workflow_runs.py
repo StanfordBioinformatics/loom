@@ -34,13 +34,13 @@ class WorkflowRun(AnalysisAppInstanceModel):
     )
 
     @classmethod
-    def update_and_run_all(cls):
+    def update_status_for_all(cls):
         for workflow_run in cls.objects.filter(status='running'):
             workflow_run.update()
 
-    def update_and_run(self, dummy_run=False):
+    def update_status(self):
         for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
-            step_run.update_and_run(dummy_run=dummy_run)
+            step_run.update_status()
         if all([step_run.status == 'completed' for step_run in self.step_runs.all()]):
             self.update({'status': 'completed'})
 
@@ -242,14 +242,14 @@ class StepRun(AnalysisAppInstanceModel):
         )
     )
 
-    def update_and_run(self, dummy_run=False):
+    def update_status(self):
         while True:
             if not self._are_inputs_ready():
                 break
             else:
                 self.update({'status': 'running'})
-                self._create_task_run(dummy_run=dummy_run)
-        for task_run in self.task_runs.filter(status='running'):
+                self._create_task_run()
+        for task_run in self.task_runs.filter(status='ready_to_run') | self.task_runs.filter(status='running'):
             task_run.update_status()
         # Are input sources all finished?
         if all([input.subchannel.is_dead() for input in self.step_run_inputs.all()]):
@@ -257,7 +257,7 @@ class StepRun(AnalysisAppInstanceModel):
             if all([task_run.status == 'completed' for task_run in self.task_runs.all()]):
                 #Then mark the StepRun completed and close all the channels it feeds
                 self._mark_completed()
-                
+
     def _mark_completed(self):
         for output in self.step_run_outputs.all():
             output.close()
@@ -272,7 +272,7 @@ class StepRun(AnalysisAppInstanceModel):
             data_object = step_run_input.subchannel.pop()
             input_data_objects[name] = data_object
         return input_data_objects
-    
+
     def _are_inputs_ready(self):
         if self.step_run_inputs.count() == 0:
             # Special case: Task has no inputs. We can't determine if this has been processed by
@@ -285,7 +285,7 @@ class StepRun(AnalysisAppInstanceModel):
                 return False
         return True
 
-    def _create_task_run(self, dummy_run=False):
+    def _create_task_run(self):
         input_data_objects = self._get_task_inputs()
         
         task_run_inputs = self._create_task_run_inputs(input_data_objects)
@@ -299,7 +299,6 @@ class StepRun(AnalysisAppInstanceModel):
         })
         
         self.task_runs.add(task_run)
-        task_run.execute(dummy_run=dummy_run)
 
     def _create_task_run_inputs(self, input_data_objects):
         task_run_inputs = []
