@@ -29,6 +29,7 @@ class WorkflowRun(AnalysisAppInstanceModel):
         max_length=255,
         default='running',
         choices=(('running', 'Running'),
+                 ('canceled', 'Canceled'),
                  ('completed', 'Completed')
         )
     )
@@ -41,9 +42,16 @@ class WorkflowRun(AnalysisAppInstanceModel):
     def update_status(self):
         for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
             step_run.update_status()
-        if all([step_run.status == 'completed' for step_run in self.step_runs.all()]):
+        step_run_statuses = [step_run.status for step_run in self.step_runs.all()]
+        if all([status == 'completed' for status in step_run_statuses]):
             self.update({'status': 'completed'})
+        if any([status == 'error' for status in step_run_statuses]):
+            self.update({'status': 'error'})
 
+    def cancel(self):
+        for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
+            step_run.cancel()
+        self.update({'status': 'canceled'})
     
     @classmethod
     def order_by_most_recent(cls, count=None):
@@ -238,7 +246,9 @@ class StepRun(AnalysisAppInstanceModel):
         default='waiting',
         choices=(('waiting', 'Waiting'),
                  ('running', 'Running'),
-                 ('completed', 'Completed')
+                 ('completed', 'Completed'),
+                 ('canceled', 'Canceled'),
+                 ('error', 'Error'),
         )
     )
 
@@ -257,7 +267,14 @@ class StepRun(AnalysisAppInstanceModel):
             if all([task_run.status == 'completed' for task_run in self.task_runs.all()]):
                 #Then mark the StepRun completed and close all the channels it feeds
                 self._mark_completed()
+        if any([task_run.status == 'error' for task_run in self.task_runs.all()]):
+            self.update({'status': 'error'})
 
+    def cancel(self):
+        for task_run in self.task_runs.filter(status='ready_to_run') | self.task_runs.filter(status='running'):
+            task_run.cancel()
+        self.update({'status': 'canceled'})
+                
     def _mark_completed(self):
         for output in self.step_run_outputs.all():
             output.close()

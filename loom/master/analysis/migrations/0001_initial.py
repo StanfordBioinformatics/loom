@@ -240,7 +240,6 @@ class Migration(migrations.Migration):
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('status', models.CharField(default=b'ready_to_run', max_length=255, choices=[(b'ready_to_run', b'Ready to run'), (b'running', b'Running'), (b'completed', b'Completed')])),
-                ('task_definition', models.ForeignKey(related_name='task_runs', to='analysis.TaskDefinition')),
             ],
             options={
                 'abstract': False,
@@ -254,6 +253,18 @@ class Migration(migrations.Migration):
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('task_definition_input', models.ForeignKey(to='analysis.TaskDefinitionInput')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunLocation',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
             ],
             options={
                 'abstract': False,
@@ -522,8 +533,23 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='taskrun',
+            name='active_task_run_location',
+            field=models.ForeignKey(related_name='active_task_run', to='analysis.TaskRunLocation', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
+            name='task_definition',
+            field=models.ForeignKey(related_name='task_runs', to='analysis.TaskDefinition'),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
             name='task_run_inputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunInput'),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
+            name='task_run_locations',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunLocation'),
         ),
         migrations.AddField(
             model_name='taskrun',

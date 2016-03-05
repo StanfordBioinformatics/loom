@@ -9,11 +9,14 @@ class DummyTaskManager(object):
     dummy_file_counter = 0
 
     @classmethod
-    def run_task(cls, task_run):
+    def run_task(cls, task_run, task_run_location_id, with_error=False):
 
-        for output in task_run.task_run_outputs.all():
-            data_object = cls._render_dummy_file()
-            task_run.submit_result(output._id, data_object)
+        if with_error:
+            task_run.error(task_run_location_id)
+        else:
+            for output in task_run.task_run_outputs.all():
+                data_object = cls._render_dummy_file()
+                task_run.submit_result(output._id, data_object, task_run_location_id)
 
     @classmethod
     def _render_dummy_file(self):
