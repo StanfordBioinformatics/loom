@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 import logging
+import sys
 import unittest
 
 from django.conf import settings
 settings.configure()
 
+from loom.master.analysis.task_manager import cloud 
+from loom.common.helper import on_gcloud_vm
+
 logger = logging.getLogger('loom')
 
 
+@unittest.skipIf(not on_gcloud_vm(), 'not running on Google Compute Engine VM')
 class TestCloudTaskManager(unittest.TestCase):
 
     def setUp(self):
@@ -19,17 +24,27 @@ class TestCloudTaskManager(unittest.TestCase):
         pass
 
     def test_get_driver(self):
-        from loom.master.analysis.task_manager import cloud 
-        cloud_task_manager = cloud.CloudTaskManager()
-        cloud_driver = cloud_task_manager._get_cloud_driver()
+        cloud_driver = cloud.CloudTaskManager._get_cloud_driver()
         
     def test_invalid_cloud_type(self):
         settings.MASTER_TYPE = 'INVALID_CLOUD_TYPE'
-        from loom.master.analysis.task_manager import cloud 
-        cloud_task_manager = cloud.CloudTaskManager()
 
         with self.assertRaises(cloud.CloudTaskManagerError):
-            cloud_driver = cloud_task_manager._get_cloud_driver()
+            cloud_driver = cloud.CloudTaskManager._get_cloud_driver()
+
+    def test_get_gcloud_pricelist(self):
+        pricelist = cloud.CloudTaskManager._get_gcloud_pricelist()
+        self.assertIsInstance(pricelist, dict)
+
+    def test_get_cheapest_instance_type(self):
+        """ May need to be updated if prices change.""" 
+        cheapest_type = cloud.CloudTaskManager._get_cheapest_instance_type(cores=1, memory=4)
+        self.assertEquals(cheapest_type, 'n1-standard-2')
+        
+    def test_huge_instance_request(self):
+        """ May need to be updated if Google starts offering supercomputer instances.""" 
+        with self.assertRaises(cloud.CloudTaskManagerError):
+            cloud.CloudTaskManager._get_cheapest_instance_type(cores=sys.maxint, memory=sys.float_info.max)
 
     """
     def test_local_worker_manager(self):
