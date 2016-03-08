@@ -464,7 +464,7 @@ class WorkflowRunner(object):
 
     def _create_workflow_run(self):
         workflow_run_from_server = self.objecthandler.post_workflow_run(self.workflow_run)
-        self.logger.info('Created run request %s for workflow "%s"' \
+        self.logger.info('Created run %s for workflow "%s"' \
             % (workflow_run_from_server['_id'],
                self.workflow['workflow_name']))
 

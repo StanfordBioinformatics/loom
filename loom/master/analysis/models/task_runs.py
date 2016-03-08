@@ -3,6 +3,7 @@ from django.core import exceptions
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.task_definitions import *
 from analysis.models.workflows import Step
+from analysis.task_manager.factory import TaskManagerFactory
 from analysis.task_manager.dummy import DummyTaskManager
 from universalmodels import fields
 
@@ -29,21 +30,37 @@ class TaskRun(AnalysisAppInstanceModel):
         )
     )
 
+
+    @classmethod
+    def run_all(cls):
+        for task_run in TaskRun.objects.filter(status='ready_to_run'):
+            task_run.run()
+
+
+    def run(self):
+        self._add_task_run_location()
+        task_manager = TaskManagerFactory.get_task_manager()
+        task_manager.run(self, self.active_task_run_location._id)
+        # TODO write info about run location to TaskRunLocation
+
     @classmethod
     def dummy_run_all(cls, finish=True, with_error=False):
         for task_run in TaskRun.objects.filter(status='ready_to_run'):
             task_run.dummy_run(finish=finish, with_error=with_error)
-
+    
     def dummy_run(self, finish=True, with_error=False):
+        self._add_task_run_location()
+        if finish==True:
+            task_manager = TaskManagerFactory.get_task_manager(test=True)
+            task_manager.run(self, self.active_task_run_location._id, with_error=with_error)
+
+    def _add_task_run_location(self):
         task_run_location = TaskRunLocation.create({})
         self.task_run_locations.add(task_run_location)
         self.update({
             'status': 'running',
             'active_task_run_location': task_run_location.to_struct()
         })
-
-        if finish==True:
-            DummyTaskManager.run_task(self, task_run_location._id, with_error=with_error)
 
     def submit_result(self, output_id, data_object, task_run_location_id):
         if not self._is_location_active(task_run_location_id):

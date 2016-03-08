@@ -9,7 +9,7 @@ class DummyTaskManager(object):
     dummy_file_counter = 0
 
     @classmethod
-    def run_task(cls, task_run, task_run_location_id, with_error=False):
+    def run(cls, task_run, task_run_location_id, with_error=False):
 
         if with_error:
             task_run.error(task_run_location_id)

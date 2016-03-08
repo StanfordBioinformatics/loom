@@ -37,7 +37,7 @@ class WorkflowRun(AnalysisAppInstanceModel):
     @classmethod
     def update_status_for_all(cls):
         for workflow_run in cls.objects.filter(status='running'):
-            workflow_run.update()
+            workflow_run.update_status()
 
     def update_status(self):
         for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
@@ -330,7 +330,7 @@ class StepRun(AnalysisAppInstanceModel):
             step_run_input = self._get_input_by_channel(channel_name)
             step_run_input.add_task_run_input(task_run_input)
             task_run_inputs.append(task_run_input.to_struct())
-            return task_run_inputs
+        return task_run_inputs
 
     def _create_task_run_outputs(self):
         task_run_outputs = []
@@ -342,7 +342,7 @@ class StepRun(AnalysisAppInstanceModel):
             })
             step_run_output.add_task_run_output(task_run_output)
             task_run_outputs.append(task_run_output.to_struct())
-            return task_run_outputs
+        return task_run_outputs
 
     def _create_task_definition(self, task_run_inputs, task_run_outputs):
         task_definition_inputs = [i['task_definition_input'] for i in task_run_inputs]

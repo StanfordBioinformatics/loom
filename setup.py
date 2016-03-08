@@ -88,7 +88,8 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=[  
+    install_requires=[
+                        'ansible>=2.0.1.0',
                         'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',
                         'django-sortedone2many>=0.1.8',

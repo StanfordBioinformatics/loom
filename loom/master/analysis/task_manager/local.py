@@ -3,7 +3,6 @@ import logging
 import os
 import requests
 import subprocess
-import factory
 
 from django.conf import settings
 

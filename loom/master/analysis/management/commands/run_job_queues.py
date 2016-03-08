@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.core.management.base import BaseCommand, CommandError
-from analysis.models import WorkflowRun
+from analysis.models import WorkflowRun, TaskRun
 from loomdaemon import loom_daemon_logger
 
 
@@ -19,7 +19,8 @@ class Command(BaseCommand):
         logfile = options.get('logfile')
         logger = loom_daemon_logger.get_logger(logfile)
         try:
-            WorkflowRun.update_and_run_all()
+            WorkflowRun.update_status_for_all()
+            TaskRun.run_all()
         except Exception as e:
             logger.exception(e)
             raise

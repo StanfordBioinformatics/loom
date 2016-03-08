@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
+from django.db import models, migrations
 import sortedone2many.fields
 import universalmodels.models
 import analysis.models.base
@@ -143,7 +143,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'waiting', max_length=255, choices=[(b'waiting', b'Waiting'), (b'running', b'Running'), (b'completed', b'Completed')])),
+                ('status', models.CharField(default=b'waiting', max_length=255, choices=[(b'waiting', b'Waiting'), (b'running', b'Running'), (b'completed', b'Completed'), (b'canceled', b'Canceled'), (b'error', b'Error')])),
                 ('step', models.ForeignKey(to='analysis.Step')),
             ],
             options={
@@ -239,7 +239,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'ready_to_run', max_length=255, choices=[(b'ready_to_run', b'Ready to run'), (b'running', b'Running'), (b'completed', b'Completed')])),
+                ('status', models.CharField(default=b'ready_to_run', max_length=255, choices=[(b'ready_to_run', b'Ready to run'), (b'running', b'Running'), (b'completed', b'Completed'), (b'canceled', b'Canceled')])),
             ],
             options={
                 'abstract': False,
@@ -327,7 +327,7 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'completed', b'Completed')])),
+                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'canceled', b'Canceled'), (b'completed', b'Completed')])),
                 ('channels', sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Channel')),
                 ('step_runs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run', to='analysis.StepRun')),
                 ('workflow', models.ForeignKey(to='analysis.Workflow')),
