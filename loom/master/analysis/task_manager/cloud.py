@@ -1,6 +1,7 @@
 import errno 
 import json
 import logging
+import multiprocessing
 import os
 import requests
 import subprocess
@@ -18,9 +19,17 @@ class CloudTaskManager:
     def run(cls, step_run):
 
         resources = CloudTaskManager._get_resource_requirements(step_run)
-        instance_type = CloudTaskManager._get_instance_type(cores = resources.cores, memory = resources.memory)
-        cloud_driver = CloudTaskManager._get_cloud_driver()
+        instance_type = CloudTaskManager._get_instance_type(cores=resources.cores, memory=resources.memory)
 
+        # Asynchronously create a VM, install Docker, and pass command to step runner.
+        process = multiprocessing.Process(target=CloudTaskManager._create_instance_and_run, args=(instance_type, cmd))
+        process.start()
+
+
+
+
+
+        cloud_driver = CloudTaskManager._get_cloud_driver()
     	CloudTaskManager._create_file_root_on_worker()
 
         # Construct command to run on worker node
@@ -115,6 +124,11 @@ class CloudTaskManager:
         pricelist = content['gcp_price_list']
         return pricelist
 
+    @classmethod
+    def _create_instance_and_run(cls, instance_type, cmd):
+        pass
+        
+
 
     @classmethod
     def _get_cloud_driver(cls):
@@ -123,7 +137,7 @@ class CloudTaskManager:
         else:
             provider = Provider.GCE 
             args = ['','']  # master is running in GCE; get credentials from metadata service
-                            # (see http://libcloud.readthedocs.org/en/latest/compute/drivers/gce.html#using-gce-internal-authorization)
+                            # (more info: http://libcloud.readthedocs.org/en/latest/compute/drivers/gce.html#using-gce-internal-authorization)
             kwargs = {'project': settings.PROJECT_ID}
         driver_factory = get_driver(provider)
         driver = driver_factory(*args, **kwargs)
