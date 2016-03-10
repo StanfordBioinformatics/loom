@@ -18,18 +18,21 @@ class CloudTaskManager:
     @classmethod
     def run(cls, step_run):
 
-        resources = CloudTaskManager._get_resource_requirements(step_run)
+        resources = CloudTaskManager._get_resource_requirements(task_run)
         instance_type = CloudTaskManager._get_instance_type(cores=resources.cores, memory=resources.memory)
 
-        # Asynchronously create a VM, install Docker, and pass command to step runner.
-        process = multiprocessing.Process(target=CloudTaskManager._create_instance_and_run, args=(instance_type, cmd))
+        # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
+        process = multiprocessing.Process(target=CloudTaskManager._create_deploy_run, args=(instance_type, cmd))
         process.start()
 
+    @classmethod
+    def _create_deploy_run(cls, instance_type, cmd):
+        """Create a VM, deploy Docker and Loom, and pass command to task runner."""
+        driver = CloudTaskManager._get_cloud_driver()
 
 
 
 
-        cloud_driver = CloudTaskManager._get_cloud_driver()
     	CloudTaskManager._create_file_root_on_worker()
 
         # Construct command to run on worker node
@@ -124,9 +127,7 @@ class CloudTaskManager:
         pricelist = content['gcp_price_list']
         return pricelist
 
-    @classmethod
-    def _create_instance_and_run(cls, instance_type, cmd):
-        pass
+        
         
 
 
