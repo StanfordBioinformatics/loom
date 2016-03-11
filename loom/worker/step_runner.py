@@ -20,44 +20,46 @@ from loom.common import md5calc, filehandler
 
 class InputManager:
 
-    def __init__(self, settings, step_run, logger):
+    def __init__(self, settings, task_run, task_run_location , logger):
         self.settings = settings
         self.logger = logger
-        self.step_run = step_run
-        self.input_port_bundles = self._get_input_port_bundles()
+        self.task_run = task_run
+        self.task_run_location = task_run_location
+        self.input_ports_bundles = [] #TODO
+#        self.input_port_bundles = self._get_input_port_bundles()
 
-    def _get_input_port_bundles(self):
-        url = self.settings['MASTER_URL'] + '/api/step_runs/' + self.settings['RUN_ID'] + '/input_port_bundles/'
-        response = requests.get(url)
-        response.raise_for_status()
-        input_port_bundles = response.json()['input_port_bundles']
-        return input_port_bundles
+#    def _get_input_port_bundles(self):
+#        url = self.settings['MASTER_URL'] + '/api/step_runs/' + self.settings['RUN_ID'] + '/input_port_bundles/'
+#        response = requests.get(url)
+#        response.raise_for_status()
+#        input_port_bundles = response.json()['input_port_bundles']
+#        return input_port_bundles
 
-    def prepare_all_inputs(self):
-        if self.input_port_bundles is None:
-            return
-        for bundle in self.input_port_bundles:
-            self._prepare_port_inputs(bundle)
+#    def prepare_all_inputs(self):
+#        if self.input_port_bundles is None:
+#            return
+#        for bundle in self.input_port_bundles:
+#            self._prepare_port_inputs(bundle)
 
-    def _prepare_port_inputs(self, input_port_bundle):
-        port = input_port_bundle['input_port']
-        files_and_locations = input_port_bundle.get(u'files_and_locations')
-        if files_and_locations is None:
-            return
-        for f in files_and_locations:
-            self._prepare_input(f, port)
+#    def _prepare_port_inputs(self, input_port_bundle):
+#        port = input_port_bundle['input_port']
+#        files_and_locations = input_port_bundle.get(u'files_and_locations')
+#        if files_and_locations is None:
+#            return
+#        for f in files_and_locations:
+#            self._prepare_input(f, port)
 
-    def _prepare_input(self, file_and_locations, port):
-        remote_location = file_and_locations.get('file_storage_locations')[0]
-        local_path = os.path.join(self.settings['WORKING_DIR'], self._get_file_name(port))
-        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
-        self.logger.debug('Downloading input %s from %s' % (local_path, remote_location))
-        filehandler_obj.download(remote_location, local_path)
+#    def _prepare_input(self, file_and_locations, port):
+#        remote_location = file_and_locations.get('file_storage_locations')[0]
+#        local_path = os.path.join(self.settings['WORKING_DIR'], self._get_file_name(port))
+#        filehandler_obj = filehandler.FileHandler(self.settings['MASTER_URL'])
+#        self.logger.debug('Downloading input %s from %s' % (local_path, remote_location))
+#        filehandler_obj.download(remote_location, local_path)
 
-    def _get_file_name(self, input_port):
+#    def _get_file_name(self, input_port):
         # TODO this does not work for arrays
-        return input_port['file_names'][0]['name']
-
+#        return input_port['file_names'][0]['name']
+"""
 class _AbstractPortOutputManager:
 
     def __init__(self, settings, step_run, logger, step_definition_output_port):
@@ -206,29 +208,30 @@ class OutputManager:
         filehandler_obj.upload(self.settings['STDOUT_LOGFILE'], location)
         location = filehandler_obj.get_step_output_location(self.settings['STDERR_LOGFILE'])
         filehandler_obj.upload(self.settings['STDERR_LOGFILE'], location)
+"""
 
+class TaskRunner:
 
-class StepRunner:
+    TASK_RUNS_DIR = 'task_runs'
 
-    STEP_RUNS_DIR = 'step_runs'
-    
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
 
         self.settings = {
             'RUN_ID': args.run_id,
+            'RUN_LOCATION_ID': args.run_location_id,
             'MASTER_URL': args.master_url.rstrip('\/')
             }
         self.settings.update(self._get_additional_settings())
         self._init_logger()
-        self._init_step_run()
-        self._init_step()
-        self._init_workflow()
-        self.settings.update(self._get_working_dir_setting())
+        self._init_task_run()
+#        self._init_task()
+#        self._init_workflow()
+#        self.settings.update(self._get_working_dir_setting())
 
-        self.input_manager = InputManager(self.settings, self.step_run, self.logger)
-        self.output_manager = OutputManager(self.settings, self.step_run, self.logger)
+#        self.input_manager = InputManager(self.settings, self.step_run, self.logger)
+#        self.output_manager = OutputManager(self.settings, self.step_run, self.logger)
 
     def run(self):
         try:
@@ -358,7 +361,7 @@ class StepRunner:
     @classmethod
     def _get_parser(cls):
         import argparse
-        parser = argparse.ArgumentParser('step_runner')
+        parser = argparse.ArgumentParser('task_runner')
         parser.add_argument('--run_id', '-i',
                             help="ID of step run to be executed",
                             required=True)

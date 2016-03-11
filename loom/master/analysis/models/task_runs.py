@@ -2,6 +2,7 @@ from django.core import exceptions
 
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.task_definitions import *
+from analysis.models.data_objects import DataObject
 from analysis.models.workflows import Step
 from analysis.task_manager.factory import TaskManagerFactory
 from analysis.task_manager.dummy import DummyTaskManager
@@ -30,7 +31,11 @@ class TaskRun(AnalysisAppInstanceModel):
         )
     )
 
-
+    def update(self, *args, **kwargs):
+        super(TaskRun, self).update(*args, **kwargs)
+        for output in self.task_run_outputs.all():
+            output.send_data_object_to_channels()
+        
     @classmethod
     def run_all(cls):
         for task_run in TaskRun.objects.filter(status='ready_to_run'):
@@ -67,7 +72,7 @@ class TaskRun(AnalysisAppInstanceModel):
             return False # Reject result
 
         output = self.task_run_outputs.get(_id=output_id)
-        output.add_data_object(data_object)
+        output.add_data_object(DataObject.create(data_object))
         return True
 
     def cancel(self):
@@ -101,7 +106,7 @@ class TaskRunInput(AnalysisAppInstanceModel):
 
 
 class TaskRunOutput(AnalysisAppInstanceModel):
-
+   
     task_definition_output = fields.ForeignKey('TaskDefinitionOutput')
     data_object = fields.ForeignKey('DataObject', null=True)
 
@@ -109,10 +114,16 @@ class TaskRunOutput(AnalysisAppInstanceModel):
         return self.data_object is not None
 
     def add_data_object(self, data_object):
-        self.update({'data_object': data_object})
+        self.update({'data_object': data_object.to_struct()})
+        self.send_data_object_to_channels()
+
+    def send_data_object_to_channels(self):
         # Send to any channels that are attached
+        # Normally there is just one channel, but there can
+        # be more if the TaskRun is shared by more than one StepRun
         for step_run_output in self.step_run_outputs.all():
-            step_run_output.channel.add_data_object(self.data_object)
+            if self.data_object is not None:
+                step_run_output.channel.add_data_object(self.data_object)
     
 class TaskRunLocation(AnalysisAppInstanceModel):
 

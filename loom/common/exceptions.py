@@ -37,3 +37,5 @@ class IdMatchedTooFewFileDataObjectsError(Error):
 class IdMatchedTooManyFileDataObjectsError(Error):
     pass
     
+class ValidationError(Error):
+    pass

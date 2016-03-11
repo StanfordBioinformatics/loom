@@ -137,20 +137,22 @@ class AbstractFileHandler:
             return
         self.logger.info(message)
     
-    def upload_files_from_local_paths(self, local_paths, source_record=None):
+    def upload_files_from_local_paths(self, local_paths, source_record=None, source_directory=None):
         upload_request_time = self.objecthandler.get_server_time()
         file_objects = []
         destination_locations = []
         # Upload files, create FileDataObjects and StorageLocations
         for local_path in local_paths:
-            file_objects.append(self.upload_file_from_local_path(local_path, upload_request_time=upload_request_time))
+            file_objects.append(self.upload_file_from_local_path(local_path, source_directory=source_directory, upload_request_time=upload_request_time))
         # Create source_record if one exists
         self._create_source_record(file_objects, source_record=source_record)
         return file_objects
             
-    def upload_file_from_local_path(self, local_path, source_record=None, upload_request_time=None):
+    def upload_file_from_local_path(self, local_path, source_directory=None, source_record=None, upload_request_time=None):
         """Upload files, create FileDataObjects and StorageLocations
         """
+        local_path = self._add_directory(source_directory, local_path)
+        
         if upload_request_time is None:
             upload_request_time = self.objecthandler.get_server_time()
         self._log("Uploading %s ..." % local_path)
@@ -169,6 +171,13 @@ class AbstractFileHandler:
 
         return file_object
 
+    def _add_directory(self, root_directory, local_path):
+        if root_directory is None:
+            return local_path
+        if local_path.startswith('/'):
+            raise ValidationError('Cannot use absolute path %s with root directory %s' % (local_path, root_directory))
+        return os.path.join(root_directory, local_path)
+        
     def _create_source_record(self, data_objects, source_record=None):
         if source_record is not None:
             self.objecthandler.post_data_source_record(

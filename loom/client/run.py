@@ -20,9 +20,10 @@ class AbstractInputProcessor(object):
     according to their type
     """
 
-    def __init__(self, objecthandler, filehandler):
+    def __init__(self, objecthandler, filehandler, logger):
         self.objecthandler = objecthandler
         self.filehandler = filehandler
+        self.logger = logger
 
     def _list_to_single(self, input_id_list):
         if not isinstance(input_id_list, list):
@@ -224,7 +225,7 @@ class IntegerArrayInputProcessor(DatabaseObjectArrayMixin, IntegerInputProcessor
     pass
 
 
-def InputProcessor(type, objecthandler, filehandler):
+def InputProcessor(type, objecthandler, filehandler, logger):
     """Factory method that returns the InputProcessor class for handling
     a given input type
     """
@@ -242,7 +243,8 @@ def InputProcessor(type, objecthandler, filehandler):
 
     return INPUT_PROCESSORS[type](
         objecthandler,
-        filehandler
+        filehandler,
+        logger
     )
 
     
@@ -432,14 +434,16 @@ class WorkflowRunner(object):
             data_object = InputProcessor(
                 self.inputs_required[input_name]['type'],
                 objecthandler=self.objecthandler,
-                filehandler=self.filehandler
+                filehandler=self.filehandler,
+                logger = self.logger
             ).load_data_object(input_info['value'], value_is_list_format=input_info['value_is_list_format'])
             
     def _process_input(self, name, value, type, workflow_input, value_is_list_format=True):
         data_object = InputProcessor(
             type,
             objecthandler=self.objecthandler,
-            filehandler=self.filehandler
+            filehandler=self.filehandler,
+            logger = self.logger
         ).load_data_object(value, value_is_list_format=value_is_list_format)
         self._add_workflow_run_input(name, data_object, workflow_input)
         
@@ -458,7 +462,8 @@ class WorkflowRunner(object):
                 data_object = InputProcessor(
                     self.inputs_required[input_name]['type'],
                     objecthandler=self.objecthandler,
-                    filehandler=self.filehandler
+                    filehandler=self.filehandler,
+                    logger = self.logger
                 ).prompt_for_input(input_name, input['prompt'])
                 self._add_workflow_run_input(input_name, data_object, self.inputs_required[input_name])
 

@@ -6,6 +6,7 @@ import re
 import requests
 import subprocess
 import sys
+import warnings
 
 from loom.client import settings_manager
 

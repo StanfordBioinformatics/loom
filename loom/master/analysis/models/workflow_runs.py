@@ -4,6 +4,7 @@ from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableM
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
 from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput
+from jinja2 import DictLoader, Environment
 from universalmodels import fields
 
 
@@ -354,9 +355,17 @@ class StepRun(AnalysisAppInstanceModel):
             'environment': self._get_task_definition_environment(self.step.environment)
         }
 
-    def _get_task_definition_command(self, step_command, task_definition_inputs, task_definition_outputs):
-        # TODO template rendering of input/output names in command
-        return step_command
+    def _get_task_definition_command(self, raw_command, task_definition_inputs, task_definition_outputs):
+        context = {}
+        for (step_run_input, task_definition_input) in zip(self.step_run_inputs.all(), task_definition_inputs):
+            context[step_run_input.subchannel.channel_name] = task_definition_input['data_object']['file_name']
+        for (step_run_output, task_definition_output) in zip(self.step_run_outputs.all(), task_definition_outputs):
+            context[step_run_output.channel.channel_name] = task_definition_output['path']
+        loader = DictLoader({'template': raw_command})
+        env = Environment(loader=loader)
+        template = env.get_template('template')
+        command = template.render(**context)
+        return command
 
     def _get_task_definition_environment(self, requested_environment):
         # TODO get specific docker image ID

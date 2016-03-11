@@ -1,11 +1,12 @@
-from django.db import transaction
 from django.core.management.base import BaseCommand, CommandError
-from analysis.models import WorkflowRun, TaskRun
+from django.conf import settings
+import requests
+
 from loomdaemon import loom_daemon_logger
 
 
 class Command(BaseCommand):
-    help = 'Checks and updates work in progress'
+    help = 'Executes tasks that are ready'
 
     def add_arguments(self, parser):
         # Named (optional) arguments
@@ -14,13 +15,12 @@ class Command(BaseCommand):
             default=None,
             help='Log file path')
 
-    @transaction.atomic
     def handle(self, *args, **options):
         logfile = options.get('logfile')
         logger = loom_daemon_logger.get_logger(logfile)
         try:
-            WorkflowRun.update_status_for_all()
-            TaskRun.run_all()
+            response = requests.get(settings.MASTER_URL_FOR_WORKER+'/api/controls/run')
+            logger.debug(response)
         except Exception as e:
             logger.exception(e)
             raise

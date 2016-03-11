@@ -33,7 +33,7 @@
         },
         {
             "step_name": "hello_world_step",
-            "command": "cat {{ hello }} {{ world }} > {{ hello_world }}",
+            "command": "cat {{ hello }} {{ world }} > {{ hello_world_out }}",
             "environment": {
                 "docker_image": "ubuntu"
             },
