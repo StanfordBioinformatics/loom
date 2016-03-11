@@ -16,34 +16,54 @@ logger = logging.getLogger('LoomDaemon')
 class CloudTaskManager:
 
     @classmethod
-    def run(cls, step_run):
-
-        resources = CloudTaskManager._get_resource_requirements(task_run)
-        instance_type = CloudTaskManager._get_instance_type(cores=resources.cores, memory=resources.memory)
-
+    def run(cls, task_run):
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._create_deploy_run, args=(instance_type, cmd))
+        process = multiprocessing.Process(target=CloudTaskManager._create_deploy_run, args=(task_run))
         process.start()
 
     @classmethod
-    def _create_deploy_run(cls, instance_type, cmd):
+    def _create_deploy_run(cls, task_run):
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
+        resources = CloudTaskManager._get_resource_requirements(task_run)
+        instance_type = CloudTaskManager._get_cheapest_instance_type(cores=resources.cores, memory=resources.memory)
+        task_id = task_run.id
+
+        node_started = CloudTaskManager._start_node(instance_type, task_id)
+        if not node_started:
+            raise CloudTaskManagerError('Node failed to start')
+        else:
+            # TODO: format and mount scratch disk, install pip, deploy Loom, and run a command
+            pass
+
+    @classmethod
+    def _start_node(cls, instance_type, task_id):
         driver = CloudTaskManager._get_cloud_driver()
+        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        else:
+            volume = driver.create_volume(size=settings.WORKER_DISK_SIZE, name=task_id+'-disk', location=settings.WORKER_LOCATION, ex_disk_type=settings.WORKER_DISK_TYPE)
+            # This will come in handy when instances need more cloud permissions:
+            #service_account_scopes = [{'email':'default', 'scopes': ['devstorage.read_write', 'compute', 'logging.write', 'monitoring.write', 'cloud-platform', 'cloud.useraccounts.readonly'] }]
+            #node = driver.create_node(name=task_id, size=instance_type, image=settings.WORKER_VM_IMAGE, location=settings.WORKER_LOCATION, external_ip='ephemeral', ex_boot_disk=volume, ex_service_accounts=service_account_scopes)
 
+            node = driver.create_node(name=task_id, size=instance_type, image=settings.WORKER_VM_IMAGE, location=settings.WORKER_LOCATION)
+            driver.attach_volume(node, volume, device='scratch', ex_auto_delete=True)
+            node_started = driver.ex_start_node(node)
+            return node_started
 
-
-
+    @classmethod
+    def old_deploy(cls):
     	CloudTaskManager._create_file_root_on_worker()
 
         # Construct command to run on worker node
         cmd = '%s %s --run_id %s --master_url %s' % (
             PYTHON_EXECUTABLE,
             STEP_RUNNER_EXECUTABLE,
-            step_run._id,
+            step_run.id,
             settings.MASTER_URL_FOR_WORKER,
             )
         if step_run.steps.count() == 0:
-            raise Exception("No Step found for StepRun %s" % step_run._id)
+            raise Exception("No Step found for StepRun %s" % step_run.id)
 
         # Use Slurm to call the step runner on a worker node
         cmd = "sbatch -D %s -n %s --mem=%s --wrap='%s'" % (
@@ -61,14 +81,15 @@ class CloudTaskManager:
 	return proc
     
     @classmethod
-    def _get_resource_requirements(cls, step_run):
+    def _get_resource_requirements_django(cls, task_run):
+        # TODO: use this again when we have a TaskRun Django model
         # Retrieve resource requirements
         # If step_run has more than one step, requirements
         # should be identical in all steps.
         resources = None
         last_resources = None
-        for step in step_run.steps.all():
-            resources = step.resources
+        for task in task_run.tasks.all():
+            resources = task.resources
             resources_json = resources.to_json()
             if last_resources is None:
                 pass
@@ -80,6 +101,11 @@ class CloudTaskManager:
                     " StepRun."
             last_resources = resources_json
         return resources
+
+    @classmethod
+    def _get_resource_requirements(cls, task_run):
+        """ Just return the resources for the first task for now."""
+        return task_run.tasks[0]
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
@@ -126,10 +152,6 @@ class CloudTaskManager:
         logger.debug('Using pricelist ' + content['version'] + ', updated ' + content['updated'])
         pricelist = content['gcp_price_list']
         return pricelist
-
-        
-        
-
 
     @classmethod
     def _get_cloud_driver(cls):
