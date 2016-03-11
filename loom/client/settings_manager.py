@@ -188,8 +188,9 @@ class SettingsManager:
             'REMOTE_USERNAME': 'unused'
         },
 
-        # Client and master on local machine; workers and fileserver in Google Cloud
+        # Deploying client and master on same VM in Google Cloud; workers are other VMs in Google Cloud; fileserver is Google Storage
         'GOOGLE_CLOUD_MASTER_SETTINGS': {
+            # Info needed by master
             'MASTER_TYPE': 'GOOGLE_CLOUD',
             'WEBSERVER_PIDFILE': '/tmp/loom_webserver.pid',
             'BIND_IP': '0.0.0.0',
@@ -205,6 +206,10 @@ class SettingsManager:
             'DAEMON_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
+            'WORKER_VM_IMAGE': 'container-vm',  # image to use when task manager boots up a worker VM
+            'WORKER_LOCATION': 'us-central1-a', # location to use when task manager boots up a worker VM
+            'WORKER_DISK_SIZE': '500',          # worker scratch disk size in GB
+            'WORKER_DISK_TYPE': 'pd-ssd',       # worker scratch disk type, pd-ssd or pd-standard
 
             # Where to get inputs and place outputs.
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
