@@ -95,7 +95,7 @@ setup(
                         'django-sortedm2m>=1.1.1',
                         'docutils>=0.12',
                         'gcloud>=0.8.0,<0.10.0',
-                        'google-api-python-client>=1.4.2,<1.5.0', #1.5.0 requires oath2client>=2.0.0
+                        'google-api-python-client>=1.5.0', #1.5.0 requires oath2client>=2.0.0
                         'google-apitools>=0.4.13',
                         'gunicorn>=19.3.0',
                         'httplib2>=0.9.2',
@@ -105,7 +105,7 @@ setup(
                         'lockfile>=0.12.2',
                         'MarkupSafe>=0.23',
                         #'MySQL-python>=1.2.5',
-                        'oauth2client>=1.5.2,<2.0.0',
+                        'oauth2client>=2.0.0',
                         'protobuf>=3.0.0b2',
                         'protorpc>=0.11.1',
                         'pyasn1>=0.1.9',

@@ -25,10 +25,13 @@ class TestCloudTaskManager(unittest.TestCase):
         settings.BASE_DIR = ''
         settings.MASTER_TYPE = 'GOOGLE_CLOUD'
         settings.PROJECT_ID = 'gbsc-gcp-project-scgs-dev'
+        settings.ANSIBLE_PEM_FILE = '~/key.pem'
         settings.WORKER_VM_IMAGE = 'container-vm'
         settings.WORKER_LOCATION = 'us-central1-a'
         settings.WORKER_DISK_TYPE = 'pd-ssd'
         settings.WORKER_DISK_SIZE = '100'
+        settings.WORKER_DISK_DEVICE_NAME = 'loom_worker_scratch_disk'
+        settings.WORKER_DISK_MOUNT_POINT = '/mnt/loom_working_dir'
 
     def tearDown(self):
         pass
@@ -62,14 +65,20 @@ class TestCloudTaskManager(unittest.TestCase):
     #     self.assertIsInstance(node, libcloud.compute.base.Node)
     #     self.assertTrue(driver.destroy_node(node))
 
-    def test_create_deploy_run(self):
+    def test_run(self):
         from collections import namedtuple
         Resources = namedtuple('Resources', 'cores memory')
         resources = Resources(cores=1, memory=1)
         TaskRun = namedtuple('TaskRun', 'id tasks')
         task_run = TaskRun(id = 'unittest-cloud-task-manager-create-deploy-run',
                            tasks = [resources])
-        cloud.CloudTaskManager._create_deploy_run(task_run)
+        cloud.CloudTaskManager._run(task_run)
+
+    def test_setup_credentials(self):
+        cloud.CloudTaskManager._setup_credentials()
+        import secrets
+        self.assertIsInstance(secrets.GCE_PARAMS, tuple)
+        self.assertIsInstance(secrets.GCE_KEYWORD_PARAMS, dict)
 
 if __name__ == '__main__':
     unittest.main()
