@@ -1,79 +1,78 @@
 What is loom?
 =============
 
-Loom is a tool to create and execute bioinformatics workflows.
+Loom is a platform-independent tool to create, execute, track, and share workflows.
 
-We observed that many bioinformaticians are doing analysis in a way that
-is not repeatable or traceable, and that cannot be easily migrated to a
-new compute environment. For example:
-
--  Depending on local software installations and environment settings
--  Executing commands manually
--  Failing to record analysis details and results in a database
--  Depending on file names and paths that may change and cannot be verified
-
-Loom is designed as an easy-to-use analysis platform that remedies these
-problems to make analysis repeatable, your results traceable, and your
-workflows portable to other platforms.
-
-Why use loom?
+Why use Loom?
 =============
 
-Make your analysis pipelines portable
--------------------------------------
+Ease of use
+-----------
 
--  Loom uses Docker to make your pipelines platform-agnostic and to
-   avoid using local software installations or environment settings
--  The same pipelines can be run in the cloud, on a local cluster, or on
-   your laptop
--  Loom will seamlessly pull data from your local path, a remote file
-   server, or an object store
+Loom runs out-of-the-box locally or in the cloud.
 
-Share your analysis and results
--------------------------------
+Repeatable analysis
+-------------------
 
--  Loom analyses and results are defined as JSON documents that can be
-   easily shared by email
--  JSON documents defining analyses and results have the same meaning
-   anywhere, with no dependencies on your software configuration, local
-   environment settings, or file locations. External references to files
-   or applications (Docker images) can always be verified using a
-   cryptographic hash of contents
+Loom makes sure you can repeat your analysis months and years down the road after you've lost your notebook, your data analyst has found a new job, and your server has had a major OS version upgrade.
 
-Keep your data secure
----------------------
+Loom uses Docker to reproduce your runtime environment, records file hashes to verify analysis inputs, and keeps fully reproducible records of your work.
 
--  Loom lets you run all your analysis with encryption of data in
-   transit and at rest
+Traceable results
+-----------------
 
-Make sure your analysis is repeatable
--------------------------------------
+Loom remembers anything you ever run and can tell you exactly how each result was produced.
 
--  The same features that make loom sharable help to ensure
-   repeatability: input files are verified with a cryptographic hash,
-   and applications are stored in Docker containers that can be verified
-   by image ID
--  Analyses and results are recorded in a persistent database
+Portability between platforms
+-----------------------------
 
-Never lose track of how a result was generated
-----------------------------------------------
+Exactly the same workflow can be run on your laptop or on a public cloud service.
 
--  When answering questions like “Where did this file come from?”, “What
-   software version did we use to produce this result”, or “What
-   settings did we use for this?”, you should never be scrambling
-   through your notes or digging through output logs. Loom keeps track
-   of result provenance and can tell you all the steps that were
-   performed from import of the original input data to producing the
-   final result.
+Open architecture
+-----------------
+
+Not only is Loom open source and free to use, it uses an inside-out architecture that minimizes lock-in and lets you easily share your work with other people.
+
+- Write your results to a traditional filesystem or object store and browse them outside of Loom
+- Publish your tools as Docker images
+- Publish your workflows as simple, human-readable documents
+- Collaborate by sharing your workflows and results between Loom servers
+- Connect Loom to multiple file stores without creating redundant copies
+- Efficient re-use of results for redundant analysis steps
+
+How many times do you really need to run the same analysis on the same inputs? Loom knows which steps in your workflow have already been run and seamlessly integrates previous results with the current run, while still maintaining data provenance and traceability.
+
+Graphical user interface
+------------------------
+
+While you may want to automate your analysis from the command line, a graphical user interface is invaluable for browsing workflows and results and keeping an eye on current runs.
+
+Security and compliance
+-----------------------
+
+Loom is designed with clinical compliance in mind.
+
+Who needs Loom?
+===============
+
+Loom is built for the kind of workflows that bioinformaticians run -- multi-step analyses with large data files passed between steps. But nothing about Loom is specific to bioinformatics.
+
+Loom is scalable and supports individual analysts or large institutions.
+
+Get started
+===========
+
+Check out our Getting Started Guide and give Loom a try.
+
+https://github.com/StanfordBioinformatics/loom/wiki/Getting-Started
 
 What is the current status?
 ===========================
 
-Loom is under active development. To get involved, contact
-nhammond@stanford.edu
+Loom is under active development. To get involved, contact nhammond@stanford.edu
 
 Contributors
 ============
 
--  Nathan Hammond
--  Isaac Liao
+- Nathan Hammond
+- Isaac Liao
