@@ -432,7 +432,7 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
-            name='RequestedDockerImage',
+            name='RequestedDockerEnvironment',
             fields=[
                 ('requestedenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.RequestedEnvironment')),
                 ('docker_image', models.CharField(max_length=255)),
@@ -466,7 +466,7 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
-            name='TaskDefinitionDockerImage',
+            name='TaskDefinitionDockerEnvironment',
             fields=[
                 ('taskdefinitionenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskDefinitionEnvironment')),
                 ('docker_image', models.CharField(max_length=100)),

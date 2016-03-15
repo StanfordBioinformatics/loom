@@ -45,7 +45,7 @@ class RequestedEnvironment(AnalysisAppImmutableModel):
     pass
 
 
-class RequestedDockerImage(RequestedEnvironment):
+class RequestedDockerEnvironment(RequestedEnvironment):
 
     docker_image = fields.CharField(max_length=255)
 

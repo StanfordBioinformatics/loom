@@ -10,15 +10,15 @@ from .common import UniversalModelTestMixin
 
 class TestWorkflowModels(TestCase, UniversalModelTestMixin):
 
-    def testRequestedDockerImage(self):
-        o = RequestedDockerImage.create(fixtures.docker_image_struct)
-        self.assertEqual(o.docker_image, fixtures.docker_image_struct['docker_image'])
+    def testRequestedDockerEnvironment(self):
+        o = RequestedDockerEnvironment.create(fixtures.docker_environment_struct)
+        self.assertEqual(o.docker_image, fixtures.docker_environment_struct['docker_image'])
         self.roundTripJson(o)
         self.roundTripStruct(o)
 
     def testRequestedEnvironment(self):
-        o = RequestedEnvironment.create(fixtures.docker_image_struct)
-        self.assertEqual(o.docker_image, fixtures.docker_image_struct['docker_image'])
+        o = RequestedEnvironment.create(fixtures.docker_environment_struct)
+        self.assertEqual(o.docker_image, fixtures.docker_environment_struct['docker_image'])
         self.roundTripJson(o)
         self.roundTripStruct(o)
 

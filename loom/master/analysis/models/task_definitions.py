@@ -29,7 +29,7 @@ class TaskDefinitionEnvironment(AnalysisAppImmutableModel):
     pass
 
 
-class TaskDefinitionDockerImage(TaskDefinitionEnvironment):
+class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
 
     docker_image = fields.CharField(max_length = 100)
 

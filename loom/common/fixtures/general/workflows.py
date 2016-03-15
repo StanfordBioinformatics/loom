@@ -7,7 +7,7 @@ resource_set_struct = {
     'cores': 4,
     }
 
-docker_image_struct = {
+docker_environment_struct = {
     'docker_image': '1234567asdf',
     }
 
@@ -34,7 +34,7 @@ step_input_2_struct = {
 step_1_struct = {
     'step_name': 'step1',
     'command': 'echo hello',
-    'environment': docker_image_struct,
+    'environment': docker_environment_struct,
     'resources': resource_set_struct,
     'step_inputs': [step_input_1_struct],
     'step_outputs': [step_output_1_struct]
@@ -43,7 +43,7 @@ step_1_struct = {
 step_2_struct = {
     'step_name': 'step2',
     'command': 'echo world',
-    'environment': docker_image_struct,
+    'environment': docker_environment_struct,
     'resources': resource_set_struct,
     'step_inputs': [step_input_2_struct],
     'step_outputs': [step_output_2_struct]
