@@ -5,17 +5,22 @@ import multiprocessing
 import os
 import requests
 import subprocess
+import tempfile
+from string import Template
 
 import oauth2client.contrib.gce
 
 from django.conf import settings
 from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
+from libcloud.compute.drivers.gce import ResourceExistsError
 
 logger = logging.getLogger('LoomDaemon')
 
 
 class CloudTaskManager:
+
+    inventory_file=''
 
     @classmethod
     def run(cls, task_run):
@@ -26,29 +31,59 @@ class CloudTaskManager:
     @classmethod
     def _run(cls, task_run):
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
+        cls._setup_ansible()
         resources = CloudTaskManager._get_resource_requirements(task_run)
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=resources.cores, memory=resources.memory)
         task_id = task_run.id # TODO: point to actual TaskRun id after merging
-        node_started = CloudTaskManager._start_node(instance_type, task_id)
-
-        if not node_started:
-            raise CloudTaskManagerError('Node failed to start')
-
-        # TODO: format and mount scratch disk, install pip, deploy Loom, and run a command
-        CloudTaskManager._setup_credentials()
-        CloudTaskManager._setup_scratch_disk(node_name=task_id, device_name=settings.WORKER_DISK_DEVICE_NAME, mount_point=settings.WORKER_DISK_MOUNT_POINT)
+        node_name = task_id
+        CloudTaskManager._start_node(instance_type, node_name, zone=settings.WORKER_LOCATION, image=settings.WORKER_VM_IMAGE)
+        disk_name = node_name+'-disk'
+        device_path = '/dev/disk/by-id/google-'+disk_name
+        CloudTaskManager._setup_scratch_disk(node_name, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=settings.WORKER_DISK_SIZE, zone=settings.WORKER_LOCATION)
+        # TODO: install pip, deploy Loom, and run a command
 
     @classmethod
-    def _setup_scratch_disk(node_name, device_name, mount_point):
-        import stat
-        os.chmod('ansible_gce_inventory.py', stat.S_IXOTH)
-        subprocess.call('ansible', '-i', 'ansible_gce_inventory.py', node_name, '-m', 'filesystem', '-a', 'fstype=ext4 dev=/dev/disk/by-id/google-'+device_name+' opts="-F"')
-        if not os.path.exists(mount_point):
-            os.makedirs(mount_point)
-        subprocess.call('ansible', '-i', 'ansible_gce_inventory.py', node_name, '-m', 'mount', '-a', 'name='+mount_point+' fstype=ext4 src=/dev/disk/by-id/google-'+device_name+' state=mounted')
+    def _start_node(cls, instance_type, node_name, zone, image):
+        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        else:
+            subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, 'localhost', '-m', 'gce', '-a', 'name='+node_name+' zone='+zone+' image='+image+' machine_type='+instance_type])
 
     @classmethod
-    def _setup_credentials(cls):
+    def _setup_scratch_disk(cls, node_name, disk_name, device_path, mount_point, disk_type, size_gb, zone):
+        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        else:
+            s = Template(
+"""---
+- hosts: $node_name
+  tasks:
+  - name: Create a disk and attach it to the instance.
+    gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone
+  - name: Create a filesystem on the disk.
+    filesystem: fstype=ext4 dev=$device_path opts="-F"
+  - name: Create the mount point.
+    file: path=$mount_point state=directory
+  - name: Mount the disk at the mount point.
+    mount: name=$mount_point fstype=ext4 src=$device_path state=mounted
+""")
+            playbook_string = s.substitute(locals())
+            with tempfile.NamedTemporaryFile(delete=False) as playbook:
+                print playbook.name
+                playbook.write(playbook_string)
+                playbook.flush()
+                subprocess.call(['ansible-playbook', '-i', cls.inventory_file, playbook.name])
+
+                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, 'localhost', '-m', 'gce_pd', '-a', 'instance_name='+instance_name+' name='+name+' disk_type='+disk_type+' size_gb='+size_gb+' zone='+zone])
+                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, node_name, '-m', 'filesystem', '-a', 'fstype=ext4 dev='+device_path+' opts="-F"'])
+                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, node_name, '-m', 'file', '-a', 'path='+mount_point+' state=directory'])
+                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, node_name, '-m', 'mount', '-a', 'name='+mount_point+' fstype=ext4 src='+device_path+' state=mounted'])
+
+    @classmethod
+    def _setup_ansible(cls):
+        """ Make sure dynamic inventory from ansible.contrib is executable, and write credentials to secrets.py. """
+        cls.inventory_file = os.path.join(os.path.dirname(__file__), 'ansible.contrib.inventory.gce.py')
+        os.chmod(cls.inventory_file, 0755)
         if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
         else:
@@ -69,7 +104,7 @@ class CloudTaskManager:
                 raise CloudTaskManagerError("Couldn't write secrets.py to the Python path")
 
     @classmethod
-    def _start_node(cls, instance_type, task_id):
+    def _start_node_using_libcloud(cls, instance_type, task_id):
         driver = CloudTaskManager._get_cloud_driver()
         if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
@@ -79,7 +114,13 @@ class CloudTaskManager:
             #service_account_scopes = [{'email':'default', 'scopes': ['devstorage.read_write', 'compute', 'logging.write', 'monitoring.write', 'cloud-platform', 'cloud.useraccounts.readonly'] }]
             #node = driver.create_node(name=task_id, size=instance_type, image=settings.WORKER_VM_IMAGE, location=settings.WORKER_LOCATION, external_ip='ephemeral', ex_boot_disk=volume, ex_service_accounts=service_account_scopes)
 
-            node = driver.create_node(name=task_id, size=instance_type, image=settings.WORKER_VM_IMAGE, location=settings.WORKER_LOCATION)
+            try:
+                node = driver.create_node(name=task_id, size=instance_type, image=settings.WORKER_VM_IMAGE, location=settings.WORKER_LOCATION)
+            except ResourceExistsError:
+                """ Don't stop executing if the node already exists, but log a warning. """
+                logger.warning('Node for task id %s already exists.' % task_id)
+                node = driver.ex_get_node(name=task_id)
+
             driver.attach_volume(node, volume, device=settings.WORKER_DISK_DEVICE_NAME, ex_auto_delete=True)
             node_started = driver.ex_start_node(node)
             return node_started

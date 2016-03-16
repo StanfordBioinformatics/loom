@@ -30,7 +30,6 @@ class TestCloudTaskManager(unittest.TestCase):
         settings.WORKER_LOCATION = 'us-central1-a'
         settings.WORKER_DISK_TYPE = 'pd-ssd'
         settings.WORKER_DISK_SIZE = '100'
-        settings.WORKER_DISK_DEVICE_NAME = 'loom_worker_scratch_disk'
         settings.WORKER_DISK_MOUNT_POINT = '/mnt/loom_working_dir'
 
     def tearDown(self):
@@ -59,7 +58,7 @@ class TestCloudTaskManager(unittest.TestCase):
         with self.assertRaises(cloud.CloudTaskManagerError):
             cloud.CloudTaskManager._get_cheapest_instance_type(cores=sys.maxint, memory=sys.float_info.max)
 
-    # def test_vm_bootup_shutdown(self):
+    # def test_libcloud_vm_bootup_shutdown(self):
     #     driver = cloud.CloudTaskManager._get_cloud_driver()
     #     node = driver.create_node(name='unittest-cloud-task-manager-vm-bootup-shutdown', size='f1-micro', image='coreos', location='us-central1-a')
     #     self.assertIsInstance(node, libcloud.compute.base.Node)
@@ -74,11 +73,14 @@ class TestCloudTaskManager(unittest.TestCase):
                            tasks = [resources])
         cloud.CloudTaskManager._run(task_run)
 
-    def test_setup_credentials(self):
-        cloud.CloudTaskManager._setup_credentials()
+    def test_setup_ansible(self):
+        cloud.CloudTaskManager._setup_ansible()
         import secrets
         self.assertIsInstance(secrets.GCE_PARAMS, tuple)
         self.assertIsInstance(secrets.GCE_KEYWORD_PARAMS, dict)
+
+    def test_setup_scratch_disk(self):
+        cloud.CloudTaskManager._setup_scratch_disk('mynode', 'mydisk', '/dev/disk/mydisk', '/mnt/mydisk', 'ssd', '100', 'us-west')
 
 if __name__ == '__main__':
     unittest.main()
