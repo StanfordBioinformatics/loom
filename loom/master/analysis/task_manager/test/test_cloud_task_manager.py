@@ -26,6 +26,7 @@ class TestCloudTaskManager(unittest.TestCase):
         settings.MASTER_TYPE = 'GOOGLE_CLOUD'
         settings.PROJECT_ID = 'gbsc-gcp-project-scgs-dev'
         settings.ANSIBLE_PEM_FILE = '~/key.pem'
+        settings.GCE_KEY_FILE = '~/.ssh/google_compute_engine'
         settings.WORKER_VM_IMAGE = 'container-vm'
         settings.WORKER_LOCATION = 'us-central1-a'
         settings.WORKER_DISK_TYPE = 'pd-ssd'
@@ -35,14 +36,11 @@ class TestCloudTaskManager(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_get_driver(self):
-        cloud_driver = cloud.CloudTaskManager._get_cloud_driver()
-        
     def test_invalid_cloud_type(self):
         settings.MASTER_TYPE = 'INVALID_CLOUD_TYPE'
 
         with self.assertRaises(cloud.CloudTaskManagerError):
-            cloud_driver = cloud.CloudTaskManager._get_cloud_driver()
+            cloud.CloudTaskManager._run('task')
 
     def test_get_gcloud_pricelist(self):
         pricelist = cloud.CloudTaskManager._get_gcloud_pricelist()
@@ -64,23 +62,20 @@ class TestCloudTaskManager(unittest.TestCase):
     #     self.assertIsInstance(node, libcloud.compute.base.Node)
     #     self.assertTrue(driver.destroy_node(node))
 
-    def test_run(self):
-        from collections import namedtuple
-        Resources = namedtuple('Resources', 'cores memory')
-        resources = Resources(cores=1, memory=1)
-        TaskRun = namedtuple('TaskRun', 'id tasks')
-        task_run = TaskRun(id = 'unittest-cloud-task-manager-create-deploy-run',
-                           tasks = [resources])
-        cloud.CloudTaskManager._run(task_run)
-
     def test_setup_ansible(self):
         cloud.CloudTaskManager._setup_ansible()
         import secrets
         self.assertIsInstance(secrets.GCE_PARAMS, tuple)
         self.assertIsInstance(secrets.GCE_KEYWORD_PARAMS, dict)
 
-    def test_setup_scratch_disk(self):
-        cloud.CloudTaskManager._setup_scratch_disk('mynode', 'mydisk', '/dev/disk/mydisk', '/mnt/mydisk', 'ssd', '100', 'us-west')
+    def test_run(self):
+        from collections import namedtuple
+        Resources = namedtuple('Resources', 'cores memory')
+        resources = Resources(cores=1, memory=1)
+        TaskRun = namedtuple('TaskRun', 'id tasks')
+        task_run = TaskRun(id = 'unittest-cloud-task-manager-run',
+                           tasks = [resources])
+        cloud.CloudTaskManager._run(task_run)
 
 if __name__ == '__main__':
     unittest.main()

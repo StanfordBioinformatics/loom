@@ -20,7 +20,7 @@ logger = logging.getLogger('LoomDaemon')
 
 class CloudTaskManager:
 
-    inventory_file=''
+    inventory_file = ''
 
     @classmethod
     def run(cls, task_run):
@@ -31,99 +31,83 @@ class CloudTaskManager:
     @classmethod
     def _run(cls, task_run):
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
+        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        # TODO: Support other cloud types. For now, assume GCE.
+        cls.inventory_file = os.path.join(os.path.dirname(__file__), 'ansible.contrib.inventory.gce.py')
         cls._setup_ansible()
         resources = CloudTaskManager._get_resource_requirements(task_run)
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=resources.cores, memory=resources.memory)
         task_id = task_run.id # TODO: point to actual TaskRun id after merging
         node_name = task_id
-        CloudTaskManager._start_node(instance_type, node_name, zone=settings.WORKER_LOCATION, image=settings.WORKER_VM_IMAGE)
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
-        CloudTaskManager._setup_scratch_disk(node_name, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=settings.WORKER_DISK_SIZE, zone=settings.WORKER_LOCATION)
-        # TODO: install pip, deploy Loom, and run a command
+        playbook_string = cls._create_playbook_string(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=settings.WORKER_DISK_SIZE, zone=settings.WORKER_LOCATION)
+        cls._run_playbook_string(playbook_string)
 
     @classmethod
-    def _start_node(cls, instance_type, node_name, zone, image):
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
-        else:
-            subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, 'localhost', '-m', 'gce', '-a', 'name='+node_name+' zone='+zone+' image='+image+' machine_type='+instance_type])
-
-    @classmethod
-    def _setup_scratch_disk(cls, node_name, disk_name, device_path, mount_point, disk_type, size_gb, zone):
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
-        else:
-            s = Template(
+    def _create_playbook_string(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone):
+        s = Template(
 """---
-- hosts: $node_name
+- name: Create new instance.
+  hosts: localhost
+  connection: local
+  gather_facts: no
   tasks:
+  - name: Boot up a new instance.
+    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type external_ip=none
+    register: gce_result
   - name: Create a disk and attach it to the instance.
-    gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone
+    gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone mode=READ_WRITE
+  - name: Wait for SSH to come up.
+    wait_for: host={{ item.private_ip }} port=22 delay=10 timeout=60
+    with_items: '{{ gce_result.instance_data }}'
+  - name: Add host to groupname.
+    add_host: hostname={{ item.private_ip }} groupname=new_instances
+    with_items: '{{ gce_result.instance_data }}'
+- name: Set up new instance(s).
+  hosts: new_instances
+  become: yes
+  become_method: sudo
+  tasks:
   - name: Create a filesystem on the disk.
-    filesystem: fstype=ext4 dev=$device_path opts="-F"
+    filesystem: fstype=ext4 dev=$device_path force=no
   - name: Create the mount point.
     file: path=$mount_point state=directory
   - name: Mount the disk at the mount point.
     mount: name=$mount_point fstype=ext4 src=$device_path state=mounted
 """)
-            playbook_string = s.substitute(locals())
-            with tempfile.NamedTemporaryFile(delete=False) as playbook:
-                print playbook.name
-                playbook.write(playbook_string)
-                playbook.flush()
-                subprocess.call(['ansible-playbook', '-i', cls.inventory_file, playbook.name])
+# TODO: install pip, deploy Loom, and run a command
+        return s.substitute(locals())
 
-                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, 'localhost', '-m', 'gce_pd', '-a', 'instance_name='+instance_name+' name='+name+' disk_type='+disk_type+' size_gb='+size_gb+' zone='+zone])
-                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, node_name, '-m', 'filesystem', '-a', 'fstype=ext4 dev='+device_path+' opts="-F"'])
-                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, node_name, '-m', 'file', '-a', 'path='+mount_point+' state=directory'])
-                #subprocess.call(['ansible', '-vvvv', '-i', cls.inventory_file, node_name, '-m', 'mount', '-a', 'name='+mount_point+' fstype=ext4 src='+device_path+' state=mounted'])
+    @classmethod
+    def _run_playbook_string(cls, playbook_string):
+        ansible_env = os.environ.copy()
+        ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
+        with tempfile.NamedTemporaryFile() as playbook:
+            playbook.write(playbook_string)
+            playbook.flush()
+            subprocess.call(['ansible-playbook', '-vvvv', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env)
 
     @classmethod
     def _setup_ansible(cls):
         """ Make sure dynamic inventory from ansible.contrib is executable, and write credentials to secrets.py. """
-        cls.inventory_file = os.path.join(os.path.dirname(__file__), 'ansible.contrib.inventory.gce.py')
         os.chmod(cls.inventory_file, 0755)
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
-        else:
-            gce_credentials = oauth2client.contrib.gce.AppAssertionCredentials([])
-            credentials = { 'service_account_email': gce_credentials.service_account_email,
-                            'pem_file': settings.ANSIBLE_PEM_FILE,
-                            'project_id': settings.PROJECT_ID }
-            # Write a secrets.py somewhere on the Python path for Ansible to import.
-            # Assumes loom is on the Python path.
-            import loom
-            loomparentdir = os.path.dirname(os.path.dirname(loom.__file__))
-            with open(os.path.join(loomparentdir, 'secrets.py'), 'w') as outfile:
-                outfile.write("GCE_PARAMS=('"+credentials['service_account_email']+"', '"+credentials['pem_file']+"')\n")
-                outfile.write("GCE_KEYWORD_PARAMS={'project': '"+credentials['project_id']+"'}")
-            try:
-                import secrets
-            except ImportError:
-                raise CloudTaskManagerError("Couldn't write secrets.py to the Python path")
-
-    @classmethod
-    def _start_node_using_libcloud(cls, instance_type, task_id):
-        driver = CloudTaskManager._get_cloud_driver()
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
-        else:
-            volume = driver.create_volume(size=settings.WORKER_DISK_SIZE, name=task_id+'-disk', location=settings.WORKER_LOCATION, ex_disk_type=settings.WORKER_DISK_TYPE)
-            # This will come in handy when instances need more cloud permissions:
-            #service_account_scopes = [{'email':'default', 'scopes': ['devstorage.read_write', 'compute', 'logging.write', 'monitoring.write', 'cloud-platform', 'cloud.useraccounts.readonly'] }]
-            #node = driver.create_node(name=task_id, size=instance_type, image=settings.WORKER_VM_IMAGE, location=settings.WORKER_LOCATION, external_ip='ephemeral', ex_boot_disk=volume, ex_service_accounts=service_account_scopes)
-
-            try:
-                node = driver.create_node(name=task_id, size=instance_type, image=settings.WORKER_VM_IMAGE, location=settings.WORKER_LOCATION)
-            except ResourceExistsError:
-                """ Don't stop executing if the node already exists, but log a warning. """
-                logger.warning('Node for task id %s already exists.' % task_id)
-                node = driver.ex_get_node(name=task_id)
-
-            driver.attach_volume(node, volume, device=settings.WORKER_DISK_DEVICE_NAME, ex_auto_delete=True)
-            node_started = driver.ex_start_node(node)
-            return node_started
+        gce_credentials = oauth2client.contrib.gce.AppAssertionCredentials([])
+        credentials = { 'service_account_email': gce_credentials.service_account_email,
+                        'pem_file': settings.ANSIBLE_PEM_FILE,
+                        'project_id': settings.PROJECT_ID }
+        # Write a secrets.py somewhere on the Python path for Ansible to import.
+        # Assumes loom is on the Python path.
+        import loom
+        loomparentdir = os.path.dirname(os.path.dirname(loom.__file__))
+        with open(os.path.join(loomparentdir, 'secrets.py'), 'w') as outfile:
+            outfile.write("GCE_PARAMS=('"+credentials['service_account_email']+"', '"+credentials['pem_file']+"')\n")
+            outfile.write("GCE_KEYWORD_PARAMS={'project': '"+credentials['project_id']+"'}")
+        try:
+            import secrets
+        except ImportError:
+            raise CloudTaskManagerError("Couldn't write secrets.py to the Python path")
     
     @classmethod
     def _get_resource_requirements_django(cls, task_run):
@@ -197,22 +181,6 @@ class CloudTaskManager:
         logger.debug('Using pricelist ' + content['version'] + ', updated ' + content['updated'])
         pricelist = content['gcp_price_list']
         return pricelist
-
-    @classmethod
-    def _get_cloud_driver(cls):
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD': #TODO: support other cloud providers
-            raise CloudTaskManagerError('Not a recognized cloud provider: ' + settings.MASTER_TYPE)
-        else:
-            provider = Provider.GCE 
-            args = ['','']  # master is running in GCE; get credentials from metadata service
-                            # (more info: http://libcloud.readthedocs.org/en/latest/compute/drivers/gce.html#using-gce-internal-authorization)
-            kwargs = {'project': settings.PROJECT_ID}
-        driver_factory = get_driver(provider)
-        driver = driver_factory(*args, **kwargs)
-        return driver
-
-
-
 
 
 
