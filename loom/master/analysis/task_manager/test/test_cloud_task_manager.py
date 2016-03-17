@@ -56,12 +56,6 @@ class TestCloudTaskManager(unittest.TestCase):
         with self.assertRaises(cloud.CloudTaskManagerError):
             cloud.CloudTaskManager._get_cheapest_instance_type(cores=sys.maxint, memory=sys.float_info.max)
 
-    # def test_libcloud_vm_bootup_shutdown(self):
-    #     driver = cloud.CloudTaskManager._get_cloud_driver()
-    #     node = driver.create_node(name='unittest-cloud-task-manager-vm-bootup-shutdown', size='f1-micro', image='coreos', location='us-central1-a')
-    #     self.assertIsInstance(node, libcloud.compute.base.Node)
-    #     self.assertTrue(driver.destroy_node(node))
-
     def test_setup_ansible(self):
         cloud.CloudTaskManager._setup_ansible()
         import secrets
