@@ -9,11 +9,7 @@ import tempfile
 from string import Template
 
 import oauth2client.contrib.gce
-
 from django.conf import settings
-from libcloud.compute.types import Provider
-from libcloud.compute.providers import get_driver
-from libcloud.compute.drivers.gce import ResourceExistsError
 
 logger = logging.getLogger('LoomDaemon')
 
@@ -33,20 +29,19 @@ class CloudTaskManager:
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
         if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
-        # TODO: Support other cloud types. For now, assume GCE.
-        cls.inventory_file = os.path.join(os.path.dirname(__file__), 'ansible.contrib.inventory.gce.py')
-        cls._setup_ansible()
+        # TODO: Support other cloud providers. For now, assume GCE.
+        cls._setup_ansible_gce()
         resources = CloudTaskManager._get_resource_requirements(task_run)
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=resources.cores, memory=resources.memory)
         task_id = task_run.id # TODO: point to actual TaskRun id after merging
         node_name = task_id
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
-        playbook_string = cls._create_playbook_string(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=settings.WORKER_DISK_SIZE, zone=settings.WORKER_LOCATION)
-        cls._run_playbook_string(playbook_string)
+        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=settings.WORKER_DISK_SIZE, zone=settings.WORKER_LOCATION)
+        cls._run_playbook_string(playbook)
 
     @classmethod
-    def _create_playbook_string(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone):
+    def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone):
         s = Template(
 """---
 - name: Create new instance.
@@ -55,7 +50,7 @@ class CloudTaskManager:
   gather_facts: no
   tasks:
   - name: Boot up a new instance.
-    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type external_ip=none
+    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type 
     register: gce_result
   - name: Create a disk and attach it to the instance.
     gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone mode=READ_WRITE
@@ -76,12 +71,15 @@ class CloudTaskManager:
     file: path=$mount_point state=directory
   - name: Mount the disk at the mount point.
     mount: name=$mount_point fstype=ext4 src=$device_path state=mounted
+  - name: Install pip and virtualenv using apt-get.
+    apt: update_cache=yes
 """)
 # TODO: install pip, deploy Loom, and run a command
         return s.substitute(locals())
 
     @classmethod
     def _run_playbook_string(cls, playbook_string):
+        """ Runs a string as a playbook by writing it to a tempfile and passing the filename to ansible-playbook. """
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         with tempfile.NamedTemporaryFile() as playbook:
@@ -90,8 +88,9 @@ class CloudTaskManager:
             subprocess.call(['ansible-playbook', '-vvvv', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env)
 
     @classmethod
-    def _setup_ansible(cls):
+    def _setup_ansible_gce(cls):
         """ Make sure dynamic inventory from ansible.contrib is executable, and write credentials to secrets.py. """
+        cls.inventory_file = os.path.join(os.path.dirname(__file__), 'ansible.contrib.inventory.gce.py')
         os.chmod(cls.inventory_file, 0755)
         gce_credentials = oauth2client.contrib.gce.AppAssertionCredentials([])
         credentials = { 'service_account_email': gce_credentials.service_account_email,
@@ -181,6 +180,28 @@ class CloudTaskManager:
         logger.debug('Using pricelist ' + content['version'] + ', updated ' + content['updated'])
         pricelist = content['gcp_price_list']
         return pricelist
+
+    @classmethod
+    def delete_node(cls, task_run):
+        """ Delete the node that ran a task. """
+        # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
+        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run))
+        process.start()
+        
+    @classmethod
+    def _delete_node(cls, task_run):
+        node_name=task_run.id
+        s = Template(
+"""---
+- hosts: localhost
+  connection: local
+  tasks:
+  - name: Delete a node.
+    gce: name=$node_name zone=$zone state=deleted
+""")
+# TODO: install pip, deploy Loom, and run a command
+        return s.substitute(locals())
+        
 
 
 

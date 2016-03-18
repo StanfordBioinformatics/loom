@@ -15,7 +15,8 @@ class TestCloudTaskManager(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        settings.configure()
+        if not settings.configured:
+            settings.configure()
 
     @classmethod
     def tearDownClass(cls):
@@ -56,12 +57,18 @@ class TestCloudTaskManager(unittest.TestCase):
         with self.assertRaises(cloud.CloudTaskManagerError):
             cloud.CloudTaskManager._get_cheapest_instance_type(cores=sys.maxint, memory=sys.float_info.max)
 
-    def test_setup_ansible(self):
-        cloud.CloudTaskManager._setup_ansible()
+    def test_setup_ansible_gce(self):
+        cloud.CloudTaskManager._setup_ansible_gce()
         import secrets
         self.assertIsInstance(secrets.GCE_PARAMS, tuple)
         self.assertIsInstance(secrets.GCE_KEYWORD_PARAMS, dict)
 
+    def test_create_task_run(self):
+        import loom.common.fixtures.general.task_runs
+        #from loom.master.analysis.models.task_runs import TaskRun
+        #TODO: use a real task run
+
+    @unittest.skip('Skipping VM bootup test')
     def test_run(self):
         from collections import namedtuple
         Resources = namedtuple('Resources', 'cores memory')

@@ -62,6 +62,15 @@ class SettingsManager:
             'PROJECT_ID': 'unused',
             'BUCKET_ID': 'unused',
 
+            # Info needed by task manager
+            'ANSIBLE_PEM_FILE': 'unused',
+            'GCE_KEY_FILE': 'unused',
+            'WORKER_VM_IMAGE': 'unused',        # image to use when task manager boots up a worker VM
+            'WORKER_LOCATION': 'unused',        # location to use when task manager boots up a worker VM
+            'WORKER_DISK_TYPE': 'unused',       # worker scratch disk type, pd-ssd or pd-standard
+            'WORKER_DISK_SIZE': 'unused',
+            'WORKER_DISK_MOUNT_POINT': 'unused',
+
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
             # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
@@ -111,6 +120,15 @@ class SettingsManager:
             'FILE_ROOT': 'loom_working_dir',
             'PROJECT_ID': 'gbsc-gcp-project-mvp-dev',
             'BUCKET_ID': 'gbsc-gcp-project-mvp-dev-group',
+
+            # Info needed by task manager
+            'ANSIBLE_PEM_FILE': 'unused',
+            'GCE_KEY_FILE': 'unused',
+            'WORKER_VM_IMAGE': 'unused',        # image to use when task manager boots up a worker VM
+            'WORKER_LOCATION': 'unused',        # location to use when task manager boots up a worker VM
+            'WORKER_DISK_TYPE': 'unused',       # worker scratch disk type, pd-ssd or pd-standard
+            'WORKER_DISK_SIZE': 'unused',
+            'WORKER_DISK_MOUNT_POINT': 'unused',
 
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
@@ -162,6 +180,15 @@ class SettingsManager:
             'PROJECT_ID': 'gbsc-gcp-project-scgs-dev',
             'BUCKET_ID': 'gbsc-gcp-project-scgs-dev-group',
 
+            # Info needed by task manager
+            'ANSIBLE_PEM_FILE': '~/key.pem',
+            'GCE_KEY_FILE': '~/.ssh/google_compute_engine',
+            'WORKER_VM_IMAGE': 'container-vm',  # image to use when task manager boots up a worker VM
+            'WORKER_LOCATION': 'us-central1-a', # location to use when task manager boots up a worker VM
+            'WORKER_DISK_TYPE': 'pd-ssd',       # worker scratch disk type, pd-ssd or pd-standard
+            'WORKER_DISK_SIZE': '100',
+            'WORKER_DISK_MOUNT_POINT': '/mnt/loom_working_dir',
+
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
             # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
@@ -172,7 +199,7 @@ class SettingsManager:
             'WORKER_TYPE': 'GOOGLE_CLOUD',
             'MASTER_URL_FOR_WORKER': 'unused',
             'FILE_SERVER_FOR_WORKER': 'unused',
-            'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'FILE_ROOT_FOR_WORKER': '/mnt/loom_working_dir',
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
@@ -206,10 +233,15 @@ class SettingsManager:
             'DAEMON_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_daemon.log'),
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
+
+            # Info needed by task manager
+            'ANSIBLE_PEM_FILE': '~/key.pem',
+            'GCE_KEY_FILE': '~/.ssh/google_compute_engine',
             'WORKER_VM_IMAGE': 'container-vm',  # image to use when task manager boots up a worker VM
             'WORKER_LOCATION': 'us-central1-a', # location to use when task manager boots up a worker VM
-            'WORKER_DISK_SIZE': '500',          # worker scratch disk size in GB
             'WORKER_DISK_TYPE': 'pd-ssd',       # worker scratch disk type, pd-ssd or pd-standard
+            'WORKER_DISK_SIZE': '100',
+            'WORKER_DISK_MOUNT_POINT': '/mnt/loom_working_dir',
 
             # Where to get inputs and place outputs.
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
@@ -226,7 +258,7 @@ class SettingsManager:
             'WORKER_TYPE': 'GOOGLE_CLOUD',
             'MASTER_URL_FOR_WORKER': 'unused',
             'FILE_SERVER_FOR_WORKER': 'unused',
-            'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'),
+            'FILE_ROOT_FOR_WORKER': '/mnt/loom_working_dir',
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
@@ -280,6 +312,13 @@ class SettingsManager:
             'FILE_ROOT': {"type": "string"},
             'BUCKET_ID': {"type": "string"},
             'PROJECT_ID': {"type": "string"},
+            'ANSIBLE_PEM_FILE': {"type": "string"},
+            'GCE_KEY_FILE': {"type": "string"},
+            'WORKER_VM_IMAGE': {"type": "string"},
+            'WORKER_LOCATION': {"type": "string"},
+            'WORKER_DISK_TYPE': {"enum": ["pd-ssd", "pd-standard", "unused"]},
+            'WORKER_DISK_SIZE': {"type": "string"},
+            'WORKER_DISK_MOUNT_POINT': {"type": "string"},
         },
         "additionalProperties": False
     }
@@ -552,6 +591,13 @@ class SettingsManager:
             'STEP_RUNS_DIR',
             'BUCKET_ID',
             'PROJECT_ID',
+            'ANSIBLE_PEM_FILE',
+            'GCE_KEY_FILE',
+            'WORKER_VM_IMAGE',
+            'WORKER_LOCATION',
+            'WORKER_DISK_TYPE',
+            'WORKER_DISK_SIZE',
+            'WORKER_DISK_MOUNT_POINT',
             ]
         for key in setting_keys_to_export:
             value = self.settings.get(key)
