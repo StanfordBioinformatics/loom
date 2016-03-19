@@ -1,4 +1,5 @@
 import errno 
+import imp
 import json
 import logging
 import multiprocessing
@@ -19,29 +20,31 @@ class CloudTaskManager:
     inventory_file = ''
 
     @classmethod
-    def run(cls, task_run):
+    def run(cls, task_run, task_run_location_id, requested_resources):
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run))
         process.start()
 
     @classmethod
-    def _run(cls, task_run):
+    def _run(cls, task_run, task_run_location_id, requested_resources):
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
         if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
         cls._setup_ansible_gce()
-        resources = CloudTaskManager._get_resource_requirements(task_run)
-        instance_type = CloudTaskManager._get_cheapest_instance_type(cores=resources.cores, memory=resources.memory)
-        task_id = task_run.id # TODO: point to actual TaskRun id after merging
-        node_name = task_id
+        instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
+        node_name = task_run_location_id
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
-        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=settings.WORKER_DISK_SIZE, zone=settings.WORKER_LOCATION)
+        if hasattr(requested_resources, 'disk_size'):
+            disk_size_gb = requested_resources.disk_size
+        else:   
+            disk_size_gb = settings.WORKER_DISK_SIZE
+        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run._id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER)
         cls._run_playbook_string(playbook)
 
     @classmethod
-    def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone):
+    def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone, run_id, run_location_id, master_url):
         s = Template(
 """---
 - name: Create new instance.
@@ -71,10 +74,23 @@ class CloudTaskManager:
     file: path=$mount_point state=directory
   - name: Mount the disk at the mount point.
     mount: name=$mount_point fstype=ext4 src=$device_path state=mounted
-  - name: Install pip and virtualenv using apt-get.
+  - name: Update apt-get's cache.
     apt: update_cache=yes
+  - name: Install pip using apt-get.
+    apt: name=python-pip state=present
+  - name: Install virtualenv using apt-get.
+    apt: name=python-virtualenv state=present
+  - name: Install python-dev using apt-get, which is needed to build certain Python dependencies.
+    apt: name=python-dev state=present
+  - name: Install build-essential using apt-get, which is needed to build certain Python dependencies.
+    apt: name=build-essential state=present
+  - name: Install libffi-dev using apt-get, which is needed to build certain Python dependencies.
+    apt: name=libffi-dev state=present
+  - name: Install Loom using pip in a virtualenv.
+    pip: name=loomengine virtualenv=/opt/loom state=present
+  - name: Run the Loom task runner.
+    shell: source /opt/loom/bin/activate; loom-taskrunner --run_id $run_id --run_location_id $run_location_id --master_url $master_url
 """)
-# TODO: install pip, deploy Loom, and run a command
         return s.substitute(locals())
 
     @classmethod
@@ -85,7 +101,7 @@ class CloudTaskManager:
         with tempfile.NamedTemporaryFile() as playbook:
             playbook.write(playbook_string)
             playbook.flush()
-            subprocess.call(['ansible-playbook', '-vvvv', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env)
+            subprocess.call(['ansible-playbook', '-vvv', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env)
 
     @classmethod
     def _setup_ansible_gce(cls):
@@ -98,8 +114,8 @@ class CloudTaskManager:
                         'project_id': settings.PROJECT_ID }
         # Write a secrets.py somewhere on the Python path for Ansible to import.
         # Assumes loom is on the Python path.
-        import loom
-        loomparentdir = os.path.dirname(os.path.dirname(loom.__file__))
+        loom_location = imp.find_module('loom')[1]
+        loomparentdir = os.path.dirname(os.path.dirname(loom_location))
         with open(os.path.join(loomparentdir, 'secrets.py'), 'w') as outfile:
             outfile.write("GCE_PARAMS=('"+credentials['service_account_email']+"', '"+credentials['pem_file']+"')\n")
             outfile.write("GCE_KEYWORD_PARAMS={'project': '"+credentials['project_id']+"'}")
@@ -107,33 +123,6 @@ class CloudTaskManager:
             import secrets
         except ImportError:
             raise CloudTaskManagerError("Couldn't write secrets.py to the Python path")
-    
-    @classmethod
-    def _get_resource_requirements_django(cls, task_run):
-        # TODO: use this again when we have a TaskRun Django model
-        # Retrieve resource requirements
-        # If step_run has more than one step, requirements
-        # should be identical in all steps.
-        resources = None
-        last_resources = None
-        for task in task_run.tasks.all():
-            resources = task.resources
-            resources_json = resources.to_json()
-            if last_resources is None:
-                pass
-            else:
-                assert resources_json == last_resources, \
-                    "Steps with different resource requirements were attached"\
-                    " to the same StepRun. This indicates a bug in the code and"\
-                    " should be avoided when attaching a Step to an existing"\
-                    " StepRun."
-            last_resources = resources_json
-        return resources
-
-    @classmethod
-    def _get_resource_requirements(cls, task_run):
-        """ Just return the resources for the first task for now."""
-        return task_run.tasks[0]
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
@@ -184,13 +173,13 @@ class CloudTaskManager:
     @classmethod
     def delete_node(cls, task_run):
         """ Delete the node that ran a task. """
-        # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
+        # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
         process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run))
         process.start()
         
     @classmethod
-    def _delete_node(cls, task_run):
-        node_name=task_run.id
+    def _delete_node(cls, node_name):
+        zone = settings.WORKER_LOCATION
         s = Template(
 """---
 - hosts: localhost
@@ -199,67 +188,8 @@ class CloudTaskManager:
   - name: Delete a node.
     gce: name=$node_name zone=$zone state=deleted
 """)
-# TODO: install pip, deploy Loom, and run a command
-        return s.substitute(locals())
-        
-
-
-
-
-    @classmethod
-    def old_deploy(cls):
-    	CloudTaskManager._create_file_root_on_worker()
-
-        # Construct command to run on worker node
-        cmd = '%s %s --run_id %s --master_url %s' % (
-            PYTHON_EXECUTABLE,
-            STEP_RUNNER_EXECUTABLE,
-            step_run.id,
-            settings.MASTER_URL_FOR_WORKER,
-            )
-        if step_run.steps.count() == 0:
-            raise Exception("No Step found for StepRun %s" % step_run.id)
-
-        # Use Slurm to call the step runner on a worker node
-        cmd = "sbatch -D %s -n %s --mem=%s --wrap='%s'" % (
-	    settings.FILE_ROOT_FOR_WORKER,
-            resources.cores,
-            resources.memory,
-            cmd
-            )
-        logger.debug(cmd)
-        proc = subprocess.Popen(cmd, shell=True)
-        step_run.update({'is_running': True})
-        #TODO save proc.pid for follow-up
-        # For now, return process so caller can follow up
-        # However, this is just the job submit process (sbatch), not the step runner!
-	return proc
-
-    @classmethod
-    def _create_file_root_on_worker(cls):
-        try:
-            os.makedirs(settings.FILE_ROOT_FOR_WORKER)
-        except OSError as e:
-            if e.errno == errno.EEXIST and os.path.isdir(settings.FILE_ROOT_FOR_WORKER):
-                pass
-            else:
-                raise
-
-    @classmethod
-    def _run_command_on_worker(cls, cmd):
-        # Location of Python in virtualenv on worker node
-        PYTHON_EXECUTABLE = os.path.abspath(
-            os.path.join(
-                settings.BASE_DIR,
-                '../../../bin/python',
-                ))
-
-        # Location of step runner on worker node
-        STEP_RUNNER_EXECUTABLE = os.path.abspath(
-            os.path.join(
-                settings.BASE_DIR,
-                '../../worker/step_runner.py',
-                ))
+        playbook = s.substitute(locals())
+        cls._run_playbook_string(playbook)
 
 
 class CloudTaskManagerError(Exception):
