@@ -78,18 +78,20 @@ class CloudTaskManager:
     apt: update_cache=yes
   - name: Install pip using apt-get.
     apt: name=python-pip state=present
-  - name: Install virtualenv using apt-get.
-    apt: name=python-virtualenv state=present
   - name: Install python-dev using apt-get, which is needed to build certain Python dependencies.
     apt: name=python-dev state=present
   - name: Install build-essential using apt-get, which is needed to build certain Python dependencies.
     apt: name=build-essential state=present
   - name: Install libffi-dev using apt-get, which is needed to build certain Python dependencies.
     apt: name=libffi-dev state=present
+  - name: Install virtualenv using pip.
+    pip: name=virtualenv state=present
   - name: Install Loom using pip in a virtualenv.
-    pip: name=loomengine virtualenv=/opt/loom state=present
+    pip: name=loomengine virtualenv=/opt/loom state=latest
   - name: Run the Loom task runner.
     shell: source /opt/loom/bin/activate; loom-taskrunner --run_id $run_id --run_location_id $run_location_id --master_url $master_url
+    args:
+      executable: /bin/bash
 """)
         return s.substitute(locals())
 
@@ -115,7 +117,7 @@ class CloudTaskManager:
         # Write a secrets.py somewhere on the Python path for Ansible to import.
         # Assumes loom is on the Python path.
         loom_location = imp.find_module('loom')[1]
-        loomparentdir = os.path.dirname(os.path.dirname(loom_location))
+        loomparentdir = os.path.dirname(loom_location)
         with open(os.path.join(loomparentdir, 'secrets.py'), 'w') as outfile:
             outfile.write("GCE_PARAMS=('"+credentials['service_account_email']+"', '"+credentials['pem_file']+"')\n")
             outfile.write("GCE_KEYWORD_PARAMS={'project': '"+credentials['project_id']+"'}")
