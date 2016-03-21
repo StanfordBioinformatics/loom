@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import socket
 import sys
 import unittest
 from collections import namedtuple
@@ -30,10 +31,11 @@ class TestCloudTaskManager(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        CloudTaskManager._delete_node('unittest-cloud-task-manager-run')
         
     def setUp(self):
-        settings.MASTER_URL_FOR_WORKER = 'http://isaac-loom-master'
+        myip = socket.gethostbyname(socket.getfqdn())
+        settings.MASTER_URL_FOR_WORKER = 'http://' + myip
         settings.MASTER_TYPE = 'GOOGLE_CLOUD'
         settings.PROJECT_ID = 'gbsc-gcp-project-scgs-dev'
         settings.ANSIBLE_PEM_FILE = '~/key.pem'

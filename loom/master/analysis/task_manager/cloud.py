@@ -103,19 +103,22 @@ class CloudTaskManager:
         with tempfile.NamedTemporaryFile() as playbook:
             playbook.write(playbook_string)
             playbook.flush()
-            subprocess.call(['ansible-playbook', '-vvv', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env)
+            subprocess.call(['ansible-playbook', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env)
 
     @classmethod
     def _setup_ansible_gce(cls):
         """ Make sure dynamic inventory from ansible.contrib is executable, and write credentials to secrets.py. """
-        cls.inventory_file = os.path.join(os.path.dirname(__file__), 'ansible.contrib.inventory.gce.py')
+        # Assumes loom is on the Python path.
+        loom_location = imp.find_module('loom')[1]
+        loomparentdir = os.path.dirname(loom_location)
+        cls.inventory_file = os.path.join(loomparentdir, 'loom', 'master', 'analysis', 'task_manager', 'ansible.contrib.inventory.gce.py')
         os.chmod(cls.inventory_file, 0755)
         gce_credentials = oauth2client.contrib.gce.AppAssertionCredentials([])
         credentials = { 'service_account_email': gce_credentials.service_account_email,
                         'pem_file': settings.ANSIBLE_PEM_FILE,
                         'project_id': settings.PROJECT_ID }
+
         # Write a secrets.py somewhere on the Python path for Ansible to import.
-        # Assumes loom is on the Python path.
         loom_location = imp.find_module('loom')[1]
         loomparentdir = os.path.dirname(loom_location)
         with open(os.path.join(loomparentdir, 'secrets.py'), 'w') as outfile:
@@ -181,6 +184,10 @@ class CloudTaskManager:
         
     @classmethod
     def _delete_node(cls, node_name):
+        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        # TODO: Support other cloud providers. For now, assume GCE.
+        cls._setup_ansible_gce()
         zone = settings.WORKER_LOCATION
         s = Template(
 """---
