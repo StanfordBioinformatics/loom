@@ -45,7 +45,8 @@ class TaskRun(AnalysisAppInstanceModel):
     def run(self):
         self._add_task_run_location()
         task_manager = TaskManagerFactory.get_task_manager()
-        task_manager.run(self, self.active_task_run_location._id)
+        requested_resources = self.stepRun.step.resources
+        task_manager.run(self, self.active_task_run_location._id, requested_resources)
         # TODO write info about run location to TaskRunLocation
 
     @classmethod

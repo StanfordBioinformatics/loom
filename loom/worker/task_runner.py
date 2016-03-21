@@ -187,5 +187,9 @@ class TaskRunner(object):
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
-if __name__=='__main__':
+# pip entrypoint requires a function with no arguments 
+def main():
     TaskRunner().run()
+
+if __name__=='__main__':
+    main()

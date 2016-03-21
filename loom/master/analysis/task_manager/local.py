@@ -20,7 +20,7 @@ TASK_RUNNER_EXECUTABLE = os.path.abspath(
 class LocalTaskManager:
 
     @classmethod
-    def run(cls, task_run, run_location_id):
+    def run(cls, task_run, run_location_id, resources):
         cmd = [sys.executable,
                TASK_RUNNER_EXECUTABLE,
                '--run_id',
