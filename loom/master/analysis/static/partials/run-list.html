@@ -1,29 +1,21 @@
-<div ng-show="$state.is('workflows')">
+<div ng-show="$state.is('runs')">
     <div class="table-responsive" >
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>ID</th>
-                    <th>Status</th>
-                    <th>Status Message</th>
-                    <th>Started</th>
-                    <th>Updated</th>
+                  <th>Run</th>
+                  <th>Status</th>
+                  <th>Started</th>
+                  <th>Updated</th>
                 </tr>
             </thead>
             <tbody>
                 <tr ng-repeat="workflow_run in workflow_runs">
-                    <td><a ui-sref="workflows.workflow({workflowId:workflow_run._id})">
-                        {{workflow_run.workflow.workflow_name}}
-                    </a></td>
-                    <td><a ui-sref="workflows.workflow({workflowId:workflow_run._id})">
-                        {{workflow_run._id | limitTo:8}}
+                    <td><a ui-sref="runs.run({workflowId:workflow_run._id})">
+                        {{workflow_run.workflow.workflow_name}}@{{workflow_run._id | limitTo:8}}
                     </a></td>
                     <td>
                         {{workflow_run.status}}
-                    </td>
-                    <td>
-                        {{workflow_run.status_message}}
                     </td>
                     <td>
                         {{workflow_run.datetime_created | date:'medium'}}

@@ -1,4 +1,4 @@
-<div ng-show="$state.is('workflows.workflow')">
+<div ng-show="$state.is('runs.run')">
     <div class="table-responsive" >
         <table class="table table-striped">
             <thead>
@@ -13,10 +13,10 @@
             </thead>
             <tbody>
                 <tr ng-repeat="step_run in workflow_run.step_runs">
-                    <td><a ui-sref="workflows.workflow.step({stepId:step_run._id})">
+                    <td><a ui-sref="runs.run.step({stepId:step_run._id})">
                         {{step_run.step.step_name}}
                     </a></td>
-                    <td><a ui-sref="workflows.workflow.step({stepId:step_run._id})">
+                    <td><a ui-sref="runs.run.step({stepId:step_run._id})">
                         {{step_run.step._id | limitTo:8}}
                     </a></td>
                     <td>

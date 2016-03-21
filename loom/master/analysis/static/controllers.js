@@ -11,21 +11,18 @@ loomControllers.controller('BreadcrumbCtrl', ['$scope', '$loom', '$state',
         $scope.$loom = $loom;
     }]);
 
-loomControllers.controller('WorkflowListCtrl', ['$scope', '$http', '$loom', '$state',
+loomControllers.controller('RunListCtrl', ['$scope', '$http', '$loom', '$state',
     function ($scope, $http, $loom, $state) {
-        // Query the Loom server API for workflows. Assumes same server.
-        // May need to watch out for same-origin policy / cross-site scripting restrictions if
-        // this page is hosted in a different location than the Loom server.
-        $http.get('http://' + window.location.host + '/api/workflow_runs').success(function(response) {
+        $http.get('/api/workflow_runs').success(function(response) {
             $loom.workflow_runs = response['workflow_runs'];
             $scope.workflow_runs = $loom.workflow_runs;
         });
         $scope.$state = $state;
     }]);
 
-loomControllers.controller('WorkflowDetailCtrl', ['$scope', '$http', '$loom', '$stateParams', 
+loomControllers.controller('RunDetailCtrl', ['$scope', '$http', '$loom', '$stateParams', 
     function($scope, $http, $loom, $stateParams) {
-        $http.get('http://' + window.location.host + '/api/workflow_runs/' + $stateParams.workflowId).success(function(response) {
+        $http.get('/api/workflow_runs/' + $stateParams.workflowId).success(function(response) {
             $loom.workflow_run = response;
             $scope.workflow_run = $loom.workflow_run;
         });
@@ -33,7 +30,7 @@ loomControllers.controller('WorkflowDetailCtrl', ['$scope', '$http', '$loom', '$
 
 loomControllers.controller('StepDetailCtrl', ['$scope', '$http', '$loom', '$stateParams',
     function($scope, $http, $loom, $stateParams) {
-        $http.get('http://' + window.location.host + '/api/step_runs/' + $stateParams.stepId).success(function(response) {
+        $http.get('/api/step_runs/' + $stateParams.stepId).success(function(response) {
             $loom.step_run = response;
             $scope.step_run = $loom.step_run;
         });
@@ -41,19 +38,19 @@ loomControllers.controller('StepDetailCtrl', ['$scope', '$http', '$loom', '$stat
 
 loomControllers.controller('FilesListCtrl', ['$scope', '$http', '$loom', '$state',
     function($scope, $http, $loom, $state) {
-        $http.get('http://' + window.location.host + '/api/data_source_records').success(function(response) {
-            files = [];
-            records = response['data_source_records'];
-            records.forEach(function(record) {
-                record.data_objects.forEach(function(data_object) {
-                    data_object.datetime_updated = record.datetime_updated;
-                    data_object.datetime_created = record.datetime_created;
-                    data_object.source_description = record.source_description;
-                    files.push(data_object); 
-                    console.log(data_object);
-                });
-            });
-            $loom.files = files;
+        $http.get('/api/file_data_objects').success(function(response) {
+	    files = response['file_data_objects'];
+	    $loom.files = files;
             $scope.files = $loom.files;
+
+	    $scope.files.forEach(function(file) {
+		$http.get('/api/file_data_objects/' + file._id + '/data_source_records/').then(function(response){
+		    file['data_source_records'] = response['data']['data_source_records'];
+		});
+		$http.get('/api/file_data_objects/' + file._id + '/file_storage_locations/').then(function(response){
+		    file['file_storage_locations'] = response['data']['file_storage_locations'];
+		    console.log($scope);
+		});
+	    });
         });
     }]);

@@ -3,10 +3,9 @@
         <thead>
             <tr>
                 <th>Filename</th>
-                <th>Description</th>
-                <th>Hash</th>
-                <th>Created</th>
-                <th>Updated</th>
+                <th>Notes</th>
+                <th>md5</th>
+		<th>Locations</th>
             </tr>
         </thead>
         <tbody>
@@ -15,17 +14,25 @@
                     {{file.file_name}}
                 </td>
                 <td>
-                    {{file.source_description}}
+		  <p ng-repeat="record in file.data_source_records">{{record.source_description}}</p>
                 </td>
                 <td>
                     {{file.file_contents.hash_value}}
                 </td>
-                <td>
+		<td>
+		  <p ng-repeat="loc in file.file_storage_locations">
+		    <span ng-if="loc.host_url == 'localhost'">file://{{loc.file_path}}
+		    </span>
+		    <a href="https://storage.cloud.google.com/{{loc.bucket_id}}/{{loc.blob_path}}" ng-if="loc.blob_path">https://storage.cloud.google.com/{{loc.bucket_id}}/{{loc.blob_path}}</a>
+		  </p>
+		</td>
+<!--                <td>
                     {{file.datetime_created | date:'medium'}}
                 </td>
                 <td>
                     {{file.datetime_updated | date:'medium'}}
                 </td>
+		-->
             </tr>
         </tbody>
     </table>
