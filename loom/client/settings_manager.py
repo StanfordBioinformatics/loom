@@ -256,7 +256,7 @@ class SettingsManager:
             # Workers in Google Cloud
             # Valid choices: LOCAL, GOOGLE_CLOUD
             'WORKER_TYPE': 'GOOGLE_CLOUD',
-            'MASTER_URL_FOR_WORKER': 'unused',
+            'MASTER_URL_FOR_WORKER': 'http://isaac-loom-master',
             'FILE_SERVER_FOR_WORKER': 'unused',
             'FILE_ROOT_FOR_WORKER': '/mnt/loom_working_dir',
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),

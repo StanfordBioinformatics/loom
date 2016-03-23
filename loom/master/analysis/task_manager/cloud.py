@@ -6,14 +6,14 @@ import multiprocessing
 import os
 import requests
 import subprocess
+import sys
 import tempfile
 from string import Template
 
 import oauth2client.contrib.gce
 from django.conf import settings
 
-logger = logging.getLogger('LoomDaemon')
-
+import loom.common.logger
 
 class CloudTaskManager:
 
@@ -22,14 +22,19 @@ class CloudTaskManager:
     @classmethod
     def run(cls, task_run, task_run_location_id, requested_resources):
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run))
+        logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_task_manager.log')
+        logger.debug("Launching CloudTaskManager as a separate process.")
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run._id, task_run_location_id, requested_resources, logger))
         process.start()
 
     @classmethod
-    def _run(cls, task_run, task_run_location_id, requested_resources):
+    def _run(cls, task_run_id, task_run_location_id, requested_resources, logger):
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        logfile = open('/tmp/loom_task_manager2.log', 'a', 0)
+        sys.stdout = logfile
+        sys.stderr = logfile
+        if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
         cls._setup_ansible_gce()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
@@ -40,8 +45,10 @@ class CloudTaskManager:
             disk_size_gb = requested_resources.disk_size
         else:   
             disk_size_gb = settings.WORKER_DISK_SIZE
-        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run._id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER)
+        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run_id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER)
+        logger.debug('Starting worker VM using playbook: %s' % playbook)
         cls._run_playbook_string(playbook)
+        logger.debug("CloudTaskManager process done.")
 
     @classmethod
     def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone, run_id, run_location_id, master_url):
@@ -133,8 +140,8 @@ class CloudTaskManager:
     def _get_cheapest_instance_type(cls, cores, memory):
         """ Determine the cheapest instance type given a minimum number of cores and minimum amount of RAM (in GB). """
 
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD': #TODO: support other cloud providers
-            raise CloudTaskManagerError('Not a recognized cloud provider: ' + settings.MASTER_TYPE)
+        if settings.WORKER_TYPE != 'GOOGLE_CLOUD': #TODO: support other cloud providers
+            raise CloudTaskManagerError('Not a recognized cloud provider: ' + settings.WORKER_TYPE)
         else:
             pricelist = CloudTaskManager._get_gcloud_pricelist()
 
@@ -171,21 +178,28 @@ class CloudTaskManager:
             with open('pricelist.json') as infile:
                 content = json.load(infile)
 
-        logger.debug('Using pricelist ' + content['version'] + ', updated ' + content['updated'])
+        #logger.debug('Using pricelist ' + content['version'] + ', updated ' + content['updated'])
         pricelist = content['gcp_price_list']
         return pricelist
 
     @classmethod
-    def delete_node(cls, task_run):
+    def delete_node_by_name(cls, node_name):
         """ Delete the node that ran a task. """
         # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run))
+        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(node_name))
+        process.start()
+
+    @classmethod
+    def delete_node_by_task_run(cls, task_run):
+        """ Delete the node that ran a task. """
+        # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
+        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run._id))
         process.start()
         
     @classmethod
     def _delete_node(cls, node_name):
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
         cls._setup_ansible_gce()
         zone = settings.WORKER_LOCATION

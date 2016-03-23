@@ -31,7 +31,7 @@ class TestCloudTaskManager(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        CloudTaskManager._delete_node('unittest-cloud-task-manager-run')
+        #CloudTaskManager._delete_node('unittest-cloud-task-manager-run')
         
     def setUp(self):
         myip = socket.gethostbyname(socket.getfqdn())
