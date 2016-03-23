@@ -1,12 +1,37 @@
 <div ng-show="$state.is('runs.run')">
+  <h4>Inputs</h4>
+  <div class="table-responsive" >
+    <table class="table table-striped">
+      <thead>
+	<th>To channel</th>
+      </thead>
+      <tbody>
+	<tr ng-repeat="input in workflow_run.workflow_run_inputs">
+	  <td>{{input.channel.channel_name}}</td>
+	</tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>Outputs</h4>
+  <div class="table-responsive" >
+    <table class="table table-striped">
+      <thead>
+	<th>From channel</th>
+      </thead>
+      <tbody>
+	<tr ng-repeat="output in workflow_run.workflow_run_outputs">
+	  <td>{{output.subchannel.channel_name}}</td>
+	</tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>Steps</h4>
     <div class="table-responsive" >
         <table class="table table-striped">
             <thead>
                 <tr>
                     <th>Name</th>
-                    <th>ID</th>
                     <th>Status</th>
-                    <th>Status Message</th>
                     <th>Started</th>
                     <th>Updated</th>
                 </tr>
@@ -16,14 +41,8 @@
                     <td><a ui-sref="runs.run.step({stepId:step_run._id})">
                         {{step_run.step.step_name}}
                     </a></td>
-                    <td><a ui-sref="runs.run.step({stepId:step_run._id})">
-                        {{step_run.step._id | limitTo:8}}
-                    </a></td>
                     <td>
                         {{step_run.status}}
-                    </td>
-                    <td>
-                        {{step_run.status_message}}
                     </td>
                     <td>
                         {{step_run.datetime_created | date:'medium'}}

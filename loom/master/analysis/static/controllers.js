@@ -12,7 +12,8 @@ loomControllers.controller('BreadcrumbCtrl', ['$scope', '$loom', '$state',
     }]);
 
 loomControllers.controller('RunListCtrl', ['$scope', '$http', '$loom', '$state',
-    function ($scope, $http, $loom, $state) {
+					   function ($scope, $http, $loom, $state) {
+					       console.log('runlist');
         $http.get('/api/workflow_runs').success(function(response) {
             $loom.workflow_runs = response['workflow_runs'];
             $scope.workflow_runs = $loom.workflow_runs;
@@ -20,15 +21,32 @@ loomControllers.controller('RunListCtrl', ['$scope', '$http', '$loom', '$state',
         $scope.$state = $state;
     }]);
 
-loomControllers.controller('RunDetailCtrl', ['$scope', '$http', '$loom', '$stateParams', 
+loomControllers.controller('RunDetailCtrl', ['$scope', '$http', '$loom', '$stateParams',
     function($scope, $http, $loom, $stateParams) {
-        $http.get('/api/workflow_runs/' + $stateParams.workflowId).success(function(response) {
+        $http.get('/api/workflow_runs/' + $stateParams.workflowRunId).success(function(response) {
             $loom.workflow_run = response;
             $scope.workflow_run = $loom.workflow_run;
         });
     }]);
 
-loomControllers.controller('StepDetailCtrl', ['$scope', '$http', '$loom', '$stateParams',
+loomControllers.controller('WorkflowListCtrl', ['$scope', '$http', '$loom', '$state',
+    function($scope, $http, $loom, $state){
+	$http.get('/api/workflows').success(function(response) {
+	    $loom.workflows = response['workflows'];
+	    $scope.workflows = $loom.workflows;
+	});
+	$scope.$state = $state;
+    }]);
+
+loomControllers.controller('WorkflowDetailCtrl', ['$scope', '$http', '$loom', '$stateParams', 
+    function($scope, $http, $loom, $stateParams) {
+        $http.get('/api/workflows/' + $stateParams.workflowId).success(function(response) {
+            $loom.workflow = response;
+            $scope.workflow = $loom.workflow;
+        });
+    }]);
+
+loomControllers.controller('RunStepDetailCtrl', ['$scope', '$http', '$loom', '$stateParams',
     function($scope, $http, $loom, $stateParams) {
         $http.get('/api/step_runs/' + $stateParams.stepId).success(function(response) {
             $loom.step_run = response;
@@ -36,11 +54,10 @@ loomControllers.controller('StepDetailCtrl', ['$scope', '$http', '$loom', '$stat
         });
     }]);
 
-loomControllers.controller('FilesListCtrl', ['$scope', '$http', '$loom', '$state',
+loomControllers.controller('FileListCtrl', ['$scope', '$http', '$loom', '$state',
     function($scope, $http, $loom, $state) {
         $http.get('/api/file_data_objects').success(function(response) {
-	    files = response['file_data_objects'];
-	    $loom.files = files;
+	    $loom.files = response['file_data_objects'];
             $scope.files = $loom.files;
 
 	    $scope.files.forEach(function(file) {
@@ -49,8 +66,8 @@ loomControllers.controller('FilesListCtrl', ['$scope', '$http', '$loom', '$state
 		});
 		$http.get('/api/file_data_objects/' + file._id + '/file_storage_locations/').then(function(response){
 		    file['file_storage_locations'] = response['data']['file_storage_locations'];
-		    console.log($scope);
 		});
 	    });
         });
+	$scope.$state = $state;
     }]);

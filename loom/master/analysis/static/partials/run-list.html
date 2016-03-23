@@ -11,7 +11,7 @@
             </thead>
             <tbody>
                 <tr ng-repeat="workflow_run in workflow_runs">
-                    <td><a ui-sref="runs.run({workflowId:workflow_run._id})">
+                    <td><a ui-sref="runs.run({workflowRunId:workflow_run._id})">
                         {{workflow_run.workflow.workflow_name}}@{{workflow_run._id | limitTo:8}}
                     </a></td>
                     <td>

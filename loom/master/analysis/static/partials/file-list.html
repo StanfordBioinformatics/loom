@@ -1,4 +1,5 @@
-<div class="table-responsive" >
+<div ng-show="$state.is('files')">
+  <div class="table-responsive" >
     <table class="table table-striped">
         <thead>
             <tr>
@@ -10,8 +11,9 @@
         </thead>
         <tbody>
             <tr ng-repeat="file in files">
-                <td>
-                    {{file.file_name}}
+              <td>
+		<a ui-sref="files.file({fileId:file._id})">
+                    {{file.file_name}}@{{file._id | limitTo:8}}
                 </td>
                 <td>
 		  <p ng-repeat="record in file.data_source_records">{{record.source_description}}</p>
@@ -36,4 +38,5 @@
             </tr>
         </tbody>
     </table>
+</div>
 </div>
