@@ -212,9 +212,7 @@ class SettingsManager:
             # Needed by filehandler
             'IMPORT_DIR': 'imported_files',
             'STEP_RUNS_DIR': 'step_runs',
-    
-            # Not currently used for local mode
-            'REMOTE_USERNAME': 'unused'
+            'REMOTE_USERNAME': 'unused'     # Only used by ElasticlusterFileHandler to locate SSH keys on remote host
         },
 
         # Deploying client and master on same VM in Google Cloud; workers are other VMs in Google Cloud; fileserver is Google Storage
@@ -236,13 +234,13 @@ class SettingsManager:
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
-            # Info needed by task manager
+            # Info needed by CloudTaskManager
             'ANSIBLE_PEM_FILE': '~/key.pem',
             'GCE_KEY_FILE': '~/.ssh/google_compute_engine',
             'WORKER_VM_IMAGE': 'container-vm',  # image to use when task manager boots up a worker VM
             'WORKER_LOCATION': 'us-central1-a', # location to use when task manager boots up a worker VM
             'WORKER_DISK_TYPE': 'pd-ssd',       # worker scratch disk type, pd-ssd or pd-standard
-            'WORKER_DISK_SIZE': '100',
+            'WORKER_DISK_SIZE': '10',           # worker scratch disk size in GB
             'WORKER_DISK_MOUNT_POINT': '/mnt/loom_working_dir',
 
             # Where to get inputs and place outputs.
@@ -258,7 +256,7 @@ class SettingsManager:
             # Workers in Google Cloud
             # Valid choices: LOCAL, GOOGLE_CLOUD
             'WORKER_TYPE': 'GOOGLE_CLOUD',
-            'MASTER_URL_FOR_WORKER': 'http://isaac-loom-master',
+            'MASTER_URL_FOR_WORKER': 'http://<insert-master-hostname-or-ip-here>',
             'FILE_SERVER_FOR_WORKER': 'unused',
             'FILE_ROOT_FOR_WORKER': '/mnt/loom_working_dir',
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
@@ -271,9 +269,7 @@ class SettingsManager:
             # Needed by filehandler
             'IMPORT_DIR': 'imported_files',
             'STEP_RUNS_DIR': 'step_runs',
-    
-            # Not currently used for local mode
-            'REMOTE_USERNAME': 'unused',
+            'REMOTE_USERNAME': 'unused',     # Only used by ElasticlusterFileHandler to locate SSH keys on remote host
 
             # Shared by any cloud components
             'PROJECT_ID': 'gbsc-gcp-project-scgs-dev',
