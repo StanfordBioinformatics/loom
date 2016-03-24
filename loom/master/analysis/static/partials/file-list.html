@@ -11,11 +11,12 @@
             <tr ng-repeat="file in files">
               <td>
 		<a ui-sref="files.file({fileId:file._id})">
-                    {{file.file_name}}@{{file._id | limitTo:8}}
-                </td>
-                <td>
-                    {{file.file_contents.hash_value}}
-                </td>
+                  {{file.file_name}}@{{file._id | limitTo:8}}
+		</a>
+              </td>
+              <td>
+                {{file.file_contents.hash_value}}
+              </td>
             </tr>
         </tbody>
     </table>

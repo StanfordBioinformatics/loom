@@ -3,11 +3,17 @@
   <div class="table-responsive" >
     <table class="table table-striped">
       <thead>
-	<th>To channel</th>
+	<th>Name</th>
+	<th>File</th>
       </thead>
       <tbody>
 	<tr ng-repeat="input in workflow_run.workflow_run_inputs">
 	  <td>{{input.channel.channel_name}}</td>
+	  <td>
+	    <a ui-sref="files.file({fileId:input.data_object._id})">
+	      {{input.data_object.file_name}}@{{input.data_object._id | limitTo:8}}
+	    </a>
+	  </td>
 	</tr>
       </tbody>
     </table>
@@ -16,11 +22,19 @@
   <div class="table-responsive" >
     <table class="table table-striped">
       <thead>
-	<th>From channel</th>
+	<th>Name</th>
+	<th>File</th>
       </thead>
       <tbody>
 	<tr ng-repeat="output in workflow_run.workflow_run_outputs">
 	  <td>{{output.subchannel.channel_name}}</td>
+	  <td>
+	    <p ng-repeat="file in output.subchannel.data_objects">
+	      <a ui-sref="files.file({fileId:file._id})">
+		{{file.file_name}}@{{file._id | limitTo:8}}
+	      </a>
+	    </p>
+	  </td>	  
 	</tr>
       </tbody>
     </table>
