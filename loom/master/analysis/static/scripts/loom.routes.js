@@ -1,50 +1,53 @@
-var loomApp = angular.module('loomApp', [
-    'ui.router',
-    'loomControllers']);
+'use strict';
 
-loomApp.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $urlRouterProvider) {
+angular
+    .module('loom.routes')
+    .config(config);
+
+config.$inject = ['$stateProvider', '$urlRouterProvider'];
+
+function config($stateProvider, $urlRouterProvider) {
     $urlRouterProvider.otherwise('/runs');
 
     $stateProvider
         .state('runs', {
             url: '/runs',
             templateUrl: 'partials/run-list.html',
-            controller: 'RunListCtrl'
+            controller: 'RunListController'
         })
         .state('runs.run', {
             url: '/{workflowRunId}',
             templateUrl: 'partials/run-detail.html',
-            controller: 'RunDetailCtrl'
+            controller: 'RunDetailController'
         })
         .state('runs.run.step', {
             url: '/{stepId}', 
             templateUrl: 'partials/run-step-detail.html',
-            controller: 'RunStepDetailCtrl'
+            controller: 'RunStepDetailController'
         })
         .state('workflows', {
             url: '/workflows',
             templateUrl: 'partials/workflow-list.html',
-            controller: 'WorkflowListCtrl'
+            controller: 'WorkflowListController'
         })
         .state('workflows.workflow', {
             url: '/{workflowId}',
             templateUrl: 'partials/workflow-detail.html',
-            controller: 'WorkflowDetailCtrl'
+            controller: 'WorkflowDetailController'
         })
         .state('workflows.workflow.step', {
             url: '/steps/{stepId}',
             templateUrl: 'partials/workflow-step-detail.html',
-            controller: 'WorkflowStepDetailCtrl'
+            controller: 'WorkflowStepDetailController'
         })
         .state('files', {
             url:'/files', 
             templateUrl: 'partials/file-list.html',
-            controller: 'FileListCtrl'
+            controller: 'FileListController'
+        })
+        .state('files.file', {
+            url:'/{fileId}', 
+            templateUrl: 'partials/file-detail.html',
+            controller: 'FileDetailController'
         });
-}]);
-
-// Define a service which we will use to pass data between controllers
-loomApp.factory('$loom', function() {
-    var loomServiceScope = {};
-    return loomServiceScope;
-});
+};

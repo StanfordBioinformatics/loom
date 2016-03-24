@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" ng-app="loomApp">
+<html lang="en" ng-app="loom">
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -53,7 +53,7 @@
         <div class="container-fluid">
             <div class="row">
                 <div class="col-sm-3 col-md-2 sidebar">
-                    <ul class="nav nav-sidebar" ng-controller="SidebarCtrl">
+                    <ul class="nav nav-sidebar" ng-controller="SidebarController">
                       <li ng-class="{active: $state.includes('runs')}"><a href="#/runs">Runs</a></li>
 		      <li ng-class="{active: $state.includes('workflows')}"><a href="#/workflows">Workflows</a></li>
                       <li ng-class="{active: $state.includes('files')}"><a href="#/files">Files</a></li>
@@ -74,7 +74,7 @@
                     -->
                 </div>
                 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-                    <div ng-include="'partials/breadcrumb.html'" ng-controller="BreadcrumbCtrl"></div>
+                    <div ng-include="'partials/breadcrumb.html'" ng-controller="BreadcrumbController"></div>
                     <div ui-view></div>
                 </div>
             </div>
@@ -95,7 +95,17 @@
         <script src="angular/ui-router/angular-ui-router.min.js"></script>
 
         <!-- Loom app and controllers -->
-        <script src="controllers.js"></script>
-        <script src="app.js"></script>
+        <script src="scripts/loom.js"></script>
+	<script src="scripts/loom.routes.js"></script>
+	<script src="scripts/services/data.service.js"></script>
+	<script src="scripts/controllers/sidebar.controller.js"></script>
+	<script src="scripts/controllers/breadcrumb.controller.js"></script>
+	<script src="scripts/controllers/runList.controller.js"></script>
+	<script src="scripts/controllers/runDetail.controller.js"></script>
+	<script src="scripts/controllers/runStepDetail.controller.js"></script>
+	<script src="scripts/controllers/workflowList.controller.js"></script>
+	<script src="scripts/controllers/workflowDetail.controller.js"></script>
+	<script src="scripts/controllers/fileList.controller.js"></script>
+	<script src="scripts/controllers/fileDetail.controller.js"></script>
     </body>
 </html>
