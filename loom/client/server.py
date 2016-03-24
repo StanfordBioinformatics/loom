@@ -138,11 +138,11 @@ class ServerControls:
             raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
     def status(self):
-        if is_server_running(self.settings_manager.get_server_url_for_client()):
+        url = self.settings_manager.get_server_url_for_client()
+        if is_server_running(url):
             print 'OK. The server is running.'
         else:
-            print 'No response. Do you need to run "loom server start"?'
-
+            print 'No response for server at %s. Do you need to run "loom server start"?' % url
     def stop(self):
         self._stop_webserver()
         self._stop_daemon()

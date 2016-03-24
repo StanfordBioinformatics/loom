@@ -39,7 +39,7 @@ class CloudTaskManager:
         # TODO: Support other cloud providers. For now, assume GCE.
         cls._setup_ansible_gce()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
-        node_name = 'step-'+task_run_location_id # GCE instance names must start with a lowercase letter, and ID's can start with numbers.
+        node_name = 'worker-'+task_run_location_id # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
