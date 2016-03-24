@@ -43,6 +43,8 @@ class WorkflowRun(AnalysisAppInstanceModel):
     def update_status(self):
         for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
             step_run.update_status()
+        for output in self.workflow_run_outputs.all():
+            output.update_status()
         step_run_statuses = [step_run.status for step_run in self.step_runs.all()]
         if all([status == 'completed' for status in step_run_statuses]):
             self.update({'status': 'completed'})
@@ -184,7 +186,6 @@ class WorkflowRunInput(AnalysisAppInstanceModel):
 class WorkflowRunOutput(AnalysisAppInstanceModel):
 
     workflow_output = fields.ForeignKey('WorkflowOutput')
-    data_object = fields.ForeignKey('DataObject', null=True)
     subchannel = fields.ForeignKey('Subchannel', null=True)
 
     def add_subchannel(self, subchannel):
