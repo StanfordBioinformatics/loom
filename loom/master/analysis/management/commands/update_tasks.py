@@ -20,7 +20,7 @@ class Command(BaseCommand):
         logger = loom_daemon_logger.get_logger(logfile)
         try:
             response = requests.get(settings.MASTER_URL_FOR_WORKER+'/api/controls/update')
-            logger.debug(response)
+            logger.debug(response.text)
         except Exception as e:
             logger.exception(e)
             raise

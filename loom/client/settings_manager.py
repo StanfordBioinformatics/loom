@@ -158,18 +158,20 @@ class SettingsManager:
         # Client on local machine; master, workers, and fileserver in Google Cloud
         'GOOGLE_CLOUD_CLIENT_SETTINGS': {
             'MASTER_TYPE': 'GOOGLE_CLOUD',
-            'WEBSERVER_PIDFILE': '/tmp/loom_webserver.pid',
-            'BIND_IP': '0.0.0.0',
-            'BIND_PORT': '8000',
-            'PROTOCOL': 'http',
-            'SERVER_WSGI_MODULE': 'loomserver.wsgi',
-            'SERVER_PATH': os.path.join(LOOM_ROOT, 'master'),
-            'DAEMON_PIDFILE': '/tmp/loom_daemon.pid',
-            'ACCESS_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_http_access.log'),
-            'ERROR_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_http_error.log'),
-            'DJANGO_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_django.log'),
-            'WEBSERVER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_webserver.log'),
-            'DAEMON_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_daemon.log'),
+
+            # These are all unused because the master is not on the same machine as the client
+            'WEBSERVER_PIDFILE': 'unused',
+            'BIND_IP': 'unused',
+            'BIND_PORT': '1234567', # not used, but needs a valid value to pass validation
+            'PROTOCOL': 'http',     # not used, but needs a valid value to pass validation
+            'SERVER_WSGI_MODULE': 'unused',
+            'SERVER_PATH': 'unused',
+            'DAEMON_PIDFILE': 'unused',
+            'ACCESS_LOGFILE': 'unused',
+            'ERROR_LOGFILE': 'unused',
+            'DJANGO_LOGFILE': 'unused',
+            'WEBSERVER_LOGFILE': 'unused',
+            'DAEMON_LOGFILE': 'unused',
             #'LOG_LEVEL': 'INFO',
             'LOG_LEVEL': 'DEBUG',
 
@@ -180,14 +182,14 @@ class SettingsManager:
             'PROJECT_ID': 'gbsc-gcp-project-scgs-dev',
             'BUCKET_ID': 'gbsc-gcp-project-scgs-dev-group',
 
-            # Info needed by task manager
-            'ANSIBLE_PEM_FILE': '~/key.pem',
-            'GCE_KEY_FILE': '~/.ssh/google_compute_engine',
-            'WORKER_VM_IMAGE': 'container-vm',  # image to use when task manager boots up a worker VM
-            'WORKER_LOCATION': 'us-central1-a', # location to use when task manager boots up a worker VM
-            'WORKER_DISK_TYPE': 'pd-ssd',       # worker scratch disk type, pd-ssd or pd-standard
-            'WORKER_DISK_SIZE': '100',
-            'WORKER_DISK_MOUNT_POINT': '/mnt/loom_working_dir',
+            # Info needed by task manager; unused because master is on a different machine than client
+            'ANSIBLE_PEM_FILE': 'unused',
+            'GCE_KEY_FILE': 'unused',
+            'WORKER_VM_IMAGE': 'unused',  # image to use when task manager boots up a worker VM
+            'WORKER_LOCATION': 'unused',  # location to use when task manager boots up a worker VM
+            'WORKER_DISK_TYPE': 'unused', # worker scratch disk type, pd-ssd or pd-standard
+            'WORKER_DISK_SIZE': 'unused',
+            'WORKER_DISK_MOUNT_POINT': 'unused',
 
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
@@ -199,12 +201,12 @@ class SettingsManager:
             'WORKER_TYPE': 'GOOGLE_CLOUD',
             'MASTER_URL_FOR_WORKER': 'unused',
             'FILE_SERVER_FOR_WORKER': 'unused',
-            'FILE_ROOT_FOR_WORKER': '/mnt/loom_working_dir',
-            'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
+            'FILE_ROOT_FOR_WORKER': 'unused',
+            'WORKER_LOGFILE': 'unused',
 
-            # Client on same machine as server
-            'CLIENT_TYPE': 'LOCAL',
-            'MASTER_URL_FOR_CLIENT': 'http://127.0.0.1:8000',
+            # Client outside Google Cloud; master in Google Cloud
+            'CLIENT_TYPE': 'unused',
+            'MASTER_URL_FOR_CLIENT': 'http://<insert-master-hostname-or-ip-here>',
             'FILE_SERVER_FOR_CLIENT': 'unused', 
 
             # Needed by filehandler
@@ -256,7 +258,7 @@ class SettingsManager:
             # Workers in Google Cloud
             # Valid choices: LOCAL, GOOGLE_CLOUD
             'WORKER_TYPE': 'GOOGLE_CLOUD',
-            'MASTER_URL_FOR_WORKER': 'unused',
+            'MASTER_URL_FOR_WORKER': 'http://isaac-loom-master',
             'FILE_SERVER_FOR_WORKER': 'unused',
             'FILE_ROOT_FOR_WORKER': '/mnt/loom_working_dir',
             'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),

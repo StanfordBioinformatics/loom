@@ -6,14 +6,14 @@ import multiprocessing
 import os
 import requests
 import subprocess
+import sys
 import tempfile
 from string import Template
 
 import oauth2client.contrib.gce
 from django.conf import settings
 
-logger = logging.getLogger('LoomDaemon')
-
+import loom.common.logger
 
 class CloudTaskManager:
 
@@ -22,26 +22,36 @@ class CloudTaskManager:
     @classmethod
     def run(cls, task_run, task_run_location_id, requested_resources):
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run))
+        logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_task_manager.log')
+        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
+        logger.debug("Launching CloudTaskManager as a separate process.")
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run._id, task_run_location_id, requested_resources))
         process.start()
 
     @classmethod
-    def _run(cls, task_run, task_run_location_id, requested_resources):
+    def _run(cls, task_run_id, task_run_location_id, requested_resources):
+        logger = loom.common.logger.get_logger('TaskManagerLogger2', logfile='/tmp/loom_task_manager2.log')
+        logger.debug("CloudTaskManager separate process started.")
+        logger.debug("task_run_id: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_id, task_run_location_id, requested_resources))
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.MASTER_TYPE)
+        if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
         cls._setup_ansible_gce()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
-        node_name = task_run_location_id
+        node_name = 'worker-'+task_run_location_id # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
             disk_size_gb = requested_resources.disk_size
         else:   
             disk_size_gb = settings.WORKER_DISK_SIZE
-        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run._id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER)
-        cls._run_playbook_string(playbook)
+        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run_id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER)
+        logger.debug('Starting worker VM using playbook: %s' % playbook)
+        ansible_logfile=open('/tmp/loom_ansible.log', 'a', 0)
+        cls._run_playbook_string(playbook, ansible_logfile)
+        logger.debug("CloudTaskManager process done.")
+        ansible_logfile.close()
 
     @classmethod
     def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone, run_id, run_location_id, master_url):
@@ -53,7 +63,7 @@ class CloudTaskManager:
   gather_facts: no
   tasks:
   - name: Boot up a new instance.
-    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type 
+    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type service_account_permissions=storage-rw
     register: gce_result
   - name: Create a disk and attach it to the instance.
     gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone mode=READ_WRITE
@@ -96,26 +106,29 @@ class CloudTaskManager:
         return s.substitute(locals())
 
     @classmethod
-    def _run_playbook_string(cls, playbook_string):
+    def _run_playbook_string(cls, playbook_string, logfile=None):
         """ Runs a string as a playbook by writing it to a tempfile and passing the filename to ansible-playbook. """
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         with tempfile.NamedTemporaryFile() as playbook:
             playbook.write(playbook_string)
             playbook.flush()
-            subprocess.call(['ansible-playbook', '-vvv', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env)
+            subprocess.call(['ansible-playbook', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _setup_ansible_gce(cls):
         """ Make sure dynamic inventory from ansible.contrib is executable, and write credentials to secrets.py. """
-        cls.inventory_file = os.path.join(os.path.dirname(__file__), 'ansible.contrib.inventory.gce.py')
+        # Assumes loom is on the Python path.
+        loom_location = imp.find_module('loom')[1]
+        loomparentdir = os.path.dirname(loom_location)
+        cls.inventory_file = os.path.join(loomparentdir, 'loom', 'master', 'analysis', 'task_manager', 'ansible.contrib.inventory.gce.py')
         os.chmod(cls.inventory_file, 0755)
         gce_credentials = oauth2client.contrib.gce.AppAssertionCredentials([])
         credentials = { 'service_account_email': gce_credentials.service_account_email,
                         'pem_file': settings.ANSIBLE_PEM_FILE,
                         'project_id': settings.PROJECT_ID }
+
         # Write a secrets.py somewhere on the Python path for Ansible to import.
-        # Assumes loom is on the Python path.
         loom_location = imp.find_module('loom')[1]
         loomparentdir = os.path.dirname(loom_location)
         with open(os.path.join(loomparentdir, 'secrets.py'), 'w') as outfile:
@@ -130,8 +143,8 @@ class CloudTaskManager:
     def _get_cheapest_instance_type(cls, cores, memory):
         """ Determine the cheapest instance type given a minimum number of cores and minimum amount of RAM (in GB). """
 
-        if settings.MASTER_TYPE != 'GOOGLE_CLOUD': #TODO: support other cloud providers
-            raise CloudTaskManagerError('Not a recognized cloud provider: ' + settings.MASTER_TYPE)
+        if settings.WORKER_TYPE != 'GOOGLE_CLOUD': #TODO: support other cloud providers
+            raise CloudTaskManagerError('Not a recognized cloud provider: ' + settings.WORKER_TYPE)
         else:
             pricelist = CloudTaskManager._get_gcloud_pricelist()
 
@@ -168,19 +181,30 @@ class CloudTaskManager:
             with open('pricelist.json') as infile:
                 content = json.load(infile)
 
-        logger.debug('Using pricelist ' + content['version'] + ', updated ' + content['updated'])
+        #logger.debug('Using pricelist ' + content['version'] + ', updated ' + content['updated'])
         pricelist = content['gcp_price_list']
         return pricelist
 
     @classmethod
-    def delete_node(cls, task_run):
+    def delete_node_by_name(cls, node_name):
         """ Delete the node that ran a task. """
         # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run))
+        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(node_name))
+        process.start()
+
+    @classmethod
+    def delete_node_by_task_run(cls, task_run):
+        """ Delete the node that ran a task. """
+        # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
+        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run._id))
         process.start()
         
     @classmethod
     def _delete_node(cls, node_name):
+        if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
+            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
+        # TODO: Support other cloud providers. For now, assume GCE.
+        cls._setup_ansible_gce()
         zone = settings.WORKER_LOCATION
         s = Template(
 """---

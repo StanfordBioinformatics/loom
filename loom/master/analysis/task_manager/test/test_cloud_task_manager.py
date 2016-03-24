@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import socket
 import sys
 import unittest
 from collections import namedtuple
@@ -20,7 +21,6 @@ class TestCloudTaskManager(unittest.TestCase):
     class TaskRun:
         _id=''
 
-    task_run=TaskRun()
     resources=Resources()
 
     @classmethod
@@ -30,28 +30,32 @@ class TestCloudTaskManager(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        #CloudTaskManager._delete_node('unittest-cloud-task-manager-run')
         pass
         
     def setUp(self):
-        settings.MASTER_URL_FOR_WORKER = 'http://isaac-loom-master'
-        settings.MASTER_TYPE = 'GOOGLE_CLOUD'
+        myip = socket.gethostbyname(socket.getfqdn())
+        settings.MASTER_URL_FOR_WORKER = 'http://' + myip
         settings.PROJECT_ID = 'gbsc-gcp-project-scgs-dev'
         settings.ANSIBLE_PEM_FILE = '~/key.pem'
         settings.GCE_KEY_FILE = '~/.ssh/google_compute_engine'
+        settings.WORKER_TYPE = 'GOOGLE_CLOUD'
         settings.WORKER_VM_IMAGE = 'container-vm'
         settings.WORKER_LOCATION = 'us-central1-a'
         settings.WORKER_DISK_TYPE = 'pd-ssd'
         settings.WORKER_DISK_SIZE = '100'
         settings.WORKER_DISK_MOUNT_POINT = '/mnt/loom_working_dir'
+        self.resources.cores=1
+        self.resources.memory=1
 
     def tearDown(self):
         pass
 
     def test_invalid_cloud_type(self):
-        settings.MASTER_TYPE = 'INVALID_CLOUD_TYPE'
+        settings.WORKER_TYPE = 'INVALID_CLOUD_TYPE'
 
         with self.assertRaises(CloudTaskManagerError):
-            CloudTaskManager._run(self.task_run, 'task_run_location_id', self.resources)
+            CloudTaskManager._run('task-run-id', 'task-run-location-id', self.resources)
 
     def test_get_gcloud_pricelist(self):
         pricelist = CloudTaskManager._get_gcloud_pricelist()
@@ -75,10 +79,7 @@ class TestCloudTaskManager(unittest.TestCase):
 
     #@unittest.skip('Skipping VM task run test')
     def test_run(self):
-        self.resources.cores=1
-        self.resources.memory=1
-        self.task_run._id='unittest-cloud-task-manager-run'
-        CloudTaskManager._run(task_run=self.task_run, task_run_location_id='unittest-cloud-task-manager-run', requested_resources=self.resources)
+        CloudTaskManager._run(task_run_id='unittest-task-run-id', task_run_location_id='unittest-task-run-location-id', requested_resources=self.resources)
 
 if __name__ == '__main__':
     unittest.main()

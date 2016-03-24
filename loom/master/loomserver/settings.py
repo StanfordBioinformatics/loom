@@ -165,6 +165,13 @@ IMPORT_DIR = os.getenv('IMPORT_DIR')
 STEP_RUNS_DIR = os.getenv('STEP_RUNS_DIR')
 BUCKET_ID = os.getenv('BUCKET_ID')
 PROJECT_ID = os.getenv('PROJECT_ID')
+ANSIBLE_PEM_FILE = os.getenv('ANSIBLE_PEM_FILE')
+GCE_KEY_FILE = os.getenv('GCE_KEY_FILE')
+WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
+WORKER_LOCATION = os.getenv('WORKER_LOCATION')
+WORKER_DISK_TYPE = os.getenv('WORKER_DISK_TYPE')
+WORKER_DISK_SIZE = os.getenv('WORKER_DISK_SIZE')
+WORKER_DISK_MOUNT_POINT = os.getenv('WORKER_DISK_MOUNT_POINT')
 
 # Graph Models settings to generate model schema plots
 GRAPH_MODELS = {
