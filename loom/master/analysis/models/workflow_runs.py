@@ -284,11 +284,11 @@ class StepRun(AnalysisAppInstanceModel):
     def _get_task_inputs(self):
         if not self._are_inputs_ready():
             raise MissingInputsError('Inputs are missing')
-        input_data_objects = {}
+        input_data_objects = []
         for step_run_input in self.step_run_inputs.all():
             name = step_run_input.step_input.from_channel
             data_object = step_run_input.subchannel.pop()
-            input_data_objects[name] = data_object
+            input_data_objects.append((name, data_object))
         return input_data_objects
 
     def _are_inputs_ready(self):
@@ -304,6 +304,7 @@ class StepRun(AnalysisAppInstanceModel):
         return True
 
     def _create_task_run(self):
+        # This has the form [(channel_name, data_object), ...]
         input_data_objects = self._get_task_inputs()
         
         task_run_inputs = self._create_task_run_inputs(input_data_objects)
@@ -320,7 +321,7 @@ class StepRun(AnalysisAppInstanceModel):
 
     def _create_task_run_inputs(self, input_data_objects):
         task_run_inputs = []
-        for channel_name, data_object in input_data_objects.iteritems():
+        for channel_name, data_object in input_data_objects:
             task_run_input = TaskRunInput.create(
                 {
                     'task_definition_input': {
