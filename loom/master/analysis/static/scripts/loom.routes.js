@@ -16,7 +16,7 @@ function config($stateProvider, $urlRouterProvider) {
             controller: 'RunListController'
         })
         .state('runs.run', {
-            url: '/{workflowRunId}',
+            url: '/{runId}',
             templateUrl: 'partials/run-detail.html',
             controller: 'RunDetailController'
         })
