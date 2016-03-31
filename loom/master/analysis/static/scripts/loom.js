@@ -14,4 +14,4 @@ angular
     .module('loom.controllers', ['loom.services']);
 
 angular
-    .module('loom.services', ['ui.router']);
+    .module('loom.services', []);

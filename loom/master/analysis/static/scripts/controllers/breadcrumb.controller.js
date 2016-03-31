@@ -7,7 +7,6 @@ angular
 BreadcrumbController.$inject = ['$scope', 'DataService', '$state', '$stateParams'];
 
 function BreadcrumbController($scope, DataService, $state, $stateParams) {
-    $scope.run = DataService.getCurrentRun();
+    $scope.activeData = DataService.getActiveData();
     $scope.$state = $state;
-    $scope.$stateParams = $stateParams;
 };

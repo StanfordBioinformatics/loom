@@ -5,13 +5,14 @@ angular
     .controller('RunDetailController', RunDetailController);
 
 RunDetailController.$inject = [
-    '$scope', '$http', 'Data', '$stateParams'
+    '$scope', 'DataService', '$state', '$stateParams'
 ];
 
-function RunDetailController($scope, $http, Data, $stateParams) {
-    $http.get('/api/workflow_runs/' + $stateParams.workflowRunId)
-	.success(function(response) {
-	    Data.workflow_run = response;
-	    $scope.workflow_run = Data.workflow_run;
-	});
+function RunDetailController($scope, DataService, $state, $stateParams) {
+    $scope.$state = $state;
+    $scope.loading = true;
+    DataService.setActiveRun($stateParams.runId).then(function() {
+	$scope.loading = false;
+	$scope.activeData = DataService.getActiveData();
+    });
 };

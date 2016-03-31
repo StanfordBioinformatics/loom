@@ -2,50 +2,38 @@
 
 angular
     .module('loom.services')
-    .factory('DataService', DataService)
+    .service('DataService', DataService)
 
-DataService.$inject = ['$http', '$stateParams', '$state'];
+DataService.$inject = ['$http'];
 
-function DataService($http, $stateParams, $state) {
+function DataService($http) {
     /* Data is cached here so that it can be used by multiple scopes
        without extra queries to the server.
 
        Listens for stateChange and clears data to avoid having it go stale. */
     
-    var DataService = {
-	getCurrentRun: getCurrentRun,
-	getCurrentWorkflow: getCurrentWorkflow,
-	getCurrentFile: getCurrentFile,
-	getRunList: getRunList,
-	getWorkflowList, getWorkflowList,
-	getFileList, getFileList
-    };
+    this.setActiveRun = setActiveRun;
+    this.getActiveData = getActiveData;
+    this.getRuns = getRuns;
+	
+    var activeData = {};
     
-    return DataService;
-
-    var currentRun = null;
-    var currentWorkflow = null;
-    var currentFile = null;
-    
-    var runs = {};
-    var workflows = {};
-    var files = {};
-    
-    function getCurrentRun() {
-	console.log($stateParams);
-	console.log($state);
-	if (!currentRun && $stateParams.runId) {
-	    $http.get('/api/workflow_runs/' + $stateParams.runId)
-		.then(function(response) {
-		    currentRun = response;
-		});
-	};
-	return currentRun;
+    function getActiveData() {
+	return activeData;
     };
 
-    function getCurrentWorkflow() {};
-    function getCurrentFile() {};
-    function getRunList() {};
-    function getWorkflowList() {};
-    function getFileList() {};    
+    function setActiveRun(runId) {
+	return $http.get('/api/workflow_runs/' + runId)
+            .then(function(response) {
+		activeData.run = response.data;
+		console.log(activeData.run);
+            });
+    };
+
+    function getRuns() {
+	return $http.get('/api/workflow_runs/')
+	    .then(function(response) {
+		return response.data.workflow_runs;
+	    });
+    };
 };
