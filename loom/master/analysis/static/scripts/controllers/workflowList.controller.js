@@ -4,12 +4,12 @@ angular
     .module('loom.controllers')
     .controller('WorkflowListController', WorkflowListController);
 
-WorkflowListController.$inject = ['$scope', '$http', 'Data', '$state'];
+WorkflowListController.$inject = ['$scope', 'DataService'];
 
-function WorkflowListController($scope, $http, Data, $state){
-    $http.get('/api/workflows').success(function(response) {
-	Data.workflows = response['workflows'];
-	$scope.workflows = Data.workflows;
+function WorkflowListController($scope, DataService){
+    $scope.loading = true;
+    DataService.getWorkflows().then(function(workflows) {
+	$scope.loading = false;
+	$scope.workflows = workflows;
     });
-    $scope.$state = $state;
 };

@@ -5,13 +5,13 @@ angular
     .controller('WorkflowDetailController', WorkflowDetailController);
 
 WorkflowDetailController.$inject = [
-    '$scope', '$http', 'Data', '$stateParams'
+    '$scope', 'DataService', '$routeParams'
 ];
 
-function WorkflowDetailController($scope, $http, Data, $stateParams) {
-    $http.get('/api/workflows/' + $stateParams.workflowId)
-	.success(function(response) {
-	    Data.workflow = response;
-	    $scope.workflow = Data.workflow;
-	});
+function WorkflowDetailController($scope, DataService, $routeParams) {
+    $scope.loading = true;
+    $scope.activeData = DataService.getActiveData();
+    DataService.setActiveWorkflow($routeParams.workflowId).then(function() {
+	$scope.loading = false;
+    });
 };

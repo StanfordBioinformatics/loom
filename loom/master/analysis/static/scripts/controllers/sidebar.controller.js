@@ -4,8 +4,8 @@ angular
     .module('loom.controllers')
     .controller('SidebarController', SidebarController);
 
-SidebarController.$inject = ['$scope', '$state'];
+SidebarController.$inject = ['$scope', '$location'];
 
-function SidebarController($scope, $state) {
-    $scope.$state = $state;
+function SidebarController($scope, $location) {
+    $scope.$location = $location;
 };

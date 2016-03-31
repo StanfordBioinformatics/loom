@@ -4,9 +4,16 @@ angular
     .module('loom.controllers')
     .controller('FileListController', FileListController);
 
-FileListController.$inject = ['$scope', '$http', 'Data', '$state'];
+FileListController.$inject = ['$scope', 'DataService'];
 
-function FileListController($scope, $http, Data, $state){
+function FileListController($scope, DataService){
+    $scope.loading = true;
+    DataService.getFiles().then(function(files) {
+	$scope.loading = false;
+	$scope.files = files;
+    });
+};    
+    /*
     $http.get('/api/file_data_objects')
 	.success(function(response) {
 	    Data.files = response['file_data_objects'];
@@ -23,6 +30,6 @@ function FileListController($scope, $http, Data, $state){
 		    });
 	    });
 	});
-    $scope.$state = $state;
-};
+*/
+
 

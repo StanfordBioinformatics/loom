@@ -5,14 +5,13 @@ angular
     .controller('RunDetailController', RunDetailController);
 
 RunDetailController.$inject = [
-    '$scope', 'DataService', '$state', '$stateParams'
+    '$scope', 'DataService', '$routeParams'
 ];
 
-function RunDetailController($scope, DataService, $state, $stateParams) {
-    $scope.$state = $state;
+function RunDetailController($scope, DataService, $routeParams) {
     $scope.loading = true;
-    DataService.setActiveRun($stateParams.runId).then(function() {
+    $scope.activeData = DataService.getActiveData();
+    DataService.setActiveRun($routeParams.runId).then(function() {
 	$scope.loading = false;
-	$scope.activeData = DataService.getActiveData();
     });
 };

@@ -4,50 +4,43 @@ angular
     .module('loom.routes')
     .config(config);
 
-config.$inject = ['$stateProvider', '$urlRouterProvider'];
+config.$inject = ['$routeProvider'];
 
-function config($stateProvider, $urlRouterProvider) {
-    $urlRouterProvider.otherwise('/runs');
+function config($routeProvider) {
 
-    $stateProvider
-        .state('runs', {
-            url: '/runs',
-            templateUrl: 'partials/run-list.html',
-            controller: 'RunListController'
+    $routeProvider
+        .when('/runs/:runId/steps/:stepRunId', {
+            templateUrl: 'views/step-run-detail.html',
+            controller: 'StepRunDetailController'
         })
-        .state('runs.run', {
-            url: '/{runId}',
-            templateUrl: 'partials/run-detail.html',
+        .when('/runs/:runId', {
+            templateUrl: 'views/run-detail.html',
             controller: 'RunDetailController'
         })
-        .state('runs.run.step', {
-            url: '/{stepId}', 
-            templateUrl: 'partials/run-step-detail.html',
-            controller: 'RunStepDetailController'
+        .when('/runs', {
+            templateUrl: 'views/run-list.html',
+            controller: 'RunListController'
         })
-        .state('workflows', {
-            url: '/workflows',
-            templateUrl: 'partials/workflow-list.html',
+        .when('/workflows', {
+            templateUrl: 'views/workflow-list.html',
             controller: 'WorkflowListController'
         })
-        .state('workflows.workflow', {
-            url: '/{workflowId}',
-            templateUrl: 'partials/workflow-detail.html',
+        .when('/workflows/:workflowId', {
+            templateUrl: 'views/workflow-detail.html',
             controller: 'WorkflowDetailController'
         })
-        .state('workflows.workflow.step', {
+        .when('/workflows/:workflowId/steps/:stepId', {
             url: '/steps/{stepId}',
-            templateUrl: 'partials/workflow-step-detail.html',
-            controller: 'WorkflowStepDetailController'
+            templateUrl: 'views/step-detail.html',
+            controller: 'StepDetailController'
         })
-        .state('files', {
-            url:'/files', 
-            templateUrl: 'partials/file-list.html',
+        .when('/files', {
+            templateUrl: 'views/file-list.html',
             controller: 'FileListController'
         })
-        .state('files.file', {
-            url:'/{fileId}', 
-            templateUrl: 'partials/file-detail.html',
+        .when('/files/:fileId', {
+            templateUrl: 'views/file-detail.html',
             controller: 'FileDetailController'
-        });
+        })
+	.otherwise('/runs');
 };

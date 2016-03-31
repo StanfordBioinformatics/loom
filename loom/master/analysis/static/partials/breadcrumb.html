@@ -1,15 +1,18 @@
-<h2 class="sub-header"> 
-  <ol class="breadcrumb" ng-show="$state.includes('runs')"> 
+<h4 class="sub-header">
+  <ol class="breadcrumb" ng-show="$location.$$path.startsWith('/runs')"> 
     <li><a href="#/runs">Runs</a></li>
-    <li ng-show="$state.includes('runs.run')"><a ui-sref="runs.run({workflowId:Data.workflow_run._id})">{{Data.workflow_run.workflow.workflow_name}}@{{Data.workflow_run._id | limitTo:8}}</a></li> 
-    <li ng-show="$state.includes('runs.run.step')" class="active">Steps</li> 
-    <li ng-show="$state.includes('runs.run.step')"><a ui-sref="runs.run.step({stepId:$stateParams.stepId})">{{Data.step_run.step.step_name}}</a></li> 
+    <li ng-show="params.runId"><a ng-href="#/runs/{{params.runId}}">{{activeData.run.workflow.workflow_name}}@{{activeData.run._id | limitTo:8}}</a></li> 
+    <li ng-show="params.stepRunId" class="active">Steps</li> 
+    <li ng-show="params.stepRunId"><a ng-href="#/runs/{{params.runId}}/steps/{{params.stepRunId}}">{{activeData.stepRun.step.step_name}}</a></li> 
   </ol>
-  <ol class="breadcrumb" ng-show="$state.includes('workflows')">
+  <ol class="breadcrumb" ng-show="$location.$$path.startsWith('/workflows')">
     <li><a href="#/workflows">Workflows</a></li>
+    <li ng-show="params.workflowId"><a ng-href="#/workflows/{{params.workflowId}}">{{activeData.workflow.workflow_name}}@{{activeData.workflow._id | limitTo:8}}</a></li> 
+    <li ng-show="params.stepId" class="active">Steps</li> 
+    <li ng-show="params.stepId"><a ng-href="#/workflows/{{params.workflowId}}/steps/{{params.stepId}}">{{activeData.step.step_name}}</a></li> 
   </ol>
-  <ol class="breadcrumb" ng-show="$state.includes('files')">
+  <ol class="breadcrumb" ng-show="$location.$$path.startsWith('/files')">
     <li><a href="#/files">Files</a></li>
-    <li ng-show="$state.includes('files.file')"><a ui-sref="files.file({fileId:Data.file._id})">{{Data.file.file_name}}@{{Data.file._id | limitTo:8}}</a></li>
+    <li ng-show="params.fileId"><a ng-href="#/filesfiles.file/{{fileId}}">{{activeData.file.file_name}}@{{activeData.file._id | limitTo:8}}</a></li>
   </ol>
-</h2> 
+</h4>

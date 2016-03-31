@@ -4,11 +4,11 @@ angular
     .module('loom', [
 	'loom.routes',
 	'loom.controllers',
-	'loom.services'
+	'loom.services',
     ]);
 
 angular
-    .module('loom.routes', ['ui.router']);
+    .module('loom.routes', ['ngRoute']);
 
 angular
     .module('loom.controllers', ['loom.services']);

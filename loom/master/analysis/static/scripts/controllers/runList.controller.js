@@ -4,10 +4,9 @@ angular
     .module('loom.controllers')
     .controller('RunListController', RunListController);
 
-RunListController.$inject = ['$scope', 'DataService', '$state'];
+RunListController.$inject = ['$scope', 'DataService'];
 
-function RunListController($scope, DataService, $state) {
-    $scope.$state = $state;
+function RunListController($scope, DataService) {
     $scope.loading = true;
     DataService.getRuns().then(function(runs) {
 	$scope.loading = false;
