@@ -12,15 +12,15 @@ class SettingsManager:
     This class manages loom client, worker, fileserver, and webserver settings.
     Users should interact with this class through 'loom config', with these subcommands:
     - local
-    - elasticluster
-    - elasticluster_frontend (primarily used by elasticluster setup)
+    - gcloud
+    - gcloud_master
     - savesettings
     - clearsettings
 
     On first run, settings are saved to the user's home directory in .loom/settings.json.
     By default, this will configure loom for local deployment.
-    To switch to elasticluster deployment, run 'loomconfig elasticluster'.
-    To switch back to local deployment, run 'loomconfig local'.
+    To switch to gcloud deployment, run 'loom config gcloud'.
+    To switch back to local deployment, run 'loom config local'.
     For finer-grained control, .loom/settings.json can be directly edited to set specific values.
     """
 

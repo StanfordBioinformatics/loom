@@ -34,7 +34,7 @@ class ServerControls:
     - stop
     - status
 
-    Users should call this through ../bin/loomserver to ensure the environment is configured.
+    Users should call this through 'loom server' to ensure the environment is configured.
     """
 
     def __init__(self, args=None):
