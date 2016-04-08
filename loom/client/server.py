@@ -30,8 +30,11 @@ def is_server_running(master_url):
 class ServerControls:
     """
     This class provides methods for managing the loom server, specifically the commands:
+    - create
     - start
     - stop
+    - delete
+    - set
     - status
 
     Users should call this through 'loom server' to ensure the environment is configured.
@@ -41,39 +44,51 @@ class ServerControls:
         if args is None:
             args=self._get_args()
         self.args = args
-        self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
+        #self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
         self._set_run_function(args)
-
-    @classmethod
-    def get_parser(cls, parser=None):
-        if parser is None:
-            parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('command', choices=['start', 'stop', 'status'])
-        parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
-                            help="Settings files indicate which server to talk to and how the server can be reached. Defaults to ~/.loom/settings.json (created on first run if not found). Use loom config to choose from available presets, or edit the file directly.")
-        parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--fg_webserver', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
-        parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
-        return parser
-
-    def _get_args(self):
-        parser = self.get_parser()
-        args = parser.parse_args()
-        return args
 
     def _set_run_function(self, args):
         # Map user input command to class method
         command_to_method_map = {
             'status': self.status,
             'start': self.start,
-            'stop': self.stop
+            'stop': self.stop,
+            'create': self.create,
+            'delete': self.delete,
+            'set': self.setserver
         }
         try:
             self.run = command_to_method_map[args.command]
         except KeyError:
             raise Exception('Did not recognize command %s' % args.command)
+
+    @classmethod
+    def get_parser(cls, parser=None):
+        if parser is None:
+            parser = argparse.ArgumentParser(__file__)
+
+        parser.add_argument('--fg_webserver', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
+        parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+
+        subparsers = parser.add_subparsers(dest='command')
+        start_parser = subparsers.add_parser('start')
+        stop_parser = subparsers.add_parser('stop')
+        status_parser = subparsers.add_parser('status')
+        create_parser = subparsers.add_parser('create')
+        create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
+            help="A settings file can be provided on server creation to override default settings and provide required settings instead of prompting.")
+        create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+        delete_parser = subparsers.add_parser('delete')
+        setserver_parser = subparsers.add_parser('set')
+
+        return parser
+
+    def _get_args(self):
+        parser = self.get_parser()
+        args = parser.parse_args()
+        return args
 
     def start(self):
         env = os.environ.copy()
@@ -143,6 +158,7 @@ class ServerControls:
             print 'OK. The server is running.'
         else:
             print 'No response for server at %s. Do you need to run "loom server start"?' % url
+
     def stop(self):
         self._stop_webserver()
         self._stop_daemon()
@@ -210,6 +226,15 @@ class ServerControls:
     def _export_django_settings(self, env):
         env.update(self.settings_manager.get_django_env_settings())
         return env
+
+    def create(self):
+        print self.args
+
+    def delete(self):
+        print self.args
+
+    def setserver(self):
+        print self.args
 
 if __name__=='__main__':
     ServerControls().run()
