@@ -3,8 +3,7 @@
 FROM debian:jessie
 MAINTAINER Isaac Liao <iliao@stanford.edu>
 ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get update
-RUN apt-get -y install build-essential libssl-dev libffi-dev python-dev python-pip && \
+RUN apt-get update && apt-get install -y build-essential libffi-dev libssl-dev python-dev python-pip && \
     pip install virtualenv && \
     virtualenv /opt/loom && \
     . /opt/loom/bin/activate && \
