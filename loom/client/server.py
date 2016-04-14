@@ -228,12 +228,15 @@ class ServerControls:
         return env
 
     def create(self):
+        '''Create server if it doesn't exist yet.'''
         print self.args
 
     def delete(self):
+        '''Delete server and its settings.'''
         print self.args
 
     def setserver(self):
+        '''Set server for the client to manage (currently local or gcloud).'''
         print self.args
 
 if __name__=='__main__':
