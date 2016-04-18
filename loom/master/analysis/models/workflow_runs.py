@@ -1,4 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 from analysis.exceptions import *
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.data_objects import DataObject
@@ -101,7 +102,10 @@ class WorkflowRun(AnalysisAppInstanceModel):
             return
         except ObjectDoesNotExist:
             step_run = StepRun.create(
-                {'step': step.to_struct()}
+                {'step': step.to_struct(),
+                 'workflow_name': self.workflow.workflow_name,
+                 'workflow_run_datetime_created': self.datetime_created
+                }
             )
             self.step_runs.add(step_run)
             for step_input in step_run.step.step_inputs.all():
@@ -241,6 +245,8 @@ class StepRun(AnalysisAppInstanceModel):
     step_run_inputs = fields.OneToManyField('StepRunInput')
     step_run_outputs = fields.OneToManyField('StepRunOutput')
     task_runs = fields.OneToManyField('TaskRun')
+    workflow_name = fields.CharField(max_length=255, default='')
+    workflow_run_datetime_created = fields.DateTimeField(default=timezone.now) 
     status = fields.CharField(
         max_length=255,
         default='waiting',
@@ -313,7 +319,10 @@ class StepRun(AnalysisAppInstanceModel):
         task_run = TaskRun.create({
             'task_run_inputs': task_run_inputs,
             'task_run_outputs': task_run_outputs,
-            'task_definition': task_definition
+            'task_definition': task_definition,
+            'step_name': self.step.step_name,
+            'workflow_name': self.workflow_name,
+            'workflow_run_datetime_created': self.workflow_run_datetime_created
         })
         
         self.task_runs.add(task_run)

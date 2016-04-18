@@ -8,6 +8,7 @@ import logging
 import os
 import requests
 import subprocess
+import sys
 import time
 import uuid
 
@@ -42,6 +43,7 @@ class TaskRunner(object):
                 self._wait_for_process(process)
 
         self._upload_outputs()
+        self._upload_logfiles()
 
         # self._flag_run_as_complete(self.step_run)
         print "done"
@@ -56,9 +58,15 @@ class TaskRunner(object):
     def _upload_outputs(self):
         for task_run_output in self.task_run['task_run_outputs']:
             path = task_run_output['task_definition_output']['path']
-            task_run_output['data_object'] = self.filehandler.upload_file_from_local_path(path, source_directory=self.settings['WORKING_DIR'])
+            task_run_output['data_object'] = self.filehandler.upload_step_output_from_local_path(path, self.task_run['workflow_run_datetime_created'], self.task_run['workflow_name'], self.task_run['step_name'], source_directory=self.settings['WORKING_DIR'])
         self.objecthandler.update_task_run(self.task_run)
-        
+
+    def _upload_logfiles(self):
+        self.filehandler.upload_step_output_from_local_path(self.settings['STEP_LOGFILE'], self.task_run['workflow_run_datetime_created'], self.task_run['workflow_name'], self.task_run['step_name'])
+        self.filehandler.upload_step_output_from_local_path(self.settings['STDOUT_LOGFILE'], self.task_run['workflow_run_datetime_created'], self.task_run['workflow_name'], self.task_run['step_name'])
+        self.filehandler.upload_step_output_from_local_path(self.settings['STDERR_LOGFILE'], self.task_run['workflow_run_datetime_created'], self.task_run['workflow_name'], self.task_run['step_name'])
+        # TODO: update taskrun object with logfile locations        
+
     def _get_additional_settings(self):
         url = self.settings['MASTER_URL'] + '/api/workerinfo'
         response = requests.get(url)
@@ -74,7 +82,7 @@ class TaskRunner(object):
         response.raise_for_status()
         self.task_run = response.json()
         self.logger.debug('Retrieved TaskRun %s' % self.task_run)
-        
+
     def _get_task_run(self):
         print self.master_url
 
@@ -163,6 +171,7 @@ class TaskRunner(object):
     def _init_logger(self):
         self.logger = logging.getLogger("LoomWorker")
         self.logger.setLevel(self.settings['LOG_LEVEL'])
+        self.logger.raiseExceptions = True
         formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
         handler = self._init_handler()
         handler.setFormatter(formatter)
@@ -186,6 +195,7 @@ class TaskRunner(object):
         handler = logging.FileHandler(self.settings['STEP_LOGFILE'])
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
+        print 'log files added'
 
 # pip entrypoint requires a function with no arguments 
 def main():
