@@ -137,7 +137,7 @@ class ObjectHandler(object):
 
     def get_workflow_run(self, workflow_run_id):
         return self._get_object(
-            'workflow_runss/'+workflow_run_id
+            'workflow_runs/'+workflow_run_id
         )
 
     def get_workflow_run_index(self, query_string='', min=0, max=float('inf')):

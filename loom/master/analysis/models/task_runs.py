@@ -24,6 +24,7 @@ class TaskRun(AnalysisAppInstanceModel):
     step_name = fields.CharField(max_length=255, default='')
     workflow_name = fields.CharField(max_length=255, default='')
     workflow_run_datetime_created = fields.DateTimeField(default=timezone.now) 
+    logs = fields.OneToManyField('TaskRunLog', related_name='task_run')
     status = fields.CharField(
         max_length=255,
         default='ready_to_run',
@@ -138,3 +139,8 @@ class TaskRunLocation(AnalysisAppInstanceModel):
     def cancel(self):
         # TODO
         pass
+
+
+class TaskRunLog(AnalysisAppInstanceModel):
+    logfile = fields.ForeignKey('FileDataObject')
+    logname = fields.CharField(max_length=255)

@@ -348,39 +348,6 @@ class RemoteFileHandler(AbstractPosixPathFileHandler):
         return self._remote_path
 
 
-class ElasticlusterFileHandler(AbstractPosixPathFileHandler):
-    """ TODO: Use elasticluster and GCE-specific parameters for file transfer. 
-    Consider using elasticluster's ssh and sftp commands instead.
-    - Would decouple loom from cloud specifics (key management, username, fileserver IP).
-    - However, nesting virtualenvs seems problematic, and would have to locate
-      elasticluster installation or let user specify.
-    """
-
-    def _upload_file_to_elasticluster(self):
-        username = self.settings_manager.get_remote_username()
-        gce_key = os.path.join(os.getenv('HOME'),'.ssh','google_compute_engine')
-        if not os.path.exists(gce_key):
-            raise FileHandlerError("GCE key not found at %s" % gce_key)
-        print "Creating working directory on elasticluster at %s" % self.file_server
-        subprocess.check_call(
-            ['ssh',
-             username+'@'+self.file_server,
-             '-i',
-             gce_key,
-             'mkdir',
-             '-p',
-             os.path.dirname(self.get_cluster_remote_path(username))]
-             )
-        print "Uploading file to elasticluster at %s" % self.file_server
-        subprocess.check_call(
-            ['scp',
-             '-i',
-             gce_key,
-             self.local_path,
-             ':'.join([username+'@'+self.file_server, self.get_cluster_remote_path(username)])]
-            )
-
-
 class GoogleCloudFileHandler(AbstractFileHandler):
     """Subclass of FileHandler that uses the gcloud module to copy files to and from Google Storage."""
 

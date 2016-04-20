@@ -22,6 +22,7 @@ model_classes = [
     Step,
     StepRun,
     TaskRun,
+    TaskRunLog,
 ]
 
 for cls in model_classes:
