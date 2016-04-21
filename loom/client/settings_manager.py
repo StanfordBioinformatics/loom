@@ -70,18 +70,19 @@ class SettingsManager:
             'WORKER_DISK_TYPE': 'unused',       # worker scratch disk type, pd-ssd or pd-standard
             'WORKER_DISK_SIZE': 'unused',
             'WORKER_DISK_MOUNT_POINT': 'unused',
-
+            'WORKER_NETWORK': 'unused',         # network that worker VM should be part of
+            'WORKER_TAGS': ['unused'],          # tags to assign to worker VM's
+            
             # Info needed by workers
-            # - MASTER_URL passed as argument to step_runner
-            # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
-            #   webserver at MASTER_URL by step_runner
+            # - MASTER_URL passed as argument to task_runner
+            # - FILE_SERVER, FILE_ROOT, LOG_LEVEL retrieved from
+            #   webserver at MASTER_URL by task_runner
 
             # Workers on same machine as server
             'WORKER_TYPE': 'LOCAL',
             'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
             'FILE_SERVER_FOR_WORKER': 'localhost',
             'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'), # Where to create step run directories on the worker
-            'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
             'CLIENT_TYPE': 'LOCAL',
@@ -129,10 +130,12 @@ class SettingsManager:
             'WORKER_DISK_TYPE': 'unused',       # worker scratch disk type, pd-ssd or pd-standard
             'WORKER_DISK_SIZE': 'unused',
             'WORKER_DISK_MOUNT_POINT': 'unused',
+            'WORKER_NETWORK': 'unused',         # network that worker VM should be part of
+            'WORKER_TAGS': ['unused'],          # tags to assign to worker VM's
 
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
-            # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
+            # - FILE_SERVER, FILE_ROOT, and LOG_LEVEL retrieved from
             #   webserver at MASTER_URL by step_runner
 
             # Workers on same machine as server
@@ -140,7 +143,6 @@ class SettingsManager:
             'MASTER_URL_FOR_WORKER': 'http://127.0.0.1:8000',
             'FILE_SERVER_FOR_WORKER': 'unused',
             'FILE_ROOT_FOR_WORKER': os.path.join(os.getenv('HOME'), 'working_dir'),
-            'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
             'CLIENT_TYPE': 'LOCAL',
@@ -190,10 +192,12 @@ class SettingsManager:
             'WORKER_DISK_TYPE': 'unused', # worker scratch disk type, pd-ssd or pd-standard
             'WORKER_DISK_SIZE': 'unused',
             'WORKER_DISK_MOUNT_POINT': 'unused',
+            'WORKER_NETWORK': 'unused',         # network that worker VM should be part of
+            'WORKER_TAGS': ['unused'],          # tags to assign to worker VM's
 
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
-            # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
+            # - FILE_SERVER, FILE_ROOT, and LOG_LEVEL retrieved from
             #   webserver at MASTER_URL by step_runner
 
             # Workers in Google Cloud
@@ -202,7 +206,6 @@ class SettingsManager:
             'MASTER_URL_FOR_WORKER': 'unused',
             'FILE_SERVER_FOR_WORKER': 'unused',
             'FILE_ROOT_FOR_WORKER': 'unused',
-            'WORKER_LOGFILE': 'unused',
 
             # Client outside Google Cloud; master in Google Cloud
             'CLIENT_TYPE': 'unused',
@@ -242,6 +245,8 @@ class SettingsManager:
             'WORKER_DISK_TYPE': 'pd-ssd',       # worker scratch disk type, pd-ssd or pd-standard
             'WORKER_DISK_SIZE': '10',           # worker scratch disk size in GB
             'WORKER_DISK_MOUNT_POINT': '/mnt/loom_working_dir',
+            'WORKER_NETWORK': 'default',        # network that worker VM should be part of
+            'WORKER_TAGS': [],                  # tags to assign to worker VM's
 
             # Where to get inputs and place outputs.
             # Valid choices: LOCAL, REMOTE, GOOGLE_CLOUD
@@ -250,7 +255,7 @@ class SettingsManager:
 
             # Info needed by workers
             # - MASTER_URL passed as argument to step_runner
-            # - FILE_SERVER, FILE_ROOT, WORKER_LOGFILE, and LOG_LEVEL retrieved from
+            # - FILE_SERVER, FILE_ROOT, and LOG_LEVEL retrieved from
             #   webserver at MASTER_URL by step_runner
 
             # Workers in Google Cloud
@@ -259,7 +264,6 @@ class SettingsManager:
             'MASTER_URL_FOR_WORKER': 'http://<insert-master-hostname-or-ip-here>',
             'FILE_SERVER_FOR_WORKER': 'unused',
             'FILE_ROOT_FOR_WORKER': '/mnt/loom_working_dir',
-            'WORKER_LOGFILE': os.path.join(LOOM_ROOT, 'log', 'loom_worker.log'),
 
             # Client on same machine as server
             'CLIENT_TYPE': 'LOCAL',
@@ -293,7 +297,6 @@ class SettingsManager:
             "ERROR_LOGFILE": {"type": "string"},
             "DJANGO_LOGFILE": {"type": "string"},
             "WEBSERVER_LOGFILE": {"type": "string"},
-            "WORKER_LOGFILE": {"type": "string"},
             "DAEMON_LOGFILE": {"type": "string"},
             "LOG_LEVEL": {"type": "string"},
             "WORKER_TYPE": {"type": "string"},
@@ -317,6 +320,8 @@ class SettingsManager:
             'WORKER_DISK_TYPE': {"enum": ["pd-ssd", "pd-standard", "unused"]},
             'WORKER_DISK_SIZE': {"type": "string"},
             'WORKER_DISK_MOUNT_POINT': {"type": "string"},
+            'WORKER_TAGS': {"type": "array"},
+            'WORKER_NETWORK': {"type": "string"},
         },
         "additionalProperties": False
     }
@@ -575,7 +580,6 @@ class SettingsManager:
         setting_keys_to_export = [
             'DJANGO_LOGFILE',
             'WEBSERVER_LOGFILE',
-            'WORKER_LOGFILE',
             'LOG_LEVEL',
             'WORKER_TYPE',
             'MASTER_URL_FOR_WORKER',
@@ -596,10 +600,14 @@ class SettingsManager:
             'WORKER_DISK_TYPE',
             'WORKER_DISK_SIZE',
             'WORKER_DISK_MOUNT_POINT',
+            'WORKER_NETWORK',
+            'WORKER_TAGS',
             ]
         for key in setting_keys_to_export:
             value = self.settings.get(key)
             if value is not None:
+                if isinstance(value, list): # Expand arrays into comma-separated strings, since environment variables must be strings
+                    value = ','.join(value)
                 export_settings[key] = value
         return export_settings
 

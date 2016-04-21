@@ -47,7 +47,25 @@ class CloudTaskManager:
             disk_size_gb = requested_resources.disk_size
         else:   
             disk_size_gb = settings.WORKER_DISK_SIZE
-        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run_id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER, version=loom.common.version.version())
+        
+        playbook_values = {
+            'node_name': node_name,
+            'image': settings.WORKER_VM_IMAGE,
+            'instance_type': instance_type,
+            'disk_name': disk_name,
+            'device_path': device_path,
+            'mount_point': settings.WORKER_DISK_MOUNT_POINT,
+            'disk_type': settings.WORKER_DISK_TYPE,
+            'size_gb': disk_size_gb,
+            'zone': settings.WORKER_LOCATION,
+            'run_id': task_run_id,
+            'run_location_id': task_run_location_id,
+            'master_url': settings.MASTER_URL_FOR_WORKER,
+            'version': loom.common.version.version(),
+            'worker_network': settings.WORKER_NETWORK,
+            'worker_tags': settings.WORKER_TAGS,
+        }
+        playbook = cls._create_taskrun_playbook(playbook_values)
         logger.debug('Starting worker VM using playbook: %s' % playbook)
         ansible_logfile=open('/tmp/loom_ansible.log', 'a', 0)
         cls._run_playbook_string(playbook, ansible_logfile)
@@ -55,7 +73,7 @@ class CloudTaskManager:
         ansible_logfile.close()
 
     @classmethod
-    def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone, run_id, run_location_id, master_url, version):
+    def _create_taskrun_playbook(cls, playbook_values_dict):
         s = Template(
 """---
 - name: Create new instance.
@@ -64,7 +82,7 @@ class CloudTaskManager:
   gather_facts: no
   tasks:
   - name: Boot up a new instance.
-    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type service_account_permissions=storage-rw
+    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type network=$worker_network tags=$worker_tags service_account_permissions=storage-rw
     register: gce_result
   - name: Create a disk and attach it to the instance.
     gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone mode=READ_WRITE
@@ -104,7 +122,7 @@ class CloudTaskManager:
     args:
       executable: /bin/bash
 """)
-        return s.substitute(locals())
+        return s.substitute(playbook_values_dict)
 
     @classmethod
     def _run_playbook_string(cls, playbook_string, logfile=None):

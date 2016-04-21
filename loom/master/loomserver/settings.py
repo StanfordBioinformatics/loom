@@ -136,7 +136,6 @@ def _get_log_level():
     return LOG_LEVEL.upper()
 
 LOG_LEVEL = _get_log_level()
-WORKER_LOGFILE = os.getenv('WORKER_LOGFILE', None)
 
 LOGGING = {
     'version': 1,
@@ -191,6 +190,8 @@ WORKER_LOCATION = os.getenv('WORKER_LOCATION')
 WORKER_DISK_TYPE = os.getenv('WORKER_DISK_TYPE')
 WORKER_DISK_SIZE = os.getenv('WORKER_DISK_SIZE')
 WORKER_DISK_MOUNT_POINT = os.getenv('WORKER_DISK_MOUNT_POINT')
+WORKER_NETWORK = os.getenv('WORKER_NETWORK')
+WORKER_TAGS = os.getenv('WORKER_TAGS')
 
 # Graph Models settings to generate model schema plots
 GRAPH_MODELS = {

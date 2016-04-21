@@ -68,7 +68,6 @@ def workerinfo(request):
     workerinfo = {
         'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
         'FILE_ROOT_FOR_WORKER': settings.FILE_ROOT_FOR_WORKER,
-        'WORKER_LOGFILE': settings.WORKER_LOGFILE,
         'LOG_LEVEL': settings.LOG_LEVEL,
         }
     return JsonResponse({'workerinfo': workerinfo})

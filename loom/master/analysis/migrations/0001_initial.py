@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import models, migrations
+from django.db import migrations, models
 import sortedone2many.fields
 import universalmodels.models
 import analysis.models.base
@@ -143,6 +143,8 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('workflow_name', models.CharField(default=b'', max_length=255)),
+                ('workflow_run_datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('status', models.CharField(default=b'waiting', max_length=255, choices=[(b'waiting', b'Waiting'), (b'running', b'Running'), (b'completed', b'Completed'), (b'canceled', b'Canceled'), (b'error', b'Error')])),
                 ('step', models.ForeignKey(to='analysis.Step')),
             ],
@@ -239,6 +241,9 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('step_name', models.CharField(default=b'', max_length=255)),
+                ('workflow_name', models.CharField(default=b'', max_length=255)),
+                ('workflow_run_datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('status', models.CharField(default=b'ready_to_run', max_length=255, choices=[(b'ready_to_run', b'Ready to run'), (b'running', b'Running'), (b'completed', b'Completed'), (b'canceled', b'Canceled')])),
             ],
             options={
@@ -265,6 +270,19 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunLog',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('logname', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -356,6 +374,8 @@ class Migration(migrations.Migration):
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('subchannel', models.ForeignKey(to='analysis.Subchannel', null=True)),
+                ('workflow_output', models.ForeignKey(to='analysis.WorkflowOutput')),
             ],
             options={
                 'abstract': False,
@@ -477,21 +497,6 @@ class Migration(migrations.Migration):
             bases=('analysis.taskdefinitionenvironment',),
         ),
         migrations.AddField(
-            model_name='workflowrunoutput',
-            name='data_object',
-            field=models.ForeignKey(to='analysis.DataObject', null=True),
-        ),
-        migrations.AddField(
-            model_name='workflowrunoutput',
-            name='subchannel',
-            field=models.ForeignKey(to='analysis.Subchannel', null=True),
-        ),
-        migrations.AddField(
-            model_name='workflowrunoutput',
-            name='workflow_output',
-            field=models.ForeignKey(to='analysis.WorkflowOutput'),
-        ),
-        migrations.AddField(
             model_name='workflowruninput',
             name='data_object',
             field=models.ForeignKey(to='analysis.DataObject', null=True),
@@ -535,6 +540,11 @@ class Migration(migrations.Migration):
             model_name='taskrun',
             name='active_task_run_location',
             field=models.ForeignKey(related_name='active_task_run', to='analysis.TaskRunLocation', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
+            name='logs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunLog'),
         ),
         migrations.AddField(
             model_name='taskrun',
@@ -645,6 +655,11 @@ class Migration(migrations.Migration):
             model_name='channel',
             name='subchannels',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, to='analysis.Subchannel'),
+        ),
+        migrations.AddField(
+            model_name='taskrunlog',
+            name='logfile',
+            field=models.ForeignKey(to='analysis.FileDataObject'),
         ),
         migrations.AddField(
             model_name='dataobjectarray',
