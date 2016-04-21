@@ -14,6 +14,7 @@ import oauth2client.contrib.gce
 from django.conf import settings
 
 import loom.common.logger
+import loom.common.version
 
 class CloudTaskManager:
 
@@ -46,7 +47,7 @@ class CloudTaskManager:
             disk_size_gb = requested_resources.disk_size
         else:   
             disk_size_gb = settings.WORKER_DISK_SIZE
-        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run_id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER)
+        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run_id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER, version=loom.common.version.version())
         logger.debug('Starting worker VM using playbook: %s' % playbook)
         ansible_logfile=open('/tmp/loom_ansible.log', 'a', 0)
         cls._run_playbook_string(playbook, ansible_logfile)
@@ -54,7 +55,7 @@ class CloudTaskManager:
         ansible_logfile.close()
 
     @classmethod
-    def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone, run_id, run_location_id, master_url):
+    def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone, run_id, run_location_id, master_url, version):
         s = Template(
 """---
 - name: Create new instance.
@@ -96,8 +97,8 @@ class CloudTaskManager:
     apt: name=libffi-dev state=present
   - name: Install virtualenv using pip.
     pip: name=virtualenv state=present
-  - name: Install Loom using pip in a virtualenv.
-    pip: name=loomengine virtualenv=/opt/loom state=latest
+  - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the worker as the master.
+    pip: name=loomengine virtualenv=/opt/loom version=$version
   - name: Run the Loom task runner.
     shell: source /opt/loom/bin/activate; loom-taskrunner --run_id $run_id --run_location_id $run_location_id --master_url $master_url
     args:
