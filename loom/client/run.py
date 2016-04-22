@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+from collections import OrderedDict
 import os
 import warnings
 import sys
@@ -391,7 +392,7 @@ class WorkflowRunner(object):
         return input.get('value') is not None
     
     def _get_inputs_required(self):
-        self.inputs_required = {}
+        self.inputs_required = OrderedDict()
         if not self.workflow.get('workflow_inputs'):
             return
         for workflow_input in self.workflow['workflow_inputs']:

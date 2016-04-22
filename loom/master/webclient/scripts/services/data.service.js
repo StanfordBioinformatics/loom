@@ -14,6 +14,8 @@ function DataService($http) {
     this.setActiveStep = setActiveStep;
     this.setActiveRun = setActiveRun;
     this.setActiveFile = setActiveFile;
+    this.setActiveFileSourceRecords = setActiveFileSourceRecords;
+    this.setActiveFileSourceRuns = setActiveFileSourceRuns;
     this.getActiveData = getActiveData;
     this.getRuns = getRuns;    
     this.getWorkflows = getWorkflows;
@@ -58,6 +60,20 @@ function DataService($http) {
             .then(function(response) {
 		activeData.file = response.data;
             });
+    };
+    
+    function setActiveFileSourceRuns(fileId) {
+	return $http.get('/api/file_data_objects/' + fileId + '/source_runs/')
+	    .then(function(response) {
+		activeData.fileSourceRuns = response.data.runs;
+	    });
+    };
+
+    function setActiveFileSourceRecords(fileId) {
+	return $http.get('/api/file_data_objects/' + fileId + '/data_source_records/')
+	    .then(function(response) {
+		activeData.fileSourceRecords = response.data.data_source_records;
+	    });
     };
 
     function getRuns() {
