@@ -2,15 +2,15 @@ from django.conf import settings
 from django.conf.urls import patterns, include, url
 import django.views.static
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^api/', include('analysis.urls')),
     url(r'^editor$', 'editor.views.index'),
-)
-
+]
 
 if settings.DEBUG == True:
     # Static files should not be served like this in production
-    urlpatterns += [
+    urlpatterns += patterns(
+        '',
         url(
             r'^$',
             django.views.static.serve,
@@ -33,5 +33,5 @@ if settings.DEBUG == True:
                 'document_root': settings.DOC_ROOT
             }
         ),
-    ]
+    )
 

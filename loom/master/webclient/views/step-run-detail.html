@@ -9,9 +9,13 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="input in activeData.stepRun.step.step_inputs">
-	<td>{{input.from_channel}}</td>
-	<td></td>
+      <tr ng-repeat="input in activeData.stepRun.step_run_inputs">
+	<td>{{input.step_input.from_channel}}</td>
+	<td>
+	  <div ng-repeat="tr_input in input.task_run_inputs">
+	    <a ng-href="#/files/{{tr_input.task_definition_input.data_object._id}}">{{tr_input.task_definition_input.data_object.file_name}}@{{tr_input.task_definition_input.data_object._id | limitTo:8}}</a>
+	  </div>
+	</td>
       </tr>
     </tbody>
   </table>
@@ -26,9 +30,13 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="output in activeData.stepRun.step.step_outputs">
-	<td>{{output.to_channel}}</td>
-	<td></td>
+      <tr ng-repeat="output in activeData.stepRun.step_run_outputs">
+	<td>{{output.step_output.to_channel}}</td>
+	<td>
+	  <div ng-repeat="tr_output in output.task_run_outputs">
+	    <a ng-href="#/files/{{tr_output.data_object._id}}">{{tr_output.data_object.file_name}}@{{tr_output.data_object._id | limitTo:8}}</a>
+	  </div>
+	</td>
       </tr>
     </tbody>
   </table>

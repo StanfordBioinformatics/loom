@@ -9,7 +9,7 @@ urlpatterns = patterns(
     url(r'^servertime/$', 'analysis.views.servertime'),
     url(r'^controls/update/$', 'analysis.views.update_tasks'),
     url(r'^controls/run/$', 'analysis.views.run_tasks'),
-)    
+)
 
 model_classes = [
     DataObject,
@@ -31,4 +31,4 @@ for cls in model_classes:
 
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file_storage_locations/$' % FileDataObject.get_class_name(plural=True), 'analysis.views.storage_locations_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/data_source_records/$' % FileDataObject.get_class_name(plural=True), 'analysis.views.data_source_records_by_file'))
-
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/source_runs/$' % FileDataObject.get_class_name(plural=True), 'analysis.views.file_data_object_source_runs'))
