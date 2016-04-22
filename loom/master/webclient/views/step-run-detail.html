@@ -34,7 +34,7 @@
 	<td>{{output.step_output.to_channel}}</td>
 	<td>
 	  <div ng-repeat="tr_output in output.task_run_outputs">
-	    <a ng-href="#/files/{{tr_output.data_object._id}}">{{tr_output.data_object.file_name}}@{{tr_output.data_object._id | limitTo:8}}</a>
+	    <a ng-show="tr_output.data_object" ng-href="#/files/{{tr_output.data_object._id}}">{{tr_output.data_object.file_name}}@{{tr_output.data_object._id | limitTo:8}}</a>
 	  </div>
 	</td>
       </tr>
