@@ -48,6 +48,11 @@ class CloudTaskManager:
         else:   
             disk_size_gb = settings.WORKER_DISK_SIZE
         
+        if len(settings.WORKER_TAGS.strip()) == 0:
+            worker_tags = ''
+        else:
+            worker_tags = 'tags=%s' % settings.WORKER_TAGS
+        
         playbook_values = {
             'node_name': node_name,
             'image': settings.WORKER_VM_IMAGE,
@@ -63,7 +68,7 @@ class CloudTaskManager:
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
             'worker_network': settings.WORKER_NETWORK,
-            'worker_tags': settings.WORKER_TAGS,
+            'worker_tags': worker_tags,
         }
         playbook = cls._create_taskrun_playbook(playbook_values)
         logger.debug('Starting worker VM using playbook: %s' % playbook)
@@ -82,7 +87,7 @@ class CloudTaskManager:
   gather_facts: no
   tasks:
   - name: Boot up a new instance.
-    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type network=$worker_network tags=$worker_tags service_account_permissions=storage-rw
+    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type network=$worker_network service_account_permissions=storage-rw $worker_tags
     register: gce_result
   - name: Create a disk and attach it to the instance.
     gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone mode=READ_WRITE
