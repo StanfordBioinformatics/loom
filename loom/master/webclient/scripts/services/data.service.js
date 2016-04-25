@@ -16,6 +16,7 @@ function DataService($http) {
     this.setActiveFile = setActiveFile;
     this.setActiveFileSourceRecords = setActiveFileSourceRecords;
     this.setActiveFileSourceRuns = setActiveFileSourceRuns;
+    this.setActiveFileStorageLocations = setActiveFileStorageLocations;
     this.getActiveData = getActiveData;
     this.getRuns = getRuns;    
     this.getWorkflows = getWorkflows;
@@ -73,6 +74,13 @@ function DataService($http) {
 	return $http.get('/api/file_data_objects/' + fileId + '/data_source_records/')
 	    .then(function(response) {
 		activeData.fileSourceRecords = response.data.data_source_records;
+	    });
+    };
+
+    function setActiveFileStorageLocations(fileId) {
+	return $http.get('/api/file_data_objects/' + fileId + '/file_storage_locations/')
+	    .then(function(response) {
+		activeData.fileStorageLocations = response.data.file_storage_locations;
 	    });
     };
 

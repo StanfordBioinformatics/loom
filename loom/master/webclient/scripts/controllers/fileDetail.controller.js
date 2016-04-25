@@ -16,4 +16,5 @@ function FileDetailController($scope, DataService, $routeParams) {
     });
     DataService.setActiveFileSourceRuns($routeParams.fileId);
     DataService.setActiveFileSourceRecords($routeParams.fileId);
+    DataService.setActiveFileStorageLocations($routeParams.fileId);
 };
