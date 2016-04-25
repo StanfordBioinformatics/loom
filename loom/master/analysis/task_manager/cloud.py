@@ -14,6 +14,7 @@ import oauth2client.contrib.gce
 from django.conf import settings
 
 import loom.common.logger
+import loom.common.version
 
 class CloudTaskManager:
 
@@ -22,7 +23,7 @@ class CloudTaskManager:
     @classmethod
     def run(cls, task_run, task_run_location_id, requested_resources):
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
-        logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_task_manager.log')
+        logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
         logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
         logger.debug("Launching CloudTaskManager as a separate process.")
         process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run._id, task_run_location_id, requested_resources))
@@ -46,7 +47,30 @@ class CloudTaskManager:
             disk_size_gb = requested_resources.disk_size
         else:   
             disk_size_gb = settings.WORKER_DISK_SIZE
-        playbook = cls._create_taskrun_playbook(node_name, settings.WORKER_VM_IMAGE, instance_type, disk_name, device_path, mount_point=settings.WORKER_DISK_MOUNT_POINT, disk_type=settings.WORKER_DISK_TYPE, size_gb=disk_size_gb, zone=settings.WORKER_LOCATION, run_id=task_run_id, run_location_id=task_run_location_id, master_url=settings.MASTER_URL_FOR_WORKER)
+        
+        if len(settings.WORKER_TAGS.strip()) == 0:
+            worker_tags = ''
+        else:
+            worker_tags = 'tags=%s' % settings.WORKER_TAGS
+        
+        playbook_values = {
+            'node_name': node_name,
+            'image': settings.WORKER_VM_IMAGE,
+            'instance_type': instance_type,
+            'disk_name': disk_name,
+            'device_path': device_path,
+            'mount_point': settings.WORKER_DISK_MOUNT_POINT,
+            'disk_type': settings.WORKER_DISK_TYPE,
+            'size_gb': disk_size_gb,
+            'zone': settings.WORKER_LOCATION,
+            'run_id': task_run_id,
+            'run_location_id': task_run_location_id,
+            'master_url': settings.MASTER_URL_FOR_WORKER,
+            'version': loom.common.version.version(),
+            'worker_network': settings.WORKER_NETWORK,
+            'worker_tags': worker_tags,
+        }
+        playbook = cls._create_taskrun_playbook(playbook_values)
         logger.debug('Starting worker VM using playbook: %s' % playbook)
         ansible_logfile=open('/tmp/loom_ansible.log', 'a', 0)
         cls._run_playbook_string(playbook, ansible_logfile)
@@ -54,7 +78,7 @@ class CloudTaskManager:
         ansible_logfile.close()
 
     @classmethod
-    def _create_taskrun_playbook(cls, node_name, image, instance_type, disk_name, device_path, mount_point, disk_type, size_gb, zone, run_id, run_location_id, master_url):
+    def _create_taskrun_playbook(cls, playbook_values_dict):
         s = Template(
 """---
 - name: Create new instance.
@@ -63,7 +87,7 @@ class CloudTaskManager:
   gather_facts: no
   tasks:
   - name: Boot up a new instance.
-    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type service_account_permissions=storage-rw
+    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type network=$worker_network service_account_permissions=storage-rw $worker_tags
     register: gce_result
   - name: Create a disk and attach it to the instance.
     gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone mode=READ_WRITE
@@ -96,14 +120,14 @@ class CloudTaskManager:
     apt: name=libffi-dev state=present
   - name: Install virtualenv using pip.
     pip: name=virtualenv state=present
-  - name: Install Loom using pip in a virtualenv.
-    pip: name=loomengine virtualenv=/opt/loom state=latest
+  - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the worker as the master.
+    pip: name=loomengine virtualenv=/opt/loom version=$version
   - name: Run the Loom task runner.
     shell: source /opt/loom/bin/activate; loom-taskrunner --run_id $run_id --run_location_id $run_location_id --master_url $master_url
     args:
       executable: /bin/bash
 """)
-        return s.substitute(locals())
+        return s.substitute(playbook_values_dict)
 
     @classmethod
     def _run_playbook_string(cls, playbook_string, logfile=None):

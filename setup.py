@@ -10,6 +10,7 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
+from loom.common import version
 
 here = path.abspath(path.dirname(__file__))
 
@@ -17,8 +18,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
-with open(path.join(here, 'VERSION')) as version_file:
-    version = version_file.read().strip()
+version = version.version()
 
 setup(
     name='loomengine',
@@ -90,6 +90,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
                         'ansible>=2.0.1.0',
+                        'apache-libcloud>=0.13',
                         'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',
                         'django-sortedone2many>=0.1.8',

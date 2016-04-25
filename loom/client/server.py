@@ -18,7 +18,7 @@ DAEMON_EXECUTABLE = os.path.abspath(
 
 def is_server_running(master_url):
     try:
-        response = requests.get(master_url + '/api/status')
+        response = requests.get(master_url + '/api/status/')
         if response.status_code == 200:
             return True
         else:
@@ -211,16 +211,14 @@ class ServerControls:
                 stdout=subprocess.PIPE,
                 env=env).communicate()
             if re.search('\[ \]', stdout[0]):
-                yes_or_no = None
-                while not (yes_or_no == 'yes' or yes_or_no == 'no'):
-                    yes_or_no = raw_input("The Loom database needs to be initialized or updated. Proceed? (yes/no)\n> ")
-                if yes_or_no == 'yes':
-                    stdout = subprocess.Popen(
-                        manage_cmd + ['migrate'],
-                        stdout=subprocess.PIPE,
-                        env=env).communicate()
-                else:
-                    raise Exception("Declined to apply database migrations. Exiting now.")
+  	        print("The Loom database needs to be initialized or updated. Proceeding...")
+		try:
+	            stdout = subprocess.Popen(
+		        manage_cmd + ['migrate'],
+		        stdout=subprocess.PIPE,
+		        env=env).communicate()
+                except:
+                    raise Exception("Failed to apply database migrations. Exiting now.")
         return env
 
     def _export_django_settings(self, env):

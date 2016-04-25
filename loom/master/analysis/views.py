@@ -68,7 +68,6 @@ def workerinfo(request):
     workerinfo = {
         'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
         'FILE_ROOT_FOR_WORKER': settings.FILE_ROOT_FOR_WORKER,
-        'WORKER_LOGFILE': settings.WORKER_LOGFILE,
         'LOG_LEVEL': settings.LOG_LEVEL,
         }
     return JsonResponse({'workerinfo': workerinfo})
@@ -111,6 +110,20 @@ def storage_locations_by_file(request, id):
     return JsonResponse({"file_storage_locations": [o.to_struct() for o in file.file_contents.file_storage_locations.all()]}, status=200)
 
 @require_http_methods(["GET"])
+def file_data_object_source_runs(request, id):
+    try:
+        file = FileDataObject.get_by_id(id)
+    except ObjectDoesNotExist:
+        return JsonResponse({"message": "Not Found"}, status=404)
+    runs = []
+    for task_run_output in file.taskrunoutput_set.all():
+        runs.append({'step_run': {'_id': task_run_output.task_run.steprun._id.hex,
+                                  'step_name': task_run_output.task_run.steprun.step.step_name},
+                     'workflow_run': {'_id': task_run_output.task_run.steprun.workflow_run._id.hex,
+                                      'workflow_name': task_run_output.task_run.steprun.workflow_run.workflow.workflow_name}})
+    return JsonResponse({"runs": runs}, status=200)
+
+@require_http_methods(["GET"])
 def data_source_records_by_file(request, id):
     try:
         file = FileDataObject.get_by_id(id)
@@ -129,7 +142,4 @@ def update_tasks(request):
 def run_tasks(request):
     TaskRun.run_all()
     return JsonResponse({"status": "ok"}, status=200)
-
-def browser(request):
-    return render(request, 'browser.html')
 
