@@ -41,6 +41,23 @@
     </tbody>
   </table>
 </div>
+<h4>Logfiles</h4>
+<div class="table-responsive" >
+  <table class="table table-striped">
+    <thead>
+      <tr>
+	<th>Name</th>
+	<th>File</th>
+      </tr>
+    </thead>
+    <tbody ng-repeat="task_run in activeData.stepRun.task_runs">
+      <tr ng-repeat="log in task_run.logs">
+        <td>{{log.logfile.file_name}}</td>
+        <td><a ng-href="#/files/{{log.logfile._id}}">{{log.logfile.file_name}}@{{log.logfile._id | limitTo:8}}</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 <h4>Step Details</h4>
 <div class="table-responsive" >
   <table class="table table-striped">
