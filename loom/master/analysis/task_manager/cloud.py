@@ -5,6 +5,7 @@ import logging
 import multiprocessing
 import os
 import requests
+import socket
 import subprocess
 import sys
 import tempfile
@@ -26,21 +27,25 @@ class CloudTaskManager:
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
         logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
         logger.debug("Launching CloudTaskManager as a separate process.")
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run._id, task_run_location_id, requested_resources))
+        
+        task_run_json = json.dumps(task_run)
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_json, task_run_location_id, requested_resources))
         process.start()
 
     @classmethod
-    def _run(cls, task_run_id, task_run_location_id, requested_resources):
+    def _run(cls, task_run_json, task_run_location_id, requested_resources):
+        task_run = json.loads(task_run_json)
         logger = loom.common.logger.get_logger('TaskManagerLogger2', logfile='/tmp/loom_task_manager2.log')
         logger.debug("CloudTaskManager separate process started.")
-        logger.debug("task_run_id: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_id, task_run_location_id, requested_resources))
+        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
         cls._setup_ansible_gce()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
-        node_name = 'worker-'+task_run_location_id # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
+        hostname = socket.gethostname()
+        node_name = '%s-worker-%s-%s-%s' % (hostname, task_run['workflow_name'], task_run['step_name'], task_run_location_id) # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
@@ -63,7 +68,7 @@ class CloudTaskManager:
             'disk_type': settings.WORKER_DISK_TYPE,
             'size_gb': disk_size_gb,
             'zone': settings.WORKER_LOCATION,
-            'run_id': task_run_id,
+            'run_id': task_run['_id'],
             'run_location_id': task_run_location_id,
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
