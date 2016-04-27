@@ -25,10 +25,10 @@ class CloudTaskManager:
     def run(cls, task_run, task_run_location_id, requested_resources):
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
-        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
+        task_run_json = json.dumps(task_run)
+        logger.debug("task_run_json: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_json, task_run_location_id, requested_resources))
         logger.debug("Launching CloudTaskManager as a separate process.")
         
-        task_run_json = json.dumps(task_run)
         process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_json, task_run_location_id, requested_resources))
         process.start()
 
