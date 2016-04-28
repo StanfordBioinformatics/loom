@@ -25,21 +25,19 @@ class CloudTaskManager:
 
     @classmethod
     def run(cls, task_run, task_run_location_id, requested_resources):
-        # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
-        loom.common.logger.add_stderr(logger)
-        loom.common.logger.add_stdout(logger)
+        
+        # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
+        logger.debug("Launching CloudTaskManager as a separate process.")
         task_run_pickle = pickle.dumps(task_run)
         logger.debug("task_run_pickle: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_pickle, task_run_location_id, requested_resources))
-        logger.debug("Launching CloudTaskManager as a separate process.")
-        
         process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_pickle, task_run_location_id, requested_resources))
         process.start()
 
     @classmethod
     def _run(cls, task_run_pickle, task_run_location_id, requested_resources):
         task_run = pickle.loads(task_run_pickle)
-        logger = loom.common.logger.get_logger('TaskManagerLogger2', logfile='/tmp/loom_task_manager2.log')
+        logger = loom.common.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
@@ -51,7 +49,6 @@ class CloudTaskManager:
         hostname = socket.gethostname()
         node_name_to_sanitize = '%s-worker-%s-%s-%s' % (hostname, task_run.workflow_name, task_run.step_name, task_run_location_id) # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
         node_name = cls.sanitize_instance_name(node_name_to_sanitize)
-        node_name = 'loom-worker'
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
@@ -261,8 +258,8 @@ class CloudTaskManager:
         name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
         name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
         name = re.sub(r'-+$', '', name)         # remove dashes from the end
-        if len(name) > 63:                      # truncate if too long
-            name = name[:63]
+        if len(name) > 58:                      # truncate if too long; limit to 58 characters to leave room for '-disk' suffix
+            name = name[:58]
         if len(name) < 1:               
             name = 'loom-instance'              # default name if too short 
             
