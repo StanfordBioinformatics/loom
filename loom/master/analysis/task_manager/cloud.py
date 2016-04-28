@@ -4,6 +4,8 @@ import json
 import logging
 import multiprocessing
 import os
+import pickle
+import re
 import requests
 import socket
 import subprocess
@@ -13,6 +15,7 @@ from string import Template
 
 import oauth2client.contrib.gce
 from django.conf import settings
+from django.core import serializers
 
 import loom.common.logger
 import loom.common.version
@@ -25,16 +28,18 @@ class CloudTaskManager:
     def run(cls, task_run, task_run_location_id, requested_resources):
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
-        task_run_json = json.dumps(task_run)
-        logger.debug("task_run_json: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_json, task_run_location_id, requested_resources))
+        loom.common.logger.add_stderr(logger)
+        loom.common.logger.add_stdout(logger)
+        task_run_pickle = pickle.dumps(task_run)
+        logger.debug("task_run_pickle: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_pickle, task_run_location_id, requested_resources))
         logger.debug("Launching CloudTaskManager as a separate process.")
         
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_json, task_run_location_id, requested_resources))
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_pickle, task_run_location_id, requested_resources))
         process.start()
 
     @classmethod
-    def _run(cls, task_run_json, task_run_location_id, requested_resources):
-        task_run = json.loads(task_run_json)
+    def _run(cls, task_run_pickle, task_run_location_id, requested_resources):
+        task_run = pickle.loads(task_run_pickle)
         logger = loom.common.logger.get_logger('TaskManagerLogger2', logfile='/tmp/loom_task_manager2.log')
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
@@ -45,7 +50,9 @@ class CloudTaskManager:
         cls._setup_ansible_gce()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
         hostname = socket.gethostname()
-        node_name = '%s-worker-%s-%s-%s' % (hostname, task_run['workflow_name'], task_run['step_name'], task_run_location_id) # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
+        node_name_to_sanitize = '%s-worker-%s-%s-%s' % (hostname, task_run.workflow_name, task_run.step_name, task_run_location_id) # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
+        node_name = cls.sanitize_instance_name(node_name_to_sanitize)
+        node_name = 'loom-worker'
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
@@ -68,7 +75,7 @@ class CloudTaskManager:
             'disk_type': settings.WORKER_DISK_TYPE,
             'size_gb': disk_size_gb,
             'zone': settings.WORKER_LOCATION,
-            'run_id': task_run['_id'],
+            'run_id': task_run._id,
             'run_location_id': task_run_location_id,
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
@@ -245,6 +252,23 @@ class CloudTaskManager:
 """)
         playbook = s.substitute(locals())
         cls._run_playbook_string(playbook)
+
+    @classmethod
+    def sanitize_instance_name(cls, name):
+        """ Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit. Last character cannot be a dash.
+        Instance names must be 1-63 characters long.
+        """
+        name = str(name).lower()                # make all letters lowercase
+        name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
+        name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
+        name = re.sub(r'-+$', '', name)         # remove dashes from the end
+        if len(name) > 63:                      # truncate if too long
+            name = name[:63]
+        if len(name) < 1:               
+            name = 'loom-instance'              # default name if too short 
+            
+        sanitized_name = name
+        return sanitized_name
 
 
 class CloudTaskManagerError(Exception):
