@@ -15,7 +15,6 @@ from string import Template
 
 import oauth2client.contrib.gce
 from django.conf import settings
-from django.core import serializers
 
 import loom.common.logger
 import loom.common.version
