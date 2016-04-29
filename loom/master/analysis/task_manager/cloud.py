@@ -5,6 +5,7 @@ import logging
 import multiprocessing
 import os
 import pickle
+import random
 import re
 import requests
 import socket
@@ -30,7 +31,7 @@ class CloudTaskManager:
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger.debug("Launching CloudTaskManager as a separate process.")
         task_run_pickle = pickle.dumps(task_run)
-        logger.debug("task_run_pickle: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_pickle, task_run_location_id, requested_resources))
+        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
         process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_pickle, task_run_location_id, requested_resources))
         process.start()
 
@@ -47,8 +48,7 @@ class CloudTaskManager:
         cls._setup_ansible_gce()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
         hostname = socket.gethostname()
-        node_name_to_sanitize = '%s-worker-%s-%s-%s' % (hostname, task_run.workflow_name, task_run.step_name, task_run_location_id) # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
-        node_name = cls.sanitize_instance_name(node_name_to_sanitize)
+        node_name = cls.create_worker_name(hostname, task_run)
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
@@ -225,11 +225,10 @@ class CloudTaskManager:
         process.start()
 
     @classmethod
-    def delete_node_by_task_run(cls, task_run):
+    def delete_node_by_task_run(cls, host_name, task_run):
         """ Delete the node that ran a task. """
-        # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run._id))
-        process.start()
+        node_name = cls.create_worker_name(host_name, task_run)
+        cls.delete_node_by_name(node_name)
         
     @classmethod
     def _delete_node(cls, node_name):
@@ -248,6 +247,34 @@ class CloudTaskManager:
 """)
         playbook = s.substitute(locals())
         cls._run_playbook_string(playbook)
+        # TODO: Delete scratch disk
+
+    @classmethod
+    def create_worker_name(cls, hostname, taskrun):
+        """ Create a name for the worker instance. Since hostname, workflow name, and step name can easily be duplicated,
+        we do this in two steps to ensure that at least 4 characters of the location ID are part of the name.
+        Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
+        so leave 5 characters for the '-disk' suffix.
+        """
+        workflow_name = taskrun.workflow_name
+        step_name = taskrun.step_name
+        location_id = taskrun.active_task_run_location._id
+        name_base = '-'.join([hostname, workflow_name, step_name])
+        sanitized_name_base = cls.sanitize_instance_name_base(name_base)
+        sanitized_name_base = sanitized_name_base[:53]      # leave 10 characters at the end for location id and -disk suffix
+
+        node_name = '-'.join([sanitized_name_base, location_id])
+        sanitized_node_name = cls.sanitize_instance_name(node_name)
+        sanitized_node_name = sanitized_node_name[:58]      # leave 5 characters for -disk suffix
+        return sanitized_node_name
+
+    @classmethod
+    def sanitize_instance_name_base(cls, name):
+        """ Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit. """
+        name = str(name).lower()                # make all letters lowercase
+        name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
+        name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
+        return name
 
     @classmethod
     def sanitize_instance_name(cls, name):
@@ -258,10 +285,9 @@ class CloudTaskManager:
         name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
         name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
         name = re.sub(r'-+$', '', name)         # remove dashes from the end
-        if len(name) > 58:                      # truncate if too long; limit to 58 characters to leave room for '-disk' suffix
-            name = name[:58]
+        name = name[:63]                        # truncate if too long
         if len(name) < 1:               
-            name = 'loom-instance'              # default name if too short 
+            name = 'loom-instance-%s' % random.randint(10000000,99999999) # default name if too short 
             
         sanitized_name = name
         return sanitized_name
