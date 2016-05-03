@@ -108,7 +108,7 @@ elif not os.getenv('LOOM_TEST_DATABASE'):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, DATABASE_NAME+'.sqlite3'),
+            'NAME': os.path.join(BASE_DIR, SQLITE_DATABASE_NAME+'.sqlite3'),
         }
     }
 else:
