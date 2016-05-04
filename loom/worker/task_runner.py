@@ -60,7 +60,7 @@ class TaskRunner(object):
         for task_run_output in self.task_run['task_run_outputs']:
             path = task_run_output['task_definition_output']['path']
             task_run_output['data_object'] = self.filehandler.upload_step_output_from_local_path(path, self.task_run['workflow_run_datetime_created'], self.task_run['workflow_name'], self.task_run['step_name'], source_directory=self.settings['WORKING_DIR'])
-        self.objecthandler.update_task_run(self.task_run)
+        self.objecthandler.post_task_run(self.task_run)
 
     def _upload_logfiles(self):
         for logfile in (self.settings['STEP_LOGFILE'], self.settings['STDOUT_LOGFILE'], self.settings['STDERR_LOGFILE']):
@@ -69,7 +69,7 @@ class TaskRunner(object):
             if 'logs' not in self.task_run:
                 self.task_run['logs'] = []
             self.task_run['logs'].append(task_run_log)
-        self.objecthandler.update_task_run(self.task_run)
+        self.objecthandler.post_task_run(self.task_run)
 
     def _get_additional_settings(self):
         url = self.settings['MASTER_URL'] + '/api/workerinfo/'

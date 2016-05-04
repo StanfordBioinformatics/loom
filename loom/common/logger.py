@@ -30,7 +30,7 @@ class StreamToLogger(object):
         self.linebuf = ''
 
     def write(self, buf):
-        for line in buf.splitlines():
+        for line in buf.rstrip().splitlines():
             self.logger.log(self.log_level, line.rstrip()) 
 
     def flush(self):

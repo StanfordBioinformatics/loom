@@ -5,7 +5,6 @@ import logging
 import multiprocessing
 import os
 import pickle
-import random
 import re
 import requests
 import socket
@@ -287,7 +286,7 @@ class CloudTaskManager:
         name = re.sub(r'-+$', '', name)         # remove dashes from the end
         name = name[:63]                        # truncate if too long
         if len(name) < 1:               
-            name = 'loom-instance-%s' % random.randint(10000000,99999999) # default name if too short 
+            raise CloudTaskManagerError('Cannot create an instance name from %s' % name)
             
         sanitized_name = name
         return sanitized_name
