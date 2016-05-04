@@ -63,10 +63,13 @@ ROOT_URLCONF = 'loomserver.urls'
 
 WSGI_APPLICATION = 'loomserver.wsgi.application'
 
-MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
+LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
+LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
+LOOM_MYSQL_USER = os.getenv('LOOM_MYSQL_USER')
+LOOM_MYSQL_DB_NAME = os.getenv('LOOM_MYSQL_DB_NAME')
 
-def get_database_name():
-    DATABASE_NAME_FILE = os.path.join(BASE_DIR, 'dbname.txt')
+def get_sqlite_database_name():
+    DATABASE_NAME_FILE = os.path.join(BASE_DIR, 'sqlite_dbname.txt')
     try:
         DATABASE_NAME = open(DATABASE_NAME_FILE).read().strip()
         return DATABASE_NAME
@@ -81,13 +84,31 @@ def get_database_name():
             Exception('Failed to create file for database name. Please create file "%s"' \
                       ' with a name for the Loom database' % DATABASE_NAME_FILE)
 
-DATABASE_NAME = get_database_name()
-
-if not os.getenv('LOOM_TEST_DATABASE'):
+if LOOM_MYSQL_HOST:
+    if not LOOM_MYSQL_USER:
+        raise Exception(
+            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_USER")
+    if not LOOM_MYSQL_PASSWORD:
+        raise Exception(
+            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_PASSWORD")
+    if not LOOM_MYSQL_DB_NAME:
+        raise Exception(
+            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_DB__NAME")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'HOST': LOOM_MYSQL_HOST,
+            'NAME': LOOM_MYSQL_DB_NAME,
+            'USER': LOOM_MYSQL_USER,
+            'PASSWORD': LOOM_MYSQL_PASSWORD,
+        }
+    }
+elif not os.getenv('LOOM_TEST_DATABASE'):
+    SQLITE_DATABASE_NAME = get_sqlite_database_name()
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, DATABASE_NAME+'.sqlite3'),
+            'NAME': os.path.join(BASE_DIR, SQLITE_DATABASE_NAME+'.sqlite3'),
         }
     }
 else:
