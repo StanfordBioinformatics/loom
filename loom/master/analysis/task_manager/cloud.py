@@ -125,6 +125,8 @@ class CloudTaskManager:
     apt: name=build-essential state=present
   - name: Install libffi-dev using apt-get, which is needed to build certain Python dependencies.
     apt: name=libffi-dev state=present
+  - name: Install libmysqlclient-dev using apt-get, which is needed to install the MySQL-python Python package.
+    apt: name=libmysqlclient-dev state=present
   - name: Install virtualenv using pip.
     pip: name=virtualenv state=present
   - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the worker as the master.
