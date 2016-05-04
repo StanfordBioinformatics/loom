@@ -106,7 +106,7 @@ setup(
                         'jsonschema>=2.4.0',
                         'lockfile>=0.12.2',
                         'MarkupSafe>=0.23',
-                        #'MySQL-python>=1.2.5',
+                        'MySQL-python>=1.2.5',
                         'oauth2client>=2.0.0',
                         'protobuf>=3.0.0b2',
                         'protorpc>=0.11.1',
