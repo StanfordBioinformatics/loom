@@ -14,8 +14,9 @@ from loom.client import download
 from loom.client import run
 from loom.client import server
 from loom.client import show
-from loom.client import upload
 from loom.client import test_runner
+from loom.client import upload
+from loom.client import version
 
 
 class Main(object):
@@ -61,6 +62,10 @@ class Main(object):
         test_subparser = subparsers.add_parser('test', help='run all unit tests')
         test_runner.TestRunner.get_parser(test_subparser)
         test_subparser.set_defaults(SubcommandClass=test_runner.TestRunner)
+
+        version_subparser = subparsers.add_parser('version', help='display current version of Loom')
+        version.Version.get_parser(version_subparser)
+        version_subparser.set_defaults(SubcommandClass=version.Version)
 
         return parser
 

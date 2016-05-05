@@ -1,0 +1,41 @@
+---
+workflow_name: "hello_world"
+workflow_inputs:
+  -
+    type: "file"
+    prompt: "Enter the 'hello' file"
+    to_channel: "hello"
+workflow_outputs:
+  -
+    from_channel: "hello_world_out"
+    output_name: "hello_world"
+steps:
+  -
+    step_name: "world_step"
+    command: "echo world > {{ world }}"
+    environment:
+      docker_image: "ubuntu"
+    resources:
+      cores: 1
+      memory: "1"
+    step_outputs:
+    -
+      from_path: "world.txt"
+      to_channel: "world"
+  -
+    step_name: "hello_world_step"
+    command: "cat {{ hello }} {{ world }} > {{ hello_world_out }}"
+    environment:
+      docker_image: "ubuntu"
+    resources:
+      cores: 1
+      memory: "1"
+    step_inputs:
+      -
+        from_channel: "hello"
+      -
+        from_channel: "world"
+    step_outputs:
+      -
+        from_path: "hello_world.txt"
+        to_channel: "hello_world_out"

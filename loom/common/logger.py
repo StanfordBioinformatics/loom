@@ -25,10 +25,22 @@ class StreamToLogger(object):
     Credit to: http://www.electricmonk.nl/log/2011/08/14/redirect-stdout-and-stderr-to-a-logger-in-python/
     """
     def __init__(self, logger, log_level=logging.INFO):
-      self.logger = logger
-      self.log_level = log_level
-      self.linebuf = ''
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ''
 
     def write(self, buf):
-      for line in buf.rstrip().splitlines():
-         self.logger.log(self.log_level, line.rstrip()) 
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.log_level, line.rstrip()) 
+
+    def flush(self):
+        for handler in self.logger.handlers:
+            handler.flush()
+
+def add_stdout(logger, log_level=logging.INFO):
+    stdout_logger = StreamToLogger(logger, log_level)
+    sys.stdout = stdout_logger
+
+def add_stderr(logger, log_level=logging.ERROR):
+    stderr_logger = StreamToLogger(logger, log_level)
+    sys.stderr = stderr_logger

@@ -4,7 +4,10 @@ import json
 import logging
 import multiprocessing
 import os
+import pickle
+import re
 import requests
+import socket
 import subprocess
 import sys
 import tempfile
@@ -22,25 +25,29 @@ class CloudTaskManager:
 
     @classmethod
     def run(cls, task_run, task_run_location_id, requested_resources):
-        # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
-        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
+        
+        # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger.debug("Launching CloudTaskManager as a separate process.")
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run._id, task_run_location_id, requested_resources))
+        task_run_pickle = pickle.dumps(task_run)
+        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_pickle, task_run_location_id, requested_resources))
         process.start()
 
     @classmethod
-    def _run(cls, task_run_id, task_run_location_id, requested_resources):
-        logger = loom.common.logger.get_logger('TaskManagerLogger2', logfile='/tmp/loom_task_manager2.log')
+    def _run(cls, task_run_pickle, task_run_location_id, requested_resources):
+        task_run = pickle.loads(task_run_pickle)
+        logger = loom.common.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
-        logger.debug("task_run_id: %s, task_run_location_id: %s, requested_resources: %s" % (task_run_id, task_run_location_id, requested_resources))
+        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
         cls._setup_ansible_gce()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
-        node_name = 'worker-'+task_run_location_id # GCE instance names must start with a lowercase letter; just using ID's can start with numbers.
+        hostname = socket.gethostname()
+        node_name = cls.create_worker_name(hostname, task_run)
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
@@ -63,7 +70,7 @@ class CloudTaskManager:
             'disk_type': settings.WORKER_DISK_TYPE,
             'size_gb': disk_size_gb,
             'zone': settings.WORKER_LOCATION,
-            'run_id': task_run_id,
+            'run_id': task_run._id,
             'run_location_id': task_run_location_id,
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
@@ -118,6 +125,8 @@ class CloudTaskManager:
     apt: name=build-essential state=present
   - name: Install libffi-dev using apt-get, which is needed to build certain Python dependencies.
     apt: name=libffi-dev state=present
+  - name: Install libmysqlclient-dev using apt-get, which is needed to install the MySQL-python Python package.
+    apt: name=libmysqlclient-dev state=present
   - name: Install virtualenv using pip.
     pip: name=virtualenv state=present
   - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the worker as the master.
@@ -217,11 +226,10 @@ class CloudTaskManager:
         process.start()
 
     @classmethod
-    def delete_node_by_task_run(cls, task_run):
+    def delete_node_by_task_run(cls, host_name, task_run):
         """ Delete the node that ran a task. """
-        # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(task_run._id))
-        process.start()
+        node_name = cls.create_worker_name(host_name, task_run)
+        cls.delete_node_by_name(node_name)
         
     @classmethod
     def _delete_node(cls, node_name):
@@ -240,6 +248,50 @@ class CloudTaskManager:
 """)
         playbook = s.substitute(locals())
         cls._run_playbook_string(playbook)
+        # TODO: Delete scratch disk
+
+    @classmethod
+    def create_worker_name(cls, hostname, taskrun):
+        """ Create a name for the worker instance. Since hostname, workflow name, and step name can easily be duplicated,
+        we do this in two steps to ensure that at least 4 characters of the location ID are part of the name.
+        Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
+        so leave 5 characters for the '-disk' suffix.
+        """
+        workflow_name = taskrun.workflow_name
+        step_name = taskrun.step_name
+        location_id = taskrun.active_task_run_location._id
+        name_base = '-'.join([hostname, workflow_name, step_name])
+        sanitized_name_base = cls.sanitize_instance_name_base(name_base)
+        sanitized_name_base = sanitized_name_base[:53]      # leave 10 characters at the end for location id and -disk suffix
+
+        node_name = '-'.join([sanitized_name_base, location_id])
+        sanitized_node_name = cls.sanitize_instance_name(node_name)
+        sanitized_node_name = sanitized_node_name[:58]      # leave 5 characters for -disk suffix
+        return sanitized_node_name
+
+    @classmethod
+    def sanitize_instance_name_base(cls, name):
+        """ Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit. """
+        name = str(name).lower()                # make all letters lowercase
+        name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
+        name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
+        return name
+
+    @classmethod
+    def sanitize_instance_name(cls, name):
+        """ Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit. Last character cannot be a dash.
+        Instance names must be 1-63 characters long.
+        """
+        name = str(name).lower()                # make all letters lowercase
+        name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
+        name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
+        name = re.sub(r'-+$', '', name)         # remove dashes from the end
+        name = name[:63]                        # truncate if too long
+        if len(name) < 1:               
+            raise CloudTaskManagerError('Cannot create an instance name from %s' % name)
+            
+        sanitized_name = name
+        return sanitized_name
 
 
 class CloudTaskManagerError(Exception):
