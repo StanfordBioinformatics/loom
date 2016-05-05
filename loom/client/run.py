@@ -325,15 +325,21 @@ class WorkflowRunner(object):
         self.filehandler = FileHandler(self.master_url, logger=self.logger)
 
     def _get_workflow(self):
-        workflow_from_server = self._get_workflow_from_server()
-        workflow_from_file = self._get_workflow_from_file()
-        if not (workflow_from_server or workflow_from_file):
-            raise Exception('Could not find workflow that matches "%s"' % self.args.workflow)
-        elif workflow_from_server and not workflow_from_file:
-            self.workflow = workflow_from_server
-            self._validate_workflow()
-            return
-        elif workflow_from_server and workflow_from_file:
+        workflow_id = self.args.workflow
+        workflows_from_server = self._get_workflows_from_server(workflow_id)
+        workflow_from_file = self._get_workflow_from_file(workflow_id)
+        if not (workflows_from_server or workflow_from_file):
+            raise Exception('Could not find workflow that matches "%s"' % workflow_id)
+        elif workflows_from_server and not workflow_from_file:
+            # Return only if there is a single match for the workflow on the server.
+            if len(workflows_from_server) > 1:
+                workflow_list = [workflow['workflow_name']+'@'+workflow['_id'][:7] for workflow in workflows_from_server]
+                raise Exception('Multiple workflows on the server matched "%s". Try using the full id. \n%s' % (workflow_id, '\n'.join(workflow_list)))
+            else:
+                self.workflow = workflows_from_server[0]
+                self._validate_workflow()
+                return
+        elif workflows_from_server and workflow_from_file:
             warnings.warn('The workflow name "%s" matches both a local file and a workflow on the server. '\
                           'Using the local file.')
         else:
@@ -361,17 +367,15 @@ class WorkflowRunner(object):
         else:
             return os.path.basename(workflow_path)
                     
-    def _get_workflow_from_server(self):
-        workflow_id = self.args.workflow
-        workflow_list = self.objecthandler.get_workflow_index(query_string=workflow_id, max=1)
-        if len(workflow_list) == 0:
-            # Don't raise an error for no workflow here, because we may still match a local file
-            return None
-        else:
-            return workflow_list[0]
+    def _get_workflows_from_server(self, workflow_id):
+        workflow_list = self.objecthandler.get_workflow_index(query_string=workflow_id)
+        return workflow_list
 
-    def _get_workflow_from_file(self):
-        return WorkflowUploader.default_run(self.args.workflow)
+    def _get_workflow_from_file(self, workflow_id):
+        if os.path.exists(os.path.expanduser(workflow_id)):
+            return WorkflowUploader.default_run(os.path.expanduser(workflow_id))
+        else:
+            return None
 
     def _initialize_workflow_run(self):
         self.workflow_run = {
