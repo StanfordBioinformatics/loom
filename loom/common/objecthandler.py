@@ -157,7 +157,7 @@ class ObjectHandler(object):
             workflow_run,
             'workflow_runs/')
 
-    def update_task_run(self, task_run):
+    def post_task_run(self, task_run):
         return self._post_object(
             task_run,
-            'task_runs/%s/' % task_run['_id'])
+            'task_runs/')
