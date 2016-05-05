@@ -52,27 +52,30 @@ class FileInputProcessor(AbstractInputProcessor):
         return self._get_input(input_id)
 
     def _get_input(self, input_id):
-        input_from_server = self._get_input_from_server(input_id)
+        inputs_from_server = self._get_inputs_from_server(input_id)
         input_file = self._get_input_file(input_id)
-        if not (input_from_server or input_file):
+        if not (inputs_from_server or input_file):
             raise UnmatchedInputError('Could not find input that matches "%s"' % input_id)
-        if input_from_server and not input_file:
-            data_object = input_from_server
+        if inputs_from_server and not input_file:
+            # Return only if there is a single match for the input on the server.
+            if len(inputs_from_server) > 1:
+                input_list = [input['file_name']+'@'+input['_id'][:7] for input in inputs_from_server]
+                raise Exception('Multiple inputs on the server matched "%s". Try using the full id. \n%s' % (input_id, '\n'.join(input_list)))
+            else:
+                data_object = inputs_from_server[0]
             return data_object
-        if input_from_server and input_file:
-            self.logger.warn('The input "%s" matches both a local file and a file on the server. '\
+        if inputs_from_server and input_file:
+            # Local file matches input. Assume the user wants this rather than any matches on the server.
+            self.logger.warn('The input "%s" matches both a local file and one or more files on the server. '\
                           'Using the local file.')
         # Input is from local source, not server. Upload it now.
         source_record_text = FileUploader.prompt_for_source_record_text(input_file)
         data_object = self.filehandler.import_file_from_local_path(input_file, source_record=source_record_text)
         return data_object
 
-    def _get_input_from_server(self, input_id):
-        data_object_list = self.objecthandler.get_file_data_object_index(query_string=input_id, max=1)
-        if len(data_object_list) == 0:
-            return None
-        else:
-            return data_object_list[0]
+    def _get_inputs_from_server(self, input_id):
+        data_object_list = self.objecthandler.get_file_data_object_index(query_string=input_id)
+        return data_object_list
 
     def _get_input_file(self, raw_input_id):
         """If input_id is the path to a file, return that path. Otherwise None.
