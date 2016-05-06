@@ -90,7 +90,7 @@ class FileInputProcessor(AbstractInputProcessor):
         input_id = None
         while not input_id:
             input_id = raw_input(
-                '\n"%s": "%s"\nThis input is required. Enter a file path or identifier.\n> ' % (input_name, prompt)
+                '"%s": "%s"\nThis input is required. Enter a file path or identifier: ' % (input_name, prompt)
             )
         data_object = self._get_input(input_id)
         return data_object

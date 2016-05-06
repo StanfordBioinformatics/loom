@@ -112,12 +112,12 @@ class FileUploader(AbstractUploader):
     def prompt_for_source_record_text(cls, source_name=None):
         # source_name is used when prompting for specific inputs required by 'loom run'
         if source_name:
-            text = '\nEnter a complete description of the data source "%s". '\
-                   'Provide enough detail to ensure traceability.\n> '\
+            text = 'Enter a complete description of the data source "%s". '\
+                   'Provide enough detail to ensure traceability: '\
                    % source_name
         else:
-            text = '\nEnter a complete description of the data source. '\
-                   'Provide enough detail to ensure traceability.\n> '
+            text = 'Enter a complete description of the data source. '\
+                   'Provide enough detail to ensure traceability: '
         return raw_input(text)
 
     def _upload_files(self):

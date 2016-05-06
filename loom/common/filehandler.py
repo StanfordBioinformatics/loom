@@ -163,15 +163,14 @@ class AbstractFileHandler:
 
         # Create source_record if called with one as an argument
         self._create_source_record([file_object], source_record=source_record)
-        self._log("Created file source record %s@%s" % (file_object['file_name'], file_object['_id']))
 
         storage_locations = self.objecthandler.get_file_storage_locations_by_file(file_object['_id'])
         if len(storage_locations) == 0:
             destination_location = self.get_import_location(file_object, upload_request_time)
-            self._log("Uploading to destination location %s" % destination_location)
             self.upload(local_path, destination_location)
             self.objecthandler.post_file_storage_location(destination_location)
 
+        self._log("Created file %s@%s" % (file_object['file_name'], file_object['_id']))
         return file_object
 
     def upload_step_output_from_local_path(self, local_path, workflowrun_timestamp, workflow_name, step_name, source_directory=None, source_record=None, upload_request_time=None):
