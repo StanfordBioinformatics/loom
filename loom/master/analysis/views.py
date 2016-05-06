@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from analysis.models import WorkflowRun, TaskRun, FileDataObject
-
+from loom.common import version
 logger = logging.getLogger('loom')
 
 class Helper:
@@ -143,3 +143,10 @@ def run_tasks(request):
     TaskRun.run_all()
     return JsonResponse({"status": "ok"}, status=200)
 
+@csrf_exempt
+@require_http_methods(["GET"])
+def info(request):
+    data = {
+        'version': version.version()
+    }
+    return JsonResponse(data, status=200)

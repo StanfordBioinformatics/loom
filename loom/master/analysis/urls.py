@@ -4,6 +4,7 @@ from analysis.models import *
 urlpatterns = patterns(
     '',
     url(r'^status/$', 'analysis.views.status'),
+    url(r'^info/$', 'analysis.views.info'),
     url(r'^workerinfo/$', 'analysis.views.workerinfo'),
     url(r'^filehandlerinfo/$', 'analysis.views.filehandlerinfo'),
     url(r'^servertime/$', 'analysis.views.servertime'),

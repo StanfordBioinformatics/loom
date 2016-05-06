@@ -161,3 +161,20 @@ class ObjectHandler(object):
         return self._post_object(
             task_run,
             'task_runs/')
+
+    def get_info(self):
+        try:
+            response = self._get('info/')
+        except ServerConnectionError:
+            return None
+        try:
+            info = response.json()
+        except ValueError:
+            info = None
+        return info
+
+    def get_version(self):
+        info = self.get_info()
+        if not info:
+            return None
+        return info.get('version')
