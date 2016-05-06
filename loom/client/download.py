@@ -104,6 +104,7 @@ class WorkflowDownloader(AbstractDownloader):
             self.file_name = self.workflow['workflow_name']
 
     def _save_workflow(self):
+        print 'Downloading workflow %s@%s to %s...' % (self.workflow.get('workflow_name'), self.workflow['_id'], self.file_name)
         with open(self.file_name, 'w') as f:
             if self.args.format == 'json':
                 json.dump(self.workflow, f)
@@ -111,6 +112,7 @@ class WorkflowDownloader(AbstractDownloader):
                 yaml.safe_dump(self.workflow, f)
             else:
                 raise Exception('Invalid format type %s' % self.args.format)
+        print '...complete.'
                 
 
 class Downloader:
