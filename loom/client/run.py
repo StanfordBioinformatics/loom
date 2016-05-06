@@ -278,8 +278,7 @@ class WorkflowRunner(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('workflow', metavar='WORKFLOW', help='Workflow ID or file path')
-        parser.add_argument('input_values', metavar='INPUT_NAME=DATA_ID',  nargs='*', help='Data object ID or file path for inputs')
-        parser.add_argument('--inputs', metavar='INPUT_FILE', help='File containing input values (JSON or YAML), an alternative to giving inputs as command line arguments')
+        parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*', help='Data object ID or file path for inputs')
         parser = add_settings_options_to_parser(parser)
         return parser
 
@@ -296,15 +295,8 @@ class WorkflowRunner(object):
         self._create_workflow_run()
 
     def _validate_args(self, args):
-        self._validate_input_source(args)
-        self._validate_command_line_inputs(args.input_values)
+        self._validate_command_line_inputs(args.inputs)
 
-    def _validate_input_source(self, args):
-        if args.inputs and args.input_values:
-            raise Exception('Either provide a separate inputs file with the "--inputs" flag, '\
-                            'or provide inputs as command line arguments with "INPUT=VALUE" format.'\
-                            'You cannot use both forms of input together.')
-        
     def _validate_command_line_inputs(self, inputs):
         if not inputs:
             return
@@ -407,35 +399,17 @@ class WorkflowRunner(object):
                 self.inputs_required[workflow_input['to_channel']] = workflow_input
 
     def _get_inputs_provided(self):
-        """Produces a dict of inputs provided with the run command, either
-        as command line arguments or in a file.
+        """Produces a dict of inputs provided with the run command.
         """
         self.inputs_provided = {}
-        if not self.args.input_values and not self.args.inputs:
-            return
         if self.args.inputs:
-            self._get_inputs_from_file()
-        else:
-            self._get_inputs_from_command_line()
-
-    def _get_inputs_from_file(self):
-        inputs_from_file = read_as_json_or_yaml(self.args.inputs)
-        if not isinstance(self.inputs_from_file, dict):
-            raise ValidationError('The input file "%s" should have the format {"input_name": <<value>>, "input2_name": <<value>>, ...}'
-                                  % self.args.inputs)
-        for key, value in inputs_from_file.iteritems():
-            if key not in self.inputs_required.keys():
-                raise UnmatchedInputError('Unmatched input "%s" in "%s" is not in the workflow' % (name, self.args.inputs))
-            self.inputs_provided[key] = {'value': value, 'value_is_list_format': False}
-
-    def _get_inputs_from_command_line(self):
-        for kv_pair in self.args.input_values:
-            (name, values) = kv_pair.split('=')
-            value_list = values.split(',')
-            self.inputs_provided[name] = value_list
-            if name not in self.inputs_required.keys():
-                raise UnmatchedInputError('Unmatched input "%s" is not in workflow' % name)
-            self.inputs_provided[name] = {'value': value_list, 'value_is_list_format': True}
+            for kv_pair in self.args.inputs:
+                (name, values) = kv_pair.split('=')
+                value_list = values.split(',')
+                self.inputs_provided[name] = value_list
+                if name not in self.inputs_required.keys():
+                    raise UnmatchedInputError('Unmatched input "%s" is not in workflow' % name)
+                self.inputs_provided[name] = {'value': value_list, 'value_is_list_format': True}
 
     def _process_inputs_provided(self):
         for (input_name, input_info) in self.inputs_provided.iteritems():
@@ -445,6 +419,8 @@ class WorkflowRunner(object):
                 filehandler=self.filehandler,
                 logger = self.logger
             ).load_data_object(input_info['value'], value_is_list_format=input_info['value_is_list_format'])
+            workflow_input = filter(lambda x:x['to_channel']==input_name, self.workflow['workflow_inputs'])[0]
+            self._process_input(input_name, input_info['value'], workflow_input['type'], workflow_input, value_is_list_format=True)
             
     def _process_input(self, name, value, type, workflow_input, value_is_list_format=True):
         data_object = InputProcessor(
@@ -462,7 +438,7 @@ class WorkflowRunner(object):
         })
 
     def _prompt_for_missing_inputs(self):
-        """For any users that are required but were not provided at the command line, prompt the
+        """For any inputs that are required but were not provided at the command line, prompt the
         user
         """
         for (input_name, input) in self.inputs_required.iteritems():
