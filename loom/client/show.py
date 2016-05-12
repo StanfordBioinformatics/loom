@@ -62,7 +62,7 @@ class ShowFileHandler(AbstractShowHandler):
             print self._render_file(file)
 
     def _render_file(self, file):
-        file_identifier = file['file_name'] + '@' + file['_id']
+        file_identifier = file['filename'] + '@' + file['_id']
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier

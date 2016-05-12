@@ -47,7 +47,7 @@ class FileDownloader(AbstractDownloader):
         parser.add_argument(
             '--rename',
             nargs='+',
-            metavar='NEW_FILE_NAME',
+            metavar='NEW_FILENAME',
             help='Rename the downloaded file(s). The number of names '\
             'must be equal to the number of files downloaded.')
         return parser
@@ -75,8 +75,8 @@ class WorkflowDownloader(AbstractDownloader):
             'workflow_id',
             metavar='WORKFLOW_ID', help='Workflow to be downloaded.')
         parser.add_argument(
-            '--file_name',
-            metavar='FILE_NAME',
+            '--filename',
+            metavar='FILENAME',
             help='Destination file name and path for downloaded workflow')
         parser.add_argument(
             '--format',
@@ -88,7 +88,7 @@ class WorkflowDownloader(AbstractDownloader):
     def run(self):
         self._get_objecthandler()
         self._get_workflow()
-        self._get_file_name()
+        self._get_filename()
         self._save_workflow()
 
     def _get_objecthandler(self):
@@ -97,15 +97,15 @@ class WorkflowDownloader(AbstractDownloader):
     def _get_workflow(self):
         self.workflow = self.objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
 
-    def _get_file_name(self):
-        if self.args.file_name is not None:
-            self.file_name = self.args.file_name
+    def _get_filename(self):
+        if self.args.filename is not None:
+            self.filename = self.args.filename
         else:
-            self.file_name = self.workflow['workflow_name']
+            self.filename = self.workflow['workflow_name']
 
     def _save_workflow(self):
-        print 'Downloading workflow %s@%s to %s...' % (self.workflow.get('workflow_name'), self.workflow['_id'], self.file_name)
-        with open(self.file_name, 'w') as f:
+        print 'Downloading workflow %s@%s to %s...' % (self.workflow.get('workflow_name'), self.workflow['_id'], self.filename)
+        with open(self.filename, 'w') as f:
             if self.args.format == 'json':
                 json.dump(self.workflow, f)
             elif self.args.format == 'yaml':

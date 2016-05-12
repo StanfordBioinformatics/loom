@@ -4,8 +4,7 @@ from django.conf import settings
 from django.test import TestCase
 import os
 import sys
-from loom.common import fixtures
-from loom.common.fixtures.workflows import hello_world
+from . import fixtures
 from .common import UniversalModelTestMixin
 
 

@@ -423,7 +423,7 @@ class StepRun(AnalysisAppInstanceModel):
     def _get_task_definition_command(self, raw_command, task_definition_inputs, task_definition_outputs):
         context = {}
         for (step_run_input, task_definition_input) in zip(self.step_run_inputs.all(), task_definition_inputs):
-            context[step_run_input.subchannel.channel_name] = task_definition_input['data_object']['file_name']
+            context[step_run_input.subchannel.channel_name] = task_definition_input['data_object']['filename']
         for (step_run_output, task_definition_output) in zip(self.step_run_outputs.all(), task_definition_outputs):
             context[step_run_output.channel.channel_name] = task_definition_output['path']
         loader = DictLoader({'template': raw_command})

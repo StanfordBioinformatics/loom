@@ -3,8 +3,7 @@ import uuid
 
 from analysis.exceptions import *
 from analysis.models import *
-from loom.common import fixtures
-
+from . import fixtures
 from .common import UniversalModelTestMixin
 
 

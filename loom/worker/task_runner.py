@@ -72,16 +72,16 @@ class TaskRunner(object):
         self.objecthandler.post_task_run(self.task_run)
 
     def _get_additional_settings(self):
-        url = self.settings['MASTER_URL'] + '/api/workerinfo/'
+        url = self.settings['MASTER_URL'] + '/api/worker-info/'
         response = requests.get(url)
         response.raise_for_status()
-        workerinfo = response.json()['workerinfo']
+        worker_info = response.json()['worker_info']
         # TODO generate this path on the server
-        workerinfo.update({'WORKING_DIR': os.path.join(workerinfo['FILE_ROOT_FOR_WORKER'], uuid.uuid4().hex)})
-        return workerinfo
+        worker_info.update({'WORKING_DIR': os.path.join(worker_info['FILE_ROOT_FOR_WORKER'], uuid.uuid4().hex)})
+        return worker_info
 
     def _init_task_run(self):
-        url = self.settings['MASTER_URL'] + '/api/task_runs/%s/' % self.settings['RUN_ID']
+        url = self.settings['MASTER_URL'] + '/api/task-runs/%s/' % self.settings['RUN_ID']
         response = requests.get(url)
         response.raise_for_status()
         self.task_run = response.json()

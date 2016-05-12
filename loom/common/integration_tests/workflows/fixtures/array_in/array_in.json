@@ -31,7 +31,7 @@
             "environment": {
 		"docker_image": "ubuntu"
             }, 
-            "command": "cat {% for file in input_ports.files_to_join %}{{file.file_name }} {% endfor %} > {{ output_ports.joined_files.file_name }}", 
+            "command": "cat {% for file in input_ports.files_to_join %}{{file.filename }} {% endfor %} > {{ output_ports.joined_files.filename }}", 
             "name": "join_files",
             "resources": {
 		"cores": "1", 
@@ -40,13 +40,13 @@
 	    "input_ports": [
 		{
 		    "name": "files_to_join",
-		    "file_name": "file.txt"
+		    "filename": "file.txt"
 		}
 	    ],
             "output_ports": [
 		{
 		    "name": "joined_files", 
-		    "file_name": "joined_files.txt"
+		    "filename": "joined_files.txt"
 		}
             ]
 	}

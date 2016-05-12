@@ -60,21 +60,21 @@ def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
 
 @require_http_methods(["GET"])
-def servertime(request):
+def server_time(request):
     return JsonResponse({"time": timezone.now().isoformat()}, status=200)
 
 @require_http_methods(["GET"])
-def workerinfo(request):
-    workerinfo = {
+def worker_info(request):
+    worker_info = {
         'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
         'FILE_ROOT_FOR_WORKER': settings.FILE_ROOT_FOR_WORKER,
         'LOG_LEVEL': settings.LOG_LEVEL,
         }
-    return JsonResponse({'workerinfo': workerinfo})
+    return JsonResponse({'worker_info': worker_info})
 
 @require_http_methods(["GET"])
-def filehandlerinfo(request):
-    filehandlerinfo = {
+def file_handler_info(request):
+    file_handler_info = {
         'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
         'FILE_SERVER_TYPE': settings.FILE_SERVER_TYPE,
         'FILE_ROOT': settings.FILE_ROOT,
@@ -83,7 +83,7 @@ def filehandlerinfo(request):
         'BUCKET_ID': settings.BUCKET_ID,
         'PROJECT_ID': settings.PROJECT_ID,
         }
-    return JsonResponse({'filehandlerinfo': filehandlerinfo})
+    return JsonResponse({'file_handler_info': file_handler_info})
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
@@ -143,7 +143,6 @@ def run_tasks(request):
     TaskRun.run_all()
     return JsonResponse({"status": "ok"}, status=200)
 
-@csrf_exempt
 @require_http_methods(["GET"])
 def info(request):
     data = {

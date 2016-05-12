@@ -11,13 +11,13 @@ file_contents_struct_2 = {
 }
 
 file_struct = {
-    'file_name': 'file1.txt',
+    'filename': 'file1.txt',
     'file_contents': file_contents_struct,
     'metadata': {'arbitrary': 'user', 'defined': 'data'}
 }
 
 file_struct_2 = {
-    'file_name': 'file2.txt',
+    'filename': 'file2.txt',
     'file_contents': file_contents_struct_2,
     'metadata': {'whatever': 'you', 'want': ['goes', 'here']}
 }
