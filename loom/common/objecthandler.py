@@ -57,7 +57,7 @@ class ObjectHandler(object):
     def get_server_time(self):
         """Use this, not local system time,  when generating a time stamp in the client
         """
-        response = self._get('servertime/')
+        response = self._get('server-time/')
         return response.json()['time']
 
     # ---- Post/Get [object_type] methods ----
@@ -65,26 +65,26 @@ class ObjectHandler(object):
     def post_data_object(self, data_object):
         return self._post_object(
             data_object,
-            'data_objects/')
+            'data-objects/')
 
     def get_data_object_array(self, array_id):
         return self._get_object(
-            'data_object_arrays/%s/' % array_id)
+            'data-object-arrays/%s/' % array_id)
 
     def post_data_object_array(self, data_object_array):
         return self._post_object(
             data_object_array,
-            'data_object_arrays/')
+            'data-object-arrays/')
 
     def get_file_data_object(self, file_id):
         return self._get_object(
-            'file_data_objects/%s/' % file_id)
+            'file-data-objects/%s/' % file_id)
 
     def get_file_data_object_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'file_data_objects/?q='+query_string
+            url = 'file-data-objects/?q='+query_string
         else:
-            url = 'file_data_objects/'
+            url = 'file-data-objects/'
         file_data_objects =  self._get_object_index(url)['file_data_objects']
         if len(file_data_objects) < min:
             raise IdMatchedTooFewFileDataObjectsError('Found %s File Data Objects, expected at least %s' %(len(file_data_objects), min))
@@ -94,23 +94,23 @@ class ObjectHandler(object):
 
     def get_file_storage_locations_by_file(self, file_id):
         return self._get_object(
-            'file_data_objects/'+file_id+'/file_storage_locations/'
+            'file-data-objects/'+file_id+'/file-storage-locations/'
         )['file_storage_locations']
 
     def post_file_storage_location(self, file_storage_location):
         return self._post_object(
             file_storage_location,
-            'file_storage_locations/')
+            'file-storage-locations/')
 
     def post_data_source_record(self, data_source_record):
         return self._post_object(
             data_source_record,
-            'data_source_records/'
+            'data-source-records/'
         )
 
     def get_source_records_by_file(self, file_id):
         return self._get_object_index(
-            'file_data_objects/' + file_id + '/data_source_records/'
+            'file-data-objects/' + file_id + '/data-source-records/'
         )['data_source_records']
     
     def get_workflow(self, workflow_id):
@@ -137,14 +137,14 @@ class ObjectHandler(object):
 
     def get_workflow_run(self, workflow_run_id):
         return self._get_object(
-            'workflow_runs/%s/' % workflow_run_id
+            'workflow-runs/%s/' % workflow_run_id
         )
 
     def get_workflow_run_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'workflow_runs/?q='+query_string
+            url = 'workflow-runs/?q='+query_string
         else:
-            url = 'workflow_runs/'
+            url = 'workflow-runs/'
         workflow_runs = self._get_object_index(url)['workflow_runs']
         if len(workflow_runs) < min:
             raise Error('Found %s workflow runs, expected at least %s' %(len(workflow_runs), min))
@@ -155,12 +155,12 @@ class ObjectHandler(object):
     def post_workflow_run(self, workflow_run):
         return self._post_object(
             workflow_run,
-            'workflow_runs/')
+            'workflow-runs/')
 
     def post_task_run(self, task_run):
         return self._post_object(
             task_run,
-            'task_runs/')
+            'task-runs/')
 
     def get_info(self):
         try:

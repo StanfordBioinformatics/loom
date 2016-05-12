@@ -40,7 +40,7 @@ def FileHandler(master_url, *args, **kwargs):
             'Unrecognized file server type: %s' % settings['FILE_SERVER_TYPE'])
 
 def _get_settings(master_url):
-    url = master_url + '/api/filehandlerinfo/'
+    url = master_url + '/api/file-handler-info/'
     try:
         response = requests.get(url)
     except requests.exceptions.ConnectionError:
@@ -51,7 +51,7 @@ def _get_settings(master_url):
         response.raise_for_status()
     except requests.exceptions.HTTPError as e:
         raise BadResponseError("%s\n%s" % (e.message, response.text))
-    settings = response.json()['filehandlerinfo']
+    settings = response.json()['file_handler_info']
     return settings
 
 

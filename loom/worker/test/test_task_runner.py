@@ -23,7 +23,7 @@ class TestTaskRunner(unittest.TestCase):
         self.test_server.start()
         self._run_hello_world()
 
-        r = requests.get(self.test_server.server_url+'/api/step_runs/')
+        r = requests.get(self.test_server.server_url+'/api/step-runs/')
         self.step1_run_id = r.json()['step_runs'][0].get('_id')
 
         self.file_root = tempfile.mkdtemp()
