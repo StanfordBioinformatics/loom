@@ -48,9 +48,9 @@ class FileDataObject(DataObject):
     file name, and user-defined metadata.
     """
 
-    NAME_FIELD = 'file_name'
+    NAME_FIELD = 'filename'
 
-    file_name = fields.CharField(max_length=255)
+    filename = fields.CharField(max_length=255)
     file_contents = fields.ForeignKey('FileContents')
     metadata = fields.JSONField()
 

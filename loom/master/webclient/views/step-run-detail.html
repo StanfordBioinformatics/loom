@@ -13,7 +13,7 @@
 	<td>{{input.step_input.from_channel}}</td>
 	<td>
 	  <div ng-repeat="tr_input in input.task_run_inputs">
-	    <a ng-href="#/files/{{tr_input.task_definition_input.data_object._id}}">{{tr_input.task_definition_input.data_object.file_name}}@{{tr_input.task_definition_input.data_object._id | limitTo:8}}</a>
+	    <a ng-href="#/files/{{tr_input.task_definition_input.data_object._id}}">{{tr_input.task_definition_input.data_object.filename}}@{{tr_input.task_definition_input.data_object._id | limitTo:8}}</a>
 	  </div>
 	</td>
       </tr>
@@ -34,7 +34,7 @@
 	<td>{{output.step_output.to_channel}}</td>
 	<td>
 	  <div ng-repeat="tr_output in output.task_run_outputs">
-	    <a ng-show="tr_output.data_object" ng-href="#/files/{{tr_output.data_object._id}}">{{tr_output.data_object.file_name}}@{{tr_output.data_object._id | limitTo:8}}</a>
+	    <a ng-show="tr_output.data_object" ng-href="#/files/{{tr_output.data_object._id}}">{{tr_output.data_object.filename}}@{{tr_output.data_object._id | limitTo:8}}</a>
 	  </div>
 	</td>
       </tr>
@@ -52,8 +52,8 @@
     </thead>
     <tbody ng-repeat="task_run in activeData.stepRun.task_runs">
       <tr ng-repeat="log in task_run.logs">
-        <td>{{log.logfile.file_name}}</td>
-        <td><a ng-href="#/files/{{log.logfile._id}}">{{log.logfile.file_name}}@{{log.logfile._id | limitTo:8}}</a></td>
+        <td>{{log.logfile.filename}}</td>
+        <td><a ng-href="#/files/{{log.logfile._id}}">{{log.logfile.filename}}@{{log.logfile._id | limitTo:8}}</a></td>
       </tr>
     </tbody>
   </table>

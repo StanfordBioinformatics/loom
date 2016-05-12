@@ -32,7 +32,7 @@
             "environment": {
 		"docker_image": "ubuntu"
             }, 
-            "command": "cat {{ input_ports.hello_in.file_name }} > {{ output_ports.hello_out.file_name }}",
+            "command": "cat {{ input_ports.hello_in.filename }} > {{ output_ports.hello_out.filename }}",
             "name": "echo1",
             "resources": {
 		"cores": "1", 
@@ -41,13 +41,13 @@
 	    "input_ports": [
 		{
 		    "name": "hello_in",
-		    "file_name": "hello_in.txt"
+		    "filename": "hello_in.txt"
 		}
 	    ],
             "output_ports": [
 		{
 		    "name": "hello_out", 
-		    "file_name": "hello1.txt"
+		    "filename": "hello1.txt"
 		}
             ]
         },
@@ -55,7 +55,7 @@
             "environment": {
 		"docker_image": "ubuntu"
             }, 
-            "command": "cat {{ input_ports.hello_in.file_name }} > {{ output_ports.hello_out.file_name }}",
+            "command": "cat {{ input_ports.hello_in.filename }} > {{ output_ports.hello_out.filename }}",
             "name": "echo2",
             "resources": {
 		"cores": "1", 
@@ -64,13 +64,13 @@
 	    "input_ports": [
 		{
 		    "name": "hello_in",
-		    "file_name": "hello2.txt"
+		    "filename": "hello2.txt"
 		}
 	    ],
             "output_ports": [
 		{
 		    "name": "hello_out", 
-		    "file_name": "{{ input_ports.hello_in.file_name }}.out"
+		    "filename": "{{ input_ports.hello_in.filename }}.out"
 		}
             ]
         }

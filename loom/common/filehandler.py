@@ -97,7 +97,7 @@ class AbstractFileHandler:
         return os.path.join(
             self.settings['FILE_ROOT'],
             self.settings['IMPORT_DIR'],
-            "%s_%s_%s" % (timestamp, file_id[0:10], file_object['file_name']),
+            "%s_%s_%s" % (timestamp, file_id[0:10], file_object['filename']),
         )
 
     def download_by_file_id(self, file_id, local_path):
@@ -130,7 +130,7 @@ class AbstractFileHandler:
                 'hash_value': md5calc.calculate_md5sum(file_path),
                 'hash_function': 'md5',
             },
-            'file_name': os.path.basename(file_path)
+            'filename': os.path.basename(file_path)
         }
         return file_data_object
 
@@ -170,7 +170,7 @@ class AbstractFileHandler:
             self.upload(local_path, destination_location)
             self.objecthandler.post_file_storage_location(destination_location)
 
-        self._log("Created file %s@%s" % (file_object['file_name'], file_object['_id']))
+        self._log("Created file %s@%s" % (file_object['filename'], file_object['_id']))
         return file_object
 
     def upload_step_output_from_local_path(self, local_path, workflowrun_timestamp, workflow_name, step_name, source_directory=None, source_record=None, upload_request_time=None):
@@ -190,7 +190,7 @@ class AbstractFileHandler:
         result = self._create_source_record([file_object], source_record=source_record)
         self._log("Result of creating source record: %s" % result)
         if result is not None:
-            self._log("Created data source record %s@%s" % (file_object['file_name'], file_object['_id'])) 
+            self._log("Created data source record %s@%s" % (file_object['filename'], file_object['_id'])) 
 
         storage_locations = self.objecthandler.get_file_storage_locations_by_file(file_object['_id'])
         self._log("Got storage_locations %s" % storage_locations)
@@ -226,14 +226,14 @@ class AbstractFileHandler:
         if local_names is None:
             local_names = [None] * len(file_ids)
         if len(local_names) != len(file_ids):
-            raise WrongNumberOfFileNamesError('Cannot process %s file_names for %s files. '\
+            raise WrongNumberOfFileNamesError('Cannot process %s filenames for %s files. '\
                                               'The lengths must match.' % (len(local_names), len(file_ids)))
 
         for (file_id, local_name) in zip(file_ids, local_names):
             file = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
             # If no local name specified, use the file name from the object.
             if local_name is None:
-                local_name = file['file_name']
+                local_name = file['filename']
                 # Don't overwrite anyone's root directory based on a file path from the server.
                 self._verify_not_absolute(local_name)
             if target_directory is not None:
@@ -244,16 +244,16 @@ class AbstractFileHandler:
                 local_path = os.path.join(os.path.expanduser(target_directory), local_name)
             else:
                 local_path = local_name
-            self._log('Downloading file %s@%s to %s...' % (file['file_name'], file['_id'], local_path))
+            self._log('Downloading file %s@%s to %s...' % (file['filename'], file['_id'], local_path))
             self.download_by_file_id(file['_id'], local_path)
             self._log('...complete.')
 
-    def _verify_not_absolute(self, file_name):
-        if self._is_absolute_path(file_name):
+    def _verify_not_absolute(self, filename):
+        if self._is_absolute_path(filename):
             raise AbsolutePathInFileNameError('Refusing to download a file whose name is an absolute path.')
 
-    def _is_absolute_path(self, file_names):
-        return any([file_name.startswith('/') for file_name in file_names])
+    def _is_absolute_path(self, filenames):
+        return any([filename.startswith('/') for filename in filenames])
 
 
 class AbstractPosixPathFileHandler(AbstractFileHandler):

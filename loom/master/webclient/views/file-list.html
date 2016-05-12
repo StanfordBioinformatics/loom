@@ -11,7 +11,7 @@
       <tr ng-repeat="file in files">
         <td>
 	  <a ng-href="#/files/{{file._id}}">
-            {{file.file_name}}@{{file._id | limitTo:8}}
+            {{file.filename}}@{{file._id | limitTo:8}}
 	  </a>
         </td>
         <td>

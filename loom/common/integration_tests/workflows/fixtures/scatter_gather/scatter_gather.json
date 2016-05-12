@@ -23,7 +23,7 @@
             "environment": {
 		"docker_image": "ubuntu"
             }, 
-            "command": "echo x_`cat {{ input_ports.txt.file_name }}` > {{ output_ports.txt.file_name }}",
+            "command": "echo x_`cat {{ input_ports.txt.filename }}` > {{ output_ports.txt.filename }}",
             "name": "process1",
             "resources": {
 		"cores": "1", 
@@ -32,13 +32,13 @@
 	    "input_ports": [
 		{
 		    "name": "txt",
-		    "file_name": "in.txt"
+		    "filename": "in.txt"
 		}
 	    ],
             "output_ports": [
 		{
 		    "name": "txt",
-		    "file_name": "with_prefix.txt"
+		    "filename": "with_prefix.txt"
 		}
 	    ]
 	},
@@ -46,7 +46,7 @@
             "environment": {
 		"docker_image": "ubuntu"
             }, 
-            "command": "echo `cat {{ input_ports.txt.file_name }}`_x > {{ output_ports.txt.file_name }}",
+            "command": "echo `cat {{ input_ports.txt.filename }}`_x > {{ output_ports.txt.filename }}",
             "name": "process2",
             "resources": {
 		"cores": "1", 
@@ -55,13 +55,13 @@
 	    "input_ports": [
 		{
 		    "name": "txt",
-		    "file_name": "in.txt"
+		    "filename": "in.txt"
 		}
 	    ],
             "output_ports": [
 		{
 		    "name": "txt",
-		    "file_name": "with_suffix.txt"
+		    "filename": "with_suffix.txt"
 		}
 	    ]
 	},
@@ -69,7 +69,7 @@
             "environment": {
 		"docker_image": "ubuntu"
             }, 
-            "command": "cat {% for file in input_ports.txt %}{{ file.file_name }} {% endfor %} > {{ output_ports.result.file_name }}",
+            "command": "cat {% for file in input_ports.txt %}{{ file.filename }} {% endfor %} > {{ output_ports.result.filename }}",
             "name": "gather",
             "resources": {
 		"cores": "1", 
@@ -84,7 +84,7 @@
 	    "output_ports": [
 		{
 		    "name": "result",
-		    "file_name": "result.txt"
+		    "filename": "result.txt"
 		}
             ]
         }

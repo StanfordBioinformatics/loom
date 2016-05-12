@@ -59,7 +59,7 @@ class FileInputProcessor(AbstractInputProcessor):
         if inputs_from_server and not input_file:
             # Return only if there is a single match for the input on the server.
             if len(inputs_from_server) > 1:
-                input_list = [input['file_name']+'@'+input['_id'][:7] for input in inputs_from_server]
+                input_list = [input['filename']+'@'+input['_id'][:7] for input in inputs_from_server]
                 raise Exception('Multiple inputs on the server matched "%s". Try using the full id. \n%s' % (input_id, '\n'.join(input_list)))
             else:
                 data_object = inputs_from_server[0]

@@ -13,6 +13,6 @@
   </ol>
   <ol class="breadcrumb" ng-show="$location.$$path.startsWith('/files')">
     <li><a href="#/files">Files</a></li>
-    <li ng-show="params.fileId"><a ng-href="#/filesfiles.file/{{fileId}}">{{activeData.file.file_name}}@{{activeData.file._id | limitTo:8}}</a></li>
+    <li ng-show="params.fileId"><a ng-href="#/filesfiles.file/{{fileId}}">{{activeData.file.filename}}@{{activeData.file._id | limitTo:8}}</a></li>
   </ol>
 </h4>

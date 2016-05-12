@@ -24,7 +24,7 @@ class DummyTaskManager(object):
         dummy_text = "dummy%s" % self.dummy_file_counter
         dummy_md5 = hashlib.md5(dummy_text)
         return {
-            'file_name': dummy_text,
+            'filename': dummy_text,
             'file_contents': {
                 'hash_value': dummy_md5.hexdigest(),
                 'hash_function': 'md5',

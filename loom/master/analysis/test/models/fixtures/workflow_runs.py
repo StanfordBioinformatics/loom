@@ -9,7 +9,7 @@ workflow_run_struct = {
 		u'to_channel': u'hello'
 	    },
 	    'data_object': {
-		u'file_name': u'hello.txt',
+		u'filename': u'hello.txt',
 		u'file_contents': {
 		    u'hash_value': u'b1946ac92492d2347c6235b4d2611184',
 		    u'hash_function': u'md5'},
