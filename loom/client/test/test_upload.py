@@ -5,7 +5,6 @@ import unittest
 from loom.client.exceptions import *
 from loom.client.upload import Uploader, WorkflowUploader, FileUploader
 from loom.common.helper import get_null_logger
-from loom.common import fixtures
 from loom.common.testserver import TestServer
 from loom.master.loomdaemon import loom_daemon_logger
 
@@ -70,7 +69,7 @@ class TestUploadWorkflow(unittest.TestCase):
         FileUploader(args=file_args, logger=get_null_logger()).run()
         workflow = WorkflowUploader(args=args, logger=get_null_logger()).run()
 
-        self.assertEqual(workflow['_id'], 'ec981e123e9a2ccceb7e0b27dd67303b3148b88223de1c8329b41649abb3ddfe')
+        self.assertEqual(workflow['_id'], '0d50418452291979045948b07ad83f39384d113f8cdc8567553a65fa2e81ca5c')
 
     def test_upload_with_value_file_array_inputs(self):
         """Upload a workflow with file array inputs and with specific specific input values assigned
@@ -113,7 +112,7 @@ class TestUploadWorkflow(unittest.TestCase):
         FileUploader(args=file_args, logger=get_null_logger()).run()
         workflow = WorkflowUploader(args=args, logger=get_null_logger()).run()
         # File_ID should now have the full hash
-        self.assertEqual(workflow['workflow_inputs'][0]['value'], 'hello.txt@e2971d1d4c307551e4ac6dfe3801838ee2d9537f505c3df459d2e756927dc609')
+        self.assertEqual(workflow['workflow_inputs'][0]['value'], 'hello.txt@1532ee289e6b1f7c019cd6645a6eb4ddb254680f896f3b0545e935b1b7f3aed9')
 
     def test_expand_file_array_ids(self):
         """Upload a workflow that files in a file array using a truncated input ID. Verify that the object created in the server uses
@@ -125,7 +124,7 @@ class TestUploadWorkflow(unittest.TestCase):
         FileUploader(args=file_args, logger=get_null_logger()).run()
         workflow = WorkflowUploader(args=args, logger=get_null_logger()).run()
         # File_ID should now have the full hash
-        self.assertEqual(workflow['workflow_inputs'][0]['value'][0], 'hello.txt@e2971d1d4c307551e4ac6dfe3801838ee2d9537f505c3df459d2e756927dc609')
+        self.assertEqual(workflow['workflow_inputs'][0]['value'][0], 'hello.txt@1532ee289e6b1f7c019cd6645a6eb4ddb254680f896f3b0545e935b1b7f3aed9')
 
 class TestUploadFile(unittest.TestCase):
 
@@ -141,7 +140,7 @@ class TestUploadFile(unittest.TestCase):
         parser = Uploader.get_parser()
         args = parser.parse_args(['file', os.path.join(self.test_data_dir, 'hello.txt'), '--skip_source_record'])
         file_obj = FileUploader(args=args, logger=get_null_logger()).run()
-        self.assertEqual('e2971d1d4c307551e4ac6dfe3801838ee2d9537f505c3df459d2e756927dc609', file_obj[0]['_id'])
+        self.assertEqual('1532ee289e6b1f7c019cd6645a6eb4ddb254680f896f3b0545e935b1b7f3aed9', file_obj[0]['_id'])
 
 
 if __name__=='__main__':

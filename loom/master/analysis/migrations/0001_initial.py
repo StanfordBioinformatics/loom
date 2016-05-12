@@ -407,7 +407,7 @@ class Migration(migrations.Migration):
             name='FileDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('file_name', models.CharField(max_length=255)),
+                ('filename', models.CharField(max_length=255)),
                 ('metadata', jsonfield.fields.JSONField()),
                 ('file_contents', models.ForeignKey(to='analysis.FileContents')),
             ],

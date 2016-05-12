@@ -67,9 +67,10 @@ class ServerControls:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        parser.add_argument('--fg_webserver', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
         parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--fg_webserver', action='store_true', help=argparse.SUPPRESS) # Run webserver in the foreground. Needed to keep Docker container running.
+        parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
         subparsers = parser.add_subparsers(dest='command')

@@ -112,12 +112,12 @@ class FileUploader(AbstractUploader):
     def prompt_for_source_record_text(cls, source_name=None):
         # source_name is used when prompting for specific inputs required by 'loom run'
         if source_name:
-            text = '\nEnter a complete description of the data source "%s". '\
-                   'Provide enough detail to ensure traceability.\n> '\
+            text = 'Enter a complete description of the data source "%s". '\
+                   'Provide enough detail to ensure traceability: '\
                    % source_name
         else:
-            text = '\nEnter a complete description of the data source. '\
-                   'Provide enough detail to ensure traceability.\n> '
+            text = 'Enter a complete description of the data source. '\
+                   'Provide enough detail to ensure traceability: '
         return raw_input(text)
 
     def _upload_files(self):
@@ -212,7 +212,7 @@ class WorkflowUploader(AbstractUploader):
                 'The file ID "%s" matched multiple files on the server. Try using the full file ID.'\
                 % file_id
             )
-        full_file_id = file_data_object['file_name'] + '@' + file_data_object['_id']
+        full_file_id = file_data_object['filename'] + '@' + file_data_object['_id']
         if full_file_id != file_id:
             self.logger.info('Your workflow has been modified. The workflow input value "%s" was expanded to the full ID %s.' % (file_id, full_file_id))
         return full_file_id

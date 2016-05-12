@@ -62,14 +62,15 @@ class ShowFileHandler(AbstractShowHandler):
             print self._render_file(file)
 
     def _render_file(self, file):
-        file_identifier = file['file_name'] + '@' + file['_id']
+        file_identifier = file['filename'] + '@' + file['_id']
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
             text += ' - Hash: %s\n' % (file['file_contents']['hash_function'] + '$' + file['file_contents']['hash_value'])
             source_records = self.objecthandler.get_source_records_by_file(file['_id'])
             for source_record in source_records:
-                text += ' - Source Record: ' + source_record['source_description'] + '\n'
+                if source_record.get('source_description'):
+                    text += ' - Source Record: ' + source_record['source_description'] + '\n'
         else:
             text = 'File: %s' % file_identifier
         return text

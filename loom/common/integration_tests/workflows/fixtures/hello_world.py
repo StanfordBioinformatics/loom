@@ -69,7 +69,7 @@ hello_world_workflow_run_struct = {
         {
             "input_name": "hello_input",
             "data_object": {
-                "file_name": "hello.txt",
+                "filename": "hello.txt",
                 "file_contents": {
                     "hash_value": "b1946ac92492d2347c6235b4d2611184",
                     "hash_function": "md5"

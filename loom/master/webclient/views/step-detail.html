@@ -1,11 +1,6 @@
 <h4>Inputs</h4>
 <div class="table-responsive" >
   <table class="table table-striped">
-    <thead>
-      <tr>
-	<th>Name</th>
-      </tr>
-    </thead>
     <tbody>
       <tr ng-repeat="input in activeData.step.step_inputs">
 	<td>{{input.from_channel}}</td>
@@ -16,11 +11,6 @@
 <h4>Outputs</h4>
 <div class="table-responsive" >
   <table class="table table-striped">
-    <thead>
-      <tr>
-	<th>Name</th>
-      </tr>
-    </thead>
     <tbody>
       <tr ng-repeat="output in activeData.step.step_outputs">
 	<td>{{output.to_channel}}</td>

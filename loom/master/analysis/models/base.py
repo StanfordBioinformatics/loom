@@ -25,11 +25,14 @@ class _ModelMixin(object):
     NAME_FIELD = None
     
     @classmethod
-    def get_class_name(cls, plural=False):
+    def get_class_name(cls, plural=False, hyphen=False):
         if plural:
-            return cls._get_plural_name()
+            name = cls._get_plural_name()
         else:
-            return cls._get_singular_name()
+            name = cls._get_singular_name()
+        if hyphen:
+            name = name.replace('_','-')
+        return name
 
     @classmethod
     def _get_singular_name(cls):

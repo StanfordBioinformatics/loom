@@ -82,3 +82,74 @@ workflow_with_templated_command_struct = {
     'workflow_inputs': [workflow_input_1_struct, workflow_input_2_struct],
     'workflow_outputs': [workflow_output_1_struct]
     }
+
+
+straight_pipe_workflow_struct = {
+    "workflow_name": "straight_pipe",
+    "workflow_inputs": [
+	{
+	    "type": "file",
+	    "value": "one.txt@c4f3f632b7b503149f88d9de9f9bd0927a066ee935fdc011a75ff4a216d6e061",
+	    "to_channel": "one_txt"
+	}
+    ],
+    "workflow_outputs": [
+	{
+	    "from_channel": "result"
+	}
+    ],
+    "steps": [
+        {
+            "step_name": "step_a",
+            "command": "cat {{ one_txt }} {{ one_txt }} > {{ two_txt }}",
+            "environment": {
+                "docker_image": "ubuntu"
+            },
+            "resources": {
+                "cores": 1,
+                "memory": "1GB"
+            },
+	    "step_inputs": [
+		{
+		    "from_channel": "one_txt"
+		}
+	    ],
+	    "step_outputs": [
+		{
+                    "from_path": "two.txt",
+		    "to_channel": "two_txt"
+		}
+            ]
+        },
+        {
+            "step_name": "step_b",
+            "command": "cat {{ two_txt }} {{ two_txt }} > {{ result }}",
+            "environment": {
+                "docker_image": "ubuntu"
+            },
+	    "resources": {
+                "cores": 1,
+                "memory": "1GB"
+            },
+            "step_inputs": [
+		{
+		    "from_channel": "two_txt"
+		}
+            ],
+            "step_outputs": [
+		{
+                    "from_path": "result.txt",
+		    "to_channel": "result"
+		}
+            ]
+        }
+    ]
+}
+
+straight_pipe_workflow_input_file_struct = {
+    'filename': 'one.txt',
+    'file_contents': {
+        'hash_value': '0f4265386f51c0b54c6ee36dc1ec0418',
+        'hash_function': 'md5'
+    }
+}

@@ -1,11 +1,31 @@
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<h4>Inputs</h4>
 <div class="table-responsive" ng-hide="loading">
   <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>Step</th>
+    <tbody>
+      <tr ng-repeat="input in activeData.workflow.workflow_inputs">
+        <td>
+	  {{input.to_channel}}
+	</td>
       </tr>
-    </thead>
+    </tbody>
+  </table>
+</div>
+<h4>Outputs</h4>
+<div class="table-responsive" ng-hide="loading">
+  <table class="table table-striped">
+    <tbody>
+      <tr ng-repeat="output in activeData.workflow.workflow_outputs">
+        <td>
+	  {{output.from_channel}}
+	</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<h4>Steps</h4>
+<div class="table-responsive" ng-hide="loading">
+  <table class="table table-striped">
     <tbody>
       <tr ng-repeat="step in activeData.workflow.steps">
         <td>

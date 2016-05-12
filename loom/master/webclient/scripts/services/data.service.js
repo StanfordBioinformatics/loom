@@ -29,14 +29,14 @@ function DataService($http) {
     };
 
     function setActiveRun(runId) {
-	return $http.get('/api/workflow_runs/' + runId + '/')
+	return $http.get('/api/workflow-runs/' + runId + '/')
             .then(function(response) {
 		activeData.run = response.data;
             });
     };
 
     function setActiveStepRun(stepRunId) {
-	return $http.get('/api/step_runs/' + stepRunId + '/')
+	return $http.get('/api/step-runs/' + stepRunId + '/')
             .then(function(response) {
 		activeData.stepRun = response.data;
             });
@@ -57,35 +57,35 @@ function DataService($http) {
     };
 
     function setActiveFile(fileId) {
-	return $http.get('/api/file_data_objects/' + fileId + '/')
+	return $http.get('/api/file-data-objects/' + fileId + '/')
             .then(function(response) {
 		activeData.file = response.data;
             });
     };
     
     function setActiveFileSourceRuns(fileId) {
-	return $http.get('/api/file_data_objects/' + fileId + '/source_runs/')
+	return $http.get('/api/file-data-objects/' + fileId + '/source-runs/')
 	    .then(function(response) {
 		activeData.fileSourceRuns = response.data.runs;
 	    });
     };
 
     function setActiveFileSourceRecords(fileId) {
-	return $http.get('/api/file_data_objects/' + fileId + '/data_source_records/')
+	return $http.get('/api/file-data-objects/' + fileId + '/data-source-records/')
 	    .then(function(response) {
 		activeData.fileSourceRecords = response.data.data_source_records;
 	    });
     };
 
     function setActiveFileStorageLocations(fileId) {
-	return $http.get('/api/file_data_objects/' + fileId + '/file_storage_locations/')
+	return $http.get('/api/file-data-objects/' + fileId + '/file-storage-locations/')
 	    .then(function(response) {
 		activeData.fileStorageLocations = response.data.file_storage_locations;
 	    });
     };
 
     function getRuns() {
-	return $http.get('/api/workflow_runs/')
+	return $http.get('/api/workflow-runs/')
 	    .then(function(response) {
 		return response.data.workflow_runs;
 	    });
@@ -99,7 +99,7 @@ function DataService($http) {
     };
 
     function getFiles() {
-	return $http.get('/api/file_data_objects/')
+	return $http.get('/api/file-data-objects/')
 	    .then(function(response) {
 		return response.data.file_data_objects;
 	    });

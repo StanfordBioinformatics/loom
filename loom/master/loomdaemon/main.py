@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import requests
 import subprocess
 import sys
 import time
