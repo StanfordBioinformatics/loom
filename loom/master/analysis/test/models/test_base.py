@@ -2,7 +2,7 @@ import copy
 
 from django.test import TestCase
 from analysis.models import Workflow
-from loom.common import fixtures
+from . import fixtures
 
 class TestBaseModel(TestCase):
     """Uses derived models to test functions on abstract base class.

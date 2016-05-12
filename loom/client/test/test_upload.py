@@ -5,7 +5,6 @@ import unittest
 from loom.client.exceptions import *
 from loom.client.upload import Uploader, WorkflowUploader, FileUploader
 from loom.common.helper import get_null_logger
-from loom.common import fixtures
 from loom.common.testserver import TestServer
 from loom.master.loomdaemon import loom_daemon_logger
 

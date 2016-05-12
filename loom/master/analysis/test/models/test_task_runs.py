@@ -1,8 +1,8 @@
 from django.test import TestCase
 
 from analysis.models import TaskRun, TaskDefinition
+from . import fixtures
 from .common import UniversalModelTestMixin
-from loom.common import fixtures
 
 class TestTaskRuns(TestCase, UniversalModelTestMixin):
 

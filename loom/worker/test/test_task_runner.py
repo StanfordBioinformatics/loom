@@ -10,7 +10,7 @@ import tempfile
 import time
 import unittest
 
-from loom.common import fixtures
+#from loom.common import fixtures
 from loom.common.testserver import TestServer
 from loom.worker.task_runner import TaskRunner
 
