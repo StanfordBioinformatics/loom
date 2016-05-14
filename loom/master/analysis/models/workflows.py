@@ -4,40 +4,41 @@ from universalmodels import fields
 
 
 """
-This module defines Workflow and its subclasses.
-A workflow is a definition of analysis to be run, but where
-all inputs need not be specified.
+This module defines Workflow and its children.
+A Workflow is a template of an analysis to run, where
+some inputs may not be specified until runtime.
 """
 
 
-class Workflow(AnalysisAppImmutableModel):
-    """Each Workflow may contain many processing steps, with results from one
-    step optionally feeding into another step as input.
-    Workflows are ImmutableModels in order to prevent clutter. If the same workflow
-    is uploaded multiple times, duplicate objects will not be created.
+class AbstractWorkflow(AnalysisAppImmutableModel):
+    """An AbstractWorkflow is either a step or a collection of steps.
+    Workflows are ImmutableModels in order to prevent clutter. If the same workflow 
+    or step is uploaded multiple times, duplicate objects will not be created.
     """
 
-    NAME_FIELD = 'workflow_name'
+    name = fields.CharField(max_length=255)
 
-    workflow_name = fields.CharField(max_length=255)
-    steps = fields.ManyToManyField('Step')
-    workflow_inputs = fields.ManyToManyField('WorkflowInput')
-    workflow_outputs = fields.ManyToManyField('WorkflowOutput')
+class Workflow(AbstractWorkflow):
+    """A collection of steps or workflows
+    """
+
+    steps = fields.ManyToManyField('AbstractWorkflow', related_name='parent_workflow')
+    inputs = fields.ManyToManyField('WorkflowRuntimeInput')
+    fixed_inputs = fields.ManyToManyField('WorkflowFixedInput')
+    outputs = fields.ManyToManyField('WorkflowOutput')
 
 
-class Step(AnalysisAppImmutableModel):
+class Step(AbstractWorkflow):
     """Steps are smaller units of processing within a Workflow. A Step can give rise to a single process,
     or it may iterate over an array to produce many parallel processing tasks.
     """
 
-    step_name = fields.CharField(max_length=255)
     command = fields.CharField(max_length=255)
-    interpreter = fields.CharField(max_length=255)
     environment = fields.ForeignKey('RequestedEnvironment')
     resources = fields.ForeignKey('RequestedResourceSet')
-
-    step_inputs = fields.ManyToManyField('StepInput')
-    step_outputs = fields.ManyToManyField('StepOutput')
+    inputs = fields.ManyToManyField('StepRuntimeInput')
+    fixed_inputs = fields.ManyToManyField('StepFixedInput')
+    outputs = fields.ManyToManyField('StepOutput')
 
 
 class RequestedEnvironment(AnalysisAppImmutableModel):
@@ -57,43 +58,108 @@ class RequestedResourceSet(AnalysisAppImmutableModel):
     cores = fields.IntegerField()
 
 
-class WorkflowInput(AnalysisAppImmutableModel):
+class AbstractFixedInput(AnalysisAppImmutableModel):
 
-    to_channel = fields.CharField(max_length=255)
+    id = fields.CharField(max_length=255)
     type = fields.CharField(
         max_length=255,
         choices=(
             ('file', 'File'),
-            ('file_array', 'File Array'),
-            ('boolean', 'Boolean'),
-            ('boolean_array', 'Boolean Array'),
-            ('string', 'String'),
-            ('string_array', 'String Array'),
-            ('integer', 'Integer'),
-            ('integer_array', 'Integer Array'),
-            ('float', 'Float'),
-            ('float_array', 'Float Array'),
-            ('json', 'JSON'),
-            ('json_array', 'JSON Array')
+            # ('file_array', 'File Array'),
+            # ('boolean', 'Boolean'),
+            # ('boolean_array', 'Boolean Array'),
+            # ('string', 'String'),
+            # ('string_array', 'String Array'),
+            # ('integer', 'Integer'),
+            # ('integer_array', 'Integer Array'),
+            # ('float', 'Float'),
+            # ('float_array', 'Float Array'),
+            # ('json', 'JSON'),
+            # ('json_array', 'JSON Array')
         )
     )
-    prompt = fields.CharField(max_length=255)
-    value = fields.JSONField(null=True)
+    channel = fields.CharField(max_length=255)
+    
+    class Meta:
+        abstract = True
+
+class AbstractRuntimeInput(AnalysisAppImmutableModel):
+
+    hint = fields.CharField(max_length=255, null=True)
+    type = fields.CharField(
+        max_length=255,
+        choices=(
+            ('file', 'File'),
+            # ('file_array', 'File Array'),
+            # ('boolean', 'Boolean'),
+            # ('boolean_array', 'Boolean Array'),
+            # ('string', 'String'),
+            # ('string_array', 'String Array'),
+            # ('integer', 'Integer'),
+            # ('integer_array', 'Integer Array'),
+            # ('float', 'Float'),
+            # ('float_array', 'Float Array'),
+            # ('json', 'JSON'),
+            # ('json_array', 'JSON Array')
+        )
+    )
+    channel = fields.CharField(max_length=255)
+
+    class Meta:
+        abstract = True
+
+        
+class WorkflowFixedInput(AbstractFixedInput):
+
+    pass
 
 
-class WorkflowOutput(AnalysisAppImmutableModel):
+class WorkflowRuntimeInput(AbstractRuntimeInput):
 
-    from_channel = fields.CharField(max_length=255)
-    output_name = fields.CharField(max_length=255)
-
-
-class StepInput(AnalysisAppImmutableModel):
-
-    from_channel = fields.CharField(max_length=255)
-    to_path = fields.CharField(max_length=255)
+    pass
 
 
-class StepOutput(AnalysisAppImmutableModel):
+class StepFixedInput(AbstractFixedInput):
 
-    from_path = fields.CharField(max_length=255)
-    to_channel = fields.CharField(max_length=255)
+    pass
+
+
+class StepRuntimeInput(AbstractRuntimeInput):
+
+    pass
+
+
+class AbstractOutput(AnalysisAppImmutableModel):
+
+    channel = fields.CharField(max_length=255)
+    type = fields.CharField(
+        max_length=255,
+        choices=(
+            ('file', 'File'),
+            # ('file_array', 'File Array'),
+            # ('boolean', 'Boolean'),
+            # ('boolean_array', 'Boolean Array'),
+            # ('string', 'String'),
+            # ('string_array', 'String Array'),
+            # ('integer', 'Integer'),
+            # ('integer_array', 'Integer Array'),
+            # ('float', 'Float'),
+            # ('float_array', 'Float Array'),
+            # ('json', 'JSON'),
+            # ('json_array', 'JSON Array')
+        )
+    )
+
+    class Meta:
+        abstract = True
+
+
+class WorkflowOutput(AbstractOutput):
+
+    pass
+
+
+class StepOutput(AbstractOutput):
+
+    filename = fields.CharField(max_length=255)
+

@@ -19,22 +19,17 @@ class TaskRun(AnalysisAppInstanceModel):
     task_definition = fields.ForeignKey('TaskDefinition', related_name='task_runs')
     task_run_inputs = fields.OneToManyField('TaskRunInput', related_name='task_run')
     task_run_outputs = fields.OneToManyField('TaskRunOutput', related_name='task_run')
-    active_task_run_location = fields.ForeignKey('TaskRunLocation', null=True, related_name='active_task_run')
-    task_run_locations = fields.OneToManyField('TaskRunLocation', related_name='task_run')
-    step_name = fields.CharField(max_length=255, default='')
-    workflow_name = fields.CharField(max_length=255, default='')
-    workflow_run_datetime_created = fields.DateTimeField(default=timezone.now) 
     logs = fields.OneToManyField('TaskRunLog', related_name='task_run')
-    status = fields.CharField(
-        max_length=255,
-        default='ready_to_run',
-        choices=(
-            ('ready_to_run', 'Ready to run'),
-            ('running', 'Running'),
-            ('completed', 'Completed'),
-            ('canceled', 'Canceled')
-        )
-    )
+    # status = fields.CharField(
+    #    max_length=255,
+    #    default='ready_to_run',
+    #    choices=(
+    #        ('ready_to_run', 'Ready to run'),
+    #        ('running', 'Running'),
+    #        ('completed', 'Completed'),
+    #        ('canceled', 'Canceled')
+    #    )
+    #)
 
     def update(self, *args, **kwargs):
         super(TaskRun, self).update(*args, **kwargs)
@@ -50,12 +45,10 @@ class TaskRun(AnalysisAppInstanceModel):
     def run(self):
         self._add_task_run_location()
         task_manager = TaskManagerFactory.get_task_manager()
-        # TODO: if StepRun -> TaskRun becomes ManyToMany, use this instead:
-        # steprun = self.steprun_set.get()
         steprun = self.steprun
         requested_resources = steprun.step.resources
-        task_manager.run(self, self.active_task_run_location._id, requested_resources)
-        # TODO write info about run location to TaskRunLocation
+        task_manager.run(self, requested_resources)
+
 
     @classmethod
     def dummy_run_all(cls, finish=True, with_error=False):
@@ -67,22 +60,6 @@ class TaskRun(AnalysisAppInstanceModel):
         if finish==True:
             task_manager = TaskManagerFactory.get_task_manager(test=True)
             task_manager.run(self, self.active_task_run_location._id, with_error=with_error)
-
-    def _add_task_run_location(self):
-        task_run_location = TaskRunLocation.create({})
-        self.task_run_locations.add(task_run_location)
-        self.update({
-            'status': 'running',
-            'active_task_run_location': task_run_location.to_struct()
-        })
-
-    def submit_result(self, output_id, data_object, task_run_location_id):
-        if not self._is_location_active(task_run_location_id):
-            return False # Reject result
-
-        output = self.task_run_outputs.get(_id=output_id)
-        output.add_data_object(DataObject.create(data_object))
-        return True
 
     def cancel(self):
         if self.active_task_run_location is not None:
@@ -97,11 +74,6 @@ class TaskRun(AnalysisAppInstanceModel):
             return False # Reject error
         self.update({'status': 'error'})
 
-    def _is_location_active(self, task_run_location_id):
-        if self.active_task_run_location is None:
-            return False
-        return self.active_task_run_location._id == task_run_location_id
-        
     def update_status(self):
         for output in self.task_run_outputs.all():
             if output.data_object is None:

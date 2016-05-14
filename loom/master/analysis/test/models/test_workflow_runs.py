@@ -7,6 +7,67 @@ import sys
 from . import fixtures
 from .common import UniversalModelTestMixin
 
+class TestStepRun(TestCase, UniversalModelTestMixin):
+
+    def testStepRun(self):
+        o = StepRun.create(fixtures.step_run_a_struct)
+        self.assertEqual(
+            o.template_step.name, fixtures.step_run_a_struct['template_step']['name']
+        )
+        self.roundTripJson(o)
+        self.roundTripStruct(o)
+        o = StepRun.create(fixtures.step_run_b_struct)
+        o = StepRun.create(fixtures.step_run_c_struct)
+
+class TestWorkflowRun(TestCase, UniversalModelTestMixin):
+
+    def testFlatWorkflowRun(self):
+        o = WorkflowRun.create(fixtures.flat_workflow_run_struct)
+        self.assertEqual(
+            o.template_workflow.steps.first().name, fixtures.flat_workflow_run_struct['template_workflow']['steps'][0]['name']
+        )
+        self.roundTripJson(o)
+        self.roundTripStruct(o)
+        
+    def testNestedWorkflowRun(self):
+        o = WorkflowRun.create(fixtures.nested_workflow_run_struct)
+        self.assertEqual(
+            o.template_workflow.steps.first().downcast().steps.first().name, fixtures.nested_workflow_run_struct['template_workflow']['steps'][0]['steps'][0]['name']
+        )
+        self.roundTripJson(o)
+        self.roundTripStruct(o)
+
+    def testWorkflowRunWithChannels(self):
+        o = WorkflowRun.create(fixtures.flat_workflow_run_struct)
+        
+        c1 = Channel.create_from_sender(o.inputs.all()[0])
+        c1.add_receiver(o.step_runs.all()[0].downcast().inputs.all()[0])
+
+        c2 = Channel.create_from_sender(o.inputs.all()[1])
+        c2.add_receiver(o.step_runs.all()[1].downcast().inputs.all()[1])
+
+        c3 = Channel.create_from_sender(o.step_runs.all()[1].downcast().outputs.all()[0])
+        c3.add_receiver(o.outputs.all()[0])
+
+        c4 = Channel.create_from_sender(o.step_runs.all()[0].downcast().outputs.all()[0])
+        c4.add_receiver(o.step_runs.all()[1].downcast().inputs.all()[0])
+
+        
+        
+'''
+class TestStepRun(TestCase, UniversalModelTestMixin):
+
+    def testAreInputsReady(self):
+        workflow_run = WorkflowRun.create(fixtures.workflow_run_struct)
+        self.assertTrue(workflow_run.step_runs.all()[0]._are_inputs_ready())
+        self.assertFalse(workflow_run.step_runs.all()[1]._are_inputs_ready())
+
+    def testGetTaskInputs(self):
+        workflow_run = WorkflowRun.create(fixtures.workflow_run_struct)
+        self.assertEqual(len(workflow_run.step_runs.all()[0]._get_task_inputs()), 0)
+
+        with self.assertRaises(MissingInputsError):
+            inputs = self.assertIsNone(workflow_run.step_runs.all()[1]._get_task_inputs())
 
 class TestWorkflowRunModels(TestCase, UniversalModelTestMixin):
 
@@ -373,22 +434,7 @@ class TestWorkflowRunEndToEnd(TestCase, UniversalModelTestMixin):
         self.assertEqual(workflow_run.step_runs.all()[1].task_runs.first().status, 'error')
         self.assertFalse(workflow_run.step_runs.all()[1].task_runs.first().task_run_outputs.first().has_result())
 
-
-class TestStepRun(TestCase, UniversalModelTestMixin):
-
-    def testAreInputsReady(self):
-        workflow_run = WorkflowRun.create(fixtures.workflow_run_struct)
-        self.assertTrue(workflow_run.step_runs.all()[0]._are_inputs_ready())
-        self.assertFalse(workflow_run.step_runs.all()[1]._are_inputs_ready())
-
-    def testGetTaskInputs(self):
-        workflow_run = WorkflowRun.create(fixtures.workflow_run_struct)
-        self.assertEqual(len(workflow_run.step_runs.all()[0]._get_task_inputs()), 0)
-
-        with self.assertRaises(MissingInputsError):
-            inputs = self.assertIsNone(workflow_run.step_runs.all()[1]._get_task_inputs())
     
-"""
 class TestWorkflowRunMethods(TestCase):
 
     def testWorkflowRunsReverseSorted(self):
@@ -429,4 +475,4 @@ class TestWorkflowRunInitChannels(TestCase):
     def testInitializeWorkflow(self):
         wfrun = WorkflowRun.create(fixtures.hello_world_workflow_run_struct)
         self.assertTrue(True)
-"""
+'''

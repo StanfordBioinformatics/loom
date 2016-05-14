@@ -412,7 +412,7 @@ class _BaseModel(models.Model):
             raise CouldNotFindUniqueSubclassError(
                 "Failed to find a unique subclass of model %s that "\
                 "matches these fields: %s. Multiple models matched: %s"
-                % (AbstractModel.__name__, fields.keys(), matching_models))
+                % (AbstractModel.__name__, fields, matching_models))
         else:
             # Successfully found one match
             return matching_models[0]

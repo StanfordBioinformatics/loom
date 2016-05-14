@@ -1,78 +1,89 @@
 #!/usr/bin/env python
 
-workflow_run_struct = {
-    'workflow_run_inputs': [
+import copy
+from .workflows import *
+
+step_run_a_struct = {
+    'inputs': [
+        {
+            'channel_name': step_a_struct['inputs'][0]['channel']
+        },
+        {
+            'channel_name': step_a_struct['fixed_inputs'][0]['channel']
+        }
+    ],
+    'outputs': [{
+        'channel_name': step_a_struct['outputs'][0]['channel']
+    }],
+    'template_step': step_a_struct
+}
+
+step_run_b_struct = {
+    'inputs': [
+        {
+            'channel_name': step_b_struct['inputs'][0]['channel']
+        },
+        {
+            'channel_name': step_b_struct['inputs'][1]['channel']
+        },
+        {
+            'channel_name': step_b_struct['fixed_inputs'][0]['channel']
+        }
+    ],
+    'outputs': [{
+        'channel_name': step_b_struct['outputs'][0]['channel']
+    }],
+    'template_step': step_b_struct
+}
+
+step_run_c_struct = {
+    'inputs': [
+        {
+            'channel_name': step_c_struct['inputs'][0]['channel']
+        }
+    ],
+    'outputs': [{
+        'channel_name': step_c_struct['outputs'][0]['channel']
+    }],
+    'template_step': step_c_struct
+}
+
+flat_workflow_run_struct = {
+    'step_runs': [
+        step_run_a_struct,
+        step_run_b_struct
+    ],
+    'inputs': [
 	{
-	    'workflow_input': {
-		u'type': u'file',
-		u'prompt': u"Enter the 'hello' file",
-		u'to_channel': u'hello'
-	    },
-	    'data_object': {
-		u'filename': u'hello.txt',
-		u'file_contents': {
-		    u'hash_value': u'b1946ac92492d2347c6235b4d2611184',
-		    u'hash_function': u'md5'},
-	    }
+	    'channel_name': flat_workflow_struct['inputs'][0]['channel']
+	},
+	{
+	    'channel_name': flat_workflow_struct['fixed_inputs'][0]['channel']
 	}
     ],
-    'workflow': {
-	u'steps': [
-	    {
-		u'environment': {
-		    u'docker_image': u'ubuntu'
-		},
-		u'command': u'echo world > {{ world }}',
-		u'step_name': u'world_step',
-		u'resources': {
-		    u'cores': 1,
-		    u'memory': u'1GB'
-		},
-		u'step_outputs': [
-		    {
-			u'from_path': u'world.txt',
-			u'to_channel': u'world',
-		    }
-		]
-	    },
-	    {
-		u'step_inputs': [
-		    {
-			u'from_channel': u'hello',
-		    },
-		    {
-			u'from_channel': u'world',
-		    }
-		],
-		u'environment': {
-		    u'docker_image': u'ubuntu'
-		}, u'command': u'cat {{ hello }} {{ world }} > {{ hello_world }}',
-		u'step_name': u'hello_world_step',
-		u'resources': {
-		    u'cores': 1,
-		    u'memory': u'1GB'
-		},
-		u'step_outputs': [
-		    {
-			u'from_path': u'hello_world.txt',
-			u'to_channel': u'hello_world_out',
-		    }
-		]
-	    }
-	],
-	u'workflow_name': u'hello_world',
-	u'workflow_outputs': [
-	    {
-		u'from_channel': u'hello_world_out',
-		u'output_name': u'hello_world'
-	    }
-	],
-	u'workflow_inputs': [
-	    {
-		u'type': u'file',
-		u'prompt': u"Enter the 'hello' file",
-		u'to_channel': u'hello'
-	    }
-	]
+    'outputs': [
+        {
+            'channel_name': flat_workflow_struct['outputs'][0]['channel']
+        }
+    ],
+    'template_workflow': flat_workflow_struct
     }
+
+nested_workflow_run_struct = {
+    'step_runs': [
+        flat_workflow_run_struct,
+        step_run_c_struct
+    ],
+    'inputs': [
+    	{
+	    'channel_name': nested_workflow_struct['fixed_inputs'][0]['channel']
+	}
+    ],
+    'outputs': [
+    	{
+	    'channel_name': nested_workflow_struct['outputs'][0]['channel']
+	}
+    ],
+    'template_workflow': nested_workflow_struct
 }
+

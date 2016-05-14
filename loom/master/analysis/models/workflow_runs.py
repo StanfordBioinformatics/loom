@@ -1,41 +1,69 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from analysis.exceptions import *
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import DataObject
-from analysis.models.task_definitions import TaskDefinition
-from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput
+from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from .data_objects import DataObject
+from .task_definitions import TaskDefinition
+from .task_runs import TaskRun, TaskRunInput, TaskRunOutput
+from .workflows import Workflow, Step, WorkflowRuntimeInput, WorkflowFixedInput, \
+    WorkflowOutput, StepRuntimeInput, StepFixedInput, StepOutput
 from jinja2 import DictLoader, Environment
 from universalmodels import fields
 
 
 """
 This module defines WorkflowRun and other classes related to
-receiving and running a request for analysis.
+running an analysis
 """
 
-
-class WorkflowRun(AnalysisAppInstanceModel):
-    """WorkflowRun represents a request to execute a Workflow on a particular
-    set of inputs, and the execution status of that Workflow
+class AbstractWorkflowRun(AnalysisAppInstanceModel):
+    """AbstractWorkflowRun represents the process of executing a Workflow on a particular
+    set of inputs. The workflow may be either a Step or a Workflow composed of one or more Steps.
     """
 
-    NAME_FIELD = 'workflow__workflow_name'
+    NAME_FIELD = 'template__name'
 
-    workflow = fields.ForeignKey('Workflow')
-    workflow_run_inputs = fields.OneToManyField('WorkflowRunInput')
-    workflow_run_outputs = fields.OneToManyField('WorkflowRunOutput')
-    step_runs = fields.OneToManyField('StepRun', related_name='workflow_run')
-    channels = fields.OneToManyField('Channel')
-    status = fields.CharField(
-        max_length=255,
-        default='running',
-        choices=(('running', 'Running'),
-                 ('canceled', 'Canceled'),
-                 ('completed', 'Completed')
-        )
-    )
 
+class WorkflowRun(AbstractWorkflowRun):
+
+    step_runs = fields.OneToManyField('AbstractWorkflowRun', related_name='parent_run')
+    inputs = fields.OneToManyField('InputOutputNode', related_name='workflow_run_as_input')
+    outputs = fields.OneToManyField('InputOutputNode', related_name='workflow_run_as_output')
+    template_workflow = fields.ForeignKey('Workflow')
+    #status = fields.CharField(
+    #    max_length=255,
+    #    default='running',
+    #    choices=(('running', 'Running'),
+    #             ('canceled', 'Canceled'),
+    #             ('completed', 'Completed')
+    #    )
+    #)
+
+
+class StepRun(AbstractWorkflowRun):
+
+    inputs = fields.OneToManyField('InputOutputNode', related_name='step_as_input')
+    outputs = fields.OneToManyField('InputOutputNode', related_name='step_as_output')
+    template_step = fields.ForeignKey('Step')
+    # task_runs = fields.OneToManyField('TaskRun')
+    #status = fields.CharField(
+    #    max_length=255,
+    #    default='waiting',
+    #    choices=(('waiting', 'Waiting'),
+    #             ('running', 'Running'),
+    #             ('completed', 'Completed'),
+    #             ('canceled', 'Canceled'),
+    #             ('error', 'Error'),
+    #    )
+    #)
+
+
+class InputOutputNode(AnalysisAppInstanceModel):
+
+    channel_name = fields.CharField(max_length=255)
+
+
+'''
     @classmethod
     def update_status_for_all(cls):
         for workflow_run in cls.objects.filter(status='running'):
@@ -228,27 +256,6 @@ class WorkflowRun(AnalysisAppInstanceModel):
         return self.workflow_run_inputs.get(input_name=input_name)
         
     
-class WorkflowRunInput(AnalysisAppInstanceModel):
-    """WorkflowRunInput serves as a binding between a DataObject and a Workflow input
-    in a WorkflowRun
-    """
-
-    workflow_input = fields.ForeignKey('WorkflowInput')
-    data_object = fields.ForeignKey('DataObject', null=True)
-    channel = fields.ForeignKey('Channel', null=True)
-
-    def add_channel(self, channel):
-        self.update({'channel': channel.to_struct()})
-
-
-class WorkflowRunOutput(AnalysisAppInstanceModel):
-
-    workflow_output = fields.ForeignKey('WorkflowOutput')
-    subchannel = fields.ForeignKey('Subchannel', null=True)
-
-    def add_subchannel(self, subchannel):
-        self.update({'subchannel': subchannel.to_struct()})
-
 
 class Channel(AnalysisAppInstanceModel):
     """Channel acts as a queue for data objects being being passed into or out of steps.
@@ -469,3 +476,4 @@ class StepRunOutput(AnalysisAppInstanceModel):
 
     def close(self):
         self.channel.close()
+'''
