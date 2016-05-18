@@ -8,6 +8,8 @@ import subprocess
 import sys
 import warnings
 
+from abc import ABCMeta, abstractmethod
+from ConfigParser import SafeConfigParser
 from loom.client import settings_manager
 
 DAEMON_EXECUTABLE = os.path.abspath(
@@ -15,6 +17,8 @@ DAEMON_EXECUTABLE = os.path.abspath(
     os.path.dirname(__file__),
     '../master/loomdaemon/loom_daemon.py'
     ))
+
+SERVER_LOCATION_FILE = os.path.join(os.getenv('HOME'), '.loom', 'server.ini')
 
 def is_server_running(master_url):
     try:
@@ -26,25 +30,36 @@ def is_server_running(master_url):
     except requests.exceptions.ConnectionError:
         return False
 
+def ServerControls(args):
+    """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate concrete subclass."""
 
-class ServerControls:
-    """
-    This class provides methods for managing the loom server, specifically the commands:
-    - create
-    - start
-    - stop
-    - delete
-    - set
-    - status
+    # Check server type
+    config = SafeConfigParser()
+    config.read(SERVER_LOCATION_FILE)
+    server_type = config.get('server', 'type')
 
-    Users should call this through 'loom server' to ensure the environment is configured.
-    """
+    # Instantiate concrete subclass
+    if server_type == 'local':
+        controls = LocalServerControls(args)
+    elif server_type == 'gcloud':
+        controls = GcloudServerControls(args)
+    else:
+        raise Exception('Unrecognized server type: %s' % server_type)
+    
+    return controls
+
+class BaseServerControls:
+    """Abstract base class for managing the Loom server. Defines common methods such as argument parsing and setting server type."""
+    
+    __metaclass__ = ABCMeta
 
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
         self.args = args
-        #self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
+        self.settings_manager = settings_manager.SettingsManager(require_default_settings=args.require_default_settings)
+
+        # Set run function
         self._set_run_function(args)
 
     def _set_run_function(self, args):
@@ -60,7 +75,7 @@ class ServerControls:
         try:
             self.run = command_to_method_map[args.command]
         except KeyError:
-            raise Exception('Did not recognize command %s' % args.command)
+            raise Exception('Unrecognized command: %s' % args.command)
 
     @classmethod
     def get_parser(cls, parser=None):
@@ -77,12 +92,17 @@ class ServerControls:
         start_parser = subparsers.add_parser('start')
         stop_parser = subparsers.add_parser('stop')
         status_parser = subparsers.add_parser('status')
+
         create_parser = subparsers.add_parser('create')
         create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
             help="A settings file can be provided on server creation to override default settings and provide required settings instead of prompting.")
         create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+
         delete_parser = subparsers.add_parser('delete')
+
         setserver_parser = subparsers.add_parser('set')
+        setserver_parser.add_argument('type', choices=['local', 'gcloud'], help='The type of server the client will manage.')
+        setserver_parser.add_argument('--name', help='The instance name of the server to manage.')
 
         return parser
 
@@ -90,6 +110,47 @@ class ServerControls:
         parser = self.get_parser()
         args = parser.parse_args()
         return args
+
+    def setserver(self):
+        '''Set server for the client to manage (currently local or gcloud).'''
+        config = SafeConfigParser()
+        config.add_section('server')
+        config.set('server', 'type', self.args.type)
+        if self.args.type == 'gcloud':
+            if self.args.name:
+                name = self.args.name
+            else:
+                name = 'loom-master'
+            config.set('server', 'name', name)
+        with open(SERVER_LOCATION_FILE, 'w') as configfile:
+            config.write(configfile)
+
+    def status(self):
+        url = self.get_server_url()
+        if is_server_running(url):
+            print 'OK. The server is running.'
+        else:
+            print 'No response for server at %s. Do you need to run "loom server start"?' % url
+
+    # Required overrides
+    @abstractmethod
+    def create(self):
+        pass
+    @abstractmethod
+    def delete(self):
+        pass
+    @abstractmethod
+    def start(self):
+        pass
+    @abstractmethod
+    def stop(self):
+        pass
+    @abstractmethod
+    def get_server_url(self):
+        pass
+
+
+class LocalServerControls(BaseServerControls):
 
     def start(self):
         env = os.environ.copy()
@@ -153,12 +214,6 @@ class ServerControls:
         if not process.returncode == 0:
             raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
-    def status(self):
-        url = self.settings_manager.get_server_url_for_client()
-        if is_server_running(url):
-            print 'OK. The server is running.'
-        else:
-            print 'No response for server at %s. Do you need to run "loom server start"?' % url
 
     def stop(self):
         self._stop_webserver()
@@ -234,9 +289,23 @@ class ServerControls:
         '''Delete server and its settings.'''
         print self.args
 
-    def setserver(self):
-        '''Set server for the client to manage (currently local or gcloud).'''
-        print self.args
+    def get_server_url(self):
+        return 'http://127.0.0.1:8000'
+
+
+class GcloudServerControls(BaseServerControls):
+
+    def create(self):
+        pass
+    def delete(self):
+        pass
+    def start(self):
+        pass
+    def stop(self):
+        pass
+    def get_server_url(self):
+        pass
+
 
 if __name__=='__main__':
     ServerControls().run()

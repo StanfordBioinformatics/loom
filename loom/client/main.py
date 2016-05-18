@@ -36,7 +36,7 @@ class Main(object):
         run_subparser.set_defaults(SubcommandClass=run.WorkflowRunner)
 
         server_subparser = subparsers.add_parser('server', help='manage the Loom server')
-        server.ServerControls.get_parser(server_subparser)
+        server.BaseServerControls.get_parser(server_subparser)
         server_subparser.set_defaults(SubcommandClass=server.ServerControls)
 
         upload_subparser = subparsers.add_parser('upload', help='upload files or other data to the Loom server')
