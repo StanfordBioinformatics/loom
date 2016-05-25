@@ -76,19 +76,6 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='DataSourceRecord',
-            fields=[
-                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('source_description', models.TextField(max_length=10000)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, analysis.models.base._ModelMixin),
-        ),
-        migrations.CreateModel(
             name='FileContents',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
@@ -101,11 +88,28 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='FileImport',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('note', models.TextField(max_length=10000, null=True)),
+                ('source_url', models.TextField(max_length=1000)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='FileStorageLocation',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('url', models.CharField(max_length=1000)),
+                ('status', models.CharField(default=b'incomplete', max_length=256, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
+                ('file_contents', models.ForeignKey(related_name='file_storage_locations', to='analysis.FileContents', null=True)),
             ],
             options={
                 'abstract': False,
@@ -356,68 +360,12 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='BooleanDataObject',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('boolean_value', models.BooleanField()),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.dataobject',),
-        ),
-        migrations.CreateModel(
-            name='DataObjectArray',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.dataobject',),
-        ),
-        migrations.CreateModel(
             name='FileDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
                 ('filename', models.CharField(max_length=255)),
                 ('metadata', jsonfield.fields.JSONField()),
                 ('file_contents', models.ForeignKey(to='analysis.FileContents')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.dataobject',),
-        ),
-        migrations.CreateModel(
-            name='GoogleCloudStorageLocation',
-            fields=[
-                ('filestoragelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.FileStorageLocation')),
-                ('project_id', models.CharField(max_length=256)),
-                ('bucket_id', models.CharField(max_length=256)),
-                ('blob_path', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.filestoragelocation',),
-        ),
-        migrations.CreateModel(
-            name='IntegerDataObject',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('integer_value', models.IntegerField()),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.dataobject',),
-        ),
-        migrations.CreateModel(
-            name='JSONDataObject',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('json_data', jsonfield.fields.JSONField()),
             ],
             options={
                 'abstract': False,
@@ -434,18 +382,6 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.requestedenvironment',),
-        ),
-        migrations.CreateModel(
-            name='ServerStorageLocation',
-            fields=[
-                ('filestoragelocation_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.FileStorageLocation')),
-                ('host_url', models.CharField(max_length=256)),
-                ('file_path', models.CharField(max_length=256)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.filestoragelocation',),
         ),
         migrations.CreateModel(
             name='Step',
@@ -475,17 +411,6 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.abstractworkflowrun',),
-        ),
-        migrations.CreateModel(
-            name='StringDataObject',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('string_value', models.TextField()),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
             name='TaskDefinitionDockerEnvironment',
@@ -587,14 +512,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.AbstractWorkflow'),
         ),
         migrations.AddField(
-            model_name='filestoragelocation',
-            name='file_contents',
-            field=models.ForeignKey(related_name='file_storage_locations', to='analysis.FileContents', null=True),
-        ),
-        migrations.AddField(
-            model_name='datasourcerecord',
-            name='data_objects',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='data_source_records', to='analysis.DataObject'),
+            model_name='fileimport',
+            name='file_storage_location',
+            field=models.ForeignKey(to='analysis.FileStorageLocation', null=True),
         ),
         migrations.AddField(
             model_name='channeloutput',
@@ -622,8 +542,8 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.FileDataObject'),
         ),
         migrations.AddField(
-            model_name='dataobjectarray',
-            name='data_objects',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='parent', to='analysis.DataObject'),
+            model_name='fileimport',
+            name='file_data_object',
+            field=models.ForeignKey(related_name='file_import', to='analysis.FileDataObject'),
         ),
     ]

@@ -21,11 +21,13 @@ class AbstractWorkflowRun(AnalysisAppInstanceModel):
     set of inputs. The workflow may be either a Step or a Workflow composed of one or more Steps.
     """
 
-    NAME_FIELD = 'template__name'
+    pass
 
 
 class WorkflowRun(AbstractWorkflowRun):
 
+    NAME_FIELD = 'template_workflow__name'
+        
     step_runs = fields.OneToManyField('AbstractWorkflowRun', related_name='parent_run')
     inputs = fields.OneToManyField('InputOutputNode', related_name='workflow_run_as_input')
     outputs = fields.OneToManyField('InputOutputNode', related_name='workflow_run_as_output')
@@ -41,7 +43,9 @@ class WorkflowRun(AbstractWorkflowRun):
 
 
 class StepRun(AbstractWorkflowRun):
-
+    
+    NAME_FIELD = 'template_step__name'
+    
     inputs = fields.OneToManyField('InputOutputNode', related_name='step_as_input')
     outputs = fields.OneToManyField('InputOutputNode', related_name='step_as_output')
     template_step = fields.ForeignKey('Step')

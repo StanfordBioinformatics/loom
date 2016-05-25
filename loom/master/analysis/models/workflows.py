@@ -16,6 +16,8 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
     or step is uploaded multiple times, duplicate objects will not be created.
     """
 
+    NAME_FIELD = 'name'
+    
     name = fields.CharField(max_length=255)
 
 class Workflow(AbstractWorkflow):

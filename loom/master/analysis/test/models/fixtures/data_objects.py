@@ -47,14 +47,18 @@ heterogeneous_array_struct = {
     ]
 }
 
-server_storage_location_struct = {
+local_storage_location_struct = {
     'file_contents': file_contents_struct,
     'file_path': '/absolute/path/to/my/file.txt',
-    'host_url': 'localhost',
 }
 
-server_storage_location_struct_2 = {
+local_storage_location_struct_2 = {
     'file_contents': file_contents_struct_2,
     'file_path': '/absolute/path/to/my/file2.txt',
-    'host_url': 'localhost',
+}
+
+file_import_struct = {
+    'file_data_object': file_struct,
+    'note': 'Here is where I got this',
+    'imported_from_path': 'file:///data/data/data/data.dat'
 }

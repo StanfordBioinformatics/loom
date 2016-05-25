@@ -18,10 +18,10 @@ class TestFile(TestCase, UniversalModelTestMixin):
     def testIsAvailable(self):
         file = FileDataObject.create(fixtures.file_struct)
         self.assertFalse(file.is_available())
-        file_storage_location = FileStorageLocation.create(fixtures.server_storage_location_struct)
+        file_storage_location = FileStorageLocation.create(fixtures.local_storage_location_struct)
         self.assertTrue(file.is_available())
 
-
+'''
 class TestDataObjectArray(TestCase, UniversalModelTestMixin):
 
     def testFileArray(self):
@@ -44,9 +44,9 @@ class TestDataObjectArray(TestCase, UniversalModelTestMixin):
     def testFileArrayIsAvailable(self):
         file_array = DataObjectArray.create({'data_objects': [fixtures.file_struct, fixtures.file_struct_2]})
         self.assertFalse(file_array.is_available())
-        file_storage_location = FileStorageLocation.create(fixtures.server_storage_location_struct)
+        file_storage_location = FileStorageLocation.create(fixtures.local_storage_location_struct)
         self.assertFalse(file_array.is_available())
-        file_storage_location_2 = FileStorageLocation.create(fixtures.server_storage_location_struct_2)
+        file_storage_location_2 = FileStorageLocation.create(fixtures.local_storage_location_struct_2)
         self.assertTrue(file_array.is_available())
 
     def testJSONArrayIsAvailable(self):
@@ -56,27 +56,59 @@ class TestDataObjectArray(TestCase, UniversalModelTestMixin):
     def testNegHeterogeneousArray(self):
         with self.assertRaises(DataObjectValidationError):
             heterogeneous_array = DataObjectArray.create(fixtures.heterogeneous_array_struct)
-
+'''
 
 class TestFileStorageLocation(TestCase, UniversalModelTestMixin):
 
     def testFileStorageLocation(self):
-        file_storage_location = FileStorageLocation.create(fixtures.server_storage_location_struct)
-        self.assertEqual(file_storage_location.file_path, fixtures.server_storage_location_struct['file_path'])
+        file_storage_location = FileStorageLocation.create(fixtures.local_storage_location_struct)
+        self.assertEqual(file_storage_location.file_path, fixtures.local_storage_location_struct['file_path'])
         self.roundTripJson(file_storage_location)
         self.roundTripStruct(file_storage_location)
 
     def testGetByFile(self):
-        storage_location = FileStorageLocation.create(fixtures.server_storage_location_struct)
+        storage_location = FileStorageLocation.create(fixtures.local_storage_location_struct)
         file = FileDataObject.create(fixtures.file_struct)
         retrieved_storage_location = FileStorageLocation.get_by_file(file).first()
         self.assertEqual(uuid.UUID(str(storage_location._id)), uuid.UUID(str(retrieved_storage_location._id)))
 
 
-class TestServerStorageLocation(TestCase, UniversalModelTestMixin):
+class TestLocalStorageLocation(TestCase, UniversalModelTestMixin):
 
-    def testServerStorageLocation(self):
-        server_storage_location = ServerStorageLocation.create(fixtures.server_storage_location_struct)
-        self.assertEqual(server_storage_location.file_path, fixtures.server_storage_location_struct['file_path'])
-        self.roundTripJson(server_storage_location)
-        self.roundTripStruct(server_storage_location)
+    def testLocalStorageLocation(self):
+        local_storage_location = LocalStorageLocation.create(fixtures.local_storage_location_struct)
+        self.assertEqual(local_storage_location.file_path, fixtures.local_storage_location_struct['file_path'])
+        self.roundTripJson(local_storage_location)
+        self.roundTripStruct(local_storage_location)
+
+class TestFileImport(TestCase, UniversalModelTestMixin):
+
+    def testFileImportWithLocalStorageLocation(self):
+        root_dir = 'root_dir'
+        import_dir = 'import_dir'
+        with self.settings(
+                FILE_SERVER_TYPE='LOCAL',
+                FILE_ROOT=root_dir,
+                IMPORT_DIR=import_dir
+        ):
+            file_import = FileImport.create(fixtures.file_import_struct)
+            self.assertTrue(file_import.file_storage_location.file_path.startswith(os.path.join('/', root_dir, import_dir)))
+            self.roundTripJson(file_import)
+            self.roundTripStruct(file_import)
+
+    def testFileImportWithGoogleStorageLocation(self):
+        bucket_id = 'mybucket'
+        project_id = 'myproject'
+        root_dir = 'root_dir'
+        import_dir = 'import_dir'
+        with self.settings(
+                FILE_SERVER_TYPE='GOOGLE_CLOUD',
+                FILE_ROOT=root_dir,
+                IMPORT_DIR=import_dir,
+                BUCKET_ID=bucket_id,
+                PROJECT_ID=project_id
+        ):
+            file_import = FileImport.create(fixtures.file_import_struct)
+            self.assertTrue(file_import.file_storage_location.blob_path.startswith(os.path.join('/', root_dir, import_dir)))
+            self.roundTripJson(file_import)
+            self.roundTripStruct(file_import)

@@ -162,6 +162,11 @@ class ObjectHandler(object):
             task_run,
             'task-runs/')
 
+    def post_file_import(self, file_import):
+        return self._post_object(
+            file_import,
+            'file-imports/')
+
     def get_info(self):
         try:
             response = self._get('info/')

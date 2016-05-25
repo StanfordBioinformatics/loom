@@ -15,7 +15,7 @@ from loom.client import run
 from loom.client import server
 from loom.client import show
 from loom.client import test_runner
-from loom.client import upload
+from loom.client import importer
 from loom.client import version
 
 
@@ -39,9 +39,9 @@ class Main(object):
         server.ServerControls.get_parser(server_subparser)
         server_subparser.set_defaults(SubcommandClass=server.ServerControls)
 
-        upload_subparser = subparsers.add_parser('upload', help='upload files or other data to the Loom server')
-        upload.Uploader.get_parser(upload_subparser)
-        upload_subparser.set_defaults(SubcommandClass=upload.Uploader)
+        import_subparser = subparsers.add_parser('import', help='import files or other data to the Loom server')
+        importer.Importer.get_parser(import_subparser)
+        import_subparser.set_defaults(SubcommandClass=importer.Importer)
 
         download_subparser = subparsers.add_parser('download', help='download files or other data from the Loom server')
         download.Downloader.get_parser(download_subparser)

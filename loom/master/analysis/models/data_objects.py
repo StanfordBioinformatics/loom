@@ -1,3 +1,7 @@
+from django.conf import settings
+from django.utils import timezone
+import os
+
 from analysis.exceptions import DataObjectValidationError
 from analysis.models.base import AnalysisAppInstanceModel, \
     AnalysisAppImmutableModel
@@ -12,12 +16,25 @@ class DataObject(AnalysisAppImmutableModel):
     pass
 
 
-class DataSourceRecord(AnalysisAppInstanceModel):
-    data_objects = fields.ManyToManyField(DataObject,
-                                          related_name = 'data_source_records')
-    source_description = fields.TextField(max_length=10000)
+class FileImport(AnalysisAppInstanceModel):
+    file_data_object = fields.ForeignKey(
+        'FileDataObject',
+        related_name = 'file_import')
+    note = fields.TextField(max_length=10000, null=True)
+    source_url = fields.TextField(max_length=1000)
+    file_storage_location = fields.ForeignKey('FileStorageLocation', null=True)
 
-    
+    @classmethod
+    def create(cls, data):
+        o = super(FileImport, cls).create(data)
+        o._set_file_storage_location()
+        return o
+
+    def _set_file_storage_location(self):
+        self.file_storage_location = FileStorageLocation.get_location_for_import(self.file_data_object.filename, self.file_data_object._id)
+        self.save()
+
+'''    
 class DataObjectArray(DataObject):
     """An array of data objects, all of the same type.
     """
@@ -41,8 +58,9 @@ class DataObjectArray(DataObject):
         """An array is available if all members are available"""
         return all([member.downcast().is_available() for member in
                     self.data_objects.all()])
+'''
 
-    
+
 class FileDataObject(DataObject):
     """Represents a file, including its contents (identified by a hash), its 
     file name, and user-defined metadata.
@@ -60,6 +78,7 @@ class FileDataObject(DataObject):
         """
         return self.file_contents.has_storage_location()
 
+
 class FileContents(AnalysisAppImmutableModel):
     """Represents file contents, identified by a hash. Ignores file name.
     """
@@ -76,32 +95,51 @@ class FileStorageLocation(AnalysisAppInstanceModel):
     of file contents can be found.
     """
 
-    file_contents = fields.ForeignKey('FileContents', null=True, related_name='file_storage_locations')
+    file_contents = fields.ForeignKey(
+        'FileContents', null=True, related_name='file_storage_locations')
+    url = fields.CharField(max_length=1000)
+    status = fields.CharField(
+        max_length=256,
+        default='incomplete',
+        choices=(('incomplete', 'Incomplete'),
+                 ('complete', 'Complete'),
+                 ('failed', 'Failed'))
+    )
 
     @classmethod
     def get_by_file(self, file):
         locations = self.objects.filter(file_contents=file.file_contents).all()
         return locations
 
-    
-class ServerStorageLocation(FileStorageLocation):
-    """File server where a specified set of file contents can be found and 
-    accessed by ssh.
-    """
+    @classmethod
+    def get_location_for_import(cls, filename, file_id):
+        return cls.create({
+            'url': cls._get_url_for_import(filename, file_id)
+        })
 
-    host_url = fields.CharField(max_length=256)
-    file_path = fields.CharField(max_length=256)
+    @classmethod
+    def _get_url_for_import(cls, filename, file_id):
+        if settings.FILE_SERVER_TYPE == 'LOCAL':
+            return 'file://' + cls._get_path_for_import(filename, file_id)
+        elif settings.FILE_SERVER_TYPE == 'GOOGLE_CLOUD':
+            return 'gs://' + os.path.join(settings.BUCKET_ID, cls._get_path_for_import(filename, file_id))
+        else:
+            raise Exception('Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"' % settings.FILE_SERVER_TYPE)
 
-    
-class GoogleCloudStorageLocation(FileStorageLocation):
-    """Project, bucket, and path where a specified set of file contents can be 
-    found and accessed using Google Cloud Storage.
-    """
+    @classmethod
+    def _get_path_for_import(cls, filename, file_id):
+        return os.path.join(
+            '/',
+            settings.FILE_ROOT,
+            settings.IMPORT_DIR,
+            "%s-%s-%s" % (
+                timezone.now().strftime('%Y%m%d%H%M%S'),
+                file_id[0:10],
+                filename
+            )
+        )
 
-    project_id = fields.CharField(max_length=256)
-    bucket_id = fields.CharField(max_length=256)
-    blob_path = fields.CharField(max_length=256)
-
+'''
 class DatabaseDataObject(DataObject):
 
     def is_available(self):
@@ -112,6 +150,7 @@ class DatabaseDataObject(DataObject):
     class Meta:
         abstract = True
 
+
 class JSONDataObject(DatabaseDataObject):
     """Contains any valid JSON value. This could be 
     an integer, string, float, boolean, list, or dict
@@ -119,14 +158,18 @@ class JSONDataObject(DatabaseDataObject):
 
     json_data = fields.JSONField()
 
+
 class StringDataObject(DatabaseDataObject):
 
     string_value = fields.TextField()
+
 
 class BooleanDataObject(DatabaseDataObject):
 
     boolean_value = fields.BooleanField()
 
+
 class IntegerDataObject(DatabaseDataObject):
 
     integer_value = fields.IntegerField()
+'''
