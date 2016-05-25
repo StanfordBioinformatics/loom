@@ -36,9 +36,10 @@ class App():
                 cmd1.append(self.logfile)
                 cmd2.append('--logfile')
                 cmd2.append(self.logfile)
-            self.logger.info('Running job queues')
-            retcode = subprocess.call(cmd1)
-            retcode = subprocess.call(cmd2)
+            self.logger.info('Disabled, doing nothing.')
+            #self.logger.info('Running job queues')
+            #retcode = subprocess.call(cmd1)
+            #retcode = subprocess.call(cmd2)
             time.sleep(SLEEP_TIME_SECONDS)
 
 if __name__=='__main__':

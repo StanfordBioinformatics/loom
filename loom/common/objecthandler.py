@@ -167,6 +167,11 @@ class ObjectHandler(object):
             file_import,
             'file-imports/')
 
+    def update_file_import(self, file_import_id, file_import_update):
+        return self._post_object(
+            file_import_update,
+            'file-imports/%s/' % file_import_id)
+
     def get_info(self):
         try:
             response = self._get('info/')

@@ -10,12 +10,12 @@ if __name__ == "__main__" and __package__ is None:
 
 from loom.client import browser
 from loom.client import config
-from loom.client import download
+from loom.client import exporter
+from loom.client import importer
 from loom.client import run
 from loom.client import server
 from loom.client import show
 from loom.client import test_runner
-from loom.client import importer
 from loom.client import version
 
 
@@ -43,9 +43,9 @@ class Main(object):
         importer.Importer.get_parser(import_subparser)
         import_subparser.set_defaults(SubcommandClass=importer.Importer)
 
-        download_subparser = subparsers.add_parser('download', help='download files or other data from the Loom server')
-        download.Downloader.get_parser(download_subparser)
-        download_subparser.set_defaults(SubcommandClass=download.Downloader)
+        export_subparser = subparsers.add_parser('export', help='export files or other data from the Loom server')
+        exporter.Exporter.get_parser(export_subparser)
+        export_subparser.set_defaults(SubcommandClass=exporter.Exporter)
 
         show_subparser = subparsers.add_parser('show', help='query and show data objects from the Loom server')
         show.Show.get_parser(show_subparser)

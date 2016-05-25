@@ -9,16 +9,17 @@ from loom.client import settings_manager
 from loom.client.common import get_settings_manager_from_parsed_args
 from loom.client.common import add_settings_options_to_parser
 from loom.client.exceptions import *
-from loom.common import filehandler, objecthandler
+from loom.common.filehandler import FileHandler
+from loom.common.objecthandler import ObjectHandler
 from loom.common.helper import get_console_logger
 
 
-class AbstractDownloader(object):
-    """Common functions for the various subcommands under 'download'
+class AbstractExporter(object):
+    """Common functions for the various subcommands under 'export'
     """
     
     def __init__(self, args):
-        """Common init tasks for all Download classes
+        """Common init tasks for all Export classes
         """
         self.args = args
         self.settings_manager = get_settings_manager_from_parsed_args(self.args)
@@ -30,47 +31,34 @@ class AbstractDownloader(object):
         return parser
 
 
-class FileDownloader(AbstractDownloader):
+class FileExporter(AbstractExporter):
 
     @classmethod
     def get_parser(cls, parser):
-        parser = super(FileDownloader, cls).get_parser(parser)
+        parser = super(FileExporter, cls).get_parser(parser)
         parser.add_argument(
             'file_ids',
             nargs='+',
             metavar='FILE_ID',
-            help='File or list of files to be downloaded')
+            help='File or list of files to be exported')
         parser.add_argument(
-            '--directory',
-            metavar='DIRECTORY',
-            help='Destination directory for downloads')
-        parser.add_argument(
-            '--rename',
-            nargs='+',
-            metavar='NEW_FILENAME',
-            help='Rename the downloaded file(s). The number of names '\
-            'must be equal to the number of files downloaded.')
+            '--destination',
+            metavar='DESTINATION',
+            help='Destination filename or directory')
         return parser
 
     def run(self):
-        self._get_filehandler()
-        self._download_files()
-
-    def _get_filehandler(self):
-        self.filehandler = filehandler.FileHandler(self.master_url, logger=get_console_logger())
-
-    def _download_files(self):
-        self.filehandler.download_files(
+        filehandler = FileHandler(self.master_url, logger=get_console_logger())
+        return filehandler.export_files(
             self.args.file_ids,
-            local_names=self.args.rename,
-            target_directory=self.args.directory
+            destination_url=self.args.destination
         )
 
-class WorkflowDownloader(AbstractDownloader):
+class WorkflowExporter(AbstractExporter):
 
     @classmethod
     def get_parser(cls, parser):
-        parser = super(WorkflowDownloader, cls).get_parser(parser)
+        parser = super(WorkflowExporter, cls).get_parser(parser)
         parser.add_argument(
             'workflow_id',
             metavar='WORKFLOW_ID', help='Workflow to be downloaded.')
@@ -86,16 +74,10 @@ class WorkflowDownloader(AbstractDownloader):
         return parser
 
     def run(self):
-        self._get_objecthandler()
-        self._get_workflow()
+        self.objecthandler = ObjectHandler(self.master_url)
+        self.workflow = self.objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
         self._get_filename()
         self._save_workflow()
-
-    def _get_objecthandler(self):
-        self.objecthandler = objecthandler.ObjectHandler(self.master_url)
-
-    def _get_workflow(self):
-        self.workflow = self.objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
 
     def _get_filename(self):
         if self.args.filename is not None:
@@ -115,7 +97,7 @@ class WorkflowDownloader(AbstractDownloader):
         print '...complete.'
                 
 
-class Downloader:
+class Exporter:
     """Sets up and executes commands under "download" on the main parser.
     """
 
@@ -142,20 +124,20 @@ class Downloader:
         subparsers = parser.add_subparsers(help='select a data type to download', metavar='{file,workflow}')
 
         file_subparser = subparsers.add_parser('file', help='download a file or an array of files')
-        FileDownloader.get_parser(file_subparser)
-        file_subparser.set_defaults(SubSubcommandClass=FileDownloader)
+        FileExporter.get_parser(file_subparser)
+        file_subparser.set_defaults(SubSubcommandClass=FileExporter)
 
         hidden_file_subparser = subparsers.add_parser('files')
-        FileDownloader.get_parser(hidden_file_subparser)
-        hidden_file_subparser.set_defaults(SubSubcommandClass=FileDownloader)
+        FileExporter.get_parser(hidden_file_subparser)
+        hidden_file_subparser.set_defaults(SubSubcommandClass=FileExporter)
 
         workflow_subparser = subparsers.add_parser('workflow', help='download a workflow')
-        WorkflowDownloader.get_parser(workflow_subparser)
-        workflow_subparser.set_defaults(SubSubcommandClass=WorkflowDownloader)
+        WorkflowExporter.get_parser(workflow_subparser)
+        workflow_subparser.set_defaults(SubSubcommandClass=WorkflowExporter)
 
         hidden_workflow_subparser = subparsers.add_parser('workflows')
-        WorkflowDownloader.get_parser(hidden_workflow_subparser)
-        hidden_workflow_subparser.set_defaults(SubSubcommandClass=WorkflowDownloader)
+        WorkflowExporter.get_parser(hidden_workflow_subparser)
+        hidden_workflow_subparser.set_defaults(SubSubcommandClass=WorkflowExporter)
 
         return parser
 
@@ -164,4 +146,4 @@ class Downloader:
 
 
 if __name__=='__main__':
-    response = Downloader().run()
+    response = Exporter().run()

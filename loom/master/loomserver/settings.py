@@ -214,6 +214,8 @@ WORKER_DISK_MOUNT_POINT = os.getenv('WORKER_DISK_MOUNT_POINT')
 WORKER_NETWORK = os.getenv('WORKER_NETWORK')
 WORKER_TAGS = os.getenv('WORKER_TAGS')
 
+HASH_FUNCTION='md5'
+
 # Graph Models settings to generate model schema plots
 GRAPH_MODELS = {
     'include_models': include_models,

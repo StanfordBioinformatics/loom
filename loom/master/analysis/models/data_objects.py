@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.utils import timezone
+import json
 import os
+import uuid
 
 from analysis.exceptions import DataObjectValidationError
 from analysis.models.base import AnalysisAppInstanceModel, \
@@ -19,19 +21,43 @@ class DataObject(AnalysisAppImmutableModel):
 class FileImport(AnalysisAppInstanceModel):
     file_data_object = fields.ForeignKey(
         'FileDataObject',
-        related_name = 'file_import')
+        related_name = 'file_import',
+        null=True)
     note = fields.TextField(max_length=10000, null=True)
     source_url = fields.TextField(max_length=1000)
+    temp_file_storage_location = fields.ForeignKey('FileStorageLocation', null=True, related_name='temp_file_import')
     file_storage_location = fields.ForeignKey('FileStorageLocation', null=True)
 
     @classmethod
     def create(cls, data):
         o = super(FileImport, cls).create(data)
-        o._set_file_storage_location()
+        o._set_temp_file_storage_location()
         return o
 
+    def update(self, data):
+        super(FileImport, self).update(data)
+
+        # If the update adds a FileDataObject, this triggers setting the FileStorageLocation
+        data_struct = json.loads(data)
+        if data_struct.get('file_data_object') and not data_struct.get('file_storage_location'):
+            self._set_file_storage_location()
+
+    def _set_temp_file_storage_location(self):
+        """A temp location is used since the FileDataObject ID may be used in the 
+        final file location, and this ID may not be known at time of upload. This is
+        because the method for copying the file also may also generates the hash
+        such that the hash is not known prior to copy. The FileDataObject can't be
+        generated before FileContents are known since its ID is a hash of the 
+        object's contents.
+        """
+        self.temp_file_storage_location = FileStorageLocation.get_temp_location()
+        self.save()
+
     def _set_file_storage_location(self):
-        self.file_storage_location = FileStorageLocation.get_location_for_import(self.file_data_object.filename, self.file_data_object._id)
+        """After uploading the file to a temp location and updating the FileImport's FileDataObject with 
+        the full FileContents (which includes the hash), the final storage location can be determined.
+        """
+        self.file_storage_location = FileStorageLocation.get_location_for_import(self.file_data_object)
         self.save()
 
 '''    
@@ -96,7 +122,9 @@ class FileStorageLocation(AnalysisAppInstanceModel):
     """
 
     file_contents = fields.ForeignKey(
-        'FileContents', null=True, related_name='file_storage_locations')
+        'FileContents',
+        null=True,
+        related_name='file_storage_locations')
     url = fields.CharField(max_length=1000)
     status = fields.CharField(
         max_length=256,
@@ -112,17 +140,24 @@ class FileStorageLocation(AnalysisAppInstanceModel):
         return locations
 
     @classmethod
-    def get_location_for_import(cls, filename, file_id):
+    def get_temp_location(cls,):
         return cls.create({
-            'url': cls._get_url_for_import(filename, file_id)
+            'url': cls._get_url(cls._get_temp_path_for_import())
         })
 
     @classmethod
-    def _get_url_for_import(cls, filename, file_id):
+    def get_location_for_import(cls, file_data_object):
+        return cls.create({
+            'url': cls._get_url(cls._get_path_for_import(file_data_object.filename, file_data_object._id)),
+            'file_contents': file_data_object.file_contents.to_struct()
+        })
+
+    @classmethod
+    def _get_url(cls, path):
         if settings.FILE_SERVER_TYPE == 'LOCAL':
-            return 'file://' + cls._get_path_for_import(filename, file_id)
+            return 'file://' + path
         elif settings.FILE_SERVER_TYPE == 'GOOGLE_CLOUD':
-            return 'gs://' + os.path.join(settings.BUCKET_ID, cls._get_path_for_import(filename, file_id))
+            return 'gs://' + os.path.join(settings.BUCKET_ID, path)
         else:
             raise Exception('Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"' % settings.FILE_SERVER_TYPE)
 
@@ -134,9 +169,19 @@ class FileStorageLocation(AnalysisAppInstanceModel):
             settings.IMPORT_DIR,
             "%s-%s-%s" % (
                 timezone.now().strftime('%Y%m%d%H%M%S'),
-                file_id[0:10],
+                file_id[0:12],
                 filename
             )
+        )
+
+    @classmethod
+    def _get_temp_path_for_import(cls):
+        return os.path.join(
+            '/',
+            settings.FILE_ROOT,
+            settings.IMPORT_DIR,
+            'tmp',
+            uuid.uuid4().hex
         )
 
 '''

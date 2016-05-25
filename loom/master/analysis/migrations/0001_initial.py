@@ -517,6 +517,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.FileStorageLocation', null=True),
         ),
         migrations.AddField(
+            model_name='fileimport',
+            name='temp_file_storage_location',
+            field=models.ForeignKey(related_name='temp_file_import', to='analysis.FileStorageLocation', null=True),
+        ),
+        migrations.AddField(
             model_name='channeloutput',
             name='data_objects',
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
@@ -544,6 +549,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='fileimport',
             name='file_data_object',
-            field=models.ForeignKey(related_name='file_import', to='analysis.FileDataObject'),
+            field=models.ForeignKey(related_name='file_import', to='analysis.FileDataObject', null=True),
         ),
     ]

@@ -555,11 +555,11 @@ class InstanceModel(_BaseModel):
             o.validate_model()
         return o
 
-    def update(self, update_json):
+    def update(self, update_struct_or_json):
         """Use a JSON or python structure to update an existing model and
         save it to the database.
         """
-        update_struct = self._any_to_struct(update_json)
+        update_struct = self._any_to_struct(update_struct_or_json)
         self._verify_update_id_matches_model(update_struct.get('_id'))
         # Start with existing model as a dict and update any fields that
         # are contained in update_json

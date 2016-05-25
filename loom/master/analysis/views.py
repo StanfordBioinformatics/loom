@@ -46,8 +46,8 @@ class Helper:
 
     @classmethod
     def update(cls, request, id, model_class):
-        model = model_class.get_by_id(id)
         data_json = request.body
+        model = model_class.get_by_id(id)
         try:
             model.update(data_json)
             return JsonResponse({"message": "updated %s" % model_class.get_class_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
@@ -75,6 +75,7 @@ def worker_info(request):
 @require_http_methods(["GET"])
 def file_handler_info(request):
     file_handler_info = {
+        'HASH_FUNCTION': settings.HASH_FUNCTION,
         'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
         'FILE_SERVER_TYPE': settings.FILE_SERVER_TYPE,
         'FILE_ROOT': settings.FILE_ROOT,
