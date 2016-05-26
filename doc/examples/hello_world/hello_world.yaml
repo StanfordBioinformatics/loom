@@ -1,41 +1,68 @@
 ---
-workflow_name: "hello_world"
-workflow_inputs:
-  -
-    type: "file"
-    prompt: "Enter the 'hello' file"
-    to_channel: "hello"
-workflow_outputs:
-  -
-    from_channel: "hello_world_out"
-    output_name: "hello_world"
-steps:
-  -
-    step_name: "world_step"
-    command: "echo world > {{ world }}"
-    environment:
-      docker_image: "ubuntu"
-    resources:
-      cores: 1
-      memory: "1"
-    step_outputs:
-    -
-      from_path: "world.txt"
-      to_channel: "world"
-  -
-    step_name: "hello_world_step"
-    command: "cat {{ hello }} {{ world }} > {{ hello_world_out }}"
-    environment:
-      docker_image: "ubuntu"
-    resources:
-      cores: 1
-      memory: "1"
-    step_inputs:
-      -
-        from_channel: "hello"
-      -
-        from_channel: "world"
-    step_outputs:
-      -
-        from_path: "hello_world.txt"
-        to_channel: "hello_world_out"
+  name: "hello_world"
+  inputs: 
+    - 
+      type: "file"
+      hint: "Enter the 'hello' file"
+      channel: "hello"
+  fixed_inputs: 
+    - 
+      type: "file"
+      id: "world.txt@125a544e12abb700c575107fa0290e8495df591c03479777bd060b180cb2899b"
+      channel: "world"
+  outputs: 
+    - 
+      type: "file"
+      channel: "hello_world"
+  steps: 
+    - 
+      name: "hello_step"
+      command: "cat {{ hello }} | tr '[a-z]' '[A-Z]' > {{ hello_cap }}"
+      environment: 
+        docker_image: "ubuntu"
+      resources: 
+        cores: 1
+        memory: "1"
+      inputs: 
+        - 
+          type: "file"
+          channel: "hello"
+      outputs: 
+        - 
+          type: "file"
+          channel: "hello_cap"
+          filename: "hello_cap.txt"
+    - 
+      name: "world_step"
+      command: "cat {{ world }} | tr '[a-z]' '[A-Z]' > {{ world_cap }}"
+      environment: 
+        docker_image: "ubuntu"
+      resources: 
+        cores: 1
+        memory: "1"
+      inputs: 
+        - 
+          type: "file"
+          channel: "world"
+      outputs: 
+        - 
+          channel: "world_cap"
+          filename: "world_cap.txt"
+    - 
+      name: "hello_world_step"
+      command: "cat {{ hello_cap }} {{ world_cap }} > {{ hello_world }}"
+      environment: 
+        docker_image: "ubuntu"
+      resources: 
+        cores: 1
+        memory: "1"
+      inputs: 
+        - 
+          channel: "hello_cap"
+        - 
+          channel: "world_cap"
+      outputs: 
+        - 
+          filename: "hello_world.txt"
+          channel: "hello_world"
+

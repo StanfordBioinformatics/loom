@@ -1,5 +1,5 @@
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import DataObject
+from analysis.models.data_objects import FileDataObject
 from universalmodels import fields
 
 
@@ -19,6 +19,7 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
     NAME_FIELD = 'name'
     
     name = fields.CharField(max_length=255)
+
 
 class Workflow(AbstractWorkflow):
     """A collection of steps or workflows
@@ -81,7 +82,15 @@ class AbstractFixedInput(AnalysisAppImmutableModel):
         )
     )
     channel = fields.CharField(max_length=255)
-    
+
+    def _create_or_update_fields(self, data):
+        matches = FileDataObject.get_by_name_and_full_id(data['id'])
+        if matches.count() < 1:
+            raise Exception('Could not find file with ID "%s"' % data['id'])
+        if matches.count() > 1:
+            raise Exception('Found multiple files with ID "%s"' % data['id'])
+        o = super(AbstractFixedInput, self)._create_or_update_fields(data)
+        
     class Meta:
         abstract = True
 

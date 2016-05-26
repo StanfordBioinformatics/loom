@@ -69,10 +69,8 @@ class WorkflowImporter(AbstractImporter):
         return parser
 
     def run(self):
-        self.workflow = self.get_workflow(self.args.workflow)
-        self._get_objecthandler()
-        self._expand_file_ids()
-        return self._import_workflow()
+        workflow = self._get_workflow(self.args.workflow)
+        return self._import_workflow(workflow)
 
     @classmethod
     def default_run(cls, workflow):
@@ -80,62 +78,19 @@ class WorkflowImporter(AbstractImporter):
         parser = cls.get_parser(argparse.ArgumentParser(__file__))
         args = parser.parse_args([workflow])
         return cls(args=args).run()
-    
+
     @classmethod
-    def get_workflow(cls, workflow_file):
+    def _get_workflow(cls, workflow_file):
         workflow = read_as_json_or_yaml(workflow_file)
-        cls._validate_workflow(workflow)
         return workflow
 
-    @classmethod
-    def _validate_workflow(cls, workflow):
-        """This is just enough validation for the client to execute.
-        Full validation is done by the server.
-        """
-        if not isinstance(workflow, dict):
-            raise ValidationError('This is not a valid workflow: "%s"' % workflow)
+    def _import_workflow(self, workflow):
+        objecthandler = ObjectHandler(self.master_url)
+        workflow_from_server = objecthandler.post_workflow(workflow)
 
-    def _get_objecthandler(self):
-        self.objecthandler = ObjectHandler(self.master_url)
-
-    @classmethod
-    def _expand_file_ids(cls, workflow):
-        """Wherever a workflow lists a file identifier as input, query
-        the server to make sure exactly one match exists, and enter the full identifier in
-        the workflow.
-        """
-        if workflow.get('fixed_inputs') is None:
-            return
-        for counter_i in range(len(workflow['fixed_inputs'])):
-            workflow_input = workflow['fixed_inputs'][counter_i]
-            if workflow_input.get('type') == 'file':
-                file_id = self._sanitize_file_id(workflow_input['id'])
-                workflow['fixed_inputs'][counter_i]['id'] = file_id
-            else:
-                raise Exception('Found unknown input type "%s"' % workflow_input.get('type'))
-                    
-    def _sanitize_file_id(self, file_id):
-        try:
-            file_data_object = self.objecthandler.get_file_data_object_index(file_id, min=1, max=1)[0]
-        except common_exceptions.IdMatchedTooFewFileDataObjectsError as e:
-            raise IdMatchedTooFewFileDataObjectsError(
-                'The file ID "%s" did not match any files on the server. '\
-                'Import the file before importing the workflow.' % file_id
-            )
-        except common_exceptions.IdMatchedTooManyFileDataObjectsError:
-            raise IdMatchedTooManyFileDataObjectsError(
-                'The file ID "%s" matched multiple files on the server. Try using the full file ID.'\
-                % file_id
-            )
-        full_file_id = file_data_object['filename'] + '@' + file_data_object['_id']
-        if full_file_id != file_id:
-            self.logger.info('Your workflow has been modified. The workflow input value "%s" was expanded to the full ID %s.' % (file_id, full_file_id))
-        return full_file_id
-            
-    def _import_workflow(self):
-        workflow_from_server = self.objecthandler.post_workflow(self.workflow)
         self.logger.info('Imported workflow %s@%s' % \
-            (workflow_from_server['workflow_name'], workflow_from_server['_id']))
+            (workflow_from_server['name'], workflow_from_server['_id']))
+        
         return workflow_from_server
 
 

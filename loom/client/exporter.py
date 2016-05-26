@@ -63,9 +63,9 @@ class WorkflowExporter(AbstractExporter):
             'workflow_id',
             metavar='WORKFLOW_ID', help='Workflow to be downloaded.')
         parser.add_argument(
-            '--filename',
-            metavar='FILENAME',
-            help='Destination file name and path for downloaded workflow')
+            '--destination',
+            metavar='DESTINATION',
+            help='Destination filename or directory')
         parser.add_argument(
             '--format',
             choices=['json', 'yaml'],
@@ -74,28 +74,33 @@ class WorkflowExporter(AbstractExporter):
         return parser
 
     def run(self):
-        self.objecthandler = ObjectHandler(self.master_url)
-        self.workflow = self.objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
-        self._get_filename()
-        self._save_workflow()
+        objecthandler = ObjectHandler(self.master_url)
+        workflow = objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
+        destination = self._get_destination(workflow)
+        self._save_workflow(workflow, destination)
 
-    def _get_filename(self):
-        if self.args.filename is not None:
-            self.filename = self.args.filename
+    def _get_destination(self, workflow):
+        default_name = '%s.%s' % (workflow['name'], self.args.format)
+        if self.args.destination is None:
+            destination = os.path.join(os.getcwd(), default_name)
+            return FileHandler.rename_to_avoid_overwrite(destination)
+        elif os.isdir(self.args.destination):
+            destination = os.path.join(self.args.destination, default_name)
+            return FileHandler.rename_to_avoid_overwrite(destination)
         else:
-            self.filename = self.workflow['workflow_name']
-
-    def _save_workflow(self):
-        print 'Downloading workflow %s@%s to %s...' % (self.workflow.get('workflow_name'), self.workflow['_id'], self.filename)
-        with open(self.filename, 'w') as f:
+            # Don't modify a file destination specified by the user, even if it overwrites something.
+            return self.args.destination
+        
+    def _save_workflow(self, workflow, destination):
+        print 'Downloading workflow %s@%s to %s.' % (workflow.get('name'), workflow.get('_id'), destination)
+        with open(destination, 'w') as f:
             if self.args.format == 'json':
-                json.dump(self.workflow, f)
+                json.dump(workflow, f)
             elif self.args.format == 'yaml':
-                yaml.safe_dump(self.workflow, f)
+                yaml.safe_dump(workflow, f)
             else:
                 raise Exception('Invalid format type %s' % self.args.format)
-        print '...complete.'
-                
+
 
 class Exporter:
     """Sets up and executes commands under "download" on the main parser.

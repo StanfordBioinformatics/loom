@@ -23,7 +23,22 @@ class _ModelMixin(object):
 
     # To override
     NAME_FIELD = None
-    
+
+    def get_name_and_id(self):
+        name = self.get_name()
+        if not name:
+            name = ''
+        return '%s@%s' % (name, self.get_id())
+
+    def get_name(self):
+        if self.NAME_FIELD is None:
+            return None
+
+        val = self
+        for name_part in self.NAME_FIELD.split('__'):
+            val = getattr(val, name_part)
+        return val
+
     @classmethod
     def get_class_name(cls, plural=False, hyphen=False):
         if plural:
@@ -77,21 +92,31 @@ class _ModelMixin(object):
         return cls.objects.filter(**kwargs)
 
     @classmethod
+    def get_by_name_and_full_id(cls, query_string):
+        name, id, name_or_id = cls._parse_query_string(query_string)
+        models = cls.get_by_name(name)
+        return models.filter(_id=id)
+
+    @classmethod
+    def get_by_name_and_abbreviated_id(cls, query_string):
+        name, id, name_or_id = cls._parse_query_string(query_string)
+        models = cls.get_by_name(name)
+        return models.filter(_id__startswith=id)
+        
+    @classmethod
     def get_by_name_or_id(cls, query_string):
         if not cls._is_query_string_valid(query_string):
             return cls.objects.none()
         name, id, name_or_id = cls._parse_query_string(query_string)
-        if id and (not name):
+        if id and not name:
             try:
                 return cls.get_by_abbreviated_id(id)
             except IdTooShortError:
                 return cls.objects.none()
-        elif name and (not id):
+        elif name and not id:
             return cls.get_by_name(name)
         elif name and id:
-            models = cls.get_by_name(name)
-            models2 = models.filter(_id__startswith=id)
-            return models2
+            return cls.get_by_name_and_abbreviated_id(query_string)
         elif name_or_id:
             models1 = cls.get_by_name(name_or_id)
             try:

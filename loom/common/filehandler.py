@@ -26,7 +26,7 @@ def _urlparse(pattern):
     """
     url = urlparse.urlparse(pattern)
     if not url.scheme:
-        url = urlparse.urlparse('file://' + pattern)
+        url = urlparse.urlparse('file://' + os.path.abspath(os.path.expanduser(pattern)))
     return url
 
 
@@ -159,7 +159,7 @@ class LocalSource(AbstractSource):
 
     def __init__(self, url):
         parsed_url = _urlparse(url)
-        self.file_path = os.path.abspath(os.path.expanduser(parsed_url.path))
+        self.file_path = parsed_url.path
 
     def get_hash_value(self, hash_function):
         if not hash_function == 'md5':
@@ -430,7 +430,7 @@ class FileHandler:
 
         if not destination_url:
             destination_url = os.path.join(os.getcwd(), file['filename'])
-            destination_url = self._rename_to_avoid_overwrite(destination_url)
+            destination_url = self.rename_to_avoid_overwrite(destination_url)
 
         destination = Destination(destination_url)
         
@@ -438,12 +438,13 @@ class FileHandler:
         location = self.objecthandler.get_file_storage_locations_by_file(file['_id'])[0]
         Source(location['url']).copy_to(destination)
 
-    def _rename_to_avoid_overwrite(self, destination_url):
-        root = destination_url
+    @classmethod
+    def rename_to_avoid_overwrite(cls, destination_path):
+        root = destination_path
         destination = Destination(root)
         counter = 0
         while destination.exists():
             counter += 1
-            destination_url = '%s(%s)' % (root, counter)
-            destination = Destination(destination_url)
-        return destination_url
+            destination_path = '%s(%s)' % (root, counter)
+            destination = Destination(destination_path)
+        return destination_path

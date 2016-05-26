@@ -539,6 +539,9 @@ class InstanceModel(_BaseModel):
     datetime_created = fields.DateTimeField(default=timezone.now)
     datetime_updated = fields.DateTimeField(default=timezone.now)
 
+    def get_id(self):
+        return uuid.UUID(str(self._id).hex)
+    
     @classmethod
     def create(cls, data_struct_or_json):
         """Use a JSON or python structure to create a model and save 
@@ -602,6 +605,9 @@ class InstanceModel(_BaseModel):
 class ImmutableModel(_BaseModel):
 
     _id = models.CharField(primary_key=True, max_length=255)
+
+    def get_id(self):
+        return self._id
 
     @classmethod
     def create(cls, data_struct_or_json):
