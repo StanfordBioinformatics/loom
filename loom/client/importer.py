@@ -3,7 +3,7 @@
 import argparse
 import glob
 import os
-    
+
 from loom.client import settings_manager
 from loom.client.common import add_settings_options_to_parser
 from loom.client.common import get_settings_manager_from_parsed_args
@@ -24,7 +24,7 @@ class AbstractImporter(object):
         """
 
         self.args = args
-        
+
         self.settings_manager = get_settings_manager_from_parsed_args(self.args)
         self.master_url = self.settings_manager.get_server_url_for_client()
 
@@ -69,29 +69,25 @@ class WorkflowImporter(AbstractImporter):
         return parser
 
     def run(self):
-        workflow = self._get_workflow(self.args.workflow)
-        return self._import_workflow(workflow)
+        return self.import_workflow(self.args.workflow, self.master_url, self.logger)
 
     @classmethod
-    def default_run(cls, workflow):
-        # Run with default settings
-        parser = cls.get_parser(argparse.ArgumentParser(__file__))
-        args = parser.parse_args([workflow])
-        return cls(args=args).run()
+    def import_workflow(cls, workflow_file, master_url, logger):
+        logger.info('Importing workflow from %s...' % os.path.abspath(os.path.expanduser(workflow_file)))
+        workflow = cls._get_workflow(workflow_file)
+        objecthandler = ObjectHandler(master_url)
+        workflow_from_server = objecthandler.post_workflow(workflow)
+        logger.info('...finished importing workflow %s@%s' % \
+            (workflow_from_server['name'],
+             workflow_from_server['_id'],
+            ))
+        
+        return workflow_from_server
 
     @classmethod
     def _get_workflow(cls, workflow_file):
         workflow = read_as_json_or_yaml(workflow_file)
         return workflow
-
-    def _import_workflow(self, workflow):
-        objecthandler = ObjectHandler(self.master_url)
-        workflow_from_server = objecthandler.post_workflow(workflow)
-
-        self.logger.info('Imported workflow %s@%s' % \
-            (workflow_from_server['name'], workflow_from_server['_id']))
-        
-        return workflow_from_server
 
 
 class Importer:

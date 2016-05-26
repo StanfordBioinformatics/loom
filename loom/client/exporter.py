@@ -90,7 +90,7 @@ class WorkflowExporter(AbstractExporter):
         else:
             # Don't modify a file destination specified by the user, even if it overwrites something.
             return self.args.destination
-        
+
     def _save_workflow(self, workflow, destination):
         print 'Downloading workflow %s@%s to %s.' % (workflow.get('name'), workflow.get('_id'), destination)
         with open(destination, 'w') as f:

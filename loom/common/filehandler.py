@@ -147,6 +147,10 @@ class AbstractSource:
         pass
 
     @abc.abstractmethod
+    def get_path_for_user(self):
+        pass
+
+    @abc.abstractmethod
     def get_filename(self):
         pass
 
@@ -174,6 +178,9 @@ class LocalSource(AbstractSource):
 
     def get_filename(self):
         return os.path.basename(self.file_path)
+
+    def get_path_for_user(self):
+        return self.get_path()
 
 
 class GoogleStorageSource(AbstractSource):
@@ -363,10 +370,12 @@ class FileHandler:
 
     def import_from_pattern(self, pattern, note):
         for source in SourceSet(pattern):
-            self.import_file(source, note)
+            self.import_file(source.get_url(), note)
 
-    def import_file(self, source, note):
-        
+    def import_file(self, source_url, note):
+        source = Source(source_url)
+        self._log('Importing file from %s...' % source.get_path_for_user())
+
         file_import = self._create_file_import(source, note)
 
         temp_destination = Destination(file_import['temp_file_storage_location']['url'])
@@ -379,8 +388,12 @@ class FileHandler:
         final_destination = Destination(updated_file_import['file_storage_location']['url'])
         temp_source.move_to(final_destination)
 
-        self._finalize_file_import(updated_file_import)
-            
+        final_file_import =  self._finalize_file_import(updated_file_import)
+
+        self._log('...finished importing file %s@%s' % (final_file_import['file_data_object']['filename'],
+                                           final_file_import['file_data_object']['_id']))
+        return final_file_import
+    
     def _create_file_import(self, source, note):
         return self.objecthandler.post_file_import({
             'note': note,

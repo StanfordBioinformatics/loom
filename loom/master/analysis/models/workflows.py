@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError
+
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.data_objects import FileDataObject
 from universalmodels import fields
@@ -29,6 +31,53 @@ class Workflow(AbstractWorkflow):
     inputs = fields.ManyToManyField('WorkflowRuntimeInput')
     fixed_inputs = fields.ManyToManyField('WorkflowFixedInput')
     outputs = fields.ManyToManyField('WorkflowOutput')
+
+    def _create_or_update_fields(self, data):
+        o = super(Workflow, self)._create_or_update_fields(data)
+        self._validate_workflow()
+
+    def _validate_workflow(self):
+        """Make sure all channel destinations have exactly one source
+        """
+
+        source_counts = {}
+        for input in self.inputs.all():
+            self._increment_sources_count(source_counts, input.channel)
+        for input in self.fixed_inputs.all():
+            self._increment_sources_count(source_counts, input.channel)
+        for step in self.steps.all():
+            step = step.downcast()
+            for output in step.outputs.all():
+                self._increment_sources_count(source_counts, output.channel)
+
+        for channel, count in source_counts.iteritems():
+            if count > 1:
+                raise ValidationError('The workflow %s@%s is invalid. It has more than one source for channel "%s". Check workflow inputs and step outputs.' % (
+                    self.name,
+                    self._id,
+                    channel
+                ))
+
+        destinations = []
+        for output in self.outputs.all():
+            destinations.append(output.channel)
+        for step in self.steps.all():
+            step = step.downcast()
+            for input in step.inputs.all():
+                destinations.append(input.channel)
+
+        sources = source_counts.keys()
+        for destination in destinations:
+            if not destination in sources:
+                raise ValidationError('The workflow %s@%s is invalid. The channel "%s" has no source.' % (
+                    self.name,
+                    self._id,
+                    destination
+                ))
+
+    def _increment_sources_count(self, sources, channel):
+        sources.setdefault(channel, 0)
+        sources[channel] += 1
 
 
 class Step(AbstractWorkflow):
@@ -86,9 +135,9 @@ class AbstractFixedInput(AnalysisAppImmutableModel):
     def _create_or_update_fields(self, data):
         matches = FileDataObject.get_by_name_and_full_id(data['id'])
         if matches.count() < 1:
-            raise Exception('Could not find file with ID "%s"' % data['id'])
+            raise ValidationError('Could not find file with ID "%s"' % data['id'])
         if matches.count() > 1:
-            raise Exception('Found multiple files with ID "%s"' % data['id'])
+            raise ValidationError('Found multiple files with ID "%s"' % data['id'])
         o = super(AbstractFixedInput, self)._create_or_update_fields(data)
         
     class Meta:

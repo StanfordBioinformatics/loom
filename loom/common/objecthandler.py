@@ -157,6 +157,11 @@ class ObjectHandler(object):
             workflow_run,
             'workflow-runs/')
 
+    def post_run_request(self, run_request):
+        return self._post_object(
+            run_request,
+            'run-requests/')
+
     def post_task_run(self, task_run):
         return self._post_object(
             task_run,
