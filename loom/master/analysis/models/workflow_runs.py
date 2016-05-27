@@ -25,11 +25,11 @@ class AbstractWorkflowRun(AnalysisAppInstanceModel):
     def create_from_run_request(cls, run_request):
         if run_request.workflow.is_step():
             run = StepRun.create(
-                {'template_step': workflow.to_struct()}
+                {'template_step': run_request.workflow.to_struct()}
             )
         else:
             run = WorkflowRun.create(
-                {'template_workflow': workflow_to_struct()}
+                {'template_workflow': run_request.workflow.to_struct()}
             )
 
 

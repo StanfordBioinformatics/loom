@@ -154,6 +154,8 @@ class _BaseModel(models.Model):
         """Given the dict 'data_struct' as input, write its data to
         the fields of the current ORM model (self)
         """
+        self.before_create()
+        
         self._verify_dict(data_struct)
         self.unsaved_x_to_many_related_objects = {}
         for (key, value) in data_struct.iteritems():
@@ -162,6 +164,18 @@ class _BaseModel(models.Model):
         models.Model.save(self)
         self._save_x_to_many_related_objects()
 
+        self.after_create()
+
+    def before_create(self):
+        """Override for preprocessing steps
+        """
+        pass
+
+    def after_create(self):
+        """Override for postprocessing steps
+        """
+        pass
+        
     def _save_x_to_many_related_objects(self):
         """Cannot create one-to-many or many-to-many relations until
         both models are saved, but saving the model before defining

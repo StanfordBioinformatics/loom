@@ -32,8 +32,7 @@ class Workflow(AbstractWorkflow):
     fixed_inputs = fields.ManyToManyField('WorkflowFixedInput')
     outputs = fields.ManyToManyField('WorkflowOutput')
 
-    def _create_or_update_fields(self, data):
-        o = super(Workflow, self)._create_or_update_fields(data)
+    def after_create(self):
         self._validate_workflow()
 
     def _validate_workflow(self):
@@ -79,8 +78,8 @@ class Workflow(AbstractWorkflow):
         sources.setdefault(channel, 0)
         sources[channel] += 1
 
-        def is_step(self):
-            return False
+    def is_step(self):
+        return False
 
 class Step(AbstractWorkflow):
     """Steps are smaller units of processing within a Workflow. A Step can give rise to a single process,

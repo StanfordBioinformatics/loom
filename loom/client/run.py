@@ -81,6 +81,7 @@ class WorkflowRunner(object):
         else:
             workflow = self._get_workflow_from_server(workflow_id)
         self._validate_inputs(workflow)
+        return workflow
 
     def _validate_inputs(self, workflow):
         """Check to make sure user-provided inputs match inputs in the workflow,
@@ -124,7 +125,7 @@ class WorkflowRunner(object):
         else:
             return workflows[0]
 
-    def _get_inputs(self, input_args):
+    def _get_inputs(self):
         """Converts command line args into a list of workflow inputs
         """
         inputs = []

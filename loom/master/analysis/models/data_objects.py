@@ -29,12 +29,8 @@ class FileImport(AnalysisAppInstanceModel):
     temp_file_storage_location = fields.ForeignKey('FileStorageLocation', null=True, related_name='temp_file_import')
     file_storage_location = fields.ForeignKey('FileStorageLocation', null=True)
 
-    @classmethod
-    def create(cls, data):
-        with transaction.atomic():
-            o = super(FileImport, cls).create(data)
-            o._set_temp_file_storage_location()
-        return o
+    def after_create(self):
+        self._set_temp_file_storage_location()
 
     def update(self, data):
         super(FileImport, self).update(data)
