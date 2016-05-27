@@ -549,6 +549,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='fileimport',
             name='file_data_object',
-            field=models.ForeignKey(related_name='file_import', to='analysis.FileDataObject', null=True),
+            field=models.ForeignKey(related_name='file_imports', to='analysis.FileDataObject', null=True),
         ),
     ]

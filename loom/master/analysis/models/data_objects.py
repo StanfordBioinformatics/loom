@@ -21,7 +21,7 @@ class DataObject(AnalysisAppImmutableModel):
 class FileImport(AnalysisAppInstanceModel):
     file_data_object = fields.ForeignKey(
         'FileDataObject',
-        related_name = 'file_import',
+        related_name = 'file_imports',
         null=True)
     note = fields.TextField(max_length=10000, null=True)
     source_url = fields.TextField(max_length=1000)

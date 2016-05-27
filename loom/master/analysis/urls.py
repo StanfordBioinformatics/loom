@@ -17,7 +17,7 @@ model_classes = [
     FileImport,
     FileDataObject,
     FileStorageLocation,
-    Workflow,
+    AbstractWorkflow,
     WorkflowRun,
     RunRequest,
     Step,
@@ -31,5 +31,5 @@ for cls in model_classes:
     urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/$' % cls.get_class_name(plural=True, hyphen=True), 'analysis.views.show_or_update', {'model_class': cls}))
 
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-storage-locations/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.storage_locations_by_file'))
-urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/data-source-records/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.data_source_records_by_file'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-imports/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_imports_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/source-runs/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_data_object_source_runs'))

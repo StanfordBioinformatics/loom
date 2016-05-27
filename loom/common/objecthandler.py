@@ -102,38 +102,32 @@ class ObjectHandler(object):
             file_storage_location,
             'file-storage-locations/')
 
-    def post_data_source_record(self, data_source_record):
-        return self._post_object(
-            data_source_record,
-            'data-source-records/'
-        )
-
-    def get_source_records_by_file(self, file_id):
+    def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
-            'file-data-objects/' + file_id + '/data-source-records/'
-        )['data_source_records']
+            'file-data-objects/' + file_id + '/file-imports/'
+        )['file_imports']
     
-    def get_workflow(self, workflow_id):
+    def get_abstract_workflow(self, workflow_id):
         return self._get_object(
-            'workflows/%s/' % workflow_id
+            'abstract-workflows/%s/' % workflow_id
         )
 
-    def get_workflow_index(self, query_string='', min=0, max=float('inf')):
+    def get_abstract_workflow_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'workflows/?q='+query_string
+            url = 'abstract-workflows/?q='+query_string
         else:
-            url = 'workflows/'
-        workflows = self._get_object_index(url)['workflows']
+            url = 'abstract-workflows/'
+        workflows = self._get_object_index(url)['abstract_workflows']
         if len(workflows) < min:
             raise Error('Found %s workflows, expected at least %s' %(len(workflows), min))
         if len(workflows) > max:
             raise Error('Found %s workflows, expected at most %s' %(len(workflows), max))
         return workflows
 
-    def post_workflow(self, workflow):
+    def post_abstract_workflow(self, workflow):
         return self._post_object(
             workflow,
-            'workflows/')
+            'abstract-workflows/')
 
     def get_workflow_run(self, workflow_run_id):
         return self._get_object(
@@ -161,6 +155,18 @@ class ObjectHandler(object):
         return self._post_object(
             run_request,
             'run-requests/')
+
+    def get_run_request_index(self, query_string='', min=0, max=float('inf')):
+        if query_string:
+            url = 'run-requests/?q='+query_string
+        else:
+            url = 'run-requests/'
+        run_requests = self._get_object_index(url)['run_requests']
+        if len(run_requests) < min:
+            raise Error('Found %s run requests, expected at least %s' %(len(run_requests), min))
+        if len(run_requests) > max:
+            raise Error('Found %s run requests, expected at most %s' %(len(run_requests), max))
+        return run_requests
 
     def post_task_run(self, task_run):
         return self._post_object(

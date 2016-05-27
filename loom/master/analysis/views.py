@@ -125,12 +125,12 @@ def file_data_object_source_runs(request, id):
     return JsonResponse({"runs": runs}, status=200)
 
 @require_http_methods(["GET"])
-def data_source_records_by_file(request, id):
+def file_imports_by_file(request, id):
     try:
         file = FileDataObject.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
-    return JsonResponse({"data_source_records": [o.to_struct() for o in file.data_source_records.all()]}, status=200)
+    return JsonResponse({"file_imports": [o.to_struct() for o in file.file_imports.all()]}, status=200)
 
 @csrf_exempt
 @require_http_methods(["GET"])
