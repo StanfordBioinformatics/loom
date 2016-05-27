@@ -82,7 +82,7 @@ class WorkflowRunner(object):
             return self._get_workflow_from_server(workflow_id)
         
     def _get_workflow_from_file(self, workflow_filename):
-        return WorkflowImporter.import_workflow(workflow_filename, self.master_url, self.logger)
+        return WorkflowImporter.import_workflow(workflow_filename, self.filehandler, self.logger)
 
     def _get_workflow_from_server(self, workflow_id):
         workflows = self.objecthandler.get_workflow_index(query_string=workflow_id)
@@ -119,22 +119,6 @@ class WorkflowRunner(object):
         file_import = self.filehandler.import_file(input_filename, self.args.note)
         return "%s@%s" % (file_import['file_data_object']['filename'],
                           file_import['file_data_object']['_id'])
-
-    """
-    def _validate_workflow(self):
-        if workflow.get('workflow_inputs'):
-            if not isinstance(workflow['workflow_inputs'], list):
-                raise ValidationError('Workflow is invalid. "workflow_inputs" should contain a list but it contains "%s"'\
-                                      % workflow.get('workflow_inputs'))
-            for input in workflow['workflow_inputs']:
-                if not isinstance(input, dict):
-                    raise ValidationError('Workflow is invalid. Workflow input should be a dict but it contains "%s"'\
-                                          % input)
-                if not input.get('to_channel'):
-                    raise ValidationError('Workflow is invalid. "to_channel" is not defined for this input: "%s"' % input)
-                if not input.get('type'):
-                    raise ValidationError('Workflow is invalid. "type" is not defined for this input: "%s"' % input)
-    """
 
 
 if __name__=='__main__':

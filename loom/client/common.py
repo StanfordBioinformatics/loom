@@ -20,27 +20,34 @@ def get_settings_manager_from_parsed_args(args):
         save_settings=not args.no_save_settings
     )
 
-def read_as_json_or_yaml(file):
-    
-    def _read_as_json(file):
+def parse_as_json_or_yaml(text):
+    def read_as_json(json_text):
         try:
-            with open(file) as f:
-                return json.load(f)
+            return json.loads(json_text)
         except:
             return None
-    
+
     # Try as YAML. If that fails due to bad format, try as JSON
     try:
-        with open(file) as f:
-            data = yaml.load(f)
-    except IOError:
-        raise NoFileError('Could not find or could not read file %s' % file)
+        data = yaml.load(text)
     except yaml.parser.ParserError:
-        data = _read_as_json(file)
+        data = read_as_json(text)
         if data is None:
-            raise InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
+            raise InvalidFormatError('Text is not valid YAML or JSON format')
     except yaml.scanner.ScannerError as e:
-        data = _read_as_json(file)
+        data = read_as_json(text)
         if data is None:
             raise InvalidFormatError(e.message)
     return data
+
+def read_as_json_or_yaml(file):
+    try:
+        with open(file) as f:
+            text = f.read()
+    except IOError:
+        raise NoFileError('Could not find or could not read file %s' % file)
+
+    try:
+        return parse_as_json_or_yaml(text)
+    except InvalidFormatError:
+        raise InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)

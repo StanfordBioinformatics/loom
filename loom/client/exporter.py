@@ -18,12 +18,19 @@ class AbstractExporter(object):
     """Common functions for the various subcommands under 'export'
     """
     
-    def __init__(self, args):
+    def __init__(self, args, logger=None):
         """Common init tasks for all Export classes
         """
         self.args = args
         self.settings_manager = get_settings_manager_from_parsed_args(self.args)
-        self.master_url = self.settings_manager.get_server_url_for_client()
+
+        if logger is None:
+            logger = get_console_logger()
+        self.logger = logger
+        
+        master_url = self.settings_manager.get_server_url_for_client()
+        self.objecthandler = ObjectHandler(master_url)
+        self.filehandler = FileHandler(master_url, logger=self.logger)
 
     @classmethod
     def get_parser(cls, parser):
@@ -48,11 +55,11 @@ class FileExporter(AbstractExporter):
         return parser
 
     def run(self):
-        filehandler = FileHandler(self.master_url, logger=get_console_logger())
-        return filehandler.export_files(
+        self.filehandler.export_files(
             self.args.file_ids,
             destination_url=self.args.destination
         )
+
 
 class WorkflowExporter(AbstractExporter):
 
@@ -74,33 +81,24 @@ class WorkflowExporter(AbstractExporter):
         return parser
 
     def run(self):
-        objecthandler = ObjectHandler(self.master_url)
-        workflow = objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
-        destination = self._get_destination(workflow)
-        self._save_workflow(workflow, destination)
+        workflow = self.objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
+        destination_url = self._get_destination_url(workflow)
+        self._save_workflow(workflow, destination_url)
 
-    def _get_destination(self, workflow):
+    def _get_destination_url(self, workflow):
         default_name = '%s.%s' % (workflow['name'], self.args.format)
-        if self.args.destination is None:
-            destination = os.path.join(os.getcwd(), default_name)
-            return FileHandler.rename_to_avoid_overwrite(destination)
-        elif os.isdir(self.args.destination):
-            destination = os.path.join(self.args.destination, default_name)
-            return FileHandler.rename_to_avoid_overwrite(destination)
-        else:
-            # Don't modify a file destination specified by the user, even if it overwrites something.
-            return self.args.destination
+        return self.filehandler.get_destination_file_url(self.args.destination, default_name)
 
     def _save_workflow(self, workflow, destination):
-        print 'Downloading workflow %s@%s to %s.' % (workflow.get('name'), workflow.get('_id'), destination)
-        with open(destination, 'w') as f:
-            if self.args.format == 'json':
-                json.dump(workflow, f)
-            elif self.args.format == 'yaml':
-                yaml.safe_dump(workflow, f)
-            else:
-                raise Exception('Invalid format type %s' % self.args.format)
-
+        self.logger.info('Exporting workflow %s@%s to %s...' % (workflow.get('name'), workflow.get('_id'), destination))
+        if self.args.format == 'json':
+            workflow_text = json.dumps(workflow)
+        elif self.args.format == 'yaml':
+            workflow_text = yaml.safe_dump(workflow)
+        else:
+            raise Exception('Invalid format type %s' % self.args.format)
+        self.filehandler.write_to_file(destination, workflow_text)
+        self.logger.info('...finished exporting workflow')
 
 class Exporter:
     """Sets up and executes commands under "download" on the main parser.
