@@ -331,7 +331,6 @@ class GoogleStorageDestination(AbstractDestination):
 
     def write(self, contents):
         with tempfile.NamedTemporaryFile('w') as f:
-            print f.name
             f.write(contents)
             f.flush()
             Source(f.name, self.settings).copy_to(self)

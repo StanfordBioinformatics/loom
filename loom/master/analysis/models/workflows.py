@@ -79,6 +79,8 @@ class Workflow(AbstractWorkflow):
         sources.setdefault(channel, 0)
         sources[channel] += 1
 
+        def is_step(self):
+            return False
 
 class Step(AbstractWorkflow):
     """Steps are smaller units of processing within a Workflow. A Step can give rise to a single process,
@@ -91,6 +93,9 @@ class Step(AbstractWorkflow):
     inputs = fields.ManyToManyField('StepRuntimeInput')
     fixed_inputs = fields.ManyToManyField('StepFixedInput')
     outputs = fields.ManyToManyField('StepOutput')
+
+    def is_step(self):
+        return False
 
 
 class RequestedEnvironment(AnalysisAppImmutableModel):

@@ -61,7 +61,7 @@ class WorkflowRunner(object):
 
     def run(self):
         workflow = self._get_workflow(self.args.workflow)
-        inputs = self._get_inputs(self.args.inputs)
+        inputs = self._get_inputs()
         run_request = self.objecthandler.post_run_request(
             {
                 'workflow': workflow,
@@ -77,15 +77,42 @@ class WorkflowRunner(object):
 
     def _get_workflow(self, workflow_id):
         if os.path.isfile(workflow_id):
-            return self._get_workflow_from_file(workflow_id)
+            workflow = self._get_workflow_from_file(workflow_id)
         else:
-            return self._get_workflow_from_server(workflow_id)
+            workflow = self._get_workflow_from_server(workflow_id)
+        self._validate_inputs(workflow)
+
+    def _validate_inputs(self, workflow):
+        """Check to make sure user-provided inputs match inputs in the workflow,
+        because server side validation won't happen until after inputs are uploaded.
+        """
+        inputs_given = []
+        if self.args.inputs:
+            for kv_pair in self.args.inputs:
+                (channel, input_id) = kv_pair.split('=')
+                inputs_given.append(channel)
+
+        inputs_needed = []
+        for input in workflow.get('inputs'):
+            inputs_needed.append(input['channel'])
+
+        for input in inputs_needed:
+            if input not in inputs_given:
+                raise Exception('Missing workflow input "%s"' % input)
+
+        for input in inputs_given:
+            if input not in inputs_needed:
+                raise Exception('Input "%s" was given but is not needed by workflow' % input)
+            
+        if len(set(inputs_given)) < len(inputs_given):
+            raise Exception('One or more inputs were given more than once. Inputs: %s' % ', '.join(inputs_given))
+
         
     def _get_workflow_from_file(self, workflow_filename):
-        return WorkflowImporter.import_workflow(workflow_filename, self.filehandler, self.logger)
+        return WorkflowImporter.import_workflow(workflow_filename, self.filehandler, self.objecthandler, self.logger)
 
     def _get_workflow_from_server(self, workflow_id):
-        workflows = self.objecthandler.get_workflow_index(query_string=workflow_id)
+        workflows = self.objecthandler.get_abstract_workflow_index(query_string=workflow_id)
 
         if len(workflows) < 1:
             raise Exception('Could not find workflow that matches "%s"' % workflow_id)
@@ -101,8 +128,8 @@ class WorkflowRunner(object):
         """Converts command line args into a list of workflow inputs
         """
         inputs = []
-        if input_args:
-            for kv_pair in input_args:
+        if self.args.inputs:
+            for kv_pair in self.args.inputs:
                 (channel, input_id) = kv_pair.split('=')
                 inputs.append(self._get_input(channel, input_id))
         return inputs

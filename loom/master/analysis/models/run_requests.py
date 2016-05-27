@@ -1,19 +1,24 @@
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from universalmodels import fields
 from .base import AnalysisAppInstanceModel
-from .workflows import Workflow
 from .data_objects import FileDataObject
-
+from .workflow_runs import AbstractWorkflowRun
+from .workflows import Workflow
 
 class RunRequest(AnalysisAppInstanceModel):
 
     workflow = fields.ForeignKey('AbstractWorkflow')
     inputs = fields.OneToManyField('RunRequestInput')
 
-    def _create_or_update_fields(self, data):
-        o = super(RunRequest, self)._create_or_update_fields(data)
-        self._validate_run_request()
+    @classmethod
+    def create(cls, data):
+        with transaction.atomic():
+            o = super(RunRequest, cls).create(data)
+            o._validate_run_request()
+            AbstractWorkflowRun.create_from_run_request(o)
+        return o
 
     def _validate_run_request(self):
         workflow_inputs = set([input.channel for input in self.workflow.inputs.all()])
@@ -29,11 +34,11 @@ class RunRequest(AnalysisAppInstanceModel):
                 raise ValidationError('Found multiple files with ID "%s"' % input.id)
             
         if len(workflow_inputs) > 0:
-            raise ValidationError('Run request is invalid. Inputs were not provided for %s' %
+            raise ValidationError('Missing input for channel "%s"' %
                                   ', '.join([channel for channel in workflow_inputs]))
 
 
 class RunRequestInput(AnalysisAppInstanceModel):
-    
+
     id = fields.CharField(max_length=255)
     channel = fields.CharField(max_length=255)

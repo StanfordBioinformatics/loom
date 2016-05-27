@@ -81,7 +81,7 @@ class WorkflowExporter(AbstractExporter):
         return parser
 
     def run(self):
-        workflow = self.objecthandler.get_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
+        workflow = self.objecthandler.get_abstract_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
         destination_url = self._get_destination_url(workflow)
         self._save_workflow(workflow, destination_url)
 

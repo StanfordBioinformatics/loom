@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 import json
 import os
@@ -30,8 +31,9 @@ class FileImport(AnalysisAppInstanceModel):
 
     @classmethod
     def create(cls, data):
-        o = super(FileImport, cls).create(data)
-        o._set_temp_file_storage_location()
+        with transaction.atomic():
+            o = super(FileImport, cls).create(data)
+            o._set_temp_file_storage_location()
         return o
 
     def update(self, data):

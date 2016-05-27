@@ -77,7 +77,7 @@ class WorkflowImporter(AbstractImporter):
     def import_workflow(cls, workflow_file, filehandler, objecthandler, logger):
         logger.info('Importing workflow from %s...' % filehandler.normalize_url(workflow_file))
         workflow = cls._get_workflow(workflow_file, filehandler)
-        workflow_from_server = objecthandler.post_workflow(workflow)
+        workflow_from_server = objecthandler.post_abstract_workflow(workflow)
         logger.info('...finished importing workflow %s@%s' % \
             (workflow_from_server['name'],
              workflow_from_server['_id'],
