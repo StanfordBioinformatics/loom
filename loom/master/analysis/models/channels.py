@@ -15,7 +15,7 @@ class Channel(AnalysisAppInstanceModel):
 
     channel_name = fields.CharField(max_length=255)
     channel_outputs = fields.OneToManyField('ChannelOutput')
-    sender = fields.ForeignKey('InputOutputNode', related_name='to_channel')
+    sender = fields.OneToOneField('InputOutputNode', related_name='to_channel')
     is_closed_to_new_data = fields.BooleanField(default=False)
 
     @classmethod
@@ -28,6 +28,10 @@ class Channel(AnalysisAppInstanceModel):
     def add_data_object(self, data_object):
         for output in self.channel_outputs.all():
             output._add_data_object(data_object)
+
+    def add_receivers(self, receivers):
+        for receiver in receivers:
+            self.add_receiver(receiver)
 
     def add_receiver(self, receiver):
         self.channel_outputs.add(

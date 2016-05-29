@@ -11,10 +11,12 @@ class RunRequest(AnalysisAppInstanceModel):
 
     workflow = fields.ForeignKey('AbstractWorkflow')
     inputs = fields.OneToManyField('RunRequestInput')
+    run = fields.ForeignKey('AbstractWorkflowRun', null=True)
 
     def after_create(self):
         self._validate_run_request()
-        AbstractWorkflowRun.create_from_run_request(self)
+        self.run = AbstractWorkflowRun.create_run_from_workflow(self.workflow)
+        self.save()
 
     def _validate_run_request(self):
         workflow_inputs = set([input.channel for input in self.workflow.inputs.all()])

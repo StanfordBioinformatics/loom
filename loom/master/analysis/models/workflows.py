@@ -22,6 +22,14 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
     
     name = fields.CharField(max_length=255)
 
+    def get_input_channel_names(self):
+        return [input.channel for input in self.inputs.all()]
+
+    def get_output_channel_names(self):
+        return [output.channel for output in self.outputs.all()]
+
+    def is_step(self):
+        return self.downcast().is_step()
 
 class Workflow(AbstractWorkflow):
     """A collection of steps or workflows
@@ -94,7 +102,7 @@ class Step(AbstractWorkflow):
     outputs = fields.ManyToManyField('StepOutput')
 
     def is_step(self):
-        return False
+        return True
 
 
 class RequestedEnvironment(AnalysisAppImmutableModel):

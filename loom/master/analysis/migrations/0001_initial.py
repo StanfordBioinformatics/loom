@@ -123,6 +123,7 @@ class Migration(migrations.Migration):
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('channel_name', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File')])),
             ],
             options={
                 'abstract': False,
@@ -403,8 +404,9 @@ class Migration(migrations.Migration):
             name='StepRun',
             fields=[
                 ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowRun')),
-                ('inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_as_input', to='analysis.InputOutputNode')),
-                ('outputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_as_output', to='analysis.InputOutputNode')),
+                ('fixed_inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run_as_fixed_input', to='analysis.InputOutputNode')),
+                ('inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run_as_input', to='analysis.InputOutputNode')),
+                ('outputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run_as_output', to='analysis.InputOutputNode')),
                 ('template_step', models.ForeignKey(to='analysis.Step')),
             ],
             options={
@@ -441,6 +443,7 @@ class Migration(migrations.Migration):
             name='WorkflowRun',
             fields=[
                 ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowRun')),
+                ('fixed_inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_as_fixed_input', to='analysis.InputOutputNode')),
                 ('inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_as_input', to='analysis.InputOutputNode')),
                 ('outputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_as_output', to='analysis.InputOutputNode')),
                 ('step_runs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='parent_run', to='analysis.AbstractWorkflowRun')),
@@ -508,6 +511,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='runrequest',
+            name='run',
+            field=models.ForeignKey(to='analysis.AbstractWorkflowRun', null=True),
+        ),
+        migrations.AddField(
+            model_name='runrequest',
             name='workflow',
             field=models.ForeignKey(to='analysis.AbstractWorkflow'),
         ),
@@ -539,7 +547,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='channel',
             name='sender',
-            field=models.ForeignKey(related_name='to_channel', to='analysis.InputOutputNode'),
+            field=models.OneToOneField(related_name='to_channel', to='analysis.InputOutputNode'),
         ),
         migrations.AddField(
             model_name='taskrunlog',
