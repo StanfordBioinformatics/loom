@@ -52,19 +52,20 @@ class ShowFile(AbstractShow):
         self._show_files()
 
     def _get_files(self):
-        self.files = self.objecthandler.get_file_data_object_index(self.args.file_id)
+        self.files = self.objecthandler.get_file_data_index(self.args.file_id)
 
     def _show_files(self):
-        for file in self.files:
-            print self._render_file(file)
+        for file_data in self.files:
+            print self._render_file(file_data)
 
-    def _render_file(self, file):
-        file_identifier = '%s@%s' % (file['filename'], file['_id'])
+    def _render_file(self, file_data):
+        file_identifier = '%s@%s' % (file_data['named_file_contents']['filename'], file_data['_id'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
-            text += '  - Hash: %s$%s\n' % (file['file_contents']['hash_function'], file['file_contents']['hash_value'])
-            file_imports = self.objecthandler.get_file_imports_by_file(file['_id'])
+            text += '  - Hash: %s$%s\n' % (file_data['named_file_contents']['file_contents']['hash_function'],
+                                           file_data['named_file_contents']['file_contents']['hash_value'])
+            file_imports = self.objecthandler.get_file_imports_by_file(file_data['_id'])
             for file_import in file_imports:
                 text += '    - Imported: %s from %s\n' % (file_import['datetime_created'], file_import['source_url'])
                 if file_import.get('note'):

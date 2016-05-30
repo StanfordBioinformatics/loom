@@ -215,6 +215,7 @@ WORKER_NETWORK = os.getenv('WORKER_NETWORK')
 WORKER_TAGS = os.getenv('WORKER_TAGS')
 
 HASH_FUNCTION='md5'
+BROWSEABLE_FILE_STORAGE=True
 
 # Graph Models settings to generate model schema plots
 GRAPH_MODELS = {

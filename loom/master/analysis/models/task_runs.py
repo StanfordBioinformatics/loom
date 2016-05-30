@@ -3,7 +3,7 @@ from django.utils import timezone
 
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.task_definitions import *
-from analysis.models.data_objects import DataObject
+from analysis.models.data import Data
 from analysis.models.workflows import Step
 from analysis.task_manager.factory import TaskManagerFactory
 from analysis.task_manager.dummy import DummyTaskManager
@@ -34,7 +34,7 @@ class TaskRun(AnalysisAppInstanceModel):
     def update(self, *args, **kwargs):
         super(TaskRun, self).update(*args, **kwargs)
         for output in self.task_run_outputs.all():
-            output.send_data_object_to_channels()
+            output.send_data_to_channels()
         
     @classmethod
     def run_all(cls):
@@ -76,7 +76,7 @@ class TaskRun(AnalysisAppInstanceModel):
 
     def update_status(self):
         for output in self.task_run_outputs.all():
-            if output.data_object is None:
+            if output.data is None:
                 return
         self.update({'status': 'completed'})
 
@@ -89,22 +89,22 @@ class TaskRunInput(AnalysisAppInstanceModel):
 class TaskRunOutput(AnalysisAppInstanceModel):
    
     task_definition_output = fields.ForeignKey('TaskDefinitionOutput')
-    data_object = fields.ForeignKey('DataObject', null=True)
+    data = fields.ForeignKey('Data', null=True)
 
     def has_result(self):
-        return self.data_object is not None
+        return self.data is not None
 
-    def add_data_object(self, data_object):
-        self.update({'data_object': data_object.to_struct()})
-        self.send_data_object_to_channels()
+    def add_data(self, data):
+        self.update({'data': data.to_struct()})
+        self.send_data_to_channels()
 
-    def send_data_object_to_channels(self):
+    def send_data_to_channels(self):
         # Send to any channels that are attached
         # Normally there is just one channel, but there can
         # be more if the TaskRun is shared by more than one StepRun
         for step_run_output in self.step_run_outputs.all():
-            if self.data_object is not None:
-                step_run_output.channel.add_data_object(self.data_object)
+            if self.data is not None:
+                step_run_output.channel.add_data(self.data)
     
 class TaskRunLocation(AnalysisAppInstanceModel):
 
@@ -114,5 +114,5 @@ class TaskRunLocation(AnalysisAppInstanceModel):
 
 
 class TaskRunLog(AnalysisAppInstanceModel):
-    logfile = fields.ForeignKey('FileDataObject')
+    logfile = fields.ForeignKey('FileData')
     logname = fields.CharField(max_length=255)

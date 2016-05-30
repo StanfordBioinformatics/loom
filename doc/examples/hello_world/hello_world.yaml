@@ -8,7 +8,7 @@
   fixed_inputs: 
     - 
       type: "file"
-      id: "world.txt@125a544e12abb700c575107fa0290e8495df591c03479777bd060b180cb2899b"
+      id: "world.txt@md5$591785b794601e212b260e25925636fd"
       channel: "world"
   outputs: 
     - 

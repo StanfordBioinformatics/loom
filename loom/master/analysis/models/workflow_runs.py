@@ -2,7 +2,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from analysis.exceptions import *
 from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from .data_objects import DataObject
 from .task_definitions import TaskDefinition
 from .task_runs import TaskRun, TaskRunInput, TaskRunOutput
 from .workflows import Workflow, Step, WorkflowRuntimeInput, WorkflowFixedInput, \

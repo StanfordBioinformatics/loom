@@ -3,7 +3,7 @@ from django.db import transaction
 
 from universalmodels import fields
 from .base import AnalysisAppInstanceModel
-from .data_objects import FileDataObject
+from .data import FileData
 from .workflow_runs import AbstractWorkflowRun
 from .workflows import Workflow
 
@@ -25,7 +25,7 @@ class RunRequest(AnalysisAppInstanceModel):
                 raise ValidationError('Run request is invalid. Input channel "%s" does not correspond to any channel in the workflow' % input.channel)
             workflow_inputs.remove(input.channel)
 
-            matches = FileDataObject.get_by_name_and_full_id(input.id)
+            matches = FileData.get_by_name_and_full_id(input.id)
             if matches.count() < 1:
                 raise ValidationError('Could not find file with ID "%s"' % input.id)
             if matches.count() > 1:

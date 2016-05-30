@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from analysis.models import WorkflowRun, TaskRun, FileDataObject
+from analysis.models import WorkflowRun, TaskRun, FileData
 from loom.common import version
 logger = logging.getLogger('loom')
 
@@ -103,17 +103,17 @@ def show_or_update(request, id, model_class):
         return Helper.show(request, id, model_class)
 
 @require_http_methods(["GET"])
-def storage_locations_by_file(request, id):
+def locations_by_file(request, id):
     try:
-        file = FileDataObject.get_by_id(id)
+        file = FileData.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
-    return JsonResponse({"file_storage_locations": [o.to_struct() for o in file.file_contents.file_storage_locations.all()]}, status=200)
+    return JsonResponse({"file_locations": [o.to_struct() for o in file.named_file_contents.file_contents.file_locations.all()]}, status=200)
 
 @require_http_methods(["GET"])
-def file_data_object_source_runs(request, id):
+def file_data_source_runs(request, id):
     try:
-        file = FileDataObject.get_by_id(id)
+        file = FileData.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     runs = []
@@ -127,7 +127,7 @@ def file_data_object_source_runs(request, id):
 @require_http_methods(["GET"])
 def file_imports_by_file(request, id):
     try:
-        file = FileDataObject.get_by_id(id)
+        file = FileData.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     return JsonResponse({"file_imports": [o.to_struct() for o in file.file_imports.all()]}, status=200)

@@ -67,6 +67,8 @@ class _ModelMixin(object):
     def _pluralize(cls, text):
         if text.endswith(('s', 'x')):
             return text + 'es'
+        elif text.endswith('data'):
+            return text
         else:
             return text + 's'
 

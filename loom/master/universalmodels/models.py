@@ -154,7 +154,7 @@ class _BaseModel(models.Model):
         """Given the dict 'data_struct' as input, write its data to
         the fields of the current ORM model (self)
         """
-        self.before_create()
+        self.before_create_or_update(data_struct)
         
         self._verify_dict(data_struct)
         self.unsaved_x_to_many_related_objects = {}
@@ -164,14 +164,14 @@ class _BaseModel(models.Model):
         models.Model.save(self)
         self._save_x_to_many_related_objects()
 
-        self.after_create()
+        self.after_create_or_update()
 
-    def before_create(self):
+    def before_create_or_update(self, data):
         """Override for preprocessing steps
         """
         pass
 
-    def after_create(self):
+    def after_create_or_update(self):
         """Override for postprocessing steps
         """
         pass
@@ -533,12 +533,6 @@ class _BaseModel(models.Model):
         return helpers.NonserializableTypeConverter.convert(
             getattr(self, field))
         
-    def validate_model(self):
-        """This can be overridden in the model definitions to include a
-        validation routine for that specific model.
-        """
-        pass
-
     class Meta:
         abstract = True
 
@@ -554,14 +548,13 @@ class InstanceModel(_BaseModel):
     datetime_updated = fields.DateTimeField(default=timezone.now)
 
     def get_id(self):
-        return uuid.UUID(str(self._id).hex)
+        return uuid.UUID(str(self._id)).hex
     
     @classmethod
     def create(cls, data_struct_or_json):
         """Use a JSON or python structure to create a model and save 
         it to the database"""
         data_struct = cls._any_to_struct(data_struct_or_json)
-        cls.validate_create_input(data_struct)
         # If inheritance is used, create the model instance using the
         # most derived class that matches the fields in the input.
         Model = cls._select_best_subclass_model_by_fields(data_struct)
@@ -569,7 +562,6 @@ class InstanceModel(_BaseModel):
         with transaction.atomic():
             o = Model()
             o._create_or_update_fields(data_struct)
-            o.validate_model()
         return o
 
     def update(self, update_struct_or_json):
@@ -580,27 +572,12 @@ class InstanceModel(_BaseModel):
         self._verify_update_id_matches_model(update_struct.get('_id'))
         # Start with existing model as a dict and update any fields that
         # are contained in update_json
-        self.validate_patch_input(update_struct)
         model_struct = self.to_struct()
         model_struct.update(update_struct)
         # Use a transaction for update of the model and any children
         with transaction.atomic():
             self._create_or_update_fields(model_struct)
-            self.validate_model()
         return self
-
-    @classmethod
-    def validate_create_input(cls, data_struct):
-        """This can be overridden in the model definitions to include a
-        validation routine for that specific model.
-        """
-        pass
-
-    def validate_patch_input(self, data_struct):
-        """This can be overridden in the model definitions to include a
-        validation routine for that specific model.
-        """
-        pass
 
     def _set_datetime_updated(self):
         self.datetime_updated = timezone.now()
@@ -638,7 +615,6 @@ class ImmutableModel(_BaseModel):
         with transaction.atomic():
             o = Model()
             o._create_or_update_fields(data_struct)
-            o.validate_model()
         return o
             
     @classmethod

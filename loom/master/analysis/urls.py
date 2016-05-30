@@ -13,10 +13,10 @@ urlpatterns = patterns(
 )
 
 model_classes = [
-    DataObject,
+    Data,
     FileImport,
-    FileDataObject,
-    FileStorageLocation,
+    FileData,
+    FileLocation,
     AbstractWorkflow,
     WorkflowRun,
     RunRequest,
@@ -30,6 +30,6 @@ for cls in model_classes:
     urlpatterns.append(url(r'^%s/$' % cls.get_class_name(plural=True, hyphen=True), 'analysis.views.create_or_index', {'model_class': cls}))
     urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/$' % cls.get_class_name(plural=True, hyphen=True), 'analysis.views.show_or_update', {'model_class': cls}))
 
-urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-storage-locations/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.storage_locations_by_file'))
-urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-imports/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_imports_by_file'))
-urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/source-runs/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_data_object_source_runs'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-locations/$' % FileData.get_class_name(plural=True, hyphen=True), 'analysis.views.locations_by_file'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-imports/$' % FileData.get_class_name(plural=True, hyphen=True), 'analysis.views.file_imports_by_file'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/source-runs/$' % FileData.get_class_name(plural=True, hyphen=True), 'analysis.views.file_data_source_runs'))

@@ -1,7 +1,7 @@
 from django.core import exceptions
 
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import FileStorageLocation, DataObject
+from analysis.models.data import Data
 from universalmodels import fields
 
 
@@ -36,7 +36,7 @@ class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
 
 class TaskDefinitionInput(AnalysisAppImmutableModel):
 
-    data_object = fields.ForeignKey('DataObject')
+    data = fields.ForeignKey('Data')
 
 
 class TaskDefinitionOutput(AnalysisAppImmutableModel):

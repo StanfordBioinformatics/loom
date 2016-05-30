@@ -12,3 +12,9 @@ class IdTooShortError(Error):
 
 class MissingInputsError(Error):
     pass
+
+class IdNotFoundError(Error):
+    pass
+
+class TooManyMatchesError(Error):
+    pass

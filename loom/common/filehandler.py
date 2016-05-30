@@ -492,19 +492,19 @@ class FileHandler:
 
         file_import = self._create_file_import(source, note)
 
-        temp_destination = Destination(file_import['temp_file_storage_location']['url'], self.settings)
+        temp_destination = Destination(file_import['temp_file_location']['url'], self.settings)
         hash_function = self.settings['HASH_FUNCTION']
         hash_value = source.hash_and_copy_to(temp_destination, hash_function)
 
-        updated_file_import = self._add_file_object_to_file_import(file_import, source, hash_value, hash_function)
+        updated_file_import = self._add_file_data_to_file_import(file_import, source, hash_value, hash_function)
 
         temp_source = Source(temp_destination.get_url(), self.settings)
-        final_destination = Destination(updated_file_import['file_storage_location']['url'], self.settings)
+        final_destination = Destination(updated_file_import['file_location']['url'], self.settings)
         temp_source.move_to(final_destination)
 
         final_file_import =  self._finalize_file_import(updated_file_import)
-        self._log('...finished importing file %s@%s' % (final_file_import['file_data_object']['filename'],
-                                           final_file_import['file_data_object']['_id']))
+        self._log('...finished importing file %s@%s' % (final_file_import['file_data']['named_file_contents']['filename'],
+                                           final_file_import['file_data']['_id']))
         return final_file_import
     
     def _create_file_import(self, source, note):
@@ -513,33 +513,26 @@ class FileHandler:
             'source_url': source.get_url(),
         })
     
-    def _add_file_object_to_file_import(self, file_import, source, hash_value, hash_function):
-
-        update = {
-                'file_data_object': {
+    def _add_file_data_to_file_import(self, file_import, source, hash_value, hash_function):
+        return self.objecthandler.update_file_import(
+            file_import['_id'],
+            { 'file_data':
+              { 'named_file_contents':
+                {
                     'filename': source.get_filename(),
                     'file_contents': {
                         'hash_function': hash_function,
                         'hash_value': hash_value
-                    }}}
-
-        return self.objecthandler.update_file_import(
-            file_import['_id'],
-            { 'file_data_object': {
-                'filename': source.get_filename(),
-                'file_contents': {
-                    'hash_function': hash_function,
-                    'hash_value': hash_value
-                }}})
+                    }}}})
 
     def _finalize_file_import(self, file_import):
         """ Nullify temp location and mark final location as "complete".
         """
         file_import_update = {
-            'temp_file_storage_location': None,
-            'file_storage_location': copy.deepcopy(file_import['file_storage_location'])
+            'temp_file_location': None,
+            'file_location': copy.deepcopy(file_import['file_location'])
         }
-        file_import_update['file_storage_location']['status'] = 'complete'
+        file_import_update['file_location']['status'] = 'complete'
         
         return self.objecthandler.update_file_import(
             file_import['_id'],
@@ -558,7 +551,7 @@ class FileHandler:
 
     def export_file(self, file_id, destination_url=None):
         # Error raised if there is not exactly one matching file.
-        file = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
+        file = self.objecthandler.get_file_data_index(file_id, max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()
@@ -568,8 +561,8 @@ class FileHandler:
 
         self._log('Exporting file %s%s to %s...' % (file['filename'], file['_id'], destination.get_url()))
 
-        # Copy from the first storage location
-        location = self.objecthandler.get_file_storage_locations_by_file(file['_id'])[0]
+        # Copy from the first file location
+        location = self.objecthandler.get_file_locations_by_file(file['_id'])[0]
         Source(location['url'], self.settings).copy_to(destination)
 
         self._log('...finished exporting file')

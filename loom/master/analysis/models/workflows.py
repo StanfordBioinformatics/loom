@@ -1,7 +1,8 @@
 from django.core.exceptions import ValidationError
 
+from analysis.exceptions import *
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import FileDataObject
+from analysis.models.data import FileData
 from universalmodels import fields
 
 
@@ -30,6 +31,7 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
 
     def is_step(self):
         return self.downcast().is_step()
+
 
 class Workflow(AbstractWorkflow):
     """A collection of steps or workflows
@@ -144,16 +146,33 @@ class AbstractFixedInput(AnalysisAppImmutableModel):
     )
     channel = fields.CharField(max_length=255)
 
-    def _create_or_update_fields(self, data):
-        matches = FileDataObject.get_by_name_and_full_id(data['id'])
+    def before_create_or_update(self, data):
+        try:
+            data['id'] = self._get_file_data_id_by_name_and_hash(data['id'])
+        except IdNotFoundError:
+            pass
+        self._check_id(data['id'])
+
+    def _get_file_data_id_by_name_and_hash(self, id):
+        matches = FileData.get_by_name_and_hash(id)
         if matches.count() < 1:
-            raise ValidationError('Could not find file with ID "%s"' % data['id'])
+            raise IdNotFoundError
         if matches.count() > 1:
-            raise ValidationError('Found multiple files with ID "%s"' % data['id'])
-        o = super(AbstractFixedInput, self)._create_or_update_fields(data)
+            raise ValidationError('%s files were found matching the name and hash in %s. '\
+                                  'Specify which one by using one of these ids instead of the '\
+                                  'name and hash: %s' % (id, ', '.join([match.get_name_id() for match in matches.all()])))
+        return matches[0].get_name_and_id()
+    
+    def _check_id(self, id):
+        matches = FileData.get_by_name_and_full_id(id)
+        if matches.count() < 1:
+            raise ValidationError('Could not find file with ID "%s"' % id)
+        if matches.count() > 1:
+            raise ValidationError('Found multiple files with ID "%s"' % id)
         
     class Meta:
         abstract = True
+
 
 class AbstractRuntimeInput(AnalysisAppImmutableModel):
 

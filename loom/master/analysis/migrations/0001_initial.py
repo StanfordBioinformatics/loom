@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-import jsonfield.fields
 import sortedone2many.fields
 import universalmodels.models
 import django.utils.timezone
@@ -66,7 +65,19 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='DataObject',
+            name='Data',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='DataContents',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
             ],
@@ -102,14 +113,14 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='FileStorageLocation',
+            name='FileLocation',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
                 ('url', models.CharField(max_length=1000)),
                 ('status', models.CharField(default=b'incomplete', max_length=256, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
-                ('file_contents', models.ForeignKey(related_name='file_storage_locations', to='analysis.FileContents', null=True)),
+                ('file_contents', models.ForeignKey(related_name='file_locations', to='analysis.FileContents', null=True)),
             ],
             options={
                 'abstract': False,
@@ -361,17 +372,27 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='FileDataObject',
+            name='FileData',
             fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
+                ('data_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.Data')),
+                ('file_location', models.ForeignKey(to='analysis.FileLocation', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.data',),
+        ),
+        migrations.CreateModel(
+            name='NamedFileContents',
+            fields=[
+                ('datacontents_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataContents')),
                 ('filename', models.CharField(max_length=255)),
-                ('metadata', jsonfield.fields.JSONField()),
                 ('file_contents', models.ForeignKey(to='analysis.FileContents')),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.dataobject',),
+            bases=('analysis.datacontents',),
         ),
         migrations.CreateModel(
             name='RequestedDockerEnvironment',
@@ -456,8 +477,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='taskrunoutput',
-            name='data_object',
-            field=models.ForeignKey(to='analysis.DataObject', null=True),
+            name='data',
+            field=models.ForeignKey(to='analysis.Data', null=True),
         ),
         migrations.AddField(
             model_name='taskrunoutput',
@@ -486,8 +507,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='taskdefinitioninput',
-            name='data_object',
-            field=models.ForeignKey(to='analysis.DataObject'),
+            name='data',
+            field=models.ForeignKey(to='analysis.Data'),
         ),
         migrations.AddField(
             model_name='taskdefinition',
@@ -521,18 +542,18 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='fileimport',
-            name='file_storage_location',
-            field=models.ForeignKey(to='analysis.FileStorageLocation', null=True),
+            name='file_location',
+            field=models.ForeignKey(to='analysis.FileLocation', null=True),
         ),
         migrations.AddField(
             model_name='fileimport',
-            name='temp_file_storage_location',
-            field=models.ForeignKey(related_name='temp_file_import', to='analysis.FileStorageLocation', null=True),
+            name='temp_file_location',
+            field=models.ForeignKey(related_name='temp_file_import', to='analysis.FileLocation', null=True),
         ),
         migrations.AddField(
             model_name='channeloutput',
-            name='data_objects',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
+            name='datas',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.Data'),
         ),
         migrations.AddField(
             model_name='channeloutput',
@@ -552,11 +573,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='taskrunlog',
             name='logfile',
-            field=models.ForeignKey(to='analysis.FileDataObject'),
+            field=models.ForeignKey(to='analysis.FileData'),
         ),
         migrations.AddField(
             model_name='fileimport',
-            name='file_data_object',
-            field=models.ForeignKey(related_name='file_imports', to='analysis.FileDataObject', null=True),
+            name='file_data',
+            field=models.ForeignKey(related_name='file_imports', to='analysis.FileData', null=True),
+        ),
+        migrations.AddField(
+            model_name='filedata',
+            name='named_file_contents',
+            field=models.ForeignKey(to='analysis.NamedFileContents'),
         ),
     ]

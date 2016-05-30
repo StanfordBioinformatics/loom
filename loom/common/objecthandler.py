@@ -62,49 +62,40 @@ class ObjectHandler(object):
 
     # ---- Post/Get [object_type] methods ----
 
-    def post_data_object(self, data_object):
+    def post_data(self, data):
         return self._post_object(
-            data_object,
-            'data-objects/')
+            data,
+            'data/')
 
-    def get_data_object_array(self, array_id):
+    def get_file_data(self, file_id):
         return self._get_object(
-            'data-object-arrays/%s/' % array_id)
+            'file-data/%s/' % file_id)
 
-    def post_data_object_array(self, data_object_array):
-        return self._post_object(
-            data_object_array,
-            'data-object-arrays/')
-
-    def get_file_data_object(self, file_id):
-        return self._get_object(
-            'file-data-objects/%s/' % file_id)
-
-    def get_file_data_object_index(self, query_string='', min=0, max=float('inf')):
+    def get_file_data_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'file-data-objects/?q='+query_string
+            url = 'file-data/?q='+query_string
         else:
-            url = 'file-data-objects/'
-        file_data_objects =  self._get_object_index(url)['file_data_objects']
-        if len(file_data_objects) < min:
-            raise IdMatchedTooFewFileDataObjectsError('Found %s File Data Objects, expected at least %s' %(len(file_data_objects), min))
-        if len(file_data_objects) > max:
-            raise IdMatchedTooManyFileDataObjectsError('Found %s File Data Objects, expected at most %s' %(len(file_data_objects), max))
-        return file_data_objects
+            url = 'file-data/'
+        file_data =  self._get_object_index(url)['file_data']
+        if len(file_data) < min:
+            raise IdMatchedTooFewFileDataError('Found %s File Data, expected at least %s' %(len(file_data), min))
+        if len(file_data) > max:
+            raise IdMatchedTooManyFileDataError('Found %s File Data, expected at most %s' %(len(file_data), max))
+        return file_data
 
-    def get_file_storage_locations_by_file(self, file_id):
+    def get_file_locations_by_file(self, file_id):
         return self._get_object(
-            'file-data-objects/'+file_id+'/file-storage-locations/'
-        )['file_storage_locations']
+            'file-data/'+file_id+'/file-locations/'
+        )['file_locations']
 
-    def post_file_storage_location(self, file_storage_location):
+    def post_file_location(self, file_location):
         return self._post_object(
-            file_storage_location,
-            'file-storage-locations/')
+            file_location,
+            'file-locations/')
 
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
-            'file-data-objects/' + file_id + '/file-imports/'
+            'file-data/' + file_id + '/file-imports/'
         )['file_imports']
     
     def get_abstract_workflow(self, workflow_id):
