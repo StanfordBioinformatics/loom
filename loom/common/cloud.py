@@ -24,7 +24,7 @@ def setup_ansible_inventory_gce():
     """ Make sure dynamic inventory from ansible.contrib is executable, and return a path to it. """
     loom_location = imp.find_module('loom')[1]
     loomparentdir = os.path.dirname(loom_location)
-    inventory_file = os.path.join(loomparentdir, 'loom', 'common', 'ansible.contrib.inventory.gce.py')
+    inventory_file = os.path.join(loomparentdir, 'loom', 'common', 'gce.py')
     os.chmod(inventory_file, 0755)
     return inventory_file
 

@@ -1,9 +1,70 @@
 import argparse
+import imp
 import json
+import os
+import subprocess
+import sys
 import yaml
 
-from loom.client import settings_manager
+from ConfigParser import SafeConfigParser
+
+import loom.client.settings_manager
 from loom.client.exceptions import *
+
+SERVER_LOCATION_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'server.ini')
+GCE_INI_PATH = os.path.join(os.path.expanduser('~'), '.loom', 'gce.ini')
+GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
+SERVER_PATH = os.path.join(imp.find_module('loom')[1], 'master')
+SERVER_DEFAULT_NAME = 'loom-master'
+
+def get_server_type():
+    """Checks server.ini for server type."""
+    if not os.path.exists(SERVER_LOCATION_FILE):
+        raise Exception("%s not found. Please run 'loom server set <servertype>' first." % SERVER_LOCATION_FILE)
+    config = SafeConfigParser()
+    config.read(SERVER_LOCATION_FILE)
+    server_type = config.get('server', 'type')
+    return server_type
+
+def get_gcloud_server_name():
+    if not os.path.exists(SERVER_LOCATION_FILE):
+        raise Exception("%s not found. Please run 'loom server set <servertype>' first." % SERVER_LOCATION_FILE)
+    config = SafeConfigParser()
+    config.read(SERVER_LOCATION_FILE)
+    server_type = config.get('server', 'type')
+    if server_type != 'gcloud':
+        raise Exception("Tried to get gcloud instance name, but %s is not configured for gcloud." % SERVER_LOCATION_FILE)
+    server_name = config.get('server', 'name')
+    return server_name
+
+def get_server_ip():
+    server_type = get_server_type()
+    if server_type == 'local':
+        return '127.0.0.1'
+    elif server_type == 'gcloud':
+        server_instance_name = get_gcloud_server_name()
+        return get_gcloud_server_ip(server_instance_name)
+    else:
+        raise Exception("Unknown server type: %s" % server_type)
+
+def get_gcloud_server_ip(name):
+    if not os.path.exists(GCE_INI_PATH):
+        raise Exception("%s not found. Please configure https://github.com/ansible/ansible/blob/devel/contrib/inventory/gce.ini and place it at this location." % GCE_INI_PATH)
+    os.environ['GCE_INI_PATH'] = GCE_INI_PATH 
+    inv = subprocess.check_output([sys.executable, GCE_PY_PATH])
+    inv = json.loads(inv)
+    inv_hosts = inv['_meta']['hostvars']
+    if name not in inv_hosts:
+        raise Exception("%s not found in Ansible dynamic inventory. Current hosts: %s" % (name, inv_hosts.keys()))
+    ip = inv_hosts[name]['gce_public_ip'].encode('utf-8')
+    return ip
+
+def get_server_url():
+    settings = loom.client.settings_manager.SettingsManager().settings
+    protocol = settings['PROTOCOL']
+    ip = get_server_ip()
+    port = settings['BIND_PORT']
+    return '%s://%s:%s' % (protocol, ip, port)
 
 def add_settings_options_to_parser(parser):
     parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',

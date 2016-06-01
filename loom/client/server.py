@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import imp
 import os
 import re
 import requests
@@ -8,9 +9,9 @@ import subprocess
 import sys
 import warnings
 
-from abc import ABCMeta, abstractmethod
 from ConfigParser import SafeConfigParser
 from loom.client import settings_manager
+import loom.client.common
 
 DAEMON_EXECUTABLE = os.path.abspath(
     os.path.join(
@@ -18,7 +19,9 @@ DAEMON_EXECUTABLE = os.path.abspath(
     '../master/loomdaemon/loom_daemon.py'
     ))
 
-SERVER_LOCATION_FILE = os.path.join(os.getenv('HOME'), '.loom', 'server.ini')
+SERVER_LOCATION_FILE = loom.client.common.SERVER_LOCATION_FILE
+SERVER_PATH = loom.client.common.SERVER_PATH
+SERVER_DEFAULT_NAME = loom.client.common.SERVER_DEFAULT_NAME
 
 def is_server_running(master_url):
     try:
@@ -31,49 +34,53 @@ def is_server_running(master_url):
         return False
 
 def ServerControls(args):
-    """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate concrete subclass."""
+    """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate subclass."""
 
-    # Check server type
-    config = SafeConfigParser()
-    config.read(SERVER_LOCATION_FILE)
-    server_type = config.get('server', 'type')
+    # Check if we just need the base class (currently, it handles "set" and "status"):
+    if args.command in BaseServerControls(args)._get_command_map():
+        return BaseServerControls(args)
 
-    # Instantiate concrete subclass
+    server_type = loom.client.common.get_server_type()
+
+    # Instantiate the appropriate subclass:
     if server_type == 'local':
         controls = LocalServerControls(args)
     elif server_type == 'gcloud':
-        controls = GcloudServerControls(args)
+        controls = GoogleCloudServerControls(args)
     else:
         raise Exception('Unrecognized server type: %s' % server_type)
     
+    controls.server_type = server_type
     return controls
 
 class BaseServerControls:
-    """Abstract base class for managing the Loom server. Defines common methods such as argument parsing and setting server type."""
-    
-    __metaclass__ = ABCMeta
+    """Base class for managing the Loom server. Handles argument parsing, 
+    subcommand routing, and implements common base methods such as setting
+    the server type and checking the server status.
+    """
+    server_type = None
 
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
         self.args = args
-        self.settings_manager = settings_manager.SettingsManager(require_default_settings=args.require_default_settings)
+        #self.settings_manager = settings_manager.SettingsManager(server_type=self.server_type, settings_file=args.settings, require_default_settings=args.require_default_settings, args.verbose)
 
         # Set run function
         self._set_run_function(args)
 
-    def _set_run_function(self, args):
-        # Map user input command to class method
+    # Defines what commands this class can handle and maps names to functions.
+    def _get_command_map(self):
         command_to_method_map = {
             'status': self.status,
-            'start': self.start,
-            'stop': self.stop,
-            'create': self.create,
-            'delete': self.delete,
             'set': self.setserver
         }
+        return command_to_method_map
+
+    def _set_run_function(self, args):
+        # Map user input command to class method
         try:
-            self.run = command_to_method_map[args.command]
+            self.run = self._get_command_map()[args.command]
         except KeyError:
             raise Exception('Unrecognized command: %s' % args.command)
 
@@ -94,15 +101,15 @@ class BaseServerControls:
         status_parser = subparsers.add_parser('status')
 
         create_parser = subparsers.add_parser('create')
-        create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
+        create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
             help="A settings file can be provided on server creation to override default settings and provide required settings instead of prompting.")
         create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
 
         delete_parser = subparsers.add_parser('delete')
 
-        setserver_parser = subparsers.add_parser('set')
+        setserver_parser = subparsers.add_parser('set', help='Tells the client how to find the Loom server. This information is stored in %s.' % SERVER_LOCATION_FILE)
         setserver_parser.add_argument('type', choices=['local', 'gcloud'], help='The type of server the client will manage.')
-        setserver_parser.add_argument('--name', help='The instance name of the server to manage.')
+        setserver_parser.add_argument('--name', help='For gcloud, the instance name of the server to manage. If not provided, defaults to %s.' % SERVER_DEFAULT_NAME, metavar='GCE_INSTANCE_NAME', default=SERVER_DEFAULT_NAME)
 
         return parser
 
@@ -113,14 +120,17 @@ class BaseServerControls:
 
     def setserver(self):
         '''Set server for the client to manage (currently local or gcloud).'''
+        # Create directory/directories if they don't exist
+        ini_dir = os.path.dirname(SERVER_LOCATION_FILE)
+        if not os.path.exists(ini_dir):
+            os.makedirs(ini_dir)
+
+        # Write server.ini file
         config = SafeConfigParser()
         config.add_section('server')
         config.set('server', 'type', self.args.type)
         if self.args.type == 'gcloud':
-            if self.args.name:
-                name = self.args.name
-            else:
-                name = 'loom-master'
+            name = self.args.name
             config.set('server', 'name', name)
         with open(SERVER_LOCATION_FILE, 'w') as configfile:
             config.write(configfile)
@@ -132,25 +142,18 @@ class BaseServerControls:
         else:
             print 'No response for server at %s. Do you need to run "loom server start"?' % url
 
-    # Required overrides
-    @abstractmethod
-    def create(self):
-        pass
-    @abstractmethod
-    def delete(self):
-        pass
-    @abstractmethod
-    def start(self):
-        pass
-    @abstractmethod
-    def stop(self):
-        pass
-    @abstractmethod
-    def get_server_url(self):
-        pass
-
 
 class LocalServerControls(BaseServerControls):
+
+    # Defines what commands this class can handle and maps names to functions.
+    def _get_command_map(self):
+        command_to_method_map = {
+            'create': self.create,
+            'start': self.start,
+            'stop': self.stop,
+            'delete': self.delete,
+        }
+        return command_to_method_map
 
     def start(self):
         env = os.environ.copy()
@@ -214,7 +217,6 @@ class LocalServerControls(BaseServerControls):
         if not process.returncode == 0:
             raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
-
     def stop(self):
         self._stop_webserver()
         self._stop_daemon()
@@ -244,11 +246,11 @@ class LocalServerControls(BaseServerControls):
 
     def _add_server_to_python_path(self, env):
         env.setdefault('PYTHONPATH', '')
-        env['PYTHONPATH'] = "%s:%s" % (self.settings_manager.get_server_path(), env['PYTHONPATH'])
+        env['PYTHONPATH'] = "%s:%s" % (SERVER_PATH, env['PYTHONPATH'])
         return env
 
     def _set_database(self, env):
-        manage_cmd = [sys.executable, '%s/manage.py' % self.settings_manager.get_server_path()]
+        manage_cmd = [sys.executable, '%s/manage.py' % SERVER_PATH]
         if self.args.test_database:
             # If test database requested, set LOOM_TEST_DATABSE to true and reset database
             env['LOOM_TEST_DATABASE'] = 'true'
@@ -293,7 +295,17 @@ class LocalServerControls(BaseServerControls):
         return 'http://127.0.0.1:8000'
 
 
-class GcloudServerControls(BaseServerControls):
+class GoogleCloudServerControls(BaseServerControls):
+
+    # Defines what commands this class can handle and maps names to functions.
+    def _get_command_map(self):
+        command_to_method_map = {
+            'create': self.create,
+            'start': self.start,
+            'stop': self.stop,
+            'delete': self.delete,
+        }
+        return command_to_method_map
 
     def create(self):
         pass
@@ -305,7 +317,6 @@ class GcloudServerControls(BaseServerControls):
         pass
     def get_server_url(self):
         pass
-
 
 if __name__=='__main__':
     ServerControls().run()
