@@ -5,9 +5,10 @@ import re
 
 from ConfigParser import SafeConfigParser
 
-import loom.client.common
+from loom.client.common import *
 
 DEFAULT_SETTINGS_FILE = 'default_settings.ini'
+DEPLOY_SETTINGS_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'deploy_settings.ini')
 
 class SettingsManager:
     """This class loads settings for the Loom client.
@@ -34,69 +35,49 @@ class SettingsManager:
             skip_init = False
         return skip_init
 
-    def _initialize(self, settings_file=DEFAULT_SETTINGS_FILE, require_default_settings=False, verbose=False,  **kwargs):
+    def _initialize(self, require_default_settings=False, verbose=False,  **kwargs):
+        self.settings = None
         self.verbose = verbose
-        server_type = loom.client.common.get_server_type()
+        self.require_default_settings = require_default_settings
 
-        default_config = SafeConfigParser()
-        default_config.optionxform = str                # preserve uppercase in settings names
-        default_config.read(DEFAULT_SETTINGS_FILE)
-        self.settings = dict(default_config.items(server_type))
+    def load_deploy_settings(self, section=None, user_settings_file=None):
+        if section == None:
+            section = get_server_type()
+        self.load_settings_from_file(DEFAULT_SETTINGS_FILE, section)
 
-        if not require_default_settings:
-            if self.settings is not None:
-                self.load_settings_from_file(settings_file, server_type)
+        # Override defaults with user-provided settings file
+        if not self.require_default_settings:
+            if user_settings_file:
+                self.load_settings_from_file(user_settings_file, section)
 
         #TODO: extract settings from commandline arguments and override self.settings with them
+        #TODO: verify required settings are defined and raise error if not
 
-    def load_settings_from_file(self, settings_file, server_type):
+    def create_deploy_settings(self, section=None, user_settings_file=None):
+        self.load_deploy_settings(section, user_settings_file)
+        self.save_settings_to_file(DEPLOY_SETTINGS_FILE, section='deploy')
+
+    def load_settings_from_file(self, settings_file, section):
         try:
             config = SafeConfigParser(defaults=self.settings)
             config.optionxform = str                    # preserve uppercase in settings names
             config.read(settings_file)
-            self.settings = dict(config.items(server_type))
+            self.settings = dict(config.items(section))
             if self.verbose:
                 print "Loaded settings from %s." % settings_file
         except: 
             raise Exception("Failed to open settings file %s." % settings_file)
 
-    #TODO: move this to common.py
-    def _update_elasticluster_frontend_ip(self):
-        """Update settings with the elasticluster frontend IP, and also write to presets."""
-        frontend_ip = self._get_elasticluster_frontend_ip()
-        self.settings['FILE_SERVER_FOR_CLIENT'] = frontend_ip
-        self.settings['MASTER_URL_FOR_CLIENT'] = "http://%s:8000" % frontend_ip
-        
-        current_preset_key = self.presets['CURRENT_PRESET']
-        self.presets[current_preset_key] = self.settings
-
-    @staticmethod
-    def _get_elasticluster_frontend_ip():
-        """Gets external IP of frontend node from Ansible inventory file.
-
-        Preconditions:
-        - Inventory file is in default location ($HOME/.elasticluster/storage)
-        - User only has one cluster running through elasticluster (TODO: support multiple clusters by taking cluster name as input)
-        - LOOM webserver and fileserver are on frontend001
-        """
-        inventory_search_path = os.path.join(os.getenv('HOME'), '.elasticluster', 'storage', 'ansible-inventory.*')
-        import glob
-        inventory_files = glob.glob(inventory_search_path)
-
-        if len(inventory_files) > 1:
-            raise Exception("More than one running cluster found, don't know which to target!")
-        if len(inventory_files) < 1:
-            raise Exception("Ansible inventory file not found in default location %s" % inventory_search_path)
-        
-        inventory_file = inventory_files[0]
-        
-        with open(inventory_file) as f:
-            for line in f:
-                match = re.match(r"frontend001 ansible_ssh_host=([\d.]+)", line) # matches IP address of frontend node
-                if match:
-                    ip = match.group(1) 
-                    return ip
-            raise Exception("No entry for frontend001 found in Ansible inventory file %s" % inventory_file)
+    def save_settings_to_file(self, settings_file, section):
+        if not self.settings:
+            raise Exception("No settings loaded yet.")
+        config = SafeConfigParser()
+        config.optionxform = str                    # preserve uppercase in settings names
+        config.add_section(section)
+        for key in self.settings:
+            config.set(section, key, self.settings[key])
+        with open(settings_file, 'w') as fp:
+            config.write(fp)
 
     def _get_pid(self, pidfile):
         if not os.path.exists(pidfile):

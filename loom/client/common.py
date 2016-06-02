@@ -27,6 +27,7 @@ def get_server_type():
     return server_type
 
 def get_gcloud_server_name():
+    """Reads and returns gcloud server instance name from server.ini."""
     if not os.path.exists(SERVER_LOCATION_FILE):
         raise Exception("%s not found. Please run 'loom server set <servertype>' first." % SERVER_LOCATION_FILE)
     config = SafeConfigParser()
@@ -60,7 +61,9 @@ def get_gcloud_server_ip(name):
     return ip
 
 def get_server_url():
-    settings = loom.client.settings_manager.SettingsManager().settings
+    settings_manager = loom.client.settings_manager.SettingsManager()
+    settings_manager.load_deploy_settings()
+    settings = settings_manager.settings
     protocol = settings['PROTOCOL']
     ip = get_server_ip()
     port = settings['BIND_PORT']
