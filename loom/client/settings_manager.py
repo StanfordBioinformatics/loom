@@ -4,11 +4,8 @@ import os
 import re
 
 from ConfigParser import SafeConfigParser
-
 from loom.client.common import *
 
-DEFAULT_SETTINGS_FILE = 'default_settings.ini'
-DEPLOY_SETTINGS_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'deploy_settings.ini')
 
 class SettingsManager:
     """This class loads settings for the Loom client.
@@ -23,6 +20,8 @@ class SettingsManager:
 
     At this point, required settings must be defined. Otherwise, throw an error.
     """
+    DEFAULT_SETTINGS_FILE = 'default_settings.ini'
+    DEPLOY_SETTINGS_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'deploy_settings.ini')
 
     def __init__(self, **kwargs):
         if not self._do_skip_init(**kwargs):
@@ -40,10 +39,10 @@ class SettingsManager:
         self.verbose = verbose
         self.require_default_settings = require_default_settings
 
-    def load_deploy_settings(self, section=None, user_settings_file=None):
+    def create_deploy_settings(self, section=None, user_settings_file=None):
         if section == None:
             section = get_server_type()
-        self.load_settings_from_file(DEFAULT_SETTINGS_FILE, section)
+        self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section)
 
         # Override defaults with user-provided settings file
         if not self.require_default_settings:
@@ -53,9 +52,15 @@ class SettingsManager:
         #TODO: extract settings from commandline arguments and override self.settings with them
         #TODO: verify required settings are defined and raise error if not
 
-    def create_deploy_settings(self, section=None, user_settings_file=None):
-        self.load_deploy_settings(section, user_settings_file)
-        self.save_settings_to_file(DEPLOY_SETTINGS_FILE, section='deploy')
+    def create_deploy_settings_file(self, user_settings_file=None):
+        self.create_deploy_settings(user_settings_file=user_settings_file)
+        self.save_settings_to_file(SettingsManager.DEPLOY_SETTINGS_FILE, section='deploy')
+
+    def load_deploy_settings_file(self):
+        self.load_settings_from_file(SettingsManager.DEPLOY_SETTINGS_FILE, section='deploy')
+
+    def delete_deploy_settings_file(self):
+        os.remove(SettingsManager.DEPLOY_SETTINGS_FILE)
 
     def load_settings_from_file(self, settings_file, section):
         try:
@@ -78,21 +83,6 @@ class SettingsManager:
             config.set(section, key, self.settings[key])
         with open(settings_file, 'w') as fp:
             config.write(fp)
-
-    def _get_pid(self, pidfile):
-        if not os.path.exists(pidfile):
-            return None
-        try:
-            with open(pidfile) as f:
-                pid = f.read().strip()
-                self._validate_pid(pid)
-                return pid
-        except:
-            return None
-
-    def _validate_pid(self, pid):
-        if not re.match('^[0-9]*$', pid):
-            raise Exception('Invalid pid "%s" found in pidfile %s' % (pid, pidfile))
 
     def make_settings_directory(self):
         if os.path.exists(os.path.dirname(self.settings_file)):

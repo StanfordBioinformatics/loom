@@ -2,6 +2,7 @@ import argparse
 import imp
 import json
 import os
+import requests
 import subprocess
 import sys
 import yaml
@@ -61,13 +62,24 @@ def get_gcloud_server_ip(name):
     return ip
 
 def get_server_url():
+    # TODO: move protocol and bind_port from settings file to server.ini since they are required to construct a URL to reach the server
     settings_manager = loom.client.settings_manager.SettingsManager()
-    settings_manager.load_deploy_settings()
+    settings_manager.load_deploy_settings_file()
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
     ip = get_server_ip()
     port = settings['BIND_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
+
+def is_server_running():
+    try:
+        response = requests.get(get_server_url() + '/api/status/')
+        if response.status_code == 200:
+            return True
+        else:
+            raise Exception("unexpected status code %s from server" % response.status_code)
+    except requests.exceptions.ConnectionError:
+        return False
 
 def add_settings_options_to_parser(parser):
     parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
