@@ -6,7 +6,7 @@ from loomdaemon import loom_daemon_logger
 
 
 class Command(BaseCommand):
-    help = 'Executes tasks that are ready'
+    help = 'Advances data processing for any components that are ready'
 
     def add_arguments(self, parser):
         # Named (optional) arguments
@@ -19,7 +19,7 @@ class Command(BaseCommand):
         logfile = options.get('logfile')
         logger = loom_daemon_logger.get_logger(logfile)
         try:
-            response = requests.get(settings.MASTER_URL_FOR_WORKER+'/api/controls/run/')
+            response = requests.post(settings.MASTER_URL_FOR_WORKER+'/api/controls/check-status/')
             logger.debug(response.text)
         except Exception as e:
             logger.exception(e)

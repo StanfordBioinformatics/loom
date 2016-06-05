@@ -2,14 +2,13 @@ from django.core.exceptions import ValidationError
 
 from analysis.exceptions import *
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data import FileData
 from universalmodels import fields
 
 
 """
 This module defines Workflow and its children.
 A Workflow is a template of an analysis to run, where
-some inputs may not be specified until runtime.
+some inputs may be specified at runtime.
 """
 
 
@@ -23,12 +22,6 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
     
     name = fields.CharField(max_length=255)
 
-    def get_input_channel_names(self):
-        return [input.channel for input in self.inputs.all()]
-
-    def get_output_channel_names(self):
-        return [output.channel for output in self.outputs.all()]
-
     def is_step(self):
         return self.downcast().is_step()
 
@@ -38,8 +31,7 @@ class Workflow(AbstractWorkflow):
     """
 
     steps = fields.ManyToManyField('AbstractWorkflow', related_name='parent_workflow')
-    inputs = fields.ManyToManyField('WorkflowRuntimeInput')
-    fixed_inputs = fields.ManyToManyField('WorkflowFixedInput')
+    inputs = fields.ManyToManyField('WorkflowInput')
     outputs = fields.ManyToManyField('WorkflowOutput')
 
     def after_create(self):
@@ -51,8 +43,6 @@ class Workflow(AbstractWorkflow):
 
         source_counts = {}
         for input in self.inputs.all():
-            self._increment_sources_count(source_counts, input.channel)
-        for input in self.fixed_inputs.all():
             self._increment_sources_count(source_counts, input.channel)
         for step in self.steps.all():
             step = step.downcast()
@@ -99,13 +89,16 @@ class Step(AbstractWorkflow):
     command = fields.CharField(max_length=255)
     environment = fields.ForeignKey('RequestedEnvironment')
     resources = fields.ForeignKey('RequestedResourceSet')
-    inputs = fields.ManyToManyField('StepRuntimeInput')
-    fixed_inputs = fields.ManyToManyField('StepFixedInput')
+    inputs = fields.ManyToManyField('StepInput')
     outputs = fields.ManyToManyField('StepOutput')
 
     def is_step(self):
         return True
 
+    def get_output(self, channel):
+        outputs = self.outputs.filter(channel=channel)
+        assert outputs.count() == 1
+        return outputs.first()
 
 class RequestedEnvironment(AnalysisAppImmutableModel):
 
@@ -121,60 +114,10 @@ class RequestedResourceSet(AnalysisAppImmutableModel):
 
     memory = fields.CharField(max_length=255)
     disk_space = fields.CharField(max_length=255)
-    cores = fields.IntegerField()
+    cores = fields.CharField(max_length=255)
 
 
-class AbstractFixedInput(AnalysisAppImmutableModel):
-
-    id = fields.CharField(max_length=255)
-    type = fields.CharField(
-        max_length=255,
-        choices=(
-            ('file', 'File'),
-            # ('file_array', 'File Array'),
-            # ('boolean', 'Boolean'),
-            # ('boolean_array', 'Boolean Array'),
-            # ('string', 'String'),
-            # ('string_array', 'String Array'),
-            # ('integer', 'Integer'),
-            # ('integer_array', 'Integer Array'),
-            # ('float', 'Float'),
-            # ('float_array', 'Float Array'),
-            # ('json', 'JSON'),
-            # ('json_array', 'JSON Array')
-        )
-    )
-    channel = fields.CharField(max_length=255)
-
-    def before_create_or_update(self, data):
-        try:
-            data['id'] = self._get_file_data_id_by_name_and_hash(data['id'])
-        except IdNotFoundError:
-            pass
-        self._check_id(data['id'])
-
-    def _get_file_data_id_by_name_and_hash(self, id):
-        matches = FileData.get_by_name_and_hash(id)
-        if matches.count() < 1:
-            raise IdNotFoundError
-        if matches.count() > 1:
-            raise ValidationError('%s files were found matching the name and hash in %s. '\
-                                  'Specify which one by using one of these ids instead of the '\
-                                  'name and hash: %s' % (id, ', '.join([match.get_name_id() for match in matches.all()])))
-        return matches[0].get_name_and_id()
-    
-    def _check_id(self, id):
-        matches = FileData.get_by_name_and_full_id(id)
-        if matches.count() < 1:
-            raise ValidationError('Could not find file with ID "%s"' % id)
-        if matches.count() > 1:
-            raise ValidationError('Found multiple files with ID "%s"' % id)
-        
-    class Meta:
-        abstract = True
-
-
-class AbstractRuntimeInput(AnalysisAppImmutableModel):
+class AbstractInput(AnalysisAppImmutableModel):
 
     hint = fields.CharField(max_length=255, null=True)
     type = fields.CharField(
@@ -200,22 +143,12 @@ class AbstractRuntimeInput(AnalysisAppImmutableModel):
         abstract = True
 
         
-class WorkflowFixedInput(AbstractFixedInput):
+class WorkflowInput(AbstractInput):
 
     pass
 
 
-class WorkflowRuntimeInput(AbstractRuntimeInput):
-
-    pass
-
-
-class StepFixedInput(AbstractFixedInput):
-
-    pass
-
-
-class StepRuntimeInput(AbstractRuntimeInput):
+class StepInput(AbstractInput):
 
     pass
 
@@ -253,4 +186,3 @@ class WorkflowOutput(AbstractOutput):
 class StepOutput(AbstractOutput):
 
     filename = fields.CharField(max_length=255)
-

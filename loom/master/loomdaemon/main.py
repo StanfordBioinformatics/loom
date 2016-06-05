@@ -25,21 +25,14 @@ class App():
 
     def run(self):
         while True:
-            cmd1 = [sys.executable,
+            cmd = [sys.executable,
                    MANAGE_EXECUTABLE,
-                   'update_tasks']
-            cmd2 = [sys.executable,
-                   MANAGE_EXECUTABLE,
-                   'run_tasks']
+                   'update_status']
             if self.logfile:
-                cmd1.append('--logfile')
-                cmd1.append(self.logfile)
-                cmd2.append('--logfile')
-                cmd2.append(self.logfile)
-            self.logger.info('Disabled, doing nothing.')
-            #self.logger.info('Running job queues')
-            #retcode = subprocess.call(cmd1)
-            #retcode = subprocess.call(cmd2)
+                cmd.append('--logfile')
+                cmd.append(self.logfile)
+            self.logger.info('Health check')
+            retcode = subprocess.call(cmd)
             time.sleep(SLEEP_TIME_SECONDS)
 
 if __name__=='__main__':

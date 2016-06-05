@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from analysis.models import WorkflowRun, TaskRun, FileData
+from analysis.models import RunRequest, TaskRun, FileDataObject
 from loom.common import version
 logger = logging.getLogger('loom')
 
@@ -105,7 +105,7 @@ def show_or_update(request, id, model_class):
 @require_http_methods(["GET"])
 def locations_by_file(request, id):
     try:
-        file = FileData.get_by_id(id)
+        file = FileDataObject.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     return JsonResponse({"file_locations": [o.to_struct() for o in file.named_file_contents.file_contents.file_locations.all()]}, status=200)
@@ -113,7 +113,7 @@ def locations_by_file(request, id):
 @require_http_methods(["GET"])
 def file_data_source_runs(request, id):
     try:
-        file = FileData.get_by_id(id)
+        file = FileDataObject.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     runs = []
@@ -127,21 +127,15 @@ def file_data_source_runs(request, id):
 @require_http_methods(["GET"])
 def file_imports_by_file(request, id):
     try:
-        file = FileData.get_by_id(id)
+        file = FileDataObject.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     return JsonResponse({"file_imports": [o.to_struct() for o in file.file_imports.all()]}, status=200)
 
 @csrf_exempt
-@require_http_methods(["GET"])
-def update_tasks(request):
-    WorkflowRun.update_status_for_all()
-    return JsonResponse({"status": "ok"}, status=200)
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def run_tasks(request):
-    TaskRun.run_all()
+@require_http_methods(["POST"])
+def check_status(request):
+    RunRequest.check_status_for_all()
     return JsonResponse({"status": "ok"}, status=200)
 
 @require_http_methods(["GET"])

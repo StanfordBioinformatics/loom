@@ -8,70 +8,47 @@ from analysis.models.base import AnalysisAppInstanceModel, \
 from universalmodels import fields
 
 
-class Data(AnalysisAppInstanceModel):
-    """A reference to DataContents. While there is only one
-    object for each set of contents, there can be many references
-    to it. That way if the same contents arise twice independently 
+class DataObject(AnalysisAppInstanceModel):
+    """A reference to DataObjectContent. While there is only one
+    object for each set of content, there can be many references
+    to it. That way if the same content arises twice independently 
     we can still keep separate provenance graphs.
     """
+
     pass
 
-
-class DataContents(AnalysisAppImmutableModel):
+class DataObjectContent(AnalysisAppImmutableModel):
     """A unit of data passed into or created by analysis steps.
     This may be a file, an array of files, a JSON data object, 
     or an array of JSON objects.
     """
-    pass
+
+    def get_substitution_value(self):
+        return self.downcast().get_substitution_value()
 
 
-class FileData(Data):
+class FileDataObject(DataObject):
 
-    NAME_FIELD = 'named_file_contents__filename'
-    
-    named_file_contents = fields.ForeignKey('NamedFileContents')
+    NAME_FIELD = 'content__filename'
+
+    content = fields.ForeignKey('FileContent')
     file_location = fields.ForeignKey('FileLocation', null=True)
 
-    @classmethod
-    def get_by_name_and_hash(cls, query_string):
-        filename, hash_function, hash_value = cls._parse_name_and_hash(query_string)
-        if not filename and hash_function and hash_value:
-            return cls.objects.none()
-        models = cls.get_by_name(filename)
-        models = models.filter(named_file_contents__file_contents__hash_function=hash_function)
-        return models.filter(named_file_contents__file_contents__hash_value=hash_value)
 
-    @classmethod
-    def _parse_name_and_hash(cls, query_string):
-        """Parse query string of the form filename@hash_function$hash_value,
-        e.g. file.txt@md5$9a6a9c9074509fbff3a65e819bb7eb7f
-        """
-        parts = query_string.split('@')
-        if len(parts) != 2:
-            return None, None, None
-
-        filename = parts[0]
-        rest = '@'.join(parts[1:])
-        hash_parts = rest.split('$')
-        if len(parts) < 1:
-            return None, None, None
-
-        hash_function = hash_parts[0]
-        hash_value = '$'.join(hash_parts[1:])
-        return filename, hash_function, hash_value
-
-
-class NamedFileContents(DataContents):
-    """Represents a file, including its contents (identified by a hash), its 
+class FileContent(DataObjectContent):
+    """Represents a file, including its content (identified by a hash), its 
     file name, and user-defined metadata.
     """
 
     filename = fields.CharField(max_length=255)
-    file_contents = fields.ForeignKey('FileContents')
+    unnamed_file_content = fields.ForeignKey('UnnamedFileContent')
+
+    def get_substitution_value(self):
+        return self.filename
 
 
-class FileContents(AnalysisAppImmutableModel):
-    """Represents file contents, identified by a hash. Ignores file name.
+class UnnamedFileContent(AnalysisAppImmutableModel):
+    """Represents file content, identified by a hash. Ignores file name.
     """
 
     hash_value = fields.CharField(max_length=100)
@@ -79,11 +56,11 @@ class FileContents(AnalysisAppImmutableModel):
 
 
 class FileLocation(AnalysisAppInstanceModel):
-    """Location of a set of file contents.
+    """Location of file content.
     """
 
-    file_contents = fields.ForeignKey(
-        'FileContents',
+    unnamed_file_content = fields.ForeignKey(
+        'UnnamedFileContent',
         null=True,
         related_name='file_locations')
     url = fields.CharField(max_length=1000)
@@ -96,19 +73,19 @@ class FileLocation(AnalysisAppInstanceModel):
     )
 
     @classmethod
-    def get_by_file(self, file_data):
-        locations = self.objects.filter(file_contents=file_data.named_file_contents.file_contents).all()
+    def get_by_file(self, file_data_object):
+        locations = self.objects.filter(unnamed_file_content=file_data_object.content.unnamed_file_content).all()
         return locations
 
     @classmethod
-    def get_location_for_import(cls, file_data):
+    def get_location_for_import(cls, file_data_object):
         return cls.create({
-            'url': cls._get_url(cls._get_path_for_import(file_data)),
-            'file_contents': file_data.named_file_contents.file_contents.to_struct()
+            'url': cls._get_url(cls._get_path_for_import(file_data_object)),
+            'unnamed_file_content': file_data_object.content.unnamed_file_content.to_struct()
         })
 
     @classmethod
-    def _get_path_for_import(cls, file_data):
+    def _get_path_for_import(cls, file_data_object):
         if not settings.FILE_ROOT:
             raise Exception('FILE_ROOT is not set')
 
@@ -121,8 +98,8 @@ class FileLocation(AnalysisAppInstanceModel):
                 settings.IMPORT_DIR,
                 "%s-%s-%s" % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data._id,
-                    file_data.named_file_contents.filename
+                    file_data_object._id,
+                    file_data_object.content.filename
                 )
             )
         else:
@@ -130,8 +107,8 @@ class FileLocation(AnalysisAppInstanceModel):
                 '/',
                 settings.FILE_ROOT,
                 '%s-%s' % (
-                    file_data.named_file_contents.file_contents.hash_function,
-                    file_data.named_file_contents.file_contents.hash_value
+                    file_data_object.content.unnamed_file_content.hash_function,
+                    file_data_object.content.unnamed_file_content.hash_value
                 )
             )
 
@@ -161,8 +138,8 @@ class FileLocation(AnalysisAppInstanceModel):
 
 
 class FileImport(AnalysisAppInstanceModel):
-    file_data = fields.ForeignKey(
-        'FileData',
+    file_data_object = fields.ForeignKey(
+        'FileDataObject',
         related_name = 'file_imports',
         null=True)
     note = fields.TextField(max_length=10000, null=True)
@@ -178,9 +155,9 @@ class FileImport(AnalysisAppInstanceModel):
         if not self.temp_file_location and not self.file_location:
             self._set_temp_file_location()
 
-        # If FileData was added and no permanent FileLocation exists,
+        # If FileDataObject was added and no permanent FileLocation exists,
         # create one. The client will need this to know upload destination.
-        elif self.file_data and not self.file_location:
+        elif self.file_data_object and not self.file_location:
             self._set_file_location()
 
     def _set_temp_file_location(self):
@@ -193,9 +170,9 @@ class FileImport(AnalysisAppInstanceModel):
 
     def _set_file_location(self):
         """After uploading the file to a temp location and updating the FileImport with the full 
-        FileContents (which includes the hash), the final storage location can be determined.
+        FileContent (which includes the hash), the final storage location can be determined.
         """
-        self.file_location = FileLocation.get_location_for_import(self.file_data)
+        self.file_location = FileLocation.get_location_for_import(self.file_data_object)
         self.save()
 
 

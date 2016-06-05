@@ -1,7 +1,7 @@
 from django.core import exceptions
 
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data import Data
+from analysis.models.data import DataObjectContent
 from universalmodels import fields
 
 
@@ -36,9 +36,14 @@ class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
 
 class TaskDefinitionInput(AnalysisAppImmutableModel):
 
-    data = fields.ForeignKey('Data')
+    data_object_content = fields.ForeignKey('DataObjectContent')
 
+    def get_substitution_value(self):
+        return self.data_object_content.get_substitution_value()
 
 class TaskDefinitionOutput(AnalysisAppImmutableModel):
 
-    path = fields.CharField(max_length=255)
+    filename = fields.CharField(max_length=255)
+
+    def get_substitution_value(self):
+        return self.filename

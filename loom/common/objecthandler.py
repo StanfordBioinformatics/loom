@@ -67,25 +67,25 @@ class ObjectHandler(object):
             data,
             'data/')
 
-    def get_file_data(self, file_id):
+    def get_file_data_object(self, file_id):
         return self._get_object(
-            'file-data/%s/' % file_id)
+            'file-data-objects/%s/' % file_id)
 
-    def get_file_data_index(self, query_string='', min=0, max=float('inf')):
+    def get_file_data_object_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'file-data/?q='+query_string
+            url = 'file-data-objects/?q='+query_string
         else:
-            url = 'file-data/'
-        file_data =  self._get_object_index(url)['file_data']
-        if len(file_data) < min:
-            raise IdMatchedTooFewFileDataError('Found %s File Data, expected at least %s' %(len(file_data), min))
+            url = 'file-data-objects/'
+        file_data_object =  self._get_object_index(url)['file_data_object']
+        if len(file_data_object) < min:
+            raise IdMatchedTooFewFileDataError('Found %s FileDataObjects, expected at least %s' %(len(file_data_object), min))
         if len(file_data) > max:
-            raise IdMatchedTooManyFileDataError('Found %s File Data, expected at most %s' %(len(file_data), max))
-        return file_data
+            raise IdMatchedTooManyFileDataError('Found %s FileDataObjects, expected at most %s' %(len(file_data_object), max))
+        return file_data_object
 
     def get_file_locations_by_file(self, file_id):
         return self._get_object(
-            'file-data/'+file_id+'/file-locations/'
+            'file-data-objects/'+file_id+'/file-locations/'
         )['file_locations']
 
     def post_file_location(self, file_location):
@@ -95,7 +95,7 @@ class ObjectHandler(object):
 
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
-            'file-data/' + file_id + '/file-imports/'
+            'file-data-objects/' + file_id + '/file-imports/'
         )['file_imports']
     
     def get_abstract_workflow(self, workflow_id):

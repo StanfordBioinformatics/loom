@@ -272,7 +272,7 @@ class AbstractDestination:
         pass
 
     @abc.abstractmethod
-    def write(self, contents):
+    def write(self, content):
         pass
 
 class LocalDestination(AbstractDestination):
@@ -295,9 +295,9 @@ class LocalDestination(AbstractDestination):
     def is_dir(self):
         return os.path.isdir(self.get_path())
 
-    def write(self, contents):
+    def write(self, content):
         with open(self.get_path(), 'w') as f:
-            f.write(contents)
+            f.write(content)
 
 
 class GoogleStorageDestination(AbstractDestination):
@@ -329,9 +329,9 @@ class GoogleStorageDestination(AbstractDestination):
         # No dirs in Google Storage, just blobs
         return False
 
-    def write(self, contents):
+    def write(self, content):
         with tempfile.NamedTemporaryFile('w') as f:
-            f.write(contents)
+            f.write(content)
             f.flush()
             Source(f.name, self.settings).copy_to(self)
 
@@ -496,15 +496,15 @@ class FileHandler:
         hash_function = self.settings['HASH_FUNCTION']
         hash_value = source.hash_and_copy_to(temp_destination, hash_function)
 
-        updated_file_import = self._add_file_data_to_file_import(file_import, source, hash_value, hash_function)
+        updated_file_import = self._add_file_data_object_to_file_import(file_import, source, hash_value, hash_function)
 
         temp_source = Source(temp_destination.get_url(), self.settings)
         final_destination = Destination(updated_file_import['file_location']['url'], self.settings)
         temp_source.move_to(final_destination)
 
         final_file_import =  self._finalize_file_import(updated_file_import)
-        self._log('...finished importing file %s@%s' % (final_file_import['file_data']['named_file_contents']['filename'],
-                                           final_file_import['file_data']['_id']))
+        self._log('...finished importing file %s@%s' % (final_file_import['file_data_object']['content']['filename'],
+                                           final_file_import['file_data_object']['_id']))
         return final_file_import
     
     def _create_file_import(self, source, note):
@@ -513,14 +513,14 @@ class FileHandler:
             'source_url': source.get_url(),
         })
     
-    def _add_file_data_to_file_import(self, file_import, source, hash_value, hash_function):
+    def _add_file_data_object_to_file_import(self, file_import, source, hash_value, hash_function):
         return self.objecthandler.update_file_import(
             file_import['_id'],
-            { 'file_data':
-              { 'named_file_contents':
+            { 'file_data_object':
+              { 'content':
                 {
                     'filename': source.get_filename(),
-                    'file_contents': {
+                    'unnamed_file_content': {
                         'hash_function': hash_function,
                         'hash_value': hash_value
                     }}}})
@@ -551,7 +551,7 @@ class FileHandler:
 
     def export_file(self, file_id, destination_url=None):
         # Error raised if there is not exactly one matching file.
-        file = self.objecthandler.get_file_data_index(file_id, max=1, min=1)[0]
+        file = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()

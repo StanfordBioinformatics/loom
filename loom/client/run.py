@@ -141,11 +141,11 @@ class WorkflowRunner(object):
         """
         if os.path.isfile(input_id):
             input_id = self._get_input_from_file(input_id)
-        return {'channel': channel, 'id': input_id}
+        return {'channel': channel, 'value': input_id}
 
     def _get_input_from_file(self, input_filename):
         file_import = self.filehandler.import_file(input_filename, self.args.note)
-        return "%s@%s" % (file_import['file_data_object']['filename'],
+        return "%s@%s" % (file_import['file_data_object']['content']['filename'],
                           file_import['file_data_object']['_id'])
 
 

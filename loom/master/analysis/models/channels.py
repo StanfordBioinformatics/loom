@@ -1,7 +1,7 @@
 from django.db import models
 from .base import AnalysisAppInstanceModel
-from .data import Data
-from .workflow_runs import InputOutputNode
+from .data import DataObject
+from .workflow_runs import InputOutput
 from universalmodels import fields
 
 """
@@ -13,32 +13,31 @@ class Channel(AnalysisAppInstanceModel):
     """Channel acts as a queue for data being being passed into or out of steps or workflows.
     """
 
-    channel_name = fields.CharField(max_length=255)
-    channel_outputs = fields.OneToManyField('ChannelOutput')
-    sender = fields.OneToOneField('InputOutputNode', related_name='to_channel')
+    name = fields.CharField(max_length=255)
+    outputs = fields.OneToManyField('ChannelOutput')
+    sender = fields.OneToOneField('InputOutput', related_name='to_channel', null=True)
     is_closed_to_new_data = fields.BooleanField(default=False)
 
     @classmethod
-    def create_from_sender(cls, sender):
-        return cls.create({
-            'sender': sender.to_struct(),
-            'channel_name': sender.channel_name
-        })
+    def create_from_sender(cls, sender, channel_name):
+        channel = cls.create({'name': channel_name})
+        channel.sender = sender
+        channel.save()
+        return channel
     
-    def add_data(self, data):
-        for output in self.channel_outputs.all():
-            output._add_data(data)
+    def push(self, data_object):
+        for output in self.outputs.all():
+            output.push(data_object)
 
     def add_receivers(self, receivers):
         for receiver in receivers:
             self.add_receiver(receiver)
 
     def add_receiver(self, receiver):
-        self.channel_outputs.add(
-            ChannelOutput.create(
-                {'receiver': receiver.to_struct()}
-            )
-        )
+        output = ChannelOutput.create({})
+        output.receiver = receiver
+        output.save()
+        self.outputs.add(output)
 
     def close(self):
         self.update({'is_closed_to_new_data': True})
@@ -50,19 +49,20 @@ class ChannelOutput(AnalysisAppInstanceModel):
     steps. Each of these destinations has its own queue, implemented as a ChannelOutput.
     """
 
-    datas = fields.ManyToManyField('Data')
-    receiver = fields.ForeignKey('InputOutputNode', related_name='from_channel')
+    data_objects = fields.ManyToManyField('DataObject')
+    receiver = fields.OneToOneField('InputOutput', related_name='from_channel', null=True)
 
-    def _add_data(self, data):
-        self.datas.add(data)
-                
+    def push(self, data_object):
+        self.data_objects.add(data_object)
+        self.receiver.push()
+
     def is_empty(self):
-        return self.datas.count() == 0
+        return self.data_objects.count() == 0
 
     def is_dead(self):
         return self.channel.is_closed_to_new_data and self.is_empty()
 
     def pop(self):
-        data = self.datas.first()
-        self.datas = self.datas.all()[1:]
-        return data
+        data_object = self.data_objects.first()
+        self.data_objects = self.data_objects.all()[1:]
+        return data_object.downcast()

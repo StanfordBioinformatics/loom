@@ -5,12 +5,10 @@
 	    "type": "file",
 	    "hint": "Enter the 'hello' file",
 	    "channel": "hello"
-	}
-    ],
-    "fixed_inputs":[
+	},
 	{
 	    "type": "file",
-	    "id": "world.txt@md5$591785b794601e212b260e25925636fd",
+	    "hint": "Enter the 'world' file",
 	    "channel": "world"
 	}
     ],
@@ -28,7 +26,7 @@
                 "docker_image": "ubuntu"
             },
             "resources": {
-                "cores": 1,
+                "cores": "1",
                 "memory": "1"
             },
 	    "inputs": [
@@ -52,7 +50,7 @@
                 "docker_image": "ubuntu"
             },
             "resources": {
-                "cores": 1,
+                "cores": "1",
                 "memory": "1"
             },
 	    "inputs": [
@@ -75,7 +73,7 @@
                 "docker_image": "ubuntu"
             },
 	    "resources": {
-                "cores": 1,
+                "cores": "1",
                 "memory": "1"
             },
             "inputs": [
