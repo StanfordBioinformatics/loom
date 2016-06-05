@@ -43,6 +43,11 @@ class AbstractWorkflowRun(AnalysisAppInstanceModel):
     def is_step(self):
         return self.downcast().is_step()
 
+    def get_input(self, channel):
+        inputs=self.downcast().inputs.filter(channel=channel)
+        assert inputs.count() == 1
+        return inputs.first()
+
 
 class WorkflowRun(AbstractWorkflowRun):
 
@@ -118,11 +123,6 @@ class StepRun(AbstractWorkflowRun):
     def is_step(self):
         return True
     
-    def get_input(self, channel):
-        inputs=self.inputs.filter(channel=channel)
-        assert inputs.count() == 1
-        return inputs.first()
-    
     def push(self):
         if self._is_ready_for_task_run():
             task_run = TaskRun.create_from_step_run(self)
@@ -148,6 +148,10 @@ class TypedInputOutput(InputOutput):
         max_length=255,
         choices=(
             ('file', 'File'),
+            ('boolean', 'Boolean'),
+            ('string', 'String'),
+            ('integer', 'Integer'),
+            ('json', 'JSON'),
         )
     )
 

@@ -108,7 +108,7 @@ def locations_by_file(request, id):
         file = FileDataObject.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
-    return JsonResponse({"file_locations": [o.to_struct() for o in file.named_file_contents.file_contents.file_locations.all()]}, status=200)
+    return JsonResponse({"file_locations": [o.to_struct() for o in file.file_content.unnamed_file_content.file_locations.all()]}, status=200)
 
 @require_http_methods(["GET"])
 def file_data_source_runs(request, id):

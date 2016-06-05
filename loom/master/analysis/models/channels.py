@@ -1,6 +1,6 @@
 from django.db import models
 from .base import AnalysisAppInstanceModel
-from .data import DataObject
+from .data_objects import DataObject
 from .workflow_runs import InputOutput
 from universalmodels import fields
 

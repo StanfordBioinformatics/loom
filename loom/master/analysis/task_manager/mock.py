@@ -20,7 +20,7 @@ class MockTaskManager(object):
         mock_text = "mock%s" % self.mock_file_counter
         mock_md5 = hashlib.md5(mock_text)
         return {
-            'content':{
+            'file_content':{
                 'filename': mock_text,
                 'unnamed_file_content': {
                     'hash_value': mock_md5.hexdigest(),

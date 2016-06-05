@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.utils import timezone
+import json
 import os
 import uuid
 
@@ -15,7 +16,16 @@ class DataObject(AnalysisAppInstanceModel):
     we can still keep separate provenance graphs.
     """
 
-    pass
+    def get_type(self):
+        return self.downcast().TYPE
+
+    def get_content(self):
+        return self.downcast().get_content()
+
+    @classmethod
+    def get_by_value(cls, value, type):
+        return class_type_map[type].get_by_value(value)
+
 
 class DataObjectContent(AnalysisAppImmutableModel):
     """A unit of data passed into or created by analysis steps.
@@ -29,10 +39,21 @@ class DataObjectContent(AnalysisAppImmutableModel):
 
 class FileDataObject(DataObject):
 
-    NAME_FIELD = 'content__filename'
+    NAME_FIELD = 'file_content__filename'
 
-    content = fields.ForeignKey('FileContent')
+    TYPE = 'file'
+
+    file_content = fields.ForeignKey('FileContent')
     file_location = fields.ForeignKey('FileLocation', null=True)
+
+    def get_content(self):
+        return self.file_content
+
+    @classmethod
+    def get_by_value(cls, value):
+        file_data_objects = cls.get_by_name_and_full_id(value)
+        assert len(file_data_objects) == 1
+        return file_data_objects.first()
 
 
 class FileContent(DataObjectContent):
@@ -74,14 +95,14 @@ class FileLocation(AnalysisAppInstanceModel):
 
     @classmethod
     def get_by_file(self, file_data_object):
-        locations = self.objects.filter(unnamed_file_content=file_data_object.content.unnamed_file_content).all()
+        locations = self.objects.filter(unnamed_file_content=file_data_object.file_content.unnamed_file_content).all()
         return locations
 
     @classmethod
     def get_location_for_import(cls, file_data_object):
         return cls.create({
             'url': cls._get_url(cls._get_path_for_import(file_data_object)),
-            'unnamed_file_content': file_data_object.content.unnamed_file_content.to_struct()
+            'unnamed_file_content': file_data_object.file_content.unnamed_file_content.to_struct()
         })
 
     @classmethod
@@ -99,7 +120,7 @@ class FileLocation(AnalysisAppInstanceModel):
                 "%s-%s-%s" % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
                     file_data_object._id,
-                    file_data_object.content.filename
+                    file_data_object.file_content.filename
                 )
             )
         else:
@@ -107,8 +128,8 @@ class FileLocation(AnalysisAppInstanceModel):
                 '/',
                 settings.FILE_ROOT,
                 '%s-%s' % (
-                    file_data_object.content.unnamed_file_content.hash_function,
-                    file_data_object.content.unnamed_file_content.hash_value
+                    file_data_object.file_content.unnamed_file_content.hash_function,
+                    file_data_object.file_content.unnamed_file_content.hash_value
                 )
             )
 
@@ -123,6 +144,7 @@ class FileLocation(AnalysisAppInstanceModel):
         return os.path.join(
             '/',
             settings.FILE_ROOT,
+            settings.IMPORT_DIR,
             'tmp',
             uuid.uuid4().hex
         )
@@ -138,6 +160,7 @@ class FileLocation(AnalysisAppInstanceModel):
 
 
 class FileImport(AnalysisAppInstanceModel):
+
     file_data_object = fields.ForeignKey(
         'FileDataObject',
         related_name = 'file_imports',
@@ -176,6 +199,133 @@ class FileImport(AnalysisAppInstanceModel):
         self.save()
 
 
+class JSONDataObject(DataObject):
+
+    TYPE = 'json'
+
+    json_content = fields.ForeignKey('JSONDataContent')
+
+    def get_content(self):
+        return self.json_content
+
+    @classmethod
+    def get_by_value(cls, value):
+        return cls.create(
+            {
+                'json_content': {
+                    'json_value': json.loads(value)
+                }
+            }
+        )
+
+
+class JSONDataContent(DataObjectContent):
+
+    json_value = fields.JSONField()
+
+    def get_substitution_value(self):
+        return self.json_value
+
+
+class StringDataObject(DataObject):
+    
+    TYPE = 'string'
+    
+    string_content = fields.ForeignKey('StringDataContent')
+
+    def get_content(self):
+        return self.string_content
+
+    @classmethod
+    def get_by_value(cls, value):
+        return cls.create(
+            {
+                'string_content': {
+                    'string_value': value
+                }
+            }
+        )
+
+
+class StringDataContent(DataObjectContent):
+
+    string_value = fields.TextField()
+
+    def get_substitution_value(self):
+        return self.string_value
+
+
+class BooleanDataObject(DataObject):
+    
+    TYPE = 'boolean'
+    
+    boolean_content = fields.ForeignKey('BooleanDataContent')
+
+    def get_content(self):
+        return self.boolean_content
+
+    @classmethod
+    def get_by_value(cls, value):
+        if value == 'true':
+            b = True
+        elif value == 'false':
+            b = False
+        else:
+            raise Exception('Could not parse boolean value "%s". Use "true" or "false".' % value)
+        return cls.create(
+            {
+                'boolean_content': {
+                    'boolean_value': b
+                }
+            }
+        )
+
+
+class BooleanDataContent(DataObjectContent):
+
+    boolean_value = fields.BooleanField()
+
+    def get_substitution_value(self):
+        return self.boolean_value
+
+
+class IntegerDataObject(DataObject):
+    
+    TYPE = 'integer'
+    
+    integer_content = fields.ForeignKey('IntegerDataContent')
+
+    def get_content(self):
+        return self.integer_content
+
+    @classmethod
+    def get_by_value(cls, value):
+        return cls.create(
+            {
+                'integer_content': {
+                    'integer_value': int(value)
+                }
+            }
+        )
+
+
+class IntegerDataContent(DataObjectContent):
+
+    integer_value = fields.IntegerField()
+
+    def get_substitution_value(self):
+        return self.integer_value
+
+
+class_type_map = {
+    'file': FileDataObject,
+    'boolean': BooleanDataObject,
+    'string': StringDataObject,
+    'integer': IntegerDataObject,
+    'json': JSONDataObject,
+}
+
+
 '''    
 class DataObjectArray(DataObject):
     """An array of data objects, all of the same type.
@@ -200,37 +350,4 @@ class DataObjectArray(DataObject):
         """An array is available if all members are available"""
         return all([member.downcast().is_available() for member in
                     self.data_objects.all()])
-
-class DatabaseDataObject(DataObject):
-
-    def is_available(self):
-        """An object stored in the database is always available.
-        """
-        return True
-
-    class Meta:
-        abstract = True
-
-
-class JSONDataObject(DatabaseDataObject):
-    """Contains any valid JSON value. This could be 
-    an integer, string, float, boolean, list, or dict
-    """
-
-    json_data = fields.JSONField()
-
-
-class StringDataObject(DatabaseDataObject):
-
-    string_value = fields.TextField()
-
-
-class BooleanDataObject(DatabaseDataObject):
-
-    boolean_value = fields.BooleanField()
-
-
-class IntegerDataObject(DatabaseDataObject):
-
-    integer_value = fields.IntegerField()
 '''

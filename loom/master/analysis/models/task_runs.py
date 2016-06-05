@@ -4,7 +4,7 @@ from jinja2 import DictLoader, Environment
 
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.task_definitions import *
-from analysis.models.data import DataObject
+from analysis.models.data_objects import DataObject
 from analysis.models.workflows import Step
 from analysis.task_manager.factory import TaskManagerFactory
 from analysis.task_manager.dummy import DummyTaskManager
@@ -66,7 +66,7 @@ class TaskRun(AnalysisAppInstanceModel):
         task_run_input = TaskRunInput.create(
             {
                 'task_definition_input': {
-                    'data_object_content': data_object.content.to_struct()
+                    'data_object_content': data_object.get_content().to_struct()
                 },
                 'data_object': data_object.to_struct()
             }

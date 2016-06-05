@@ -4,7 +4,7 @@ from django.db import transaction
 from universalmodels import fields
 from .base import AnalysisAppInstanceModel
 from .channels import Channel
-from .data import FileDataObject
+from .data_objects import DataObject
 from .workflow_runs import AbstractWorkflowRun, InputOutput
 from .workflows import Workflow
 
@@ -49,14 +49,6 @@ class RunRequest(AnalysisAppInstanceModel):
             if not input.channel in workflow_inputs:
                 raise ValidationError('Run request is invalid. Input channel "%s" does not correspond to any channel in the workflow' % input.channel)
             workflow_inputs.remove(input.channel)
-
-            # Verify that all input values match exactly one DataObject
-            matches = FileDataObject.get_by_name_and_full_id(input.value)
-            if matches.count() < 1:
-                raise ValidationError('Could not find file with ID "%s"' % input.value)
-            if matches.count() > 1:
-                raise ValidationError('Found multiple files with ID "%s"' % input.value)
-
         if len(workflow_inputs) > 0:
             raise ValidationError('Missing input for channel(s) "%s"' %
                                   ', '.join([channel for channel in workflow_inputs]))
@@ -99,9 +91,15 @@ class RunRequestInput(InputOutput):
     value = fields.CharField(max_length=255)
     
     def push(self):
-        file_data_object = FileDataObject.get_by_name_and_full_id(self.value)
-        assert len(file_data_object) == 1
-        self.to_channel.push(file_data_object.first())
+        data_object = self._get_data_object()
+        self.to_channel.push(data_object)
+
+    def get_type(self):
+        return self.run_request.run.get_input(self.channel).type
+
+    def _get_data_object(self):
+        return DataObject.get_by_value(self.value, self.get_type())
+
 
 class RunRequestOutput(InputOutput):
 

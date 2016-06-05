@@ -59,12 +59,12 @@ class ShowFile(AbstractShow):
             print self._render_file(file_data_object)
 
     def _render_file(self, file_data_object):
-        file_identifier = '%s@%s' % (file_data_object['contents']['filename'], file_data_object['_id'])
+        file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['_id'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
-            text += '  - Hash: %s$%s\n' % (file_data_object['contents']['unnamed_file_contents']['hash_function'],
-                                           file_data_object['contents']['unnamed_file_contents']['hash_value'])
+            text += '  - Hash: %s$%s\n' % (file_data_object['file_content']['unnamed_file_content']['hash_function'],
+                                           file_data_object['file_content']['unnamed_file_content']['hash_value'])
             file_imports = self.objecthandler.get_file_imports_by_file(file_data_object['_id'])
             for file_import in file_imports:
                 text += '    - Imported: %s from %s\n' % (file_import['datetime_created'], file_import['source_url'])

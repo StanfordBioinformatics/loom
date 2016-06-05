@@ -1,8 +1,8 @@
-from .data_objects import file_struct
+from .data_objects import file
 
 # Workflow and related objects
 
-step_a_struct = {
+step_a = {
     'name': 'step_a',
     'command': 'cat {{ a1 }} {{ a2 }} > {{ a3 }}',
     'environment': {
@@ -35,7 +35,7 @@ step_a_struct = {
 }
 
 
-step_b_struct = {
+step_b = {
     'name': 'step_b',
     'command': 'cat {{ b1 }} {{ b2 }} {{ b2 }} > {{ c1 }}',
     'environment': {
@@ -73,7 +73,7 @@ step_b_struct = {
     ]
 }
 
-step_c_struct = {
+step_c = {
     'name': 'append_word',
     'command': 'cat {{ c1 }} > {{ result }} && echo _word >> {{ result }}',
     'environment': {
@@ -99,7 +99,7 @@ step_c_struct = {
 }
 
 
-flat_workflow_struct = {
+flat_workflow = {
     'name': 'flat',
     'inputs': [
         {
@@ -121,12 +121,12 @@ flat_workflow_struct = {
 	}
     ],
     'steps': [
-        step_a_struct,
-        step_b_struct
+        step_a,
+        step_b
     ]
 }
 
-nested_workflow_struct = {
+nested_workflow = {
     'name': 'nested',
     'fixed_inputs': [
         {
@@ -142,7 +142,7 @@ nested_workflow_struct = {
         }
     ],
     'steps': [
-        flat_workflow_struct,
-        step_c_struct
+        flat_workflow,
+        step_c
     ]
 }

@@ -1,64 +1,70 @@
 # DataObject and related objects
 
-file_contents_struct = {
+unnamed_file_content = {
     'hash_value': '1234asfd',
     'hash_function': 'md5', 
 }
 
-file_contents_struct_2 = {
+file_content = {
+    'filename': 'file1.txt',
+    'unnamed_file_content': unnamed_file_content,
+}
+
+unnamed_file_content2 = {
     'hash_value': 'xyz123',
     'hash_function': 'md5',
 }
 
-file_struct = {
-    'filename': 'file1.txt',
-    'file_contents': file_contents_struct,
-    'metadata': {'arbitrary': 'user', 'defined': 'data'}
-}
-
-file_struct_2 = {
+file_content_2 = {
     'filename': 'file2.txt',
-    'file_contents': file_contents_struct_2,
-    'metadata': {'whatever': 'you', 'want': ['goes', 'here']}
+    'unnamed_file_content': unnamed_file_content2,
 }
 
-file_array_struct = {
-    'data_objects': [
-        file_struct,
-        file_struct_2,
-    ]
+file = {
+    'file_content': file_content,
 }
 
-json_struct = {
-    'json_data': {'some': 'data', 'and': ['other', 'data']},
+file_2 = {
+    'file_content': file_content_2,
 }
 
-json_array_struct = {
-    'data_objects': [
-        json_struct
-    ]
+file_location = {
+    'unnamed_file_content': unnamed_file_content,
+    'url': 'file:///absolute/path/to/my/file.txt',
 }
 
-heterogeneous_array_struct = {
-    #This is illegal
-    'data_objects': [
-        file_struct,
-        json_struct
-    ]
+file_location_2 = {
+    'unnamed_file_content': unnamed_file_content2,
+    'url': 'file:///absolute/path/to/my/file2.txt',
 }
 
-local_storage_location_struct = {
-    'file_contents': file_contents_struct,
-    'file_path': '/absolute/path/to/my/file.txt',
-}
-
-local_storage_location_struct_2 = {
-    'file_contents': file_contents_struct_2,
-    'file_path': '/absolute/path/to/my/file2.txt',
-}
-
-file_import_struct = {
-    'file_data_object': file_struct,
+file_import = {
+    'file_data_object': file,
     'note': 'Here is where I got this',
-    'imported_from_path': 'file:///data/data/data/data.dat'
+    'source_url': 'file:///data/data/data/data.dat',
 }
+
+integer_data_object = {
+    'integer_content': {
+        'integer_value': 3
+    }
+}
+
+boolean_data_object = {
+    'boolean_content': {
+        'boolean_value': True
+    }
+}
+
+string_data_object = {
+    'string_content': {
+        'string_value': 'some text here'
+    }
+}
+
+json_data_object = {
+    'json_content': {
+        'json_value': {"data": "some text here"}
+    }
+}
+

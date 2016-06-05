@@ -124,16 +124,16 @@ class AbstractInput(AnalysisAppImmutableModel):
         max_length=255,
         choices=(
             ('file', 'File'),
+            ('boolean', 'Boolean'),
+            ('string', 'String'),
+            ('integer', 'Integer'),
+            ('json', 'JSON'),
             # ('file_array', 'File Array'),
-            # ('boolean', 'Boolean'),
             # ('boolean_array', 'Boolean Array'),
-            # ('string', 'String'),
             # ('string_array', 'String Array'),
-            # ('integer', 'Integer'),
             # ('integer_array', 'Integer Array'),
             # ('float', 'Float'),
             # ('float_array', 'Float Array'),
-            # ('json', 'JSON'),
             # ('json_array', 'JSON Array')
         )
     )

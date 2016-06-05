@@ -503,7 +503,7 @@ class FileHandler:
         temp_source.move_to(final_destination)
 
         final_file_import =  self._finalize_file_import(updated_file_import)
-        self._log('...finished importing file %s@%s' % (final_file_import['file_data_object']['content']['filename'],
+        self._log('...finished importing file %s@%s' % (final_file_import['file_data_object']['file_content']['filename'],
                                            final_file_import['file_data_object']['_id']))
         return final_file_import
     
@@ -517,7 +517,7 @@ class FileHandler:
         return self.objecthandler.update_file_import(
             file_import['_id'],
             { 'file_data_object':
-              { 'content':
+              { 'file_content':
                 {
                     'filename': source.get_filename(),
                     'unnamed_file_content': {

@@ -60,11 +60,11 @@ class WorkflowRunner(object):
                 raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
 
     def run(self):
-        workflow = self._get_workflow(self.args.workflow)
+        self.workflow = self._get_workflow(self.args.workflow)
         inputs = self._get_inputs()
         run_request = self.objecthandler.post_run_request(
             {
-                'workflow': workflow,
+                'workflow': self.workflow,
                 'inputs': inputs
             }
         )
@@ -135,17 +135,26 @@ class WorkflowRunner(object):
                 inputs.append(self._get_input(channel, input_id))
         return inputs
 
-    def _get_input(self, channel, input_id):
-        """If input_id is a local file, upload it.
+    def _get_input(self, channel, value):
+        """If input type is 'file' and value is a local file path, upload it.
         Otherwise let the server try to resolve the input_id.
         """
-        if os.path.isfile(input_id):
-            input_id = self._get_input_from_file(input_id)
-        return {'channel': channel, 'value': input_id}
+        if self._get_input_type(channel) == 'file':
+            if os.path.isfile(value):
+                value = self._get_input_from_file(value)
+        return {'channel': channel, 'value': value}
+
+    def _get_input_type(self, channel):
+        workflow_inputs = [input for input in self.workflow['inputs'] if input['channel']==channel]
+        if len(workflow_inputs) == 0:
+            raise Exception('Input %s not found in workflow' % channel)
+        elif len(workflow_inputs) > 1:
+            raise Exception('Multiple matches for input %s were found in workflow' % channel)
+        return input.get('type')
 
     def _get_input_from_file(self, input_filename):
         file_import = self.filehandler.import_file(input_filename, self.args.note)
-        return "%s@%s" % (file_import['file_data_object']['content']['filename'],
+        return "%s@%s" % (file_import['file_data_object']['file_content']['filename'],
                           file_import['file_data_object']['_id'])
 
 
