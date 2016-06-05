@@ -470,7 +470,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
                 ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File')])),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
@@ -482,7 +482,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
                 ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File')])),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
@@ -550,7 +550,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
                 ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File')])),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
@@ -562,7 +562,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
                 ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File')])),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
@@ -591,23 +591,28 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='taskrun',
+            name='inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunInput'),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
             name='logs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunLog'),
         ),
         migrations.AddField(
             model_name='taskrun',
+            name='outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunOutput'),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
+            name='resources',
+            field=models.ForeignKey(to='analysis.RequestedResourceSet'),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
             name='task_definition',
             field=models.ForeignKey(related_name='task_runs', to='analysis.TaskDefinition'),
-        ),
-        migrations.AddField(
-            model_name='taskrun',
-            name='task_run_inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunInput'),
-        ),
-        migrations.AddField(
-            model_name='taskrun',
-            name='task_run_outputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunOutput'),
         ),
         migrations.AddField(
             model_name='taskdefinitioninput',

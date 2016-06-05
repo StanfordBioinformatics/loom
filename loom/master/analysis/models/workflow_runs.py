@@ -5,7 +5,6 @@ from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from .task_definitions import TaskDefinition
 from .task_runs import TaskRun, TaskRunInput, TaskRunOutput
 from .workflows import Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
-from jinja2 import DictLoader, Environment
 from universalmodels import fields
 
 
@@ -52,7 +51,7 @@ class AbstractWorkflowRun(AnalysisAppInstanceModel):
 class WorkflowRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'workflow__name'
-        
+
     step_runs = fields.OneToManyField('AbstractWorkflowRun', related_name='parent_run')
     inputs = fields.OneToManyField('WorkflowRunInput', related_name='workflow_run')
     outputs = fields.OneToManyField('WorkflowRunOutput', related_name='workflow_run')

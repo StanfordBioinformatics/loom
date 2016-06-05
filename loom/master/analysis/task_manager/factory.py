@@ -39,7 +39,7 @@ class TaskManager:
     """ Abstract base class for TaskManagers."""
     
     @abc.abstractmethod
-    def run(cls, task_run, requested_resources):
+    def run(cls, task_run):
         """ Subclasses are required to implement this function prototype."""
         pass
 

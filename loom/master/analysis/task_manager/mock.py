@@ -9,8 +9,8 @@ class MockTaskManager(object):
     mock_file_counter = 0
 
     @classmethod
-    def run(cls, task_run, requested_resources):
-        for output in task_run.task_run_outputs.all():
+    def run(cls, task_run):
+        for output in task_run.outputs.all():
             data_object = cls._render_mock_file_data_object()
             output.update({'data_object': data_object})
 
