@@ -154,6 +154,18 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='MockTaskRunExecution',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='RequestedEnvironment',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
@@ -637,11 +649,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='taskrun',
-            name='logs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunLog'),
-        ),
-        migrations.AddField(
-            model_name='taskrun',
             name='outputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunOutput'),
         ),
@@ -684,6 +691,16 @@ class Migration(migrations.Migration):
             model_name='runrequest',
             name='workflow',
             field=models.ForeignKey(to='analysis.AbstractWorkflow'),
+        ),
+        migrations.AddField(
+            model_name='mocktaskrunexecution',
+            name='logs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunLog'),
+        ),
+        migrations.AddField(
+            model_name='mocktaskrunexecution',
+            name='task_run',
+            field=models.ForeignKey(to='analysis.TaskRun'),
         ),
         migrations.AddField(
             model_name='filelocation',

@@ -21,7 +21,6 @@ class TaskRun(AnalysisAppInstanceModel):
     outputs = fields.OneToManyField('TaskRunOutput', related_name='task_run')
     resources = fields.ForeignKey('RequestedResourceSet')
 
-    logs = fields.OneToManyField('TaskRunLog', related_name='task_run')
     # status = fields.CharField(
     #    max_length=255,
     #    default='ready_to_run',
@@ -144,6 +143,7 @@ class TaskRun(AnalysisAppInstanceModel):
     def mock_run(self):
         return self.run(is_mock=True)
 
+
 class TaskRunInput(AnalysisAppInstanceModel):
     task_definition_input = fields.ForeignKey('TaskDefinitionInput')
     data_object = fields.ForeignKey('DataObject')
@@ -154,18 +154,43 @@ class TaskRunInput(AnalysisAppInstanceModel):
         else:
             return self.step_run_input_as_fixed.channel
 
+
 class TaskRunOutput(AnalysisAppInstanceModel):
     task_definition_output = fields.ForeignKey('TaskDefinitionOutput')
     data_object = fields.ForeignKey('DataObject', null=True)
 
+    def push(self, data_object):
+        self.data_object = data_object
+        self.step_run_output.push(self.data_object)
+
+
+class TaskRunExecution(AnalysisAppInstanceModel):
+    task_run = fields.ForeignKey('TaskRun')
+    logs = fields.OneToManyField('TaskRunExecutionLog', related_name='task_run')
+    outputs = fields.OneToManyField('TaskRunExecutionOutput', related_name='task_run')
+    
+    class Meta:
+        abstract=True
+
+
+class MockTaskRunExecution(TaskRunExecution):
+    
+    pass
+
+
+class TaskRunExecutionOutput(AnalysisAppInstanceModel):
+    task_run_output = fields.ForeignKey('TaskRunOutput')
+    data_object = fields.ForeignKey('DataObject', null=True)
+
     def after_create_or_update(self):
+        # Push when data is added
         if self.data_object:
             self.push()
 
     def push(self):
-        self.step_run_output.push(self.data_object)
-        
-    
-class TaskRunLog(AnalysisAppInstanceModel):
+        self.task_run_output.push(self.data_object)
+
+
+class TaskRunExecutionLog(AnalysisAppInstanceModel):
     logfile = fields.ForeignKey('FileDataObject')
     logname = fields.CharField(max_length=255)
