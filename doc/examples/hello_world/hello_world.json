@@ -12,6 +12,13 @@
 	    "channel": "world"
 	}
     ],
+    "fixed_inputs": [
+	{
+	    "type": "string",
+	    "channel": "final_punc",
+	    "value": "!!"
+	}
+    ],
     "outputs": [
 	{
 	    "type": "file",
@@ -68,7 +75,7 @@
 	},
         {
             "name": "hello_world_step",
-            "command": "cat {{ hello_cap }} {{ world_cap }} > {{ hello_world }}",
+            "command": "echo '$(cat {{ hello_cap }} {{ world_cap }}){{ final_punc}}' > {{ hello_world }}",
             "environment": {
                 "docker_image": "ubuntu"
             },
@@ -82,6 +89,9 @@
 		},
                 {
 		    "channel": "world_cap"
+		},
+		{
+		    "channel": "final_punc"
 		}
             ],
             "outputs": [

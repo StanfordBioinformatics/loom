@@ -2,6 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from analysis.exceptions import *
 from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from .data_objects import DataObject
 from .task_definitions import TaskDefinition
 from .task_runs import TaskRun, TaskRunInput, TaskRunOutput
 from .workflows import Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
@@ -26,10 +27,11 @@ class AbstractWorkflowRun(AnalysisAppInstanceModel):
         def _add_inputs_outputs_from_workflow(run, workflow):
             run.update({
                 'inputs': [{'channel': input.channel, 'type': input.type} for input in workflow.inputs.all()],
+                'fixed_inputs': [{'channel': input.channel, 'type': input.type} for input in workflow.fixed_inputs.all()],
                 'outputs': [{'channel': output.channel, 'type': output.type} for output in workflow.outputs.all()]
             })
             return run
-
+        
         if workflow.is_step():
             run = {'step': workflow.to_struct()}
             run = _add_inputs_outputs_from_workflow(run, workflow)
@@ -54,6 +56,7 @@ class WorkflowRun(AbstractWorkflowRun):
 
     step_runs = fields.OneToManyField('AbstractWorkflowRun', related_name='parent_run')
     inputs = fields.OneToManyField('WorkflowRunInput', related_name='workflow_run')
+    fixed_inputs = fields.OneToManyField('WorkflowRunInput', related_name='workflow_run_as_fixed_input')
     outputs = fields.OneToManyField('WorkflowRunOutput', related_name='workflow_run')
     workflow = fields.ForeignKey('Workflow')
     #status = fields.CharField(
@@ -70,6 +73,11 @@ class WorkflowRun(AbstractWorkflowRun):
     def after_create_or_update(self):
         self._initialize_step_runs()
         self._initialize_channels()
+
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed now on creation
+        for input in self.fixed_inputs.all():
+            input.initial_push()
 
     def _initialize_step_runs(self):
         """Create a run for each step
@@ -89,6 +97,7 @@ class WorkflowRun(AbstractWorkflowRun):
 
     def _get_sources(self):
         sources = [source for source in self.inputs.all()]
+        sources.extend([source for source in self.fixed_inputs.all()])
         for step_run in self.step_runs.all():
             sources.extend([source for source in step_run.downcast().outputs.all()])
         return sources
@@ -105,6 +114,7 @@ class StepRun(AbstractWorkflowRun):
     NAME_FIELD = 'step__name'
 
     inputs = fields.OneToManyField('StepRunInput', related_name='step_run')
+    fixed_inputs = fields.OneToManyField('FixedStepRunInput', related_name='step_run')
     outputs = fields.OneToManyField('StepRunOutput', related_name='step_run')
     step = fields.ForeignKey('Step', related_name='step_run')
     task_runs = fields.OneToManyField('TaskRun', related_name='step_run')
@@ -119,6 +129,26 @@ class StepRun(AbstractWorkflowRun):
     #    )
     #)
 
+    def after_create_or_update(self):
+        self._initialize_channels()
+
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed now on creation
+        for input in self.fixed_inputs.all():
+            input.initial_push()
+
+    def _initialize_channels(self):
+        """The only Channels created here are to handle data from StepRun fixed inputs.
+        These are unusual, because the FixedInput is both source and destination
+        for the channel. Normally channels transmit data between objects, but here
+        they just act as a gatekeeper to know when the data has been consumed and
+        to integrate the data with other inputs for the step.
+        """
+        from .channels import Channel
+        for input in self.fixed_inputs.all():
+            channel = Channel.create_from_sender(input, input.channel)
+            channel.add_receiver(input)
+
     def is_step(self):
         return True
     
@@ -129,6 +159,9 @@ class StepRun(AbstractWorkflowRun):
 
     def _is_ready_for_task_run(self):
         for input in self.inputs.all():
+            if not input.is_ready():
+                return False
+        for input in self.fixed_inputs.all():
             if not input.is_ready():
                 return False
         return True
@@ -158,25 +191,42 @@ class TypedInputOutput(InputOutput):
         abstract = True
 
 
-class StepRunInput(TypedInputOutput):
-
-    task_run_inputs = fields.OneToManyField('TaskRunInput', related_name='step_run_input')
+class AbstractStepRunInput(TypedInputOutput):
 
     def push(self):
         self.step_run.push()
 
     def is_ready(self):
-        return not self.from_channel.is_empty()
+        
+        try:
+            return not self.from_channel.is_empty()
+        except ObjectDoesNotExist:
+            # This method be called before channels are connected
+            return False
 
     def pop(self):
         return self.from_channel.pop()
 
+    class Meta:
+        abstract=True
 
-class WorkflowRunInput(TypedInputOutput):
 
-    def push(self):
-        data_object = self.from_channel.pop()
+class StepRunInput(AbstractStepRunInput):
+
+    task_run_inputs = fields.OneToManyField('TaskRunInput', related_name='step_run_input')
+
+
+class FixedStepRunInput(AbstractStepRunInput):
+
+    task_run_inputs = fields.OneToManyField('TaskRunInput', related_name='step_run_input_as_fixed')
+        
+    def initial_push(self):
+        data_object = self._get_data_object()
         self.to_channel.push(data_object)
+
+    def _get_data_object(self):
+        fixed_step_input = self.step_run.step.get_fixed_input(self.channel)
+        return DataObject.get_by_value(fixed_step_input.value, self.type)
 
 
 class StepRunOutput(TypedInputOutput):
@@ -188,6 +238,22 @@ class StepRunOutput(TypedInputOutput):
 
     def get_filename(self):
         return self.step_run.step.get_output(self.channel).filename
+
+
+class WorkflowRunInput(TypedInputOutput):
+
+    def push(self):
+        data_object = self.from_channel.pop()
+        self.to_channel.push(data_object)
+
+    def initial_push(self):
+        data_object = self._get_data_object()
+        self.to_channel.push(data_object)
+
+    def _get_data_object(self):
+        fixed_workflow_input = self.workflow_run_as_fixed_input.workflow.get_fixed_input(self.channel)
+        return DataObject.get_by_value(fixed_workflow_input.value, self.type)
+
 
 class WorkflowRunOutput(TypedInputOutput):
 

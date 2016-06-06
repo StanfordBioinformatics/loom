@@ -9,6 +9,16 @@ from analysis.models.base import AnalysisAppInstanceModel, \
 from universalmodels import fields
 
 
+def get_file_root():
+    if not settings.FILE_ROOT:
+        raise Exception('FILE_ROOT is not set')
+    return settings.FILE_ROOT
+
+def get_import_dir():
+    if not settings.IMPORT_DIR:
+        raise Exception('IMPORT_DIR is not set')
+    return settings.IMPORT_DIR
+
 class DataObject(AnalysisAppInstanceModel):
     """A reference to DataObjectContent. While there is only one
     object for each set of content, there can be many references
@@ -107,16 +117,11 @@ class FileLocation(AnalysisAppInstanceModel):
 
     @classmethod
     def _get_path_for_import(cls, file_data_object):
-        if not settings.FILE_ROOT:
-            raise Exception('FILE_ROOT is not set')
-
         if settings.BROWSEABLE_FILE_STORAGE:
-            if not settings.IMPORT_DIR:
-                raise Exception('IMPORT_DIR is not set')
             return os.path.join(
                 '/',
-                settings.FILE_ROOT,
-                settings.IMPORT_DIR,
+                get_file_root(),
+                get_import_dir(),
                 "%s-%s-%s" % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
                     file_data_object._id,
@@ -126,7 +131,7 @@ class FileLocation(AnalysisAppInstanceModel):
         else:
             return os.path.join(
                 '/',
-                settings.FILE_ROOT,
+                get_file_root(),
                 '%s-%s' % (
                     file_data_object.file_content.unnamed_file_content.hash_function,
                     file_data_object.file_content.unnamed_file_content.hash_value
@@ -143,8 +148,8 @@ class FileLocation(AnalysisAppInstanceModel):
     def _get_temp_path_for_import(cls):
         return os.path.join(
             '/',
-            settings.FILE_ROOT,
-            settings.IMPORT_DIR,
+            get_file_root(),
+            get_import_dir(),
             'tmp',
             uuid.uuid4().hex
         )

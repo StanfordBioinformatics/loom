@@ -25,6 +25,11 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
     def is_step(self):
         return self.downcast().is_step()
 
+    def get_fixed_input(self, channel):
+        inputs = self.downcast().fixed_inputs.filter(channel=channel)
+        assert inputs.count() == 1
+        return inputs.first()
+
 
 class Workflow(AbstractWorkflow):
     """A collection of steps or workflows
@@ -32,9 +37,10 @@ class Workflow(AbstractWorkflow):
 
     steps = fields.ManyToManyField('AbstractWorkflow', related_name='parent_workflow')
     inputs = fields.ManyToManyField('WorkflowInput')
+    fixed_inputs = fields.ManyToManyField('FixedWorkflowInput')
     outputs = fields.ManyToManyField('WorkflowOutput')
 
-    def after_create(self):
+    def after_create_or_update(self):
         self._validate_workflow()
 
     def _validate_workflow(self):
@@ -44,6 +50,8 @@ class Workflow(AbstractWorkflow):
         source_counts = {}
         for input in self.inputs.all():
             self._increment_sources_count(source_counts, input.channel)
+        for fixed_input in self.fixed_inputs.all():
+            self._increment_sources_count(source_counts, fixed_input.channel)
         for step in self.steps.all():
             step = step.downcast()
             for output in step.outputs.all():
@@ -90,6 +98,7 @@ class Step(AbstractWorkflow):
     environment = fields.ForeignKey('RequestedEnvironment')
     resources = fields.ForeignKey('RequestedResourceSet')
     inputs = fields.ManyToManyField('StepInput')
+    fixed_inputs = fields.ManyToManyField('FixedStepInput')
     outputs = fields.ManyToManyField('StepOutput')
 
     def is_step(self):
@@ -119,7 +128,6 @@ class RequestedResourceSet(AnalysisAppImmutableModel):
 
 class AbstractInput(AnalysisAppImmutableModel):
 
-    hint = fields.CharField(max_length=255, null=True)
     type = fields.CharField(
         max_length=255,
         choices=(
@@ -142,13 +150,39 @@ class AbstractInput(AnalysisAppImmutableModel):
     class Meta:
         abstract = True
 
-        
-class WorkflowInput(AbstractInput):
+
+class AbstractRuntimeInput(AbstractInput):
+
+    hint = fields.CharField(max_length=255, null=True)
+
+    class Meta:
+        abstract = True
+
+
+class AbstractFixedInput(AbstractInput):
+
+    value = fields.CharField(max_length=255)
+
+    class Meta:
+        abstract = True
+
+
+class WorkflowInput(AbstractRuntimeInput):
 
     pass
 
 
-class StepInput(AbstractInput):
+class StepInput(AbstractRuntimeInput):
+
+    pass
+
+
+class FixedStepInput(AbstractFixedInput):
+
+    pass
+
+
+class FixedWorkflowInput(AbstractFixedInput):
 
     pass
 

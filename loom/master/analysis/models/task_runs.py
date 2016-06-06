@@ -1,5 +1,4 @@
 from copy import deepcopy
-from django.core import exceptions
 from django.utils import timezone
 from jinja2 import DictLoader, Environment
 
@@ -66,7 +65,9 @@ class TaskRun(AnalysisAppInstanceModel):
 
     @classmethod
     def _create_task_run_inputs(cls, step_run):
-        return [cls._create_task_run_input(input) for input in step_run.inputs.all()]
+        inputs = [cls._create_task_run_input(input) for input in step_run.inputs.all()]
+        inputs.extend([cls._create_task_run_input(input) for input in step_run.fixed_inputs.all()])
+        return inputs
 
     @classmethod
     def _create_task_run_input(cls, step_run_input):
@@ -108,7 +109,7 @@ class TaskRun(AnalysisAppInstanceModel):
     def _get_task_run_input_context(cls, task_run_inputs):
         context = {}
         for task_run_input in task_run_inputs:
-            channel = task_run_input.step_run_input.channel
+            channel = task_run_input.get_channel()
             substitution_value = task_run_input.task_definition_input.get_substitution_value()
             context[channel] = substitution_value
         return context
@@ -147,6 +148,11 @@ class TaskRunInput(AnalysisAppInstanceModel):
     task_definition_input = fields.ForeignKey('TaskDefinitionInput')
     data_object = fields.ForeignKey('DataObject')
 
+    def get_channel(self):
+        if self.step_run_input is not None:
+            return self.step_run_input.channel
+        else:
+            return self.step_run_input_as_fixed.channel
 
 class TaskRunOutput(AnalysisAppInstanceModel):
     task_definition_output = fields.ForeignKey('TaskDefinitionOutput')

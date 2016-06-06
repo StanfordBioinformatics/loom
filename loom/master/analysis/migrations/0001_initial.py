@@ -116,6 +116,32 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='FixedStepInput',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+                ('channel', models.CharField(max_length=255)),
+                ('value', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='FixedWorkflowInput',
+            fields=[
+                ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+                ('channel', models.CharField(max_length=255)),
+                ('value', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='InputOutput',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
@@ -167,9 +193,9 @@ class Migration(migrations.Migration):
             name='StepInput',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-                ('hint', models.CharField(max_length=255, null=True)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
                 ('channel', models.CharField(max_length=255)),
+                ('hint', models.CharField(max_length=255, null=True)),
             ],
             options={
                 'abstract': False,
@@ -296,9 +322,9 @@ class Migration(migrations.Migration):
             name='WorkflowInput',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
-                ('hint', models.CharField(max_length=255, null=True)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
                 ('channel', models.CharField(max_length=255)),
+                ('hint', models.CharField(max_length=255, null=True)),
             ],
             options={
                 'abstract': False,
@@ -361,6 +387,18 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
+            name='FixedStepRunInput',
+            fields=[
+                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutput',),
         ),
         migrations.CreateModel(
             name='IntegerDataContent',
@@ -446,6 +484,7 @@ class Migration(migrations.Migration):
                 ('abstractworkflow_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflow')),
                 ('command', models.CharField(max_length=255)),
                 ('environment', models.ForeignKey(to='analysis.RequestedEnvironment')),
+                ('fixed_inputs', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.FixedStepInput')),
                 ('inputs', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.StepInput')),
                 ('outputs', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.StepOutput')),
                 ('resources', models.ForeignKey(to='analysis.RequestedResourceSet')),
@@ -459,6 +498,7 @@ class Migration(migrations.Migration):
             name='StepRun',
             fields=[
                 ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowRun')),
+                ('fixed_inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.FixedStepRunInput')),
             ],
             options={
                 'abstract': False,
@@ -526,6 +566,7 @@ class Migration(migrations.Migration):
             name='Workflow',
             fields=[
                 ('abstractworkflow_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflow')),
+                ('fixed_inputs', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.FixedWorkflowInput')),
                 ('inputs', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.WorkflowInput')),
                 ('outputs', sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.WorkflowOutput')),
                 ('steps', sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='parent_workflow', to='analysis.AbstractWorkflow')),
@@ -681,6 +722,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='workflowrun',
+            name='fixed_inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_as_fixed_input', to='analysis.WorkflowRunInput'),
+        ),
+        migrations.AddField(
+            model_name='workflowrun',
             name='inputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run', to='analysis.WorkflowRunInput'),
         ),
@@ -743,6 +789,11 @@ class Migration(migrations.Migration):
             model_name='runrequest',
             name='outputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.RunRequestOutput'),
+        ),
+        migrations.AddField(
+            model_name='fixedstepruninput',
+            name='task_run_inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run_input_as_fixed', to='analysis.TaskRunInput'),
         ),
         migrations.AddField(
             model_name='fileimport',
