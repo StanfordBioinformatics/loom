@@ -4,7 +4,7 @@ from analysis.exceptions import *
 from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from .data_objects import DataObject
 from .task_definitions import TaskDefinition
-from .task_runs import TaskRun, TaskRunInput, TaskRunOutput
+from .task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
 from .workflows import Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
 from universalmodels import fields
 
@@ -117,7 +117,7 @@ class StepRun(AbstractWorkflowRun):
     fixed_inputs = fields.OneToManyField('FixedStepRunInput', related_name='step_run')
     outputs = fields.OneToManyField('StepRunOutput', related_name='step_run')
     step = fields.ForeignKey('Step', related_name='step_run')
-    task_runs = fields.OneToManyField('TaskRun', related_name='step_run')
+    task_runs = fields.ManyToManyField('TaskRun', related_name='step_runs')
     #status = fields.CharField(
     #    max_length=255,
     #    default='waiting',
@@ -154,7 +154,7 @@ class StepRun(AbstractWorkflowRun):
     
     def push(self):
         if self._is_ready_for_task_run():
-            task_run = TaskRun.create_from_step_run(self)
+            task_run = TaskRunBuilder.create_from_step_run(self)
             task_run.mock_run()
 
     def _is_ready_for_task_run(self):
@@ -213,12 +213,12 @@ class AbstractStepRunInput(TypedInputOutput):
 
 class StepRunInput(AbstractStepRunInput):
 
-    task_run_inputs = fields.OneToManyField('TaskRunInput', related_name='step_run_input')
+    task_run_inputs = fields.ManyToManyField('TaskRunInput', related_name='step_run_inputs')
 
 
 class FixedStepRunInput(AbstractStepRunInput):
 
-    task_run_inputs = fields.OneToManyField('TaskRunInput', related_name='step_run_input_as_fixed')
+    task_run_inputs = fields.ManyToManyField('TaskRunInput', related_name='fixed_step_run_inputs')
         
     def initial_push(self):
         data_object = self._get_data_object()
@@ -231,7 +231,7 @@ class FixedStepRunInput(AbstractStepRunInput):
 
 class StepRunOutput(TypedInputOutput):
     
-    task_run_outputs = fields.OneToManyField('TaskRunOutput', related_name='step_run_output')
+    task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
     
     def push(self, data_object):
         self.to_channel.push(data_object)

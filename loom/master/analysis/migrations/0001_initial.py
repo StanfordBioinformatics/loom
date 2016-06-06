@@ -282,7 +282,20 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='TaskRunInput',
+            name='TaskRunExecutionLog',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('logname', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunExecutionOutput',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -294,12 +307,11 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='TaskRunLog',
+            name='TaskRunInput',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('logname', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -643,6 +655,16 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.TaskDefinitionInput'),
         ),
         migrations.AddField(
+            model_name='taskrunexecutionoutput',
+            name='data_object',
+            field=models.ForeignKey(to='analysis.DataObject', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrunexecutionoutput',
+            name='task_run_output',
+            field=models.ForeignKey(to='analysis.TaskRunOutput'),
+        ),
+        migrations.AddField(
             model_name='taskrun',
             name='inputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunInput'),
@@ -695,7 +717,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='mocktaskrunexecution',
             name='logs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunLog'),
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunExecutionLog'),
+        ),
+        migrations.AddField(
+            model_name='mocktaskrunexecution',
+            name='outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunExecutionOutput'),
         ),
         migrations.AddField(
             model_name='mocktaskrunexecution',
@@ -763,19 +790,19 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.Workflow'),
         ),
         migrations.AddField(
-            model_name='taskrunlog',
+            model_name='taskrunexecutionlog',
             name='logfile',
             field=models.ForeignKey(to='analysis.FileDataObject'),
         ),
         migrations.AddField(
             model_name='steprunoutput',
             name='task_run_outputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run_output', to='analysis.TaskRunOutput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_outputs', to='analysis.TaskRunOutput'),
         ),
         migrations.AddField(
             model_name='stepruninput',
             name='task_run_inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run_input', to='analysis.TaskRunInput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_inputs', to='analysis.TaskRunInput'),
         ),
         migrations.AddField(
             model_name='steprun',
@@ -795,7 +822,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='steprun',
             name='task_runs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.TaskRun'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_runs', to='analysis.TaskRun'),
         ),
         migrations.AddField(
             model_name='runrequest',
@@ -810,7 +837,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='fixedstepruninput',
             name='task_run_inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run_input_as_fixed', to='analysis.TaskRunInput'),
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='fixed_step_run_inputs', to='analysis.TaskRunInput'),
         ),
         migrations.AddField(
             model_name='fileimport',
