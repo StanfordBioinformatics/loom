@@ -6,9 +6,7 @@ import os
 import warnings
 import sys
 
-from loom.client.common import get_settings_manager_from_parsed_args
-from loom.client.common import add_settings_options_to_parser
-from loom.client.common import read_as_json_or_yaml
+from loom.client.common import get_server_url, read_as_json_or_yaml
 from loom.client.exceptions import *
 from loom.client.upload import WorkflowUploader, FileUploader
 from loom.common.filehandler import FileHandler
@@ -261,8 +259,7 @@ class WorkflowRunner(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
-        self.master_url = self.settings_manager.get_server_url_for_client()
+        self.master_url = get_server_url()
         if logger is None:
             logger = get_console_logger(name=__file__)
         self.logger = logger
@@ -279,7 +276,6 @@ class WorkflowRunner(object):
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('workflow', metavar='WORKFLOW', help='Workflow ID or file path')
         parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*', help='Data object ID or file path for inputs')
-        parser = add_settings_options_to_parser(parser)
         return parser
 
     def run(self):

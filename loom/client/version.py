@@ -1,8 +1,7 @@
 #!/usr/bin/env python
     
 import argparse
-from loom.client.common import add_settings_options_to_parser
-from loom.client.common import get_settings_manager_from_parsed_args
+from loom.client.common import get_server_url
 import loom.common.version 
 from loom.common.objecthandler import ObjectHandler
 
@@ -20,9 +19,7 @@ class Version:
         self.objecthandler = self._get_objecthandler()
 
     def _get_objecthandler(self):
-        settings_manager = get_settings_manager_from_parsed_args(
-            self.args)
-        master_url = settings_manager.get_server_url_for_client()
+        master_url = get_server_url()
         return  ObjectHandler(master_url)
 
     def _get_args(self):
@@ -36,7 +33,6 @@ class Version:
         # Otherwise create a top-level parser here.
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
-        parser = add_settings_options_to_parser(parser)
         return parser
 
     def run(self):

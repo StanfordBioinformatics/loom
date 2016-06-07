@@ -20,7 +20,7 @@ class SettingsManager:
 
     At this point, required settings must be defined. Otherwise, throw an error.
     """
-    DEFAULT_SETTINGS_FILE = 'default_settings.ini'
+    DEFAULT_SETTINGS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'default_settings.ini'))
     DEPLOY_SETTINGS_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'deploy_settings.ini')
 
     def __init__(self, **kwargs):
@@ -57,7 +57,10 @@ class SettingsManager:
         self.save_settings_to_file(SettingsManager.DEPLOY_SETTINGS_FILE, section='deploy')
 
     def load_deploy_settings_file(self):
-        self.load_settings_from_file(SettingsManager.DEPLOY_SETTINGS_FILE, section='deploy')
+        try:
+            self.load_settings_from_file(SettingsManager.DEPLOY_SETTINGS_FILE, section='deploy')
+        except:
+            raise SettingsError("Could not open server deploy settings. You might need to run \"loom server create\" first.")
 
     def delete_deploy_settings_file(self):
         os.remove(SettingsManager.DEPLOY_SETTINGS_FILE)
@@ -67,15 +70,20 @@ class SettingsManager:
             config = SafeConfigParser(defaults=self.settings)
             config.optionxform = str                    # preserve uppercase in settings names
             config.read(settings_file)
-            self.settings = dict(config.items(section))
+            items = dict(config.items(section))
+            for item in items:
+                if '~' in items[item]:
+                    items[item] = os.path.expanduser(items[item])
+            self.settings = items
             if self.verbose:
                 print "Loaded settings from %s." % settings_file
         except: 
-            raise Exception("Failed to open settings file %s." % settings_file)
+            raise SettingsError("Failed to open settings file %s." % settings_file)
 
     def save_settings_to_file(self, settings_file, section):
         if not self.settings:
-            raise Exception("No settings loaded yet.")
+            raise SettingsError("No settings loaded yet.")
+        self.make_settings_directory(settings_file)
         config = SafeConfigParser()
         config.optionxform = str                    # preserve uppercase in settings names
         config.add_section(section)
@@ -84,16 +92,16 @@ class SettingsManager:
         with open(settings_file, 'w') as fp:
             config.write(fp)
 
-    def make_settings_directory(self):
-        if os.path.exists(os.path.dirname(self.settings_file)):
+    def make_settings_directory(self, settings_file):
+        if os.path.exists(os.path.dirname(settings_file)):
             return
         else:
             try:
-                os.makedirs(os.path.dirname(self.settings_file))
+                os.makedirs(os.path.dirname(settings_file))
                 if self.verbose:
-                    print "Created directory %s." % os.path.dirname(self.settings_file)
+                    print "Created directory %s." % os.path.dirname(settings_file)
             except Exception as e:
-                raise Exception("Failed to create directory for the settings file %s (%s)" % (os.path.dirname(self.settings_file), e))
+                raise SettingsError("Failed to create directory for the settings file %s (%s)" % (os.path.dirname(settings_file), e))
 
     def delete_saved_settings(self):
         try:
@@ -104,7 +112,7 @@ class SettingsManager:
                 print "Removed settings file %s." % settings_file
             self.remove_dir_if_empty(os.path.dirname(self.settings_file))
         except OSError as e:
-            raise Exception("No settings file to delete at %s. (%s)" % (self.settings_file, e))
+            raise SettingsError("No settings file to delete at %s. (%s)" % (self.settings_file, e))
 
     def remove_dir_if_empty(self, dirpath):
         if os.listdir(dirpath) == []:
@@ -112,46 +120,19 @@ class SettingsManager:
             if self.verbose:
                 print "Removed empty directory %s." % dirpath
 
-    def get_django_env_settings(self):
-        """
-        These are settings that will be passed out as environment variables before launching 
-        the webserver. This allows master/loomserver/settings.py to use these settings.
-        Passing settings this way only works if the webserver is on the same machine as the
-        client launching it.
-
-        TODO: decide how to pass settings to Django server when client is on a different machine
-        """
+    def get_env_settings(self):
+        """Return a dict of settings as environment variable-friendly strings."""
         export_settings = {}
-        setting_keys_to_export = [
-            'DJANGO_LOGFILE',
-            'WEBSERVER_LOGFILE',
-            'LOG_LEVEL',
-            'WORKER_TYPE',
-            'MASTER_URL_FOR_WORKER',
-            'FILE_SERVER_FOR_WORKER',
-            'FILE_ROOT_FOR_WORKER',
-            'MASTER_URL_FOR_CLIENT',
-            'FILE_SERVER_FOR_CLIENT',
-            'FILE_SERVER_TYPE',
-            'FILE_ROOT',
-            'IMPORT_DIR',
-            'STEP_RUNS_DIR',
-            'BUCKET_ID',
-            'PROJECT_ID',
-            'ANSIBLE_PEM_FILE',
-            'GCE_KEY_FILE',
-            'WORKER_VM_IMAGE',
-            'WORKER_LOCATION',
-            'WORKER_DISK_TYPE',
-            'WORKER_DISK_SIZE',
-            'WORKER_DISK_MOUNT_POINT',
-            'WORKER_NETWORK',
-            'WORKER_TAGS',
-            ]
-        for key in setting_keys_to_export:
-            value = self.settings.get(key)
+        for key in self.settings:
+            value = self.settings[key]
             if value is not None:
-                if isinstance(value, list): # Expand arrays into comma-separated strings, since environment variables must be strings
+                if isinstance(value, list): # Expand lists into comma-separated strings, since environment variables must be strings
                     value = ','.join(value)
+                elif isinstance(value, str) and '~' in value: # Expand user home directory to absolute path
+                    value = os.path.expanduser(value)
                 export_settings[key] = value
         return export_settings
+
+
+class SettingsError(Exception):
+    pass

@@ -193,18 +193,25 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+# Graph Models settings to generate model schema plots
+GRAPH_MODELS = {
+    'include_models': include_models,
+}
+
+# Get settings from the environment and expand paths if needed
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 FILE_SERVER_FOR_WORKER = os.getenv('FILE_SERVER_FOR_WORKER', socket.getfqdn())
-FILE_ROOT = os.getenv('FILE_ROOT', os.path.join(os.getenv('HOME'),'working_dir'))
+FILE_ROOT = os.getenv('FILE_ROOT')
 FILE_ROOT_FOR_WORKER = os.getenv('FILE_ROOT_FOR_WORKER')
 
 FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE')
 IMPORT_DIR = os.getenv('IMPORT_DIR')
 STEP_RUNS_DIR = os.getenv('STEP_RUNS_DIR')
-BUCKET_ID = os.getenv('BUCKET_ID')
 PROJECT_ID = os.getenv('PROJECT_ID')
+BUCKET_ID = os.getenv('BUCKET_ID')
 ANSIBLE_PEM_FILE = os.getenv('ANSIBLE_PEM_FILE')
+ANSIBLE_GCE_INI_FILE = os.getenv('ANSIBLE_GCE_INI_FILE')
 GCE_KEY_FILE = os.getenv('GCE_KEY_FILE')
 WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
 WORKER_LOCATION = os.getenv('WORKER_LOCATION')
@@ -214,7 +221,20 @@ WORKER_DISK_MOUNT_POINT = os.getenv('WORKER_DISK_MOUNT_POINT')
 WORKER_NETWORK = os.getenv('WORKER_NETWORK')
 WORKER_TAGS = os.getenv('WORKER_TAGS')
 
-# Graph Models settings to generate model schema plots
-GRAPH_MODELS = {
-    'include_models': include_models,
+# Define dicts exposed by the API
+WORKER_INFO_DICT = {
+    'FILE_SERVER_FOR_WORKER': FILE_SERVER_FOR_WORKER,
+    'FILE_ROOT_FOR_WORKER': FILE_ROOT_FOR_WORKER,
+    'LOG_LEVEL': LOG_LEVEL,
 }
+
+FILE_HANDLER_INFO_DICT = {
+    'FILE_SERVER_FOR_WORKER': FILE_SERVER_FOR_WORKER,
+    'FILE_SERVER_TYPE': FILE_SERVER_TYPE,
+    'FILE_ROOT': FILE_ROOT,
+    'IMPORT_DIR': IMPORT_DIR,
+    'STEP_RUNS_DIR': STEP_RUNS_DIR,
+    'BUCKET_ID': BUCKET_ID,
+    'PROJECT_ID': PROJECT_ID,
+}
+

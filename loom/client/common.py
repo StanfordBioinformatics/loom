@@ -62,9 +62,14 @@ def get_gcloud_server_ip(name):
     return ip
 
 def get_server_url():
-    # TODO: move protocol and bind_port from settings file to server.ini since they are required to construct a URL to reach the server
+    # TODO: add protocol and bind_port to server.ini since they are required to construct a URL to reach the server
+    # Think about how to keep in sync with default_settings.ini and deploy_settings.ini
+    # Would remove dependency on SettingsManger from other components.
     settings_manager = loom.client.settings_manager.SettingsManager()
-    settings_manager.load_deploy_settings_file()
+    try:
+        settings_manager.load_deploy_settings_file()
+    except:
+        raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
     ip = get_server_ip()
@@ -80,21 +85,6 @@ def is_server_running():
             raise Exception("unexpected status code %s from server" % response.status_code)
     except requests.exceptions.ConnectionError:
         return False
-
-def add_settings_options_to_parser(parser):
-    parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
-                        help='Settings indicate how to launch a server or what running server to connect to. '\
-                        'To initialize settings use "loom config".')
-    parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--no_save_settings', action='store_true', help=argparse.SUPPRESS)
-    return parser
-
-def get_settings_manager_from_parsed_args(args):
-    return settings_manager.SettingsManager(
-        settings_file=args.settings,
-        require_default_settings=args.require_default_settings,
-        save_settings=not args.no_save_settings
-    )
 
 def read_as_json_or_yaml(file):
     

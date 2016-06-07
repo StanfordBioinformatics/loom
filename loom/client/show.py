@@ -6,9 +6,7 @@ import os
 import sys
 import yaml
     
-from loom.client import settings_manager
-from loom.client.common import get_settings_manager_from_parsed_args
-from loom.client.common import add_settings_options_to_parser
+from loom.client.common import get_server_url
 from loom.client.exceptions import *
 from loom.common import filehandler, objecthandler
 
@@ -21,12 +19,10 @@ class AbstractShowHandler(object):
         """Common init tasks for all Show classes
         """
         self.args = args
-        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
-        self.master_url = self.settings_manager.get_server_url_for_client()
+        self.master_url = get_server_url()
 
     @classmethod
     def get_parser(cls, parser):
-        parser = add_settings_options_to_parser(parser)
         return parser
 
 

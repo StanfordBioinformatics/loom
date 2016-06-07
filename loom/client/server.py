@@ -72,8 +72,6 @@ class BaseServerControls:
     """Base class for managing the Loom server. Handles argument parsing, 
     subcommand routing, and implements common base methods such as setting
     the server type and checking the server status.
-
-    Does not need a SettingsManager to accomplish these tasks.
     """
     def __init__(self, args=None):
         if args is None:
@@ -175,7 +173,7 @@ class LocalServerControls(BaseServerControls):
         if not self.args.fg_webserver:
             cmd = cmd + " --daemon"
         if self.args.verbose:
-            print("Starting webserver with command:\n%s" % cmd)
+            print("Starting webserver with command:\n%s\nand environment:\n%s" % (cmd, env))
         process = subprocess.Popen(
             cmd,
             shell=True,
@@ -195,7 +193,7 @@ class LocalServerControls(BaseServerControls):
         loglevel = self.settings_manager.settings['LOG_LEVEL']
         cmd = "%s %s start --pidfile %s --logfile %s --loglevel %s" % (sys.executable, DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
         if self.args.verbose:
-            print("Starting loom daemon with command:\n%s" % cmd)
+            print("Starting loom daemon with command:\n%s\nand environment:\n%s" % (cmd, env))
         process = subprocess.Popen(
             cmd,
             shell=True,
@@ -288,7 +286,13 @@ class LocalServerControls(BaseServerControls):
         return env
 
     def _export_django_settings(self, env):
-        env.update(self.settings_manager.get_django_env_settings())
+        """
+        Update the environment with settings before launching the webserver.
+        This allows master/loomserver/settings.py to use these settings.
+        Passing settings this way only works if the webserver is on the same
+        machine as the client launching it.
+        """
+        env.update(self.settings_manager.get_env_settings())
         return env
 
     def create(self):
