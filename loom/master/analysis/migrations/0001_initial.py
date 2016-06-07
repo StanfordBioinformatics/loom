@@ -142,7 +142,7 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='InputOutput',
+            name='InputOutputNode',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -415,14 +415,14 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='FixedStepRunInput',
             fields=[
-                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.inputoutput',),
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='IntegerDataContent',
@@ -482,25 +482,25 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RunRequestInput',
             fields=[
-                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('value', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.inputoutput',),
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='RunRequestOutput',
             fields=[
-                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.inputoutput',),
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='Step',
@@ -532,26 +532,26 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='StepRunInput',
             fields=[
-                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.inputoutput',),
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='StepRunOutput',
             fields=[
-                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.inputoutput',),
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='StringDataContent',
@@ -613,26 +613,26 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='WorkflowRunInput',
             fields=[
-                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.inputoutput',),
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='WorkflowRunOutput',
             fields=[
-                ('inputoutput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutput')),
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
             ],
             options={
                 'abstract': False,
             },
-            bases=('analysis.inputoutput',),
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.AddField(
             model_name='taskrunoutput',
@@ -752,7 +752,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='channeloutput',
             name='receiver',
-            field=models.OneToOneField(related_name='from_channel', null=True, to='analysis.InputOutput'),
+            field=models.OneToOneField(related_name='from_channel', null=True, to='analysis.InputOutputNode'),
+        ),
+        migrations.AddField(
+            model_name='channel',
+            name='data_objects',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, to='analysis.DataObject'),
         ),
         migrations.AddField(
             model_name='channel',
@@ -762,7 +767,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='channel',
             name='sender',
-            field=models.OneToOneField(related_name='to_channel', null=True, to='analysis.InputOutput'),
+            field=models.OneToOneField(related_name='to_channel', null=True, to='analysis.InputOutputNode'),
         ),
         migrations.AddField(
             model_name='workflowrun',

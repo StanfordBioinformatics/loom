@@ -14,9 +14,9 @@ class MockTaskManager(object):
         MockTaskRunExecution.create({'task_run': task_run.to_struct()})
 
         for output in task_run.outputs.all():
-            print task_run.task_definition.command
             data_object = cls._render_mock_file_data_object()
             output.update({'data_object': data_object})
+        print task_run.task_definition.command
 
     @classmethod
     def _render_mock_file_data_object(self):

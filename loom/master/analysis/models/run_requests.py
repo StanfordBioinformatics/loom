@@ -3,9 +3,9 @@ from django.db import transaction
 
 from universalmodels import fields
 from .base import AnalysisAppInstanceModel
-from .channels import Channel
+from .channels import Channel, InputOutputNode
 from .data_objects import DataObject
-from .workflow_runs import AbstractWorkflowRun, InputOutput
+from .workflow_runs import AbstractWorkflowRun
 from .workflows import Workflow
 
 
@@ -31,7 +31,7 @@ class RunRequest(AnalysisAppInstanceModel):
         self.save()
         self._initialize_channels()
         for input in self.inputs.all():
-            input.push()
+            input.initial_push()
 
     def _create_outputs(self):
         for workflow_output in self.workflow.outputs.all():
@@ -85,23 +85,24 @@ class RunRequest(AnalysisAppInstanceModel):
         pass
 
 
-class RunRequestInput(InputOutput):
+class RunRequestInput(InputOutputNode):
 
     channel = fields.CharField(max_length=255)
     value = fields.CharField(max_length=255)
-    
-    def push(self):
+
+    def initial_push(self):
         data_object = self._get_data_object()
         self.to_channel.push(data_object)
-
-    def get_type(self):
-        return self.run_request.run.get_input(self.channel).type
+        self.to_channel.close()
 
     def _get_data_object(self):
         return DataObject.get_by_value(self.value, self.get_type())
 
+    def get_type(self):
+        return self.run_request.run.get_input(self.channel).type
 
-class RunRequestOutput(InputOutput):
+
+class RunRequestOutput(InputOutputNode):
 
     channel = fields.CharField(max_length=255)
 

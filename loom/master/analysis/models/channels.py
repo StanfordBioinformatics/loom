@@ -1,7 +1,6 @@
 from django.db import models
 from .base import AnalysisAppInstanceModel
 from .data_objects import DataObject
-from .workflow_runs import InputOutput
 from universalmodels import fields
 
 """
@@ -15,7 +14,8 @@ class Channel(AnalysisAppInstanceModel):
 
     name = fields.CharField(max_length=255)
     outputs = fields.OneToManyField('ChannelOutput')
-    sender = fields.OneToOneField('InputOutput', related_name='to_channel', null=True)
+    data_objects = fields.ManyToManyField('DataObject')
+    sender = fields.OneToOneField('InputOutputNode', related_name='to_channel', null=True)
     is_closed_to_new_data = fields.BooleanField(default=False)
 
     @classmethod
@@ -27,20 +27,26 @@ class Channel(AnalysisAppInstanceModel):
     
     def push(self, data_object):
         for output in self.outputs.all():
-            output.push(data_object)
+            self.data_objects.add(data_object)
+            output._push(data_object)
 
     def add_receivers(self, receivers):
         for receiver in receivers:
             self.add_receiver(receiver)
 
     def add_receiver(self, receiver):
-        output = ChannelOutput.create({})
+        output = ChannelOutput.create({
+            # Typically data_objects is empty, we pass along any data_objects already
+            # received for cases when a receiver is added after the run has progressed
+            'data_objects': [do.to_struct() for do in self.data_objects.all()]
+        })
         output.receiver = receiver
         output.save()
         self.outputs.add(output)
 
     def close(self):
-        self.update({'is_closed_to_new_data': True})
+        self.is_closed_to_new_data = True
+        self.save()
 
 
 class ChannelOutput(AnalysisAppInstanceModel):
@@ -50,9 +56,9 @@ class ChannelOutput(AnalysisAppInstanceModel):
     """
 
     data_objects = fields.ManyToManyField('DataObject')
-    receiver = fields.OneToOneField('InputOutput', related_name='from_channel', null=True)
+    receiver = fields.OneToOneField('InputOutputNode', related_name='from_channel', null=True)
 
-    def push(self, data_object):
+    def _push(self, data_object):
         self.data_objects.add(data_object)
         self.receiver.push()
 
@@ -62,7 +68,52 @@ class ChannelOutput(AnalysisAppInstanceModel):
     def is_dead(self):
         return self.channel.is_closed_to_new_data and self.is_empty()
 
-    def pop(self):
+    def _pop(self):
         data_object = self.data_objects.first()
         self.data_objects = self.data_objects.all()[1:]
         return data_object.downcast()
+
+    def forward(self, to_channel):
+        """Pass channel contents to the downstream channel
+        """
+        if not self.is_empty():
+            to_channel.push(self._pop())
+
+        if self.is_dead():
+            to_channel.close()
+
+
+class InputOutputNode(AnalysisAppInstanceModel):
+
+    def push(self, *args, **kwargs):
+        return self.downcast().push(*args, **kwargs)
+
+
+class ChannelSet(object):
+
+    def __init__(self, inputs):
+        self.channels = []
+        for input in inputs:
+            self.channels.append(input.from_channel)
+
+    def get_ready_input_sets(self):
+        for channel in self.channels:
+            if channel.is_empty():
+                return []
+        return [InputSet(self.channels)]
+
+
+class InputItem(object):
+    
+    def __init__(self, channel):
+        self.data_object = channel._pop()
+        self.channel = channel.channel.name
+
+
+class InputSet(object):
+
+    def __init__(self, channels):
+        self.input_items = [InputItem(c) for c in channels]
+
+    def __iter__(self):
+        return self.input_items.__iter__()

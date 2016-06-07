@@ -65,6 +65,9 @@ class FileDataObject(DataObject):
         assert len(file_data_objects) == 1
         return file_data_objects.first()
 
+    def get_substitution_value(self):
+        return self.file_content.get_substitution_value()
+
 
 class FileContent(DataObjectContent):
     """Represents a file, including its content (identified by a hash), its 

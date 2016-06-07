@@ -38,8 +38,6 @@ class TaskDefinitionInput(AnalysisAppImmutableModel):
 
     data_object_content = fields.ForeignKey('DataObjectContent')
 
-    def get_substitution_value(self):
-        return self.data_object_content.get_substitution_value()
 
 class TaskDefinitionOutput(AnalysisAppImmutableModel):
 

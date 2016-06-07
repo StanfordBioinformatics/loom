@@ -1,6 +1,8 @@
 from copy import deepcopy
-from django.utils import timezone
 from jinja2 import DictLoader, Environment
+
+from django.conf import settings
+from django.utils import timezone
 
 from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.task_definitions import *
@@ -113,68 +115,110 @@ class TaskRunExecutionLog(AnalysisAppInstanceModel):
 class TaskRunBuilder:
 
     @classmethod
-    def create_from_step_run(cls, step_run):
-        task_run_inputs = cls._create_task_run_inputs(step_run)
-        input_context = cls._get_task_run_input_context(task_run_inputs, step_run)
-        task_run_outputs = cls._create_task_run_outputs(input_context, step_run)
-        task_definition = cls._create_task_definition(task_run_inputs, task_run_outputs, step_run)
-        task_run = TaskRun.create({
-            'inputs': [i.to_struct() for i in task_run_inputs],
-            'outputs': [o.to_struct() for o in task_run_outputs],
-            'task_definition': task_definition,
-            'resources': cls._get_task_run_resources(step_run.step.resources, input_context),
-        })
+    def create_from_step_run(cls, step_run, input_set):
+        task_definition_inputs = cls._create_task_definition_inputs(input_set)
+        input_context = cls._get_input_context(input_set)
+        task_definition_outputs = cls._create_task_definition_outputs(step_run, input_context)
+        output_context = cls._get_output_context(task_definition_outputs, step_run)
+        context = deepcopy(input_context)
+        context.update(output_context)
+        task_definition = cls._create_task_definition(step_run, task_definition_inputs, task_definition_outputs, context)
+
+        if task_definition.task_runs.count() > 0 and not settings.FORCE_RERUN:
+            # Re-use an old TaskRun
+            task_run = task_definition.task_runs.first()
+        else:
+            # Create a new TaskRun
+            task_run_inputs = cls._create_task_run_inputs(task_definition_inputs, input_set, step_run)
+            task_run_outputs = cls._create_task_run_outputs(task_definition_outputs, step_run)
+            resources = cls._get_task_run_resources(step_run.step.resources, input_context)
+            task_run = cls._create_task_run(task_run_inputs, task_run_outputs, task_definition, resources)
+
         task_run.step_runs.add(step_run)
         return task_run
 
     @classmethod
-    def _create_task_definition(cls, task_run_inputs, task_run_outputs, step_run):
-        context = cls._get_task_run_input_context(task_run_inputs, step_run)
-        context.update(cls._get_task_run_output_context(task_run_outputs, step_run))
+    def _get_input_context(cls, input_set):
+        context = {}
+        for input_item in input_set:
+            context[input_item.channel] = input_item.data_object.get_content().get_substitution_value()
+        return context
+        
+    @classmethod
+    def _get_output_context(cls, task_definition_outputs, step_run):
+        context = {}
+        for (task_definition_output, step_run_output) in zip(task_definition_outputs, step_run.outputs.all()):
+            context[step_run_output.channel] = task_definition_output.get_substitution_value()
+        return context
 
-        task_definition_inputs = [i.task_definition_input for i in task_run_inputs]
-        task_definition_outputs = [o.task_definition_output for o in task_run_outputs]
+    @classmethod
+    def _create_task_definition_inputs(cls, input_set):
+        return [cls._create_task_definition_input(input_item) for input_item in input_set]
+
+    @classmethod
+    def _create_task_definition_input(cls, input_item):
+        return TaskDefinitionInput.create({
+            'data_object_content': input_item.data_object.get_content().to_struct()
+        })
+
+    @classmethod
+    def _create_task_definition_outputs(cls, step_run, input_context):
+        return [cls._create_task_definition_output(output, input_context) for output in step_run.outputs.all()]
+
+    @classmethod
+    def _create_task_definition_output(cls, step_run_output, input_context):
+        return TaskDefinitionOutput.create({
+            'filename': cls._render_from_template(step_run_output.get_filename(), input_context)
+        })
+
+    @classmethod
+    def _create_task_definition(cls, step_run, task_definition_inputs, task_definition_outputs, context):
         task_definition = TaskDefinition.create({
             'inputs': [i.to_struct() for i in task_definition_inputs],
             'outputs': [o.to_struct() for o in task_definition_outputs],
             'command': cls._render_from_template(step_run.step.command, context),
             'environment': cls._get_task_definition_environment(step_run.step.environment),
         })
-        return task_definition.to_struct()
+        return task_definition
 
     @classmethod
-    def _create_task_run_inputs(cls, step_run):
-        inputs = [cls._create_task_run_input(input) for input in step_run.inputs.all()]
-        inputs.extend([cls._create_task_run_input(input) for input in step_run.fixed_inputs.all()])
-        return inputs
+    def _create_task_run_inputs(cls, task_definition_inputs, input_sets, step_run):
+        return [cls._create_task_run_input(task_definition_input, input_item, step_run) for (task_definition_input, input_item) in zip(task_definition_inputs, input_sets)]
 
     @classmethod
-    def _create_task_run_input(cls, step_run_input):
-        data_object = step_run_input.pop()
+    def _create_task_run_input(cls, task_definition_input, input_item, step_run):
         task_run_input = TaskRunInput.create(
             {
-                'task_definition_input': {
-                    'data_object_content': data_object.get_content().to_struct()
-                },
-                'data_object': data_object.to_struct()
+                'task_definition_input': task_definition_input.to_struct(),
+                'data_object': input_item.data_object.to_struct()
             }
         )
-        task_run_input.step_run_inputs.add(step_run_input)
+        task_run_input.step_run_inputs.add(step_run.get_input(input_item.channel))
         return task_run_input
 
     @classmethod
-    def _create_task_run_outputs(cls, input_context, step_run):
-        return [cls._create_task_run_output(output, input_context) for output in step_run.outputs.all()]
+    def _create_task_run_outputs(cls, task_definition_outputs, step_run):
+        return [cls._create_task_run_output(task_definition_output, step_run_output)
+                for (task_definition_output, step_run_output)
+                in zip(task_definition_outputs, step_run.outputs.all())]
 
     @classmethod
-    def _create_task_run_output(cls, step_run_output, input_context):
+    def _create_task_run_output(cls, task_definition_output, step_run_output):
         task_run_output = TaskRunOutput.create({
-            'task_definition_output': {
-                'filename': cls._render_from_template(step_run_output.get_filename(), input_context)
-            }
+            'task_definition_output': task_definition_output.to_struct(),
         })
-        step_run_output.task_run_outputs.add(task_run_output)
+        task_run_output.step_run_outputs.add(step_run_output)
         return task_run_output
+
+
+    @classmethod
+    def _create_task_run(cls, task_run_inputs, task_run_outputs, task_definition, resources):
+        return TaskRun.create({
+            'inputs': [i.to_struct() for i in task_run_inputs],
+            'outputs': [o.to_struct() for o in task_run_outputs],
+            'task_definition': task_definition.to_struct(),
+            'resources': resources,
+        })
 
     @classmethod
     def _get_task_run_resources(cls, step_resources, input_context):
@@ -183,24 +227,6 @@ class TaskRunBuilder:
             'memory': cls._render_from_template(step_resources.memory, input_context),
             'disk_space': cls._render_from_template(step_resources.disk_space, input_context),
         }
-
-    @classmethod
-    def _get_task_run_input_context(cls, task_run_inputs, step_run):
-        context = {}
-        for task_run_input in task_run_inputs:
-            channel = task_run_input.get_channel(step_run)
-            substitution_value = task_run_input.task_definition_input.get_substitution_value()
-            context[channel] = substitution_value
-        return context
-        
-    @classmethod
-    def _get_task_run_output_context(cls, task_run_outputs, step_run):
-        context = {}
-        for task_run_output in task_run_outputs:
-            channel = task_run_output.get_channel(step_run)
-            substitution_value = task_run_output.task_definition_output.get_substitution_value()
-            context[channel] = substitution_value
-        return context
 
     @classmethod
     def _render_from_template(cls, raw_text, context):
