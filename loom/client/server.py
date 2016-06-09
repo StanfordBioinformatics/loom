@@ -11,12 +11,14 @@ import warnings
 from ConfigParser import SafeConfigParser
 from loom.client.settings_manager import SettingsManager
 from loom.client.common import *
+from  loom.common.version import version
 
 DAEMON_EXECUTABLE = os.path.abspath(
     os.path.join(
     os.path.dirname(__file__),
     '../master/loomdaemon/loom_daemon.py'
     ))
+GCLOUD_DEPLOY_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_deploy_playbook.yml'))
 
 def ServerControlsFactory(args):
     """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate class."""
@@ -140,8 +142,8 @@ class LocalServerControls(BaseServerControls):
         return command_to_method_map
 
     def start(self):
-        if not os.path.exists(SettingsManager.DEPLOY_SETTINGS_FILE):
-            raise Exception('No server deploy settings found at %s. Please run "loom server create" first.' % SettingsManager.DEPLOY_SETTINGS_FILE)
+        if not os.path.exists(get_deploy_settings_filename()):
+            self.create()
         self.settings_manager.load_deploy_settings_file()
         env = os.environ.copy()
         env = self._add_server_to_python_path(env)
@@ -206,7 +208,8 @@ class LocalServerControls(BaseServerControls):
             raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
     def stop(self):
-        if not os.path.exists(SettingsManager.DEPLOY_SETTINGS_FILE):
+        # Settings needed to get pidfile names.
+        if not os.path.exists(get_deploy_settings_filename()):
             raise Exception('No server deploy settings found. Create them with "loom server create" first.')
         self.settings_manager.load_deploy_settings_file()
         self._stop_webserver()
@@ -286,27 +289,31 @@ class LocalServerControls(BaseServerControls):
         return env
 
     def _export_django_settings(self, env):
-        """
-        Update the environment with settings before launching the webserver.
-        This allows master/loomserver/settings.py to use these settings.
-        Passing settings this way only works if the webserver is on the same
-        machine as the client launching it.
+        """Update the environment with settings before launching the webserver.
+        This allows master/loomserver/settings.py to load them and make them
+        available to Django. Passing settings this way only works in local mode
+        (the server is on the same machine as the client launching it).
         """
         env.update(self.settings_manager.get_env_settings())
         return env
 
     def create(self):
         '''Create server deploy settings if they don't exist yet.'''
-        if os.path.exists(SettingsManager.DEPLOY_SETTINGS_FILE):
+        # TODO: Add -f option to overwrite existing settings
+        if os.path.exists(get_deploy_settings_filename()):
             raise Exception('Local server deploy settings already exist. Please delete them with "loom server delete" first.')
         self.settings_manager.create_deploy_settings_file(self.args.settings)
+        print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
     def delete(self):
-        '''Delete server deploy settings.'''
-        if not os.path.exists(SettingsManager.DEPLOY_SETTINGS_FILE):
+        '''Stops server and deletes deploy settings.'''
+        # TODO: Ask for confirmation before continuing; add -f option to continue without asking
+        this.stop()
+        if not os.path.exists(get_deploy_settings_filename()):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
         self.settings_manager.delete_deploy_settings_file()
+        print 'Deleted deploy settings at %s.' % get_deploy_settings_filename()
 
 
 class GoogleCloudServerControls(BaseServerControls):
@@ -327,12 +334,44 @@ class GoogleCloudServerControls(BaseServerControls):
         return command_to_method_map
 
     def create(self):
-        pass
+        """Create server deploy settings if they don't exist yet, create and
+        set up a gcloud instance, copy deploy settings to the instance."""
+        # TODO: Add -f option to overwrite existing settings
+        if os.path.exists(get_deploy_settings_filename()):
+            raise Exception('Google Cloud server deploy settings already exist. Please delete them with "loom server delete" first.')
+        self.settings_manager.create_deploy_settings_file(self.args.settings)
+        print 'Created deploy settings at %s.' % get_deploy_settings_filename()
+
+        # Load settings into environment, where they will be read by the Ansible playbook.
+        gce_config = SafeConfigParser()
+        gce_config.read(GCE_INI_PATH)
+        
+        env = os.environ.copy()
+        env['GCE_INI_PATH'] = GCE_INI_PATH
+        env['GCE_EMAIL'] = gce_config.get('gce', 'gce_service_account_email_address')
+        env['GCE_PROJECT'] = gce_config.get('gce', 'gce_project_id')
+        env['GCE_PEM_FILE_PATH'] = gce_config.get('gce', 'gce_service_account_pem_file_path')
+        env['CLIENT_VERSION'] = version()
+        server_tags = self.settings_manager.settings['SERVER_TAGS'].strip()
+        if len(server_tags) == 0:
+            env['SERVER_TAGS'] = ''
+        else:
+            env['SERVER_TAGS'] = 'tags=%s' % server_tags
+        env.update(self.settings_manager.get_env_settings())
+
+        self.run_playbook(GCLOUD_DEPLOY_PLAYBOOK, env)
+        
+    def run_playbook(self, playbook, env):
+        subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook, '-vvv'], env=env)
+
     def start(self):
+        """Start the gcloud server instance if it's stopped, then start the Loom server."""
         pass
     def stop(self):
+        """Stop the Loom server, then stop the gcloud server instance."""
         pass
     def delete(self):
+        """Stop the Loom server, then delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
         pass
 
 

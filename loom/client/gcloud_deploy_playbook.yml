@@ -1,0 +1,54 @@
+---
+- name: Create a new instance for the Loom server.
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    server_name: "{{lookup('env','SERVER_NAME')}}"
+    server_zone: "{{lookup('env','SERVER_ZONE')}}"
+    server_vm_image: "{{lookup('env','SERVER_VM_IMAGE')}}"
+    server_instance_type: "{{lookup('env','SERVER_INSTANCE_TYPE')}}"
+    server_network: "{{lookup('env','SERVER_NETWORK')}}"
+    server_tags: "{{lookup('env','SERVER_TAGS')}}"
+    server_disk_type: "{{lookup('env','SERVER_DISK_TYPE')}}"
+    server_disk_size: "{{lookup('env','SERVER_DISK_SIZE')}}"
+  tasks:
+  - name: Create a boot disk with the same name as the server instance.
+    gce_pd: name={{server_name}} image={{server_vm_image}} disk_type={{server_disk_type}} size_gb={{server_disk_size}} zone={{server_zone}} mode=READ_WRITE
+  - name: Boot up a new instance.
+    gce: name={{server_name}} disks={{server_name}} zone={{server_zone}} machine_type={{server_instance_type}} network={{server_network}} service_account_permissions=cloud-platform {{server_tags}}
+    register: gce_result
+  - name: Wait for SSH to come up.
+    wait_for: host={{ item.public_ip }} port=22 delay=10 timeout=60
+    with_items: '{{ gce_result.instance_data }}'
+  - name: Add host to groupname.
+    add_host: hostname={{ item.public_ip }} groupname=new_instances
+    with_items: '{{ gce_result.instance_data }}'
+- name: Set up the Loom server on the new instance. 
+  hosts: new_instances
+  become: yes
+  become_method: sudo
+  vars:
+    client_version: "{{lookup('env','CLIENT_VERSION')}}"
+  tasks:
+  - name: Update apt-get cache.
+    apt: update_cache=yes
+  - name: Install pip using apt-get.
+    apt: name=python-pip state=present
+  - name: Install python-dev using apt-get, which is needed to build certain Python dependencies.
+    apt: name=python-dev state=present
+  - name: Install build-essential using apt-get, which is needed to build certain Python dependencies.
+    apt: name=build-essential state=present
+  - name: Install libffi-dev using apt-get, which is needed to build certain Python dependencies.
+    apt: name=libffi-dev state=present
+  - name: Install libmysqlclient-dev using apt-get, which is needed to install the MySQL-python Python package.
+    apt: name=libmysqlclient-dev state=present
+  - name: Install virtualenv using pip.
+    pip: name=virtualenv state=present
+  - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the server as the client.
+    pip: name=loomengine virtualenv=/opt/loom version={{client_version}}
+# TODO: Update Pip version, copy deploy settings and credentials to server
+  - name: Start the Loom server.
+    shell: source /opt/loom/bin/activate; loom server set local; loom server create; loom server start
+    args:
+      executable: /bin/bash

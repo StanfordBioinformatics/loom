@@ -13,6 +13,7 @@ import loom.client.settings_manager
 from loom.client.exceptions import *
 
 SERVER_LOCATION_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'server.ini')
+DEPLOY_SETTINGS_LOCATION = os.path.join(os.path.expanduser('~'), '.loom')
 GCE_INI_PATH = os.path.join(os.path.expanduser('~'), '.loom', 'gce.ini')
 GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
 SERVER_PATH = os.path.join(imp.find_module('loom')[1], 'master')
@@ -63,8 +64,8 @@ def get_gcloud_server_ip(name):
 
 def get_server_url():
     # TODO: add protocol and bind_port to server.ini since they are required to construct a URL to reach the server
-    # Think about how to keep in sync with default_settings.ini and deploy_settings.ini
-    # Would remove dependency on SettingsManger from other components.
+    # Think about how to keep in sync with user-provided settings, default_settings.ini, and _deploy_settings.ini
+    # Would remove dependency on SettingsManger from other components
     settings_manager = loom.client.settings_manager.SettingsManager()
     try:
         settings_manager.load_deploy_settings_file()
@@ -75,6 +76,9 @@ def get_server_url():
     ip = get_server_ip()
     port = settings['BIND_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
+
+def get_deploy_settings_filename():
+    return os.path.join(DEPLOY_SETTINGS_LOCATION, get_server_type() + '_deploy_settings.ini')
 
 def is_server_running():
     try:

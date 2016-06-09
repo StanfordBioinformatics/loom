@@ -21,7 +21,6 @@ class SettingsManager:
     At this point, required settings must be defined. Otherwise, throw an error.
     """
     DEFAULT_SETTINGS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'default_settings.ini'))
-    DEPLOY_SETTINGS_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'deploy_settings.ini')
 
     def __init__(self, **kwargs):
         if not self._do_skip_init(**kwargs):
@@ -35,50 +34,52 @@ class SettingsManager:
         return skip_init
 
     def _initialize(self, require_default_settings=False, verbose=False,  **kwargs):
-        self.settings = None
+        self.settings = {}
         self.verbose = verbose
         self.require_default_settings = require_default_settings
 
-    def create_deploy_settings(self, section=None, user_settings_file=None):
-        if section == None:
-            section = get_server_type()
-        self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section)
+    def create_deploy_settings(self, server_type=None, user_settings_file=None):
+        if server_type == None:
+            server_type = get_server_type()
+        self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section=server_type)
 
         # Override defaults with user-provided settings file
         if not self.require_default_settings:
             if user_settings_file:
-                self.load_settings_from_file(user_settings_file, section)
+                self.load_settings_from_file(user_settings_file, section=server_type)
 
         #TODO: extract settings from commandline arguments and override self.settings with them
         #TODO: verify required settings are defined and raise error if not
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
-        self.save_settings_to_file(SettingsManager.DEPLOY_SETTINGS_FILE, section='deploy')
+        self.save_settings_to_file(get_deploy_settings_filename(), section=get_server_type())
 
     def load_deploy_settings_file(self):
         try:
-            self.load_settings_from_file(SettingsManager.DEPLOY_SETTINGS_FILE, section='deploy')
+            self.load_settings_from_file(get_deploy_settings_filename(), section=get_server_type())
         except:
             raise SettingsError("Could not open server deploy settings. You might need to run \"loom server create\" first.")
 
     def delete_deploy_settings_file(self):
-        os.remove(SettingsManager.DEPLOY_SETTINGS_FILE)
+        os.remove(get_deploy_settings_filename())
 
     def load_settings_from_file(self, settings_file, section):
+        """Update current settings dict by reading from a file and section."""
         try:
-            config = SafeConfigParser(defaults=self.settings)
+            config = SafeConfigParser()
             config.optionxform = str                    # preserve uppercase in settings names
             config.read(settings_file)
-            items = dict(config.items(section))
-            for item in items:
-                if '~' in items[item]:
-                    items[item] = os.path.expanduser(items[item])
-            self.settings = items
-            if self.verbose:
-                print "Loaded settings from %s." % settings_file
-        except: 
-            raise SettingsError("Failed to open settings file %s." % settings_file)
+        except Exception as e: 
+            raise SettingsError("Failed to open settings file %s: %s" % (settings_file, e))
+
+        items = dict(config.items(section))
+        for item in items:
+            if '~' in items[item]:
+                items[item] = os.path.expanduser(items[item])
+        self.settings.update(items)
+        if self.verbose:
+            print "Loaded settings from %s." % settings_file
 
     def save_settings_to_file(self, settings_file, section):
         if not self.settings:
