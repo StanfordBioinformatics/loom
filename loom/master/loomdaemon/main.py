@@ -15,7 +15,7 @@ MANAGE_EXECUTABLE = os.path.abspath(
         )
     )
 
-SLEEP_TIME_SECONDS = 1
+SLEEP_TIME_SECONDS = 10
 
 class App():
    
@@ -27,7 +27,7 @@ class App():
         while True:
             cmd = [sys.executable,
                    MANAGE_EXECUTABLE,
-                   'update_status']
+                   'refresh']
             if self.logfile:
                 cmd.append('--logfile')
                 cmd.append(self.logfile)

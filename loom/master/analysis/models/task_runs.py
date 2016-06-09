@@ -23,17 +23,6 @@ class TaskRun(AnalysisAppInstanceModel):
     outputs = fields.OneToManyField('TaskRunOutput', related_name='task_run')
     resources = fields.ForeignKey('RequestedResourceSet')
 
-    # status = fields.CharField(
-    #    max_length=255,
-    #    default='ready_to_run',
-    #    choices=(
-    #        ('ready_to_run', 'Ready to run'),
-    #        ('running', 'Running'),
-    #        ('completed', 'Completed'),
-    #        ('canceled', 'Canceled')
-    #    )
-    #)
-
     def run(self, is_mock=False):
         task_manager = TaskManagerFactory.get_task_manager(is_mock=is_mock)
         task_manager.run(self)
@@ -84,7 +73,7 @@ class TaskRunExecution(AnalysisAppInstanceModel):
     task_run = fields.ForeignKey('TaskRun')
     logs = fields.OneToManyField('TaskRunExecutionLog', related_name='task_run')
     outputs = fields.OneToManyField('TaskRunExecutionOutput', related_name='task_run')
-    
+
     class Meta:
         abstract=True
 
@@ -131,7 +120,7 @@ class TaskRunBuilder:
             # Create a new TaskRun
             task_run_inputs = cls._create_task_run_inputs(task_definition_inputs, input_set, step_run)
             task_run_outputs = cls._create_task_run_outputs(task_definition_outputs, step_run)
-            resources = cls._get_task_run_resources(step_run.step.resources, input_context)
+            resources = cls._get_task_run_resources(step_run.template.resources, input_context)
             task_run = cls._create_task_run(task_run_inputs, task_run_outputs, task_definition, resources)
 
         task_run.step_runs.add(step_run)
@@ -158,7 +147,7 @@ class TaskRunBuilder:
     @classmethod
     def _create_task_definition_input(cls, input_item):
         return TaskDefinitionInput.create({
-            'data_object_content': input_item.data_object.get_content().to_struct()
+            'data_object_content': input_item.data_object.get_content()
         })
 
     @classmethod
@@ -174,10 +163,10 @@ class TaskRunBuilder:
     @classmethod
     def _create_task_definition(cls, step_run, task_definition_inputs, task_definition_outputs, context):
         task_definition = TaskDefinition.create({
-            'inputs': [i.to_struct() for i in task_definition_inputs],
-            'outputs': [o.to_struct() for o in task_definition_outputs],
-            'command': cls._render_from_template(step_run.step.command, context),
-            'environment': cls._get_task_definition_environment(step_run.step.environment),
+            'inputs': task_definition_inputs,
+            'outputs': task_definition_outputs,
+            'command': cls._render_from_template(step_run.template.command, context),
+            'environment': cls._get_task_definition_environment(step_run.template.environment),
         })
         return task_definition
 
@@ -189,8 +178,8 @@ class TaskRunBuilder:
     def _create_task_run_input(cls, task_definition_input, input_item, step_run):
         task_run_input = TaskRunInput.create(
             {
-                'task_definition_input': task_definition_input.to_struct(),
-                'data_object': input_item.data_object.to_struct()
+                'task_definition_input': task_definition_input,
+                'data_object': input_item.data_object
             }
         )
         task_run_input.step_run_inputs.add(step_run.get_input(input_item.channel))
@@ -205,7 +194,7 @@ class TaskRunBuilder:
     @classmethod
     def _create_task_run_output(cls, task_definition_output, step_run_output):
         task_run_output = TaskRunOutput.create({
-            'task_definition_output': task_definition_output.to_struct(),
+            'task_definition_output': task_definition_output,
         })
         task_run_output.step_run_outputs.add(step_run_output)
         return task_run_output
@@ -214,9 +203,9 @@ class TaskRunBuilder:
     @classmethod
     def _create_task_run(cls, task_run_inputs, task_run_outputs, task_definition, resources):
         return TaskRun.create({
-            'inputs': [i.to_struct() for i in task_run_inputs],
-            'outputs': [o.to_struct() for o in task_run_outputs],
-            'task_definition': task_definition.to_struct(),
+            'inputs': task_run_inputs,
+            'outputs': task_run_outputs,
+            'task_definition': task_definition,
             'resources': resources,
         })
 

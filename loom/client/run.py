@@ -64,7 +64,7 @@ class WorkflowRunner(object):
         inputs = self._get_inputs()
         run_request = self.objecthandler.post_run_request(
             {
-                'workflow': self.workflow,
+                'template': self.workflow,
                 'inputs': inputs
             }
         )

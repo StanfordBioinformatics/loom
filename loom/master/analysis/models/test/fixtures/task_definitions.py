@@ -1,4 +1,4 @@
-from .data_objects import file
+from .data_objects import file, string_data_object
 
 # TaskDefinition and related objects
 
@@ -7,11 +7,11 @@ docker_image = {
 }
 
 task_definition_input = {
-    "data_object": file
+    "data_object_content": string_data_object['string_content']
 }
 
 task_definition_output = {
-    'path':'here.out',
+    'filename':'here.out',
 }
 
 task_definition = {

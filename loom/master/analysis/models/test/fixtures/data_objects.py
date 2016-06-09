@@ -39,7 +39,6 @@ file_location_2 = {
 }
 
 file_import = {
-    'file_data_object': file,
     'note': 'Here is where I got this',
     'source_url': 'file:///data/data/data/data.dat',
 }

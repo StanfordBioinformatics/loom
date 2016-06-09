@@ -116,15 +116,15 @@ class IdCalculator:
     Any value with the key id_key is discarded.
     """
 
-    def __init__(self, data_struct, id_key):
+    def __init__(self, data_struct, excluded_keys):
         data_struct_copy = copy.deepcopy(data_struct)
-        self._data_struct = self._process_data_struct(data_struct_copy, id_key)
+        self._data_struct = self._process_data_struct(data_struct_copy, excluded_keys)
 
-    def _process_data_struct(self, data_struct, id_key):
-        data_struct_without_ids = StripKey.strip_key(data_struct, id_key)
-        data_struct_without_blanks = StripBlanks.strip_blanks(
-            data_struct_without_ids)
-        return data_struct_without_blanks
+    def _process_data_struct(self, data_struct, excluded_keys):
+        for key in excluded_keys:
+            StripKey.strip_key(data_struct, key)
+        StripBlanks.strip_blanks(data_struct)
+        return data_struct
         
     def get_id(self):
         return self._calculate_id(self._data_struct)

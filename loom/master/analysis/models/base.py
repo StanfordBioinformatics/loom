@@ -1,5 +1,3 @@
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import models
 import re
 import uuid
 
@@ -8,10 +6,9 @@ from universalmodels.models import ImmutableModel, InstanceModel
 
 
 class _ModelMixin(object):
-    """This class provides common functions for models:
-    - a standard way to assign and access human readable
-    object names for use in URLs and error messages
-    - a query function for looking up objects
+    """This class provides common functions for models,
+    including rendering model names for URLs and user messages,
+    and query functions for retrieving objects
     """
 
     _class_name = None
@@ -25,19 +22,21 @@ class _ModelMixin(object):
     NAME_FIELD = None
 
     def get_name_and_id(self):
-        name = self.get_name()
-        if not name:
-            name = ''
-        return '%s@%s' % (name, self.get_id())
+        """Render object ID as {name}@{uuid_or_hash}
+        """
+        return '%s@%s' % (self.get_name(), self.get_id())
 
     def get_name(self):
+        """Return the name value who's location is given by NAME_FIELD, where
+        NAME_FIELD of the form {field1}[__{field2}[__{field3}...]]
+        """
         if self.NAME_FIELD is None:
-            return None
+            return ''
 
-        val = self
+        value = self
         for name_part in self.NAME_FIELD.split('__'):
-            val = getattr(val, name_part)
-        return val
+            value = getattr(value, name_part)
+        return value
 
     @classmethod
     def get_class_name(cls, plural=False, hyphen=False):
@@ -77,14 +76,17 @@ class _ModelMixin(object):
 
     @classmethod
     def get_by_abbreviated_id(cls, _id):
-        MIN_LENGTH = 1
-        if len(_id) < MIN_LENGTH:
-            raise IdTooShortError('ID length must be at least %s' % MIN_LENGTH)
+        """Find objects that match the given ID, and allow ID to be truncated
+        """
+        if not _id:
+            raise InvalidIdError('Invalid query, no ID was found')
         return cls.objects.filter(_id__startswith=_id)
 
     @classmethod
     def get_by_name(cls, name):
-        """Returns a queryset of models matching the given name
+        """Returns a queryset of models matching the given name.
+        Searches for name at cls.NAME_FIELD of the form 
+        {field1}[__{field2}[__{field3}...]]
         """
         if cls.NAME_FIELD is None:
             return cls.objects.none()
@@ -93,18 +95,26 @@ class _ModelMixin(object):
 
     @classmethod
     def get_by_name_and_full_id(cls, query_string):
+        """Find objects that match the given ID, and allow ID to be truncated.
+        No truncation allowed.
+        """
         name, id, name_or_id = cls._parse_query_string(query_string)
         models = cls.get_by_name(name)
         return models.filter(_id=id)
 
     @classmethod
     def get_by_name_and_abbreviated_id(cls, query_string):
+        """Find objects that match the given {name}@{ID}, where ID may be truncated
+        """
         name, id, name_or_id = cls._parse_query_string(query_string)
         models = cls.get_by_name(name)
         return models.filter(_id__startswith=id)
         
     @classmethod
     def get_by_name_or_id(cls, query_string):
+        """Find objects that match the identifier of form {name}@{ID}, {name}, {ID}, or @{ID}, 
+        where ID may be truncated
+        """
         if not cls._is_query_string_valid(query_string):
             return cls.objects.none()
         name, id, name_or_id = cls._parse_query_string(query_string)

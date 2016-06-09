@@ -115,7 +115,7 @@ class FileLocation(AnalysisAppInstanceModel):
     def get_location_for_import(cls, file_data_object):
         return cls.create({
             'url': cls._get_url(cls._get_path_for_import(file_data_object)),
-            'unnamed_file_content': file_data_object.file_content.unnamed_file_content.to_struct()
+            'unnamed_file_content': file_data_object.file_content.unnamed_file_content
         })
 
     @classmethod
@@ -196,15 +196,13 @@ class FileImport(AnalysisAppInstanceModel):
         and this may not be known at time of upload. This is because the method for 
         copying the file also may also generate the hash.
         """
-        self.temp_file_location = FileLocation.get_temp_location()
-        self.save()
+        self.update({'temp_file_location': FileLocation.get_temp_location()})
 
     def _set_file_location(self):
         """After uploading the file to a temp location and updating the FileImport with the full 
         FileContent (which includes the hash), the final storage location can be determined.
         """
-        self.file_location = FileLocation.get_location_for_import(self.file_data_object)
-        self.save()
+        self.update({'file_location': FileLocation.get_location_for_import(self.file_data_object)})
 
 
 class JSONDataObject(DataObject):

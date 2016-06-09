@@ -8,7 +8,7 @@ urlpatterns = patterns(
     url(r'^worker-info/$', 'analysis.views.worker_info'),
     url(r'^file-handler-info/$', 'analysis.views.file_handler_info'),
     url(r'^server-time/$', 'analysis.views.server_time'),
-    url(r'^controls/check-status/$', 'analysis.views.check_status'),
+    url(r'^controls/refresh/$', 'analysis.views.refresh'),
 )
 
 model_classes = [

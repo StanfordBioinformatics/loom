@@ -1,4 +1,6 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+
 from .base import AnalysisAppInstanceModel
 from .data_objects import DataObject
 from universalmodels import fields
@@ -26,6 +28,8 @@ class Channel(AnalysisAppInstanceModel):
         return channel
     
     def push(self, data_object):
+        if self.is_closed_to_new_data:
+            return
         for output in self.outputs.all():
             self.data_objects.add(data_object)
             output._push(data_object)
@@ -38,7 +42,7 @@ class Channel(AnalysisAppInstanceModel):
         output = ChannelOutput.create({
             # Typically data_objects is empty, we pass along any data_objects already
             # received for cases when a receiver is added after the run has progressed
-            'data_objects': [do.to_struct() for do in self.data_objects.all()]
+            'data_objects': [do for do in self.data_objects.all()]
         })
         output.receiver = receiver
         output.save()
@@ -88,19 +92,32 @@ class InputOutputNode(AnalysisAppInstanceModel):
     def push(self, *args, **kwargs):
         return self.downcast().push(*args, **kwargs)
 
+    def has_destination(self, destination):
+        try:
+            return destination.from_channel.channel.sender._id == self._id
+        except ObjectDoesNotExist:
+            return False
+            
 
 class ChannelSet(object):
 
     def __init__(self, inputs):
+        self._are_inputs_initialized = True
         self.channels = []
         for input in inputs:
-            self.channels.append(input.from_channel)
+            try:
+                self.channels.append(input.from_channel)
+            except ObjectDoesNotExist:
+                self._are_inputs_initialized=False
 
     def get_ready_input_sets(self):
-        for channel in self.channels:
-            if channel.is_empty():
-                return []
-        return [InputSet(self.channels)]
+        if not self._are_inputs_initialized:
+            return []
+        else:
+            for channel in self.channels:
+                if channel.is_empty():
+                    return []
+            return [InputSet(self.channels)]
 
 
 class InputItem(object):

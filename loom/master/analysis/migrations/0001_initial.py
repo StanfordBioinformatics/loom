@@ -40,6 +40,19 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='CancelRequest',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('is_hard_stop', models.BooleanField()),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='Channel',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
@@ -81,6 +94,19 @@ class Migration(migrations.Migration):
             name='DataObjectContent',
             fields=[
                 ('_id', models.CharField(max_length=255, serialize=False, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
+            name='FailureNotice',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+                ('is_hard_stop', models.BooleanField()),
             ],
             options={
                 'abstract': False,
@@ -189,12 +215,32 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='RestartRequest',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
+        migrations.CreateModel(
             name='RunRequest',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
                 ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(default=b'running', max_length=255, choices=[(b'running', b'Running'), (b'completed', b'Completed')])),
+                ('is_running', models.BooleanField(default=True)),
+                ('is_stopping', models.BooleanField(default=False)),
+                ('is_hard_stop', models.BooleanField(default=False)),
+                ('is_failed', models.BooleanField(default=False)),
+                ('is_canceled', models.BooleanField(default=False)),
+                ('is_completed_with_success', models.BooleanField(default=False)),
+                ('cancel_requests', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.CancelRequest')),
+                ('failure_notices', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.FailureNotice')),
+                ('restart_requests', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.RestartRequest')),
             ],
             options={
                 'abstract': False,
@@ -368,6 +414,18 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
+            name='AbstractStepRunInput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
+        migrations.CreateModel(
             name='BooleanDataContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
@@ -413,7 +471,7 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
-            name='FixedStepRunInput',
+            name='FixedWorkflowRunInput',
             fields=[
                 ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
@@ -522,24 +580,11 @@ class Migration(migrations.Migration):
             name='StepRun',
             fields=[
                 ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowRun')),
-                ('fixed_inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.FixedStepRunInput')),
             ],
             options={
                 'abstract': False,
             },
             bases=('analysis.abstractworkflowrun',),
-        ),
-        migrations.CreateModel(
-            name='StepRunInput',
-            fields=[
-                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
-                ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='StepRunOutput',
@@ -604,6 +649,7 @@ class Migration(migrations.Migration):
             name='WorkflowRun',
             fields=[
                 ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowRun')),
+                ('fixed_inputs', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run', to='analysis.FixedWorkflowRunInput')),
             ],
             options={
                 'abstract': False,
@@ -711,7 +757,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='runrequest',
-            name='workflow',
+            name='template',
             field=models.ForeignKey(to='analysis.AbstractWorkflow'),
         ),
         migrations.AddField(
@@ -769,10 +815,25 @@ class Migration(migrations.Migration):
             name='sender',
             field=models.OneToOneField(related_name='to_channel', null=True, to='analysis.InputOutputNode'),
         ),
-        migrations.AddField(
-            model_name='workflowrun',
-            name='fixed_inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='workflow_run_as_fixed_input', to='analysis.WorkflowRunInput'),
+        migrations.CreateModel(
+            name='FixedStepRunInput',
+            fields=[
+                ('abstractstepruninput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractStepRunInput')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractstepruninput',),
+        ),
+        migrations.CreateModel(
+            name='StepRunInput',
+            fields=[
+                ('abstractstepruninput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractStepRunInput')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractstepruninput',),
         ),
         migrations.AddField(
             model_name='workflowrun',
@@ -791,7 +852,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='workflowrun',
-            name='workflow',
+            name='template',
             field=models.ForeignKey(to='analysis.Workflow'),
         ),
         migrations.AddField(
@@ -805,29 +866,19 @@ class Migration(migrations.Migration):
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_outputs', to='analysis.TaskRunOutput'),
         ),
         migrations.AddField(
-            model_name='stepruninput',
-            name='task_run_inputs',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_inputs', to='analysis.TaskRunInput'),
-        ),
-        migrations.AddField(
-            model_name='steprun',
-            name='inputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.StepRunInput'),
-        ),
-        migrations.AddField(
             model_name='steprun',
             name='outputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.StepRunOutput'),
         ),
         migrations.AddField(
             model_name='steprun',
-            name='step',
-            field=models.ForeignKey(related_name='step_run', to='analysis.Step'),
+            name='task_runs',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_runs', to='analysis.TaskRun'),
         ),
         migrations.AddField(
             model_name='steprun',
-            name='task_runs',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_runs', to='analysis.TaskRun'),
+            name='template',
+            field=models.ForeignKey(related_name='step_run', to='analysis.Step'),
         ),
         migrations.AddField(
             model_name='runrequest',
@@ -840,11 +891,6 @@ class Migration(migrations.Migration):
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.RunRequestOutput'),
         ),
         migrations.AddField(
-            model_name='fixedstepruninput',
-            name='task_run_inputs',
-            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='fixed_step_run_inputs', to='analysis.TaskRunInput'),
-        ),
-        migrations.AddField(
             model_name='fileimport',
             name='file_data_object',
             field=models.ForeignKey(related_name='file_imports', to='analysis.FileDataObject', null=True),
@@ -853,5 +899,20 @@ class Migration(migrations.Migration):
             model_name='filedataobject',
             name='file_location',
             field=models.ForeignKey(to='analysis.FileLocation', null=True),
+        ),
+        migrations.AddField(
+            model_name='abstractstepruninput',
+            name='task_run_inputs',
+            field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_inputs', to='analysis.TaskRunInput'),
+        ),
+        migrations.AddField(
+            model_name='steprun',
+            name='fixed_inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.FixedStepRunInput'),
+        ),
+        migrations.AddField(
+            model_name='steprun',
+            name='inputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='step_run', to='analysis.StepRunInput'),
         ),
     ]

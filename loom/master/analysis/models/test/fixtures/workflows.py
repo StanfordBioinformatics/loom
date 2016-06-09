@@ -4,27 +4,29 @@ from .data_objects import file
 
 step_a = {
     'name': 'step_a',
-    'command': 'cat {{ a1 }} {{ a2 }} > {{ a3 }}',
+    'command': 'cat {{ a1 }} {{ a2 }} > {{ b1 }}',
     'environment': {
         'docker_image': 'ubuntu'
     },
     'resources': {
-        'cores': 1,
+        'cores': '1',
         'memory': '1',
         'disk_space': '1024' 
     },
     'inputs': [
 	{
 	    'channel': 'a1',
-            'type': 'file',
+            'type': 'string',
             'hint': 'Give a file with the first integer above 0'
 	}
     ],
-    'fixed_inputs': [{
-        'type': 'file',
-        'id': 'myfile.txt@12345',
-        'channel': 'a2'
-    }],
+    'fixed_inputs': [
+        {
+            'type': 'string',
+            'value': 'a word or two',
+            'channel': 'a2'
+        }
+    ],
     'outputs': [
 	{
             'filename': 'two.txt',
@@ -42,7 +44,7 @@ step_b = {
         'docker_image': 'ubuntu'
     },
     'resources': {
-        'cores': 1,
+        'cores': '1',
         'memory': '1',
         'disk_space': '1024'
     },
@@ -54,14 +56,13 @@ step_b = {
 	},
         {
 	    'channel': 'b2',
-            'type': 'file',
+            'type': 'string',
             'hint': 'Give a file with the first integer above 0, twice'
 	}
-
     ],
     'fixed_inputs': [{
-        'type': 'file',
-        'id': 'myfile.txt@12345',
+        'type': 'string',
+        'value': 'more text',
         'channel': 'b3'
     }],
     'outputs': [
@@ -80,7 +81,7 @@ step_c = {
         'docker_image': 'ubuntu'
     },
     'resources': {
-        'cores': 1,
+        'cores': '1',
         'memory': '1',
         'disk_space': '1024'
     },
@@ -103,21 +104,22 @@ flat_workflow = {
     'name': 'flat',
     'inputs': [
         {
-            'hint': 'Any file',
-            'type': 'file',
+            'hint': 'Any text',
+            'type': 'string',
             'channel': 'a1'
         }
     ],
     'fixed_inputs': [
 	{
-            'type': 'file',
-	    'id': 'one.txt@c4f3f632b7b503149f88d9de9f9bd0927a066ee935fdc011a75ff4a216d6e061',
+            'type': 'string',
+	    'value': 'two',
 	    'channel': 'b2'
 	}
     ],
     'outputs': [
 	{
-	    'channel': 'c1'
+	    'channel': 'c1',
+            'type': 'file'
 	}
     ],
     'steps': [
@@ -130,9 +132,9 @@ nested_workflow = {
     'name': 'nested',
     'fixed_inputs': [
         {
-            'type': 'file',
+            'type': 'string',
             'channel': 'a1',
-            'id': 'input.txt@123'
+            'value': 'a1 text'
         }
     ],
     'outputs': [

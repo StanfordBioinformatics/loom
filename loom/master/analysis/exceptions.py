@@ -10,6 +10,9 @@ class UnknownNameFieldError(Error):
 class IdTooShortError(Error):
     pass
 
+class InvalidIdError(Error):
+    pass
+
 class MissingInputsError(Error):
     pass
 

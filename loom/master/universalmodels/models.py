@@ -78,6 +78,7 @@ class _BaseModel(models.Model):
 
         struct = {}
         model = self.downcast()
+        struct['_class'] = model.__class__.__name__
         for field in model._get_nonparent_nonbase_fields():
             field_struct = model.get_field_as_struct(field)
 
@@ -114,6 +115,7 @@ class _BaseModel(models.Model):
         """Render python structure representation of a model
         as a JSON representation.
         """
+        data_struct = cls._expand_models(data_struct)
         return helpers.struct_to_json(data_struct)
 
     @classmethod
@@ -137,6 +139,25 @@ class _BaseModel(models.Model):
             return cls._struct_to_json(data)
 
     @classmethod
+    def _expand_models(cls, data):
+        """If there are any models in the structure, expand them to
+        a python object representation
+        """
+        if isinstance(data, dict):
+            new_data = {}
+            for key, value in data.iteritems():
+                new_data[key] = cls._expand_models(value)
+        elif isinstance(data, list):
+            new_data = []
+            for value in data:
+                new_data.append(cls._expand_models(value))
+        elif isinstance(data, _BaseModel):
+            new_data = data.to_struct()
+        else:
+            new_data = data
+        return new_data
+        
+    @classmethod
     def _any_to_struct(cls, data):
         """Accept either a JSON or a python structure and
         return a python structure
@@ -150,23 +171,29 @@ class _BaseModel(models.Model):
             data_json = cls._struct_to_json(data)
             return cls._json_to_struct(data_json)
 
-    def _create_or_update_fields(self, data_struct):
+    def _create_or_update_fields(self, data_struct, first_iteration=False):
         """Given the dict 'data_struct' as input, write its data to
         the fields of the current ORM model (self)
         """
-        self.before_create_or_update(data_struct)
-        
+
+        # Already called "before" method for first iteration
+        if not first_iteration:
+            self.before_create_or_update(data_struct)
+
         self._verify_dict(data_struct)
+        if data_struct.get('_class'):
+            data_struct.pop('_class')
         self.unsaved_x_to_many_related_objects = {}
         for (key, value) in data_struct.iteritems():
             self._create_or_update_field(key, value)
         self._set_datetime_updated()
         models.Model.save(self)
         self._save_x_to_many_related_objects()
-
+        
         self.after_create_or_update()
 
-    def before_create_or_update(self, data):
+    @classmethod
+    def before_create_or_update(cls, data):
         """Override for preprocessing steps
         """
         pass
@@ -205,7 +232,7 @@ class _BaseModel(models.Model):
         # an error.
         self._verify_field_is_not_a_parent(key)
         self._verify_relation_is_legal(key)
-        
+
         if self._is_x_to_many_field(key):
             self._create_or_update_x_to_many_field(key, value)
         elif self._is_x_to_one_field(key):
@@ -376,8 +403,7 @@ class _BaseModel(models.Model):
         if Model._is_abstract(child_value):
             # If child model is abstract or is missing fields contained in the
             # input, look for a subclass of the child that matches child_value
-            child_fields = child_value.keys()
-            Model = Model._select_best_subclass_model_by_fields(child_fields)
+            Model = Model._select_best_subclass_model_by_fields(child_value)
         self._check_child_compatibility(Model)
         return Model
 
@@ -403,30 +429,39 @@ class _BaseModel(models.Model):
         return cls._meta.abstract or not cls._do_all_fields_match(data_struct)
 
     @classmethod
-    def _select_best_subclass_model_by_fields(AbstractModel, fields):
+    def _select_best_subclass_model_by_fields(AbstractModel, value):
         """Find a model that extends AbstractModel and matches the
         fields found in the data object.
         If more than one match are found, rase an exception.
         This works for either an abstract base class or a 
         multitable base class.
         """
+        fields = value.keys()
+        try:
+            model_name = value.pop('_class')
+        except KeyError:
+            model_name = None
+
         subclass_models = []
         for Model in django.apps.apps.get_models():
             if issubclass(Model, AbstractModel):
                 subclass_models.append(Model)
         matching_models = []
         for Model in subclass_models:
-            if Model._do_all_fields_match(fields):
+            if model_name is None:
+                if Model._do_all_fields_match(fields):
+                    matching_models.append(Model)
+            elif Model._does_model_name_match(model_name):
                 matching_models.append(Model)
         if len(matching_models) == 0:
             raise CouldNotFindSubclassError(
                 "Failed to find a subclass of model %s that matches "\
-                "these fields: %s" % (AbstractModel.__name__, fields))
+                "these fields: %s and model_name: %s" % (AbstractModel.__name__, fields, model_name))
         elif len(matching_models) > 1:
             raise CouldNotFindUniqueSubclassError(
                 "Failed to find a unique subclass of model %s that "\
-                "matches these fields: %s. Multiple models matched: %s"
-                % (AbstractModel.__name__, fields, matching_models))
+                "matches these fields: %s and model_name: %s. Multiple models matched: %s"
+                % (AbstractModel.__name__, fields, model_name, matching_models))
         else:
             # Successfully found one match
             return matching_models[0]
@@ -436,9 +471,13 @@ class _BaseModel(models.Model):
         """Returns true if all candidate fields are found on this model
         """
         return set(fields).issubset(set(cls._meta.get_all_field_names()))
-        
+
+    @classmethod
+    def _does_model_name_match(cls, model_name):
+        return cls.__name__ == model_name
+
     def downcast(self):
-        """ Return the most derived class of this model with the same ID as 
+        """Return the most derived class of this model with the same ID as 
         self. If no derived instances exist, return self.
         """
         derived_models = []
@@ -555,13 +594,14 @@ class InstanceModel(_BaseModel):
         """Use a JSON or python structure to create a model and save 
         it to the database"""
         data_struct = cls._any_to_struct(data_struct_or_json)
+        cls.before_create_or_update(data_struct)
         # If inheritance is used, create the model instance using the
         # most derived class that matches the fields in the input.
         Model = cls._select_best_subclass_model_by_fields(data_struct)
         # Use a transaction for creation of the model and any children
         with transaction.atomic():
             o = Model()
-            o._create_or_update_fields(data_struct)
+            o._create_or_update_fields(data_struct, first_iteration=True)
         return o
 
     def update(self, update_struct_or_json):
@@ -569,6 +609,7 @@ class InstanceModel(_BaseModel):
         save it to the database.
         """
         update_struct = self._any_to_struct(update_struct_or_json)
+        self.before_create_or_update(update_struct)
         self._verify_update_id_matches_model(update_struct.get('_id'))
         # Start with existing model as a dict and update any fields that
         # are contained in update_json
@@ -576,7 +617,7 @@ class InstanceModel(_BaseModel):
         model_struct.update(update_struct)
         # Use a transaction for update of the model and any children
         with transaction.atomic():
-            self._create_or_update_fields(model_struct)
+            self._create_or_update_fields(model_struct, first_iteration=True)
         return self
 
     def _set_datetime_updated(self):
@@ -605,7 +646,7 @@ class ImmutableModel(_BaseModel):
         """Use a JSON or python structure to create a model and save 
         it to the database"""
         data_struct = cls._any_to_struct(data_struct_or_json)
-        cls.validate_create_input(data_struct)
+        cls.before_create_or_update(data_struct)
         _id = cls._verify_input_id_matches_hash(data_struct)
         data_struct.update({'_id': _id})
         # If inheritance is used, create the model instance using the
@@ -614,16 +655,9 @@ class ImmutableModel(_BaseModel):
         # Use a transaction for creation of the model and any children
         with transaction.atomic():
             o = Model()
-            o._create_or_update_fields(data_struct)
+            o._create_or_update_fields(data_struct, first_iteration=True)
         return o
             
-    @classmethod
-    def validate_create_input(cls, data_struct):
-        """This can be overridden in the model definitions to include a
-        validation routine for that specific model.
-        """
-        pass
-
     @classmethod
     def _verify_input_id_matches_hash(cls, data_struct):
         id_from_input = data_struct.get('_id')
@@ -656,7 +690,7 @@ class ImmutableModel(_BaseModel):
     @classmethod
     def _calculate_unique_id(cls, data_struct_or_json):
         data_struct = cls._any_to_struct(data_struct_or_json)
-        return helpers.IdCalculator(data_struct=data_struct, id_key='_id').get_id()
+        return helpers.IdCalculator(data_struct=data_struct, excluded_keys=['_id', '_class']).get_id()
 
     def _check_child_compatibility(self, Child):
         """Verify that all children are also Immutable. Since Immutable 

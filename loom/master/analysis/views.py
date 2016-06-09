@@ -134,8 +134,8 @@ def file_imports_by_file(request, id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def check_status(request):
-    RunRequest.check_status_for_all()
+def refresh(request):
+    RunRequest.refresh_status_for_all()
     return JsonResponse({"status": "ok"}, status=200)
 
 @require_http_methods(["GET"])

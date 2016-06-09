@@ -11,40 +11,57 @@ from .workflows import Workflow
 
 class RunRequest(AnalysisAppInstanceModel):
 
-    workflow = fields.ForeignKey('AbstractWorkflow')
+    template = fields.ForeignKey('AbstractWorkflow')
     inputs = fields.OneToManyField('RunRequestInput', related_name='run_request')
     outputs = fields.OneToManyField('RunRequestOutput', related_name='run_request')
     run = fields.ForeignKey('AbstractWorkflowRun', null=True)
-    status = fields.CharField(
-        max_length=255,
-        default='running',
-        choices=(
-            ('running', 'Running'),
-            ('completed', 'Completed')
-        )
-    )
+
+    cancel_requests = fields.OneToManyField('CancelRequest', related_name='run_request')
+    restart_requests = fields.OneToManyField('RestartRequest', related_name='run_request')
+    failure_notices = fields.OneToManyField('FailureNotice', related_name='run_request')
+
+    is_running = fields.BooleanField(default=True)
+    is_stopping = fields.BooleanField(default=False)
+    is_hard_stop = fields.BooleanField(default=False)
+    is_failed = fields.BooleanField(default=False)
+    is_canceled = fields.BooleanField(default=False)
+    is_completed_with_success = fields.BooleanField(default=False)
 
     def after_create_or_update(self):
-        self._create_outputs()
-        self._validate_run_request()
-        self.run = AbstractWorkflowRun.create_run_from_workflow(self.workflow)
-        self.save()
+        self._initialize_run()
+        self._initialize_outputs()
         self._initialize_channels()
         for input in self.inputs.all():
             input.initial_push()
+        self._validate_run_request()
+        self.is_initialized = True
 
-    def _create_outputs(self):
-        for workflow_output in self.workflow.outputs.all():
+    def _initialize_run(self):
+        if not self.run:
+            # Workaround--not using the "update" method here to avoid infinite recursion
+            self.run = AbstractWorkflowRun.create({'template': self.template})
+            self.save()
+
+    def _initialize_outputs(self):
+        for workflow_output in self.template.outputs.all():
             if not self.outputs.filter(channel=workflow_output.channel):
+                # Workaround--not using the "update" method here to avoid infinite recursion
                 self.outputs.add(
                     RunRequestOutput.create({
                         'channel': workflow_output.channel
                     })
                 )
 
+    def _initialize_channels(self):
+        for source in self._get_sources():
+            destination = self._get_destination(source.channel)
+            if not source.has_destination(destination):
+                channel = Channel.create_from_sender(source, source.channel)
+                channel.add_receiver(destination)
+
     def _validate_run_request(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput and that their channel names match
-        workflow_inputs = set([input.channel for input in self.workflow.inputs.all()])
+        workflow_inputs = set([input.channel for input in self.template.inputs.all()])
         for input in self.inputs.all():
             if not input.channel in workflow_inputs:
                 raise ValidationError('Run request is invalid. Input channel "%s" does not correspond to any channel in the workflow' % input.channel)
@@ -54,7 +71,7 @@ class RunRequest(AnalysisAppInstanceModel):
                                   ', '.join([channel for channel in workflow_inputs]))
 
         # Verify that there is 1 WorkflowOutput for each RunRequestOutput and that their channel names match
-        workflow_outputs = set([output.channel for output in self.workflow.outputs.all()])
+        workflow_outputs = set([output.channel for output in self.template.outputs.all()])
         for output in self.outputs.all():
             if not output.channel in workflow_outputs:
                 raise ValidationError('Run request is invalid. Output channel "%s" does not correspond to any channel in the workflow' % output.channel)
@@ -62,12 +79,6 @@ class RunRequest(AnalysisAppInstanceModel):
         if len(workflow_outputs) > 0:
             raise ValidationError('Missing output for channel(s) "%s"' %
                                   ', '.join([channel for channel in workflow_outputs]))
-
-    def _initialize_channels(self):
-        for source in self._get_sources():
-            destination = self._get_destination(source.channel)
-            channel = Channel.create_from_sender(source, source.channel)
-            channel.add_receiver(destination)
 
     def _get_sources(self):
         sources = [source for source in self.inputs.all()]
@@ -79,10 +90,39 @@ class RunRequest(AnalysisAppInstanceModel):
         destinations.extend([dest for dest in self.outputs.filter(channel=channel)])
         assert len(destinations) == 1
         return destinations[0]
-    
+
     @classmethod
-    def check_status_for_all(cls):
-        pass
+    def cancel_all(cls, is_hard_stop=None):
+        for run_request in cls.objects.filter(running=True):
+            run_request.cancel()
+
+
+    def cancel(self, is_hard_stop=None):
+        self.cancel_requests.add(
+            CancelRequest.create(
+                {'is_hard_stop': is_hard_stop}
+            ))
+
+    def fail(self, is_hard_stop=None):
+        self.failure_notices.add(
+            FailureNotice.create(
+                {'is_hard_stop': is_hard_stop}
+            ))
+
+    def restart(self):
+        self.restart_requests.add(
+            RestartRequest.create({})
+        )
+
+    @classmethod
+    def refresh_status_for_all(cls):
+        for run_request in cls.objects.filter(running=True):
+            run_request.refresh_status()
+
+    def refresh_status(self):
+        """ Arbitrate between 0 or more FailureNotices, CancelRequests, and RestartRequests
+        """
+        import pdb; pdb.set_trace()
 
 
 class RunRequestInput(InputOutputNode):
@@ -109,3 +149,39 @@ class RunRequestOutput(InputOutputNode):
     def push(self):
         # TODO - mark run as complete
         pass
+
+
+class CancelRequest(AnalysisAppInstanceModel):
+
+    is_hard_stop = fields.BooleanField()
+
+    @classmethod
+    def before_create_or_update(cls, data):
+        if data.get('is_hard_stop') is None:
+            data.update({
+                'is_hard_stop': settings.HARD_STOP_ON_CANCEL
+            })
+
+    def after_create_or_update(self):
+        self.run_request.refresh_status()
+
+
+class RestartRequest(AnalysisAppInstanceModel):
+
+    def after_create_or_update(self):
+        self.run_request.refresh_status()
+
+
+class FailureNotice(AnalysisAppInstanceModel):
+
+    is_hard_stop = fields.BooleanField()
+
+    @classmethod
+    def before_create_or_update(cls, data):
+        if data.get('is_hard_stop') is None:
+            data.update({
+                'is_hard_stop': self.settings.HARD_STOP_ON_FAIL
+            })
+
+    def after_create_or_update(self):
+        self.run_request.refresh_status()

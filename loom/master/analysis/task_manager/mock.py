@@ -16,7 +16,6 @@ class MockTaskManager(object):
         for output in task_run.outputs.all():
             data_object = cls._render_mock_file_data_object()
             output.update({'data_object': data_object})
-        print task_run.task_definition.command
 
     @classmethod
     def _render_mock_file_data_object(self):
