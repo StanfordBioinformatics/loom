@@ -1,23 +1,13 @@
-from django.conf import settings
 from django.utils import timezone
 import json
 import os
 import uuid
 
-from analysis.models.base import AnalysisAppInstanceModel, \
+from analysis import get_setting
+from .base import AnalysisAppInstanceModel, \
     AnalysisAppImmutableModel
 from universalmodels import fields
 
-
-def get_file_root():
-    if not settings.FILE_ROOT:
-        raise Exception('FILE_ROOT is not set')
-    return settings.FILE_ROOT
-
-def get_import_dir():
-    if not settings.IMPORT_DIR:
-        raise Exception('IMPORT_DIR is not set')
-    return settings.IMPORT_DIR
 
 class DataObject(AnalysisAppInstanceModel):
     """A reference to DataObjectContent. While there is only one
@@ -25,6 +15,21 @@ class DataObject(AnalysisAppInstanceModel):
     to it. That way if the same content arises twice independently 
     we can still keep separate provenance graphs.
     """
+
+    TYPE_CHOICES = (
+        ('file', 'File'),
+        ('boolean', 'Boolean'),
+        ('string', 'String'),
+        ('integer', 'Integer'),
+        ('json', 'JSON'),
+        # ('file_array', 'File Array'),
+        # ('boolean_array', 'Boolean Array'),
+        # ('string_array', 'String Array'),
+        # ('integer_array', 'Integer Array'),
+        # ('float', 'Float'),
+        # ('float_array', 'Float Array'),
+        # ('json_array', 'JSON Array')
+    )
 
     def get_type(self):
         return self.downcast().TYPE
@@ -112,32 +117,46 @@ class FileLocation(AnalysisAppInstanceModel):
         return locations
 
     @classmethod
-    def get_location_for_import(cls, file_data_object):
+    def get_location_for_import(cls, file_import):
         return cls.create({
-            'url': cls._get_url(cls._get_path_for_import(file_data_object)),
-            'unnamed_file_content': file_data_object.file_content.unnamed_file_content
+            'url': cls._get_url(cls._get_path_for_import(file_import)),
+            'unnamed_file_content': file_import.data_object.file_content.unnamed_file_content
         })
 
     @classmethod
-    def _get_path_for_import(cls, file_data_object):
-        if settings.BROWSEABLE_FILE_STORAGE:
+    def _get_path_for_import(cls, file_import):
+        if get_setting('KEEP_DUPLICATE_FILES') and get_setting('FORCE_RERUN'):
+            # If both are True, we can organize the directory structure in
+            # a human browsable way
             return os.path.join(
                 '/',
-                get_file_root(),
-                get_import_dir(),
+                get_setting('FILE_ROOT'),
+                file_import.get_browsable_path(),
                 "%s-%s-%s" % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data_object._id,
-                    file_data_object.file_content.filename
+                    file_import.data_object._id,
+                    file_import.data_object.file_content.filename
+                )
+            )
+        elif get_setting('KEEP_DUPLICATE_FILES'):
+            # Use a flat directory structure but give files with identical content distinctive names
+            return os.path.join(
+                '/',
+                get_setting('FILE_ROOT'),
+                '%s-%s-%s' % (
+                    timezone.now().strftime('%Y%m%d%H%M%S'),
+                    file_import.data_object._id,
+                    file_import.data_object.file_content.filename
                 )
             )
         else:
+            # Use a flat directory structure and use file names that reflect content
             return os.path.join(
                 '/',
-                get_file_root(),
+                get_setting('FILE_ROOT'),
                 '%s-%s' % (
-                    file_data_object.file_content.unnamed_file_content.hash_function,
-                    file_data_object.file_content.unnamed_file_content.hash_value
+                    file_import.data_object.file_content.unnamed_file_content.hash_function,
+                    file_import.data_object.file_content.unnamed_file_content.hash_value
                 )
             )
 
@@ -151,34 +170,31 @@ class FileLocation(AnalysisAppInstanceModel):
     def _get_temp_path_for_import(cls):
         return os.path.join(
             '/',
-            get_file_root(),
-            get_import_dir(),
+            get_setting('FILE_ROOT'),
             'tmp',
             uuid.uuid4().hex
         )
 
     @classmethod
     def _get_url(cls, path):
-        if settings.FILE_SERVER_TYPE == 'LOCAL':
+        FILE_SERVER_TYPE = get_setting('FILE_SERVER_TYPE')
+        if FILE_SERVER_TYPE == 'LOCAL':
             return 'file://' + path
-        elif settings.FILE_SERVER_TYPE == 'GOOGLE_CLOUD':
-            return 'gs://' + os.path.join(settings.BUCKET_ID, path)
+        elif FILE_SERVER_TYPE == 'GOOGLE_CLOUD':
+            return 'gs://' + os.path.join(get_setting('BUCKET_ID'), path)
         else:
-            raise Exception('Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"' % settings.FILE_SERVER_TYPE)
+            raise Exception('Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"' % FILE_SERVER_TYPE)
 
 
-class FileImport(AnalysisAppInstanceModel):
+class AbstractFileImport(AnalysisAppInstanceModel):
 
-    file_data_object = fields.ForeignKey(
+    data_object = fields.OneToOneField(
         'FileDataObject',
-        related_name = 'file_imports',
         null=True)
-    note = fields.TextField(max_length=10000, null=True)
-    source_url = fields.TextField(max_length=1000)
-    temp_file_location = fields.ForeignKey('FileLocation', null=True, related_name='temp_file_import')
-    file_location = fields.ForeignKey('FileLocation', null=True)
+    temp_file_location = fields.OneToOneField('FileLocation', null=True, related_name='temp_file_import')
+    file_location = fields.OneToOneField('FileLocation', null=True, related_name='file_import')
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         # If there is no FileLocation, set a temporary one.
         # The client will need this to know upload destination, but we
         # can't create a permanent FileLocation until we know the file hash, since
@@ -188,7 +204,7 @@ class FileImport(AnalysisAppInstanceModel):
 
         # If FileDataObject was added and no permanent FileLocation exists,
         # create one. The client will need this to know upload destination.
-        elif self.file_data_object and not self.file_location:
+        elif self.data_object and not self.file_location:
             self._set_file_location()
 
     def _set_temp_file_location(self):
@@ -200,9 +216,18 @@ class FileImport(AnalysisAppInstanceModel):
 
     def _set_file_location(self):
         """After uploading the file to a temp location and updating the FileImport with the full 
-        FileContent (which includes the hash), the final storage location can be determined.
+        FileDataObject (which includes the hash), the final storage location can be determined.
         """
-        self.update({'file_location': FileLocation.get_location_for_import(self.file_data_object)})
+        self.update({'file_location': FileLocation.get_location_for_import(self)})
+
+
+class FileImport(AbstractFileImport):
+
+    note = fields.TextField(max_length=10000, null=True)
+    source_url = fields.TextField(max_length=1000)
+
+    def get_browsable_path(self):
+        return 'imported'
 
 
 class JSONDataObject(DataObject):

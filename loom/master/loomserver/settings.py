@@ -215,10 +215,14 @@ WORKER_NETWORK = os.getenv('WORKER_NETWORK')
 WORKER_TAGS = os.getenv('WORKER_TAGS')
 
 HASH_FUNCTION = 'md5'
-BROWSEABLE_FILE_STORAGE = True
-FORCE_RERUN = False
+
+KEEP_DUPLICATE_FILES = True
+FORCE_RERUN = True
+
 HARD_STOP_ON_CANCEL = True
 HARD_STOP_ON_FAIL = True
+
+DISABLE_AUTO_PUSH = False
 
 # Graph Models settings to generate model schema plots
 GRAPH_MODELS = {

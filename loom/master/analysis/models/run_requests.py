@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from analysis import get_setting
 from universalmodels import fields
 from .base import AnalysisAppInstanceModel
 from .channels import Channel, InputOutputNode
@@ -14,7 +15,7 @@ class RunRequest(AnalysisAppInstanceModel):
     template = fields.ForeignKey('AbstractWorkflow')
     inputs = fields.OneToManyField('RunRequestInput', related_name='run_request')
     outputs = fields.OneToManyField('RunRequestOutput', related_name='run_request')
-    run = fields.ForeignKey('AbstractWorkflowRun', null=True)
+    run = fields.OneToOneField('AbstractWorkflowRun', null=True)
 
     cancel_requests = fields.OneToManyField('CancelRequest', related_name='run_request')
     restart_requests = fields.OneToManyField('RestartRequest', related_name='run_request')
@@ -25,14 +26,14 @@ class RunRequest(AnalysisAppInstanceModel):
     is_hard_stop = fields.BooleanField(default=False)
     is_failed = fields.BooleanField(default=False)
     is_canceled = fields.BooleanField(default=False)
-    is_completed_with_success = fields.BooleanField(default=False)
+    is_completed = fields.BooleanField(default=False)
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         self._initialize_run()
         self._initialize_outputs()
         self._initialize_channels()
-        for input in self.inputs.all():
-            input.initial_push()
+        if not get_setting('DISABLE_AUTO_PUSH'):
+            self._initial_push()
         self._validate_run_request()
         self.is_initialized = True
 
@@ -59,6 +60,11 @@ class RunRequest(AnalysisAppInstanceModel):
                 channel = Channel.create_from_sender(source, source.channel)
                 channel.add_receiver(destination)
 
+    def _initial_push(self):
+        for input in self.inputs.all():
+            input.initial_push()
+        self.run.initial_push()
+        
     def _validate_run_request(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput and that their channel names match
         workflow_inputs = set([input.channel for input in self.template.inputs.all()])
@@ -122,8 +128,14 @@ class RunRequest(AnalysisAppInstanceModel):
     def refresh_status(self):
         """ Arbitrate between 0 or more FailureNotices, CancelRequests, and RestartRequests
         """
-        import pdb; pdb.set_trace()
+        # TODO
+        pass
 
+    def push(self):
+        for output in self.outputs.all():
+            if not output.is_completed():
+                return
+        self.update({'is_completed': True})
 
 class RunRequestInput(InputOutputNode):
 
@@ -145,11 +157,16 @@ class RunRequestInput(InputOutputNode):
 class RunRequestOutput(InputOutputNode):
 
     channel = fields.CharField(max_length=255)
+    data_object = fields.ForeignKey('DataObject', null=True)
 
     def push(self):
-        # TODO - mark run as complete
-        pass
+        self.update(
+            {'data_object': self.from_channel.pop()}
+        )
+        self.run_request.push()
 
+    def is_completed(self):
+        return self.data_object is not None
 
 class CancelRequest(AnalysisAppInstanceModel):
 
@@ -159,16 +176,16 @@ class CancelRequest(AnalysisAppInstanceModel):
     def before_create_or_update(cls, data):
         if data.get('is_hard_stop') is None:
             data.update({
-                'is_hard_stop': settings.HARD_STOP_ON_CANCEL
+                'is_hard_stop': get_setting('HARD_STOP_ON_CANCEL')
             })
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         self.run_request.refresh_status()
 
 
 class RestartRequest(AnalysisAppInstanceModel):
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         self.run_request.refresh_status()
 
 
@@ -180,8 +197,8 @@ class FailureNotice(AnalysisAppInstanceModel):
     def before_create_or_update(cls, data):
         if data.get('is_hard_stop') is None:
             data.update({
-                'is_hard_stop': self.settings.HARD_STOP_ON_FAIL
+                'is_hard_stop': get_setting('HARD_STOP_ON_FAIL')
             })
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         self.run_request.refresh_status()

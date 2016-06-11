@@ -8,6 +8,7 @@ import universalmodels.models
 import django.utils.timezone
 import analysis.models.base
 import sortedm2m.fields
+import analysis.models.task_runs
 
 
 class Migration(migrations.Migration):
@@ -16,6 +17,18 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.CreateModel(
+            name='AbstractFileImport',
+            fields=[
+                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
+                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelMixin),
+        ),
         migrations.CreateModel(
             name='AbstractWorkflow',
             fields=[
@@ -114,20 +127,6 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='FileImport',
-            fields=[
-                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('note', models.TextField(max_length=10000, null=True)),
-                ('source_url', models.TextField(max_length=1000)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, analysis.models.base._ModelMixin),
-        ),
-        migrations.CreateModel(
             name='FileLocation',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
@@ -169,18 +168,6 @@ class Migration(migrations.Migration):
         ),
         migrations.CreateModel(
             name='InputOutputNode',
-            fields=[
-                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, analysis.models.base._ModelMixin),
-        ),
-        migrations.CreateModel(
-            name='MockTaskRunExecution',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -237,7 +224,7 @@ class Migration(migrations.Migration):
                 ('is_hard_stop', models.BooleanField(default=False)),
                 ('is_failed', models.BooleanField(default=False)),
                 ('is_canceled', models.BooleanField(default=False)),
-                ('is_completed_with_success', models.BooleanField(default=False)),
+                ('is_completed', models.BooleanField(default=False)),
                 ('cancel_requests', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.CancelRequest')),
                 ('failure_notices', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.FailureNotice')),
                 ('restart_requests', sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.RestartRequest')),
@@ -328,20 +315,7 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelMixin),
         ),
         migrations.CreateModel(
-            name='TaskRunExecutionLog',
-            fields=[
-                ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
-                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
-                ('datetime_updated', models.DateTimeField(default=django.utils.timezone.now)),
-                ('logname', models.CharField(max_length=255)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, analysis.models.base._ModelMixin),
-        ),
-        migrations.CreateModel(
-            name='TaskRunExecutionOutput',
+            name='TaskRunExecution',
             fields=[
                 ('_id', models.UUIDField(default=universalmodels.models.uuid_str, serialize=False, editable=False, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now)),
@@ -471,6 +445,18 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
+            name='FileImport',
+            fields=[
+                ('abstractfileimport_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractFileImport')),
+                ('note', models.TextField(max_length=10000, null=True)),
+                ('source_url', models.TextField(max_length=1000)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractfileimport',),
+        ),
+        migrations.CreateModel(
             name='FixedWorkflowRunInput',
             fields=[
                 ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
@@ -525,6 +511,26 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
+            name='LocalTaskRunExecution',
+            fields=[
+                ('taskrunexecution_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunExecution')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskrunexecution',),
+        ),
+        migrations.CreateModel(
+            name='MockTaskRunExecution',
+            fields=[
+                ('taskrunexecution_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunExecution')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskrunexecution',),
         ),
         migrations.CreateModel(
             name='RequestedDockerEnvironment',
@@ -632,6 +638,27 @@ class Migration(migrations.Migration):
             bases=('analysis.taskdefinitionenvironment',),
         ),
         migrations.CreateModel(
+            name='TaskRunExecutionLog',
+            fields=[
+                ('abstractfileimport_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractFileImport')),
+                ('log_name', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractfileimport', analysis.models.task_runs.AbstractTaskRunExecutionFile),
+        ),
+        migrations.CreateModel(
+            name='TaskRunExecutionOutput',
+            fields=[
+                ('abstractfileimport_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractFileImport')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractfileimport', analysis.models.task_runs.AbstractTaskRunExecutionFile),
+        ),
+        migrations.CreateModel(
             name='Workflow',
             fields=[
                 ('abstractworkflow_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflow')),
@@ -701,14 +728,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.TaskDefinitionInput'),
         ),
         migrations.AddField(
-            model_name='taskrunexecutionoutput',
-            name='data_object',
-            field=models.ForeignKey(to='analysis.DataObject', null=True),
-        ),
-        migrations.AddField(
-            model_name='taskrunexecutionoutput',
-            name='task_run_output',
-            field=models.ForeignKey(to='analysis.TaskRunOutput'),
+            model_name='taskrunexecution',
+            name='task_run',
+            field=models.ForeignKey(to='analysis.TaskRun'),
         ),
         migrations.AddField(
             model_name='taskrun',
@@ -753,7 +775,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='runrequest',
             name='run',
-            field=models.ForeignKey(to='analysis.AbstractWorkflowRun', null=True),
+            field=models.OneToOneField(null=True, to='analysis.AbstractWorkflowRun'),
         ),
         migrations.AddField(
             model_name='runrequest',
@@ -761,34 +783,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.AbstractWorkflow'),
         ),
         migrations.AddField(
-            model_name='mocktaskrunexecution',
-            name='logs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunExecutionLog'),
-        ),
-        migrations.AddField(
-            model_name='mocktaskrunexecution',
-            name='outputs',
-            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run', to='analysis.TaskRunExecutionOutput'),
-        ),
-        migrations.AddField(
-            model_name='mocktaskrunexecution',
-            name='task_run',
-            field=models.ForeignKey(to='analysis.TaskRun'),
-        ),
-        migrations.AddField(
             model_name='filelocation',
             name='unnamed_file_content',
             field=models.ForeignKey(related_name='file_locations', to='analysis.UnnamedFileContent', null=True),
-        ),
-        migrations.AddField(
-            model_name='fileimport',
-            name='file_location',
-            field=models.ForeignKey(to='analysis.FileLocation', null=True),
-        ),
-        migrations.AddField(
-            model_name='fileimport',
-            name='temp_file_location',
-            field=models.ForeignKey(related_name='temp_file_import', to='analysis.FileLocation', null=True),
         ),
         migrations.AddField(
             model_name='channeloutput',
@@ -814,6 +811,16 @@ class Migration(migrations.Migration):
             model_name='channel',
             name='sender',
             field=models.OneToOneField(related_name='to_channel', null=True, to='analysis.InputOutputNode'),
+        ),
+        migrations.AddField(
+            model_name='abstractfileimport',
+            name='file_location',
+            field=models.OneToOneField(related_name='file_import', null=True, to='analysis.FileLocation'),
+        ),
+        migrations.AddField(
+            model_name='abstractfileimport',
+            name='temp_file_location',
+            field=models.OneToOneField(related_name='temp_file_import', null=True, to='analysis.FileLocation'),
         ),
         migrations.CreateModel(
             name='FixedStepRunInput',
@@ -856,9 +863,19 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='analysis.Workflow'),
         ),
         migrations.AddField(
-            model_name='taskrunexecutionlog',
-            name='logfile',
-            field=models.ForeignKey(to='analysis.FileDataObject'),
+            model_name='taskrunexecutionoutput',
+            name='task_run_output',
+            field=models.ForeignKey(to='analysis.TaskRunOutput'),
+        ),
+        migrations.AddField(
+            model_name='taskrunexecution',
+            name='logs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run_execution', to='analysis.TaskRunExecutionLog'),
+        ),
+        migrations.AddField(
+            model_name='taskrunexecution',
+            name='outputs',
+            field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='task_run_execution', to='analysis.TaskRunExecutionOutput'),
         ),
         migrations.AddField(
             model_name='steprunoutput',
@@ -881,6 +898,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='step_run', to='analysis.Step'),
         ),
         migrations.AddField(
+            model_name='runrequestoutput',
+            name='data_object',
+            field=models.ForeignKey(to='analysis.DataObject', null=True),
+        ),
+        migrations.AddField(
             model_name='runrequest',
             name='inputs',
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.RunRequestInput'),
@@ -891,11 +913,6 @@ class Migration(migrations.Migration):
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.RunRequestOutput'),
         ),
         migrations.AddField(
-            model_name='fileimport',
-            name='file_data_object',
-            field=models.ForeignKey(related_name='file_imports', to='analysis.FileDataObject', null=True),
-        ),
-        migrations.AddField(
             model_name='filedataobject',
             name='file_location',
             field=models.ForeignKey(to='analysis.FileLocation', null=True),
@@ -904,6 +921,11 @@ class Migration(migrations.Migration):
             model_name='abstractstepruninput',
             name='task_run_inputs',
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_inputs', to='analysis.TaskRunInput'),
+        ),
+        migrations.AddField(
+            model_name='abstractfileimport',
+            name='data_object',
+            field=models.OneToOneField(null=True, to='analysis.FileDataObject'),
         ),
         migrations.AddField(
             model_name='steprun',

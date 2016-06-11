@@ -26,13 +26,14 @@ class Channel(AnalysisAppInstanceModel):
         channel.sender = sender
         channel.save()
         return channel
-    
+
     def push(self, data_object):
         if self.is_closed_to_new_data:
             return
+        self.data_objects.add(data_object)
         for output in self.outputs.all():
-            self.data_objects.add(data_object)
             output._push(data_object)
+        self.save()
 
     def add_receivers(self, receivers):
         for receiver in receivers:
@@ -64,6 +65,7 @@ class ChannelOutput(AnalysisAppInstanceModel):
 
     def _push(self, data_object):
         self.data_objects.add(data_object)
+        self.save()
         self.receiver.push()
 
     def is_empty(self):
@@ -72,7 +74,7 @@ class ChannelOutput(AnalysisAppInstanceModel):
     def is_dead(self):
         return self.channel.is_closed_to_new_data and self.is_empty()
 
-    def _pop(self):
+    def pop(self):
         data_object = self.data_objects.first()
         self.data_objects = self.data_objects.all()[1:]
         return data_object.downcast()
@@ -81,7 +83,7 @@ class ChannelOutput(AnalysisAppInstanceModel):
         """Pass channel contents to the downstream channel
         """
         if not self.is_empty():
-            to_channel.push(self._pop())
+            to_channel.push(self.pop())
 
         if self.is_dead():
             to_channel.close()
@@ -123,7 +125,7 @@ class ChannelSet(object):
 class InputItem(object):
     
     def __init__(self, channel):
-        self.data_object = channel._pop()
+        self.data_object = channel.pop()
         self.channel = channel.channel.name
 
 

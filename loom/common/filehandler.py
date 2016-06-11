@@ -451,27 +451,12 @@ class FileHandler:
 
     def __init__(self, master_url, logger=None):
         self.objecthandler = ObjectHandler(master_url)
-        self.settings = self._get_filehandler_settings(master_url)
+        self.settings = self.objecthandler.get_filehandler_settings()
         self.logger = logger
         stdout_logger = StreamToLogger(self.logger, logging.INFO)
         sys.stdout = stdout_logger
         stderr_logger = StreamToLogger(self.logger, logging.ERROR)
         sys.stderr = stderr_logger
-
-    def _get_filehandler_settings(cls, master_url):
-        url = master_url + '/api/file-handler-info/'
-        try:
-            response = requests.get(url)
-        except requests.exceptions.ConnectionError:
-            raise ServerConnectionError(
-                'No response from server at %s. Do you need to run "loom server start"?' \
-                % master_url)
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            raise BadResponseError("%s\n%s" % (e.message, response.text))
-        filehandler_settings = response.json()['file_handler_info']
-        return filehandler_settings
 
     def _log(self, message):
         if not self.logger:
@@ -484,13 +469,14 @@ class FileHandler:
 
     def import_from_pattern(self, pattern, note):
         for source in SourceSet(pattern, self.settings):
-            self.import_file(source.get_url(), note)
+            self.import_file(
+                self.create_file_import(source.get_url(), note),
+                source.get_url()
+            )
 
-    def import_file(self, source_url, note):
+    def import_file(self, file_import, source_url):
         source = Source(source_url, self.settings)
         self._log('Importing file from %s...' % source.get_url())
-
-        file_import = self._create_file_import(source, note)
 
         temp_destination = Destination(file_import['temp_file_location']['url'], self.settings)
         hash_function = self.settings['HASH_FUNCTION']
@@ -503,20 +489,32 @@ class FileHandler:
         temp_source.move_to(final_destination)
 
         final_file_import =  self._finalize_file_import(updated_file_import)
-        self._log('...finished importing file %s@%s' % (final_file_import['file_data_object']['file_content']['filename'],
-                                           final_file_import['file_data_object']['_id']))
+        self._log('...finished importing file %s@%s' % (final_file_import['data_object']['file_content']['filename'],
+                                           final_file_import['data_object']['_id']))
         return final_file_import
     
-    def _create_file_import(self, source, note):
-        return self.objecthandler.post_file_import({
+    def create_file_import(self, source_url, note):
+        source = Source(source_url, self.settings)
+        return self.objecthandler.post_abstract_file_import({
             'note': note,
             'source_url': source.get_url(),
         })
-    
+
+    def get_result_file_import(self, task_run_execution_output):
+        return self.objecthandler.get_task_run_execution_output(
+            task_run_execution_output['_id']
+        )
+
+    def create_logfile_import(self, task_run_execution_id, log_name):
+        return self.objecthandler.post_task_run_execution_log(
+            task_run_execution_id,
+            {'log_name': log_name}
+        )
+
     def _add_file_data_object_to_file_import(self, file_import, source, hash_value, hash_function):
-        return self.objecthandler.update_file_import(
+        return self.objecthandler.update_abstract_file_import(
             file_import['_id'],
-            { 'file_data_object':
+            { 'data_object':
               { 'file_content':
                 {
                     'filename': source.get_filename(),
@@ -534,7 +532,7 @@ class FileHandler:
         }
         file_import_update['file_location']['status'] = 'complete'
         
-        return self.objecthandler.update_file_import(
+        return self.objecthandler.update_abstract_file_import(
             file_import['_id'],
             file_import_update
         )
@@ -551,18 +549,18 @@ class FileHandler:
 
     def export_file(self, file_id, destination_url=None):
         # Error raised if there is not exactly one matching file.
-        file = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
+        file_data_object = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()
-        default_name = file['filename']
+        default_name = file_data_object['file_content']['filename']
         destination_url = self.get_destination_file_url(destination_url, default_name)
         destination = Destination(destination_url, self.settings)
 
-        self._log('Exporting file %s%s to %s...' % (file['filename'], file['_id'], destination.get_url()))
+        self._log('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['_id'], destination.get_url()))
 
         # Copy from the first file location
-        location = self.objecthandler.get_file_locations_by_file(file['_id'])[0]
+        location = self.objecthandler.get_file_locations_by_file(file_data_object['_id'])[0]
         Source(location['url'], self.settings).copy_to(destination)
 
         self._log('...finished exporting file')

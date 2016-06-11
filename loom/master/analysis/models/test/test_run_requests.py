@@ -8,9 +8,23 @@ from .common import ModelTestMixin
 class TestRunRequest(TestCase, ModelTestMixin):
 
     def testFlatRunRequest(self):
-        o = RunRequest.create(flat_run_request)
-        self.roundTrip(o)
+        with self.settings(
+                WORKER_TYPE='MOCK'
+        ):
+            o = RunRequest.create(flat_run_request)
+
+            o.refresh_from_db()
+            self.assertTrue(o.is_completed)
+
+            self.roundTrip(o)
 
     def testNestedRunRequest(self):
-        o = RunRequest.create(nested_run_request)
-        self.roundTrip(o)
+        with self.settings(
+                WORKER_TYPE='MOCK'
+        ):
+            o = RunRequest.create(nested_run_request)
+
+            o.refresh_from_db()
+            self.assertTrue(o.is_completed)
+
+            self.roundTrip(o)

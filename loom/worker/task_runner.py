@@ -22,89 +22,108 @@ class TaskRunner(object):
         if args is None:
             args = self._get_args()
         self.settings = {
-            'RUN_ID': args.run_id,
-            'RUN_LOCATION_ID': args.run_location_id,
+            'EXECUTION_ID': args.execution_id,
             'MASTER_URL': args.master_url
         }
-        self.settings.update(self._get_additional_settings())
-        self._prepare_working_directory(self.settings['WORKING_DIR'])
-        self._add_logfiles()
+        self._init_objecthandler()
+        self.settings.update(self._get_worker_settings())
+        self._init_directories()
         self._init_logger()
         self._init_filehandler()
-        self._init_objecthandler()
-        self._init_task_run()
-        
-    def run(self):
+        self._init_task_run_execution()
 
-        self._download_inputs()
-        
+    def _init_objecthandler(self):
+        self.objecthandler = ObjectHandler(self.settings['MASTER_URL'])
+
+    def _init_filehandler(self):
+        self.filehandler = FileHandler(self.settings['MASTER_URL'], logger=self.logger)
+
+    def _get_worker_settings(self):
+        return self.objecthandler.get_worker_settings(self.settings['EXECUTION_ID'])
+
+    def _init_directories(self):
+        for directory in set([self.settings['WORKING_DIR'],
+                              os.path.dirname(self.settings['WORKER_LOGFILE']),
+                              os.path.dirname(self.settings['STDOUT_LOGFILE']),
+                              os.path.dirname(self.settings['STDERR_LOGFILE']),
+        ]):
+            try:
+                os.makedirs(directory)
+            except OSError as e:
+                raise Exception('Failed to create directory %s. %s' % (directory, e.strerror))
+
+    def _init_logger(self):
+        self.logger = logging.getLogger("LoomWorker")
+        self.logger.setLevel(self.settings['LOG_LEVEL'])
+        self.logger.raiseExceptions = True
+        formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
+        handler = self._init_handler()
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        stdout_logger = StreamToLogger(self.logger, logging.INFO)
+        sys.stdout = stdout_logger
+        stderr_logger = StreamToLogger(self.logger, logging.ERROR)
+        sys.stderr = stderr_logger
+
+    def _init_handler(self):
+        if self.settings.get('WORKER_LOGFILE') is None:
+            return logging.StreamHandler()
+        else:
+            if not os.path.exists(os.path.dirname(self.settings['WORKER_LOGFILE'])):
+                os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
+            return logging.FileHandler(self.settings['WORKER_LOGFILE'])
+
+    def _init_task_run_execution(self):
+        self.task_run_execution = self.objecthandler.get_task_run_execution(self.settings['EXECUTION_ID'])
+
+    def run(self):
+        self._export_inputs()
+
         with open(self.settings['STDOUT_LOGFILE'], 'w') as stdoutlog:
             with open(self.settings['STDERR_LOGFILE'], 'w') as stderrlog:
                 process = self._execute(stdoutlog, stderrlog)
                 self._wait_for_process(process)
 
-        self._upload_outputs()
-        self._upload_logfiles()
+        self._import_outputs()
+        self._import_logfiles()
 
         # self._flag_run_as_complete(self.step_run)
-        print "done"
 
-    def _download_inputs(self):
-        if self.task_run.get('task_run_inputs') is None:
+    def _export_inputs(self):
+        if self.task_run_execution['task_run'].get('inputs') is None:
             return
-        data_object_ids = ['@'+task_run_input['task_definition_input']['data_object']['_id']
-                            for task_run_input in self.task_run['task_run_inputs']]
-        self.filehandler.download_files(data_object_ids, target_directory=self.settings['WORKING_DIR'])
+        file_data_object_ids = []
+        for input in self.task_run_execution['task_run']['inputs']:
+            if input['data_object']['_class'] == 'FileDataObject':
+                file_data_object_ids.append('@'+input['data_object']['_id'])
+        self.filehandler.export_files(
+            file_data_object_ids,
+            destination_url=self.settings['WORKING_DIR'])
 
-    def _upload_outputs(self):
-        for task_run_output in self.task_run['task_run_outputs']:
-            path = task_run_output['task_definition_output']['path']
-            task_run_output['data_object'] = self.filehandler.upload_step_output_from_local_path(path, self.task_run['workflow_run_datetime_created'], self.task_run['workflow_name'], self.task_run['step_name'], source_directory=self.settings['WORKING_DIR'])
-        self.objecthandler.post_task_run(self.task_run)
+    def _import_outputs(self):
+        for output in self.task_run_execution['outputs']:
+            filename = output['task_run_output']['task_definition_output']['filename']
+            self.filehandler.import_file(
+                self.filehandler.get_result_file_import(output),
+                os.path.join(self.settings['WORKING_DIR'], filename)
+            )
 
-    def _upload_logfiles(self):
-        for logfile in (self.settings['STEP_LOGFILE'], self.settings['STDOUT_LOGFILE'], self.settings['STDERR_LOGFILE']):
-            file_object = self.filehandler.upload_step_output_from_local_path(logfile, self.task_run['workflow_run_datetime_created'], self.task_run['workflow_name'], self.task_run['step_name'])
-            task_run_log = {'logfile': file_object, 'logname': os.path.basename(logfile)}
-            if 'logs' not in self.task_run:
-                self.task_run['logs'] = []
-            self.task_run['logs'].append(task_run_log)
-        self.objecthandler.post_task_run(self.task_run)
-
-    def _get_additional_settings(self):
-        url = self.settings['MASTER_URL'] + '/api/worker-info/'
-        response = requests.get(url)
-        response.raise_for_status()
-        worker_info = response.json()['worker_info']
-        # TODO generate this path on the server
-        worker_info.update({'WORKING_DIR': os.path.join(worker_info['FILE_ROOT_FOR_WORKER'], uuid.uuid4().hex)})
-        return worker_info
-
-    def _init_task_run(self):
-        url = self.settings['MASTER_URL'] + '/api/task-runs/%s/' % self.settings['RUN_ID']
-        response = requests.get(url)
-        response.raise_for_status()
-        self.task_run = response.json()
-        self.logger.debug('Retrieved TaskRun %s' % self.task_run)
-
-    def _get_task_run(self):
-        print self.master_url
-
-    def _prepare_working_directory(self, working_dir):
-        print 'trying to create %s' % working_dir
-        try:
-            os.makedirs(working_dir)
-        except OSError as e:
-            if e.errno == errno.EEXIST and os.path.isdir(working_dir):
-                pass
-            else:
-                raise
+    def _import_logfiles(self):
+        for logfile in (self.settings['WORKER_LOGFILE'],
+                        self.settings['STDOUT_LOGFILE'],
+                        self.settings['STDERR_LOGFILE']):
+            self.filehandler.import_file(
+                self.filehandler.create_logfile_import(
+                    self.task_run_execution['_id'],
+                    os.path.basename(logfile)),
+                logfile
+            )
 
     def _execute(self, stdoutlog, stderrlog):
-        task_definition = self.task_run.get('task_definition')
-        environment = task_definition.get('environment')
-        docker_image = environment.get('docker_image')
-        user_command = task_definition.get('command')
+        task_definition = self.task_run_execution['task_run']['task_definition']
+        environment = task_definition['environment']
+        docker_image = environment['docker_image']
+        user_command = task_definition['command']
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/working_dir'
         
@@ -121,7 +140,7 @@ class TaskRunner(object):
             '-c',
             user_command,
             ]
-        self.logger.debug(full_command)
+        self.logger.debug(' '.join(full_command))
         return subprocess.Popen(full_command, stdout=stdoutlog, stderr=stderrlog)
 
     def _wait_for_process(self, process, poll_interval_seconds=1, timeout_seconds=86400):
@@ -150,54 +169,15 @@ class TaskRunner(object):
     @classmethod
     def get_parser(self):
         parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('--run_id',
+        parser.add_argument('--execution_id',
                             '-i',
                             required=True,
-                            help='ID of TaskRun to be executed')
-        parser.add_argument('--run_location_id',
-                            '-l',
-                            required=True,
-                            help='TaskRunLocation ID assigned to this'\
-                            'particular run execution. If this doesn\'t'\
-                            'match the active ID, results will be ignored.')
+                            help='ID of TaskRunExecution to be processed')
         parser.add_argument('--master_url',
                             '-u',
                             required=True,
                             help='URL of the Loom master server')
         return parser
-
-    def _init_filehandler(self):
-        self.filehandler = FileHandler(self.settings['MASTER_URL'], logger=self.logger)
-
-    def _init_objecthandler(self):
-        self.objecthandler = ObjectHandler(self.settings['MASTER_URL'])
-        
-    def _init_logger(self):
-        self.logger = logging.getLogger("LoomWorker")
-        self.logger.setLevel(self.settings['LOG_LEVEL'])
-        self.logger.raiseExceptions = True
-        formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
-        handler = self._init_handler()
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        stdout_logger = StreamToLogger(self.logger, logging.INFO)
-        sys.stdout = stdout_logger
-        stderr_logger = StreamToLogger(self.logger, logging.ERROR)
-        sys.stderr = stderr_logger
-        
-    def _init_handler(self):
-        if self.settings.get('STEP_LOGFILE') is None:
-            return logging.StreamHandler()
-        else:
-            if not os.path.exists(os.path.dirname(self.settings['STEP_LOGFILE'])):
-                os.makedirs(os.path.dirname(self.settings['STEP_LOGFILE']))
-            return logging.FileHandler(self.settings['STEP_LOGFILE'])
-
-    def _add_logfiles(self):
-        """Add logfiles for the worker, stdout, and stderr."""
-        self.settings.update({'STEP_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'worker_log.txt')})
-        self.settings.update({'STDOUT_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'stdout_log.txt')})
-        self.settings.update({'STDERR_LOGFILE': os.path.join(self.settings['WORKING_DIR'], 'stderr_log.txt')})
 
 
 # pip entrypoint requires a function with no arguments 

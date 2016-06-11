@@ -45,7 +45,7 @@ class ObjectHandler(object):
         elif response.status_code == 200:
             return response.json()
         else:
-            raise BadResponseError("Status code %s." % response.status_code)
+            raise BadResponseError("Status code %s. %s" % (response.status_code, response.text))
 
     def _get_object_index(self, relative_url, raise_for_status=False):
         response = self._get(relative_url)
@@ -53,12 +53,6 @@ class ObjectHandler(object):
             return response.json()
         else:
             raise BadResponseError("Status code %s." % response.status_code)
-
-    def get_server_time(self):
-        """Use this, not local system time,  when generating a time stamp in the client
-        """
-        response = self._get('server-time/')
-        return response.json()['time']
 
     # ---- Post/Get [object_type] methods ----
 
@@ -76,12 +70,12 @@ class ObjectHandler(object):
             url = 'file-data-objects/?q='+query_string
         else:
             url = 'file-data-objects/'
-        file_data_object =  self._get_object_index(url)['file_data_object']
-        if len(file_data_object) < min:
-            raise IdMatchedTooFewFileDataError('Found %s FileDataObjects, expected at least %s' %(len(file_data_object), min))
-        if len(file_data) > max:
-            raise IdMatchedTooManyFileDataError('Found %s FileDataObjects, expected at most %s' %(len(file_data_object), max))
-        return file_data_object
+        file_data_objects =  self._get_object_index(url)['file_data_objects']
+        if len(file_data_objects) < min:
+            raise IdMatchedTooFewFileDataError('Found %s FileDataObjects, expected at least %s' %(len(file_data_objects), min))
+        if len(file_data_objects) > max:
+            raise IdMatchedTooManyFileDataError('Found %s FileDataObjects, expected at most %s' %(len(file_data_objects), max))
+        return file_data_objects
 
     def get_file_locations_by_file(self, file_id):
         return self._get_object(
@@ -164,15 +158,31 @@ class ObjectHandler(object):
             task_run,
             'task-runs/')
 
-    def post_file_import(self, file_import):
+    def get_task_run_execution(self, task_run_execution_id):
+        return self._get_object(
+            'task-run-executions/%s/' % task_run_execution_id
+        )
+
+    def get_task_run_execution_output(self, task_run_execution_output_id):
+        return self._get_object(
+            'task-run-execution-outputs/%s/' % task_run_execution_output_id
+        )
+
+    def post_task_run_execution_log(self, task_run_execution_id, task_run_execution_log):
+        return self._post_object(
+            task_run_execution_log,
+            'task-run-executions/%s/task-run-execution-logs/' % task_run_execution_id
+        )
+
+    def post_abstract_file_import(self, file_import):
         return self._post_object(
             file_import,
-            'file-imports/')
+            'abstract-file-imports/')
 
-    def update_file_import(self, file_import_id, file_import_update):
+    def update_abstract_file_import(self, file_import_id, file_import_update):
         return self._post_object(
             file_import_update,
-            'file-imports/%s/' % file_import_id)
+            'abstract-file-imports/%s/' % file_import_id)
 
     def get_info(self):
         try:
@@ -190,3 +200,15 @@ class ObjectHandler(object):
         if not info:
             return None
         return info.get('version')
+
+    def get_worker_settings(self, execution_id):
+        return self._get_object(
+            'task-run-executions/%s/worker-settings/' % execution_id,
+            raise_for_status=True
+        )['worker_settings']
+
+    def get_filehandler_settings(self):
+        return self._get_object(
+            'filehandler-settings/',
+            raise_for_status=True
+        )['filehandler_settings']

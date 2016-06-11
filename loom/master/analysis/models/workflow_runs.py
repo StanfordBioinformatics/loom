@@ -1,5 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+
+from analysis import get_setting
 from analysis.exceptions import *
 from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from .channels import Channel, InputOutputNode, ChannelSet
@@ -54,16 +56,11 @@ class WorkflowRun(AbstractWorkflowRun):
     def is_step(self):
         return False
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         if not self._is_initialized():
             self._initialize_step_runs()
             self._initialize_inputs_outputs()
             self._initialize_channels()
-
-            # Runtime inputs will be pushed when data is added,
-            # but fixed inputs have to be pushed now on creation
-            for input in self.fixed_inputs.all():
-                input.initial_push()
 
     def _is_initialized(self):
         return self.step_runs.count() == self.template.steps.count() \
@@ -93,6 +90,14 @@ class WorkflowRun(AbstractWorkflowRun):
             channel = Channel.create_from_sender(source, source.channel)
             channel.add_receivers(destinations)
 
+    def initial_push(self):
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed now on creation
+        for input in self.fixed_inputs.all():
+            input.initial_push()
+        for step_run in self.step_runs.all():
+            step_run.downcast().initial_push()
+
     def _get_all_sources(self):
         sources = [source for source in self.inputs.all()]
         sources.extend([source for source in self.fixed_inputs.all()])
@@ -117,15 +122,10 @@ class StepRun(AbstractWorkflowRun):
     template = fields.ForeignKey('Step', related_name='step_run')
     task_runs = fields.ManyToManyField('TaskRun', related_name='step_runs')
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         if not self._is_initialized():
             self._initialize_inputs_outputs()
             self._initialize_channels()
-
-            # Runtime inputs will be pushed when data is added,
-            # but fixed inputs have to be pushed now on creation
-            for input in self.fixed_inputs.all():
-                input.initial_push()
 
     def _is_initialized(self):
         return self.inputs.count() == self.template.inputs.count() \
@@ -150,6 +150,12 @@ class StepRun(AbstractWorkflowRun):
             channel = Channel.create_from_sender(input, input.channel)
             channel.add_receiver(input)
 
+    def initial_push(self):
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed on creation
+        for input in self.fixed_inputs.all():
+            input.initial_push()
+
     def is_step(self):
         return True
 
@@ -161,7 +167,7 @@ class StepRun(AbstractWorkflowRun):
     def push(self):
         for input_set in ChannelSet(self.get_all_inputs()).get_ready_input_sets():
             task_run = TaskRunBuilder.create_from_step_run(self, input_set)
-            task_run.mock_run()
+            task_run.run()
 
 
 class TypedInputOutputNode(InputOutputNode):
@@ -169,13 +175,7 @@ class TypedInputOutputNode(InputOutputNode):
     channel = fields.CharField(max_length=255)
     type = fields.CharField(
         max_length=255,
-        choices=(
-            ('file', 'File'),
-            ('boolean', 'Boolean'),
-            ('string', 'String'),
-            ('integer', 'Integer'),
-            ('json', 'JSON'),
-        )
+        choices=DataObject.TYPE_CHOICES
     )
 
     class Meta:
@@ -185,7 +185,7 @@ class TypedInputOutputNode(InputOutputNode):
 class AbstractStepRunInput(TypedInputOutputNode):
 
     task_run_inputs = fields.ManyToManyField('TaskRunInput', related_name='step_run_inputs')
-    
+
     def push(self):
         if self.step_run:
             self.step_run.push()
@@ -211,9 +211,10 @@ class FixedStepRunInput(AbstractStepRunInput):
 class StepRunOutput(TypedInputOutputNode):
 
     task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
-    
+
     def push(self, data_object):
         self.to_channel.push(data_object)
+        self.to_channel.close()
 
     def get_filename(self):
         return self.step_run.template.get_output(self.channel).filename

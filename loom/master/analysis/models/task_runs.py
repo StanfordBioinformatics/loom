@@ -1,15 +1,14 @@
 from copy import deepcopy
-from jinja2 import DictLoader, Environment
-
-from django.conf import settings
 from django.utils import timezone
+from jinja2 import DictLoader, Environment
+import os
 
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.task_definitions import *
-from analysis.models.data_objects import DataObject
-from analysis.models.workflows import Step, RequestedResourceSet
+from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from .task_definitions import *
+from .data_objects import DataObject, AbstractFileImport
+from .workflows import Step, RequestedResourceSet
+from analysis import get_setting
 from analysis.task_manager.factory import TaskManagerFactory
-from analysis.task_manager.dummy import DummyTaskManager
 from universalmodels import fields
 
 
@@ -64,44 +63,102 @@ class TaskRunOutput(AnalysisAppInstanceModel):
     def get_channel(self, step_run):
         return self.get_step_run_output(step_run).channel
 
-    def push(self, data_object, step_run):
+    def push(self, data_object, step_run=None):
         self.data_object = data_object
-        self.get_step_run_output(step_run).push(self.data_object)
+        if step_run is not None:
+            self.get_step_run_output(step_run).push(self.data_object)
+        else:
+            for step_run_output in self.step_run_outputs.all():
+                step_run_output.push(self.data_object)
 
 
 class TaskRunExecution(AnalysisAppInstanceModel):
     task_run = fields.ForeignKey('TaskRun')
-    logs = fields.OneToManyField('TaskRunExecutionLog', related_name='task_run')
-    outputs = fields.OneToManyField('TaskRunExecutionOutput', related_name='task_run')
+    logs = fields.OneToManyField('TaskRunExecutionLog', related_name='task_run_execution')
+    outputs = fields.OneToManyField('TaskRunExecutionOutput', related_name='task_run_execution')
 
-    class Meta:
-        abstract=True
+    def after_create_or_update(self, data):
+        if self.outputs.count() == 0:
+            for output in self.task_run.outputs.all():
+                self.outputs.add(
+                    TaskRunExecutionOutput.create(
+                        {'task_run_output': output}
+                    ))
 
+    @classmethod
+    def get_working_dir(cls, task_run_execution_id):
+        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_execution_id, 'work')
+    
+    @classmethod
+    def get_log_dir(cls, task_run_execution_id):
+        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_execution_id, 'logs')
+
+    def create_log(self, log_name):
+        log = TaskRunExecutionLog.create({'log_name': log_name})
+        self.logs.add(log)
+        return log
 
 class MockTaskRunExecution(TaskRunExecution):
-    
+
     pass
 
 
-class TaskRunExecutionOutput(AnalysisAppInstanceModel):
-    task_run_output = fields.ForeignKey('TaskRunOutput')
-    data_object = fields.ForeignKey('DataObject', null=True)
+class LocalTaskRunExecution(TaskRunExecution):
 
-    def after_create_or_update(self):
-        # Push when data is added
-        if self.data_object:
-            self.push()
+    pass
+
+
+class AbstractTaskRunExecutionFile(object):
+
+    def get_browsable_path(self):       
+        task_run = self.task_run_execution.task_run
+        assert self.task_run_execution.task_run.step_runs.count() == 1
+        step_run = task_run.step_runs.first()
+        path = os.path.join(
+            "%s-%s" % (
+                step_run.template.name,
+                step_run.get_id(),
+            ),
+            "task-%s" % task_run.get_id(),
+            "attempt-%s" % self.task_run_execution.get_id(),
+        )
+        while step_run.parent_run is not None:
+            step_run = step_run.parent_run
+            path = os.path.join(
+                "%s-%s" % (
+                    step_run.template.name,
+                    step_run.get_id(),
+                ),
+                path
+            )
+        if hasattr(self, 'log_name'):
+            return os.path.join('runs', path, 'log')
+        else:
+            return os.path.join('runs', path, 'work')
+
+
+class TaskRunExecutionOutput(AbstractFileImport, AbstractTaskRunExecutionFile):
+
+    task_run_output = fields.ForeignKey('TaskRunOutput')
+
+    def after_create_or_update(self, data):
+        if not get_setting('DISABLE_AUTO_PUSH'):
+            # Push when data is added
+            if data.get('file_location'):
+                if data['file_location']['status'] == 'complete':
+                    self.push()
+        super(TaskRunExecutionOutput, self).after_create_or_update(data)
 
     def push(self):
         self.task_run_output.push(self.data_object)
+        
+
+class TaskRunExecutionLog(AbstractFileImport, AbstractTaskRunExecutionFile):
+
+    log_name = fields.CharField(max_length=255)
 
 
-class TaskRunExecutionLog(AnalysisAppInstanceModel):
-    logfile = fields.ForeignKey('FileDataObject')
-    logname = fields.CharField(max_length=255)
-
-
-class TaskRunBuilder:
+class TaskRunBuilder(object):
 
     @classmethod
     def create_from_step_run(cls, step_run, input_set):
@@ -113,7 +170,7 @@ class TaskRunBuilder:
         context.update(output_context)
         task_definition = cls._create_task_definition(step_run, task_definition_inputs, task_definition_outputs, context)
 
-        if task_definition.task_runs.count() > 0 and not settings.FORCE_RERUN:
+        if task_definition.task_runs.count() > 0 and not get_setting('FORCE_RERUN'):
             # Re-use an old TaskRun
             task_run = task_definition.task_runs.first()
         else:
@@ -147,7 +204,7 @@ class TaskRunBuilder:
     @classmethod
     def _create_task_definition_input(cls, input_item):
         return TaskDefinitionInput.create({
-            'data_object_content': input_item.data_object.get_content()
+            'data_object_content': input_item.data_object.get_content(),
         })
 
     @classmethod
@@ -157,7 +214,7 @@ class TaskRunBuilder:
     @classmethod
     def _create_task_definition_output(cls, step_run_output, input_context):
         return TaskDefinitionOutput.create({
-            'filename': cls._render_from_template(step_run_output.get_filename(), input_context)
+            'filename': cls._render_from_template(step_run_output.get_filename(), input_context),
         })
 
     @classmethod
@@ -179,7 +236,7 @@ class TaskRunBuilder:
         task_run_input = TaskRunInput.create(
             {
                 'task_definition_input': task_definition_input,
-                'data_object': input_item.data_object
+                'data_object': input_item.data_object,
             }
         )
         task_run_input.step_run_inputs.add(step_run.get_input(input_item.channel))

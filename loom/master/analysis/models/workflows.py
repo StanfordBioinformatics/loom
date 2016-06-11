@@ -1,7 +1,8 @@
 from django.core.exceptions import ValidationError
 
 from analysis.exceptions import *
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from .data_objects import DataObject
 from universalmodels import fields
 
 
@@ -40,7 +41,7 @@ class Workflow(AbstractWorkflow):
     fixed_inputs = fields.ManyToManyField('FixedWorkflowInput')
     outputs = fields.ManyToManyField('WorkflowOutput')
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         self._validate_workflow()
 
     def _validate_workflow(self):
@@ -130,20 +131,7 @@ class AbstractInput(AnalysisAppImmutableModel):
 
     type = fields.CharField(
         max_length=255,
-        choices=(
-            ('file', 'File'),
-            ('boolean', 'Boolean'),
-            ('string', 'String'),
-            ('integer', 'Integer'),
-            ('json', 'JSON'),
-            # ('file_array', 'File Array'),
-            # ('boolean_array', 'Boolean Array'),
-            # ('string_array', 'String Array'),
-            # ('integer_array', 'Integer Array'),
-            # ('float', 'Float'),
-            # ('float_array', 'Float Array'),
-            # ('json_array', 'JSON Array')
-        )
+        choices=DataObject.TYPE_CHOICES
     )
     channel = fields.CharField(max_length=255)
 
@@ -192,20 +180,7 @@ class AbstractOutput(AnalysisAppImmutableModel):
     channel = fields.CharField(max_length=255)
     type = fields.CharField(
         max_length=255,
-        choices=(
-            ('file', 'File'),
-            # ('file_array', 'File Array'),
-            # ('boolean', 'Boolean'),
-            # ('boolean_array', 'Boolean Array'),
-            # ('string', 'String'),
-            # ('string_array', 'String Array'),
-            # ('integer', 'Integer'),
-            # ('integer_array', 'Integer Array'),
-            # ('float', 'Float'),
-            # ('float_array', 'Float Array'),
-            # ('json', 'JSON'),
-            # ('json_array', 'JSON Array')
-        )
+        choices=DataObject.TYPE_CHOICES
     )
 
     class Meta:

@@ -75,7 +75,7 @@
 	},
         {
             "name": "hello_world_step",
-            "command": "echo '$(cat {{ hello_cap }} {{ world_cap }}){{ final_punc}}' > {{ hello_world }}",
+            "command": "echo $(cat {{ hello_cap }} {{ world_cap }})'{{ final_punc}}' > {{ hello_world }}",
             "environment": {
                 "docker_image": "ubuntu"
             },

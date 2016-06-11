@@ -5,11 +5,15 @@
       type: "file"
       hint: "Enter the 'hello' file"
       channel: "hello"
-  fixed_inputs: 
     - 
       type: "file"
-      id: "world.txt@md5$591785b794601e212b260e25925636fd"
+      hint: "Enter the 'world' file"
       channel: "world"
+  fixed_inputs: 
+    - 
+      type: "string"
+      channel: "final_punc"
+      value: "!!"
   outputs: 
     - 
       type: "file"
@@ -21,7 +25,7 @@
       environment: 
         docker_image: "ubuntu"
       resources: 
-        cores: 1
+        cores: "1"
         memory: "1"
       inputs: 
         - 
@@ -38,7 +42,7 @@
       environment: 
         docker_image: "ubuntu"
       resources: 
-        cores: 1
+        cores: "1"
         memory: "1"
       inputs: 
         - 
@@ -50,17 +54,19 @@
           filename: "world_cap.txt"
     - 
       name: "hello_world_step"
-      command: "cat {{ hello_cap }} {{ world_cap }} > {{ hello_world }}"
+      command: "echo $(cat {{ hello_cap }} {{ world_cap }})'{{ final_punc}}' > {{ hello_world }}"
       environment: 
         docker_image: "ubuntu"
       resources: 
-        cores: 1
+        cores: "1"
         memory: "1"
       inputs: 
         - 
           channel: "hello_cap"
         - 
           channel: "world_cap"
+        - 
+          channel: "final_punc"
       outputs: 
         - 
           filename: "hello_world.txt"

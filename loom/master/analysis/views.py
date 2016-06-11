@@ -1,13 +1,15 @@
-import logging
-from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
-from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.utils import timezone
-from analysis.models import RunRequest, TaskRun, FileDataObject
+import json
+import logging
+import os
+
+from analysis import get_setting
+from analysis.models import RunRequest, TaskRun, FileDataObject, TaskRunExecution
 from loom.common import version
+
 logger = logging.getLogger('loom')
 
 class Helper:
@@ -20,7 +22,7 @@ class Helper:
             return JsonResponse({"message": "created %s" % model_class.get_class_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
         except Exception as e:
             logger.error('Failed to create %s with data "%s". %s' % (model_class, data_json, e.message))
-            return JsonResponse({"message": e.message}, status=400)
+            return JsonResponse({"message": e.message}, status=500)
 
     @classmethod
     def index(cls, request, model_class):
@@ -49,42 +51,39 @@ class Helper:
         data_json = request.body
         model = model_class.get_by_id(id)
         try:
-            model.update(data_json)
+            model.downcast().update(data_json)
             return JsonResponse({"message": "updated %s" % model_class.get_class_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
         except Exception as e:
             logger.error('Failed to update %s with data "%s". %s' % (model_class, data_json, e.message))
-            return JsonResponse({"message": e.message}, status=400)
+            return JsonResponse({"message": e.message}, status=500)
 
 @require_http_methods(["GET"])
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
 
 @require_http_methods(["GET"])
-def server_time(request):
-    return JsonResponse({"time": timezone.now().isoformat()}, status=200)
+def worker_settings(request, id):
+    try:
+        WORKING_DIR = TaskRunExecution.get_working_dir(id)
+        LOG_DIR = TaskRunExecution.get_log_dir(id)
+        return JsonResponse({
+            'worker_settings': {
+                'LOG_LEVEL': get_setting('LOG_LEVEL'),
+                'WORKING_DIR': WORKING_DIR,
+                'WORKER_LOGFILE': os.path.join(LOG_DIR, 'worker.log'),
+                'STDOUT_LOGFILE': os.path.join(LOG_DIR, 'stdout.log'),
+                'STDERR_LOGFILE': os.path.join(LOG_DIR, 'stderr.log'),
+            }})
+    except Exception as e:
+        return JsonResponse({"message": e.message}, status=500)
 
 @require_http_methods(["GET"])
-def worker_info(request):
-    worker_info = {
-        'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
-        'FILE_ROOT_FOR_WORKER': settings.FILE_ROOT_FOR_WORKER,
-        'LOG_LEVEL': settings.LOG_LEVEL,
+def filehandler_settings(request):
+    filehandler_settings = {
+        'HASH_FUNCTION': get_setting('HASH_FUNCTION'),
+        'PROJECT_ID': get_setting('PROJECT_ID'),
         }
-    return JsonResponse({'worker_info': worker_info})
-
-@require_http_methods(["GET"])
-def file_handler_info(request):
-    file_handler_info = {
-        'HASH_FUNCTION': settings.HASH_FUNCTION,
-        'FILE_SERVER_FOR_WORKER': settings.FILE_SERVER_FOR_WORKER,
-        'FILE_SERVER_TYPE': settings.FILE_SERVER_TYPE,
-        'FILE_ROOT': settings.FILE_ROOT,
-        'IMPORT_DIR': settings.IMPORT_DIR,
-        'STEP_RUNS_DIR': settings.STEP_RUNS_DIR,
-        'BUCKET_ID': settings.BUCKET_ID,
-        'PROJECT_ID': settings.PROJECT_ID,
-        }
-    return JsonResponse({'file_handler_info': file_handler_info})
+    return JsonResponse({'filehandler_settings': filehandler_settings})
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
@@ -93,7 +92,7 @@ def create_or_index(request, model_class):
         return Helper.create(request, model_class)
     else:
         return Helper.index(request, model_class)
-   
+
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def show_or_update(request, id, model_class):
@@ -144,3 +143,15 @@ def info(request):
         'version': version.version()
     }
     return JsonResponse(data, status=200)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def task_run_execution_log(request, id):
+    data_json = request.body
+    data = json.loads(data_json)
+    try:
+        task_run_execution = TaskRunExecution.get_by_id(id)
+    except ObjectDoesNotExist:
+        return JsonResponse({"message": "Not Found"}, status=404)
+    model = task_run_execution.create_log(data.get('log_name'))
+    return JsonResponse({"message": "created %s" % model.get_class_name(), "_id": model.get_id(), "object": model.to_struct()}, status=201)

@@ -70,7 +70,7 @@ class WorkflowRunner(object):
         )
 
         self.logger.info('Created run request %s@%s' \
-            % (run_request['workflow']['name'],
+            % (run_request['template']['name'],
                run_request['_id']
             ))
         return run_request
@@ -153,9 +153,12 @@ class WorkflowRunner(object):
         return input.get('type')
 
     def _get_input_from_file(self, input_filename):
-        file_import = self.filehandler.import_file(input_filename, self.args.note)
-        return "%s@%s" % (file_import['file_data_object']['file_content']['filename'],
-                          file_import['file_data_object']['_id'])
+        file_import = self.filehandler.import_file(
+            self.filehandler.create_file_import(input_filename, self.args.note),
+            input_filename
+        )
+        return "%s@%s" % (file_import['data_object']['file_content']['filename'],
+                          file_import['data_object']['_id'])
 
 
 if __name__=='__main__':

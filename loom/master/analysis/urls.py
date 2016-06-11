@@ -5,23 +5,22 @@ urlpatterns = patterns(
     '',
     url(r'^status/$', 'analysis.views.status'),
     url(r'^info/$', 'analysis.views.info'),
-    url(r'^worker-info/$', 'analysis.views.worker_info'),
-    url(r'^file-handler-info/$', 'analysis.views.file_handler_info'),
-    url(r'^server-time/$', 'analysis.views.server_time'),
+    url(r'^filehandler-settings/$', 'analysis.views.filehandler_settings'),
     url(r'^controls/refresh/$', 'analysis.views.refresh'),
 )
 
 model_classes = [
     DataObject,
-    FileImport,
+    AbstractFileImport,
     FileDataObject,
     FileLocation,
     AbstractWorkflow,
-    WorkflowRun,
     RunRequest,
-    Step,
+    WorkflowRun,
     StepRun,
     TaskRun,
+    TaskRunExecution,
+    TaskRunExecutionOutput,
     TaskRunExecutionLog,
 ]
 
@@ -32,3 +31,9 @@ for cls in model_classes:
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-locations/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.locations_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-imports/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_imports_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/source-runs/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_data_source_runs'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/worker-settings/$' % TaskRunExecution.get_class_name(plural=True, hyphen=True), 'analysis.views.worker_settings'))
+
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' % (TaskRunExecution.get_class_name(plural=True, hyphen=True),
+                                                              TaskRunExecutionLog.get_class_name(plural=True, hyphen=True)),
+                                                              'analysis.views.task_run_execution_log'))
+#urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' % (TaskRunExecution.get_class_name(plural=True, hyphen=True), TaskRunExecutionLog.get_class_name(plural=True, hyphen=True)), 'analysis.views.task_run_execution_log'))

@@ -1,7 +1,7 @@
 from django.core import exceptions
 
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import DataObjectContent
+from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from .data_objects import DataObjectContent
 from universalmodels import fields
 
 

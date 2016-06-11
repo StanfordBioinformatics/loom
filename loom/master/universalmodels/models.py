@@ -190,7 +190,7 @@ class _BaseModel(models.Model):
         models.Model.save(self)
         self._save_x_to_many_related_objects()
         
-        self.after_create_or_update()
+        self.after_create_or_update(data_struct)
 
     @classmethod
     def before_create_or_update(cls, data):
@@ -198,7 +198,7 @@ class _BaseModel(models.Model):
         """
         pass
 
-    def after_create_or_update(self):
+    def after_create_or_update(self, data):
         """Override for postprocessing steps
         """
         pass
