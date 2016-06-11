@@ -22,7 +22,7 @@ class TaskRunner(object):
         if args is None:
             args = self._get_args()
         self.settings = {
-            'EXECUTION_ID': args.execution_id,
+            'TASK_RUN_ATTEMPT_ID': args.run_attempt_id,
             'MASTER_URL': args.master_url
         }
         self._init_objecthandler()
@@ -30,7 +30,7 @@ class TaskRunner(object):
         self._init_directories()
         self._init_logger()
         self._init_filehandler()
-        self._init_task_run_execution()
+        self._init_task_run_attempt()
 
     def _init_objecthandler(self):
         self.objecthandler = ObjectHandler(self.settings['MASTER_URL'])
@@ -39,7 +39,7 @@ class TaskRunner(object):
         self.filehandler = FileHandler(self.settings['MASTER_URL'], logger=self.logger)
 
     def _get_worker_settings(self):
-        return self.objecthandler.get_worker_settings(self.settings['EXECUTION_ID'])
+        return self.objecthandler.get_worker_settings(self.settings['TASK_RUN_ATTEMPT_ID'])
 
     def _init_directories(self):
         for directory in set([self.settings['WORKING_DIR'],
@@ -73,8 +73,8 @@ class TaskRunner(object):
                 os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
             return logging.FileHandler(self.settings['WORKER_LOGFILE'])
 
-    def _init_task_run_execution(self):
-        self.task_run_execution = self.objecthandler.get_task_run_execution(self.settings['EXECUTION_ID'])
+    def _init_task_run_attempt(self):
+        self.task_run_attempt = self.objecthandler.get_task_run_attempt(self.settings['TASK_RUN_ATTEMPT_ID'])
 
     def run(self):
         self._export_inputs()
@@ -90,10 +90,10 @@ class TaskRunner(object):
         # self._flag_run_as_complete(self.step_run)
 
     def _export_inputs(self):
-        if self.task_run_execution['task_run'].get('inputs') is None:
+        if self.task_run_attempt['task_run'].get('inputs') is None:
             return
         file_data_object_ids = []
-        for input in self.task_run_execution['task_run']['inputs']:
+        for input in self.task_run_attempt['task_run']['inputs']:
             if input['data_object']['_class'] == 'FileDataObject':
                 file_data_object_ids.append('@'+input['data_object']['_id'])
         self.filehandler.export_files(
@@ -101,7 +101,7 @@ class TaskRunner(object):
             destination_url=self.settings['WORKING_DIR'])
 
     def _import_outputs(self):
-        for output in self.task_run_execution['outputs']:
+        for output in self.task_run_attempt['outputs']:
             filename = output['task_run_output']['task_definition_output']['filename']
             self.filehandler.import_file(
                 self.filehandler.get_result_file_import(output),
@@ -114,13 +114,13 @@ class TaskRunner(object):
                         self.settings['STDERR_LOGFILE']):
             self.filehandler.import_file(
                 self.filehandler.create_logfile_import(
-                    self.task_run_execution['_id'],
+                    self.task_run_attempt['_id'],
                     os.path.basename(logfile)),
                 logfile
             )
 
     def _execute(self, stdoutlog, stderrlog):
-        task_definition = self.task_run_execution['task_run']['task_definition']
+        task_definition = self.task_run_attempt['task_run']['task_definition']
         environment = task_definition['environment']
         docker_image = environment['docker_image']
         user_command = task_definition['command']
@@ -169,10 +169,10 @@ class TaskRunner(object):
     @classmethod
     def get_parser(self):
         parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('--execution_id',
+        parser.add_argument('--run_attempt_id',
                             '-i',
                             required=True,
-                            help='ID of TaskRunExecution to be processed')
+                            help='ID of TaskRunAttempt to be processed')
         parser.add_argument('--master_url',
                             '-u',
                             required=True,

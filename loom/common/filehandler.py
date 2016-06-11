@@ -500,14 +500,14 @@ class FileHandler:
             'source_url': source.get_url(),
         })
 
-    def get_result_file_import(self, task_run_execution_output):
-        return self.objecthandler.get_task_run_execution_output(
-            task_run_execution_output['_id']
+    def get_result_file_import(self, task_run_attempt_output):
+        return self.objecthandler.get_task_run_attempt_output(
+            task_run_attempt_output['_id']
         )
 
-    def create_logfile_import(self, task_run_execution_id, log_name):
-        return self.objecthandler.post_task_run_execution_log(
-            task_run_execution_id,
+    def create_logfile_import(self, task_run_attempt_id, log_name):
+        return self.objecthandler.post_task_run_attempt_log(
+            task_run_attempt_id,
             {'log_name': log_name}
         )
 

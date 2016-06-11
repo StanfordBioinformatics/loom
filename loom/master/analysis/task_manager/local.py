@@ -19,14 +19,14 @@ class LocalTaskManager:
 
     @classmethod
     def run(cls, task_run):
-        from analysis.models.task_runs import LocalTaskRunExecution
-        task_run_execution = LocalTaskRunExecution.create({'task_run': task_run})
+        from analysis.models.task_runs import LocalTaskRunAttempt
+        task_run_attempt = LocalTaskRunAttempt.create({'task_run': task_run})
         
         cmd = [
             sys.executable,
             TASK_RUNNER_EXECUTABLE,
-            '--execution_id',
-            task_run_execution.get_id(),
+            '--run_attempt_id',
+            task_run_attempt.get_id(),
             '--master_url',
             get_setting('MASTER_URL_FOR_WORKER')
         ]

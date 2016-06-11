@@ -10,11 +10,11 @@ class MockTaskManager(object):
 
     @classmethod
     def run(cls, task_run):
-        from analysis.models.task_runs import MockTaskRunExecution
-        execution = MockTaskRunExecution.create(
+        from analysis.models.task_runs import MockTaskRunAttempt
+        attempt = MockTaskRunAttempt.create(
             {'task_run': task_run.to_struct()})
 
-        for output in execution.outputs.all():
+        for output in attempt.outputs.all():
             data_object = cls._render_mock_file_data_object()
             cls._mock_upload(output, data_object)
 

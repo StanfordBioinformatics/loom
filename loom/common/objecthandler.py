@@ -158,20 +158,20 @@ class ObjectHandler(object):
             task_run,
             'task-runs/')
 
-    def get_task_run_execution(self, task_run_execution_id):
+    def get_task_run_attempt(self, task_run_attempt_id):
         return self._get_object(
-            'task-run-executions/%s/' % task_run_execution_id
+            'task-run-attempts/%s/' % task_run_attempt_id
         )
 
-    def get_task_run_execution_output(self, task_run_execution_output_id):
+    def get_task_run_attempt_output(self, task_run_attempt_output_id):
         return self._get_object(
-            'task-run-execution-outputs/%s/' % task_run_execution_output_id
+            'task-run-attempt-outputs/%s/' % task_run_attempt_output_id
         )
 
-    def post_task_run_execution_log(self, task_run_execution_id, task_run_execution_log):
+    def post_task_run_attempt_log(self, task_run_attempt_id, task_run_attempt_log):
         return self._post_object(
-            task_run_execution_log,
-            'task-run-executions/%s/task-run-execution-logs/' % task_run_execution_id
+            task_run_attempt_log,
+            'task-run-attempts/%s/task-run-attempt-logs/' % task_run_attempt_id
         )
 
     def post_abstract_file_import(self, file_import):
@@ -201,9 +201,9 @@ class ObjectHandler(object):
             return None
         return info.get('version')
 
-    def get_worker_settings(self, execution_id):
+    def get_worker_settings(self, attempt_id):
         return self._get_object(
-            'task-run-executions/%s/worker-settings/' % execution_id,
+            'task-run-attempts/%s/worker-settings/' % attempt_id,
             raise_for_status=True
         )['worker_settings']
 

@@ -7,7 +7,7 @@ import logging
 import os
 
 from analysis import get_setting
-from analysis.models import RunRequest, TaskRun, FileDataObject, TaskRunExecution
+from analysis.models import RunRequest, TaskRun, FileDataObject, TaskRunAttempt
 from loom.common import version
 
 logger = logging.getLogger('loom')
@@ -64,8 +64,8 @@ def status(request):
 @require_http_methods(["GET"])
 def worker_settings(request, id):
     try:
-        WORKING_DIR = TaskRunExecution.get_working_dir(id)
-        LOG_DIR = TaskRunExecution.get_log_dir(id)
+        WORKING_DIR = TaskRunAttempt.get_working_dir(id)
+        LOG_DIR = TaskRunAttempt.get_log_dir(id)
         return JsonResponse({
             'worker_settings': {
                 'LOG_LEVEL': get_setting('LOG_LEVEL'),
@@ -146,12 +146,12 @@ def info(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def task_run_execution_log(request, id):
+def task_run_attempt_log(request, id):
     data_json = request.body
     data = json.loads(data_json)
     try:
-        task_run_execution = TaskRunExecution.get_by_id(id)
+        task_run_attempt = TaskRunAttempt.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
-    model = task_run_execution.create_log(data.get('log_name'))
+    model = task_run_attempt.create_log(data.get('log_name'))
     return JsonResponse({"message": "created %s" % model.get_class_name(), "_id": model.get_id(), "object": model.to_struct()}, status=201)

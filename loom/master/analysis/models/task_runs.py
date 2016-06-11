@@ -72,47 +72,47 @@ class TaskRunOutput(AnalysisAppInstanceModel):
                 step_run_output.push(self.data_object)
 
 
-class TaskRunExecution(AnalysisAppInstanceModel):
+class TaskRunAttempt(AnalysisAppInstanceModel):
     task_run = fields.ForeignKey('TaskRun')
-    logs = fields.OneToManyField('TaskRunExecutionLog', related_name='task_run_execution')
-    outputs = fields.OneToManyField('TaskRunExecutionOutput', related_name='task_run_execution')
+    logs = fields.OneToManyField('TaskRunAttemptLog', related_name='task_run_attempt')
+    outputs = fields.OneToManyField('TaskRunAttemptOutput', related_name='task_run_attempt')
 
     def after_create_or_update(self, data):
         if self.outputs.count() == 0:
             for output in self.task_run.outputs.all():
                 self.outputs.add(
-                    TaskRunExecutionOutput.create(
+                    TaskRunAttemptOutput.create(
                         {'task_run_output': output}
                     ))
 
     @classmethod
-    def get_working_dir(cls, task_run_execution_id):
-        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_execution_id, 'work')
+    def get_working_dir(cls, task_run_attempt_id):
+        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_attempt_id, 'work')
     
     @classmethod
-    def get_log_dir(cls, task_run_execution_id):
-        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_execution_id, 'logs')
+    def get_log_dir(cls, task_run_attempt_id):
+        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_attempt_id, 'logs')
 
     def create_log(self, log_name):
-        log = TaskRunExecutionLog.create({'log_name': log_name})
+        log = TaskRunAttemptLog.create({'log_name': log_name})
         self.logs.add(log)
         return log
 
-class MockTaskRunExecution(TaskRunExecution):
+class MockTaskRunAttempt(TaskRunAttempt):
 
     pass
 
 
-class LocalTaskRunExecution(TaskRunExecution):
+class LocalTaskRunAttempt(TaskRunAttempt):
 
     pass
 
 
-class AbstractTaskRunExecutionFile(object):
+class AbstractTaskRunAttemptFile(object):
 
     def get_browsable_path(self):       
-        task_run = self.task_run_execution.task_run
-        assert self.task_run_execution.task_run.step_runs.count() == 1
+        task_run = self.task_run_attempt.task_run
+        assert self.task_run_attempt.task_run.step_runs.count() == 1
         step_run = task_run.step_runs.first()
         path = os.path.join(
             "%s-%s" % (
@@ -120,7 +120,7 @@ class AbstractTaskRunExecutionFile(object):
                 step_run.get_id(),
             ),
             "task-%s" % task_run.get_id(),
-            "attempt-%s" % self.task_run_execution.get_id(),
+            "attempt-%s" % self.task_run_attempt.get_id(),
         )
         while step_run.parent_run is not None:
             step_run = step_run.parent_run
@@ -137,7 +137,7 @@ class AbstractTaskRunExecutionFile(object):
             return os.path.join('runs', path, 'work')
 
 
-class TaskRunExecutionOutput(AbstractFileImport, AbstractTaskRunExecutionFile):
+class TaskRunAttemptOutput(AbstractFileImport, AbstractTaskRunAttemptFile):
 
     task_run_output = fields.ForeignKey('TaskRunOutput')
 
@@ -147,13 +147,13 @@ class TaskRunExecutionOutput(AbstractFileImport, AbstractTaskRunExecutionFile):
             if data.get('file_location'):
                 if data['file_location']['status'] == 'complete':
                     self.push()
-        super(TaskRunExecutionOutput, self).after_create_or_update(data)
+        super(TaskRunAttemptOutput, self).after_create_or_update(data)
 
     def push(self):
         self.task_run_output.push(self.data_object)
         
 
-class TaskRunExecutionLog(AbstractFileImport, AbstractTaskRunExecutionFile):
+class TaskRunAttemptLog(AbstractFileImport, AbstractTaskRunAttemptFile):
 
     log_name = fields.CharField(max_length=255)
 

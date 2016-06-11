@@ -19,9 +19,9 @@ model_classes = [
     WorkflowRun,
     StepRun,
     TaskRun,
-    TaskRunExecution,
-    TaskRunExecutionOutput,
-    TaskRunExecutionLog,
+    TaskRunAttempt,
+    TaskRunAttemptOutput,
+    TaskRunAttemptLog,
 ]
 
 for cls in model_classes:
@@ -31,9 +31,7 @@ for cls in model_classes:
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-locations/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.locations_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-imports/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_imports_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/source-runs/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_data_source_runs'))
-urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/worker-settings/$' % TaskRunExecution.get_class_name(plural=True, hyphen=True), 'analysis.views.worker_settings'))
-
-urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' % (TaskRunExecution.get_class_name(plural=True, hyphen=True),
-                                                              TaskRunExecutionLog.get_class_name(plural=True, hyphen=True)),
-                                                              'analysis.views.task_run_execution_log'))
-#urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' % (TaskRunExecution.get_class_name(plural=True, hyphen=True), TaskRunExecutionLog.get_class_name(plural=True, hyphen=True)), 'analysis.views.task_run_execution_log'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/worker-settings/$' % TaskRunAttempt.get_class_name(plural=True, hyphen=True), 'analysis.views.worker_settings'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' % (TaskRunAttempt.get_class_name(plural=True, hyphen=True),
+                                                              TaskRunAttemptLog.get_class_name(plural=True, hyphen=True)),
+                                                              'analysis.views.task_run_attempt_log'))
