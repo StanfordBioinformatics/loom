@@ -21,7 +21,7 @@ class LocalTaskManager:
     def run(cls, task_run):
         from analysis.models.task_runs import LocalTaskRunAttempt
         task_run_attempt = LocalTaskRunAttempt.create({'task_run': task_run})
-        
+
         cmd = [
             sys.executable,
             TASK_RUNNER_EXECUTABLE,

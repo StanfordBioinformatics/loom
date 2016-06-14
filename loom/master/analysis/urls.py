@@ -21,7 +21,6 @@ model_classes = [
     TaskRun,
     TaskRunAttempt,
     TaskRunAttemptOutput,
-    TaskRunAttemptLog,
 ]
 
 for cls in model_classes:
@@ -32,6 +31,7 @@ urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-locations/$' % FileDat
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/file-imports/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_imports_by_file'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/source-runs/$' % FileDataObject.get_class_name(plural=True, hyphen=True), 'analysis.views.file_data_source_runs'))
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/worker-settings/$' % TaskRunAttempt.get_class_name(plural=True, hyphen=True), 'analysis.views.worker_settings'))
-urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' % (TaskRunAttempt.get_class_name(plural=True, hyphen=True),
-                                                              TaskRunAttemptLog.get_class_name(plural=True, hyphen=True)),
-                                                              'analysis.views.task_run_attempt_log'))
+urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' %
+                       (TaskRunAttempt.get_class_name(plural=True, hyphen=True),
+                        TaskRunAttemptLogFile.get_class_name(plural=True, hyphen=True)),
+                       'analysis.views.task_run_attempt_log_file'))

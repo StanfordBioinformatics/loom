@@ -20,12 +20,24 @@ file_content_2 = {
     'unnamed_file_content': unnamed_file_content2,
 }
 
+file_import = {
+    'note': 'Here is where I got this',
+    'source_url': 'file:///data/data/data/data.dat',
+}
+
+file_import_2 = {
+    'note': 'Here is another one',
+    'source_url': 'file:///data/data/data/data2.dat',
+}
+
 file = {
     'file_content': file_content,
+    'file_import': file_import,
 }
 
 file_2 = {
     'file_content': file_content_2,
+    'file_import': file_import_2,
 }
 
 file_location = {
@@ -36,11 +48,6 @@ file_location = {
 file_location_2 = {
     'unnamed_file_content': unnamed_file_content2,
     'url': 'file:///absolute/path/to/my/file2.txt',
-}
-
-file_import = {
-    'note': 'Here is where I got this',
-    'source_url': 'file:///data/data/data/data.dat',
 }
 
 integer_data_object = {

@@ -470,71 +470,113 @@ class FileHandler:
     def import_from_pattern(self, pattern, note):
         for source in SourceSet(pattern, self.settings):
             self.import_file(
-                self.create_file_import(source.get_url(), note),
-                source.get_url()
+                source.get_url(),
+                note
             )
 
-    def import_file(self, file_import, source_url):
+    def import_file(self, source_url, note):
+        return self._execute_file_import(
+            self._create_file_data_object_for_import(source_url, note),
+            source_url
+        )
+
+    def _create_file_data_object_for_import(self, source_url, note):
+        return self.objecthandler.post_data_object({
+            'file_import': {
+                'note': note,
+                'source_url': Source(source_url, self.settings).get_url(),
+                }
+        })
+
+    def import_result_file(self, task_run_attempt_output, source_url):
+        file_data_object = self._execute_file_import(
+            self._create_task_run_attempt_output_file(task_run_attempt_output),
+            source_url
+        )
+        # Trigger the TaskRunAttemptOutput so it can detect the new data
+        # and push it to downstream steps
+        self.objecthandler.update_task_run_attempt_output(task_run_attempt_output['_id'], {})
+        return file_data_object
+
+    def _create_task_run_attempt_output_file(self, task_run_attempt_output):
+        updated_task_run_attempt_output = self.objecthandler.update_task_run_attempt_output(
+            task_run_attempt_output['_id'],
+            {
+                'data_object': {
+                    'file_import': {
+                        '_class': 'TaskRunAttemptOutputFileImport'
+                    }}})
+        return updated_task_run_attempt_output['data_object']
+
+    def import_log_file(self, task_run_attempt, source_url):
+        log_name = os.path.basename(source_url)
+        log_file = self.objecthandler.post_task_run_attempt_log_file(task_run_attempt['_id'], {'log_name': log_name})
+        return self._execute_file_import(
+            log_file['file_data_object'],
+            source_url
+        )
+
+    def _execute_file_import(self, file_data_object, source_url):
+        # Prior to import, file_data_object should have no content and only a temp_file_location
+        assert file_data_object.get('file_import') is not None
+        assert file_data_object.get('file_import').get('temp_file_location') is not None
+        assert file_data_object.get('file_import').get('file_location') is None
+        assert file_data_object.get('file_content') is None
+
         source = Source(source_url, self.settings)
         self._log('Importing file from %s...' % source.get_url())
 
-        temp_destination = Destination(file_import['temp_file_location']['url'], self.settings)
+        temp_destination = Destination(file_data_object['file_import']['temp_file_location']['url'], self.settings)
         hash_function = self.settings['HASH_FUNCTION']
         hash_value = source.hash_and_copy_to(temp_destination, hash_function)
 
-        updated_file_import = self._add_file_data_object_to_file_import(file_import, source, hash_value, hash_function)
+        # Adding file_content will cause a file_location with status=incomplete
+        # to be added to data_object.file_import.
+        # If the server is configured not to save multiple files with identical content,
+        # the data_object.file_import.file_location will has status=complete
+        #
+        updated_file_data_object = self._add_file_content_to_data_object(file_data_object, source.get_filename(), hash_value, hash_function)
 
-        temp_source = Source(temp_destination.get_url(), self.settings)
-        final_destination = Destination(updated_file_import['file_location']['url'], self.settings)
-        temp_source.move_to(final_destination)
+        if updated_file_data_object['file_import']['file_location']['status'] == 'complete':
+            # Cancel upload, server already has a copy
+            temp_source = Source(temp_destination.get_url(), self.settings)
+            temp_source.delete()
+        else:
+            # Move temp copy to permanent location
+            temp_source = Source(temp_destination.get_url(), self.settings)
+            final_destination = Destination(updated_file_data_object['file_import']['file_location']['url'], self.settings)
+            temp_source.move_to(final_destination)
 
-        final_file_import =  self._finalize_file_import(updated_file_import)
-        self._log('...finished importing file %s@%s' % (final_file_import['data_object']['file_content']['filename'],
-                                           final_file_import['data_object']['_id']))
-        return final_file_import
-    
-    def create_file_import(self, source_url, note):
-        source = Source(source_url, self.settings)
-        return self.objecthandler.post_abstract_file_import({
-            'note': note,
-            'source_url': source.get_url(),
-        })
+        # Signal that the upload completed successfully
+        final_file_data_object = self._finalize_file_import(updated_file_data_object)
+        self._log('...finished importing file %s@%s' % (final_file_data_object['file_content']['filename'],
+                                           final_file_data_object['_id']))
+        return final_file_data_object
 
-    def get_result_file_import(self, task_run_attempt_output):
-        return self.objecthandler.get_task_run_attempt_output(
-            task_run_attempt_output['_id']
-        )
-
-    def create_logfile_import(self, task_run_attempt_id, log_name):
-        return self.objecthandler.post_task_run_attempt_log(
-            task_run_attempt_id,
-            {'log_name': log_name}
-        )
-
-    def _add_file_data_object_to_file_import(self, file_import, source, hash_value, hash_function):
-        return self.objecthandler.update_abstract_file_import(
-            file_import['_id'],
-            { 'data_object':
-              { 'file_content':
-                {
-                    'filename': source.get_filename(),
+    def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
+        return self.objecthandler.update_data_object(
+            file_data_object['_id'],
+            {
+                'file_content': {
+                    'filename': filename,
                     'unnamed_file_content': {
                         'hash_function': hash_function,
                         'hash_value': hash_value
-                    }}}})
+                    }
+                }
+            }
+        )
 
-    def _finalize_file_import(self, file_import):
+    def _finalize_file_import(self, file_data_object):
         """ Nullify temp location and mark final location as "complete".
         """
-        file_import_update = {
-            'temp_file_location': None,
-            'file_location': copy.deepcopy(file_import['file_location'])
-        }
-        file_import_update['file_location']['status'] = 'complete'
+        updated_file_data_object = copy.deepcopy(file_data_object)
+        updated_file_data_object['file_import']['temp_file_location'] = None
+        updated_file_data_object['file_import']['file_location']['status'] = 'complete'
         
-        return self.objecthandler.update_abstract_file_import(
-            file_import['_id'],
-            file_import_update
+        return self.objecthandler.update_data_object(
+            file_data_object['_id'],
+            updated_file_data_object
         )
 
     def export_files(self, file_ids, destination_url=None):

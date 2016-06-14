@@ -70,9 +70,9 @@ def worker_settings(request, id):
             'worker_settings': {
                 'LOG_LEVEL': get_setting('LOG_LEVEL'),
                 'WORKING_DIR': WORKING_DIR,
-                'WORKER_LOGFILE': os.path.join(LOG_DIR, 'worker.log'),
-                'STDOUT_LOGFILE': os.path.join(LOG_DIR, 'stdout.log'),
-                'STDERR_LOGFILE': os.path.join(LOG_DIR, 'stderr.log'),
+                'WORKER_LOG_FILE': os.path.join(LOG_DIR, 'worker.log'),
+                'STDOUT_LOG_FILE': os.path.join(LOG_DIR, 'stdout.log'),
+                'STDERR_LOG_FILE': os.path.join(LOG_DIR, 'stderr.log'),
             }})
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
@@ -146,12 +146,12 @@ def info(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def task_run_attempt_log(request, id):
+def task_run_attempt_log_file(request, id):
     data_json = request.body
     data = json.loads(data_json)
     try:
         task_run_attempt = TaskRunAttempt.get_by_id(id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
-    model = task_run_attempt.create_log(data.get('log_name'))
+    model = task_run_attempt.create_log_file(data)
     return JsonResponse({"message": "created %s" % model.get_class_name(), "_id": model.get_id(), "object": model.to_struct()}, status=201)

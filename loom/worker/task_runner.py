@@ -43,9 +43,9 @@ class TaskRunner(object):
 
     def _init_directories(self):
         for directory in set([self.settings['WORKING_DIR'],
-                              os.path.dirname(self.settings['WORKER_LOGFILE']),
-                              os.path.dirname(self.settings['STDOUT_LOGFILE']),
-                              os.path.dirname(self.settings['STDERR_LOGFILE']),
+                              os.path.dirname(self.settings['WORKER_LOG_FILE']),
+                              os.path.dirname(self.settings['STDOUT_LOG_FILE']),
+                              os.path.dirname(self.settings['STDERR_LOG_FILE']),
         ]):
             try:
                 os.makedirs(directory)
@@ -66,26 +66,28 @@ class TaskRunner(object):
         sys.stderr = stderr_logger
 
     def _init_handler(self):
-        if self.settings.get('WORKER_LOGFILE') is None:
+        if self.settings.get('WORKER_LOG_FILE') is None:
             return logging.StreamHandler()
         else:
-            if not os.path.exists(os.path.dirname(self.settings['WORKER_LOGFILE'])):
-                os.makedirs(os.path.dirname(self.settings['WORKER_LOGFILE']))
-            return logging.FileHandler(self.settings['WORKER_LOGFILE'])
+            if not os.path.exists(os.path.dirname(self.settings['WORKER_LOG_FILE'])):
+                os.makedirs(os.path.dirname(self.settings['WORKER_LOG_FILE']))
+            return logging.FileHandler(self.settings['WORKER_LOG_FILE'])
 
     def _init_task_run_attempt(self):
         self.task_run_attempt = self.objecthandler.get_task_run_attempt(self.settings['TASK_RUN_ATTEMPT_ID'])
+        if self.task_run_attempt is None:
+            raise Exception('TaskRunAttempt ID "%s" not found' % self.settings['TASK_RUN_ATTEMPT_ID'])
 
     def run(self):
         self._export_inputs()
 
-        with open(self.settings['STDOUT_LOGFILE'], 'w') as stdoutlog:
-            with open(self.settings['STDERR_LOGFILE'], 'w') as stderrlog:
+        with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
+            with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
                 process = self._execute(stdoutlog, stderrlog)
                 self._wait_for_process(process)
 
         self._import_outputs()
-        self._import_logfiles()
+        self._import_log_files()
 
         # self._flag_run_as_complete(self.step_run)
 
@@ -102,22 +104,25 @@ class TaskRunner(object):
 
     def _import_outputs(self):
         for output in self.task_run_attempt['outputs']:
-            filename = output['task_run_output']['task_definition_output']['filename']
-            self.filehandler.import_file(
-                self.filehandler.get_result_file_import(output),
-                os.path.join(self.settings['WORKING_DIR'], filename)
-            )
+            if output['task_run_output']['task_definition_output']['type'] == 'file':
+                filename = output['task_run_output']['task_definition_output']['filename']
+                self.filehandler.import_result_file(
+                    output,
+                    os.path.join(self.settings['WORKING_DIR'], filename)
+                )
+            else:
+                # TODO handle non-file output types
+                raise Exception("Can't handle outputs of type %s" %
+                                output['task_run_output']['task_definition_output']['type'])
 
-    def _import_logfiles(self):
-        for logfile in (self.settings['WORKER_LOGFILE'],
-                        self.settings['STDOUT_LOGFILE'],
-                        self.settings['STDERR_LOGFILE']):
-            self.filehandler.import_file(
-                self.filehandler.create_logfile_import(
-                    self.task_run_attempt['_id'],
-                    os.path.basename(logfile)),
-                logfile
-            )
+    def _import_log_files(self):
+        for log_file in (self.settings['WORKER_LOG_FILE'],
+                        self.settings['STDOUT_LOG_FILE'],
+                        self.settings['STDERR_LOG_FILE']):
+                self.filehandler.import_log_file(
+                    self.task_run_attempt,
+                    log_file
+                )
 
     def _execute(self, stdoutlog, stderrlog):
         task_definition = self.task_run_attempt['task_run']['task_definition']
@@ -158,7 +163,7 @@ class TaskRunner(object):
         else:
             err_message = 'Worker process failed with error %s. \nFor more '\
                           'information check the stderr log file at "%s"' \
-                          % (str(returncode), self.settings.get('STDERR_LOGFILE'))
+                          % (str(returncode), self.settings.get('STDERR_LOG_FILE'))
             self.logger.error(err_message)
             raise Exception(err_message)
 

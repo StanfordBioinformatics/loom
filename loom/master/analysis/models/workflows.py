@@ -180,7 +180,8 @@ class AbstractOutput(AnalysisAppImmutableModel):
     channel = fields.CharField(max_length=255)
     type = fields.CharField(
         max_length=255,
-        choices=DataObject.TYPE_CHOICES
+        choices=DataObject.TYPE_CHOICES,
+        blank=False
     )
 
     class Meta:

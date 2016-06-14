@@ -113,7 +113,7 @@ class WorkflowRunner(object):
         return WorkflowImporter.import_workflow(workflow_filename, self.filehandler, self.objecthandler, self.logger)
 
     def _get_workflow_from_server(self, workflow_id):
-        workflows = self.objecthandler.get_abstract_workflow_index(query_string=workflow_id)
+        workflows = self.objecthandler.get_abstract_workflow_index(query_string=workflow_id, raise_for_status=False)
 
         if len(workflows) < 1:
             raise Exception('Could not find workflow that matches "%s"' % workflow_id)
@@ -153,12 +153,12 @@ class WorkflowRunner(object):
         return input.get('type')
 
     def _get_input_from_file(self, input_filename):
-        file_import = self.filehandler.import_file(
-            self.filehandler.create_file_import(input_filename, self.args.note),
-            input_filename
+        file_data_object = self.filehandler.import_file(
+            input_filename,
+            self.args.note
         )
-        return "%s@%s" % (file_import['data_object']['file_content']['filename'],
-                          file_import['data_object']['_id'])
+        return "%s@%s" % (file_data_object['file_content']['filename'],
+                          file_data_object['_id'])
 
 
 if __name__=='__main__':

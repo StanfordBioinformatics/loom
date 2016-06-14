@@ -37,6 +37,9 @@ class DataObject(AnalysisAppInstanceModel):
     def get_content(self):
         return self.downcast().get_content()
 
+    def is_ready(self):
+        return self.downcast().is_ready()
+
     @classmethod
     def get_by_value(cls, value, type):
         return class_type_map[type].get_by_value(value)
@@ -58,8 +61,8 @@ class FileDataObject(DataObject):
 
     TYPE = 'file'
 
-    file_content = fields.ForeignKey('FileContent')
-    file_location = fields.ForeignKey('FileLocation', null=True)
+    file_content = fields.ForeignKey('FileContent', null=True)
+    file_import = fields.OneToOneField('AbstractFileImport', related_name='data_object')
 
     def get_content(self):
         return self.file_content
@@ -73,6 +76,16 @@ class FileDataObject(DataObject):
     def get_substitution_value(self):
         return self.file_content.get_substitution_value()
 
+    def after_create_or_update(self, data):
+        # A FileLocation should be generated once file_content is set
+        if self.file_content and not self.file_import.file_location:
+            self.file_import._set_file_location()
+
+    def is_ready(self):
+        if self.file_import.file_location:
+            return self.file_import.file_location.status == 'complete'
+        else:
+            return False
 
 class FileContent(DataObjectContent):
     """Represents a file, including its content (identified by a hash), its 
@@ -110,11 +123,6 @@ class FileLocation(AnalysisAppInstanceModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
-
-    @classmethod
-    def get_by_file(self, file_data_object):
-        locations = self.objects.filter(unnamed_file_content=file_data_object.file_content.unnamed_file_content).all()
-        return locations
 
     @classmethod
     def get_location_for_import(cls, file_import):
@@ -188,9 +196,6 @@ class FileLocation(AnalysisAppInstanceModel):
 
 class AbstractFileImport(AnalysisAppInstanceModel):
 
-    data_object = fields.OneToOneField(
-        'FileDataObject',
-        null=True)
     temp_file_location = fields.OneToOneField('FileLocation', null=True, related_name='temp_file_import')
     file_location = fields.OneToOneField('FileLocation', null=True, related_name='file_import')
 
@@ -201,11 +206,6 @@ class AbstractFileImport(AnalysisAppInstanceModel):
         # it may be used in the name of the file location.
         if not self.temp_file_location and not self.file_location:
             self._set_temp_file_location()
-
-        # If FileDataObject was added and no permanent FileLocation exists,
-        # create one. The client will need this to know upload destination.
-        elif self.data_object and not self.file_location:
-            self._set_file_location()
 
     def _set_temp_file_location(self):
         """A temp location is used since the hash is used in the final file location,
@@ -229,8 +229,17 @@ class FileImport(AbstractFileImport):
     def get_browsable_path(self):
         return 'imported'
 
+class DatabaseDataObject(DataObject):
 
-class JSONDataObject(DataObject):
+    def is_ready(self):
+        # Always ready if it exists in the database
+        return True
+
+    class Meta:
+        abstract = True
+
+
+class JSONDataObject(DatabaseDataObject):
 
     TYPE = 'json'
 
@@ -258,7 +267,7 @@ class JSONDataContent(DataObjectContent):
         return self.json_value
 
 
-class StringDataObject(DataObject):
+class StringDataObject(DatabaseDataObject):
     
     TYPE = 'string'
     
@@ -286,7 +295,7 @@ class StringDataContent(DataObjectContent):
         return self.string_value
 
 
-class BooleanDataObject(DataObject):
+class BooleanDataObject(DatabaseDataObject):
     
     TYPE = 'boolean'
     
@@ -320,7 +329,7 @@ class BooleanDataContent(DataObjectContent):
         return self.boolean_value
 
 
-class IntegerDataObject(DataObject):
+class IntegerDataObject(DatabaseDataObject):
     
     TYPE = 'integer'
     

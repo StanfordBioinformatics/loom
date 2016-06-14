@@ -1,3 +1,4 @@
+from copy import deepcopy
 from django.test import TestCase
 import uuid
 
@@ -21,12 +22,6 @@ class TestFileLocation(TestCase, ModelTestMixin):
         self.assertEqual(file_location.url, fixtures.file_location['url'])
         self.roundTrip(file_location)
 
-    def testGetByFile(self):
-        file_location = FileLocation.create(fixtures.file_location)
-        file = FileDataObject.create(fixtures.file)
-        retrieved_file_location = FileLocation.get_by_file(file).first()
-        self.assertEqual(uuid.UUID(str(file_location._id)), uuid.UUID(str(retrieved_file_location._id)))
-
 
 class TestFileImport(TestCase, ModelTestMixin):
 
@@ -47,7 +42,10 @@ class TestFileImport(TestCase, ModelTestMixin):
             self.assertIsNone(file_import.file_location)
 
             # Final location is automatically generated when FileDataObject is added
-            file_import.update({'data_object': fixtures.file})
+            file = deepcopy(fixtures.file)
+            file.update({'file_import': file_import})
+            FileDataObject.create(file)
+            file_import.refresh_from_db()
             self.assertTrue(file_import.file_location.url.startswith(os.path.join('file:///', root_dir)))
             self.roundTrip(file_import)
 
@@ -66,7 +64,10 @@ class TestFileImport(TestCase, ModelTestMixin):
             self.assertIsNone(file_import.file_location)
 
             # Final location is automatically generated when FileDataObject is added
-            file_import.update({'data_object': fixtures.file})
+            file = deepcopy(fixtures.file)
+            file.update({'file_import': file_import})
+            FileDataObject.create(file)
+            file_import.refresh_from_db()
             self.assertTrue(file_import.file_location.url.startswith(os.path.join('file:///', root_dir)))
             self.roundTrip(file_import)
 
@@ -86,7 +87,10 @@ class TestFileImport(TestCase, ModelTestMixin):
             self.assertIsNone(file_import.file_location)
 
             # Final location is automatically generated when FileDataObject is added
-            file_import.update({'data_object': fixtures.file})
+            file = deepcopy(fixtures.file)
+            file.update({'file_import': file_import})
+            FileDataObject.create(file)
+            file_import.refresh_from_db()
             self.assertTrue(file_import.file_location.url.startswith(os.path.join('file:///', root_dir)))
             self.roundTrip(file_import)
 

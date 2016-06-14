@@ -68,6 +68,7 @@
 	    ],
 	    "outputs": [
 		{
+		    "type": "file",
 		    "channel": "world_cap",
 		    "filename": "world_cap.txt"
 		}
@@ -96,6 +97,7 @@
             ],
             "outputs": [
 		{
+		    "type": "file",
                     "filename": "hello_world.txt",
 		    "channel": "hello_world"
 		}

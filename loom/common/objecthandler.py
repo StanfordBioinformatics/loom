@@ -1,5 +1,7 @@
 import json
 import requests
+import time
+import datetime
 from loom.common.exceptions import *
 
 class ObjectHandler(object):
@@ -12,34 +14,46 @@ class ObjectHandler(object):
 
     # ---- General methods ----
     
-    def _post(self, data, relative_url, raise_for_status=False):
+    def _post(self, data, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
         return self._make_request_to_server(lambda: requests.post(url, data=json.dumps(data)), raise_for_status=raise_for_status)
 
-    def _get(self, relative_url, raise_for_status=False):
+    def _get(self, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
         return self._make_request_to_server(lambda: requests.get(url), raise_for_status=raise_for_status)
     
-    def _make_request_to_server(self, query_function, raise_for_status=False):
+    def _make_request_to_server(self, query_function, raise_for_status=True):
         """Verifies server connection and handles response errors
         for either get or post requests
         """
-        try:
-            response = query_function()
-        except requests.exceptions.ConnectionError as e:
-            raise ServerConnectionError("No response from server.\n%s" % e.message)
-        if raise_for_status:
+        # Try to connect every {retry_delay_seconds} until {time_limit_seconds} or until
+        # the response returns without error.
+        start_time = datetime.datetime.now()
+        time_limit_seconds = 2
+        retry_delay_seconds = 0.2
+        while datetime.datetime.now() - start_time < datetime.timedelta(0, time_limit_seconds):
+            error = None
             try:
-                response.raise_for_status()
-            except requests.exceptions.HTTPError as e:
-                raise BadResponseError("%s\n%s" % (e.message, response.text))
-        return response
+                response = query_function()
+                if raise_for_status:
+                    try:
+                        response.raise_for_status()
+                    except requests.exceptions.HTTPError as e:
+                        error = BadResponseError("%s\n%s" % (e.message, response.text))
+            except requests.exceptions.ConnectionError as e:
+                error = ServerConnectionError("No response from server.\n%s" % e.message)
+            if error:
+                time.sleep(retry_delay_seconds)
+                continue
+            else:
+                return response
+        raise error
 
     def _post_object(self, object_data, relative_url):
         return self._post(object_data, relative_url, raise_for_status=True).json()['object']
 
-    def _get_object(self, relative_url, raise_for_status=False):
-        response = self._get(relative_url)
+    def _get_object(self, relative_url, raise_for_status=True):
+        response = self._get(relative_url, raise_for_status=raise_for_status)
         if response.status_code == 404:
             return None
         elif response.status_code == 200:
@@ -47,7 +61,7 @@ class ObjectHandler(object):
         else:
             raise BadResponseError("Status code %s. %s" % (response.status_code, response.text))
 
-    def _get_object_index(self, relative_url, raise_for_status=False):
+    def _get_object_index(self, relative_url, raise_for_status=True):
         response = self._get(relative_url)
         if response.status_code == 200:
             return response.json()
@@ -56,10 +70,15 @@ class ObjectHandler(object):
 
     # ---- Post/Get [object_type] methods ----
 
-    def post_data(self, data):
+    def post_data_object(self, data_object):
         return self._post_object(
-            data,
-            'data/')
+            data_object,
+            'data-objects/')
+
+    def update_data_object(self, data_object_id, data_object_update):
+        return self._post_object(
+            data_object_update,
+            'data-objects/%s/' % data_object_id)
 
     def get_file_data_object(self, file_id):
         return self._get_object(
@@ -160,18 +179,30 @@ class ObjectHandler(object):
 
     def get_task_run_attempt(self, task_run_attempt_id):
         return self._get_object(
-            'task-run-attempts/%s/' % task_run_attempt_id
+            'task-run-attempts/%s/' % task_run_attempt_id,
+            raise_for_status=True
         )
+
+    def update_task_run_attempt(self, task_run_attempt_id, task_run_attempt_update):
+        return self._post_object(
+            task_run_attempt_update,
+            'task-run-attempts/%s/' % task_run_attempt_id)
 
     def get_task_run_attempt_output(self, task_run_attempt_output_id):
         return self._get_object(
             'task-run-attempt-outputs/%s/' % task_run_attempt_output_id
         )
 
-    def post_task_run_attempt_log(self, task_run_attempt_id, task_run_attempt_log):
+    def update_task_run_attempt_output(self, task_run_attempt_output_id, task_run_attempt_output_update):
         return self._post_object(
-            task_run_attempt_log,
-            'task-run-attempts/%s/task-run-attempt-logs/' % task_run_attempt_id
+            task_run_attempt_output_update,
+            'task-run-attempt-outputs/%s/' % task_run_attempt_output_id)
+
+    def post_task_run_attempt_log_file(self, task_run_attempt_id, task_run_attempt_log_file):
+        print task_run_attempt_log_file
+        return self._post_object(
+            task_run_attempt_log_file,
+            'task-run-attempts/%s/task-run-attempt-log-files/' % task_run_attempt_id
         )
 
     def post_abstract_file_import(self, file_import):
@@ -203,12 +234,10 @@ class ObjectHandler(object):
 
     def get_worker_settings(self, attempt_id):
         return self._get_object(
-            'task-run-attempts/%s/worker-settings/' % attempt_id,
-            raise_for_status=True
+            'task-run-attempts/%s/worker-settings/' % attempt_id
         )['worker_settings']
 
     def get_filehandler_settings(self):
         return self._get_object(
-            'filehandler-settings/',
-            raise_for_status=True
+            'filehandler-settings/'
         )['filehandler_settings']

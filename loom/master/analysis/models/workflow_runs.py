@@ -219,6 +219,8 @@ class StepRunOutput(TypedInputOutputNode):
     def get_filename(self):
         return self.step_run.template.get_output(self.channel).filename
 
+    def get_type(self):
+        return self.step_run.template.get_output(self.channel).type
 
 class WorkflowRunInput(TypedInputOutputNode):
 

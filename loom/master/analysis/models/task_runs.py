@@ -1,5 +1,6 @@
 from copy import deepcopy
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 from jinja2 import DictLoader, Environment
 import os
 
@@ -64,7 +65,9 @@ class TaskRunOutput(AnalysisAppInstanceModel):
         return self.get_step_run_output(step_run).channel
 
     def push(self, data_object, step_run=None):
-        self.data_object = data_object
+        self.update({'data_object': data_object})
+        # Sometimes this is called to push to a specific StepRun that was added late
+        # Otherwise, we push to all StepRuns available
         if step_run is not None:
             self.get_step_run_output(step_run).push(self.data_object)
         else:
@@ -74,7 +77,7 @@ class TaskRunOutput(AnalysisAppInstanceModel):
 
 class TaskRunAttempt(AnalysisAppInstanceModel):
     task_run = fields.ForeignKey('TaskRun')
-    logs = fields.OneToManyField('TaskRunAttemptLog', related_name='task_run_attempt')
+    log_files = fields.OneToManyField('TaskRunAttemptLogFile', related_name='task_run_attempt')
     outputs = fields.OneToManyField('TaskRunAttemptOutput', related_name='task_run_attempt')
 
     def after_create_or_update(self, data):
@@ -93,10 +96,10 @@ class TaskRunAttempt(AnalysisAppInstanceModel):
     def get_log_dir(cls, task_run_attempt_id):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_attempt_id, 'logs')
 
-    def create_log(self, log_name):
-        log = TaskRunAttemptLog.create({'log_name': log_name})
-        self.logs.add(log)
-        return log
+    def create_log_file(self, log_file_struct):
+        log_file = TaskRunAttemptLogFile.create(log_file_struct)
+        self.log_files.add(log_file)
+        return log_file
 
 class MockTaskRunAttempt(TaskRunAttempt):
 
@@ -108,19 +111,54 @@ class LocalTaskRunAttempt(TaskRunAttempt):
     pass
 
 
-class AbstractTaskRunAttemptFile(object):
+class TaskRunAttemptOutput(AnalysisAppInstanceModel):
 
-    def get_browsable_path(self):       
-        task_run = self.task_run_attempt.task_run
-        assert self.task_run_attempt.task_run.step_runs.count() == 1
-        step_run = task_run.step_runs.first()
+    task_run_output = fields.ForeignKey('TaskRunOutput')
+    data_object = fields.OneToOneField('DataObject', null=True, related_name='task_run_attempt_output')
+
+    def after_create_or_update(self, data):
+        if not get_setting('DISABLE_AUTO_PUSH'):
+            if self.data_object:
+                if self.data_object.is_ready():
+                    self.push()
+
+    def push(self):
+        self.task_run_output.push(self.data_object)
+
+
+class TaskRunAttemptLogFile(AnalysisAppInstanceModel):
+
+    log_name = fields.CharField(max_length=255)
+    file_data_object = fields.OneToOneField('FileDataObject', null=True, related_name='task_run_attempt_log_file')
+
+    def after_create_or_update(self, data):
+        if self.file_data_object is None:
+            self.update(
+                {
+                    'file_data_object': {
+                        'file_import': TaskRunAttemptLogFileImport.create({})
+                    }
+                }
+            )
+
+class AbstractTaskRunAttemptFileImport(AbstractFileImport):
+
+    def _get_browsable_path_prefix(self):
+        try:
+            # for output files
+            task_run_attempt = self.data_object.task_run_attempt_output.task_run_attempt
+        except ObjectDoesNotExist:
+            task_run_attempt = self.data_object.task_run_attempt_log_file.task_run_attempt
+            
+        assert task_run_attempt.task_run.step_runs.count() == 1
+        step_run = task_run_attempt.task_run.step_runs.first()
         path = os.path.join(
             "%s-%s" % (
                 step_run.template.name,
                 step_run.get_id(),
             ),
-            "task-%s" % task_run.get_id(),
-            "attempt-%s" % self.task_run_attempt.get_id(),
+            "task-%s" % task_run_attempt.task_run.get_id(),
+            "attempt-%s" % task_run_attempt.get_id(),
         )
         while step_run.parent_run is not None:
             step_run = step_run.parent_run
@@ -131,31 +169,21 @@ class AbstractTaskRunAttemptFile(object):
                 ),
                 path
             )
-        if hasattr(self, 'log_name'):
-            return os.path.join('runs', path, 'log')
-        else:
-            return os.path.join('runs', path, 'work')
+        return os.path.join('runs', path)
+
+    class Meta:
+        abstract = True
+
+class TaskRunAttemptOutputFileImport(AbstractTaskRunAttemptFileImport):
+
+    def get_browsable_path(self):
+        return os.path.join(self._get_browsable_path_prefix(), 'work')
 
 
-class TaskRunAttemptOutput(AbstractFileImport, AbstractTaskRunAttemptFile):
+class TaskRunAttemptLogFileImport(AbstractTaskRunAttemptFileImport):
 
-    task_run_output = fields.ForeignKey('TaskRunOutput')
-
-    def after_create_or_update(self, data):
-        if not get_setting('DISABLE_AUTO_PUSH'):
-            # Push when data is added
-            if data.get('file_location'):
-                if data['file_location']['status'] == 'complete':
-                    self.push()
-        super(TaskRunAttemptOutput, self).after_create_or_update(data)
-
-    def push(self):
-        self.task_run_output.push(self.data_object)
-        
-
-class TaskRunAttemptLog(AbstractFileImport, AbstractTaskRunAttemptFile):
-
-    log_name = fields.CharField(max_length=255)
+    def get_browsable_path(self):
+        return os.path.join(self._get_browsable_path_prefix(), 'logs')
 
 
 class TaskRunBuilder(object):
@@ -205,6 +233,7 @@ class TaskRunBuilder(object):
     def _create_task_definition_input(cls, input_item):
         return TaskDefinitionInput.create({
             'data_object_content': input_item.data_object.get_content(),
+            'type': input_item.data_object.get_type()
         })
 
     @classmethod
@@ -215,6 +244,7 @@ class TaskRunBuilder(object):
     def _create_task_definition_output(cls, step_run_output, input_context):
         return TaskDefinitionOutput.create({
             'filename': cls._render_from_template(step_run_output.get_filename(), input_context),
+            'type': step_run_output.get_type()
         })
 
     @classmethod
