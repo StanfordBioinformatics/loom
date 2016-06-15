@@ -1,0 +1,69 @@
+<img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<div ng-hide="loading">
+  <h4>Inputs</h4>
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <tbody>
+	<tr ng-repeat="input in activeData.workflow.inputs">
+	  <td>{{input.channel}}</td>
+	</tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>Outputs</h4>
+  <div class="table-responsive" >
+    <table class="table table-striped">
+      <tbody>
+	<tr ng-repeat="output in activeData.workflow.outputs">
+	  <td>{{output.channel}}</td>
+	</tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>Step Details</h4>
+  <div class="table-responsive" >
+    <table class="table table-striped">
+      <tbody>
+	<tr>
+	  <th>Command</th>
+          <td>
+            {{activeData.workflow.command}}
+          </td>
+	</tr>
+	<tr>
+	  <th>Docker Image</th>
+	  <td>
+            {{activeData.workflow.environment.docker_image}}
+          </td>
+	</tr>
+	<tr>
+	  <th>Cores</th>
+          <td>
+            {{activeData.workflow.resources.cores}}
+          </td>
+	</tr>
+	<tr>
+          <th>Memory</th>
+          <td>
+            {{activeData.workflow.resources.memory}}
+          </td>
+	</tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>Steps</h4>
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <tbody>
+	<tr ng-repeat="step in activeData.workflow.steps">
+          <td>
+	    <a ng-href="#/workflows/{{step._id}}">
+	      {{step.step}}
+	    </a>
+	  </td>
+	</tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+

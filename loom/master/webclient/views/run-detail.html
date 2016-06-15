@@ -8,8 +8,8 @@
 	<th>File</th>
       </thead>
       <tbody>
-	<tr ng-repeat="input in activeData.run.workflow_run_inputs">
-	  <td>{{input.channel.channel_name}}</td>
+	<tr ng-repeat="input in activeData.run.inputs">
+	  <td>{{input.channel}}</td>
 	  <td>
 	    <a ng-href="#/files/{{input.data_object._id}}">
 	      {{input.data_object.filename}}@{{input.data_object._id | limitTo:8}}

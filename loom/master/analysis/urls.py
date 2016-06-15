@@ -16,6 +16,7 @@ model_classes = [
     FileLocation,
     AbstractWorkflow,
     RunRequest,
+    AbstractWorkflowRun,
     WorkflowRun,
     StepRun,
     TaskRun,

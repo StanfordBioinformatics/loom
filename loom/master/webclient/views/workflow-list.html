@@ -9,7 +9,7 @@
     <tbody>
       <tr ng-repeat="workflow in workflows">
         <td><a ng-href="#/workflows/{{workflow._id}}">
-	    {{workflow.workflow_name}}@{{workflow._id | limitTo:8}}
+	    {{workflow.name}}@{{workflow._id | limitTo:8}}
         </a></td>
       </tr>
     </tbody>

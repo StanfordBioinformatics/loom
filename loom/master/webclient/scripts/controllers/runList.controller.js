@@ -8,8 +8,8 @@ RunListController.$inject = ['$scope', 'DataService'];
 
 function RunListController($scope, DataService) {
     $scope.loading = true;
-    DataService.getRuns().then(function(runs) {
+    DataService.getRunRequests().then(function(run_requests) {
 	$scope.loading = false;
-	$scope.runs = runs;
+	$scope.run_requests = run_requests;
     });
 };
