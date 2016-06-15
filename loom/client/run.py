@@ -3,10 +3,8 @@
 import argparse
 import os
 
-from loom.client.common import get_settings_manager_from_parsed_args
-from loom.client.common import add_settings_options_to_parser
-from loom.client.common import read_as_json_or_yaml
 from loom.client.importer import WorkflowImporter
+from loom.client.common import get_server_url, read_as_json_or_yaml
 from loom.client.exceptions import *
 from loom.common.helper import get_console_logger
 from loom.common.filehandler import FileHandler
@@ -21,8 +19,7 @@ class WorkflowRunner(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
-        self.master_url = self.settings_manager.get_server_url_for_client()
+        self.master_url = get_server_url()
         if logger is None:
             logger = get_console_logger(name=__file__)
         self.logger = logger
@@ -47,7 +44,6 @@ class WorkflowRunner(object):
             metavar='SOURCE_NOTE',
             help='Description of the data source for any new inputs. '\
             'Give enough detail for traceability.')
-        parser = add_settings_options_to_parser(parser)
         return parser
 
     @classmethod

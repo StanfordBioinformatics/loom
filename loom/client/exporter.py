@@ -5,9 +5,7 @@ import json
 import os
 import sys
 import yaml
-from loom.client import settings_manager
-from loom.client.common import get_settings_manager_from_parsed_args
-from loom.client.common import add_settings_options_to_parser
+from loom.client.common import get_server_url
 from loom.client.exceptions import *
 from loom.common.filehandler import FileHandler
 from loom.common.objecthandler import ObjectHandler
@@ -22,27 +20,20 @@ class AbstractExporter(object):
         """Common init tasks for all Export classes
         """
         self.args = args
-        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
 
         if logger is None:
             logger = get_console_logger()
         self.logger = logger
         
-        master_url = self.settings_manager.get_server_url_for_client()
+        master_url = get_server_url_for_client()
         self.objecthandler = ObjectHandler(master_url)
         self.filehandler = FileHandler(master_url, logger=self.logger)
-
-    @classmethod
-    def get_parser(cls, parser):
-        parser = add_settings_options_to_parser(parser)
-        return parser
 
 
 class FileExporter(AbstractExporter):
 
     @classmethod
     def get_parser(cls, parser):
-        parser = super(FileExporter, cls).get_parser(parser)
         parser.add_argument(
             'file_ids',
             nargs='+',
@@ -65,7 +56,6 @@ class WorkflowExporter(AbstractExporter):
 
     @classmethod
     def get_parser(cls, parser):
-        parser = super(WorkflowExporter, cls).get_parser(parser)
         parser.add_argument(
             'workflow_id',
             metavar='WORKFLOW_ID', help='Workflow to be downloaded.')

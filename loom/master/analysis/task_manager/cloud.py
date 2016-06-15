@@ -1,5 +1,4 @@
 import errno 
-import imp
 import json
 import logging
 import multiprocessing
@@ -13,11 +12,11 @@ import sys
 import tempfile
 from string import Template
 
-import oauth2client.contrib.gce
 from django.conf import settings
 
 import loom.common.logger
 import loom.common.version
+import loom.common.cloud
 
 class CloudTaskManager:
 
@@ -44,7 +43,8 @@ class CloudTaskManager:
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
-        cls._setup_ansible_gce()
+        cls.inventory_file = loom.common.cloud.setup_ansible_inventory_gce()
+        loom.common.cloud.setup_gce_credentials()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
         hostname = socket.gethostname()
         node_name = cls.create_worker_name(hostname, task_run)
@@ -148,29 +148,6 @@ class CloudTaskManager:
             playbook.flush()
             subprocess.call(['ansible-playbook', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
-    @classmethod
-    def _setup_ansible_gce(cls):
-        """ Make sure dynamic inventory from ansible.contrib is executable, and write credentials to secrets.py. """
-        # Assumes loom is on the Python path.
-        loom_location = imp.find_module('loom')[1]
-        loomparentdir = os.path.dirname(loom_location)
-        cls.inventory_file = os.path.join(loomparentdir, 'loom', 'master', 'analysis', 'task_manager', 'ansible.contrib.inventory.gce.py')
-        os.chmod(cls.inventory_file, 0755)
-        gce_credentials = oauth2client.contrib.gce.AppAssertionCredentials([])
-        credentials = { 'service_account_email': gce_credentials.service_account_email,
-                        'pem_file': settings.ANSIBLE_PEM_FILE,
-                        'project_id': settings.PROJECT_ID }
-
-        # Write a secrets.py somewhere on the Python path for Ansible to import.
-        loom_location = imp.find_module('loom')[1]
-        loomparentdir = os.path.dirname(loom_location)
-        with open(os.path.join(loomparentdir, 'secrets.py'), 'w') as outfile:
-            outfile.write("GCE_PARAMS=('"+credentials['service_account_email']+"', '"+credentials['pem_file']+"')\n")
-            outfile.write("GCE_KEYWORD_PARAMS={'project': '"+credentials['project_id']+"'}")
-        try:
-            import secrets
-        except ImportError:
-            raise CloudTaskManagerError("Couldn't write secrets.py to the Python path")
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
@@ -236,7 +213,8 @@ class CloudTaskManager:
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
-        cls._setup_ansible_gce()
+        cls.inventory_file = loom.common.cloud.setup_ansible_inventory_gce()
+        loom.common.cloud.setup_gce_credentials()
         zone = settings.WORKER_LOCATION
         s = Template(
 """---

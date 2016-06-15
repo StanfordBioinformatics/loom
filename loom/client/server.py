@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
 import argparse
+import imp
 import os
 import re
-import requests
 import subprocess
 import sys
 import warnings
 
-from loom.client import settings_manager
+from ConfigParser import SafeConfigParser
+from loom.client.settings_manager import SettingsManager
+from loom.client.common import *
+from  loom.common.version import version
 
 DAEMON_EXECUTABLE = os.path.abspath(
     os.path.join(
@@ -16,66 +19,137 @@ DAEMON_EXECUTABLE = os.path.abspath(
     '../master/loomdaemon/loom_daemon.py'
     ))
 
-def is_server_running(master_url):
+GCLOUD_SERVER_DEFAULT_NAME = SettingsManager().get_default_setting('gcloud', 'SERVER_NAME')
+GCLOUD_CREATE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_create_playbook.yml'))
+GCLOUD_START_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_start_playbook.yml'))
+GCLOUD_STOP_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_stop_playbook.yml'))
+GCLOUD_DELETE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_delete_playbook.yml'))
+
+def ServerControlsFactory(args):
+    """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate class."""
+
+    # Check if we just need the base class (currently, it handles "set" and "status"):
     try:
-        response = requests.get(master_url + '/api/status/')
-        if response.status_code == 200:
-            return True
-        else:
-            raise Exception("unexpected status code %s from server" % response.status_code)
-    except requests.exceptions.ConnectionError:
-        return False
+        return BaseServerControls(args)
+    except UnhandledCommandError:
+        pass
+
+    server_type = get_server_type()
+
+    # Instantiate the appropriate subclass:
+    if server_type == 'local':
+        controls = LocalServerControls(args)
+    elif server_type == 'gcloud':
+        controls = GoogleCloudServerControls(args)
+    else:
+        raise Exception('Unrecognized server type: %s' % server_type)
+    
+    return controls
+
+def get_parser(parser=None):
+    if parser is None:
+        parser = argparse.ArgumentParser(__file__)
+
+    parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--fg_webserver', action='store_true', help=argparse.SUPPRESS) # Run webserver in the foreground. Needed to keep Docker container running.
+    parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+    parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
+        help="A settings file can be provided to override default settings.")
+
+    subparsers = parser.add_subparsers(dest='command')
+    start_parser = subparsers.add_parser('start')
+    stop_parser = subparsers.add_parser('stop')
+    status_parser = subparsers.add_parser('status')
+
+    create_parser = subparsers.add_parser('create')
+    create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+
+    delete_parser = subparsers.add_parser('delete')
+
+    setserver_parser = subparsers.add_parser('set', help='Tells the client how to find the Loom server. This information is stored in %s.' % SERVER_LOCATION_FILE)
+    setserver_parser.add_argument('type', choices=['local', 'gcloud'], help='The type of server the client will manage.')
+    setserver_parser.add_argument('--name', help='Not used for local. For gcloud, the instance name of the server to manage. If not provided, defaults to %s.' % GCLOUD_SERVER_DEFAULT_NAME, metavar='GCE_INSTANCE_NAME', default=GCLOUD_SERVER_DEFAULT_NAME)
+
+    return parser
 
 
-class ServerControls:
+class BaseServerControls:
+    """Base class for managing the Loom server. Handles argument parsing, 
+    subcommand routing, and implements common base methods such as setting
+    the server type and checking the server status.
     """
-    This class provides methods for managing the loom server, specifically the commands:
-    - start
-    - stop
-    - status
-
-    Users should call this through ../bin/loomserver to ensure the environment is configured.
-    """
-
     def __init__(self, args=None):
         if args is None:
             args=self._get_args()
         self.args = args
-        self.settings_manager = settings_manager.SettingsManager(settings_file=args.settings, require_default_settings=args.require_default_settings)
         self._set_run_function(args)
 
-    @classmethod
-    def get_parser(cls, parser=None):
-        if parser is None:
-            parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('command', choices=['start', 'stop', 'status'])
-        parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE',
-                            help="Settings files indicate which server to talk to and how the server can be reached. Defaults to ~/.loom/settings.json (created on first run if not found). Use loom config to choose from available presets, or edit the file directly.")
-        parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--fg_webserver', action='store_true', help=argparse.SUPPRESS) # Run webserver in the foreground. Needed to keep Docker container running.
-        parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
-        return parser
-
-    def _get_args(self):
-        parser = self.get_parser()
-        args = parser.parse_args()
-        return args
+    # Defines what commands this class can handle and maps names to functions.
+    def _get_command_map(self):
+        return {
+            'status': self.status,
+            'set': self.setserver
+        }
 
     def _set_run_function(self, args):
         # Map user input command to class method
-        command_to_method_map = {
-            'status': self.status,
-            'start': self.start,
-            'stop': self.stop
-        }
         try:
-            self.run = command_to_method_map[args.command]
+            self.run = self._get_command_map()[args.command]
         except KeyError:
-            raise Exception('Did not recognize command %s' % args.command)
+            raise UnhandledCommandError('Unrecognized command: %s' % args.command)
+
+    def _get_args(self):
+        parser = get_parser()
+        args = parser.parse_args()
+        return args
+
+    def setserver(self):
+        '''Set server for the client to manage (currently local or gcloud).'''
+        # Create directory/directories if they don't exist
+        ini_dir = os.path.dirname(SERVER_LOCATION_FILE)
+        if not os.path.exists(ini_dir):
+            os.makedirs(ini_dir)
+
+        # Write server.ini file
+        config = SafeConfigParser()
+        config.add_section('server')
+        config.set('server', 'type', self.args.type)
+        if self.args.type == 'gcloud':
+            name = self.args.name
+            config.set('server', 'name', name)
+        with open(SERVER_LOCATION_FILE, 'w') as configfile:
+            config.write(configfile)
+
+    def status(self):
+        if is_server_running():
+            print 'OK. The server is running.'
+        else:
+            print 'No response for server at %s. Do you need to run "loom server start"?' % get_server_url()
+
+
+class LocalServerControls(BaseServerControls):
+    """Subclass for managing a server running on localhost."""
+
+    def __init__(self, args=None):
+        BaseServerControls.__init__(self, args)
+        self.settings_manager = SettingsManager()
+
+    # Defines what commands this class can handle and maps names to functions.
+    def _get_command_map(self):
+        command_to_method_map = {
+            'create': self.create,
+            'start': self.start,
+            'stop': self.stop,
+            'delete': self.delete,
+        }
+        return command_to_method_map
 
     def start(self):
+        if not os.path.exists(get_deploy_settings_filename()):
+            self.create()
+        self.settings_manager.load_deploy_settings_file()
         env = os.environ.copy()
         env = self._add_server_to_python_path(env)
         env = self._set_database(env)
@@ -85,27 +159,28 @@ class ServerControls:
         self._start_webserver(env)
 
     def _create_logdirs(self):
-        for logfile in (self.settings_manager.get_access_logfile(),
-                        self.settings_manager.get_error_logfile(),
-                        self.settings_manager.get_daemon_logfile()):
+        for logfile in (self.settings_manager.settings['ACCESS_LOGFILE'],
+                        self.settings_manager.settings['ERROR_LOGFILE'],
+                        self.settings_manager.settings['DAEMON_LOGFILE'],
+                        ):
             logdir = os.path.dirname(logfile)
             if not os.path.exists(logdir):
                 os.makedirs(logdir)
         
     def _start_webserver(self, env):
         cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s" % (
-                self.settings_manager.get_server_wsgi_module(), 
-                self.settings_manager.get_bind_ip(), 
-                self.settings_manager.get_bind_port(), 
-                self.settings_manager.get_webserver_pidfile(),
-                self.settings_manager.get_access_logfile(),
-                self.settings_manager.get_error_logfile(),
-                self.settings_manager.get_log_level(),
+                self.settings_manager.settings['SERVER_WSGI_MODULE'],
+                self.settings_manager.settings['BIND_IP'],
+                self.settings_manager.settings['BIND_PORT'],
+                self.settings_manager.settings['WEBSERVER_PIDFILE'],
+                self.settings_manager.settings['ACCESS_LOGFILE'],
+                self.settings_manager.settings['ERROR_LOGFILE'],
+                self.settings_manager.settings['LOG_LEVEL'],
                 )
         if not self.args.fg_webserver:
             cmd = cmd + " --daemon"
         if self.args.verbose:
-            print("Starting webserver with command:\n%s" % cmd)
+            print("Starting webserver with command:\n%s\nand environment:\n%s" % (cmd, env))
         process = subprocess.Popen(
             cmd,
             shell=True,
@@ -120,12 +195,12 @@ class ServerControls:
     def _start_daemon(self, env):
         if self.args.no_daemon == True:
             return
-        pidfile = self.settings_manager.get_daemon_pidfile()
-        logfile = self.settings_manager.get_daemon_logfile()
-        loglevel = self.settings_manager.get_log_level()
+        pidfile = self.settings_manager.settings['DAEMON_PIDFILE']
+        logfile = self.settings_manager.settings['DAEMON_LOGFILE']
+        loglevel = self.settings_manager.settings['LOG_LEVEL']
         cmd = "%s %s start --pidfile %s --logfile %s --loglevel %s" % (sys.executable, DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
         if self.args.verbose:
-            print("Starting loom daemon with command:\n%s" % cmd)
+            print("Starting loom daemon with command:\n%s\nand environment:\n%s" % (cmd, env))
         process = subprocess.Popen(
             cmd,
             shell=True,
@@ -137,31 +212,44 @@ class ServerControls:
         if not process.returncode == 0:
             raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
 
-    def status(self):
-        url = self.settings_manager.get_server_url_for_client()
-        if is_server_running(url):
-            print 'OK. The server is running.'
-        else:
-            print 'No response for server at %s. Do you need to run "loom server start"?' % url
     def stop(self):
+        # Settings needed to get pidfile names.
+        if not os.path.exists(get_deploy_settings_filename()):
+            raise Exception('No server deploy settings found. Create them with "loom server create" first.')
+        self.settings_manager.load_deploy_settings_file()
         self._stop_webserver()
         self._stop_daemon()
 
     def _stop_webserver(self):
-        pid = self.settings_manager.get_webserver_pid()
+        pid = self._get_pid(self.settings_manager.settings['WEBSERVER_PIDFILE'])
         if pid is not None:
             subprocess.call(
                 "kill %s" % pid,
                 shell=True,
                 )
-        self._cleanup_pidfile(self.settings_manager.get_webserver_pidfile())
+        self._cleanup_pidfile(self.settings_manager.settings['WEBSERVER_PIDFILE'])
 
     def _stop_daemon(self):
         subprocess.call(
-            "%s %s --pidfile %s stop" % (sys.executable, DAEMON_EXECUTABLE, self.settings_manager.get_daemon_pidfile()),
+            "%s %s --pidfile %s stop" % (sys.executable, DAEMON_EXECUTABLE, self.settings_manager.settings['DAEMON_PIDFILE']),
             shell=True
             )
-        self._cleanup_pidfile(self.settings_manager.get_daemon_pidfile())
+        self._cleanup_pidfile(self.settings_manager.settings['DAEMON_PIDFILE'])
+
+    def _get_pid(self, pidfile):
+        if not os.path.exists(pidfile):
+            return None
+        try:
+            with open(pidfile) as f:
+                pid = f.read().strip()
+                self._validate_pid(pid)
+                return pid
+        except:
+            return None
+
+    def _validate_pid(self, pid):
+        if not re.match('^[0-9]*$', pid):
+            raise Exception('Invalid pid "%s" found in pidfile %s' % (pid, pidfile))
 
     def _cleanup_pidfile(self, pidfile):
         if os.path.exists(pidfile):
@@ -172,11 +260,11 @@ class ServerControls:
 
     def _add_server_to_python_path(self, env):
         env.setdefault('PYTHONPATH', '')
-        env['PYTHONPATH'] = "%s:%s" % (self.settings_manager.get_server_path(), env['PYTHONPATH'])
+        env['PYTHONPATH'] = "%s:%s" % (SERVER_PATH, env['PYTHONPATH'])
         return env
 
     def _set_database(self, env):
-        manage_cmd = [sys.executable, '%s/manage.py' % self.settings_manager.get_server_path()]
+        manage_cmd = [sys.executable, '%s/manage.py' % SERVER_PATH]
         if self.args.test_database:
             # If test database requested, set LOOM_TEST_DATABSE to true and reset database
             env['LOOM_TEST_DATABASE'] = 'true'
@@ -206,8 +294,114 @@ class ServerControls:
         return env
 
     def _export_django_settings(self, env):
-        env.update(self.settings_manager.get_django_env_settings())
+        """Update the environment with settings before launching the webserver.
+        This allows master/loomserver/settings.py to load them and make them
+        available to Django. Passing settings this way only works in local mode
+        (the server is on the same machine as the client launching it).
+        """
+        env.update(self.settings_manager.get_env_settings())
         return env
+
+    def create(self):
+        '''Create server deploy settings if they don't exist yet.'''
+        # TODO: Add -f option to overwrite existing settings
+        if os.path.exists(get_deploy_settings_filename()):
+            raise Exception('Local server deploy settings already exist. Please delete them with "loom server delete" first.')
+        self.settings_manager.create_deploy_settings_file(self.args.settings)
+        print 'Created deploy settings at %s.' % get_deploy_settings_filename()
+
+    def delete(self):
+        '''Stops server and deletes deploy settings.'''
+        # TODO: Ask for confirmation before continuing; add -f option to continue without asking
+        if not os.path.exists(get_deploy_settings_filename()):
+            raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
+        self.stop()
+        self.settings_manager.delete_deploy_settings_file()
+        print 'Deleted deploy settings at %s.' % get_deploy_settings_filename()
+
+
+class GoogleCloudServerControls(BaseServerControls):
+    """Subclass for managing a server running in Google Cloud."""
+    
+    def __init__(self, args=None):
+        BaseServerControls.__init__(self, args)
+        self.settings_manager = SettingsManager()
+
+    # Defines what commands this class can handle and maps names to functions.
+    def _get_command_map(self):
+        command_to_method_map = {
+            'create': self.create,
+            'start': self.start,
+            'stop': self.stop,
+            'delete': self.delete,
+        }
+        return command_to_method_map
+
+    def get_deploy_env(self):
+        # Load settings needed for deployment into environment variables, where they will be read by the Ansible playbook.
+        self.settings_manager.load_deploy_settings_file()
+        env = os.environ.copy()
+        env.update(self.settings_manager.get_env_settings())
+        return env
+
+    def create(self):
+        """Create server deploy settings if they don't exist yet, create and
+        set up a gcloud instance, copy deploy settings to the instance, and
+        start the Loom server."""
+        # TODO: Prevent overwriting existing deploy settings, but add -f option to force overwriting
+        # if os.path.exists(get_deploy_settings_filename()):
+        #     raise Exception('Google Cloud server deploy settings already exist. Please delete them with "loom server delete" first.')
+        self.settings_manager.create_deploy_settings_file(self.args.settings)
+        # TODO: Add nginx server to playbook
+        # TODO: add gcloud-specific server settings
+        # env['MASTER_URL_FOR_WORKER'] = '' # TODO: get internal gcloud ip that is reachable by workers
+        print 'Created deploy settings at %s.' % get_deploy_settings_filename()
+        
+        env = self.get_deploy_env()
+        self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
+        
+    def run_playbook(self, playbook, env):
+        env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail when creating a new instance with the same IP
+        return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
+
+    def start(self):
+        """Start the gcloud server instance, then start the Loom server."""
+        # TODO: Start the gcloud server instance once supported by Ansible
+        if not os.path.exists(get_deploy_settings_filename()):
+            self.create()
+        env = self.get_deploy_env()
+        self.run_playbook(GCLOUD_START_PLAYBOOK, env)
+
+    def stop(self):
+        """Stop the Loom server, then stop the gcloud server instance."""
+        env = self.get_deploy_env()
+        self.run_playbook(GCLOUD_STOP_PLAYBOOK, env)
+        # TODO: Stop the gcloud server instance once supported by Ansible
+
+    def delete(self):
+        """Stop the Loom server, then delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
+        env = self.get_deploy_env()
+        instance_name = get_gcloud_server_name()
+        current_hosts = get_gcloud_hosts()
+        if instance_name not in current_hosts:
+            print 'Instance named \"%s\" not found in project \"%s\".' % (instance_name, env['GCE_PROJECT'])
+            return
+        else:
+            confirmation_input = raw_input('WARNING! This will delete the server instance and attached disks. Data will be lost!\n'+ 
+                                       'If you are sure you want to continue, please type the name of the server instance:\n> ')
+            if confirmation_input == get_gcloud_server_name():
+                self.stop()
+                returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
+                if returncode == 0:
+                    os.remove(get_deploy_settings_filename())
+            else:
+                print 'Input did not match current server name \"%s\".' % instance_name
+
+
+class UnhandledCommandError(Exception):
+    """Raised when a ServerControls class is given a command that's not in its command map."""
+    pass
+
 
 if __name__=='__main__':
     ServerControls().run()

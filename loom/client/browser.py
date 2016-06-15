@@ -9,10 +9,8 @@ if __name__ == "__main__" and __package__ is None:
 
 import argparse
     
-from loom.client import settings_manager
 from loom.client import server
-from loom.client.common import get_settings_manager_from_parsed_args
-from loom.client.common import add_settings_options_to_parser
+from loom.client.common import get_server_url, is_server_running
 from loom.client.exceptions import *
                 
 
@@ -27,8 +25,7 @@ class Browser:
         if args is None:
             args = self._get_args()
         self.args = args
-        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
-        self.master_url = self.settings_manager.get_server_url_for_client()
+        self.master_url = get_server_url()
         
     def _get_args(self):
         parser = self.get_parser()
@@ -42,11 +39,10 @@ class Browser:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        parser = add_settings_options_to_parser(parser)
         return parser
 
     def run(self):
-        if server.is_server_running(master_url = self.master_url):
+        if is_server_running():
             try:
                 webbrowser.open(self.master_url)
             except webbrowser.Error:

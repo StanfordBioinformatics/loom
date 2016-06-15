@@ -3,10 +3,7 @@
 import argparse
 import glob
 import os
-
-from loom.client import settings_manager
-from loom.client.common import add_settings_options_to_parser
-from loom.client.common import get_settings_manager_from_parsed_args
+from loom.client.common import get_server_url
 from loom.client.common import parse_as_json_or_yaml
 from loom.client.exceptions import *
 from loom.common import exceptions as common_exceptions
@@ -25,8 +22,7 @@ class AbstractImporter(object):
 
         self.args = args
 
-        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
-        master_url = self.settings_manager.get_server_url_for_client()
+        master_url = self.get_server_url_for()
         
         # Log to console unless another logger is given
         # (e.g. by unittests to prevent terminal output)
@@ -50,7 +46,6 @@ class FileImporter(AbstractImporter):
             metavar='SOURCE_NOTE',
             help='Description of the data source. '\
             'Give enough detail for traceability.')
-        parser = add_settings_options_to_parser(parser)
         return parser
 
     def run(self):
@@ -67,7 +62,6 @@ class WorkflowImporter(AbstractImporter):
         parser.add_argument(
             'workflow',
             metavar='WORKFLOW_FILE', help='Workflow to be imported, in YAML or JSON format.')
-        parser = add_settings_options_to_parser(parser)
         return parser
 
     def run(self):

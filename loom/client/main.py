@@ -9,7 +9,6 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(rootdir)
 
 from loom.client import browser
-from loom.client import config
 from loom.client import exporter
 from loom.client import importer
 from loom.client import run
@@ -36,8 +35,8 @@ class Main(object):
         run_subparser.set_defaults(SubcommandClass=run.WorkflowRunner)
 
         server_subparser = subparsers.add_parser('server', help='manage the Loom server')
-        server.ServerControls.get_parser(server_subparser)
-        server_subparser.set_defaults(SubcommandClass=server.ServerControls)
+        server.get_parser(server_subparser)
+        server_subparser.set_defaults(SubcommandClass=server.ServerControlsFactory)
 
         import_subparser = subparsers.add_parser('import', help='import files or other data to the Loom server')
         importer.Importer.get_parser(import_subparser)
@@ -50,10 +49,6 @@ class Main(object):
         show_subparser = subparsers.add_parser('show', help='query and show data objects from the Loom server')
         show.Show.get_parser(show_subparser)
         show_subparser.set_defaults(SubcommandClass=show.Show)
-
-        config_subparser = subparsers.add_parser('config', help='configure the Loom server')
-        config.Config.get_parser(config_subparser)
-        config_subparser.set_defaults(SubcommandClass=config.Config)
 
         browser_subparser = subparsers.add_parser('browser', help='launch the Loom web browser')
         browser.Browser.get_parser(browser_subparser)
