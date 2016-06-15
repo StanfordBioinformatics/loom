@@ -23,18 +23,7 @@ class SettingsManager:
     """
     DEFAULT_SETTINGS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'default_settings.ini'))
 
-    def __init__(self, **kwargs):
-        if not self._do_skip_init(**kwargs):
-            self._initialize(**kwargs)
-
-    def _do_skip_init(self, **kwargs):
-        try:
-            skip_init = kwargs.pop('skip_init')
-        except KeyError:
-            skip_init = False
-        return skip_init
-
-    def _initialize(self, require_default_settings=False, verbose=False,  **kwargs):
+    def __init__(self, require_default_settings=False, verbose=False):
         self.settings = {}
         self.verbose = verbose
         self.require_default_settings = require_default_settings

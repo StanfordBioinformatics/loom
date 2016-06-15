@@ -12,6 +12,7 @@ class TestApi(unittest.TestCase):
 
     def setUp(self):
         self.test_server = TestServer()
+        self.test_server.setlocal()
         self.test_server.start()
 
     def tearDown(self):
