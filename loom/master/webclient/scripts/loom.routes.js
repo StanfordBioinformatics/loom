@@ -34,13 +34,21 @@ function config($routeProvider) {
             templateUrl: 'views/step-detail.html',
             controller: 'StepDetailController'
         })
-        .when('/files', {
-            templateUrl: 'views/file-list.html',
-            controller: 'FileListController'
+        .when('/result-files', {
+            templateUrl: 'views/result-file-list.html',
+            controller: 'ResultFileListController'
         })
-        .when('/files/:fileId', {
-            templateUrl: 'views/file-detail.html',
-            controller: 'FileDetailController'
+        .when('/imported-files', {
+            templateUrl: 'views/imported-file-list.html',
+            controller: 'ImportedFileListController'
+        })
+        .when('/imported-files/:importedFileId', {
+            templateUrl: 'views/imported-file-detail.html',
+            controller: 'ImportedFileDetailController'
+        })
+        .when('/result-files/:resultFileId', {
+            templateUrl: 'views/result-file-detail.html',
+            controller: 'ResultFileDetailController'
         })
 	.otherwise('/runs');
 };

@@ -1,0 +1,23 @@
+<img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<div class="table-responsive" ng-hide="loading">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Hash</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="file in result_files">
+        <td>
+	  <a ng-href="#/result-files/{{file._id}}">
+            {{file.file_content.filename}}@{{file._id | limitTo:8}}
+	  </a>
+        </td>
+        <td>
+          {{file.file_content.unnamed_file_content.hash_function}}${{file.file_content.unnamed_file_content.hash_value}}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

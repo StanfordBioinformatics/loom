@@ -13,14 +13,13 @@ function DataService($http) {
     this.setActiveWorkflow = setActiveWorkflow;
     this.setActiveStep = setActiveStep;
     this.setActiveRun = setActiveRun;
-    this.setActiveFile = setActiveFile;
-    this.setActiveFileSourceRecords = setActiveFileSourceRecords;
-    this.setActiveFileSourceRuns = setActiveFileSourceRuns;
-    this.setActiveFileStorageLocations = setActiveFileStorageLocations;
+    this.setActiveImportedFile = setActiveImportedFile;
+    this.setActiveResultFile = setActiveResultFile;
     this.getActiveData = getActiveData;
     this.getRuns = getRuns;    
     this.getWorkflows = getWorkflows;
-    this.getFiles = getFiles;
+    this.getImportedFiles = getImportedFiles;
+    this.getResultFiles = getResultFiles;
 
     var activeData = {};
     
@@ -56,31 +55,24 @@ function DataService($http) {
             });
     };
 
-    function setActiveFile(fileId) {
-	return $http.get('/api/file-data-objects/' + fileId + '/')
+    function setActiveImportedFile(importedFileId) {
+	return $http.get('/api/file-data-objects/' + importedFileId + '/')
             .then(function(response) {
-		activeData.file = response.data;
+		activeData.importedFile = response.data;
             });
     };
-    
+
+    function setActiveResultFile(resultFileId) {
+	return $http.get('/api/file-data-objects/' + resultFileId + '/')
+            .then(function(response) {
+		activeData.resultFile = response.data;
+            });
+    };
+
     function setActiveFileSourceRuns(fileId) {
 	return $http.get('/api/file-data-objects/' + fileId + '/source-runs/')
 	    .then(function(response) {
 		activeData.fileSourceRuns = response.data.runs;
-	    });
-    };
-
-    function setActiveFileSourceRecords(fileId) {
-	return $http.get('/api/file-data-objects/' + fileId + '/data-source-records/')
-	    .then(function(response) {
-		activeData.fileSourceRecords = response.data.data_source_records;
-	    });
-    };
-
-    function setActiveFileStorageLocations(fileId) {
-	return $http.get('/api/file-data-objects/' + fileId + '/file-storage-locations/')
-	    .then(function(response) {
-		activeData.fileStorageLocations = response.data.file_storage_locations;
 	    });
     };
 
@@ -98,8 +90,14 @@ function DataService($http) {
 	    });
     };
 
-    function getFiles() {
-	return $http.get('/api/file-data-objects/')
+    function getImportedFiles() {
+	return $http.get('/api/imported-file-data-objects/')
+	    .then(function(response) {
+		return response.data.file_data_objects;
+	    });
+    };
+    function getResultFiles() {
+	return $http.get('/api/result-file-data-objects/')
 	    .then(function(response) {
 		return response.data.file_data_objects;
 	    });

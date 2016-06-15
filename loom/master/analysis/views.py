@@ -155,3 +155,21 @@ def task_run_attempt_log_file(request, id):
         return JsonResponse({"message": "Not Found"}, status=404)
     model = task_run_attempt.create_log_file(data)
     return JsonResponse({"message": "created %s" % model.get_class_name(), "_id": model.get_id(), "object": model.to_struct()}, status=201)
+
+@require_http_methods(["GET"])
+def imported_file_data_objects(request):
+    return JsonResponse(
+            {
+                'file_data_objects':
+                [model.to_struct() for model in FileDataObject.objects.filter(file_import__fileimport__isnull=False).distinct()]
+            },
+            status=200)
+
+@require_http_methods(["GET"])
+def result_file_data_objects(request):
+    return JsonResponse(
+            {
+                'file_data_objects':
+                [model.to_struct() for model in FileDataObject.objects.filter(file_import__taskrunattemptoutputfileimport__isnull=False).distinct()]
+            },
+            status=200)

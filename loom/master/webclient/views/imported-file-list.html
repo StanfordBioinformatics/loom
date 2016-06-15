@@ -4,18 +4,18 @@
     <thead>
       <tr>
         <th>File</th>
-        <th>md5</th>
+        <th>Hash</th>
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="file in files">
+      <tr ng-repeat="file in imported_files">
         <td>
-	  <a ng-href="#/files/{{file._id}}">
-            {{file.filename}}@{{file._id | limitTo:8}}
+	  <a ng-href="#/imported-files/{{file._id}}">
+            {{file.file_content.filename}}@{{file._id | limitTo:8}}
 	  </a>
         </td>
         <td>
-          {{file.file_contents.hash_value}}
+          {{file.file_content.unnamed_file_content.hash_function}}${{file.file_content.unnamed_file_content.hash_value}}
         </td>
       </tr>
     </tbody>

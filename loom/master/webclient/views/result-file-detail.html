@@ -1,0 +1,26 @@
+<img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<div class="table-responsive" ng-hide="loading">
+  <table class="table table-striped">
+    <tbody>
+      <tr>
+        <th>File</th>
+	<td>
+          {{activeData.resultFile.file_content.filename}}@{{activeData.resultFile._id | limitTo:8}}
+	</td>
+      </tr>
+      <tr>
+	<th>{{activeData.resultFile.file_content.unnamed_file_content.hash_function}}</th>
+	<td>
+          {{activeData.resultFile.file_content.unnamed_file_content.hash_value}}
+        </td>
+      </tr>
+      <tr>
+	<th>File location</th>
+	<td>
+	  {{activeData.resultFile.file_import.file_location.url}}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
