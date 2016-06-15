@@ -18,7 +18,12 @@ DAEMON_EXECUTABLE = os.path.abspath(
     os.path.dirname(__file__),
     '../master/loomdaemon/loom_daemon.py'
     ))
-GCLOUD_DEPLOY_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_deploy_playbook.yml'))
+
+GCLOUD_SERVER_DEFAULT_NAME = SettingsManager().get_default_setting('gcloud', 'SERVER_NAME')
+GCLOUD_CREATE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_create_playbook.yml'))
+GCLOUD_START_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_start_playbook.yml'))
+GCLOUD_STOP_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_stop_playbook.yml'))
+GCLOUD_DELETE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_delete_playbook.yml'))
 
 def ServerControlsFactory(args):
     """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate class."""
@@ -50,6 +55,8 @@ def get_parser(parser=None):
     parser.add_argument('--fg_webserver', action='store_true', help=argparse.SUPPRESS) # Run webserver in the foreground. Needed to keep Docker container running.
     parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+    parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
+        help="A settings file can be provided to override default settings.")
 
     subparsers = parser.add_subparsers(dest='command')
     start_parser = subparsers.add_parser('start')
@@ -57,15 +64,13 @@ def get_parser(parser=None):
     status_parser = subparsers.add_parser('status')
 
     create_parser = subparsers.add_parser('create')
-    create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
-        help="A settings file can be provided on server creation to override default settings and provide required settings instead of prompting.")
     create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
 
     delete_parser = subparsers.add_parser('delete')
 
     setserver_parser = subparsers.add_parser('set', help='Tells the client how to find the Loom server. This information is stored in %s.' % SERVER_LOCATION_FILE)
     setserver_parser.add_argument('type', choices=['local', 'gcloud'], help='The type of server the client will manage.')
-    setserver_parser.add_argument('--name', help='Not used for local. For gcloud, the instance name of the server to manage. If not provided, defaults to %s.' % SERVER_DEFAULT_NAME, metavar='GCE_INSTANCE_NAME', default=SERVER_DEFAULT_NAME)
+    setserver_parser.add_argument('--name', help='Not used for local. For gcloud, the instance name of the server to manage. If not provided, defaults to %s.' % GCLOUD_SERVER_DEFAULT_NAME, metavar='GCE_INSTANCE_NAME', default=GCLOUD_SERVER_DEFAULT_NAME)
 
     return parser
 
@@ -308,7 +313,6 @@ class LocalServerControls(BaseServerControls):
     def delete(self):
         '''Stops server and deletes deploy settings.'''
         # TODO: Ask for confirmation before continuing; add -f option to continue without asking
-        this.stop()
         if not os.path.exists(get_deploy_settings_filename()):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
@@ -333,46 +337,65 @@ class GoogleCloudServerControls(BaseServerControls):
         }
         return command_to_method_map
 
+    def get_deploy_env(self):
+        # Load settings needed for deployment into environment variables, where they will be read by the Ansible playbook.
+        self.settings_manager.load_deploy_settings_file()
+        env = os.environ.copy()
+        env.update(self.settings_manager.get_env_settings())
+        return env
+
     def create(self):
         """Create server deploy settings if they don't exist yet, create and
-        set up a gcloud instance, copy deploy settings to the instance."""
-        # TODO: Add -f option to overwrite existing settings
-        if os.path.exists(get_deploy_settings_filename()):
-            raise Exception('Google Cloud server deploy settings already exist. Please delete them with "loom server delete" first.')
+        set up a gcloud instance, copy deploy settings to the instance, and
+        start the Loom server."""
+        # TODO: Prevent overwriting existing deploy settings, but add -f option to force overwriting
+        # if os.path.exists(get_deploy_settings_filename()):
+        #     raise Exception('Google Cloud server deploy settings already exist. Please delete them with "loom server delete" first.')
         self.settings_manager.create_deploy_settings_file(self.args.settings)
+        # TODO: Add nginx server to playbook
+        # TODO: add gcloud-specific server settings
+        # env['MASTER_URL_FOR_WORKER'] = '' # TODO: get internal gcloud ip that is reachable by workers
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
-
-        # Load settings into environment, where they will be read by the Ansible playbook.
-        gce_config = SafeConfigParser()
-        gce_config.read(GCE_INI_PATH)
         
-        env = os.environ.copy()
-        env['GCE_INI_PATH'] = GCE_INI_PATH
-        env['GCE_EMAIL'] = gce_config.get('gce', 'gce_service_account_email_address')
-        env['GCE_PROJECT'] = gce_config.get('gce', 'gce_project_id')
-        env['GCE_PEM_FILE_PATH'] = gce_config.get('gce', 'gce_service_account_pem_file_path')
-        env['CLIENT_VERSION'] = version()
-        server_tags = self.settings_manager.settings['SERVER_TAGS'].strip()
-        if len(server_tags) == 0:
-            env['SERVER_TAGS'] = ''
-        else:
-            env['SERVER_TAGS'] = 'tags=%s' % server_tags
-        env.update(self.settings_manager.get_env_settings())
-
-        self.run_playbook(GCLOUD_DEPLOY_PLAYBOOK, env)
+        env = self.get_deploy_env()
+        self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
-        subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook, '-vvv'], env=env)
+        env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail when creating a new instance with the same IP
+        return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
 
     def start(self):
-        """Start the gcloud server instance if it's stopped, then start the Loom server."""
-        pass
+        """Start the gcloud server instance, then start the Loom server."""
+        # TODO: Start the gcloud server instance once supported by Ansible
+        if not os.path.exists(get_deploy_settings_filename()):
+            self.create()
+        env = self.get_deploy_env()
+        self.run_playbook(GCLOUD_START_PLAYBOOK, env)
+
     def stop(self):
         """Stop the Loom server, then stop the gcloud server instance."""
-        pass
+        env = self.get_deploy_env()
+        self.run_playbook(GCLOUD_STOP_PLAYBOOK, env)
+        # TODO: Stop the gcloud server instance once supported by Ansible
+
     def delete(self):
         """Stop the Loom server, then delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
-        pass
+        env = self.get_deploy_env()
+        instance_name = get_gcloud_server_name()
+        current_hosts = get_gcloud_hosts()
+        if instance_name not in current_hosts:
+            print 'Instance named \"%s\" not found in project \"%s\".' % (instance_name, env['GCE_PROJECT'])
+            return
+        else:
+            confirmation_input = raw_input('WARNING! This will delete the server instance and attached disks. Data will be lost!\n'+ 
+                                       'If you are sure you want to continue, please type the name of the server instance:\n> ')
+            if confirmation_input == get_gcloud_server_name():
+                self.stop()
+                returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
+                if returncode == 0:
+                    os.remove(get_deploy_settings_filename())
+            else:
+                print 'Input did not match current server name \"%s\".' % instance_name
 
 
 class UnhandledCommandError(Exception):

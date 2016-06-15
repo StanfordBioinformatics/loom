@@ -17,7 +17,6 @@ DEPLOY_SETTINGS_LOCATION = os.path.join(os.path.expanduser('~'), '.loom')
 GCE_INI_PATH = os.path.join(os.path.expanduser('~'), '.loom', 'gce.ini')
 GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
 SERVER_PATH = os.path.join(imp.find_module('loom')[1], 'master')
-SERVER_DEFAULT_NAME = 'loom-master'
 
 def get_server_type():
     """Checks server.ini for server type."""
@@ -51,16 +50,24 @@ def get_server_ip():
         raise Exception("Unknown server type: %s" % server_type)
 
 def get_gcloud_server_ip(name):
+    inv_hosts = get_gcloud_hosts()
+    if name not in inv_hosts:
+        raise Exception("%s not found in Ansible dynamic inventory. Current hosts: %s" % (name, inv_hosts.keys()))
+    ip = inv_hosts[name]['gce_public_ip'].encode('utf-8')
+    return ip
+
+def get_inventory():
     if not os.path.exists(GCE_INI_PATH):
         raise Exception("%s not found. Please configure https://github.com/ansible/ansible/blob/devel/contrib/inventory/gce.ini and place it at this location." % GCE_INI_PATH)
     os.environ['GCE_INI_PATH'] = GCE_INI_PATH 
     inv = subprocess.check_output([sys.executable, GCE_PY_PATH])
     inv = json.loads(inv)
+    return inv
+
+def get_gcloud_hosts():
+    inv = get_inventory()
     inv_hosts = inv['_meta']['hostvars']
-    if name not in inv_hosts:
-        raise Exception("%s not found in Ansible dynamic inventory. Current hosts: %s" % (name, inv_hosts.keys()))
-    ip = inv_hosts[name]['gce_public_ip'].encode('utf-8')
-    return ip
+    return inv_hosts
 
 def get_server_url():
     # TODO: add protocol and bind_port to server.ini since they are required to construct a URL to reach the server

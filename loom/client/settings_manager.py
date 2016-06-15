@@ -5,6 +5,7 @@ import re
 
 from ConfigParser import SafeConfigParser
 from loom.client.common import *
+from loom.common.version import version
 
 
 class SettingsManager:
@@ -39,17 +40,49 @@ class SettingsManager:
         self.require_default_settings = require_default_settings
 
     def create_deploy_settings(self, server_type=None, user_settings_file=None):
+        """ Create deploy settings by loading defaults and overriding with user-provided settings."""
         if server_type == None:
             server_type = get_server_type()
         self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section=server_type)
 
-        # Override defaults with user-provided settings file
         if not self.require_default_settings:
+            # Add Google Cloud-specific settings
+            if server_type == 'gcloud': 
+                self.add_gcloud_settings()
+
+            # Override defaults with user-provided settings file
             if user_settings_file:
                 self.load_settings_from_file(user_settings_file, section=server_type)
 
         #TODO: extract settings from commandline arguments and override self.settings with them
         #TODO: verify required settings are defined and raise error if not
+
+    def add_gcloud_settings(self):
+        """ Load Google Cloud-specific settings from server.ini and gce.ini."""
+        # Add server name from server.ini
+        server_name = get_gcloud_server_name()
+        self.settings['SERVER_NAME'] = server_name
+
+        # Add other settings from gce.ini
+        gce_config = SafeConfigParser()
+        gce_config.read(GCE_INI_PATH)
+        self.settings['GCE_INI_PATH'] = GCE_INI_PATH
+        self.settings['GCE_EMAIL'] = gce_config.get('gce', 'gce_service_account_email_address')
+        self.settings['GCE_PROJECT'] = gce_config.get('gce', 'gce_project_id')
+        self.settings['GCE_PEM_FILE_PATH'] = gce_config.get('gce', 'gce_service_account_pem_file_path')
+        self.settings['CLIENT_VERSION'] = version()
+
+        # Preprocess tag lists because Ansible doesn't like empty lists
+        for taglist in ('SERVER_TAGS', 'WORKER_TAGS'):
+            self.reformat_gcloud_tags(taglist)
+
+    def reformat_gcloud_tags(self, taglist):
+        """Preprocess tag lists because Ansible doesn't like empty lists."""
+        tags = self.settings[taglist].strip()
+        if len(tags) == 0:
+            self.settings[taglist] = ''
+        else:
+            self.settings[taglist] = 'tags=%s' % tags
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
@@ -133,6 +166,10 @@ class SettingsManager:
                     value = os.path.expanduser(value)
                 export_settings[key] = value
         return export_settings
+
+    def get_default_setting(self, section, option):
+        self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section)
+        return self.settings[option]
 
 
 class SettingsError(Exception):

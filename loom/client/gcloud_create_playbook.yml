@@ -48,7 +48,3 @@
   - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the server as the client.
     pip: name=loomengine virtualenv=/opt/loom version={{client_version}}
 # TODO: Update Pip version, copy deploy settings and credentials to server
-  - name: Start the Loom server.
-    shell: source /opt/loom/bin/activate; loom server set local; loom server create; loom server start
-    args:
-      executable: /bin/bash

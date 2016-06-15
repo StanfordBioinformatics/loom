@@ -1,0 +1,10 @@
+---
+- name: Start the Loom server.
+  hosts: "{{lookup('env','SERVER_NAME')}}"
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: Start the Loom server.
+    shell: source /opt/loom/bin/activate; loom server set local; loom server start
+    args:
+      executable: /bin/bash
