@@ -79,13 +79,19 @@ class FileDataObject(DataObject):
     def after_create_or_update(self, data):
         # A FileLocation should be generated once file_content is set
         if self.file_content and not self.file_import.file_location:
-            self.file_import._set_file_location()
+            # If a file with identical content has already been uploaded, re-use
+            # it if permitted by settings.
+            if self.file_content.has_location() and not get_setting('KEEP_DUPLICATE_FILES'):
+                self.file_import.set_location(self.file_content.get_location())
+            else:
+                self.file_import.create_location()
 
     def is_ready(self):
         if self.file_import.file_location:
             return self.file_import.file_location.status == 'complete'
         else:
             return False
+
 
 class FileContent(DataObjectContent):
     """Represents a file, including its content (identified by a hash), its 
@@ -97,6 +103,14 @@ class FileContent(DataObjectContent):
 
     def get_substitution_value(self):
         return self.filename
+
+    def has_location(self):
+        return self.unnamed_file_content.file_locations.count() > 0
+
+    def get_location(self):
+        location_count = self.unnamed_file_content.file_locations.count()
+        assert location_count == 1, "Expected 1 location but found %s for file %s" % (location_count, self.filename)
+        return self.unnamed_file_content.file_locations.first()
 
 
 class UnnamedFileContent(AnalysisAppImmutableModel):
@@ -197,7 +211,7 @@ class FileLocation(AnalysisAppInstanceModel):
 class AbstractFileImport(AnalysisAppInstanceModel):
 
     temp_file_location = fields.OneToOneField('FileLocation', null=True, related_name='temp_file_import')
-    file_location = fields.OneToOneField('FileLocation', null=True, related_name='file_import')
+    file_location = fields.ForeignKey('FileLocation', null=True, related_name='file_imports')
 
     def after_create_or_update(self, data):
         # If there is no FileLocation, set a temporary one.
@@ -214,11 +228,14 @@ class AbstractFileImport(AnalysisAppInstanceModel):
         """
         self.update({'temp_file_location': FileLocation.get_temp_location()})
 
-    def _set_file_location(self):
+    def set_location(self, file_location):
+        self.update({'file_location': file_location})
+
+    def create_location(self):
         """After uploading the file to a temp location and updating the FileImport with the full 
         FileDataObject (which includes the hash), the final storage location can be determined.
         """
-        self.update({'file_location': FileLocation.get_location_for_import(self)})
+        self.set_location(FileLocation.get_location_for_import(self))
 
 
 class FileImport(AbstractFileImport):

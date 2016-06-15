@@ -860,7 +860,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='abstractfileimport',
             name='file_location',
-            field=models.OneToOneField(related_name='file_import', null=True, to='analysis.FileLocation'),
+            field=models.ForeignKey(related_name='file_imports', to='analysis.FileLocation', null=True),
         ),
         migrations.AddField(
             model_name='abstractfileimport',

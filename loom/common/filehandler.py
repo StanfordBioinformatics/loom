@@ -180,6 +180,10 @@ class LocalSource(AbstractSource):
         with open(self.get_path()) as f:
             return f.read()
 
+    def delete(self):
+        os.remove(self.get_path())
+        
+
 class GoogleStorageSource(AbstractSource):
     """A source file on Google Storage.
     """
@@ -232,6 +236,10 @@ class GoogleStorageSource(AbstractSource):
         os.remove(dest_file)
         os.rmdir(tempdir)
         return text
+
+    def delete(self):
+        self.blob.delete()
+
         
 def Destination(url, settings):
     """Factory method
