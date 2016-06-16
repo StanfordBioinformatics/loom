@@ -30,6 +30,9 @@
   become_method: sudo
   vars:
     client_version: "{{lookup('env','CLIENT_VERSION')}}"
+    gce_pem_file_path: "{{lookup('env', 'GCE_PEM_FILE_PATH')}}"
+    deploy_settings_filename: "{{lookup('env', 'DEPLOY_SETTINGS_FILENAME')}}"
+    remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR'}}"
   tasks:
   - name: Update apt-get cache.
     apt: update_cache=yes
@@ -47,4 +50,13 @@
     pip: name=virtualenv state=present
   - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the server as the client.
     pip: name=loomengine virtualenv=/opt/loom version={{client_version}}
+  - name: Configure client to manage local server.
+    shell: source /opt/loom/bin/activate; loom server set local
+    args:
+      executable: /bin/bash
+  - name: Copy deploy settings to server.
+    copy: src={{deploy_settings_filename}} dest={{remote_loom_settings_path}}/local_deploy_settings.ini
+  - name: Copy service account key to server.
+    copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
 # TODO: Update Pip version, copy deploy settings and credentials to server
+

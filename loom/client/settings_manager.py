@@ -47,7 +47,7 @@ class SettingsManager:
         #TODO: verify required settings are defined and raise error if not
 
     def add_gcloud_settings(self):
-        """ Load Google Cloud-specific settings from server.ini and gce.ini."""
+        """ Load Google Cloud-specific settings."""
         # Add server name from server.ini
         server_name = get_gcloud_server_name()
         self.settings['SERVER_NAME'] = server_name
@@ -61,12 +61,16 @@ class SettingsManager:
         self.settings['GCE_PEM_FILE_PATH'] = gce_config.get('gce', 'gce_service_account_pem_file_path')
         self.settings['CLIENT_VERSION'] = version()
 
-        # Preprocess tag lists because Ansible doesn't like empty lists
+        # Preprocess tag lists because Ansible doesn't like empty arguments
         for taglist in ('SERVER_TAGS', 'WORKER_TAGS'):
             self.reformat_gcloud_tags(taglist)
 
+        # Add other variables needed for Ansible deployment
+        self.settings['LOOM_HOME_SUBDIR'] = LOOM_HOME_SUBDIR
+        self.settings['DEPLOY_SETTINGS_FILENAME'] = get_deploy_settings_filename()
+
     def reformat_gcloud_tags(self, taglist):
-        """Preprocess tag lists because Ansible doesn't like empty lists."""
+        """Ansible doesn't accept empty arguments like 'tags=', so if the list is empty, remove the parameter entirely."""
         tags = self.settings[taglist].strip()
         if len(tags) == 0:
             self.settings[taglist] = ''
@@ -96,9 +100,6 @@ class SettingsManager:
             raise SettingsError("Failed to open settings file %s: %s" % (settings_file, e))
 
         items = dict(config.items(section))
-        for item in items:
-            if '~' in items[item]:
-                items[item] = os.path.expanduser(items[item])
         self.settings.update(items)
         if self.verbose:
             print "Loaded settings from %s." % settings_file
@@ -125,23 +126,6 @@ class SettingsManager:
                     print "Created directory %s." % os.path.dirname(settings_file)
             except Exception as e:
                 raise SettingsError("Failed to create directory for the settings file %s (%s)" % (os.path.dirname(settings_file), e))
-
-    def delete_saved_settings(self):
-        try:
-            if self.settings_file is None:
-                self.settings_file = SettingsManager.DEFAULT_SETTINGS_FILE
-            os.remove(self.settings_file)
-            if self.verbose:
-                print "Removed settings file %s." % settings_file
-            self.remove_dir_if_empty(os.path.dirname(self.settings_file))
-        except OSError as e:
-            raise SettingsError("No settings file to delete at %s. (%s)" % (self.settings_file, e))
-
-    def remove_dir_if_empty(self, dirpath):
-        if os.listdir(dirpath) == []:
-            os.rmdir(dirpath)
-            if self.verbose:
-                print "Removed empty directory %s." % dirpath
 
     def get_env_settings(self):
         """Return a dict of settings as environment variable-friendly strings."""

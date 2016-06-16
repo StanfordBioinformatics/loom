@@ -12,9 +12,10 @@ from ConfigParser import SafeConfigParser
 import loom.client.settings_manager
 from loom.client.exceptions import *
 
-SERVER_LOCATION_FILE = os.path.join(os.path.expanduser('~'), '.loom', 'server.ini')
-DEPLOY_SETTINGS_LOCATION = os.path.join(os.path.expanduser('~'), '.loom')
-GCE_INI_PATH = os.path.join(os.path.expanduser('~'), '.loom', 'gce.ini')
+LOOM_HOME_SUBDIR = '.loom'
+LOOM_SETTINGS_PATH = os.path.join(os.path.expanduser('~'), LOOM_HOME_SUBDIR)
+SERVER_LOCATION_FILE = os.path.join(LOOM_SETTINGS_PATH, 'server.ini')
+GCE_INI_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce.ini')
 GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
 SERVER_PATH = os.path.join(imp.find_module('loom')[1], 'master')
 
@@ -85,7 +86,7 @@ def get_server_url():
     return '%s://%s:%s' % (protocol, ip, port)
 
 def get_deploy_settings_filename():
-    return os.path.join(DEPLOY_SETTINGS_LOCATION, get_server_type() + '_deploy_settings.ini')
+    return os.path.join(LOOM_SETTINGS_PATH, get_server_type() + '_deploy_settings.ini')
 
 def is_server_running():
     try:

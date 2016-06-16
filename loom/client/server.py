@@ -306,7 +306,7 @@ class LocalServerControls(BaseServerControls):
         '''Create server deploy settings if they don't exist yet.'''
         # TODO: Add -f option to overwrite existing settings
         if os.path.exists(get_deploy_settings_filename()):
-            raise Exception('Local server deploy settings already exist. Please delete them with "loom server delete" first.')
+            raise Exception('Local server deploy settings already exist at %s.\nTo create new settings, please delete the current ones with "loom server delete" first.' % get_deploy_settings_filename())
         self.settings_manager.create_deploy_settings_file(self.args.settings)
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
