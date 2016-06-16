@@ -1,8 +1,8 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
-from .base import AnalysisAppInstanceModel
-from .data_objects import DataObject
+from analysis.models.base import AnalysisAppInstanceModel
+from analysis.models.data_objects import DataObject
 from universalmodels import fields
 
 """

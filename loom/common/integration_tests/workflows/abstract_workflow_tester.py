@@ -1,6 +1,5 @@
 import json
 import unittest
-from loom.client import upload
 from loom.common import helper
 from loom.common.testserver import TestServer
 
@@ -29,12 +28,6 @@ class AbstractWorkflowTester(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
         self.workflow_id = response.json().get('_id')
         
-    def upload(self, file_path):
-        upload_parser = self.uploader = upload.Upload.get_parser()
-        args = upload_parser.parse_args(['--require_default_settings', file_path])
-        uploader = upload.Upload(args=args)
-        uploader.run()
-
     def wait_for_job(self):
         helper.wait_for_true(self.is_workflow_complete, timeout_seconds=30, sleep_interval=3)
 

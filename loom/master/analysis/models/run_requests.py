@@ -3,11 +3,11 @@ from django.db import transaction
 
 from analysis import get_setting
 from universalmodels import fields
-from .base import AnalysisAppInstanceModel
-from .channels import Channel, InputOutputNode
-from .data_objects import DataObject
-from .workflow_runs import AbstractWorkflowRun
-from .workflows import Workflow
+from analysis.models.base import AnalysisAppInstanceModel
+from analysis.models.channels import Channel, InputOutputNode
+from analysis.models.data_objects import DataObject
+from analysis.models.workflow_runs import AbstractWorkflowRun
+from analysis.models.workflows import Workflow
 
 
 class RunRequest(AnalysisAppInstanceModel):

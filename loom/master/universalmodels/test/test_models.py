@@ -598,17 +598,20 @@ class TestInheritance(TestCase):
     def testRenderAbstractModels(self):
         abstract_parent_json = '{"name": "the parent", "son1": {"name": "the child1", "son1detail": "moredata"}}'
         parent = ParentOfAbstract.create(abstract_parent_json)
-        expected = '{"_id":"914405d3925bbe9783a8864e9e3ba54160ba2dd248a54db45cd0d838675985e8","name":'\
-                   '"the parent","son1":{"_id":"b6254f5c3037194ae0e031e47b47c341d8f9da3c9cfdcc70c536366a91f46ded"'\
-                   ',"name":"the child1","son1detail":"moredata"}}'
+        expected = '{"_class":"ParentOfAbstract",'\
+                   '"_id":"914405d3925bbe9783a8864e9e3ba54160ba2dd248a54db45cd0d838675985e8",'\
+                   '"name":"the parent","son1":{"_class":"Son1","_id":'\
+                   '"b6254f5c3037194ae0e031e47b47c341d8f9da3c9cfdcc70c536366a91f46ded","name":'\
+                   '"the child1","son1detail":"moredata"}}'
         self.assertEqual(parent.to_json(), expected)
         
     def testRenderMultitableModels(self):
         multitable_parent_json = '{"child":{"daughter1_name":"the child1"},"name":"the parent"}'
         parent = ParentOfMultiTable.create(multitable_parent_json)
-        expected = '{"_id":"a33306f11667fb440530ca0b2d18732221786cc9bbd33edfa684f9cef028798b","child":'\
-            '{"_id":"57bbc8f5f7466bac9b01c716d04ada9c0837c710d6eecf0ee1e0368c6636a809",'\
-            '"daughter1_name":"the child1"},"name":"the parent"}'
+        expected = '{"_class":"ParentOfMultiTable","_id":'\
+                   '"a33306f11667fb440530ca0b2d18732221786cc9bbd33edfa684f9cef028798b","child":{"_class":'\
+                   '"Daughter1","_id":"57bbc8f5f7466bac9b01c716d04ada9c0837c710d6eecf0ee1e0368c6636a809",'\
+                   '"daughter1_name":"the child1"},"name":"the parent"}'
         self.assertEqual(parent.to_json(), expected)
         
 class TestTimeStamps(TestCase):

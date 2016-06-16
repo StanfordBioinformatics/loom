@@ -3,12 +3,12 @@ from django.utils import timezone
 
 from analysis import get_setting
 from analysis.exceptions import *
-from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from .channels import Channel, InputOutputNode, ChannelSet
-from .data_objects import DataObject
-from .task_definitions import TaskDefinition
-from .task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
-from .workflows import AbstractWorkflow, Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
+from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from analysis.models.channels import Channel, InputOutputNode, ChannelSet
+from analysis.models.data_objects import DataObject
+from analysis.models.task_definitions import TaskDefinition
+from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
+from analysis.models.workflows import AbstractWorkflow, Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
 from universalmodels import fields
 
 
