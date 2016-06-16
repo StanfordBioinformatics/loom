@@ -58,5 +58,4 @@
     copy: src={{deploy_settings_filename}} dest={{remote_loom_settings_path}}/local_deploy_settings.ini
   - name: Copy service account key to server.
     copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
-# TODO: Update Pip version, copy deploy settings and credentials to server
 
