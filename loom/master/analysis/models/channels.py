@@ -66,7 +66,7 @@ class ChannelOutput(AnalysisAppInstanceModel):
     def _push(self, data_object):
         self.data_objects.add(data_object)
         self.save()
-        self.receiver.push()
+        self.receiver.push(data_object)
 
     def is_empty(self):
         return self.data_objects.count() == 0

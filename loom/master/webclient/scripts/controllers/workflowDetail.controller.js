@@ -9,8 +9,8 @@ WorkflowDetailController.$inject = [
 ];
 
 function WorkflowDetailController($scope, DataService, $routeParams) {
+    $scope.activeData = DataService.getAllActive();
     $scope.loading = true;
-    $scope.activeData = DataService.getActiveData();
     DataService.setActiveWorkflow($routeParams.workflowId).then(function() {
 	$scope.loading = false;
     });

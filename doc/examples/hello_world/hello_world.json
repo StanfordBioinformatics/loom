@@ -86,12 +86,15 @@
             },
             "inputs": [
 		{
+		    "type": "file",
 		    "channel": "hello_cap"
 		},
                 {
+		    "type": "file",
 		    "channel": "world_cap"
 		},
 		{
+		    "type": "string",
 		    "channel": "final_punc"
 		}
             ],

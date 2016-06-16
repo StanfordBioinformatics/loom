@@ -177,6 +177,7 @@ class TypedInputOutputNode(InputOutputNode):
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )
+    data_object = fields.ForeignKey('DataObject', null=True)
 
     class Meta:
         abstract = True
@@ -186,7 +187,8 @@ class AbstractStepRunInput(TypedInputOutputNode):
 
     task_run_inputs = fields.ManyToManyField('TaskRunInput', related_name='step_run_inputs')
 
-    def push(self):
+    def push(self, data_object):
+        self.update({'data_object': data_object})
         if self.step_run:
             self.step_run.push()
 
@@ -213,6 +215,7 @@ class StepRunOutput(TypedInputOutputNode):
     task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
 
     def push(self, data_object):
+        self.update({'data_object': data_object})
         self.to_channel.push(data_object)
         self.to_channel.close()
 
@@ -224,14 +227,15 @@ class StepRunOutput(TypedInputOutputNode):
 
 class WorkflowRunInput(TypedInputOutputNode):
 
-    def push(self):
+    def push(self, data_object):
+        self.update({'data_object': data_object})
         self.from_channel.forward(self.to_channel)
 
 class FixedWorkflowRunInput(TypedInputOutputNode):
 
     def initial_push(self):
-        data_object = self._get_data_object()
-        self.to_channel.push(data_object)
+        self.update({'data_object': self._get_data_object()})
+        self.to_channel.push(self.data_object)
 
     def _get_data_object(self):
         fixed_workflow_input = self.workflow_run.template.get_fixed_input(self.channel)
@@ -240,5 +244,6 @@ class FixedWorkflowRunInput(TypedInputOutputNode):
 
 class WorkflowRunOutput(TypedInputOutputNode):
 
-    def push(self):
+    def push(self, data_object):
+        self.update({'data_object': data_object})
         self.from_channel.forward(self.to_channel)

@@ -1,43 +1,51 @@
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
 <div ng-hide="loading">
-  <h4>Inputs</h4>
-  <div class="table-responsive" >
+  <div class="table-responsive">
     <table class="table table-striped">
-      <thead>
-	<th>Name</th>
-	<th>File</th>
-      </thead>
-      <tbody>
-	<tr ng-repeat="input in activeData.run.inputs">
-	  <td>{{input.channel}}</td>
-	  <td>
-	    <a ng-href="#/files/{{input.data_object._id}}">
-	      {{input.data_object.filename}}@{{input.data_object._id | limitTo:8}}
-	    </a>
-	  </td>
-	</tr>
-      </tbody>
-    </table>
-  </div>
-  <h4>Outputs</h4>
-  <div class="table-responsive" >
-    <table class="table table-striped">
-      <thead>
-	<th>Name</th>
-	<th>File</th>
-      </thead>
-      <tbody>
-	<tr ng-repeat="output in activeData.run.workflow_run_outputs">
-	  <td>{{output.subchannel.channel_name}}</td>
-	  <td>
-	    <p ng-repeat="file in output.subchannel.data_objects">
-	      <a ng-href="#/files/{{file._id}}">
-		{{file.filename}}@{{file._id | limitTo:8}}
-	      </a>
-	    </p>
-	  </td>	  
-	</tr>
-      </tbody>
+      <tr>
+	<th>
+	  Name
+	</th>
+	<td>
+	  {{activeData.run.template.name}}
+	</td>
+      </tr>
+      <tr>
+	<th>
+	  Template
+	</th>
+	<td>
+	  <a ng-href="#/workflows/{{activeData.run.template._id}}">
+	    {{activeData.run.template.name}}@{{activeData.run.template._id | limitTo:8}}
+	  </a>
+	</td>
+      </tr>
+      <tr ng-show="activeData.run.template.command">
+	<th>
+	  Command
+	</th>
+	<td>
+	  {{activeData.run.template.command}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.run.template.environment.docker_image">
+	<th>Docker Image</th>
+	<td>
+	  {{activeData.run.template.environment.docker_image}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.run.template.resources.cores">
+	<th>Cores</th>
+	<td>
+	  {{activeData.run.template.resources.cores}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.run.template.resources.memory">
+	<th>Memory</th>
+	<td>
+	  {{activeData.run.template.resources.memory}}
+	</td>
+      </tr>
     </table>
   </div>
   <h4>Steps</h4>
@@ -46,19 +54,15 @@
       <thead>
         <tr>
           <th>Name</th>
-          <th>Status</th>
           <th>Started</th>
           <th>Updated</th>
         </tr>
       </thead>
       <tbody>
         <tr ng-repeat="step_run in activeData.run.step_runs">
-          <td><a ng-href="#/runs/{{activeData.run._id}}/steps/{{step_run._id}}">
-	      {{step_run.step.step_name}}
+          <td><a ng-href="#/runs/{{step_run._id}}">
+	      {{step_run.template.name}}
           </a></td>
-          <td>
-            {{step_run.status}}
-          </td>
           <td>
             {{step_run.datetime_created | date:'medium'}}
           </td>
@@ -66,6 +70,88 @@
             {{step_run.datetime_updated | date:'medium'}}
           </td>
         </tr>
+      </tbody>
+    </table>
+  </div>
+  <div ng-show="activeData.run.inputs">
+    <h4>Inputs</h4>
+    <div class="table-responsive" >
+      <table class="table table-striped">
+	<thead>
+	  <th>Name</th>
+	  <th>Type</th>
+	  <th>Data</th>
+	</thead>
+	<tbody>
+	  <tr ng-repeat="input in activeData.run.inputs">
+	    <td>{{input.channel}}</td>
+	    <td>{{input.type}}</td>
+	    <td>
+		<a ng-href="#/data/{{input.data_object._id}}" ng-show="input.data_object">
+		  {{input.data_object.file_content.filename}}@{{input.data_object._id | limitTo:8}}
+		</a>
+	    </td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
+  </div>
+  <div ng-show="activeData.run.fixed_inputs">
+    <h4>Fixed inputs</h4>
+    <div class="table-responsive">
+      <table class="table table-striped">
+	<thead>
+	  <tr>
+	    <th>
+	      Channel
+	    </th>
+	    <th>
+	      Type
+	    </th>
+	    <th>
+	      Data
+	    </th>
+	  </tr>
+	</thead>
+	<tbody>
+	  <tr ng-repeat="input in activeData.run.fixed_inputs">
+	    <td>
+	      {{input.channel}}
+	    </td>
+	    <td>
+	      {{input.type}}
+	    </td>
+	    <td>
+	      <a ng-href="#/data/{{input.data_object._id}}" ng-show="input.data_object">
+		{{input.data_object.file_content.filename}}@{{input.data_object._id | limitTo:8}}
+	      </a>
+	    </td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
+  </div>
+  <h4>Outputs</h4>
+  <div class="table-responsive" >
+    <table class="table table-striped">
+      <thead>
+	<th>Name</th>
+	<th>Type</th>
+	<th>Data</th>
+      </thead>
+      <tbody>
+	<tr ng-repeat="output in activeData.run.outputs">
+	  <td>{{output.channel}}</td>
+	  <td>
+	    {{output.type}}
+	  </td>
+	  <td>
+	    <a ng-href="#/data/{{output.data_object._id}}" ng-show="output.data_object">
+	      {{output.data_object.file_content.filename}}@{{output.data_object._id | limitTo:8}}
+	    </a>
+	  </td>
+
+	</tr>
       </tbody>
     </table>
   </div>

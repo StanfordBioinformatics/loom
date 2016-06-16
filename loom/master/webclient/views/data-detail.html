@@ -1,0 +1,63 @@
+<img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<div class="table-responsive" ng-hide="loading">
+  <table class="table table-striped">
+    <tbody>
+      <tr>
+        <th>Data</th>
+	<td>
+          {{activeData.data.file_content.filename}}@{{activeData.data._id | limitTo:8}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.data.string_content">
+	<th>Value</th>
+	<td>
+	  {{activeData.data.string_content.string_value}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.data.boolean_content">
+	<th>Value</th>
+	<td>
+	  {{activeData.data.boolean_content.boolean_value}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.data.integer_content">
+	<th>Value</th>
+	<td>
+	  {{activeData.data.integer_content.integer_value}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.data.json_content">
+	<th>Value</th>
+	<td>
+	  {{activeData.data.json_content.json_value}}
+	</td>
+      </tr>
+      </tr>
+      <tr ng-show="activeData.data.file_content">
+	<th>{{activeData.data.file_content.unnamed_file_content.hash_function}}</th>
+	<td>
+          {{activeData.data.file_content.unnamed_file_content.hash_value}}
+        </td>
+      </tr>
+      <tr ng-show="activeData.data.file_import.file_location">
+	<th>File location</th>
+	<td>
+	  {{activeData.data.file_import.file_location.url}}
+        </td>
+      </tr>
+      <tr ng-show="activeData.data.file_import.source_url">
+        <th>Original source</th>
+	<td>
+	  {{activeData.data.file_import.source_url}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.data.file_import.note">
+	<th>Note</th>
+	<td>
+	  {{activeData.data.file_import.note}}
+	</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+

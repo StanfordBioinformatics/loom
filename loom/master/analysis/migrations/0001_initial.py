@@ -714,6 +714,7 @@ class Migration(migrations.Migration):
                 ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+                ('data_object', models.ForeignKey(to='analysis.DataObject', null=True)),
             ],
             options={
                 'abstract': False,
@@ -726,6 +727,7 @@ class Migration(migrations.Migration):
                 ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+                ('data_object', models.ForeignKey(to='analysis.DataObject', null=True)),
             ],
             options={
                 'abstract': False,
@@ -914,6 +916,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='steprunoutput',
+            name='data_object',
+            field=models.ForeignKey(to='analysis.DataObject', null=True),
+        ),
+        migrations.AddField(
+            model_name='steprunoutput',
             name='task_run_outputs',
             field=sortedm2m.fields.SortedManyToManyField(help_text=None, related_name='step_run_outputs', to='analysis.TaskRunOutput'),
         ),
@@ -948,9 +955,19 @@ class Migration(migrations.Migration):
             field=sortedone2many.fields.SortedOneToManyField(help_text=None, related_name='run_request', to='analysis.RunRequestOutput'),
         ),
         migrations.AddField(
+            model_name='fixedworkflowruninput',
+            name='data_object',
+            field=models.ForeignKey(to='analysis.DataObject', null=True),
+        ),
+        migrations.AddField(
             model_name='filedataobject',
             name='file_import',
             field=models.OneToOneField(related_name='data_object', to='analysis.AbstractFileImport'),
+        ),
+        migrations.AddField(
+            model_name='abstractstepruninput',
+            name='data_object',
+            field=models.ForeignKey(to='analysis.DataObject', null=True),
         ),
         migrations.AddField(
             model_name='abstractstepruninput',

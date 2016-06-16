@@ -146,7 +146,7 @@ def info(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def task_run_attempt_log_file(request, id):
+def create_task_run_attempt_log_file(request, id):
     data_json = request.body
     data = json.loads(data_json)
     try:

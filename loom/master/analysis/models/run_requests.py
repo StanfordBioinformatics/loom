@@ -159,14 +159,18 @@ class RunRequestOutput(InputOutputNode):
     channel = fields.CharField(max_length=255)
     data_object = fields.ForeignKey('DataObject', null=True)
 
-    def push(self):
+    def push(self, data_object):
         self.update(
             {'data_object': self.from_channel.pop()}
         )
         self.run_request.push()
 
     def is_completed(self):
-        return self.data_object is not None
+        if self.data_object is not None:
+            return self.data_object.is_ready()
+        else:
+            return False
+
 
 class CancelRequest(AnalysisAppInstanceModel):
 

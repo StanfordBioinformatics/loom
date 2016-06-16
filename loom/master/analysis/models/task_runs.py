@@ -120,10 +120,10 @@ class TaskRunAttemptOutput(AnalysisAppInstanceModel):
         if not get_setting('DISABLE_AUTO_PUSH'):
             if self.data_object:
                 if self.data_object.is_ready():
-                    self.push()
+                    self.push(self.data_object)
 
-    def push(self):
-        self.task_run_output.push(self.data_object)
+    def push(self, data_object):
+        self.task_run_output.push(data_object)
 
 
 class TaskRunAttemptLogFile(AnalysisAppInstanceModel):

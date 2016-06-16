@@ -10,7 +10,7 @@
     <tbody>
       <tr ng-repeat="file in result_files">
         <td>
-	  <a ng-href="#/result-files/{{file._id}}">
+	  <a ng-href="#/data/{{file._id}}">
             {{file.file_content.filename}}@{{file._id | limitTo:8}}
 	  </a>
         </td>

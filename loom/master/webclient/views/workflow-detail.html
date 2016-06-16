@@ -1,98 +1,138 @@
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
-<div ng-show="activeData.workflow.inputs">
-  <h4>Inputs</h4>
-  <div class="table-responsive" ng-hide="loading">
+<div ng-hide="loading">
+  <div class="table-responsive">
     <table class="table table-striped">
-      <thead>
-	<tr>
-	  <th>
-	    Channel
-	  </th>
-	  <th>
-	    Type
-	  </th>
-	</tr>
-      </thead>
-      <tbody>
-	<tr ng-repeat="input in activeData.workflow.inputs">
-          <td>
-	    {{input.channel}}
-	  </td>
-	  <td>
-	    {{input.type}}
-	  </td>
-	</tr>
-      </tbody>
+      <tr>
+	<th>
+	  Name
+	</th>
+	<td>
+	  {{activeData.workflow.name}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.workflow.command">
+	<th>
+	  Command
+	</th>
+	<td>
+	  {{activeData.workflow.command}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.workflow.environment.docker_image">
+	<th>Docker Image</th>
+	<td>
+	  {{activeData.workflow.environment.docker_image}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.workflow.resources.cores">
+	<th>Cores</th>
+	<td>
+	  {{activeData.workflow.resources.cores}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.workflow.resources.memory">
+	<th>Memory</th>
+	<td>
+	  {{activeData.workflow.resources.memory}}
+	</td>
+      </tr>
     </table>
   </div>
-</div>
-<div ng-show="activeData.workflow.fixed_inputs">
-  <h4>Fixed inputs</h4>
-  <div class="table-responsive" ng-hide="loading">
-    <table class="table table-striped">
-      <thead>
-	<tr>
-	  <th>
-	    Channel
-	  </th>
-	  <th>
-	    Type
-	  </th>
-	</tr>
-      </thead>
-      <tbody>
-	<tr ng-repeat="input in activeData.workflow.fixed_inputs">
-          <td>
-	    {{input.channel}}
-	  </td>
-	  <td>
-	    {{input.type}}
-	  </td>
-	</tr>
-      </tbody>
-    </table>
+  <div ng-show="activeData.workflow.steps">
+    <h4>Step</h4>
+    <div class="table-responsive">
+      <table class="table table-striped">
+	<tbody>
+	  <tr ng-repeat="step in activeData.workflow.steps">
+            <td>
+	      <a ng-href="#/workflows/{{step._id}}">
+		{{step.name}}@{{step._id | limitTo:8}}
+	      </a>
+	    </td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
   </div>
-</div>
-<div ng-show="activeData.workflow.outputs">
-  <h4>Outputs</h4>
-  <div class="table-responsive" ng-hide="loading">
-    <table class="table table-striped">
-      <thead>
-	<tr>
-	  <th>
-	    Channel
-	  </th>
-	  <th>
-	    Type
-	  </th>
-	</tr>
-      </thead>
-      <tbody>
-	<tr ng-repeat="output in activeData.workflow.outputs">
-          <td>
-	    {{output.channel}}
-	  </td>
-	  <td>
-	    {{output.type}}
-	  </td>
-	</tr>
-      </tbody>
-    </table>
+  <div ng-show="activeData.workflow.inputs">
+    <h4>Inputs</h4>
+    <div class="table-responsive">
+      <table class="table table-striped">
+	<thead>
+	  <tr>
+	    <th>
+	      Channel
+	    </th>
+	    <th>
+	      Type
+	    </th>
+	  </tr>
+	</thead>
+	<tbody>
+	  <tr ng-repeat="input in activeData.workflow.inputs">
+            <td>
+	      {{input.channel}}
+	    </td>
+	    <td>
+	      {{input.type}}
+	    </td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
   </div>
-</div>
-<div ng-show="activeData.workflow.steps">
-  <h4>Steps</h4>
-  <div class="table-responsive" ng-hide="loading">
-    <table class="table table-striped">
-      <tbody>
-	<tr ng-repeat="step in activeData.workflow.steps">
-          <td>
-	    <a ng-href="#/workflows/{{activeData.step._id}}">
-	      {{step.name}}@{{step._id | limitTo:8}}
-	    </a>
-	  </td>
-	</tr>
-      </tbody>
-    </table>
+  <div ng-show="activeData.workflow.fixed_inputs">
+    <h4>Fixed inputs</h4>
+    <div class="table-responsive">
+      <table class="table table-striped">
+	<thead>
+	  <tr>
+	    <th>
+	      Channel
+	    </th>
+	    <th>
+	      Type
+	    </th>
+	  </tr>
+	</thead>
+	<tbody>
+	  <tr ng-repeat="input in activeData.workflow.fixed_inputs">
+            <td>
+	      {{input.channel}}
+	    </td>
+	    <td>
+	      {{input.type}}
+	    </td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
+  </div>
+  <div ng-show="activeData.workflow.outputs">
+    <h4>Outputs</h4>
+    <div class="table-responsive">
+      <table class="table table-striped">
+	<thead>
+	  <tr>
+	    <th>
+	      Channel
+	    </th>
+	    <th>
+	      Type
+	    </th>
+	  </tr>
+	</thead>
+	<tbody>
+	  <tr ng-repeat="output in activeData.workflow.outputs">
+            <td>
+	      {{output.channel}}
+	    </td>
+	    <td>
+	      {{output.type}}
+	    </td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
   </div>
 </div>
