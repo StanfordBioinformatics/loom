@@ -1,5 +1,6 @@
 ---
-- hosts: "{{lookup('env','SERVER_NAME')}}"
+- name: Start the Loom server.
+  hosts: "{{lookup('env','SERVER_NAME')}}"
   become: yes
   become_method: sudo
   tasks:

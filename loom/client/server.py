@@ -107,8 +107,9 @@ class BaseServerControls:
 
     def setserver(self):
         '''Set server for the client to manage (currently local or gcloud).'''
+        server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
         # Create directory/directories if they don't exist
-        ini_dir = os.path.dirname(SERVER_LOCATION_FILE)
+        ini_dir = os.path.dirname(server_location_file)
         if not os.path.exists(ini_dir):
             os.makedirs(ini_dir)
 
@@ -119,7 +120,7 @@ class BaseServerControls:
         if self.args.type == 'gcloud':
             name = self.args.name
             config.set('server', 'name', name)
-        with open(SERVER_LOCATION_FILE, 'w') as configfile:
+        with open(server_location_file, 'w') as configfile:
             config.write(configfile)
 
     def status(self):
@@ -337,10 +338,16 @@ class GoogleCloudServerControls(BaseServerControls):
         }
         return command_to_method_map
 
-    def get_deploy_env(self):
-        # Load settings needed for deployment into environment variables, where they will be read by the Ansible playbook.
+    def get_ansible_env(self):
+        """Load settings needed for Ansible into environment variables, where
+        they will be read by the Ansible playbook. Start with everything in
+        the deploy settings file, then add other variables that shouldn't be
+        in the file (such as absolute paths containing the user home dir).
+        """
         self.settings_manager.load_deploy_settings_file()
         env = os.environ.copy()
+        env['DEPLOY_SETTINGS_FILENAME'] = get_deploy_settings_filename()
+        env['LOOM_HOME_SUBDIR'] = LOOM_HOME_SUBDIR
         env.update(self.settings_manager.get_env_settings())
         return env
 
@@ -357,8 +364,8 @@ class GoogleCloudServerControls(BaseServerControls):
         # env['MASTER_URL_FOR_WORKER'] = '' # TODO: get internal gcloud ip that is reachable by workers
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
         
-        env = self.get_deploy_env()
-        self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
+        env = self.get_ansible_env()
+        return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail when creating a new instance with the same IP
@@ -369,18 +376,18 @@ class GoogleCloudServerControls(BaseServerControls):
         # TODO: Start the gcloud server instance once supported by Ansible
         if not os.path.exists(get_deploy_settings_filename()):
             self.create()
-        env = self.get_deploy_env()
-        self.run_playbook(GCLOUD_START_PLAYBOOK, env)
+        env = self.get_ansible_env()
+        return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
 
     def stop(self):
         """Stop the Loom server, then stop the gcloud server instance."""
-        env = self.get_deploy_env()
-        self.run_playbook(GCLOUD_STOP_PLAYBOOK, env)
+        env = self.get_ansible_env()
+        return self.run_playbook(GCLOUD_STOP_PLAYBOOK, env)
         # TODO: Stop the gcloud server instance once supported by Ansible
 
     def delete(self):
         """Stop the Loom server, then delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
-        env = self.get_deploy_env()
+        env = self.get_ansible_env()
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
         if instance_name not in current_hosts:
@@ -389,13 +396,15 @@ class GoogleCloudServerControls(BaseServerControls):
         else:
             confirmation_input = raw_input('WARNING! This will delete the server instance and attached disks. Data will be lost!\n'+ 
                                        'If you are sure you want to continue, please type the name of the server instance:\n> ')
-            if confirmation_input == get_gcloud_server_name():
-                self.stop()
-                returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
-                if returncode == 0:
-                    os.remove(get_deploy_settings_filename())
-            else:
+            if confirmation_input != get_gcloud_server_name():
                 print 'Input did not match current server name \"%s\".' % instance_name
+            else:
+                stop_returncode = self.stop()
+                if stop_returncode == 0:
+                    delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
+                    if delete_returncode == 0:
+                        os.remove(get_deploy_settings_filename())
+                    return delete_returncode
 
 
 class UnhandledCommandError(Exception):

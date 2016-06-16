@@ -37,7 +37,7 @@ class SettingsManager:
         if not self.require_default_settings:
             # Add Google Cloud-specific settings
             if server_type == 'gcloud': 
-                self.add_gcloud_settings()
+                self.load_gcloud_settings()
 
             # Override defaults with user-provided settings file
             if user_settings_file:
@@ -46,7 +46,7 @@ class SettingsManager:
         #TODO: extract settings from commandline arguments and override self.settings with them
         #TODO: verify required settings are defined and raise error if not
 
-    def add_gcloud_settings(self):
+    def load_gcloud_settings(self):
         """ Load Google Cloud-specific settings."""
         # Add server name from server.ini
         server_name = get_gcloud_server_name()
@@ -54,7 +54,7 @@ class SettingsManager:
 
         # Add other settings from gce.ini
         gce_config = SafeConfigParser()
-        gce_config.read(GCE_INI_PATH)
+        gce_config.read(os.path.expanduser(GCE_INI_PATH))
         self.settings['GCE_INI_PATH'] = GCE_INI_PATH
         self.settings['GCE_EMAIL'] = gce_config.get('gce', 'gce_service_account_email_address')
         self.settings['GCE_PROJECT'] = gce_config.get('gce', 'gce_project_id')
@@ -64,10 +64,6 @@ class SettingsManager:
         # Preprocess tag lists because Ansible doesn't like empty arguments
         for taglist in ('SERVER_TAGS', 'WORKER_TAGS'):
             self.reformat_gcloud_tags(taglist)
-
-        # Add other variables needed for Ansible deployment
-        self.settings['LOOM_HOME_SUBDIR'] = LOOM_HOME_SUBDIR
-        self.settings['DEPLOY_SETTINGS_FILENAME'] = get_deploy_settings_filename()
 
     def reformat_gcloud_tags(self, taglist):
         """Ansible doesn't accept empty arguments like 'tags=', so if the list is empty, remove the parameter entirely."""
@@ -79,13 +75,13 @@ class SettingsManager:
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
-        self.save_settings_to_file(get_deploy_settings_filename(), section=get_server_type())
+        self.save_settings_to_file(get_deploy_settings_filename(), section='deploy')
 
     def load_deploy_settings_file(self):
         try:
-            self.load_settings_from_file(get_deploy_settings_filename(), section=get_server_type())
+            self.load_settings_from_file(get_deploy_settings_filename(), section='deploy')
         except:
-            raise SettingsError("Could not open server deploy settings. You might need to run \"loom server create\" first.")
+            raise SettingsError("Could not open server deploy settings at %s. You might need to run \"loom server create\" first." % get_deploy_settings_filename())
 
     def delete_deploy_settings_file(self):
         os.remove(get_deploy_settings_filename())

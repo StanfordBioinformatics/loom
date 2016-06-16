@@ -13,7 +13,7 @@ import loom.client.settings_manager
 from loom.client.exceptions import *
 
 LOOM_HOME_SUBDIR = '.loom'
-LOOM_SETTINGS_PATH = os.path.join(os.path.expanduser('~'), LOOM_HOME_SUBDIR)
+LOOM_SETTINGS_PATH = os.path.join('~', LOOM_HOME_SUBDIR)
 SERVER_LOCATION_FILE = os.path.join(LOOM_SETTINGS_PATH, 'server.ini')
 GCE_INI_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce.ini')
 GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
@@ -21,22 +21,24 @@ SERVER_PATH = os.path.join(imp.find_module('loom')[1], 'master')
 
 def get_server_type():
     """Checks server.ini for server type."""
-    if not os.path.exists(SERVER_LOCATION_FILE):
-        raise Exception("%s not found. Please run 'loom server set <servertype>' first." % SERVER_LOCATION_FILE)
+    server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
+    if not os.path.exists(server_location_file):
+        raise Exception("%s not found. Please run 'loom server set <servertype>' first." % server_location_file)
     config = SafeConfigParser()
-    config.read(SERVER_LOCATION_FILE)
+    config.read(server_location_file)
     server_type = config.get('server', 'type')
     return server_type
 
 def get_gcloud_server_name():
     """Reads and returns gcloud server instance name from server.ini."""
-    if not os.path.exists(SERVER_LOCATION_FILE):
-        raise Exception("%s not found. Please run 'loom server set <servertype>' first." % SERVER_LOCATION_FILE)
+    server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
+    if not os.path.exists(server_location_file):
+        raise Exception("%s not found. Please run 'loom server set <servertype>' first." % server_location_file)
     config = SafeConfigParser()
-    config.read(SERVER_LOCATION_FILE)
+    config.read(server_location_file)
     server_type = config.get('server', 'type')
     if server_type != 'gcloud':
-        raise Exception("Tried to get gcloud instance name, but %s is not configured for gcloud." % SERVER_LOCATION_FILE)
+        raise Exception("Tried to get gcloud instance name, but %s is not configured for gcloud." % server_location_file)
     server_name = config.get('server', 'name')
     return server_name
 
@@ -58,10 +60,13 @@ def get_gcloud_server_ip(name):
     return ip
 
 def get_inventory():
-    if not os.path.exists(GCE_INI_PATH):
+    gce_ini_path = os.path.expanduser(GCE_INI_PATH)
+    gce_py_path = os.path.expanduser(GCE_PY_PATH)
+    env = os.environ.copy()
+    env['GCE_INI_PATH'] = gce_ini_path
+    if not os.path.exists(gce_ini_path):
         raise Exception("%s not found. Please configure https://github.com/ansible/ansible/blob/devel/contrib/inventory/gce.ini and place it at this location." % GCE_INI_PATH)
-    os.environ['GCE_INI_PATH'] = GCE_INI_PATH 
-    inv = subprocess.check_output([sys.executable, GCE_PY_PATH])
+    inv = subprocess.check_output([sys.executable, gce_py_path], env=env)
     inv = json.loads(inv)
     return inv
 
@@ -86,7 +91,7 @@ def get_server_url():
     return '%s://%s:%s' % (protocol, ip, port)
 
 def get_deploy_settings_filename():
-    return os.path.join(LOOM_SETTINGS_PATH, get_server_type() + '_deploy_settings.ini')
+    return os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, get_server_type() + '_deploy_settings.ini'))
 
 def is_server_running():
     try:
