@@ -22,7 +22,7 @@ class AbstractImporter(object):
 
         self.args = args
 
-        master_url = self.get_server_url_for()
+        master_url = get_server_url()
         
         # Log to console unless another logger is given
         # (e.g. by unittests to prevent terminal output)

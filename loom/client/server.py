@@ -164,7 +164,7 @@ class LocalServerControls(BaseServerControls):
                         self.settings_manager.settings['ERROR_LOGFILE'],
                         self.settings_manager.settings['DAEMON_LOGFILE'],
                         ):
-            logdir = os.path.dirname(logfile)
+            logdir = os.path.dirname(os.path.expanduser(logfile))
             if not os.path.exists(logdir):
                 os.makedirs(logdir)
         
@@ -386,7 +386,7 @@ class GoogleCloudServerControls(BaseServerControls):
         # TODO: Stop the gcloud server instance once supported by Ansible
 
     def delete(self):
-        """Stop the Loom server, then delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
+        """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
         env = self.get_ansible_env()
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
@@ -399,12 +399,10 @@ class GoogleCloudServerControls(BaseServerControls):
             if confirmation_input != get_gcloud_server_name():
                 print 'Input did not match current server name \"%s\".' % instance_name
             else:
-                stop_returncode = self.stop()
-                if stop_returncode == 0:
-                    delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
-                    if delete_returncode == 0:
-                        os.remove(get_deploy_settings_filename())
-                    return delete_returncode
+                delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
+                if delete_returncode == 0:
+                    os.remove(get_deploy_settings_filename())
+                return delete_returncode
 
 
 class UnhandledCommandError(Exception):
