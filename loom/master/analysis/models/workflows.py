@@ -1,8 +1,8 @@
 from django.core.exceptions import ValidationError
 
 from analysis.exceptions import *
-from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from .data_objects import DataObject
+from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from analysis.models.data_objects import DataObject
 from universalmodels import fields
 
 

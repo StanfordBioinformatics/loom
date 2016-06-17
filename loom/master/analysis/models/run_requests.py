@@ -3,11 +3,11 @@ from django.db import transaction
 
 from analysis import get_setting
 from universalmodels import fields
-from .base import AnalysisAppInstanceModel
-from .channels import Channel, InputOutputNode
-from .data_objects import DataObject
-from .workflow_runs import AbstractWorkflowRun
-from .workflows import Workflow
+from analysis.models.base import AnalysisAppInstanceModel
+from analysis.models.channels import Channel, InputOutputNode
+from analysis.models.data_objects import DataObject
+from analysis.models.workflow_runs import AbstractWorkflowRun
+from analysis.models.workflows import Workflow
 
 
 class RunRequest(AnalysisAppInstanceModel):
@@ -159,14 +159,18 @@ class RunRequestOutput(InputOutputNode):
     channel = fields.CharField(max_length=255)
     data_object = fields.ForeignKey('DataObject', null=True)
 
-    def push(self):
+    def push(self, data_object):
         self.update(
             {'data_object': self.from_channel.pop()}
         )
         self.run_request.push()
 
     def is_completed(self):
-        return self.data_object is not None
+        if self.data_object is not None:
+            return self.data_object.is_ready()
+        else:
+            return False
+
 
 class CancelRequest(AnalysisAppInstanceModel):
 

@@ -35,6 +35,6 @@ urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/worker-settings/$' % TaskRu
 urlpatterns.append(url(r'^%s/(?P<id>[a-zA-Z0-9_\-]+)/%s/$' %
                        (TaskRunAttempt.get_class_name(plural=True, hyphen=True),
                         TaskRunAttemptLogFile.get_class_name(plural=True, hyphen=True)),
-                       'analysis.views.task_run_attempt_log_file'))
+                       'analysis.views.create_task_run_attempt_log_file'))
 urlpatterns.append(url(r'^imported-file-data-objects/$', 'analysis.views.imported_file_data_objects'))
 urlpatterns.append(url(r'^result-file-data-objects/$', 'analysis.views.result_file_data_objects'))

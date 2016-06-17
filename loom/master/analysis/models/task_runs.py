@@ -4,10 +4,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from jinja2 import DictLoader, Environment
 import os
 
-from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from .task_definitions import *
-from .data_objects import DataObject, AbstractFileImport
-from .workflows import Step, RequestedResourceSet
+from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from analysis.models.task_definitions import *
+from analysis.models.data_objects import DataObject, AbstractFileImport
+from analysis.models.workflows import Step, RequestedResourceSet
 from analysis import get_setting
 from analysis.task_manager.factory import TaskManagerFactory
 from universalmodels import fields
@@ -120,10 +120,10 @@ class TaskRunAttemptOutput(AnalysisAppInstanceModel):
         if not get_setting('DISABLE_AUTO_PUSH'):
             if self.data_object:
                 if self.data_object.is_ready():
-                    self.push()
+                    self.push(self.data_object)
 
-    def push(self):
-        self.task_run_output.push(self.data_object)
+    def push(self, data_object):
+        self.task_run_output.push(data_object)
 
 
 class TaskRunAttemptLogFile(AnalysisAppInstanceModel):

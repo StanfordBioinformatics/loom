@@ -3,12 +3,12 @@ from django.utils import timezone
 
 from analysis import get_setting
 from analysis.exceptions import *
-from .base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from .channels import Channel, InputOutputNode, ChannelSet
-from .data_objects import DataObject
-from .task_definitions import TaskDefinition
-from .task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
-from .workflows import AbstractWorkflow, Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
+from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from analysis.models.channels import Channel, InputOutputNode, ChannelSet
+from analysis.models.data_objects import DataObject
+from analysis.models.task_definitions import TaskDefinition
+from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
+from analysis.models.workflows import AbstractWorkflow, Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
 from universalmodels import fields
 
 
@@ -177,6 +177,7 @@ class TypedInputOutputNode(InputOutputNode):
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )
+    data_object = fields.ForeignKey('DataObject', null=True)
 
     class Meta:
         abstract = True
@@ -186,7 +187,8 @@ class AbstractStepRunInput(TypedInputOutputNode):
 
     task_run_inputs = fields.ManyToManyField('TaskRunInput', related_name='step_run_inputs')
 
-    def push(self):
+    def push(self, data_object):
+        self.update({'data_object': data_object})
         if self.step_run:
             self.step_run.push()
 
@@ -213,6 +215,7 @@ class StepRunOutput(TypedInputOutputNode):
     task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
 
     def push(self, data_object):
+        self.update({'data_object': data_object})
         self.to_channel.push(data_object)
         self.to_channel.close()
 
@@ -224,14 +227,15 @@ class StepRunOutput(TypedInputOutputNode):
 
 class WorkflowRunInput(TypedInputOutputNode):
 
-    def push(self):
+    def push(self, data_object):
+        self.update({'data_object': data_object})
         self.from_channel.forward(self.to_channel)
 
 class FixedWorkflowRunInput(TypedInputOutputNode):
 
     def initial_push(self):
-        data_object = self._get_data_object()
-        self.to_channel.push(data_object)
+        self.update({'data_object': self._get_data_object()})
+        self.to_channel.push(self.data_object)
 
     def _get_data_object(self):
         fixed_workflow_input = self.workflow_run.template.get_fixed_input(self.channel)
@@ -240,5 +244,6 @@ class FixedWorkflowRunInput(TypedInputOutputNode):
 
 class WorkflowRunOutput(TypedInputOutputNode):
 
-    def push(self):
+    def push(self, data_object):
+        self.update({'data_object': data_object})
         self.from_channel.forward(self.to_channel)

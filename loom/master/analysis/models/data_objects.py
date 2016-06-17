@@ -4,7 +4,7 @@ import os
 import uuid
 
 from analysis import get_setting
-from .base import AnalysisAppInstanceModel, \
+from analysis.models.base import AnalysisAppInstanceModel, \
     AnalysisAppImmutableModel
 from universalmodels import fields
 

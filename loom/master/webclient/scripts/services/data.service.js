@@ -11,9 +11,8 @@ function DataService($http) {
     
     this.setActiveRun = setActiveRun;
     this.setActiveWorkflow = setActiveWorkflow;
-    this.setActiveImportedFile = setActiveImportedFile;
-    this.setActiveResultFile = setActiveResultFile;
-    this.getActiveData = getActiveData;
+    this.setActiveData = setActiveData;
+    this.getAllActive = getAllActive;
     this.getRunRequests = getRunRequests;
     this.getWorkflows = getWorkflows;
     this.getImportedFiles = getImportedFiles;
@@ -21,7 +20,7 @@ function DataService($http) {
 
     var activeData = {};
     
-    function getActiveData() {
+    function getAllActive() {
 	return activeData;
     };
 
@@ -39,17 +38,10 @@ function DataService($http) {
             });
     };
 
-    function setActiveImportedFile(importedFileId) {
-	return $http.get('/api/file-data-objects/' + importedFileId + '/')
+    function setActiveData(dataId) {
+	return $http.get('/api/data-objects/' + dataId + '/')
             .then(function(response) {
-		activeData.importedFile = response.data;
-            });
-    };
-
-    function setActiveResultFile(resultFileId) {
-	return $http.get('/api/file-data-objects/' + resultFileId + '/')
-            .then(function(response) {
-		activeData.resultFile = response.data;
+		activeData.data = response.data;
             });
     };
 

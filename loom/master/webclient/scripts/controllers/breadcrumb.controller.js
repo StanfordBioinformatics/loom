@@ -9,5 +9,5 @@ BreadcrumbController.$inject = ['$scope', 'DataService', '$location', '$routePar
 function BreadcrumbController($scope, DataService, $location, $routeParams) {
     $scope.$location = $location;
     $scope.params = $routeParams;
-    $scope.activeData = DataService.getActiveData();
+    $scope.activeData = DataService.getAllActive();
 };

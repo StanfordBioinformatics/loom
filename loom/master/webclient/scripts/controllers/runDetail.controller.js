@@ -9,8 +9,8 @@ RunDetailController.$inject = [
 ];
 
 function RunDetailController($scope, DataService, $routeParams) {
+    $scope.activeData = DataService.getAllActive();
     $scope.loading = true;
-    $scope.activeData = DataService.getActiveData();
     DataService.setActiveRun($routeParams.runId).then(function() {
 	$scope.loading = false;
     });
