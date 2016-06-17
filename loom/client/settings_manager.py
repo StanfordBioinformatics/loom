@@ -61,6 +61,10 @@ class SettingsManager:
         self.settings['GCE_PEM_FILE_PATH'] = gce_config.get('gce', 'gce_service_account_pem_file_path')
         self.settings['CLIENT_VERSION'] = version()
 
+        # If bucket not provided, default to project id with '-loom' appended
+        if self.settings['GCE_BUCKET'] == 'None':
+            self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
+
         # Preprocess tag lists because Ansible doesn't like empty arguments
         for taglist in ('SERVER_TAGS', 'WORKER_TAGS'):
             self.reformat_gcloud_tags(taglist)

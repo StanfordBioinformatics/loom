@@ -31,6 +31,7 @@
   vars:
     client_version: "{{lookup('env','CLIENT_VERSION')}}"
     gce_pem_file_path: "{{lookup('env', 'GCE_PEM_FILE_PATH')}}"
+    gce_bucket: "{{lookup('env', 'GCE_BUCKET')}}"
     deploy_settings_filename: "{{lookup('env', 'DEPLOY_SETTINGS_FILENAME')}}"
     remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
   tasks:
@@ -50,7 +51,7 @@
     pip: name=virtualenv state=present
   - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the server as the client.
     pip: name=loomengine virtualenv=/opt/loom version={{client_version}}
-  - name: Configure client to manage local server.
+  - name: Configure Loom client to manage server on this instance.
     shell: source /opt/loom/bin/activate; loom server set local
     args:
       executable: /bin/bash
@@ -58,4 +59,7 @@
     copy: src={{deploy_settings_filename}} dest={{remote_loom_settings_path}}/local_deploy_settings.ini
   - name: Copy service account key to server.
     copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
-
+  - name: Create storage bucket.
+    shell: gsutil mb gs://{{gce_bucket}}/
+  - name: Configure GCE ssh keys.
+    shell: gcloud compute config-ssh --quiet

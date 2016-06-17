@@ -1,3 +1,4 @@
+import gcloud.storage
 import imp
 import oauth2client.contrib.gce
 import os
@@ -46,3 +47,9 @@ def setup_gce_credentials():
         import secrets
     except ImportError:
         raise Exception("Couldn't write secrets.py to the Python path.")
+
+def create_bucket(bucket_name):
+    """ Create a storage bucket using project and credentials inferred from the environment."""
+    client = gcloud.storage.Client()
+    bucket = client.create_bucket(bucket_name)
+    return bucket
