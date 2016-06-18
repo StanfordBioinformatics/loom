@@ -61,5 +61,8 @@
     copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
   - name: Create storage bucket.
     shell: gsutil mb gs://{{gce_bucket}}/
+    ignore_errors: yes # Ignore error if bucket already exists
+  - name: Generate ssh keys.
+    shell: ssh-keygen -t rsa -f ~/.ssh/google_compute_engine -P ""
   - name: Configure GCE ssh keys.
-    shell: gcloud compute config-ssh --quiet
+    shell: gcloud compute config-ssh 
