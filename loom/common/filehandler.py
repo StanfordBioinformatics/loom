@@ -313,9 +313,13 @@ class GoogleStorageDestination(AbstractDestination):
     type = 'google_storage'
 
     def __init__(self, url, settings):
+        print url
+        print settings
         self.settings = settings
         self.url = _urlparse(url)
+        print self.url
         assert self.url.scheme == 'gs'
+        print self.url.hostname
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
         self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])
