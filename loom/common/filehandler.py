@@ -417,19 +417,19 @@ class GoogleStorageCopier(AbstractCopier):
         return self.source.get_hash_value(hash_function)
 
     def copy(self):
-        self.source.bucket.copy_blob(s.source.blob, s.destination.bucket, s.destination.blobid)
+        self.source.bucket.copy_blob(self.source.blob, self.destination.bucket, self.destination.blob_id)
 
     def move(self):
         if not self.source.bucket_id == self.destination.bucket_id:
             raise Exception('"move" operation is not supported between buckets.')
-        self.source.bucket.rename_blob(self.source.blob, destination.blobid)
+        self.source.bucket.rename_blob(self.source.blob, self.destination.blob_id)
 
 
 class Local2GoogleStorageCopier(AbstractCopier):
 
     def hash_and_copy(self, hash_function):
         self.copy()
-        return self.destination.get_hash_value(hash_function)
+        return self.source.get_hash_value(hash_function)
 
     def copy(self):
         self.destination.blob.upload_from_filename(self.source.get_path())
