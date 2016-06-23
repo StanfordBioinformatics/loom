@@ -122,7 +122,7 @@ class RunRequest(AnalysisAppInstanceModel):
 
     @classmethod
     def refresh_status_for_all(cls):
-        for run_request in cls.objects.filter(running=True):
+        for run_request in cls.objects.filter(is_running=True):
             run_request.refresh_status()
 
     def refresh_status(self):

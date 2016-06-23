@@ -203,9 +203,9 @@ class FileLocation(AnalysisAppInstanceModel):
         if FILE_SERVER_TYPE == 'LOCAL':
             return 'file://' + path
         elif FILE_SERVER_TYPE == 'GOOGLE_CLOUD':
-            if 'BUCKET_ID' == '':
+            if get_setting('BUCKET_ID').strip() == '':
                 raise Exception('Bucket ID is not set.')
-            return 'gs://' + os.path.join(get_setting('BUCKET_ID'), path)
+            return 'gs://' + get_setting('BUCKET_ID') + path
         else:
             raise Exception('Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"' % FILE_SERVER_TYPE)
 

@@ -313,13 +313,9 @@ class GoogleStorageDestination(AbstractDestination):
     type = 'google_storage'
 
     def __init__(self, url, settings):
-        print url
-        print settings
         self.settings = settings
         self.url = _urlparse(url)
-        print self.url
         assert self.url.scheme == 'gs'
-        print self.url.hostname
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
         self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])
@@ -539,6 +535,7 @@ class FileHandler:
         self._log('Importing file from %s...' % source.get_url())
 
         temp_destination = Destination(file_data_object['file_import']['temp_file_location']['url'], self.settings)
+        self._log('...to temporary destination %s...' % temp_destination.get_url())
         hash_function = self.settings['HASH_FUNCTION']
         hash_value = source.hash_and_copy_to(temp_destination, hash_function)
 
@@ -551,12 +548,14 @@ class FileHandler:
 
         if updated_file_data_object['file_import']['file_location']['status'] == 'complete':
             # Cancel upload, server already has a copy
+            self._log('...server already has the file, deleting temp copy...')
             temp_source = Source(temp_destination.get_url(), self.settings)
             temp_source.delete()
         else:
             # Move temp copy to permanent location
             temp_source = Source(temp_destination.get_url(), self.settings)
             final_destination = Destination(updated_file_data_object['file_import']['file_location']['url'], self.settings)
+            self._log('...to final destination %s...' % final_destination.get_url())
             temp_source.move_to(final_destination)
 
         # Signal that the upload completed successfully
