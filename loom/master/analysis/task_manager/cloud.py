@@ -23,22 +23,25 @@ class CloudTaskManager:
     inventory_file = ''
 
     @classmethod
-    def run(cls, task_run, task_run_location_id, requested_resources):
+    def run(cls, task_run):
+	from analysis.models.task_runs import GoogleCloudTaskRunAttempt
+	task_run_attempt = GoogleCloudTaskRunAttempt.create({'task_run': task_run})
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
         
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger.debug("Launching CloudTaskManager as a separate process.")
-        task_run_pickle = pickle.dumps(task_run)
-        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_pickle, task_run_location_id, requested_resources))
+        task_run_attempt_pickle = pickle.dumps(task_run_attempt)
+        logger.debug("task_run_attempt: %s" % task_run_attempt.to_json())
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_pickle))
         process.start()
 
     @classmethod
-    def _run(cls, task_run_pickle, task_run_location_id, requested_resources):
-        task_run = pickle.loads(task_run_pickle)
+    def _run(cls, task_run_attempt_pickle):
+        task_run_attempt = pickle.loads(task_run_attempt_pickle)
+	requested_resources = task_run_attempt.task_run.resources
         logger = loom.common.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
-        logger.debug("task_run: %s, task_run_location_id: %s, requested_resources: %s" % (task_run, task_run_location_id, requested_resources))
+        logger.debug("task_run_attempt: %s" % task_run_attempt.to_json())
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
@@ -47,7 +50,7 @@ class CloudTaskManager:
         loom.common.cloud.setup_gce_credentials()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
         hostname = socket.gethostname()
-        node_name = cls.create_worker_name(hostname, task_run)
+        node_name = cls.create_worker_name(hostname, task_run_attempt)
         disk_name = node_name+'-disk'
         device_path = '/dev/disk/by-id/google-'+disk_name
         if hasattr(requested_resources, 'disk_size'):
@@ -70,8 +73,7 @@ class CloudTaskManager:
             'disk_type': settings.WORKER_DISK_TYPE,
             'size_gb': disk_size_gb,
             'zone': settings.WORKER_LOCATION,
-            'run_id': task_run._id,
-            'run_location_id': task_run_location_id,
+            'task_run_attempt_id': task_run_attempt.get_id(),
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
             'worker_network': settings.WORKER_NETWORK,
@@ -132,7 +134,7 @@ class CloudTaskManager:
   - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the worker as the master.
     pip: name=loomengine virtualenv=/opt/loom version=$version
   - name: Run the Loom task runner.
-    shell: source /opt/loom/bin/activate; loom-taskrunner --run_id $run_id --run_location_id $run_location_id --master_url $master_url
+    shell: source /opt/loom/bin/activate; loom-taskrunner --run_attempt_id $task_run_attempt_id --master_url $master_url
     args:
       executable: /bin/bash
 """)
@@ -229,20 +231,21 @@ class CloudTaskManager:
         # TODO: Delete scratch disk
 
     @classmethod
-    def create_worker_name(cls, hostname, taskrun):
+    def create_worker_name(cls, hostname, task_run_attempt):
         """ Create a name for the worker instance. Since hostname, workflow name, and step name can easily be duplicated,
         we do this in two steps to ensure that at least 4 characters of the location ID are part of the name.
         Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
         so leave 5 characters for the '-disk' suffix.
         """
-        workflow_name = taskrun.workflow_name
-        step_name = taskrun.step_name
-        location_id = taskrun.active_task_run_location._id
-        name_base = '-'.join([hostname, workflow_name, step_name])
+	task_run = task_run_attempt.task_run
+        #workflow_name = task_run.workflow_name
+        step_name = task_run.step_runs.first().template.name
+        attempt_id = task_run_attempt.get_id()
+        name_base = '-'.join([hostname, step_name])
         sanitized_name_base = cls.sanitize_instance_name_base(name_base)
         sanitized_name_base = sanitized_name_base[:53]      # leave 10 characters at the end for location id and -disk suffix
 
-        node_name = '-'.join([sanitized_name_base, location_id])
+        node_name = '-'.join([sanitized_name_base, attempt_id])
         sanitized_node_name = cls.sanitize_instance_name(node_name)
         sanitized_node_name = sanitized_node_name[:58]      # leave 5 characters for -disk suffix
         return sanitized_node_name

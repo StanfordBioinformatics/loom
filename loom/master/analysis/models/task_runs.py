@@ -110,6 +110,10 @@ class LocalTaskRunAttempt(TaskRunAttempt):
 
     pass
 
+class GoogleCloudTaskRunAttempt(TaskRunAttempt):
+
+    pass
+
 
 class TaskRunAttemptOutput(AnalysisAppInstanceModel):
 

@@ -59,9 +59,9 @@
     copy: src={{deploy_settings_filename}} dest={{remote_loom_settings_path}}/local_deploy_settings.ini
   - name: Copy service account key to server.
     copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
-  - name: Create storage bucket.
+  - name: Create storage bucket. Ignore error if bucket already exists.
     shell: gsutil mb gs://{{gce_bucket}}/
-    ignore_errors: yes # Ignore error if bucket already exists
+    ignore_errors: yes # Continue if bucket already exists
   - name: Generate ssh keys.
     shell: ssh-keygen -t rsa -f ~/.ssh/google_compute_engine -P ""
   - name: Configure GCE ssh keys.
