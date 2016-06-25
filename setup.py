@@ -90,7 +90,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
                         'ansible>=2.0.1.0',
-                        'apache-libcloud>=1.0.0rc2',
+                        'apache-libcloud==1.0.0rc2',
                         'certifi',                          # gets SSL certificates for libcloud
                         'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',

@@ -8,3 +8,5 @@
     shell: source /opt/loom/bin/activate; loom server set local; loom server start
     args:
       executable: /bin/bash
+  - name: Start NGINX.
+    docker_container: name=loom-nginx image=nginx network_mode=host volumes=[{{remote_loom_settings_path}}/nginx.conf:/etc/nginx/conf.d/default.conf, /var/log/nginx:/var/log/nginx]

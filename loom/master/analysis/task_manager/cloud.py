@@ -32,7 +32,7 @@ class CloudTaskManager:
         logger.debug("Launching CloudTaskManager as a separate process.")
         task_run_attempt_pickle = pickle.dumps(task_run_attempt)
         logger.debug("task_run_attempt: %s" % task_run_attempt.to_json())
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_pickle))
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_pickle,))
         process.start()
 
     @classmethod

@@ -4,6 +4,7 @@ import argparse
 import imp
 import os
 import re
+import shutil
 import subprocess
 import sys
 import warnings
@@ -24,6 +25,7 @@ GCLOUD_CREATE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__),
 GCLOUD_START_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_start_playbook.yml'))
 GCLOUD_STOP_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_stop_playbook.yml'))
 GCLOUD_DELETE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_delete_playbook.yml'))
+NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
 
 def ServerControlsFactory(args):
     """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate class."""
@@ -106,7 +108,7 @@ class BaseServerControls:
         return args
 
     def setserver(self):
-        '''Set server for the client to manage (currently local or gcloud).'''
+        '''Set server for the client to manage (currently local or gcloud) and creates Loom settings directory.'''
         server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
         # Create directory/directories if they don't exist
         ini_dir = os.path.dirname(server_location_file)
@@ -122,6 +124,9 @@ class BaseServerControls:
             config.set('server', 'name', name)
         with open(server_location_file, 'w') as configfile:
             config.write(configfile)
+
+        # Copy NGINX config file to same place
+        shutil.copyfile(NGINX_CONFIG_FILE, ini_dir)
 
     def status(self):
         if is_server_running():
@@ -169,7 +174,7 @@ class LocalServerControls(BaseServerControls):
                 os.makedirs(logdir)
         
     def _start_webserver(self, env):
-        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s" % (
+        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --capture-output" % (
                 self.settings_manager.settings['SERVER_WSGI_MODULE'],
                 self.settings_manager.settings['BIND_IP'],
                 self.settings_manager.settings['BIND_PORT'],
