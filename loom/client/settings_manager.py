@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import os
 import re
 
@@ -71,7 +72,7 @@ class SettingsManager:
 
     def reformat_gcloud_tags(self, taglist):
         """Ansible doesn't accept empty arguments like 'tags=', so if the list is empty, remove the parameter entirely."""
-        tags = self.settings[taglist].strip()
+        tags = json.loads(self.settings[taglist])
         if len(tags) == 0:
             self.settings[taglist] = ''
         else:

@@ -126,7 +126,7 @@ class BaseServerControls:
             config.write(configfile)
 
         # Copy NGINX config file to same place
-        shutil.copyfile(NGINX_CONFIG_FILE, ini_dir)
+        shutil.copy(NGINX_CONFIG_FILE, ini_dir)
 
     def status(self):
         if is_server_running():
