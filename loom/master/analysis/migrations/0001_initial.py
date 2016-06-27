@@ -495,6 +495,16 @@ class Migration(migrations.Migration):
             bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
+            name='GoogleCloudTaskRunAttempt',
+            fields=[
+                ('taskrunattempt_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunAttempt')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskrunattempt',),
+        ),
+        migrations.CreateModel(
             name='IntegerDataContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),

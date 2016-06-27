@@ -12,7 +12,8 @@ import warnings
 from ConfigParser import SafeConfigParser
 from loom.client.settings_manager import SettingsManager
 from loom.client.common import *
-from  loom.common.version import version
+from loom.common.version import version
+import loom.common.cloud
 
 DAEMON_EXECUTABLE = os.path.abspath(
     os.path.join(
@@ -332,6 +333,7 @@ class GoogleCloudServerControls(BaseServerControls):
     def __init__(self, args=None):
         BaseServerControls.__init__(self, args)
         self.settings_manager = SettingsManager()
+        loom.common.cloud.setup_ansible_inventory_gce()
 
     # Defines what commands this class can handle and maps names to functions.
     def _get_command_map(self):
