@@ -205,9 +205,10 @@ MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:800
 FILE_ROOT = os.getenv('FILE_ROOT', tempfile.mkdtemp())
 FILE_ROOT_FOR_WORKER = os.getenv('FILE_ROOT_FOR_WORKER')
 FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')
+LOGS_DIR = os.getenv('LOGS_DIR')
 
 PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.common.filehandler.GoogleStorageSource and GoogleStorageDestination
-                                            # Retrieved even when filehandler is LocalSource and LocalDestination, but not used, so need to set a default value
+                                            # Retrieved but not used when filehandler is LocalSource and LocalDestination, so need to set a default value
 BUCKET_ID = os.getenv('GCE_BUCKET', '')
 ANSIBLE_PEM_FILE = os.getenv('GCE_PEM_FILE_PATH')
 ANSIBLE_GCE_INI_FILE = os.getenv('GCE_INI_PATH')

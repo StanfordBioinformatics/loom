@@ -26,7 +26,7 @@ class CloudTaskManager:
     def run(cls, task_run):
 	from analysis.models.task_runs import GoogleCloudTaskRunAttempt
 	task_run_attempt = GoogleCloudTaskRunAttempt.create({'task_run': task_run})
-        logger = loom.common.logger.get_logger('TaskManagerLogger', logfile='/tmp/loom_cloud_taskmanager.log')
+        logger = loom.common.logger.get_logger('TaskManagerLogger', logfile=os.path.join(settings.LOGS_DIR, 'loom_cloud_taskmanager.log'))
         
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger.debug("Launching CloudTaskManager as a separate process.")
@@ -76,7 +76,7 @@ class CloudTaskManager:
         }
         playbook = cls._create_taskrun_playbook(playbook_values)
         logger.debug('Starting worker VM using playbook: %s' % playbook)
-        ansible_logfile=open('/tmp/loom_ansible.log', 'a', 0)
+        ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)
         cls._run_playbook_string(playbook, ansible_logfile)
         logger.debug("CloudTaskManager process done.")
         ansible_logfile.close()
