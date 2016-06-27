@@ -95,6 +95,7 @@ setup(
                         'django-extensions>=1.5.5',
                         'django-sortedone2many>=0.1.8',
                         'django-sortedm2m>=1.1.1',
+                        'docker-py',
                         'docutils>=0.12',
                         'gcloud>=0.8.0,<0.10.0',
                         'google-api-python-client>=1.5.0',  #1.5.0 requires oath2client>=2.0.0

@@ -4,6 +4,7 @@
   become: yes
   become_method: sudo
   vars:
+    ansible_python_interpreter: /opt/loom/bin/python # Use virtualenv
     remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
   tasks:
   - name: Start the Loom server.

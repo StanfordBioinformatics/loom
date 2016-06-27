@@ -76,7 +76,8 @@ class SettingsManager:
         if len(tags) == 0:
             self.settings[taglist] = ''
         else:
-            self.settings[taglist] = 'tags=%s' % tags
+            tagstring = ','.join(tags) # Expand list to comma-separated string
+            self.settings[taglist] = 'tags=%s' % tagstring
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
@@ -134,9 +135,7 @@ class SettingsManager:
         for key in self.settings:
             value = self.settings[key]
             if value is not None:
-                if isinstance(value, list): # Expand lists into comma-separated strings, since environment variables must be strings
-                    value = ','.join(value)
-                elif isinstance(value, str) and '~' in value: # Expand user home directory to absolute path
+                if isinstance(value, str) and '~' in value: # Expand user home directory to absolute path
                     value = os.path.expanduser(value)
                 export_settings[key] = value
         return export_settings
