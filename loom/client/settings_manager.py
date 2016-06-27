@@ -66,19 +66,6 @@ class SettingsManager:
         if self.settings['GCE_BUCKET'] == 'None':
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
 
-        # Preprocess tag lists because Ansible doesn't like empty arguments
-        for taglist in ('SERVER_TAGS', 'WORKER_TAGS'):
-            self.reformat_gcloud_tags(taglist)
-
-    def reformat_gcloud_tags(self, taglist):
-        """Ansible doesn't accept empty arguments like 'tags=', so if the list is empty, remove the parameter entirely."""
-        tags = json.loads(self.settings[taglist])
-        if len(tags) == 0:
-            self.settings[taglist] = ''
-        else:
-            tagstring = ','.join(tags) # Expand list to comma-separated string
-            self.settings[taglist] = 'tags=%s' % tagstring
-
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
         self.save_settings_to_file(get_deploy_settings_filename(), section='deploy')
