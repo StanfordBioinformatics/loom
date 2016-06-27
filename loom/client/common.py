@@ -76,8 +76,8 @@ def get_gcloud_hosts():
     return inv_hosts
 
 def get_server_url():
-    # TODO: add protocol and bind_port to server.ini since they are required to construct a URL to reach the server
-    # Think about how to keep in sync with user-provided settings, default_settings.ini, and _deploy_settings.ini
+    # TODO: add PROTOCOL and EXTERNAL PORT to server.ini since they are required to construct a URL to reach the server
+    # Consider how to keep in sync with user-provided settings, default_settings.ini, and _deploy_settings.ini
     # Would remove dependency on SettingsManger from other components
     settings_manager = loom.client.settings_manager.SettingsManager()
     try:
@@ -87,7 +87,7 @@ def get_server_url():
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
     ip = get_server_ip()
-    port = settings['BIND_PORT']
+    port = settings['EXTERNAL_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
 
 def get_deploy_settings_filename():
