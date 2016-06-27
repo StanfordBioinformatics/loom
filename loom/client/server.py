@@ -376,7 +376,6 @@ class GoogleCloudServerControls(BaseServerControls):
         
     def run_playbook(self, playbook, env):
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail when creating a new instance with the same IP
-        print env
         return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook, '-v'], env=env)
 
     def start(self):

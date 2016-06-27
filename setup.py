@@ -100,7 +100,7 @@ setup(
                         'gcloud>=0.8.0,<0.10.0',
                         'google-api-python-client>=1.5.0',  #1.5.0 requires oath2client>=2.0.0
                         'google-apitools>=0.4.13',
-                        'gunicorn>=19.3.0',
+                        'gunicorn>=19.6.0',
                         'httplib2>=0.9.2',
                         'Jinja2>=2.8',
                         'jsonfield>=1.0.3',

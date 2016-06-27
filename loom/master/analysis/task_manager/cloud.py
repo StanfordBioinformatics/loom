@@ -72,7 +72,7 @@ class CloudTaskManager:
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
             'worker_network': settings.WORKER_NETWORK,
-            'worker_tags': worker_tags,
+            'worker_tags': settings.WORKER_TAGS,
         }
         playbook = cls._create_taskrun_playbook(playbook_values)
         logger.debug('Starting worker VM using playbook: %s' % playbook)
