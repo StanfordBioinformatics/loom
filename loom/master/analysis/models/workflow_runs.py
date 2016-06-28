@@ -188,9 +188,10 @@ class AbstractStepRunInput(TypedInputOutputNode):
     task_run_inputs = fields.ManyToManyField('TaskRunInput', related_name='step_run_inputs')
 
     def push(self, data_object):
-        self.update({'data_object': data_object})
-        if self.step_run:
-            self.step_run.push()
+        if self.data_object is None:
+            self.update({'data_object': data_object})
+            if self.step_run:
+                self.step_run.push()
 
 
 class StepRunInput(AbstractStepRunInput):
@@ -215,9 +216,10 @@ class StepRunOutput(TypedInputOutputNode):
     task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
 
     def push(self, data_object):
-        self.update({'data_object': data_object})
-        self.to_channel.push(data_object)
-        self.to_channel.close()
+        if self.data_object is None:
+            self.update({'data_object': data_object})
+            self.to_channel.push(data_object)
+            self.to_channel.close()
 
     def get_filename(self):
         return self.step_run.template.get_output(self.channel).filename
@@ -228,8 +230,9 @@ class StepRunOutput(TypedInputOutputNode):
 class WorkflowRunInput(TypedInputOutputNode):
 
     def push(self, data_object):
-        self.update({'data_object': data_object})
-        self.from_channel.forward(self.to_channel)
+        if self.data_object is None:
+            self.update({'data_object': data_object})
+            self.from_channel.forward(self.to_channel)
 
 class FixedWorkflowRunInput(TypedInputOutputNode):
 
@@ -245,5 +248,6 @@ class FixedWorkflowRunInput(TypedInputOutputNode):
 class WorkflowRunOutput(TypedInputOutputNode):
 
     def push(self, data_object):
-        self.update({'data_object': data_object})
-        self.from_channel.forward(self.to_channel)
+        if self.data_object is None:
+            self.update({'data_object': data_object})
+            self.from_channel.forward(self.to_channel)
