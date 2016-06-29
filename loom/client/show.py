@@ -20,6 +20,7 @@ class AbstractShow(object):
         """
         self.args = args
         self.master_url = get_server_url()
+        self.objecthandler = ObjectHandler(self.master_url)
 
     @classmethod
     def get_parser(cls, parser):
@@ -47,7 +48,7 @@ class ShowFile(AbstractShow):
         self._show_files()
 
     def _get_files(self):
-        self.files = self.objecthandler.get_file_data_object_index(self.args.file_id, raise_for_status=False)
+        self.files = self.objecthandler.get_file_data_object_index(self.args.file_id)
 
     def _show_files(self):
         for file_data_object in self.files:
@@ -60,7 +61,7 @@ class ShowFile(AbstractShow):
             text += 'File: %s\n' % file_identifier
             text += '  - Hash: %s$%s\n' % (file_data_object['file_content']['unnamed_file_content']['hash_function'],
                                            file_data_object['file_content']['unnamed_file_content']['hash_value'])
-            file_imports = self.objecthandler.get_file_imports_by_file(file_data_object['_id'], raise_for_status=False)
+            file_imports = self.objecthandler.get_file_imports_by_file(file_data_object['_id'])
             for file_import in file_imports:
                 text += '    - Imported: %s from %s\n' % (file_import['datetime_created'], file_import['source_url'])
                 if file_import.get('note'):
@@ -91,7 +92,7 @@ class ShowWorkflow(AbstractShow):
         self._show_workflows()
 
     def _get_workflows(self):
-        self.workflows = self.objecthandler.get_abstract_workflow_index(self.args.workflow_id, raise_for_status=False)
+        self.workflows = self.objecthandler.get_abstract_workflow_index(self.args.workflow_id)
 
     def _show_workflows(self):
         for workflow in self.workflows:
@@ -143,7 +144,7 @@ class ShowRun(AbstractShow):
         self._show_runs(runs)
 
     def _get_runs(self):
-        return self.objecthandler.get_run_request_index(self.args.run_id, raise_for_status=False)
+        return self.objecthandler.get_run_request_index(self.args.run_id)
 
     def _show_runs(self, runs):
         for run in runs:

@@ -90,8 +90,9 @@ class WorkflowRunner(object):
                 inputs_given.append(channel)
 
         inputs_needed = []
-        for input in workflow.get('inputs'):
-            inputs_needed.append(input['channel'])
+        if workflow.get('inputs') is not None:
+            for input in workflow['inputs']:
+                inputs_needed.append(input['channel'])
 
         for input in inputs_needed:
             if input not in inputs_given:
@@ -109,7 +110,7 @@ class WorkflowRunner(object):
         return WorkflowImporter.import_workflow(workflow_filename, self.filehandler, self.objecthandler, self.logger)
 
     def _get_workflow_from_server(self, workflow_id):
-        workflows = self.objecthandler.get_abstract_workflow_index(query_string=workflow_id, raise_for_status=False)
+        workflows = self.objecthandler.get_abstract_workflow_index(query_string=workflow_id)
 
         if len(workflows) < 1:
             raise Exception('Could not find workflow that matches "%s"' % workflow_id)

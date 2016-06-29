@@ -65,14 +65,15 @@ class TaskRunOutput(AnalysisAppInstanceModel):
         return self.get_step_run_output(step_run).channel
 
     def push(self, data_object, step_run=None):
-        self.update({'data_object': data_object})
-        # Sometimes this is called to push to a specific StepRun that was added late
-        # Otherwise, we push to all StepRuns available
-        if step_run is not None:
-            self.get_step_run_output(step_run).push(self.data_object)
-        else:
-            for step_run_output in self.step_run_outputs.all():
-                step_run_output.push(self.data_object)
+        if self.data_object is None:
+            self.update({'data_object': data_object})
+            # Sometimes this is called to push to a specific StepRun that was added late
+            # Otherwise, we push to all StepRuns available
+            if step_run is not None:
+                self.get_step_run_output(step_run).push(self.data_object)
+            else:
+                for step_run_output in self.step_run_outputs.all():
+                    step_run_output.push(self.data_object)
 
 
 class TaskRunAttempt(AnalysisAppInstanceModel):

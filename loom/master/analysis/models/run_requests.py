@@ -160,10 +160,11 @@ class RunRequestOutput(InputOutputNode):
     data_object = fields.ForeignKey('DataObject', null=True)
 
     def push(self, data_object):
-        self.update(
-            {'data_object': self.from_channel.pop()}
-        )
-        self.run_request.push()
+        if self.data_object is None:
+            self.update(
+                {'data_object': self.from_channel.pop()}
+            )
+            self.run_request.push()
 
     def is_completed(self):
         if self.data_object is not None:
