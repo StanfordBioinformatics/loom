@@ -70,7 +70,7 @@ class FileDataObject(DataObject):
     @classmethod
     def get_by_value(cls, value):
         file_data_objects = cls.get_by_name_and_full_id(value)
-        assert len(file_data_objects) == 1
+        assert len(file_data_objects) == 1, 'expected one file but found %s: %s' % (len(file_data_objects), file_data_objects)
         return file_data_objects.first()
 
     def get_substitution_value(self):

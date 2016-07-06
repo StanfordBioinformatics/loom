@@ -239,6 +239,7 @@ class FixedWorkflowRunInput(TypedInputOutputNode):
     def initial_push(self):
         self.update({'data_object': self._get_data_object()})
         self.to_channel.push(self.data_object)
+        self.to_channel.close()
 
     def _get_data_object(self):
         fixed_workflow_input = self.workflow_run.template.get_fixed_input(self.channel)
