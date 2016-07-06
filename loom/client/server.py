@@ -366,9 +366,6 @@ class GoogleCloudServerControls(BaseServerControls):
         # if os.path.exists(get_deploy_settings_filename()):
         #     raise Exception('Google Cloud server deploy settings already exist. Please delete them with "loom server delete" first.')
         self.settings_manager.create_deploy_settings_file(self.args.settings)
-        # TODO: Add nginx server to playbook
-        # TODO: add gcloud-specific server settings
-        # env['MASTER_URL_FOR_WORKER'] = '' # TODO: get internal gcloud ip that is reachable by workers
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
         
         env = self.get_ansible_env()
