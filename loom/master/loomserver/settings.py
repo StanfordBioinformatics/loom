@@ -41,13 +41,14 @@ ALLOWED_HOSTS = ['127.0.0.1']
 
 INSTALLED_APPS = (
 #    'django.contrib.auth',
+    'django.contrib.contenttypes', #required by polymorphic
     'django_extensions',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'universalmodels',
+    'polymorphic',
+    'rest_framework',
     'analysis',
-    'editor',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -63,6 +64,14 @@ MIDDLEWARE_CLASSES = (
 ROOT_URLCONF = 'loomserver.urls'
 
 WSGI_APPLICATION = 'loomserver.wsgi.application'
+
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny'
+    ]
+}
 
 LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
 LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')

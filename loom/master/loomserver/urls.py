@@ -4,9 +4,9 @@ import django.views.static
 
 urlpatterns = [
     url(r'^api/', include('analysis.urls')),
-    url(r'^editor$', 'editor.views.index'),
+    url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
-
+"""
 if settings.DEBUG == True:
     # Static files should not be served like this in production
     urlpatterns += patterns(
@@ -34,4 +34,4 @@ if settings.DEBUG == True:
             }
         ),
     )
-
+"""

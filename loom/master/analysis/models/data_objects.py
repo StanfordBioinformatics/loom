@@ -1,15 +1,17 @@
-from django.utils import timezone
-import json
-import os
-import uuid
+from .base import BaseModel, BasePolymorphicModel
+from django.db import models
+from jsonfield import JSONField
 
-from analysis import get_setting
-from analysis.models.base import AnalysisAppInstanceModel, \
-    AnalysisAppImmutableModel
-from universalmodels import fields
+#from django.utils import timezone
+#import json
+#import os
+#import uuid
+#from sortedone2many.fields import SortedOneToManyField
+#from sortedm2m.fields import SortedManyToManyField
+#from analysis import get_setting
 
 
-class DataObject(AnalysisAppInstanceModel):
+class DataObject(BasePolymorphicModel):
     """A reference to DataObjectContent. While there is only one
     object for each set of content, there can be many references
     to it. That way if the same content arises twice independently 
@@ -32,27 +34,20 @@ class DataObject(AnalysisAppInstanceModel):
     )
 
     def get_type(self):
-        return self.downcast().TYPE
-
-    def get_content(self):
-        return self.downcast().get_content()
-
-    def is_ready(self):
-        return self.downcast().is_ready()
+        return self.TYPE
 
     @classmethod
     def get_by_value(cls, value, type):
         return class_type_map[type].get_by_value(value)
 
 
-class DataObjectContent(AnalysisAppImmutableModel):
+class DataObjectContent(BasePolymorphicModel):
     """A unit of data passed into or created by analysis steps.
     This may be a file, an array of files, a JSON data object, 
-    or an array of JSON objects.
+    or an array of JSON objects. 
+    Multitable inheritance is needed since a TaskDefinitionInput
+    has a foreign key to DataObjectContent of any type.
     """
-
-    def get_substitution_value(self):
-        return self.downcast().get_substitution_value()
 
 
 class FileDataObject(DataObject):
@@ -61,8 +56,8 @@ class FileDataObject(DataObject):
 
     TYPE = 'file'
 
-    file_content = fields.ForeignKey('FileContent', null=True)
-    file_import = fields.OneToOneField('AbstractFileImport', related_name='data_object')
+    file_content = models.ForeignKey('FileContent', null=True)
+    file_import = models.OneToOneField('AbstractFileImport', related_name='data_object')
 
     def get_content(self):
         return self.file_content
@@ -98,8 +93,8 @@ class FileContent(DataObjectContent):
     file name, and user-defined metadata.
     """
 
-    filename = fields.CharField(max_length=255)
-    unnamed_file_content = fields.ForeignKey('UnnamedFileContent')
+    filename = models.CharField(max_length=255)
+    unnamed_file_content = models.ForeignKey('UnnamedFileContent')
 
     def get_substitution_value(self):
         return self.filename
@@ -113,24 +108,24 @@ class FileContent(DataObjectContent):
         return self.unnamed_file_content.file_locations.first()
 
 
-class UnnamedFileContent(AnalysisAppImmutableModel):
+class UnnamedFileContent(BaseModel):
     """Represents file content, identified by a hash. Ignores file name.
     """
 
-    hash_value = fields.CharField(max_length=100)
-    hash_function = fields.CharField(max_length=100)
+    hash_value = models.CharField(max_length=255)
+    hash_function = models.CharField(max_length=255)
 
 
-class FileLocation(AnalysisAppInstanceModel):
+class FileLocation(BaseModel):
     """Location of file content.
     """
 
-    unnamed_file_content = fields.ForeignKey(
+    unnamed_file_content = models.ForeignKey(
         'UnnamedFileContent',
         null=True,
         related_name='file_locations')
-    url = fields.CharField(max_length=1000)
-    status = fields.CharField(
+    url = models.CharField(max_length=1000)
+    status = models.CharField(
         max_length=256,
         default='incomplete',
         choices=(('incomplete', 'Incomplete'),
@@ -210,10 +205,10 @@ class FileLocation(AnalysisAppInstanceModel):
             raise Exception('Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"' % FILE_SERVER_TYPE)
 
 
-class AbstractFileImport(AnalysisAppInstanceModel):
+class AbstractFileImport(BasePolymorphicModel):
 
-    temp_file_location = fields.OneToOneField('FileLocation', null=True, related_name='temp_file_import')
-    file_location = fields.ForeignKey('FileLocation', null=True, related_name='file_imports')
+    temp_file_location = models.OneToOneField('FileLocation', null=True, related_name='temp_file_import')
+    file_location = models.ForeignKey('FileLocation', null=True, related_name='file_imports')
 
     def after_create_or_update(self, data):
         # If there is no FileLocation, set a temporary one.
@@ -242,8 +237,8 @@ class AbstractFileImport(AnalysisAppInstanceModel):
 
 class FileImport(AbstractFileImport):
 
-    note = fields.TextField(max_length=10000, null=True)
-    source_url = fields.TextField(max_length=1000)
+    note = models.TextField(max_length=10000, null=True)
+    source_url = models.TextField(max_length=1000)
 
     def get_browsable_path(self):
         return 'imported'
@@ -262,7 +257,7 @@ class JSONDataObject(DatabaseDataObject):
 
     TYPE = 'json'
 
-    json_content = fields.ForeignKey('JSONDataContent')
+    json_content = models.ForeignKey('JSONDataContent')
 
     def get_content(self):
         return self.json_content
@@ -280,7 +275,7 @@ class JSONDataObject(DatabaseDataObject):
 
 class JSONDataContent(DataObjectContent):
 
-    json_value = fields.JSONField()
+    json_value = JSONField()
 
     def get_substitution_value(self):
         return self.json_value
@@ -290,7 +285,7 @@ class StringDataObject(DatabaseDataObject):
     
     TYPE = 'string'
     
-    string_content = fields.ForeignKey('StringDataContent')
+    string_content = models.ForeignKey('StringDataContent')
 
     def get_content(self):
         return self.string_content
@@ -308,7 +303,7 @@ class StringDataObject(DatabaseDataObject):
 
 class StringDataContent(DataObjectContent):
 
-    string_value = fields.TextField()
+    string_value = models.TextField()
 
     def get_substitution_value(self):
         return self.string_value
@@ -318,7 +313,7 @@ class BooleanDataObject(DatabaseDataObject):
     
     TYPE = 'boolean'
     
-    boolean_content = fields.ForeignKey('BooleanDataContent')
+    boolean_content = models.ForeignKey('BooleanDataContent')
 
     def get_content(self):
         return self.boolean_content
@@ -342,7 +337,7 @@ class BooleanDataObject(DatabaseDataObject):
 
 class BooleanDataContent(DataObjectContent):
 
-    boolean_value = fields.BooleanField()
+    boolean_value = models.BooleanField()
 
     def get_substitution_value(self):
         return self.boolean_value
@@ -352,7 +347,7 @@ class IntegerDataObject(DatabaseDataObject):
     
     TYPE = 'integer'
     
-    integer_content = fields.ForeignKey('IntegerDataContent')
+    integer_content = models.ForeignKey('IntegerDataContent')
 
     def get_content(self):
         return self.integer_content
@@ -370,7 +365,7 @@ class IntegerDataObject(DatabaseDataObject):
 
 class IntegerDataContent(DataObjectContent):
 
-    integer_value = fields.IntegerField()
+    integer_value = models.IntegerField()
 
     def get_substitution_value(self):
         return self.integer_value
@@ -389,8 +384,8 @@ class_type_map = {
 class DataObjectArray(DataObject):
     """An array of data objects, all of the same type.
     """
-    data_objects = fields.ManyToManyField('DataObject',
-                                          related_name = 'parent')
+    data_objects = SortedManyToManyField('DataObject',
+related_name = 'parent')
 
     @classmethod
     def create(cls, data):

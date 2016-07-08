@@ -7,11 +7,40 @@ import logging
 import os
 
 from analysis import get_setting
-from analysis.models import RunRequest, TaskRun, FileDataObject, TaskRunAttempt
+#from analysis.models import RunRequest, TaskRun, FileDataObject, TaskRunAttempt
 from loom.common import version
 
 logger = logging.getLogger('loom')
 
+from analysis import models
+from analysis import serializers
+from rest_framework import viewsets
+
+class UnnamedFileContentViewSet(viewsets.ModelViewSet):
+    queryset = models.UnnamedFileContent.objects.all()
+    serializer_class = serializers.UnnamedFileContentSerializer
+
+class FileContentViewSet(viewsets.ModelViewSet):
+    queryset = models.FileContent.objects.all()
+    serializer_class = serializers.FileContentSerializer
+
+class FileLocationViewSet(viewsets.ModelViewSet):
+    queryset = models.FileLocation.objects.all()
+    serializer_class = serializers.FileLocationSerializer
+
+class AbstractFileImportViewSet(viewsets.ModelViewSet):
+    queryset = models.AbstractFileImport.objects.all()
+    serializer_class = serializers.AbstractFileImportSerializer
+
+class FileImportViewSet(viewsets.ModelViewSet):
+    queryset = models.FileImport.objects.all()
+    serializer_class = serializers.FileImportSerializer
+
+class FileDataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.FileDataObject.objects.all()
+    serializer_class = serializers.FileDataObjectSerializer
+
+"""
 class Helper:
 
     @classmethod
@@ -173,3 +202,4 @@ def result_file_data_objects(request):
                 [model.to_struct() for model in FileDataObject.objects.filter(file_import__taskrunattemptoutputfileimport__isnull=False).distinct()]
             },
             status=200)
+"""
