@@ -140,7 +140,13 @@ def setup_gce_ini_and_json():
     if is_gce_ini_valid() and is_gce_json_valid():
         return
 
-    credentials = oauth2client.client.GoogleCredentials.get_application_default()
+    check_for_gcloud()
+
+    try:
+        credentials = oauth2client.client.GoogleCredentials.get_application_default()
+    except oauth2client.client.ApplicationDefaultCredentialsError:
+        raise Exception('Could not get credentials from Google Cloud SDK. Please run "gcloud init" first.')
+
     iam_service = googleapiclient.discovery.build('iam', 'v1', credentials=credentials)
     project = get_gcloud_project()
 

@@ -125,7 +125,7 @@ class BaseServerControls:
             name = self.args.name
             config.set('server', 'name', name)
         with open(server_location_file, 'w') as configfile:
-            print 'Creating %s...' % server_location_file
+            print 'Updating %s...' % server_location_file
             config.write(configfile)
 
         # Copy NGINX config file to same place

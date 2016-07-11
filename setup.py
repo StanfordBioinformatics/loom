@@ -96,6 +96,7 @@ setup(
                         'django-sortedone2many>=0.1.8',
                         'django-sortedm2m>=1.1.1',
                         'docutils>=0.12',
+                        'docker-py',                        # used by server to run NGINX container
                         'gcloud>=0.8.0,<0.10.0',
                         'google-api-python-client>=1.5.0',  #1.5.0 requires oath2client>=2.0.0
                         'google-apitools>=0.4.13',
@@ -108,7 +109,7 @@ setup(
                         'MarkupSafe>=0.23',
                         # 'MySQL-python>=1.2.5',
                         'oauth2client>=2.0.0',
-                        'pycrypto>=2.6.1',              # required by GCP Ansible Dynamic Inventory (gce.py)
+                        'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
                         'python-daemon>=2.0.0,<2.1.0',
                         'PyYAML>=3.11',
                         'requests>=2.6.0',
