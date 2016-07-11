@@ -114,6 +114,7 @@ class BaseServerControls:
         # Create directory/directories if they don't exist
         ini_dir = os.path.dirname(server_location_file)
         if not os.path.exists(ini_dir):
+            print 'Creating Loom settings directory %s...' % ini_dir
             os.makedirs(ini_dir)
 
         # Write server.ini file
@@ -124,6 +125,7 @@ class BaseServerControls:
             name = self.args.name
             config.set('server', 'name', name)
         with open(server_location_file, 'w') as configfile:
+            print 'Creating %s...' % server_location_file
             config.write(configfile)
 
         # Copy NGINX config file to same place
@@ -273,7 +275,7 @@ class LocalServerControls(BaseServerControls):
     def _set_database(self, env):
         manage_cmd = [sys.executable, '%s/manage.py' % SERVER_PATH]
         if self.args.test_database:
-            # If test database requested, set LOOM_TEST_DATABSE to true and reset database
+            # If test database requested, set LOOM_TEST_DATABASE to true and reset database
             env['LOOM_TEST_DATABASE'] = 'true'
             commands = [
                 manage_cmd + ['flush', '--noinput'],
@@ -319,7 +321,7 @@ class LocalServerControls(BaseServerControls):
 
     def delete(self):
         '''Stops server and deletes deploy settings.'''
-        # TODO: Ask for confirmation before continuing; add -f option to continue without asking
+        # TODO: Add -f option to continue without asking
         if not os.path.exists(get_deploy_settings_filename()):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
@@ -334,6 +336,7 @@ class GoogleCloudServerControls(BaseServerControls):
         BaseServerControls.__init__(self, args)
         self.settings_manager = SettingsManager()
         loom.common.cloud.setup_ansible_inventory_gce()
+        setup_gce_ini_and_json()
 
     # Defines what commands this class can handle and maps names to functions.
     def _get_command_map(self):
@@ -359,20 +362,20 @@ class GoogleCloudServerControls(BaseServerControls):
         return env
 
     def create(self):
-        """Create server deploy settings if they don't exist yet, create and
-        set up a gcloud instance, copy deploy settings to the instance, and
-        start the Loom server."""
-        # TODO: Prevent overwriting existing deploy settings, but add -f option to force overwriting
-        # if os.path.exists(get_deploy_settings_filename()):
-        #     raise Exception('Google Cloud server deploy settings already exist. Please delete them with "loom server delete" first.')
+        """Create server deploy settings if they don't exist yet, set up SSH
+        keys, create and set up a gcloud instance, copy deploy settings to the
+        instance."""
         self.settings_manager.create_deploy_settings_file(self.args.settings)
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
+
+        setup_gcloud_ssh()
         
         env = self.get_ansible_env()
-        return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
+        returncode = self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
+        return returncode
         
     def run_playbook(self, playbook, env):
-        env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail when creating a new instance with the same IP
+        env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
         return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
 
     def start(self):
