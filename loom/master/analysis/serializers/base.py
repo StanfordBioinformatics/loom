@@ -1,6 +1,6 @@
 import copy
 from rest_framework import serializers
-
+from django.core.exceptions import ObjectDoesNotExist
 
 class MagicSerializer(serializers.ModelSerializer):
     """This class supplements the features of django-rest-framework
@@ -14,12 +14,15 @@ class MagicSerializer(serializers.ModelSerializer):
          using the "_class" field in the data to be deserialized.
     """
 
+    subclass_serializers = ()
+    nested_serializers = ()
+
     def create(self, validated_data):
         # Instead of using "self" to serialize, see if we should use the serializer for
         # a subclass of the current model instead.
         # If not, this call returns "self" as "serializer", meaning the current model is
         # the best match.
-        serializer = self._select_polymorphic_subclass_serializer(self.initial_data)
+        serializer = self._select_subclass_serializer_by_data(self.initial_data)
 
         if serializer is self:
             # No need to use subclass, proceed with serialization
@@ -40,19 +43,21 @@ class MagicSerializer(serializers.ModelSerializer):
         # For models with nested children, handle that serialization here:
         if hasattr(self.Meta, 'nested_serializers'):
             for field_name, ChildSerializer in self.Meta.nested_serializers.iteritems():
-                child_serializer = ChildSerializer(data=self.initial_data.get(field_name))
-                child_serializer.is_valid()
-                model = child_serializer.save()
+                data = self.initial_data.get(field_name)
+                if data:
+                    child_serializer = ChildSerializer(data=data)
+                    child_serializer.is_valid()
+                    model = child_serializer.save()
 
-                # Replace raw data for child with model instance
-                validated_data_with_children[field_name] = model
+                    # Replace raw data for child with model instance
+                    validated_data_with_children[field_name] = model
         return validated_data_with_children
 
-    def _select_polymorphic_subclass_serializer(self, data):
-        """For a given set of data to be deserialized, and for the model associated with
+    def _select_subclass_serializer_by_data(self, data):
+        """For a given set of data to be deserialized, and for the model class associated with
         the current serializer (self), determine whether this model or one of its subclass
         models is the best match for the data, and return the serializer associated with
-        the matching model
+        the matching model class
         """
 
         # If not polymorphic, keep the current model
@@ -67,18 +72,18 @@ class MagicSerializer(serializers.ModelSerializer):
                 return self
             else:
                 # Look for matches in the subclasses
-                matching_serializers = filter(lambda s: s.Meta.model.__name__==_class, self.Meta.subclass_serializers)
+                matching_serializers = filter(lambda s: s.Meta.model.__name__==_class, self.Meta.subclass_serializers.values())
 
         # Class is not explicitly specified, so we try to infer it from the data.
 
-        # If all keys in the data match fields on the current model, keep the current model.
+        # If all keys in the data match fields on the current model class, keep the current class.
         elif self._do_all_fields_match(self.Meta.model, data.keys()):
             return self
 
-        # Otherwise select subclass models whose fields match all keys in the data
+        # Otherwise select subclass model classes whose fields match all keys in the data
         else:
             matching_serializers = []
-            for subclass_serializer in self.Meta.subclass_serializers:
+            for subclass_serializer in self.Meta.subclass_serializers.values():
                 if self._do_all_fields_match(subclass_serializer.Meta.model, data.keys()):
                     matching_serializers.append(subclass_serializer)
 
@@ -91,9 +96,93 @@ class MagicSerializer(serializers.ModelSerializer):
                             % (','.join([s.Meta.model.__name__ for s in matching_serializers]),
                                self.Meta.model.__name__, data))
 
-        # Since we found a better matching subclass model, substitute its serializer for the current one
+        # Since we found a better matching subclass model class, substitute its serializer for the current one
         return matching_serializers[0](data=data, context=self.context)
 
     def _do_all_fields_match(self, model, fields):
-        # All values in 'fields' can be found as fields on the model
+        # All values in 'fields' can be found as fields on the model class
         return set(fields).issubset(set(model._meta.get_all_field_names()))
+
+    def update(self, instance, validated_data):
+        # Instead of using "self" to serialize, see if we should use the serializer for
+        # a subclass of the current model class
+        # If not, this call returns "self" as "serializer", meaning the current model is
+        # the best match.
+        serializer = self._select_subclass_serializer_by_model_instance()
+
+        if serializer is self:
+            # No need to use subclass, proceed with serialization for update
+            validated_data_with_children = self._update_children(validated_data)
+
+            for field_name, field_data in validated_data_with_children.iteritems():
+                setattr(instance, field_name, field_data)
+            instance.save()
+            return instance
+        
+        else:
+            # A subclass model exists. Defer deserialization to the serializer of the subclass.
+            if not serializer.is_valid():
+                raise Exception("Invalid data for model %s: %s" %
+                                (serializer.Meta.model.__name__, serializer.instance))
+            # Calling "save" will trigger the "create" method on the new serializer
+            return serializer.save()
+
+    def _update_children(self, validated_data):
+        validated_data_with_children = copy.deepcopy(validated_data)
+        # For models with nested children, handle that serialization here:
+        if hasattr(self.Meta, 'nested_serializers'):
+            for field_name, ChildSerializer in self.Meta.nested_serializers.iteritems():
+                data = self.initial_data.get(field_name)
+                try:
+                    child_instance = getattr(self.instance, field_name)
+                except ObjectDoesNotExist:
+                    child_instance = None
+                if data:
+                    if child_instance:
+                        # Update the existing child instance
+                        child_serializer = ChildSerializer(child_instance, data=data, partial=True)
+                    else:
+                        # Create a new child instance
+                        child_serializer = ChildSerializer(data=data)
+
+                    if not child_serializer.is_valid():
+                        raise Exception("Invalid data. Error messages: %s" % child_serializer.errors)
+
+                    model = child_serializer.save()
+
+                    # Replace raw data for child with model instance
+                    validated_data_with_children[field_name] = model
+
+        return validated_data_with_children
+
+    def _select_subclass_serializer_by_model_instance(self):
+
+        # If not polymorphic, keep the current model instance
+        if not hasattr(self.Meta, 'subclass_serializers'):
+            return self
+
+        subclass_serializers=[]
+        for (field, SubclassSerializer) in self.Meta.subclass_serializers:
+            try:
+                # If a model instance is assigned to 'field', it means there
+                # is a subclass instance of the current model. If so, get the
+                # Serializer for the subclass model instance
+                subclass_instance = getattr(self.instance, field)
+                subclass_serializers.append(SubclassSerializer(subclass_instance, data=self.initial_data))
+            except ObjectDoesNotExist:
+                pass
+
+        if len(subclass_serializers) == 1:
+            # We found a matching subclass instance, so we'll return its serializer
+            # to replace the current one
+            return subclass_serializers[0]
+        
+        elif len(subclass_serializers) == 0:
+            # Model instance is does not belong to any subclass. Continue with the current serializer
+            return self
+        
+        else:
+            # We expect at most 1 matching subclass, but let's
+            # verify because this is not enforced by Django.
+            raise Exception("Could not deserialize because the model instance to be updated has multiple "\
+                            "subclass instances, and we don't know which one to update. %s" % self.instance)

@@ -30,12 +30,12 @@ file_import_2 = {
     'source_url': 'file:///data/data/data/data2.dat',
 }
 
-file = {
+file_data_object = {
     'file_content': file_content,
     'file_import': file_import,
 }
 
-file_2 = {
+file_data_object_2 = {
     'file_content': file_content_2,
     'file_import': file_import_2,
 }

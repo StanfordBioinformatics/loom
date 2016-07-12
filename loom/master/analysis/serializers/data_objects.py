@@ -18,6 +18,7 @@ class FileContentSerializer(MagicSerializer):
         exclude = ('polymorphic_ctype',)
         nested_serializers = {'unnamed_file_content': UnnamedFileContentSerializer}
 
+
 class FileLocationSerializer(MagicSerializer):
 
     unnamed_file_content = UnnamedFileContentSerializer()
@@ -28,8 +29,8 @@ class FileLocationSerializer(MagicSerializer):
 
 class FileImportSerializer(MagicSerializer):
 
-    temp_file_location = FileLocationSerializer()
-    file_location = FileLocationSerializer()
+    temp_file_location = FileLocationSerializer(allow_null=True, required=False)
+    file_location = FileLocationSerializer(allow_null=True, required=False)
 
     class Meta:
         model = FileImport
@@ -40,8 +41,8 @@ class FileImportSerializer(MagicSerializer):
 
 class AbstractFileImportSerializer(MagicSerializer):
 
-    temp_file_location = FileLocationSerializer()
-    file_location = FileLocationSerializer()
+    temp_file_location = FileLocationSerializer(allow_null=True, required=False)
+    file_location = FileLocationSerializer(allow_null=True, required=False)
 
     class Meta:
         model = AbstractFileImport
@@ -50,12 +51,12 @@ class AbstractFileImportSerializer(MagicSerializer):
             'temp_file_location': FileLocationSerializer,
             'file_location': FileLocationSerializer
         }
-        subclass_serializers = (FileImportSerializer,)
+        subclass_serializers = {'fileimport': FileImportSerializer}
 
 class FileDataObjectSerializer(MagicSerializer):
 
-    file_content = FileContentSerializer()
-    file_import = AbstractFileImportSerializer()
+    file_content = FileContentSerializer(allow_null=True, required=False)
+    file_import = AbstractFileImportSerializer(allow_null=True, required=False)
 
     class Meta:
         model = FileDataObject
