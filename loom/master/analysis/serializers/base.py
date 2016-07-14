@@ -1,6 +1,18 @@
 import copy
 from rest_framework import serializers
+from django.apps import AppConfig
 from django.core.exceptions import ObjectDoesNotExist
+from django.apps import AppConfig
+
+_POLYMORPHIC_TYPE_FIELD = 'polymorphic_ctype'
+
+def get_class( kls ):
+    parts = kls.split('.')
+    module = ".".join(parts[:-1])
+    m = __import__( module )
+    for comp in parts[1:]:
+        m = getattr(m, comp)
+    return m
 
 class MagicSerializer(serializers.ModelSerializer):
     """This class supplements the features of django-rest-framework
@@ -13,9 +25,6 @@ class MagicSerializer(serializers.ModelSerializer):
          fields match keys in input data. You can also explicitly select the class
          using the "_class" field in the data to be deserialized.
     """
-
-    subclass_serializers = ()
-    nested_serializers = ()
 
     def create(self, validated_data):
         # Instead of using "self" to serialize, see if we should use the serializer for
@@ -41,8 +50,9 @@ class MagicSerializer(serializers.ModelSerializer):
     def _create_children(self, validated_data):
         validated_data_with_children = copy.deepcopy(validated_data)
         # For models with nested children, handle that serialization here:
-        if hasattr(self.Meta, 'nested_serializers'):
-            for field_name, ChildSerializer in self.Meta.nested_serializers.iteritems():
+        if hasattr(self.Meta, 'nested_foreign_key_serializers'):
+            for field_name, ChildSerializer in self.Meta.nested_foreign_key_serializers.iteritems():
+                ChildSerializer = get_class(ChildSerializer)
                 data = self.initial_data.get(field_name)
                 if data:
                     child_serializer = ChildSerializer(data=data)
@@ -51,6 +61,16 @@ class MagicSerializer(serializers.ModelSerializer):
 
                     # Replace raw data for child with model instance
                     validated_data_with_children[field_name] = model
+        if hasattr(self.Meta, 'nested_many_to_many_serializers'):
+            for field_name, ChildSerializer in self.Meta.nested_many_to_many_serializers.iteritems():
+                ChildSerializer = get_class(ChildSerializer)
+                if initial_data.get(field_name):
+                    children = []
+                    for data in initial_data.get(field_name):
+                        child_serializer = ChildSerializer(data=data)
+                        child_serializer.is_valid()
+                        children.append(child_serializer.save())
+                    validated_data_with_children[field_name] = children
         return validated_data_with_children
 
     def _select_subclass_serializer_by_data(self, data):
@@ -83,9 +103,10 @@ class MagicSerializer(serializers.ModelSerializer):
         # Otherwise select subclass model classes whose fields match all keys in the data
         else:
             matching_serializers = []
-            for subclass_serializer in self.Meta.subclass_serializers.values():
-                if self._do_all_fields_match(subclass_serializer.Meta.model, data.keys()):
-                    matching_serializers.append(subclass_serializer)
+            for SubclassSerializer in self.Meta.subclass_serializers.values():
+                SubclassSerializer = get_class(SubclassSerializer)
+                if self._do_all_fields_match(SubclassSerializer.Meta.model, data.keys()):
+                    matching_serializers.append(SubclassSerializer)
 
         # Verify just one match.
         if len(matching_serializers) == 0:
@@ -97,7 +118,8 @@ class MagicSerializer(serializers.ModelSerializer):
                                self.Meta.model.__name__, data))
 
         # Since we found a better matching subclass model class, substitute its serializer for the current one
-        return matching_serializers[0](data=data, context=self.context)
+        SubclassSerializer = matching_serializers[0]
+        return SubclassSerializer(data=data, context=self.context)
 
     def _do_all_fields_match(self, model, fields):
         # All values in 'fields' can be found as fields on the model class
@@ -130,9 +152,10 @@ class MagicSerializer(serializers.ModelSerializer):
     def _update_children(self, validated_data):
         validated_data_with_children = copy.deepcopy(validated_data)
         # For models with nested children, handle that serialization here:
-        if hasattr(self.Meta, 'nested_serializers'):
-            for field_name, ChildSerializer in self.Meta.nested_serializers.iteritems():
+        if hasattr(self.Meta, 'nested_foreign_key_serializers'):
+            for field_name, ChildSerializer in self.Meta.nested_foreign_key_serializers.iteritems():
                 data = self.initial_data.get(field_name)
+                ChildSerializer = get_class(ChildSerializer)
                 try:
                     child_instance = getattr(self.instance, field_name)
                 except ObjectDoesNotExist:
@@ -163,6 +186,7 @@ class MagicSerializer(serializers.ModelSerializer):
 
         subclass_serializers=[]
         for (field, SubclassSerializer) in self.Meta.subclass_serializers:
+            SubclassSerializer = get_class(SubclassSerializer)
             try:
                 # If a model instance is assigned to 'field', it means there
                 # is a subclass instance of the current model. If so, get the

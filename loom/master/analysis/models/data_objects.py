@@ -1,14 +1,12 @@
-from .base import BaseModel, BasePolymorphicModel
 from django.db import models
+from django.utils import timezone
 from jsonfield import JSONField
+import json
+import os
+import uuid
 
-#from django.utils import timezone
-#import json
-#import os
-#import uuid
-#from sortedone2many.fields import SortedOneToManyField
-#from sortedm2m.fields import SortedManyToManyField
-#from analysis import get_setting
+from .base import BaseModel, BasePolymorphicModel
+from analysis import get_setting
 
 
 class DataObject(BasePolymorphicModel):
@@ -379,29 +377,14 @@ class_type_map = {
     'json': JSONDataObject,
 }
 
-
-'''    
 class DataObjectArray(DataObject):
-    """An array of data objects, all of the same type.
-    """
-    data_objects = SortedManyToManyField('DataObject',
-related_name = 'parent')
 
-    @classmethod
-    def create(cls, data):
-        o = super(DataObjectArray, cls).create(data)
-        cls._verify_children_have_same_type(o)
-        return o
+    items = models.ManyToManyField('DataObject', related_name = 'container') #, through='DataObjectArrayM2MDataObject')
 
-    def _verify_children_have_same_type(self):
-        child_classes = set()
-        for data_object in self.data_objects.all():
-            child_classes.add(data_object.downcast().__class__)
-            if len(child_classes) > 1:
-                raise DataObjectValidationError()
-    
-    def is_available(self):
-        """An array is available if all members are available"""
-        return all([member.downcast().is_available() for member in
-                    self.data_objects.all()])
-'''
+
+"""
+class DataObjectArrayM2MDataObject(BaseModel):
+
+    data_object = models.ForeignKey(DataObject)
+    data_object_array = models.ForeignKey(DataObjectArray)
+"""

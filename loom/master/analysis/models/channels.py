@@ -1,24 +1,24 @@
-from django.core.exceptions import ObjectDoesNotExist
+from .base import BaseModel, BasePolymorphicModel
 from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
 
-from analysis.models.base import AnalysisAppInstanceModel
 from analysis.models.data_objects import DataObject
-from universalmodels import fields
+from analysis.fields import DuplicateManyToManyField
 
 """
 This module defines Channels for passing data between inputs/outputs of steps or workflows
 """
 
 
-class Channel(AnalysisAppInstanceModel):
+class Channel(BaseModel):
     """Channel acts as a queue for data being being passed into or out of steps or workflows.
     """
 
-    name = fields.CharField(max_length=255)
-    outputs = fields.OneToManyField('ChannelOutput')
-    data_objects = fields.ManyToManyField('DataObject')
-    sender = fields.OneToOneField('InputOutputNode', related_name='to_channel', null=True)
-    is_closed_to_new_data = fields.BooleanField(default=False)
+    name = models.CharField(max_length=255)
+#    outputs = models.OneToManyField('ChannelOutput')
+    data_objects = DuplicateManyToManyField('DataObject')
+    sender = models.OneToOneField('InputOutputNode', related_name='to_channel', null=True)
+    is_closed_to_new_data = models.BooleanField(default=False)
 
     @classmethod
     def create_from_sender(cls, sender, channel_name):
@@ -54,14 +54,14 @@ class Channel(AnalysisAppInstanceModel):
         self.save()
 
 
-class ChannelOutput(AnalysisAppInstanceModel):
+class ChannelOutput(BaseModel):
     """Every channel can have only one source but 0 or many destinations, representing
     the possibility that a file produce by one step can be used by 0 or many other 
     steps. Each of these destinations has its own queue, implemented as a ChannelOutput.
     """
 
-    data_objects = fields.ManyToManyField('DataObject')
-    receiver = fields.OneToOneField('InputOutputNode', related_name='from_channel', null=True)
+    data_objects = DuplicateManyToManyField('DataObject')
+    receiver = models.OneToOneField('InputOutputNode', related_name='from_channel', null=True)
 
     def _push(self, data_object):
         self.data_objects.add(data_object)
@@ -89,7 +89,7 @@ class ChannelOutput(AnalysisAppInstanceModel):
             to_channel.close()
 
 
-class InputOutputNode(AnalysisAppInstanceModel):
+class InputOutputNode(BasePolymorphicModel):
 
     def push(self, *args, **kwargs):
         return self.downcast().push(*args, **kwargs)

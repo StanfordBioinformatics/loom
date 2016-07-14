@@ -22,6 +22,26 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='Channel',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('name', models.CharField(max_length=255)),
+                ('is_closed_to_new_data', models.BooleanField(default=False)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='ChannelOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='DataObject',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -45,6 +65,16 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('url', models.CharField(max_length=1000)),
                 ('status', models.CharField(default=b'incomplete', max_length=256, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='InputOutputNode',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_analysis.inputoutputnode_set+', editable=False, to='contenttypes.ContentType', null=True)),
             ],
             options={
                 'abstract': False,
@@ -77,6 +107,16 @@ class Migration(migrations.Migration):
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
                 ('boolean_content', models.ForeignKey(to='analysis.BooleanDataContent')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
+            name='DataObjectArray',
+            fields=[
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
             ],
             options={
                 'abstract': False,
@@ -200,6 +240,26 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='polymorphic_analysis.dataobject_set+', editable=False, to='contenttypes.ContentType', null=True),
         ),
         migrations.AddField(
+            model_name='channeloutput',
+            name='data_objects',
+            field=models.ManyToManyField(to='analysis.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='channeloutput',
+            name='receiver',
+            field=models.OneToOneField(related_name='from_channel', null=True, to='analysis.InputOutputNode'),
+        ),
+        migrations.AddField(
+            model_name='channel',
+            name='data_objects',
+            field=models.ManyToManyField(to='analysis.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='channel',
+            name='sender',
+            field=models.OneToOneField(related_name='to_channel', null=True, to='analysis.InputOutputNode'),
+        ),
+        migrations.AddField(
             model_name='abstractfileimport',
             name='file_location',
             field=models.ForeignKey(related_name='file_imports', to='analysis.FileLocation', null=True),
@@ -218,5 +278,10 @@ class Migration(migrations.Migration):
             model_name='filedataobject',
             name='file_import',
             field=models.OneToOneField(related_name='data_object', to='analysis.AbstractFileImport'),
+        ),
+        migrations.AddField(
+            model_name='dataobjectarray',
+            name='items',
+            field=models.ManyToManyField(related_name='container', to='analysis.DataObject'),
         ),
     ]

@@ -1,5 +1,6 @@
 from django.test import TestCase
 from analysis.models.data_objects import *
+from analysis.models.channels import *
 from analysis.serializers.data_objects import *
 from . import fixtures
 
@@ -105,4 +106,43 @@ class TestBaseModel(TestCase):
 
         self.assertEqual(file_data_object.file_content.unnamed_file_content.hash_value, fixtures.data_objects.file_content['unnamed_file_content']['hash_value'])
 
-    # TODO Test XToMany
+    def testManyToManyAddDuplicate(self):
+        s = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+        
+        channel = Channel(name='channelx')
+        channel.save()
+
+        channel.data_objects.add(file_data_object)
+        channel.data_objects.add(file_data_object)
+        self.assertEqual(channel.data_objects.count(), 2)
+
+    def testManyToManyOrder(self):
+
+        # Create models
+        s1 = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s1.is_valid()
+        f1 = s1.save()
+
+        s3 = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s3.is_valid()
+        f3 = s3.save()
+        
+        s2 = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s2.is_valid()
+        f2 = s2.save()
+
+        channel = Channel(name='channelx')
+        channel.save()
+
+        # Create M2M relationship, add models in an order that differs from order of creation
+        channel.data_objects.add(f1)
+        channel.data_objects.add(f2)
+        channel.data_objects.add(f3)
+        flist = channel.data_objects.all()
+
+        # Queryset order corresponds to order of adding, not creating
+        self.assertEqual(flist[0].id, f1.id)
+        self.assertEqual(flist[1].id, f2.id)
+        self.assertEqual(flist[2].id, f3.id)
