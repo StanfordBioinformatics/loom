@@ -146,3 +146,20 @@ class TestBaseModel(TestCase):
         self.assertEqual(flist[0].id, f1.id)
         self.assertEqual(flist[1].id, f2.id)
         self.assertEqual(flist[2].id, f3.id)
+
+    def testRemoveDuplicateFromManyToMany(self):
+        # Create models
+        s = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+        
+        channel = Channel(name='channelx')
+        channel.save()
+
+        channel.data_objects.add(file_data_object)
+        channel.data_objects.add(file_data_object)
+        self.assertEqual(channel.data_objects.count(), 2)
+
+        # Remove both matching models
+        channel.data_objects.remove(file_data_object)
+        self.assertEqual(channel.data_objects.count(), 0)
