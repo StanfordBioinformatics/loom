@@ -394,6 +394,8 @@ class GoogleCloudServerControls(BaseServerControls):
 
     def delete(self):
         """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
+        if os.path.exists(get_deploy_settings_filename()):
+            os.remove(get_deploy_settings_filename())
         env = self.get_ansible_env()
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
@@ -407,8 +409,6 @@ class GoogleCloudServerControls(BaseServerControls):
                 print 'Input did not match current server name \"%s\".' % instance_name
             else:
                 delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
-                if delete_returncode == 0:
-                    os.remove(get_deploy_settings_filename())
                 return delete_returncode
 
 

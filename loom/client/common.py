@@ -165,7 +165,7 @@ def setup_gce_ini_and_json():
         config.add_section('gce')
         config.set('gce', 'gce_project_id', project)
         config.set('gce', 'gce_service_account_email_address', service_account_email)
-        config.set('gce', 'gce_service_account_pem_file_path', os.path.expanduser(GCE_JSON_PATH))
+        config.set('gce', 'gce_service_account_pem_file_path', GCE_JSON_PATH)
         with open(os.path.expanduser(GCE_INI_PATH), 'w') as configfile:
             config.write(configfile)
 
