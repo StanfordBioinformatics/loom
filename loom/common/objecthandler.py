@@ -20,7 +20,7 @@ class ObjectHandler(object):
 
     def _get(self, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
-        return self._make_request_to_server(lambda: requests.get(url), raise_for_status=raise_for_status)
+        return self._make_request_to_server(lambda: requests.get(url, verify=False), raise_for_status=raise_for_status) # Don't fail on unrecognized SSL certificate
     
     def _make_request_to_server(self, query_function, raise_for_status=True):
         """Verifies server connection and handles response errors

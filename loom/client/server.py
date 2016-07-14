@@ -382,7 +382,9 @@ class GoogleCloudServerControls(BaseServerControls):
         """Start the gcloud server instance, then start the Loom server."""
         # TODO: Start the gcloud server instance once supported by Ansible
         if not os.path.exists(get_deploy_settings_filename()):
-            self.create()
+            returncode = self.create()
+            if returncode != 0:
+                raise Exception('Error deploying Google Cloud server instance.')
         env = self.get_ansible_env()
         return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
 

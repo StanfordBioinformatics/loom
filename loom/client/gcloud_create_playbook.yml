@@ -12,12 +12,16 @@
     server_tags: "{{lookup('env','SERVER_TAGS')}}"
     server_disk_type: "{{lookup('env','SERVER_DISK_TYPE')}}"
     server_disk_size: "{{lookup('env','SERVER_DISK_SIZE')}}"
+    gce_bucket: "{{lookup('env', 'GCE_BUCKET')}}"
   tasks:
   - name: Create a boot disk with the same name as the server instance.
     gce_pd: name={{server_name}} image={{server_vm_image}} disk_type={{server_disk_type}} size_gb={{server_disk_size}} zone={{server_zone}} mode=READ_WRITE
   - name: Boot up a new instance.
     gce: name={{server_name}} disks={{server_name}} zone={{server_zone}} machine_type={{server_instance_type}} network={{server_network}} service_account_permissions=cloud-platform tags={{server_tags|default(omit)}}
     register: gce_result
+  - name: Create storage bucket. Ignore error if bucket already exists.
+    shell: gsutil mb gs://{{gce_bucket}}/
+    ignore_errors: yes # Continue if bucket already exists
   - name: Wait for SSH to come up.
     wait_for: host={{ item.public_ip }} port=22 delay=10 timeout=60
     with_items: '{{ gce_result.instance_data }}'
@@ -32,7 +36,6 @@
   vars:
     client_version: "{{lookup('env','CLIENT_VERSION')}}"
     gce_pem_file_path: "{{lookup('env', 'GCE_PEM_FILE_PATH')}}"
-    gce_bucket: "{{lookup('env', 'GCE_BUCKET')}}"
     deploy_settings_filename: "{{lookup('env', 'DEPLOY_SETTINGS_FILENAME')}}"
     remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
   tasks:
@@ -84,9 +87,10 @@
     copy: src={{deploy_settings_filename}} dest={{remote_loom_settings_path}}/local_deploy_settings.ini
   - name: Copy service account key to server.
     copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
-  - name: Create storage bucket. Ignore error if bucket already exists.
-    shell: gsutil mb gs://{{gce_bucket}}/
-    ignore_errors: yes # Continue if bucket already exists
+  - name: Create directory for SSL certificate and key.
+    file: path={{remote_loom_settings_path}}/ssl state=directory mode=0755
+  - name: Create self-signed SSL certificate and key.
+    command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{remote_loom_settings_path}}/ssl/ssl.key -out {{remote_loom_settings_path}}/ssl/ssl.crt -subj "/C=US/ST=California/L=Palo Alto/O=Stanford University/CN={{ansible_fqdn}}"
   - name: Generate ssh keys.
     shell: ssh-keygen -t rsa -f ~/.ssh/google_compute_engine -P ""
   - name: Configure GCE ssh keys.

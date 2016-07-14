@@ -100,7 +100,7 @@ def get_deploy_settings_filename():
 
 def is_server_running():
     try:
-        response = requests.get(get_server_url() + '/api/status/')
+        response = requests.get(get_server_url() + '/api/status/', verify=False) # Don't fail on unrecognized SSL certificate
         if response.status_code == 200:
             return True
         else:
