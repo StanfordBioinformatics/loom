@@ -12,8 +12,8 @@ import subprocess
 import sys
 import yaml
 
-
 import loom.client.settings_manager
+import loom.common.objecthandler
 from loom.client.exceptions import *
 
 LOOM_HOME_SUBDIR = '.loom'
@@ -100,6 +100,7 @@ def get_deploy_settings_filename():
 
 def is_server_running():
     try:
+        loom.common.objecthandler.disable_insecure_request_warning()
         response = requests.get(get_server_url() + '/api/status/', verify=False) # Don't fail on unrecognized SSL certificate
         if response.status_code == 200:
             return True
