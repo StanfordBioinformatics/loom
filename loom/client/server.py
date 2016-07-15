@@ -381,15 +381,15 @@ class GoogleCloudServerControls(BaseServerControls):
     def start(self):
         """Start the gcloud server instance, then start the Loom server."""
         # TODO: Start the gcloud server instance once supported by Ansible
-        env = self.get_ansible_env()
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
         if instance_name not in current_hosts:
-            print 'No instance named \"%s\" found in project \"%s\". Creating it first.' % (instance_name, env['GCE_PROJECT'])
+            print 'No instance named \"%s\" found in project \"%s\". Creating it first.' % (instance_name, get_gcloud_project())
         if not os.path.exists(get_deploy_settings_filename()):
             print 'Deploy settings %s not found. Creating it and the server instance first.' % get_deploy_settings_filename()
         if instance_name not in current_hosts or not os.path.exists(get_deploy_settings_filename()):
             self.create()
+        env = self.get_ansible_env()
         return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
 
     def stop(self):
@@ -404,7 +404,7 @@ class GoogleCloudServerControls(BaseServerControls):
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
         if instance_name not in current_hosts:
-            print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, env['GCE_PROJECT'])
+            print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
             if os.path.exists(get_deploy_settings_filename()):
                 print 'Deleting %s...' % get_deploy_settings_filename()
                 os.remove(get_deploy_settings_filename())
