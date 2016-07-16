@@ -36,6 +36,7 @@ class Migration(migrations.Migration):
             name='ChannelOutput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('channel', models.ForeignKey(related_name='outputs', to='analysis.Channel', null=True)),
             ],
             options={
                 'abstract': False,
@@ -81,6 +82,46 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='TaskDefinition',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('command', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionEnvironment',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionInput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('filename', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer'), (b'json', b'JSON')])),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='UnnamedFileContent',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -92,7 +133,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='BooleanDataContent',
+            name='BooleanContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
                 ('boolean_value', models.BooleanField()),
@@ -106,17 +147,7 @@ class Migration(migrations.Migration):
             name='BooleanDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('boolean_content', models.ForeignKey(to='analysis.BooleanDataContent')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.dataobject',),
-        ),
-        migrations.CreateModel(
-            name='DataObjectArray',
-            fields=[
-                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
+                ('boolean_content', models.ForeignKey(to='analysis.BooleanContent')),
             ],
             options={
                 'abstract': False,
@@ -159,7 +190,7 @@ class Migration(migrations.Migration):
             bases=('analysis.abstractfileimport',),
         ),
         migrations.CreateModel(
-            name='IntegerDataContent',
+            name='IntegerContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
                 ('integer_value', models.IntegerField()),
@@ -173,7 +204,7 @@ class Migration(migrations.Migration):
             name='IntegerDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('integer_content', models.ForeignKey(to='analysis.IntegerDataContent')),
+                ('integer_content', models.ForeignKey(to='analysis.IntegerContent')),
             ],
             options={
                 'abstract': False,
@@ -181,7 +212,7 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
-            name='JSONDataContent',
+            name='JSONContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
                 ('json_value', jsonfield.fields.JSONField()),
@@ -195,7 +226,7 @@ class Migration(migrations.Migration):
             name='JSONDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('json_content', models.ForeignKey(to='analysis.JSONDataContent')),
+                ('json_content', models.ForeignKey(to='analysis.JSONContent')),
             ],
             options={
                 'abstract': False,
@@ -203,7 +234,7 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
-            name='StringDataContent',
+            name='StringContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
                 ('string_value', models.TextField()),
@@ -217,12 +248,48 @@ class Migration(migrations.Migration):
             name='StringDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('string_content', models.ForeignKey(to='analysis.StringDataContent')),
+                ('string_content', models.ForeignKey(to='analysis.StringContent')),
             ],
             options={
                 'abstract': False,
             },
             bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionDockerEnvironment',
+            fields=[
+                ('taskdefinitionenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskDefinitionEnvironment')),
+                ('docker_image', models.CharField(max_length=100)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskdefinitionenvironment',),
+        ),
+        migrations.AddField(
+            model_name='taskdefinitioninput',
+            name='data_object_content',
+            field=models.ForeignKey(to='analysis.DataObjectContent'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinitionenvironment',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analysis.taskdefinitionenvironment_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskdefinition',
+            name='environment',
+            field=models.ForeignKey(to='analysis.TaskDefinitionEnvironment'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinition',
+            name='inputs',
+            field=models.ManyToManyField(to='analysis.TaskDefinitionInput'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinition',
+            name='outputs',
+            field=models.ManyToManyField(to='analysis.TaskDefinitionOutput'),
         ),
         migrations.AddField(
             model_name='filelocation',
@@ -278,10 +345,5 @@ class Migration(migrations.Migration):
             model_name='filedataobject',
             name='file_import',
             field=models.OneToOneField(related_name='data_object', to='analysis.AbstractFileImport'),
-        ),
-        migrations.AddField(
-            model_name='dataobjectarray',
-            name='items',
-            field=models.ManyToManyField(related_name='container', to='analysis.DataObject'),
         ),
     ]

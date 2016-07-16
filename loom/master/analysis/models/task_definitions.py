@@ -1,15 +1,19 @@
+from django.db import models
 from django.core import exceptions
 
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import DataObject, DataObjectContent
-from universalmodels import fields
+from analysis import get_setting
+from analysis.fields import DuplicateManyToManyField
+
+from .base import BaseModel, BasePolymorphicModel
+from .data_objects import DataObject, DataObjectContent
+
 
 
 """Models in this module form the core definition of an analysis task to be run.
 """
 
 
-class TaskDefinition(AnalysisAppImmutableModel):
+class TaskDefinition(BaseModel):
     """A TaskDefinition is the fundamental unit of analysis work to be done.
     It is an unambiguous definition of an analysis step, its inputs and environment.
     It excludes requested resources, as these do not alter results.
@@ -18,34 +22,34 @@ class TaskDefinition(AnalysisAppImmutableModel):
     locate previously generated results.
     """
 
-    inputs = fields.ManyToManyField('TaskDefinitionInput')
-    outputs = fields.ManyToManyField('TaskDefinitionOutput')
-    command = fields.CharField(max_length=256)
-    environment = fields.ForeignKey('TaskDefinitionEnvironment')
+    inputs = DuplicateManyToManyField('TaskDefinitionInput')
+    outputs = DuplicateManyToManyField('TaskDefinitionOutput')
+    command = models.CharField(max_length=256)
+    environment = models.ForeignKey('TaskDefinitionEnvironment')
 
 
-class TaskDefinitionEnvironment(AnalysisAppImmutableModel):
+class TaskDefinitionEnvironment(BasePolymorphicModel):
 
     pass
 
 
 class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
 
-    docker_image = fields.CharField(max_length = 100)
+    docker_image = models.CharField(max_length = 100)
 
 
-class TaskDefinitionInput(AnalysisAppImmutableModel):
+class TaskDefinitionInput(BaseModel):
 
-    data_object_content = fields.ForeignKey('DataObjectContent')
-    type = fields.CharField(
+    data_object_content = models.ForeignKey('DataObjectContent')
+    type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )
 
-class TaskDefinitionOutput(AnalysisAppImmutableModel):
+class TaskDefinitionOutput(BaseModel):
 
-    filename = fields.CharField(max_length=255)
-    type = fields.CharField(
+    filename = models.CharField(max_length=255)
+    type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )

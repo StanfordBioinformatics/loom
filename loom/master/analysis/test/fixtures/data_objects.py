@@ -50,27 +50,26 @@ file_location_2 = {
     'url': 'file:///absolute/path/to/my/file2.txt',
 }
 
+integer_content = {
+    'integer_value': 3
+}
+
 integer_data_object = {
-    'integer_content': {
-        'integer_value': 3
-    }
+    'integer_content': integer_content
+}
+
+boolean_content = {
+    'boolean_value': True
 }
 
 boolean_data_object = {
-    'boolean_content': {
-        'boolean_value': True
-    }
+    'boolean_content': boolean_content
+}
+
+string_content = {
+    'string_value': 'some text here'
 }
 
 string_data_object = {
-    'string_content': {
-        'string_value': 'some text here'
-    }
+    'string_content': string_content
 }
-
-json_data_object = {
-    'json_content': {
-        'json_value': {"data": "some text here"}
-    }
-}
-

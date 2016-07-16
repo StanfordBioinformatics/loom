@@ -15,7 +15,6 @@ class Channel(BaseModel):
     """
 
     name = models.CharField(max_length=255)
-#    outputs = models.OneToManyField('ChannelOutput')
     data_objects = DuplicateManyToManyField('DataObject')
     sender = models.OneToOneField('InputOutputNode', related_name='to_channel', null=True)
     is_closed_to_new_data = models.BooleanField(default=False)
@@ -60,6 +59,7 @@ class ChannelOutput(BaseModel):
     steps. Each of these destinations has its own queue, implemented as a ChannelOutput.
     """
 
+    channel = models.ForeignKey('Channel', related_name='outputs', null=True) # reversed OneToMany
     data_objects = DuplicateManyToManyField('DataObject')
     receiver = models.OneToOneField('InputOutputNode', related_name='from_channel', null=True)
 
@@ -99,7 +99,7 @@ class InputOutputNode(BasePolymorphicModel):
             return destination.from_channel.channel.sender._id == self._id
         except ObjectDoesNotExist:
             return False
-            
+
 
 class ChannelSet(object):
 

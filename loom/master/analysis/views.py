@@ -16,6 +16,14 @@ from analysis import models
 from analysis import serializers
 from rest_framework import viewsets
 
+class DataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.DataObject.objects.all()
+    serializer_class = serializers.DataObjectSerializer
+
+class DataObjectContentViewSet(viewsets.ModelViewSet):
+    queryset = models.DataObjectContent
+    serializer_class = serializers.DataObjectContentSerializer
+
 class UnnamedFileContentViewSet(viewsets.ModelViewSet):
     queryset = models.UnnamedFileContent.objects.all()
     serializer_class = serializers.UnnamedFileContentSerializer
@@ -40,6 +48,8 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.FileDataObject.objects.all()
     serializer_class = serializers.FileDataObjectSerializer
 
+
+    
 """
 class Helper:
 

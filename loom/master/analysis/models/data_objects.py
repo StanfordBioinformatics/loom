@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-from jsonfield import JSONField
 import json
 import os
 import uuid
@@ -21,13 +20,13 @@ class DataObject(BasePolymorphicModel):
         ('boolean', 'Boolean'),
         ('string', 'String'),
         ('integer', 'Integer'),
-        ('json', 'JSON'),
         # ('file_array', 'File Array'),
         # ('boolean_array', 'Boolean Array'),
         # ('string_array', 'String Array'),
         # ('integer_array', 'Integer Array'),
         # ('float', 'Float'),
         # ('float_array', 'Float Array'),
+        # ('json', 'JSON'),
         # ('json_array', 'JSON Array')
     )
 
@@ -41,10 +40,10 @@ class DataObject(BasePolymorphicModel):
 
 class DataObjectContent(BasePolymorphicModel):
     """A unit of data passed into or created by analysis steps.
-    This may be a file, an array of files, a JSON data object, 
-    or an array of JSON objects. 
-    Multitable inheritance is needed since a TaskDefinitionInput
-    has a foreign key to DataObjectContent of any type.
+    This may be a file or another supported type of data, or an 
+    array of one of these. Multitable inheritance is needed since 
+    a TaskDefinitionInput has a foreign key to DataObjectContent 
+    of any type.
     """
 
 
@@ -251,39 +250,11 @@ class DatabaseDataObject(DataObject):
         abstract = True
 
 
-class JSONDataObject(DatabaseDataObject):
-
-    TYPE = 'json'
-
-    json_content = models.ForeignKey('JSONDataContent')
-
-    def get_content(self):
-        return self.json_content
-
-    @classmethod
-    def get_by_value(cls, value):
-        return cls.create(
-            {
-                'json_content': {
-                    'json_value': json.loads(value)
-                }
-            }
-        )
-
-
-class JSONDataContent(DataObjectContent):
-
-    json_value = JSONField()
-
-    def get_substitution_value(self):
-        return self.json_value
-
-
 class StringDataObject(DatabaseDataObject):
     
     TYPE = 'string'
     
-    string_content = models.ForeignKey('StringDataContent')
+    string_content = models.ForeignKey('StringContent')
 
     def get_content(self):
         return self.string_content
@@ -299,7 +270,7 @@ class StringDataObject(DatabaseDataObject):
         )
 
 
-class StringDataContent(DataObjectContent):
+class StringContent(DataObjectContent):
 
     string_value = models.TextField()
 
@@ -311,7 +282,7 @@ class BooleanDataObject(DatabaseDataObject):
     
     TYPE = 'boolean'
     
-    boolean_content = models.ForeignKey('BooleanDataContent')
+    boolean_content = models.ForeignKey('BooleanContent')
 
     def get_content(self):
         return self.boolean_content
@@ -333,7 +304,7 @@ class BooleanDataObject(DatabaseDataObject):
         )
 
 
-class BooleanDataContent(DataObjectContent):
+class BooleanContent(DataObjectContent):
 
     boolean_value = models.BooleanField()
 
@@ -345,7 +316,7 @@ class IntegerDataObject(DatabaseDataObject):
     
     TYPE = 'integer'
     
-    integer_content = models.ForeignKey('IntegerDataContent')
+    integer_content = models.ForeignKey('IntegerContent')
 
     def get_content(self):
         return self.integer_content
@@ -361,7 +332,7 @@ class IntegerDataObject(DatabaseDataObject):
         )
 
 
-class IntegerDataContent(DataObjectContent):
+class IntegerContent(DataObjectContent):
 
     integer_value = models.IntegerField()
 
@@ -374,17 +345,10 @@ class_type_map = {
     'boolean': BooleanDataObject,
     'string': StringDataObject,
     'integer': IntegerDataObject,
-    'json': JSONDataObject,
 }
 
+"""
 class DataObjectArray(DataObject):
 
-    items = models.ManyToManyField('DataObject', related_name = 'container') #, through='DataObjectArrayM2MDataObject')
-
-
-"""
-class DataObjectArrayM2MDataObject(BaseModel):
-
-    data_object = models.ForeignKey(DataObject)
-    data_object_array = models.ForeignKey(DataObjectArray)
+    items = models.ManyToManyField('DataObject', related_name = 'container')
 """
