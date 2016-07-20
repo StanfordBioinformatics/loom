@@ -21,7 +21,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.DataObjectSerializer
 
 class DataObjectContentViewSet(viewsets.ModelViewSet):
-    queryset = models.DataObjectContent
+    queryset = models.DataObjectContent.objects.all()
     serializer_class = serializers.DataObjectContentSerializer
 
 class UnnamedFileContentViewSet(viewsets.ModelViewSet):
@@ -48,54 +48,219 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.FileDataObject.objects.all()
     serializer_class = serializers.FileDataObjectSerializer
 
+class StringContentViewSet(viewsets.ModelViewSet):
+    queryset = models.StringContent.objects.all()
+    serializer_class = serializers.StringContentSerializer
 
+class StringDataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.StringDataObject.objects.all()
+    serializer_class = serializers.StringDataObjectSerializer
+
+class BooleanContentViewSet(viewsets.ModelViewSet):
+    queryset = models.BooleanContent.objects.all()
+    serializer_class = serializers.BooleanContentSerializer
+
+class BooleanDataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.BooleanDataObject.objects.all()
+    serializer_clsas = serializers.BooleanDataObjectSerializer
+
+class IntegerContentViewSet(viewsets.ModelViewSet):
+    queryset = models.IntegerContent.objects.all()
+    serializer_class = serializers.IntegerContentSerializer
+
+class IntegerDataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.IntegerDataObject.objects.all()
+    serializer_class = serializers.IntegerDataObjectSerializer
+
+class TaskDefinitionViewSet(viewsets.ModelViewSet):
+    queryset = models.TaskDefinition.objects.all()
+    serializer_class = serializers.TaskDefinitionSerializer
+
+class TaskDefinitionInputViewSet(viewsets.ModelViewSet):
+    queryset = models.TaskDefinitionInput.objects.all()
+    serializer_class = serializers.TaskDefinitionInputSerializer
+
+class TaskDefinitionOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.TaskDefinitionOutput.objects.all()
+    serializer_class = serializers.TaskDefinitionOutputSerializer
+
+class TaskDefinitionEnvironmentViewSet(viewsets.ModelViewSet):
+    queryset = models.TaskDefinitionEnvironment.objects.all()
+    serializer_class = serializers.TaskDefinitionEnvironmentSerializer
+
+class TaskDefinitionDockerEnvironmentViewSet(viewsets.ModelViewSet):
+    queryset = models.TaskDefinitionDockerEnvironment.objects.all()
+    serializer_class = serializers.TaskDefinitionDockerEnvironmentSerializer
+
+class InputOutputNodeViewSet(viewsets.ModelViewSet):
+    queryset = models.InputOutputNode.objects.all()
+    serializer_class = serializers.InputOutputNodeSerializer
+
+class ChannelOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.ChannelOutput.objects.all()
+    serializer_class = serializers.ChannelOutputSerializer
+
+class ChannelViewSet(viewsets.ModelViewSet):
+    queryset = models.Channel.objects.all()
+    serializer_class = serializers.ChannelSerializer
+
+class AbstractWorkflowViewSet(viewsets.ModelViewSet):
+    queryset = models.AbstractWorkflow.objects.all()
+    serializer_class = serializers.AbstractWorkflowSerializer
+
+class WorkflowViewSet(viewsets.ModelViewSet):
+    queryset = models.Workflow.objects.all()
+    serializer_class = serializers.WorkflowSerializer
+
+class StepViewSet(viewsets.ModelViewSet):
+    queryset = models.Step.objects.all()
+    serializer_class = serializers.StepSerializer
+
+class RequestedEnvironmentViewSet(viewsets.ModelViewSet):
+    queryset = models.RequestedEnvironment.objects.all()
+    serializer_class = serializers.RequestedEnvironmentSerializer
+
+class RequestedDockerEnvironmentViewSet(viewsets.ModelViewSet):
+    queryset = models.RequestedDockerEnvironment.objects.all()
+    serializer_class = serializers.RequestedDockerEnvironmentSerializer
+
+class RequestedResourceSetViewSet(viewsets.ModelViewSet):
+    queryset = models.RequestedResourceSet.objects.all()
+    serializer_class = serializers.RequestedResourceSetSerializer
+
+class WorkflowInputViewSet(viewsets.ModelViewSet):
+    queryset = models.WorkflowInput.objects.all()
+    serializer_class = serializers.WorkflowInputSerializer
+
+class StepInputViewSet(viewsets.ModelViewSet):
+    queryset = models.StepInput.objects.all()
+    serializer_class = serializers.StepInputSerializer
+
+class FixedWorkflowInputViewSet(viewsets.ModelViewSet):
+    queryset = models.FixedWorkflowInput.objects.all()
+    serializer_class = serializers.FixedWorkflowInputSerializer
+
+class FixedStepInputViewSet(viewsets.ModelViewSet):
+    queryset = models.FixedStepInput.objects.all()
+    serializer_class = serializers.FixedStepInputSerializer
+
+class WorkflowOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.WorkflowOutput.objects.all()
+    serializer_class = serializers.WorkflowOutputSerializer
+
+class StepOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.StepOutput.objects.all()
+    serializer_class = serializers.StepOutputSerializer
+
+class TaskRunAttemptOutputFileImportViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunAttemptOutputFileImport.objects.all()
+    serializer_class = serializers.TaskRunAttemptOutputFileImportSerializer
+
+class TaskRunAttemptLogFileImportViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunAttemptLogFileImport.objects.all()
+    serializer_class = serializers.TaskRunAttemptLogFileImportSerializer
+
+class TaskRunAttemptOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunAttemptOutput.objects.all()
+    serializer_class = serializers.TaskRunAttemptOutputSerializer
+
+class TaskRunAttemptLogFileViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunAttemptLogFile.objects.all()
+    serializer_class = serializers.TaskRunAttemptLogFileSerializer
+
+class TaskRunAttemptViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunAttempt.objects.all()
+    serializer_class = serializers.TaskRunAttemptSerializer
+
+class MockTaskRunAttemptViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.MockTaskRunAttempt.objects.all()
+    serializer_class = serializers.MockTaskRunAttemptSerializer
+
+class LocalTaskRunAttemptViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.LocalTaskRunAttempt.objects.all()
+    serializer_class = serializers.LocalTaskRunAttemptSerializer
+
+class GoogleCloudTaskRunAttemptViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.GoogleCloudTaskRunAttempt.objects.all()
+    serializer_class = serializers.GoogleCloudTaskRunAttemptSerializer
+
+class TaskRunInputViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunInput.objects.all()
+    serializer_class = serializers.TaskRunInputSerializer
+
+class TaskRunOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunOutput.objects.all()
+    serializer_class = serializers.TaskRunOutputSerializer
+
+class TaskRunViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRun.objects.all()
+    serializer_class = serializers.TaskRunSerializer
+
+class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
+    queryset = models.AbstractWorkflowRun.objects.all()
+    serializer_class = serializers.AbstractWorkflowRunSerializer
+
+class WorkflowRunViewSet(viewsets.ModelViewSet):
+    queryset = models.WorkflowRun.objects.all()
+    serializer_class = serializers.WorkflowRunSerializer
+
+class StepRunViewSet(viewsets.ModelViewSet):
+    queryset = models.StepRun.objects.all()
+    serializer_class = serializers.StepRunSerializer
+
+class AbstractStepRunInputViewSet(viewsets.ModelViewSet):
+    queryset = models.AbstractStepRunInput.objects.all()
+    serializer_class = serializers.AbstractStepRunInputSerializer
+
+class StepRunInputViewSet(viewsets.ModelViewSet):
+    queryset = models.StepRunInput.objects.all()
+    serializer_class = serializers.StepRunInputSerializer
+
+class FixedStepRunInputViewSet(viewsets.ModelViewSet):
+    queryset = models.FixedStepRunInput.objects.all()
+    serializer_class = serializers.FixedStepRunInputSerializer
+
+class StepRunOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.StepRunOutput.objects.all()
+    serializer_class = serializers.StepRunOutputSerializer
+
+class WorkflowRunInputViewSet(viewsets.ModelViewSet):
+    queryset = models.WorkflowRunInput.objects.all()
+    serializer_class = serializers.WorkflowRunInputSerializer
     
+class FixedWorkflowRunInputViewSet(viewsets.ModelViewSet):
+    queryset = models.FixedWorkflowRunInput.objects.all()
+    serializer_class = serializers.FixedWorkflowRunInputSerializer
+
+class WorkflowRunOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.WorkflowRunOutput.objects.all()
+    serializer_class = serializers.WorkflowRunOutputSerializer
+
+class RunRequestViewSet(viewsets.ModelViewSet):
+    queryset = models.RunRequest.objects.all()
+    serializer_class = serializers.RunRequestSerializer
+
+class RunRequestInputViewSet(viewsets.ModelViewSet):
+    queryset = models.RunRequestInput.objects.all()
+    serializer_class = serializers.RunRequestInputSerializer
+    
+class RunRequestOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.RunRequestOutput.objects.all()
+    serializer_class = serializers.RunRequestOutputSerializer
+
+class CancelRequestViewSet(viewsets.ModelViewSet):
+    queryset = models.CancelRequest.objects.all()
+    serializer_class = serializers.CancelRequestSerializer
+
+class RestartRequestViewSet(viewsets.ModelViewSet):
+    queryset = models.RestartRequest.objects.all()
+    serializer_class = serializers.RestartRequestSerializer
+
+class FailureNoticeViewSet(viewsets.ModelViewSet):
+    queryset = models.FailureNotice.objects.all()
+    serializer_class = serializers.FailureNoticeSerializer
+
 """
-class Helper:
-
-    @classmethod
-    def create(cls, request, model_class):
-        data_json = request.body
-        try:
-            model = model_class.create(data_json)
-            return JsonResponse({"message": "created %s" % model_class.get_class_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
-        except Exception as e:
-            logger.error('Failed to create %s with data "%s". %s' % (model_class, data_json, e.message))
-            return JsonResponse({"message": e.message}, status=500)
-
-    @classmethod
-    def index(cls, request, model_class):
-        query_string = request.GET.get('q')
-        if query_string is None:
-            model_list = model_class.objects.all()
-        else:
-            model_list = model_class.get_by_name_or_id(query_string)
-        return JsonResponse(
-            {
-                model_class.get_class_name(plural=True):
-                [model.to_struct() for model in model_list]
-            },
-            status=200)
-
-    @classmethod
-    def show(cls, request, id, model_class):
-        try:
-            model = model_class.get_by_id(id)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        return JsonResponse(model.to_struct(), status=200)
-
-    @classmethod
-    def update(cls, request, id, model_class):
-        data_json = request.body
-        model = model_class.get_by_id(id)
-        try:
-            model.downcast().update(data_json)
-            return JsonResponse({"message": "updated %s" % model_class.get_class_name(), "_id": str(model._id), "object": model.to_struct()}, status=201)
-        except Exception as e:
-            logger.error('Failed to update %s with data "%s". %s' % (model_class, data_json, e.message))
-            return JsonResponse({"message": e.message}, status=500)
-
 @require_http_methods(["GET"])
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)

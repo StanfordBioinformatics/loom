@@ -15,8 +15,8 @@ class Channel(BaseModel):
     """
 
     name = models.CharField(max_length=255)
-    data_objects = DuplicateManyToManyField('DataObject')
-    sender = models.OneToOneField('InputOutputNode', related_name='to_channel', null=True)
+    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
+    sender = models.OneToOneField('InputOutputNode', related_name='to_channel', null=True, on_delete=models.CASCADE)
     is_closed_to_new_data = models.BooleanField(default=False)
 
     @classmethod
@@ -59,9 +59,9 @@ class ChannelOutput(BaseModel):
     steps. Each of these destinations has its own queue, implemented as a ChannelOutput.
     """
 
-    channel = models.ForeignKey('Channel', related_name='outputs', null=True) # reversed OneToMany
-    data_objects = DuplicateManyToManyField('DataObject')
-    receiver = models.OneToOneField('InputOutputNode', related_name='from_channel', null=True)
+    channel = models.ForeignKey('Channel', related_name='outputs', null=True, on_delete=models.CASCADE)
+    data_objects = models.ForeignKey('DataObject', null=True, on_delete=models.PROTECT)
+    receiver = models.OneToOneField('InputOutputNode', related_name='from_channel', null=True, on_delete=models.CASCADE)
 
     def _push(self, data_object):
         self.data_objects.add(data_object)
@@ -90,6 +90,12 @@ class ChannelOutput(BaseModel):
 
 
 class InputOutputNode(BasePolymorphicModel):
+
+    channel = models.CharField(max_length=255)
+    type = models.CharField(
+        max_length=255,
+        choices=DataObject.TYPE_CHOICES
+    )
 
     def push(self, *args, **kwargs):
         return self.downcast().push(*args, **kwargs)

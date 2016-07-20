@@ -1,17 +1,12 @@
 from django.db import models
-from django.core import exceptions
-
-from analysis import get_setting
-from analysis.fields import DuplicateManyToManyField
 
 from .base import BaseModel, BasePolymorphicModel
-from .data_objects import DataObject, DataObjectContent
-
+from .data_objects import DataObject
+from analysis import get_setting
 
 
 """Models in this module form the core definition of an analysis task to be run.
 """
-
 
 class TaskDefinition(BaseModel):
     """A TaskDefinition is the fundamental unit of analysis work to be done.
@@ -22,15 +17,12 @@ class TaskDefinition(BaseModel):
     locate previously generated results.
     """
 
-    inputs = DuplicateManyToManyField('TaskDefinitionInput')
-    outputs = DuplicateManyToManyField('TaskDefinitionOutput')
     command = models.CharField(max_length=256)
-    environment = models.ForeignKey('TaskDefinitionEnvironment')
 
 
 class TaskDefinitionEnvironment(BasePolymorphicModel):
 
-    pass
+    environment = models.OneToOneField('TaskDefinition', on_delete=models.CASCADE)
 
 
 class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
@@ -40,14 +32,17 @@ class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
 
 class TaskDefinitionInput(BaseModel):
 
-    data_object_content = models.ForeignKey('DataObjectContent')
+    task_definition = models.ForeignKey('TaskDefinition', related_name='inputs', on_delete=models.CASCADE)
+    data_object_content = models.ForeignKey('DataObjectContent', on_delete=models.PROTECT)
     type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )
 
+
 class TaskDefinitionOutput(BaseModel):
 
+    task_definition = models.ForeignKey('TaskDefinition', related_name='outputs', on_delete=models.CASCADE)
     filename = models.CharField(max_length=255)
     type = models.CharField(
         max_length=255,

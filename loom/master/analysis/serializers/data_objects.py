@@ -1,9 +1,8 @@
-from rest_framework import serializers
 from analysis.models.data_objects import *
-from .base import MagicSerializer, POLYMORPHIC_TYPE_FIELD
+from .base import NestedPolymorphicModelSerializer, POLYMORPHIC_TYPE_FIELD
 
 
-class DataObjectSerializer(MagicSerializer):
+class DataObjectSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = DataObject
@@ -15,7 +14,7 @@ class DataObjectSerializer(MagicSerializer):
         }
 
 
-class DataObjectContentSerializer(MagicSerializer):
+class DataObjectContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = DataObjectContent
@@ -27,13 +26,13 @@ class DataObjectContentSerializer(MagicSerializer):
         }
 
 
-class UnnamedFileContentSerializer(MagicSerializer):
+class UnnamedFileContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = UnnamedFileContent
 
 
-class FileContentSerializer(MagicSerializer):
+class FileContentSerializer(NestedPolymorphicModelSerializer):
 
     unnamed_file_content = UnnamedFileContentSerializer()
 
@@ -43,7 +42,7 @@ class FileContentSerializer(MagicSerializer):
         nested_x_to_one_serializers = {'unnamed_file_content': 'analysis.serializers.data_objects.UnnamedFileContentSerializer'}
 
 
-class FileLocationSerializer(MagicSerializer):
+class FileLocationSerializer(NestedPolymorphicModelSerializer):
 
     unnamed_file_content = UnnamedFileContentSerializer()
 
@@ -52,7 +51,7 @@ class FileLocationSerializer(MagicSerializer):
         nested_x_to_one_serializers = {'unnamed_file_content': 'analysis.serializers.data_objects.UnnamedFileContentSerializer'}
 
 
-class AbstractFileImportSerializer(MagicSerializer):
+class AbstractFileImportSerializer(NestedPolymorphicModelSerializer):
 
     temp_file_location = FileLocationSerializer(allow_null=True, required=False)
     file_location = FileLocationSerializer(allow_null=True, required=False)
@@ -75,7 +74,7 @@ class FileImportSerializer(AbstractFileImportSerializer):
         nested_x_to_one_serializers = AbstractFileImportSerializer.Meta.nested_x_to_one_serializers
 
 
-class FileDataObjectSerializer(MagicSerializer):
+class FileDataObjectSerializer(NestedPolymorphicModelSerializer):
 
     file_content = FileContentSerializer(allow_null=True, required=False)
     file_import = AbstractFileImportSerializer(allow_null=True, required=False)
@@ -89,14 +88,14 @@ class FileDataObjectSerializer(MagicSerializer):
         }
 
 
-class StringContentSerializer(MagicSerializer):
+class StringContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = StringContent
         exclude = (POLYMORPHIC_TYPE_FIELD,)
 
         
-class StringDataObjectSerializer(MagicSerializer):
+class StringDataObjectSerializer(NestedPolymorphicModelSerializer):
 
     string_content = StringContentSerializer()
 
@@ -108,14 +107,14 @@ class StringDataObjectSerializer(MagicSerializer):
         }
 
 
-class BooleanContentSerializer(MagicSerializer):
+class BooleanContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = BooleanContent
         exclude = (POLYMORPHIC_TYPE_FIELD,)
 
         
-class BooleanDataObjectSerializer(MagicSerializer):
+class BooleanDataObjectSerializer(NestedPolymorphicModelSerializer):
 
     boolean_content = BooleanContentSerializer()
 
@@ -127,14 +126,14 @@ class BooleanDataObjectSerializer(MagicSerializer):
         }
 
 
-class IntegerContentSerializer(MagicSerializer):
+class IntegerContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = IntegerContent
         exclude = (POLYMORPHIC_TYPE_FIELD,)
         
 
-class IntegerDataObjectSerializer(MagicSerializer):
+class IntegerDataObjectSerializer(NestedPolymorphicModelSerializer):
 
     integer_content = IntegerContentSerializer()
 
@@ -146,7 +145,7 @@ class IntegerDataObjectSerializer(MagicSerializer):
         }
 
 """
-class DataObjectArraySerializer(MagicSerializer):
+class DataObjectArraySerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = DataObjectArray

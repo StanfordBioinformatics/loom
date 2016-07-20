@@ -1,9 +1,8 @@
-from analysis.models.task_definitions import *
-from .base import MagicSerializer, POLYMORPHIC_TYPE_FIELD
+from .base import NestedPolymorphicModelSerializer, POLYMORPHIC_TYPE_FIELD
 from .data_objects import DataObjectContentSerializer
+from analysis.models.task_definitions import *
 
-
-class TaskDefinitionInputSerializer(MagicSerializer):
+class TaskDefinitionInputSerializer(NestedPolymorphicModelSerializer):
 
     data_object_content = DataObjectContentSerializer(required=False)
 
@@ -12,15 +11,15 @@ class TaskDefinitionInputSerializer(MagicSerializer):
         nested_x_to_one_serializers = {
             'data_object_content': 'analysis.serializers.data_objects.DataObjectContentSerializer'
         }
-    
 
-class TaskDefinitionOutputSerializer(MagicSerializer):
+
+class TaskDefinitionOutputSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = TaskDefinitionOutput
-    
 
-class TaskDefinitionEnvironmentSerializer(MagicSerializer):
+
+class TaskDefinitionEnvironmentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = TaskDefinitionEnvironment
@@ -35,7 +34,7 @@ class TaskDefinitionDockerEnvironmentSerializer(TaskDefinitionEnvironmentSeriali
         model = TaskDefinitionDockerEnvironment
 
 
-class TaskDefinitionSerializer(MagicSerializer):
+class TaskDefinitionSerializer(NestedPolymorphicModelSerializer):
 
     inputs = TaskDefinitionInputSerializer(many=True, required=False)
     outputs = TaskDefinitionOutputSerializer(many=True, required=False)

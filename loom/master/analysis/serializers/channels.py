@@ -1,8 +1,9 @@
-from analysis.models.channels import *
-from .base import MagicSerializer, POLYMORPHIC_TYPE_FIELD
+from .base import NestedPolymorphicModelSerializer, POLYMORPHIC_TYPE_FIELD
 from .data_objects import DataObjectSerializer
+from analysis.models.channels import *
 
-class InputOutputNodeSerializer(MagicSerializer):
+
+class InputOutputNodeSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = InputOutputNode
@@ -16,7 +17,7 @@ class InputOutputNodeSerializer(MagicSerializer):
         }
 
 
-class ChannelOutputSerializer(MagicSerializer):
+class ChannelOutputSerializer(NestedPolymorphicModelSerializer):
 
     data_objects = DataObjectSerializer(many=True, required=False)
     receiver = InputOutputNodeSerializer(required=False)
@@ -31,7 +32,7 @@ class ChannelOutputSerializer(MagicSerializer):
         }
 
 
-class ChannelSerializer(MagicSerializer):
+class ChannelSerializer(NestedPolymorphicModelSerializer):
 
     data_objects = DataObjectSerializer(many=True, required=False)
     outputs = ChannelOutputSerializer(many=True, required=False)

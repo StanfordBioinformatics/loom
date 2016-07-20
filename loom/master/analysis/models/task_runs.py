@@ -1,27 +1,27 @@
 from copy import deepcopy
+from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 from jinja2 import DictLoader, Environment
 import os
 
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.task_definitions import *
 from analysis.models.data_objects import DataObject, AbstractFileImport
 from analysis.models.workflows import Step, RequestedResourceSet
 from analysis import get_setting
 from analysis.task_manager.factory import TaskManagerFactory
-from universalmodels import fields
+from .base import BaseModel, BasePolymorphicModel
 
 
-class TaskRun(AnalysisAppInstanceModel):
+class TaskRun(BaseModel):
+
     """One instance of executing a TaskDefinition, i.e. executing a Step on a particular set
     of inputs.
     """
 
-    task_definition = fields.ForeignKey('TaskDefinition', related_name='task_runs')
-    inputs = fields.OneToManyField('TaskRunInput', related_name='task_run')
-    outputs = fields.OneToManyField('TaskRunOutput', related_name='task_run')
-    resources = fields.ForeignKey('RequestedResourceSet')
+    step_run = models.ForeignKey('StepRun', related_name='task_runs', on_delete=models.CASCADE)
+    task_definition = models.OneToOneField('TaskDefinition', related_name='task_run', on_delete=models.PROTECT)
+    resources = models.OneToOneField('RequestedResourceSet', on_delete=models.CASCADE)
 
     def run(self, is_mock=False):
         task_manager = TaskManagerFactory.get_task_manager(is_mock=is_mock)
@@ -31,9 +31,12 @@ class TaskRun(AnalysisAppInstanceModel):
         return self.run(is_mock=True)
 
 
-class TaskRunInput(AnalysisAppInstanceModel):
-    task_definition_input = fields.ForeignKey('TaskDefinitionInput')
-    data_object = fields.ForeignKey('DataObject')
+class TaskRunInput(BaseModel):
+
+    task_run = models.ForeignKey('TaskRun', related_name='inputs', on_delete=models.CASCADE)
+    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
+    task_definition_input = models.OneToOneField('TaskDefinitionInput', related_name='task_run_input', null=True, on_delete=models.SET_NULL)
+    step_run_input = models.ForeignKey('StepRunInput', related_name='task_run_inputs', null=True, on_delete=models.SET_NULL)
 
     def get_step_run_input(self, step_run):
         # Get the related StepRunInput in the given StepRun
@@ -51,9 +54,11 @@ class TaskRunInput(AnalysisAppInstanceModel):
         return self.get_step_run_input(step_run).channel
 
 
-class TaskRunOutput(AnalysisAppInstanceModel):
-    task_definition_output = fields.ForeignKey('TaskDefinitionOutput')
-    data_object = fields.ForeignKey('DataObject', null=True)
+class TaskRunOutput(BaseModel):
+
+    task_run = models.ForeignKey('TaskRun', related_name='outputs', on_delete=models.CASCADE)
+    data_object = models.ForeignKey('DataObject', null=True, on_delete=models.PROTECT)
+    task_definition_output = models.OneToOneField('TaskDefinitionOutput', related_name='task_run_output', null=True, on_delete=models.SET_NULL)
 
     def get_step_run_output(self, step_run):
         # Get the related StepRunOutput in the given StepRun
@@ -76,10 +81,9 @@ class TaskRunOutput(AnalysisAppInstanceModel):
                     step_run_output.push(self.data_object)
 
 
-class TaskRunAttempt(AnalysisAppInstanceModel):
-    task_run = fields.ForeignKey('TaskRun')
-    log_files = fields.OneToManyField('TaskRunAttemptLogFile', related_name='task_run_attempt')
-    outputs = fields.OneToManyField('TaskRunAttemptOutput', related_name='task_run_attempt')
+class TaskRunAttempt(BasePolymorphicModel):
+
+    task_run = models.ForeignKey('TaskRun', related_name='task_run_attempts', on_delete=models.CASCADE)
 
     def after_create_or_update(self, data):
         if self.outputs.count() == 0:
@@ -102,6 +106,7 @@ class TaskRunAttempt(AnalysisAppInstanceModel):
         self.log_files.add(log_file)
         return log_file
 
+
 class MockTaskRunAttempt(TaskRunAttempt):
 
     pass
@@ -111,15 +116,17 @@ class LocalTaskRunAttempt(TaskRunAttempt):
 
     pass
 
+
 class GoogleCloudTaskRunAttempt(TaskRunAttempt):
 
     pass
 
 
-class TaskRunAttemptOutput(AnalysisAppInstanceModel):
+class TaskRunAttemptOutput(BaseModel):
 
-    task_run_output = fields.ForeignKey('TaskRunOutput')
-    data_object = fields.OneToOneField('DataObject', null=True, related_name='task_run_attempt_output')
+    task_run_attempt = models.ForeignKey('TaskRunAttempt', related_name='outputs', on_delete=models.CASCADE)
+    data_object = models.OneToOneField('DataObject', null=True, related_name='task_run_attempt_output', on_delete=models.PROTECT)
+    task_run_output = models.ForeignKey('TaskRunOutput', related_name='task_run_attempt_outputs', null=True, on_delete=models.SET_NULL)
 
     def after_create_or_update(self, data):
         if not get_setting('DISABLE_AUTO_PUSH'):
@@ -131,10 +138,11 @@ class TaskRunAttemptOutput(AnalysisAppInstanceModel):
         self.task_run_output.push(data_object)
 
 
-class TaskRunAttemptLogFile(AnalysisAppInstanceModel):
+class TaskRunAttemptLogFile(BaseModel):
 
-    log_name = fields.CharField(max_length=255)
-    file_data_object = fields.OneToOneField('FileDataObject', null=True, related_name='task_run_attempt_log_file')
+    task_run_attempt = models.ForeignKey('TaskRunAttempt', related_name='log_files', on_delete=models.CASCADE)
+    log_name = models.CharField(max_length=255)
+    file_data_object = models.OneToOneField('FileDataObject', null=True, related_name='task_run_attempt_log_file', on_delete=models.PROTECT)
 
     def after_create_or_update(self, data):
         if self.file_data_object is None:
@@ -178,6 +186,7 @@ class AbstractTaskRunAttemptFileImport(AbstractFileImport):
 
     class Meta:
         abstract = True
+
 
 class TaskRunAttemptOutputFileImport(AbstractTaskRunAttemptFileImport):
 

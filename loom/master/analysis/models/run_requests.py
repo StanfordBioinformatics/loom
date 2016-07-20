@@ -1,32 +1,25 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db import models
 
+from .base import BaseModel, BasePolymorphicModel
+from .channels import Channel, InputOutputNode
+from .data_objects import DataObject
+from .workflow_runs import AbstractWorkflowRun
+from .workflows import Workflow
 from analysis import get_setting
-from universalmodels import fields
-from analysis.models.base import AnalysisAppInstanceModel
-from analysis.models.channels import Channel, InputOutputNode
-from analysis.models.data_objects import DataObject
-from analysis.models.workflow_runs import AbstractWorkflowRun
-from analysis.models.workflows import Workflow
 
 
-class RunRequest(AnalysisAppInstanceModel):
+class RunRequest(BaseModel):
 
-    template = fields.ForeignKey('AbstractWorkflow')
-    inputs = fields.OneToManyField('RunRequestInput', related_name='run_request')
-    outputs = fields.OneToManyField('RunRequestOutput', related_name='run_request')
-    run = fields.OneToOneField('AbstractWorkflowRun', null=True)
-
-    cancel_requests = fields.OneToManyField('CancelRequest', related_name='run_request')
-    restart_requests = fields.OneToManyField('RestartRequest', related_name='run_request')
-    failure_notices = fields.OneToManyField('FailureNotice', related_name='run_request')
-
-    is_running = fields.BooleanField(default=True)
-    is_stopping = fields.BooleanField(default=False)
-    is_hard_stop = fields.BooleanField(default=False)
-    is_failed = fields.BooleanField(default=False)
-    is_canceled = fields.BooleanField(default=False)
-    is_completed = fields.BooleanField(default=False)
+    template = models.ForeignKey('AbstractWorkflow', on_delete=models.PROTECT)
+    run = models.OneToOneField('AbstractWorkflowRun', null=True, on_delete=models.PROTECT)
+    is_running = models.BooleanField(default=True)
+    is_stopping = models.BooleanField(default=False)
+    is_hard_stop = models.BooleanField(default=False)
+    is_failed = models.BooleanField(default=False)
+    is_canceled = models.BooleanField(default=False)
+    is_completed = models.BooleanField(default=False)
 
     def after_create_or_update(self, data):
         self._initialize_run()
@@ -139,8 +132,8 @@ class RunRequest(AnalysisAppInstanceModel):
 
 class RunRequestInput(InputOutputNode):
 
-    channel = fields.CharField(max_length=255)
-    value = fields.CharField(max_length=255)
+    run_request = models.ForeignKey('RunRequest', related_name='inputs', on_delete=models.CASCADE)
+    value = models.CharField(max_length=255)
 
     def initial_push(self):
         data_object = self._get_data_object()
@@ -155,9 +148,8 @@ class RunRequestInput(InputOutputNode):
 
 
 class RunRequestOutput(InputOutputNode):
-
-    channel = fields.CharField(max_length=255)
-    data_object = fields.ForeignKey('DataObject', null=True)
+    
+    run_request = models.ForeignKey('RunRequest', related_name='outputs', on_delete=models.CASCADE)
 
     def push(self, data_object):
         if self.data_object is None:
@@ -173,9 +165,10 @@ class RunRequestOutput(InputOutputNode):
             return False
 
 
-class CancelRequest(AnalysisAppInstanceModel):
+class CancelRequest(BaseModel):
 
-    is_hard_stop = fields.BooleanField()
+    run_request = models.ForeignKey('RunRequest', related_name='cancel_requests', on_delete=models.CASCADE)
+    is_hard_stop = models.BooleanField()
 
     @classmethod
     def before_create_or_update(cls, data):
@@ -188,15 +181,18 @@ class CancelRequest(AnalysisAppInstanceModel):
         self.run_request.refresh_status()
 
 
-class RestartRequest(AnalysisAppInstanceModel):
+class RestartRequest(BaseModel):
 
+    run_request = models.ForeignKey('RunRequest', related_name='restart_requests', on_delete=models.CASCADE)
+    
     def after_create_or_update(self, data):
         self.run_request.refresh_status()
 
 
-class FailureNotice(AnalysisAppInstanceModel):
+class FailureNotice(BaseModel):
 
-    is_hard_stop = fields.BooleanField()
+    run_request = models.ForeignKey('RunRequest', related_name='failure_notices', on_delete=models.CASCADE)
+    is_hard_stop = models.BooleanField()
 
     @classmethod
     def before_create_or_update(cls, data):

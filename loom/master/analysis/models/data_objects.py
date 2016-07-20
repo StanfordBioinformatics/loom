@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-import json
 import os
 import uuid
 
@@ -50,12 +49,10 @@ class DataObjectContent(BasePolymorphicModel):
 class FileDataObject(DataObject):
 
     NAME_FIELD = 'file_content__filename'
-
     TYPE = 'file'
 
-    file_content = models.ForeignKey('FileContent', null=True)
-    file_import = models.OneToOneField('AbstractFileImport', related_name='data_object')
-
+    file_content = models.ForeignKey('FileContent', null=True, on_delete=models.PROTECT, related_name='data_object')
+    
     def get_content(self):
         return self.file_content
 
@@ -91,7 +88,7 @@ class FileContent(DataObjectContent):
     """
 
     filename = models.CharField(max_length=255)
-    unnamed_file_content = models.ForeignKey('UnnamedFileContent')
+    unnamed_file_content = models.ForeignKey('UnnamedFileContent', related_name='file_contents', on_delete=models.PROTECT)
 
     def get_substitution_value(self):
         return self.filename
@@ -120,7 +117,8 @@ class FileLocation(BaseModel):
     unnamed_file_content = models.ForeignKey(
         'UnnamedFileContent',
         null=True,
-        related_name='file_locations')
+        related_name='file_locations',
+        on_delete=models.SET_NULL)
     url = models.CharField(max_length=1000)
     status = models.CharField(
         max_length=256,
@@ -129,6 +127,7 @@ class FileLocation(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
+
 
     @classmethod
     def get_location_for_import(cls, file_import):
@@ -204,8 +203,9 @@ class FileLocation(BaseModel):
 
 class AbstractFileImport(BasePolymorphicModel):
 
-    temp_file_location = models.OneToOneField('FileLocation', null=True, related_name='temp_file_import')
-    file_location = models.ForeignKey('FileLocation', null=True, related_name='file_imports')
+    file_data_object = models.OneToOneField('FileDataObject', related_name='file_import', on_delete=models.CASCADE)
+    file_location = models.OneToOneField('FileLocation', null=True, related_name='file_import', on_delete=models.SET_NULL)
+    temp_file_location = models.OneToOneField('FileLocation', null=True, related_name='file_import_as_temp', on_delete=models.SET_NULL)
 
     def after_create_or_update(self, data):
         # If there is no FileLocation, set a temporary one.
@@ -251,11 +251,11 @@ class DatabaseDataObject(DataObject):
 
 
 class StringDataObject(DatabaseDataObject):
-    
-    TYPE = 'string'
-    
-    string_content = models.ForeignKey('StringContent')
 
+    TYPE = 'string'
+
+    string_content = models.OneToOneField('StringContent', related_name='data_object', on_delete=models.PROTECT)
+    
     def get_content(self):
         return self.string_content
 
@@ -281,9 +281,9 @@ class StringContent(DataObjectContent):
 class BooleanDataObject(DatabaseDataObject):
     
     TYPE = 'boolean'
-    
-    boolean_content = models.ForeignKey('BooleanContent')
 
+    boolean_content = models.OneToOneField('BooleanContent', related_name='data_object', on_delete=models.PROTECT)
+    
     def get_content(self):
         return self.boolean_content
 
@@ -315,9 +315,9 @@ class BooleanContent(DataObjectContent):
 class IntegerDataObject(DatabaseDataObject):
     
     TYPE = 'integer'
-    
-    integer_content = models.ForeignKey('IntegerContent')
 
+    integer_content = models.OneToOneField('IntegerContent', related_name='data_object', on_delete=models.PROTECT)
+    
     def get_content(self):
         return self.integer_content
 

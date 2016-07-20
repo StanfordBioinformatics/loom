@@ -23,7 +23,7 @@ def get_class(kls):
         m = getattr(m, comp)
     return m
 
-class MagicSerializer(serializers.ModelSerializer):
+class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
 
     """This class supplements the features of django-rest-framework
     and django-polymorphic to handle serialization/deserialization of
@@ -40,11 +40,11 @@ class MagicSerializer(serializers.ModelSerializer):
         if isinstance(instance, models.Model):
             serializer = self._select_subclass_serializer_by_model_instance(instance)
             if serializer == self:
-                return super(MagicSerializer, self).to_representation(instance)
+                return super(NestedPolymorphicModelSerializer, self).to_representation(instance)
             else:
                 return serializer.to_representation(instance)
         else:
-            return super(MagicSerializer, self).to_representation(instance)
+            return super(NestedPolymorphicModelSerializer, self).to_representation(instance)
             
     def create(self, validated_data):
 

@@ -1,15 +1,16 @@
+from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from analysis import get_setting
 from analysis.exceptions import *
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+
 from analysis.models.channels import Channel, InputOutputNode, ChannelSet
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
 from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
 from analysis.models.workflows import AbstractWorkflow, Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
-from universalmodels import fields
+from .base import BaseModel, BasePolymorphicModel
 
 
 """
@@ -17,10 +18,12 @@ This module defines WorkflowRun and other classes related to
 running an analysis
 """
 
-class AbstractWorkflowRun(AnalysisAppInstanceModel):
+class AbstractWorkflowRun(BasePolymorphicModel):
     """AbstractWorkflowRun represents the process of executing a Workflow on a particular
     set of inputs. The workflow may be either a Step or a Workflow composed of one or more Steps.
     """
+
+    parent = models.ForeignKey('WorkflowRun', related_name='step_runs', null=True, on_delete=models.CASCADE)
 
     @classmethod
     def before_create_or_update(cls, data):
@@ -47,11 +50,7 @@ class WorkflowRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'workflow__name'
 
-    step_runs = fields.OneToManyField('AbstractWorkflowRun', related_name='parent_run')
-    inputs = fields.OneToManyField('WorkflowRunInput', related_name='workflow_run')
-    fixed_inputs = fields.OneToManyField('FixedWorkflowRunInput', related_name='workflow_run')
-    outputs = fields.OneToManyField('WorkflowRunOutput', related_name='workflow_run')
-    template = fields.ForeignKey('Workflow')
+    template = models.ForeignKey('Workflow', related_name='workflow_runs', on_delete=models.CASCADE)
 
     def is_step(self):
         return False
@@ -116,11 +115,7 @@ class StepRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'step__name'
 
-    inputs = fields.OneToManyField('StepRunInput', related_name='step_run')
-    fixed_inputs = fields.OneToManyField('FixedStepRunInput', related_name='step_run')
-    outputs = fields.OneToManyField('StepRunOutput', related_name='step_run')
-    template = fields.ForeignKey('Step', related_name='step_run')
-    task_runs = fields.ManyToManyField('TaskRun', related_name='step_runs')
+    template = models.ForeignKey('Step', related_name='step_runs', on_delete=models.CASCADE)
 
     def after_create_or_update(self, data):
         if not self._is_initialized():
@@ -170,22 +165,10 @@ class StepRun(AbstractWorkflowRun):
             task_run.run()
 
 
-class TypedInputOutputNode(InputOutputNode):
+class AbstractStepRunInput(InputOutputNode):
 
-    channel = fields.CharField(max_length=255)
-    type = fields.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
-    data_object = fields.ForeignKey('DataObject', null=True)
-
-    class Meta:
-        abstract = True
-
-
-class AbstractStepRunInput(TypedInputOutputNode):
-
-    task_run_inputs = fields.ManyToManyField('TaskRunInput', related_name='step_run_inputs')
+    # This table is needed because it is referenced by TaskRunInput,
+    # and TaskRuns do not distinguish between fixed and runtime inputs
 
     def push(self, data_object):
         if self.data_object is None:
@@ -193,13 +176,14 @@ class AbstractStepRunInput(TypedInputOutputNode):
             if self.step_run:
                 self.step_run.push()
 
-
 class StepRunInput(AbstractStepRunInput):
 
-    pass
+    step_run = models.ForeignKey('StepRun', related_name='inputs', on_delete=models.CASCADE)
 
 
 class FixedStepRunInput(AbstractStepRunInput):
+
+    step_run = models.ForeignKey('StepRun', related_name='fixed_inputs', on_delete=models.CASCADE)
 
     def initial_push(self):
         data_object = self._get_data_object()
@@ -211,9 +195,10 @@ class FixedStepRunInput(AbstractStepRunInput):
         return DataObject.get_by_value(fixed_step_input.value, self.type)
 
 
-class StepRunOutput(TypedInputOutputNode):
+class StepRunOutput(InputOutputNode):
 
-    task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
+    task_run_outputs = models.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
+    step_run = models.ForeignKey('StepRun', related_name='outputs', on_delete=models.CASCADE)
 
     def push(self, data_object):
         if self.data_object is None:
@@ -227,14 +212,19 @@ class StepRunOutput(TypedInputOutputNode):
     def get_type(self):
         return self.step_run.template.get_output(self.channel).type
 
-class WorkflowRunInput(TypedInputOutputNode):
+
+class WorkflowRunInput(InputOutputNode):
+
+    workflow_run = models.ForeignKey('WorkflowRun', related_name='inputs', on_delete=models.CASCADE)
 
     def push(self, data_object):
         if self.data_object is None:
             self.update({'data_object': data_object})
             self.from_channel.forward(self.to_channel)
 
-class FixedWorkflowRunInput(TypedInputOutputNode):
+class FixedWorkflowRunInput(InputOutputNode):
+
+    workflow_run = models.ForeignKey('WorkflowRun', related_name='fixed_inputs', on_delete=models.CASCADE)
 
     def initial_push(self):
         self.update({'data_object': self._get_data_object()})
@@ -245,7 +235,9 @@ class FixedWorkflowRunInput(TypedInputOutputNode):
         return DataObject.get_by_value(fixed_workflow_input.value, self.type)
 
 
-class WorkflowRunOutput(TypedInputOutputNode):
+class WorkflowRunOutput(InputOutputNode):
+
+    workflow_run = models.ForeignKey('WorkflowRun', related_name='outputs', on_delete=models.CASCADE)
 
     def push(self, data_object):
         if self.data_object is None:

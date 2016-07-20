@@ -1,9 +1,10 @@
+from django.db import models
 from django.core.exceptions import ValidationError
 
+from analysis.fields import DuplicateManyToManyField
 from analysis.exceptions import *
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import DataObject
-from universalmodels import fields
+from .base import BaseModel, BasePolymorphicModel
+from .data_objects import DataObject
 
 
 """
@@ -12,8 +13,8 @@ A Workflow is a template of an analysis to run, where
 some inputs may be specified at runtime.
 """
 
+class AbstractWorkflow(BasePolymorphicModel):
 
-class AbstractWorkflow(AnalysisAppImmutableModel):
     """An AbstractWorkflow is either a step or a collection of steps.
     Workflows are ImmutableModels in order to prevent clutter. If the same workflow 
     or step is uploaded multiple times, duplicate objects will not be created.
@@ -21,7 +22,7 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
 
     NAME_FIELD = 'name'
     
-    name = fields.CharField(max_length=255)
+    name = models.CharField(max_length=255)
 
     def is_step(self):
         return self.downcast().is_step()
@@ -33,13 +34,11 @@ class AbstractWorkflow(AnalysisAppImmutableModel):
 
 
 class Workflow(AbstractWorkflow):
+
     """A collection of steps or workflows
     """
 
-    steps = fields.ManyToManyField('AbstractWorkflow', related_name='parent_workflow')
-    inputs = fields.ManyToManyField('WorkflowInput')
-    fixed_inputs = fields.ManyToManyField('FixedWorkflowInput')
-    outputs = fields.ManyToManyField('WorkflowOutput')
+    steps = DuplicateManyToManyField('AbstractWorkflow', related_name='parent')
 
     def after_create_or_update(self, data):
         self._validate_workflow()
@@ -91,16 +90,12 @@ class Workflow(AbstractWorkflow):
         return False
 
 class Step(AbstractWorkflow):
+
     """Steps are smaller units of processing within a Workflow. A Step can give rise to a single process,
     or it may iterate over an array to produce many parallel processing tasks.
     """
 
-    command = fields.CharField(max_length=255)
-    environment = fields.ForeignKey('RequestedEnvironment')
-    resources = fields.ForeignKey('RequestedResourceSet')
-    inputs = fields.ManyToManyField('StepInput')
-    fixed_inputs = fields.ManyToManyField('FixedStepInput')
-    outputs = fields.ManyToManyField('StepOutput')
+    command = models.CharField(max_length=255)
 
     def is_step(self):
         return True
@@ -110,75 +105,76 @@ class Step(AbstractWorkflow):
         assert outputs.count() == 1
         return outputs.first()
 
-class RequestedEnvironment(AnalysisAppImmutableModel):
+class RequestedEnvironment(BasePolymorphicModel):
 
-    pass
+    environment = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='environment')
 
 
 class RequestedDockerEnvironment(RequestedEnvironment):
 
-    docker_image = fields.CharField(max_length=255)
+    docker_image = models.CharField(max_length=255)
 
 
-class RequestedResourceSet(AnalysisAppImmutableModel):
+class RequestedResourceSet(BaseModel):
 
-    memory = fields.CharField(max_length=255)
-    disk_space = fields.CharField(max_length=255)
-    cores = fields.CharField(max_length=255)
+    step = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='resources')
+    memory = models.CharField(max_length=255)
+    disk_space = models.CharField(max_length=255)
+    cores = models.CharField(max_length=255)
 
 
-class AbstractInput(AnalysisAppImmutableModel):
+class AbstractWorkflowInput(BasePolymorphicModel):
 
-    type = fields.CharField(
+    type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )
-    channel = fields.CharField(max_length=255)
+    channel = models.CharField(max_length=255)
 
     class Meta:
         abstract = True
 
 
-class AbstractRuntimeInput(AbstractInput):
+class AbstractRuntimeWorkflowInput(AbstractWorkflowInput):
 
-    hint = fields.CharField(max_length=255, null=True)
-
-    class Meta:
-        abstract = True
-
-
-class AbstractFixedInput(AbstractInput):
-
-    value = fields.CharField(max_length=255)
+    hint = models.CharField(max_length=255, null=True)
 
     class Meta:
         abstract = True
 
 
-class WorkflowInput(AbstractRuntimeInput):
+class AbstractFixedWorkflowInput(AbstractWorkflowInput):
 
-    pass
+    value = models.CharField(max_length=255)
 
-
-class StepInput(AbstractRuntimeInput):
-
-    pass
+    class Meta:
+        abstract = True
 
 
-class FixedStepInput(AbstractFixedInput):
+class WorkflowInput(AbstractRuntimeWorkflowInput):
 
-    pass
-
-
-class FixedWorkflowInput(AbstractFixedInput):
-
-    pass
+    workflow = models.ForeignKey('Workflow', related_name='inputs', on_delete=models.CASCADE)
 
 
-class AbstractOutput(AnalysisAppImmutableModel):
+class StepInput(AbstractRuntimeWorkflowInput):
 
-    channel = fields.CharField(max_length=255)
-    type = fields.CharField(
+    step = models.ForeignKey('Step', related_name='inputs', on_delete=models.CASCADE)
+
+
+class FixedWorkflowInput(AbstractFixedWorkflowInput):
+
+    workflow = models.ForeignKey('Workflow', related_name='fixed_inputs', on_delete=models.CASCADE)
+
+
+class FixedStepInput(AbstractFixedWorkflowInput):
+
+    step = models.ForeignKey('Step', related_name='fixed_inputs', on_delete=models.CASCADE)
+
+
+class AbstractOutput(BasePolymorphicModel):
+
+    channel = models.CharField(max_length=255)
+    type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES,
         blank=False
@@ -190,9 +186,10 @@ class AbstractOutput(AnalysisAppImmutableModel):
 
 class WorkflowOutput(AbstractOutput):
 
-    pass
+    workflow = models.ForeignKey('Workflow', related_name='outputs', on_delete=models.CASCADE)
 
 
 class StepOutput(AbstractOutput):
 
-    filename = fields.CharField(max_length=255)
+    filename = models.CharField(max_length=255)
+    workflow = models.ForeignKey('Step', related_name='outputs', on_delete=models.CASCADE)
