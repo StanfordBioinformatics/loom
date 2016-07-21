@@ -1,0 +1,5 @@
+---
+# Options passed to the docker daemon at start
+docker_opts: ""
+# Dictionary of variables to set in the docker daemon's environment
+docker_env: {}

@@ -1,0 +1,14 @@
+---
+- name: Create a new instance for the Loom server.
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  roles:
+  - new_master_instance
+
+- name: Set up the Loom server on the new instance. 
+  hosts: new_instances
+  become: yes
+  become_method: sudo
+  roles:
+  - loom_master

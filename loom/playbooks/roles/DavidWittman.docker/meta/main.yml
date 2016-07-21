@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: David Wittman
+  description: An unopinionated Docker role for RHEL/CentOS
+  min_ansible_version: 1.2
+  platforms:
+    - name: EL
+      versions:
+        - 6
+        - 7
+  categories:
+    - cloud
+    - system
+    - platform
+
+dependencies: []

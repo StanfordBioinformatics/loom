@@ -1,0 +1,8 @@
+server_name: "{{lookup('env','SERVER_NAME')}}"
+server_zone: "{{lookup('env','SERVER_ZONE')}}"
+server_vm_image: "{{lookup('env','SERVER_VM_IMAGE')}}"
+server_instance_type: "{{lookup('env','SERVER_INSTANCE_TYPE')}}"
+server_network: "{{lookup('env','SERVER_NETWORK')}}"
+server_tags: "{{lookup('env','SERVER_TAGS')}}"
+server_disk_type: "{{lookup('env','SERVER_DISK_TYPE')}}"
+server_disk_size: "{{lookup('env','SERVER_DISK_SIZE')}}"

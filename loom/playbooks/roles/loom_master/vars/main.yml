@@ -1,0 +1,4 @@
+client_version: "{{lookup('env','CLIENT_VERSION')}}"
+gce_pem_file_path: "{{lookup('env', 'GCE_PEM_FILE_PATH')}}"
+deploy_settings_filename: "{{lookup('env', 'DEPLOY_SETTINGS_FILENAME')}}"
+remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
