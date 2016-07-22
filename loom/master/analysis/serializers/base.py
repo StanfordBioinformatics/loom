@@ -41,19 +41,18 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
             serializer = self._select_subclass_serializer_by_model_instance(instance)
             if serializer == self:
                 repr = super(NestedPolymorphicModelSerializer, serializer).to_representation(instance)
-                repr.update({'_class': serializer._get_model_class()})
-                return repr
+                repr.update({'_class': self.Meta.model.__name__})
             else:
+                # Recurse until we reach the lowest subclass
                 repr = serializer.to_representation(instance)
-                repr.update({'_class': serializer._get_model_class()})
-                return repr
+                repr.update({'_class': self.Meta.model.__name__})
         else:
+            # If the Serializer was instantiated from data with no model,
+            # "instance" is an OrderedDict, not a Model
             repr = super(NestedPolymorphicModelSerializer, self).to_representation(instance)
-            repr.update({'_class': serializer._get_model_class()})
-            return repr
+            repr.update({'_class': self.Meta.model.__name__})
 
-    def _get_model_class(self):
-        return self.Meta.model.__name__
+        return repr
 
     def create(self, validated_data):
 
@@ -150,9 +149,6 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
                 ChildSerializer = _get_class_from_string(ChildSerializer)
 
                 if self.initial_data.get(field_name):
-                    # Clearing existing relations is needed on update. On create it has no effect.
-                    getattr(model, field_name).clear()
-
                     for data in self.initial_data.get(field_name):
                         child_serializer = ChildSerializer(data=data)
                         child_serializer.is_valid()
@@ -161,6 +157,9 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
 
         return model
 
+    def _get_related_field_name(self, field_name):
+        return getattr(self.Meta.model, field_name).related.field.name
+        
     def _create_reverse_x_to_one_children(self, model):
 
         if hasattr(self.Meta, 'nested_reverse_x_to_one_serializers'):
@@ -286,7 +285,7 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
                 if data:
                     if child_instance:
                         # Update the existing child instance
-                        child_serializer = ChildSerializer(child_instance, data=data, partial=True)
+                        child_serializer = ChildSerializer(child_instance, data=data, partial=False)
                     else:
                         # Create a new child instance
                         child_serializer = ChildSerializer(data=data)
@@ -304,12 +303,21 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
 
     def _update_x_to_many_children(self, model):
 
-        # Here running create works just fine for an update.
-        # If a member has an ID, that member will be updated.
-        # If not, a new member will be created, which is something
-        # you may want to do in an update.
-        #
-        return self._create_x_to_many_children(model)
+        # On update, we don't allow a change in the number of children.
+        # Instead updates are passed through to each child.
+        
+        if hasattr(self.Meta, 'nested_x_to_many_serializers'):
+
+            for field_name, ChildSerializer in self.Meta.nested_x_to_many_serializers.iteritems():
+                ChildSerializer = _get_class_from_string(ChildSerializer)
+
+                if self.initial_data.get(field_name):
+                    for data, child_model in zip(self.initial_data.get(field_name), getattr(model, field_name).all()):
+                        child_serializer = ChildSerializer(child_model, data=data)
+                        child_serializer.is_valid()
+                        child = child_serializer.save()
+
+        return model
 
     def _select_subclass_serializer_by_model_instance(self, instance, data=None):
 

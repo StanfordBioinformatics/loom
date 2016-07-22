@@ -8,7 +8,6 @@ class RunRequestSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = RunRequest
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
         nested_x_to_one_serializers = {
             'template': 'analysis.serializers.workflows.AbstractWorkflowSerializer',
             'run': 'analysis.serializers.workflow_runs.AbstractWorkflowRunSerializer',

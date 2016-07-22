@@ -74,7 +74,7 @@ class WorkflowImporter(AbstractImporter):
         workflow_from_server = objecthandler.post_abstract_workflow(workflow)
         logger.info('...finished importing workflow %s@%s' % \
             (workflow_from_server['name'],
-             workflow_from_server['_id'],
+             workflow_from_server['loom_id'],
             ))
         
         return workflow_from_server

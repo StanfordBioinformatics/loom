@@ -23,10 +23,10 @@ class ObjectHandler(object):
                 headers={'content-type': 'application/json'}),
             raise_for_status=raise_for_status)
 
-    def _patch(self, data, relative_url, raise_for_status=True):
+    def _put(self, data, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
         return self._make_request_to_server(
-            lambda: requests.patch(
+            lambda: requests.put(
                 url,
                 data=json.dumps(data),
                 headers={'content-type': 'application/json'}),
@@ -66,8 +66,8 @@ class ObjectHandler(object):
     def _post_object(self, object_data, relative_url):
         return self._post(object_data, relative_url, raise_for_status=True).json()
 
-    def _patch_object(self, object_data, relative_url):
-        return self._patch(object_data, relative_url, raise_for_status=True).json()
+    def _put_object(self, object_data, relative_url):
+        return self._put(object_data, relative_url, raise_for_status=True).json()
 
     def _get_object(self, relative_url, raise_for_status=True):
         response = self._get(relative_url, raise_for_status=raise_for_status)
@@ -85,7 +85,7 @@ class ObjectHandler(object):
         else:
             raise BadResponseError("Status code %s." % response.status_code)
 
-    # ---- Post/Get [object_type] methods ----
+    # ---- Post/Put/Get [object_type] methods ----
 
     def post_data_object(self, data_object):
         return self._post_object(
@@ -93,7 +93,7 @@ class ObjectHandler(object):
             'data-objects/')
 
     def update_data_object(self, data_object_id, data_object_update):
-        return self._patch_object(
+        return self._put_object(
             data_object_update,
             'data-objects/%s/' % data_object_id)
 
@@ -201,7 +201,7 @@ class ObjectHandler(object):
         )
 
     def update_task_run_attempt(self, task_run_attempt_id, task_run_attempt_update):
-        return self._post_object(
+        return self._put_object(
             task_run_attempt_update,
             'task-run-attempts/%s/' % task_run_attempt_id)
 
@@ -211,12 +211,11 @@ class ObjectHandler(object):
         )
 
     def update_task_run_attempt_output(self, task_run_attempt_output_id, task_run_attempt_output_update):
-        return self._post_object(
+        return self._put_object(
             task_run_attempt_output_update,
             'task-run-attempt-outputs/%s/' % task_run_attempt_output_id)
 
     def post_task_run_attempt_log_file(self, task_run_attempt_id, task_run_attempt_log_file):
-        print task_run_attempt_log_file
         return self._post_object(
             task_run_attempt_log_file,
             'task-run-attempts/%s/task-run-attempt-log-files/' % task_run_attempt_id
@@ -228,7 +227,7 @@ class ObjectHandler(object):
             'abstract-file-imports/')
 
     def update_abstract_file_import(self, file_import_id, file_import_update):
-        return self._post_object(
+        return self._put_object(
             file_import_update,
             'abstract-file-imports/%s/' % file_import_id)
 

@@ -23,7 +23,7 @@ class DataObjectContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = DataObjectContent
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
         subclass_serializers = {
             'filecontent': 'analysis.serializers.data_objects.FileContentSerializer',
             'stringcontent': 'analysis.serializers.data_objects.StringContentSerializer',
@@ -35,7 +35,8 @@ class UnnamedFileContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = UnnamedFileContent
-        validators = []
+        exclude = ('id',)
+        validators = [] # Remove UniqueTogether validator, since this is handled by the serializer
 
     def create(self, validated_data):
         try:
@@ -57,7 +58,7 @@ class FileContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = FileContent
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
         nested_x_to_one_serializers = {'unnamed_file_content': 'analysis.serializers.data_objects.UnnamedFileContentSerializer'}
 
 
@@ -67,6 +68,7 @@ class FileLocationSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = FileLocation
+        exclude = ('id',)
 
 
 class AbstractFileImportSerializer(NestedPolymorphicModelSerializer):
@@ -76,7 +78,7 @@ class AbstractFileImportSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = AbstractFileImport
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
         subclass_serializers = {'fileimport': 'analysis.serializers.data_objects.FileImportSerializer'}
         nested_x_to_one_serializers = {
             'temp_file_location': 'analysis.serializers.data_objects.FileLocationSerializer',
@@ -88,7 +90,7 @@ class FileImportSerializer(AbstractFileImportSerializer):
 
     class Meta:
         model = FileImport
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'file_data_object')
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'file_data_object', 'id')
         nested_x_to_one_serializers = AbstractFileImportSerializer.Meta.nested_x_to_one_serializers
 
 
@@ -99,7 +101,7 @@ class FileDataObjectSerializer(DataObjectSerializer):
 
     class Meta:
         model = FileDataObject
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = DataObjectSerializer.Meta.exclude
         nested_x_to_one_serializers = {
             'file_content': 'analysis.serializers.data_objects.FileContentSerializer',
         }
@@ -112,7 +114,7 @@ class StringContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = StringContent
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
 
         
 class StringDataObjectSerializer(DataObjectSerializer):
@@ -121,7 +123,7 @@ class StringDataObjectSerializer(DataObjectSerializer):
 
     class Meta:
         model = StringDataObject
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = DataObjectSerializer.Meta.exclude
         nested_x_to_one_serializers = {
             'string_content': 'analysis.serializers.data_objects.StringContentSerializer',
         }
@@ -131,7 +133,7 @@ class BooleanContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = BooleanContent
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
 
         
 class BooleanDataObjectSerializer(DataObjectSerializer):
@@ -140,7 +142,7 @@ class BooleanDataObjectSerializer(DataObjectSerializer):
 
     class Meta:
         model = BooleanDataObject
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = DataObjectSerializer.Meta.exclude
         nested_x_to_one_serializers = {
             'boolean_content': 'analysis.serializers.data_objects.BooleanContentSerializer',
         }
@@ -150,7 +152,7 @@ class IntegerContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = IntegerContent
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
         
 
 class IntegerDataObjectSerializer(DataObjectSerializer):
@@ -159,7 +161,7 @@ class IntegerDataObjectSerializer(DataObjectSerializer):
 
     class Meta:
         model = IntegerDataObject
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = DataObjectSerializer.Meta.exclude
         nested_x_to_one_serializers = {
             'integer_content': 'analysis.serializers.data_objects.IntegerContentSerializer',
         }

@@ -155,7 +155,7 @@ class WorkflowRunner(object):
             self.args.note
         )
         return "%s@%s" % (file_data_object['file_content']['filename'],
-                          file_data_object['_id'])
+                          file_data_object['loom_id'])
 
 
 if __name__=='__main__':

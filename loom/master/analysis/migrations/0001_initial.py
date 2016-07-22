@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AbstractWorkflow',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('loom_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('name', models.CharField(max_length=255)),
             ],
             options={
@@ -176,9 +176,9 @@ class Migration(migrations.Migration):
             name='RequestedResourceSet',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('memory', models.CharField(max_length=255)),
-                ('disk_space', models.CharField(max_length=255)),
-                ('cores', models.CharField(max_length=255)),
+                ('memory', models.CharField(max_length=255, null=True)),
+                ('disk_space', models.CharField(max_length=255, null=True)),
+                ('cores', models.CharField(max_length=255, null=True)),
             ],
             options={
                 'abstract': False,
@@ -876,12 +876,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='workflowoutput',
             name='workflow',
-            field=models.ForeignKey(related_name='outputs', to='analysis.Workflow'),
+            field=models.ForeignKey(related_name='outputs', to='analysis.Workflow', null=True),
         ),
         migrations.AddField(
             model_name='workflowinput',
             name='workflow',
-            field=models.ForeignKey(related_name='inputs', to='analysis.Workflow'),
+            field=models.ForeignKey(related_name='inputs', to='analysis.Workflow', null=True),
         ),
         migrations.AddField(
             model_name='workflow',
@@ -905,13 +905,13 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='stepoutput',
-            name='workflow',
-            field=models.ForeignKey(related_name='outputs', to='analysis.Step'),
+            name='step',
+            field=models.ForeignKey(related_name='outputs', to='analysis.Step', null=True),
         ),
         migrations.AddField(
             model_name='stepinput',
             name='step',
-            field=models.ForeignKey(related_name='inputs', to='analysis.Step'),
+            field=models.ForeignKey(related_name='inputs', to='analysis.Step', null=True),
         ),
         migrations.AddField(
             model_name='runrequestoutput',
@@ -926,12 +926,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='requestedresourceset',
             name='step',
-            field=models.OneToOneField(related_name='resources', to='analysis.Step'),
+            field=models.OneToOneField(related_name='resources', null=True, to='analysis.Step'),
         ),
         migrations.AddField(
             model_name='requestedenvironment',
             name='step',
-            field=models.OneToOneField(related_name='environment', to='analysis.Step'),
+            field=models.OneToOneField(related_name='environment', null=True, to='analysis.Step'),
         ),
         migrations.AddField(
             model_name='fixedworkflowruninput',
@@ -941,12 +941,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='fixedworkflowinput',
             name='workflow',
-            field=models.ForeignKey(related_name='fixed_inputs', to='analysis.Workflow'),
+            field=models.ForeignKey(related_name='fixed_inputs', to='analysis.Workflow', null=True),
         ),
         migrations.AddField(
             model_name='fixedstepinput',
             name='step',
-            field=models.ForeignKey(related_name='fixed_inputs', to='analysis.Step'),
+            field=models.ForeignKey(related_name='fixed_inputs', to='analysis.Step', null=True),
         ),
         migrations.AddField(
             model_name='filecontent',

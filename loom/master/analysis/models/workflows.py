@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+import uuid
 
 from analysis.fields import DuplicateManyToManyField
 from analysis.exceptions import *
@@ -21,7 +22,8 @@ class AbstractWorkflow(BasePolymorphicModel):
     """
 
     NAME_FIELD = 'name'
-    
+
+    loom_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
 
     def is_step(self):
@@ -107,7 +109,7 @@ class Step(AbstractWorkflow):
 
 class RequestedEnvironment(BasePolymorphicModel):
 
-    step = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='environment')
+    step = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='environment', null=True)
 
 
 class RequestedDockerEnvironment(RequestedEnvironment):
@@ -117,10 +119,10 @@ class RequestedDockerEnvironment(RequestedEnvironment):
 
 class RequestedResourceSet(BaseModel):
 
-    step = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='resources')
-    memory = models.CharField(max_length=255)
-    disk_space = models.CharField(max_length=255)
-    cores = models.CharField(max_length=255)
+    step = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='resources', null=True)
+    memory = models.CharField(max_length=255, null=True)
+    disk_space = models.CharField(max_length=255, null=True)
+    cores = models.CharField(max_length=255, null=True)
 
 
 class AbstractWorkflowInput(BasePolymorphicModel):
@@ -153,22 +155,22 @@ class AbstractFixedWorkflowInput(AbstractWorkflowInput):
 
 class WorkflowInput(AbstractRuntimeWorkflowInput):
 
-    workflow = models.ForeignKey('Workflow', related_name='inputs', on_delete=models.CASCADE)
+    workflow = models.ForeignKey('Workflow', related_name='inputs', on_delete=models.CASCADE, null=True)
 
 
 class StepInput(AbstractRuntimeWorkflowInput):
 
-    step = models.ForeignKey('Step', related_name='inputs', on_delete=models.CASCADE)
+    step = models.ForeignKey('Step', related_name='inputs', on_delete=models.CASCADE, null=True)
 
 
 class FixedWorkflowInput(AbstractFixedWorkflowInput):
 
-    workflow = models.ForeignKey('Workflow', related_name='fixed_inputs', on_delete=models.CASCADE)
+    workflow = models.ForeignKey('Workflow', related_name='fixed_inputs', on_delete=models.CASCADE, null=True)
 
 
 class FixedStepInput(AbstractFixedWorkflowInput):
 
-    step = models.ForeignKey('Step', related_name='fixed_inputs', on_delete=models.CASCADE)
+    step = models.ForeignKey('Step', related_name='fixed_inputs', on_delete=models.CASCADE, null=True)
 
 
 class AbstractOutput(BasePolymorphicModel):
@@ -186,10 +188,10 @@ class AbstractOutput(BasePolymorphicModel):
 
 class WorkflowOutput(AbstractOutput):
 
-    workflow = models.ForeignKey('Workflow', related_name='outputs', on_delete=models.CASCADE)
+    workflow = models.ForeignKey('Workflow', related_name='outputs', on_delete=models.CASCADE, null=True)
 
 
 class StepOutput(AbstractOutput):
 
     filename = models.CharField(max_length=255)
-    workflow = models.ForeignKey('Step', related_name='outputs', on_delete=models.CASCADE)
+    step = models.ForeignKey('Step', related_name='outputs', on_delete=models.CASCADE, null=True)

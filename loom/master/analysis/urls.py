@@ -16,7 +16,7 @@ router.register(BooleanDataObject.get_class_name(plural=True, hyphen=True), view
 router.register(CancelRequest.get_class_name(plural=True, hyphen=True), views.CancelRequestViewSet)
 router.register(Channel.get_class_name(plural=True, hyphen=True), views.ChannelViewSet)
 router.register(ChannelOutput.get_class_name(plural=True, hyphen=True), views.ChannelOutputViewSet)
-router.register(DataObject.get_class_name(plural=True, hyphen=True), views.DataObjectViewSet)
+router.register(DataObject.get_class_name(plural=True, hyphen=True), views.DataObjectViewSet, base_name='DataObject')
 router.register(DataObjectContent.get_class_name(plural=True, hyphen=True), views.DataObjectContentViewSet)
 router.register(FailureNotice.get_class_name(plural=True, hyphen=True), views.FailureNoticeViewSet)
 router.register(FileContent.get_class_name(plural=True, hyphen=True), views.FileContentViewSet)

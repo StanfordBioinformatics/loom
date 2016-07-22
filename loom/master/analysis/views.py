@@ -16,8 +16,18 @@ from analysis import models
 from analysis import serializers
 from rest_framework import viewsets
 
-class DataObjectViewSet(viewsets.ModelViewSet):
-    queryset = models.DataObject.objects.all()
+
+class QueryViewSet(viewsets.ModelViewSet):
+
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        Model = self.serializer_class.Meta.model
+        if query_string:
+            return Model.query_by_name_or_id(query_string)
+        else:
+            return Model.objects.all()
+
+class DataObjectViewSet(QueryViewSet):
     serializer_class = serializers.DataObjectSerializer
 
 class DataObjectContentViewSet(viewsets.ModelViewSet):
@@ -44,7 +54,7 @@ class FileImportViewSet(viewsets.ModelViewSet):
     queryset = models.FileImport.objects.all()
     serializer_class = serializers.FileImportSerializer
 
-class FileDataObjectViewSet(viewsets.ModelViewSet):
+class FileDataObjectViewSet(DataObjectViewSet):
     queryset = models.FileDataObject.objects.all()
     serializer_class = serializers.FileDataObjectSerializer
 
@@ -52,7 +62,7 @@ class StringContentViewSet(viewsets.ModelViewSet):
     queryset = models.StringContent.objects.all()
     serializer_class = serializers.StringContentSerializer
 
-class StringDataObjectViewSet(viewsets.ModelViewSet):
+class StringDataObjectViewSet(DataObjectViewSet):
     queryset = models.StringDataObject.objects.all()
     serializer_class = serializers.StringDataObjectSerializer
 
@@ -60,7 +70,7 @@ class BooleanContentViewSet(viewsets.ModelViewSet):
     queryset = models.BooleanContent.objects.all()
     serializer_class = serializers.BooleanContentSerializer
 
-class BooleanDataObjectViewSet(viewsets.ModelViewSet):
+class BooleanDataObjectViewSet(DataObjectViewSet):
     queryset = models.BooleanDataObject.objects.all()
     serializer_clsas = serializers.BooleanDataObjectSerializer
 
@@ -68,7 +78,7 @@ class IntegerContentViewSet(viewsets.ModelViewSet):
     queryset = models.IntegerContent.objects.all()
     serializer_class = serializers.IntegerContentSerializer
 
-class IntegerDataObjectViewSet(viewsets.ModelViewSet):
+class IntegerDataObjectViewSet(DataObjectViewSet):
     queryset = models.IntegerDataObject.objects.all()
     serializer_class = serializers.IntegerDataObjectSerializer
 
@@ -104,15 +114,15 @@ class ChannelViewSet(viewsets.ModelViewSet):
     queryset = models.Channel.objects.all()
     serializer_class = serializers.ChannelSerializer
 
-class AbstractWorkflowViewSet(viewsets.ModelViewSet):
+class AbstractWorkflowViewSet(QueryViewSet):
     queryset = models.AbstractWorkflow.objects.all()
     serializer_class = serializers.AbstractWorkflowSerializer
 
-class WorkflowViewSet(viewsets.ModelViewSet):
+class WorkflowViewSet(AbstractWorkflowViewSet):
     queryset = models.Workflow.objects.all()
     serializer_class = serializers.WorkflowSerializer
 
-class StepViewSet(viewsets.ModelViewSet):
+class StepViewSet(AbstractWorkflowViewSet):
     queryset = models.Step.objects.all()
     serializer_class = serializers.StepSerializer
 
