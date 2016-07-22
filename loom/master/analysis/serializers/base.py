@@ -7,7 +7,7 @@ from rest_framework import serializers
 
 POLYMORPHIC_TYPE_FIELD = 'polymorphic_ctype'
 
-def get_class(kls):
+def _get_class_from_string(kls):
 
     try:
         if issubclass(kls, serializers.Serializer):
@@ -40,12 +40,21 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
         if isinstance(instance, models.Model):
             serializer = self._select_subclass_serializer_by_model_instance(instance)
             if serializer == self:
-                return super(NestedPolymorphicModelSerializer, self).to_representation(instance)
+                repr = super(NestedPolymorphicModelSerializer, serializer).to_representation(instance)
+                repr.update({'_class': serializer._get_model_class()})
+                return repr
             else:
-                return serializer.to_representation(instance)
+                repr = serializer.to_representation(instance)
+                repr.update({'_class': serializer._get_model_class()})
+                return repr
         else:
-            return super(NestedPolymorphicModelSerializer, self).to_representation(instance)
-            
+            repr = super(NestedPolymorphicModelSerializer, self).to_representation(instance)
+            repr.update({'_class': serializer._get_model_class()})
+            return repr
+
+    def _get_model_class(self):
+        return self.Meta.model.__name__
+
     def create(self, validated_data):
 
         # Instead of using "self" to serialize, see if we should use the serializer for
@@ -67,23 +76,30 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
             # Don't worry, x_to_many data is still in initial_data and we'll
             # validate it on the child models
             #
-            self._strip_x_to_many_data(data_with_children) 
+            self._strip_x_to_many_data(data_with_children)
+            self._strip_reverse_x_to_one_data(data_with_children)
+
+            # Create model
             instance = self.Meta.model.objects.create(**data_with_children)
 
-            # Now add X2Many to existing model
+            # Now add X2Many and reverse X2One to existing model
             instance = self._create_x_to_many_children(instance)
-
-            return instance
+            instance = self._create_reverse_x_to_one_children(instance)
 
         else:
             # A subclass model matches the data better than the current model.
             # Defer deserialization to the serializer of the subclass.
             #
             if not serializer.is_valid():
-                raise Exception("Invalid data for model %s: %s" %
-                                (serializer.Meta.model.__name__, serializer.initial_data))
+                raise Exception("Invalid data for model %s. Errors: %s" %
+                                (serializer.Meta.model.__name__, serializer.errors))
+
             # Calling "save" will trigger the "create" method on the new serializer
-            return serializer.save()
+            instance = serializer.save()
+
+        instance.send_post_create()
+        return instance
+            
 
     def _strip_x_to_many_data(self, data):
 
@@ -94,7 +110,17 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
                     data.pop(field_name)
                 except KeyError:
                     pass
-                
+
+    def _strip_reverse_x_to_one_data(self, data):
+
+        if hasattr(self.Meta, 'nested_reverse_x_to_one_serializers'):
+
+            for field_name, ChildSerializer in self.Meta.nested_reverse_x_to_one_serializers.iteritems():
+                try:
+                    data.pop(field_name)
+                except KeyError:
+                    pass
+
     def _create_x_to_one_children(self, data):
 
         data_with_children = data
@@ -103,7 +129,7 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
         if hasattr(self.Meta, 'nested_x_to_one_serializers'):
 
             for field_name, ChildSerializer in self.Meta.nested_x_to_one_serializers.iteritems():
-                ChildSerializer = get_class(ChildSerializer)
+                ChildSerializer = _get_class_from_string(ChildSerializer)
                 data = self.initial_data.get(field_name)
 
                 if data:
@@ -121,7 +147,7 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
         if hasattr(self.Meta, 'nested_x_to_many_serializers'):
 
             for field_name, ChildSerializer in self.Meta.nested_x_to_many_serializers.iteritems():
-                ChildSerializer = get_class(ChildSerializer)
+                ChildSerializer = _get_class_from_string(ChildSerializer)
 
                 if self.initial_data.get(field_name):
                     # Clearing existing relations is needed on update. On create it has no effect.
@@ -134,7 +160,22 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
                         getattr(model, field_name).add(child)
 
         return model
-    
+
+    def _create_reverse_x_to_one_children(self, model):
+
+        if hasattr(self.Meta, 'nested_reverse_x_to_one_serializers'):
+
+            for field_name, ChildSerializer in self.Meta.nested_reverse_x_to_one_serializers.iteritems():
+                ChildSerializer = _get_class_from_string(ChildSerializer)
+
+                child_serializer = ChildSerializer(data=self.initial_data.get(field_name))
+                child_serializer.is_valid()
+                child = child_serializer.save()
+                setattr(model, field_name, child)
+                child.save()
+
+        return model
+
     def _select_subclass_serializer_by_data(self, data):
 
         """For a given set of data to be deserialized, and for the model class associated with
@@ -168,7 +209,7 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
         else:
             matching_serializers = []
             for SubclassSerializer in self.Meta.subclass_serializers.values():
-                SubclassSerializer = get_class(SubclassSerializer)
+                SubclassSerializer = _get_class_from_string(SubclassSerializer)
                 if self._do_all_fields_match(SubclassSerializer.Meta.model, data.keys()):
                     matching_serializers.append(SubclassSerializer)
 
@@ -203,38 +244,41 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
             # No need to use subclass, proceed with serialization for update
 
             # First update child instances, to be added to the model when it is created
-            validated_data_with_children = self._update_x_to_one_children(validated_data)
+            data_with_children = self._update_x_to_one_children(validated_data)
 
             # Update model, minus X2Many relationship
             #
             # Don't worry, x_to_many data is still in initial_data and we'll
             # validate it on the child models
-            self._strip_x_to_many_data(validated_data_with_children)
-            for field_name, field_data in validated_data_with_children.iteritems():
+            self._strip_x_to_many_data(data_with_children)
+            self._strip_reverse_x_to_one_data(data_with_children)
+            
+            for field_name, field_data in data_with_children.iteritems():
                 setattr(instance, field_name, field_data)
             instance.save()
 
             # Now update X2Many children
             instance = self._update_x_to_many_children(instance)
             
-            return instance
-        
         else:
             # A subclass model exists. Defer deserialization to the serializer of the subclass.
             if not serializer.is_valid():
-                raise Exception("Invalid data for model %s: %s" %
-                                (serializer.Meta.model.__name__, serializer.instance))
+                raise Exception("Invalid data for model %s. Errors: %s" %
+                                (serializer.Meta.model.__name__, serializer.errors))
             # Calling "save" will trigger the "create" method on the new serializer
-            return serializer.save()
+            instance = serializer.save()
+
+        instance.send_post_update()
+        return instance
 
     def _update_x_to_one_children(self, validated_data):
 
-        validated_data_with_children = copy.deepcopy(validated_data)
+        data_with_children = copy.deepcopy(validated_data)
         # For models with nested children, handle that serialization here:
         if hasattr(self.Meta, 'nested_x_to_one_serializers'):
             for field_name, ChildSerializer in self.Meta.nested_x_to_one_serializers.iteritems():
                 data = self.initial_data.get(field_name)
-                ChildSerializer = get_class(ChildSerializer)
+                ChildSerializer = _get_class_from_string(ChildSerializer)
                 try:
                     child_instance = getattr(self.instance, field_name)
                 except ObjectDoesNotExist:
@@ -248,14 +292,15 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
                         child_serializer = ChildSerializer(data=data)
 
                     if not child_serializer.is_valid():
-                        raise Exception("Invalid data. Error messages: %s" % child_serializer.errors)
+                        raise Exception("Invalid data for model %s. Errors: %s" %
+                                        (child_serializer.Meta.model.__name__, serializer.errors))
 
                     model = child_serializer.save()
 
                     # Replace raw data for child with model instance
-                    validated_data_with_children[field_name] = model
+                    data_with_children[field_name] = model
 
-        return validated_data_with_children
+        return data_with_children
 
     def _update_x_to_many_children(self, model):
 
@@ -274,7 +319,7 @@ class NestedPolymorphicModelSerializer(serializers.ModelSerializer):
 
         subclass_serializers=[]
         for (field, SubclassSerializer) in self.Meta.subclass_serializers.iteritems():
-            SubclassSerializer = get_class(SubclassSerializer)
+            SubclassSerializer = _get_class_from_string(SubclassSerializer)
             try:
                 # If a model instance is assigned to 'field', it means there
                 # is a subclass instance of the current model. If so, get the

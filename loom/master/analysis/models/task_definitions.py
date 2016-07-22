@@ -22,7 +22,7 @@ class TaskDefinition(BaseModel):
 
 class TaskDefinitionEnvironment(BasePolymorphicModel):
 
-    environment = models.OneToOneField('TaskDefinition', on_delete=models.CASCADE)
+    task_definition = models.OneToOneField('TaskDefinition', on_delete=models.CASCADE, related_name='environment')
 
 
 class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):

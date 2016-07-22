@@ -46,7 +46,7 @@ class TaskDefinitionSerializer(NestedPolymorphicModelSerializer):
             'inputs': 'analysis.serializers.task_definitions.TaskDefinitionInputSerializer',
             'outputs': 'analysis.serializers.task_definitions.TaskDefinitionOutputSerializer',
         }
-        nested_x_to_one_serializers = {
+        nested_reverse_x_to_one_serializers = {
             'environment': 'analysis.serializers.task_definitions.TaskDefinitionEnvironmentSerializer',
         }
 

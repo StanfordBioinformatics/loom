@@ -1,10 +1,13 @@
 from django.db import models
+#from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils import timezone
 import os
 import uuid
 
 from .base import BaseModel, BasePolymorphicModel
 from analysis import get_setting
+from analysis.signals import post_update, post_create
 
 
 class DataObject(BasePolymorphicModel):
@@ -13,6 +16,8 @@ class DataObject(BasePolymorphicModel):
     to it. That way if the same content arises twice independently 
     we can still keep separate provenance graphs.
     """
+
+    loom_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     TYPE_CHOICES = (
         ('file', 'File'),
@@ -65,21 +70,56 @@ class FileDataObject(DataObject):
     def get_substitution_value(self):
         return self.file_content.get_substitution_value()
 
-    def after_create_or_update(self, data):
-        # A FileLocation should be generated once file_content is set
-        if self.file_content and not self.file_import.file_location:
-            # If a file with identical content has already been uploaded, re-use
-            # it if permitted by settings.
-            if self.file_content.has_location() and not get_setting('KEEP_DUPLICATE_FILES'):
-                self.file_import.set_location(self.file_content.get_location())
-            else:
-                self.file_import.create_location()
-
     def is_ready(self):
         if self.file_import.file_location:
             return self.file_import.file_location.status == 'complete'
         else:
             return False
+
+    @classmethod
+    def post_create_or_update(cls, sender, instance, **kwargs):
+        cls.add_implicit_links(sender, instance)
+        cls.add_temp_file_location(sender, instance)
+        cls.add_file_location(sender, instance)
+
+    @classmethod
+    def add_implicit_links(cls, sender, instance):
+        # Link FileLocation and UnnamedFileContent.
+        # This link can be inferred from the DataObject
+        # and therefore does not need to be serializer,
+        # but having the link simplifies lookup
+        file_import = instance.file_import
+        if file_import.file_location is None:
+            return
+        elif file_import.file_location.unnamed_file_content is None and instance.file_content is not None:
+            # FileContent exists but link is missing. Create it.
+            file_import.file_location.unnamed_file_content = instance.file_content.unnamed_file_content
+            file_import.file_location.save()
+
+    @classmethod
+    def add_temp_file_location(cls, sender, instance):
+        # If there is no FileLocation, set a temporary one.
+        # The client will need this to know upload destination, but we
+        # can't create a permanent FileLocation until we know the file hash, since
+        # it may be used in the name of the file location.
+        file_import = instance.file_import
+        if not file_import.temp_file_location and not file_import.file_location:
+            file_import.temp_file_location = FileLocation.create_temp_file_location()
+
+    @classmethod
+    def add_file_location(cls, sender, instance):
+        # A FileLocation should be generated once file_content is set
+        if instance.file_content and not instance.file_import.file_location:
+            # If a file with identical content has already been uploaded,
+            # re-use it if permitted by settings.
+            if instance.file_content.has_location() and not get_setting('KEEP_DUPLICATE_FILES'):
+                instance.file_import.file_location = instance.file_content.get_location()
+            else:
+                instance.file_import.file_location = FileLocation.create_location_for_import(instance)
+
+        
+post_create.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
+post_update.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
 
 
 class FileContent(DataObjectContent):
@@ -109,6 +149,9 @@ class UnnamedFileContent(BaseModel):
     hash_value = models.CharField(max_length=255)
     hash_function = models.CharField(max_length=255)
 
+    class Meta:
+        unique_together= (('hash_value', 'hash_function'),)
+
 
 class FileLocation(BaseModel):
     """Location of file content.
@@ -126,29 +169,29 @@ class FileLocation(BaseModel):
         choices=(('incomplete', 'Incomplete'),
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
-    )
-
-
-    @classmethod
-    def get_location_for_import(cls, file_import):
-        return cls.create({
-            'url': cls._get_url(cls._get_path_for_import(file_import)),
-            'unnamed_file_content': file_import.data_object.file_content.unnamed_file_content
-        })
+    )            
 
     @classmethod
-    def _get_path_for_import(cls, file_import):
+    def create_location_for_import(cls, file_data_object):
+        location = cls(
+            url=cls._get_url(cls._get_path_for_import(file_data_object)),
+        )
+        location.save()
+        return location
+
+    @classmethod
+    def _get_path_for_import(cls, file_data_object):
         if get_setting('KEEP_DUPLICATE_FILES') and get_setting('FORCE_RERUN'):
             # If both are True, we can organize the directory structure in
             # a human browsable way
             return os.path.join(
                 '/',
                 get_setting('FILE_ROOT'),
-                file_import.get_browsable_path(),
+                file_data_object.file_import.get_browsable_path(),
                 "%s-%s-%s" % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_import.data_object._id,
-                    file_import.data_object.file_content.filename
+                    file_data_object.loom_id,
+                    file_data_object.file_content.filename
                 )
             )
         elif get_setting('KEEP_DUPLICATE_FILES'):
@@ -158,8 +201,8 @@ class FileLocation(BaseModel):
                 get_setting('FILE_ROOT'),
                 '%s-%s-%s' % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_import.data_object._id,
-                    file_import.data_object.file_content.filename
+                    file_data_object.loom_id,
+                    file_data_object.file_content.filename
                 )
             )
         else:
@@ -168,16 +211,16 @@ class FileLocation(BaseModel):
                 '/',
                 get_setting('FILE_ROOT'),
                 '%s-%s' % (
-                    file_import.data_object.file_content.unnamed_file_content.hash_function,
-                    file_import.data_object.file_content.unnamed_file_content.hash_value
+                    file_data_object.file_content.unnamed_file_content.hash_function,
+                    file_data_object.file_content.unnamed_file_content.hash_value
                 )
             )
 
     @classmethod
-    def get_temp_location(cls,):
-        return cls.create({
-            'url': cls._get_url(cls._get_temp_path_for_import())
-        })
+    def create_temp_file_location(cls):
+        location = cls(url=cls._get_url(cls._get_temp_path_for_import()))
+        location.save()
+        return location
 
     @classmethod
     def _get_temp_path_for_import(cls):
@@ -203,33 +246,9 @@ class FileLocation(BaseModel):
 
 class AbstractFileImport(BasePolymorphicModel):
 
-    file_data_object = models.OneToOneField('FileDataObject', related_name='file_import', on_delete=models.CASCADE)
+    file_data_object = models.OneToOneField('FileDataObject', related_name='file_import', null=True, on_delete=models.CASCADE)
     file_location = models.OneToOneField('FileLocation', null=True, related_name='file_import', on_delete=models.SET_NULL)
     temp_file_location = models.OneToOneField('FileLocation', null=True, related_name='file_import_as_temp', on_delete=models.SET_NULL)
-
-    def after_create_or_update(self, data):
-        # If there is no FileLocation, set a temporary one.
-        # The client will need this to know upload destination, but we
-        # can't create a permanent FileLocation until we know the file hash, since
-        # it may be used in the name of the file location.
-        if not self.temp_file_location and not self.file_location:
-            self._set_temp_file_location()
-
-    def _set_temp_file_location(self):
-        """A temp location is used since the hash is used in the final file location,
-        and this may not be known at time of upload. This is because the method for 
-        copying the file also may also generate the hash.
-        """
-        self.update({'temp_file_location': FileLocation.get_temp_location()})
-
-    def set_location(self, file_location):
-        self.update({'file_location': file_location})
-
-    def create_location(self):
-        """After uploading the file to a temp location and updating the FileImport with the full 
-        FileDataObject (which includes the hash), the final storage location can be determined.
-        """
-        self.set_location(FileLocation.get_location_for_import(self))
 
 
 class FileImport(AbstractFileImport):
@@ -239,6 +258,7 @@ class FileImport(AbstractFileImport):
 
     def get_browsable_path(self):
         return 'imported'
+
 
 class DatabaseDataObject(DataObject):
 
@@ -279,11 +299,11 @@ class StringContent(DataObjectContent):
 
 
 class BooleanDataObject(DatabaseDataObject):
-    
+
     TYPE = 'boolean'
 
     boolean_content = models.OneToOneField('BooleanContent', related_name='data_object', on_delete=models.PROTECT)
-    
+
     def get_content(self):
         return self.boolean_content
 

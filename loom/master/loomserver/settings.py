@@ -40,7 +40,7 @@ TEMPLATE_DEBUG = True
 ALLOWED_HOSTS = ['127.0.0.1']
 
 INSTALLED_APPS = (
-#    'django.contrib.auth',
+    'django.contrib.auth',
     'django.contrib.contenttypes', #required by polymorphic
     'django_extensions',
     'django.contrib.sessions',
@@ -75,6 +75,8 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
 }
+
+APPEND_SLASH = False
 
 LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
 LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')

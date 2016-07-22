@@ -561,12 +561,12 @@ class FileHandler:
         # Signal that the upload completed successfully
         final_file_data_object = self._finalize_file_import(updated_file_data_object)
         self._log('...finished importing file %s@%s' % (final_file_data_object['file_content']['filename'],
-                                           final_file_data_object['_id']))
+                                           final_file_data_object['loom_id']))
         return final_file_data_object
 
     def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
         return self.objecthandler.update_data_object(
-            file_data_object['_id'],
+            file_data_object['loom_id'],
             {
                 'file_content': {
                     'filename': filename,
@@ -586,7 +586,7 @@ class FileHandler:
         updated_file_data_object['file_import']['file_location']['status'] = 'complete'
         
         return self.objecthandler.update_data_object(
-            file_data_object['_id'],
+            file_data_object['loom_id'],
             updated_file_data_object
         )
 

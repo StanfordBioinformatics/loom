@@ -1,8 +1,13 @@
+from django.db import IntegrityError
+from rest_framework import serializers
+
 from analysis.models.data_objects import *
 from .base import NestedPolymorphicModelSerializer, POLYMORPHIC_TYPE_FIELD
 
 
 class DataObjectSerializer(NestedPolymorphicModelSerializer):
+
+    loom_id = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = DataObject
@@ -30,6 +35,20 @@ class UnnamedFileContentSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = UnnamedFileContent
+        validators = []
+
+    def create(self, validated_data):
+        try:
+            return self.Meta.model.objects.create(**validated_data)
+        except IntegrityError:
+            return self.Meta.model.objects.get(**validated_data)
+
+    def update(self, instance, validated_data):
+        # This class should never be updated, so we verify
+        # that the data is unchanged.
+        for (key, value) in validated_data.iteritems():
+            assert getattr(instance, key) == value
+        return instance
 
 
 class FileContentSerializer(NestedPolymorphicModelSerializer):
@@ -48,7 +67,6 @@ class FileLocationSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = FileLocation
-        nested_x_to_one_serializers = {'unnamed_file_content': 'analysis.serializers.data_objects.UnnamedFileContentSerializer'}
 
 
 class AbstractFileImportSerializer(NestedPolymorphicModelSerializer):
@@ -70,11 +88,11 @@ class FileImportSerializer(AbstractFileImportSerializer):
 
     class Meta:
         model = FileImport
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
+        exclude = (POLYMORPHIC_TYPE_FIELD, 'file_data_object')
         nested_x_to_one_serializers = AbstractFileImportSerializer.Meta.nested_x_to_one_serializers
 
 
-class FileDataObjectSerializer(NestedPolymorphicModelSerializer):
+class FileDataObjectSerializer(DataObjectSerializer):
 
     file_content = FileContentSerializer(allow_null=True, required=False)
     file_import = AbstractFileImportSerializer(allow_null=True, required=False)
@@ -84,7 +102,9 @@ class FileDataObjectSerializer(NestedPolymorphicModelSerializer):
         exclude = (POLYMORPHIC_TYPE_FIELD,)
         nested_x_to_one_serializers = {
             'file_content': 'analysis.serializers.data_objects.FileContentSerializer',
-            'file_import': 'analysis.serializers.data_objects.AbstractFileImportSerializer'
+        }
+        nested_reverse_x_to_one_serializers = {
+            'file_import': 'analysis.serializers.data_objects.AbstractFileImportSerializer',
         }
 
 
@@ -95,7 +115,7 @@ class StringContentSerializer(NestedPolymorphicModelSerializer):
         exclude = (POLYMORPHIC_TYPE_FIELD,)
 
         
-class StringDataObjectSerializer(NestedPolymorphicModelSerializer):
+class StringDataObjectSerializer(DataObjectSerializer):
 
     string_content = StringContentSerializer()
 
@@ -114,7 +134,7 @@ class BooleanContentSerializer(NestedPolymorphicModelSerializer):
         exclude = (POLYMORPHIC_TYPE_FIELD,)
 
         
-class BooleanDataObjectSerializer(NestedPolymorphicModelSerializer):
+class BooleanDataObjectSerializer(DataObjectSerializer):
 
     boolean_content = BooleanContentSerializer()
 
@@ -133,7 +153,7 @@ class IntegerContentSerializer(NestedPolymorphicModelSerializer):
         exclude = (POLYMORPHIC_TYPE_FIELD,)
         
 
-class IntegerDataObjectSerializer(NestedPolymorphicModelSerializer):
+class IntegerDataObjectSerializer(DataObjectSerializer):
 
     integer_content = IntegerContentSerializer()
 

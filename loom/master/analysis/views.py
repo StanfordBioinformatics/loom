@@ -260,7 +260,6 @@ class FailureNoticeViewSet(viewsets.ModelViewSet):
     queryset = models.FailureNotice.objects.all()
     serializer_class = serializers.FailureNoticeSerializer
 
-"""
 @require_http_methods(["GET"])
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
@@ -271,40 +270,30 @@ def worker_settings(request, id):
         WORKING_DIR = TaskRunAttempt.get_working_dir(id)
         LOG_DIR = TaskRunAttempt.get_log_dir(id)
         return JsonResponse({
-            'worker_settings': {
-                'LOG_LEVEL': get_setting('LOG_LEVEL'),
-                'WORKING_DIR': WORKING_DIR,
-                'WORKER_LOG_FILE': os.path.join(LOG_DIR, 'worker.log'),
-                'STDOUT_LOG_FILE': os.path.join(LOG_DIR, 'stdout.log'),
-                'STDERR_LOG_FILE': os.path.join(LOG_DIR, 'stderr.log'),
-            }})
+            'LOG_LEVEL': get_setting('LOG_LEVEL'),
+            'WORKING_DIR': WORKING_DIR,
+            'WORKER_LOG_FILE': os.path.join(LOG_DIR, 'worker.log'),
+            'STDOUT_LOG_FILE': os.path.join(LOG_DIR, 'stdout.log'),
+            'STDERR_LOG_FILE': os.path.join(LOG_DIR, 'stderr.log'),
+        })
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
 
 @require_http_methods(["GET"])
 def filehandler_settings(request):
-    filehandler_settings = {
+    return JsonResponse({
         'HASH_FUNCTION': get_setting('HASH_FUNCTION'),
         'PROJECT_ID': get_setting('PROJECT_ID'),
-        }
-    return JsonResponse({'filehandler_settings': filehandler_settings})
+    })
 
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
-def create_or_index(request, model_class):
-    if request.method == "POST":
-        return Helper.create(request, model_class)
-    else:
-        return Helper.index(request, model_class)
+@require_http_methods(["GET"])
+def info(request):
+    data = {
+        'version': version.version()
+    }
+    return JsonResponse(data, status=200)
 
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
-def show_or_update(request, id, model_class):
-    if request.method == "POST":
-        return Helper.update(request, id, model_class)
-    else:
-        return Helper.show(request, id, model_class)
-
+"""
 @require_http_methods(["GET"])
 def locations_by_file(request, id):
     try:
@@ -340,13 +329,6 @@ def file_imports_by_file(request, id):
 def refresh(request):
     RunRequest.refresh_status_for_all()
     return JsonResponse({"status": "ok"}, status=200)
-
-@require_http_methods(["GET"])
-def info(request):
-    data = {
-        'version': version.version()
-    }
-    return JsonResponse(data, status=200)
 
 @csrf_exempt
 @require_http_methods(["POST"])

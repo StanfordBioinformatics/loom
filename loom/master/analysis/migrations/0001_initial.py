@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 import django.db.models.deletion
+import analysis.models.base
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -20,6 +22,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='AbstractWorkflow',
@@ -30,6 +33,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='AbstractWorkflowRun',
@@ -39,6 +43,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='CancelRequest',
@@ -49,6 +54,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='Channel',
@@ -60,6 +66,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='ChannelOutput',
@@ -70,15 +77,17 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='DataObject',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('loom_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
             ],
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='DataObjectContent',
@@ -88,6 +97,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='FailureNotice',
@@ -98,6 +108,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='FileLocation',
@@ -109,6 +120,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='FixedStepInput',
@@ -122,6 +134,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='FixedWorkflowInput',
@@ -135,6 +148,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='InputOutputNode',
@@ -146,6 +160,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='RequestedEnvironment',
@@ -155,6 +170,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='RequestedResourceSet',
@@ -167,6 +183,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='RestartRequest',
@@ -176,6 +193,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='RunRequest',
@@ -191,6 +209,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='StepInput',
@@ -204,6 +223,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='StepOutput',
@@ -217,6 +237,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinition',
@@ -227,6 +248,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinitionEnvironment',
@@ -236,6 +258,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinitionInput',
@@ -246,6 +269,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinitionOutput',
@@ -258,6 +282,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskRun',
@@ -269,6 +294,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskRunAttempt',
@@ -278,6 +304,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskRunAttemptLogFile',
@@ -288,6 +315,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskRunAttemptOutput',
@@ -297,6 +325,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskRunInput',
@@ -306,6 +335,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='TaskRunOutput',
@@ -315,6 +345,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='UnnamedFileContent',
@@ -323,9 +354,7 @@ class Migration(migrations.Migration):
                 ('hash_value', models.CharField(max_length=255)),
                 ('hash_function', models.CharField(max_length=255)),
             ],
-            options={
-                'abstract': False,
-            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='WorkflowInput',
@@ -339,6 +368,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='WorkflowOutput',
@@ -351,6 +381,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin),
         ),
         migrations.CreateModel(
             name='AbstractStepRunInput',
@@ -389,7 +420,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
                 ('filename', models.CharField(max_length=255)),
-                ('unnamed_file_content', models.ForeignKey(related_name='file_contents', on_delete=django.db.models.deletion.PROTECT, to='analysis.UnnamedFileContent')),
             ],
             options={
                 'abstract': False,
@@ -642,6 +672,10 @@ class Migration(migrations.Migration):
             },
             bases=('analysis.inputoutputnode',),
         ),
+        migrations.AlterUniqueTogether(
+            name='unnamedfilecontent',
+            unique_together=set([('hash_value', 'hash_function')]),
+        ),
         migrations.AddField(
             model_name='taskrunoutput',
             name='data_object',
@@ -714,13 +748,13 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='taskdefinitionenvironment',
-            name='environment',
-            field=models.OneToOneField(to='analysis.TaskDefinition'),
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analysis.taskdefinitionenvironment_set+', editable=False, to='contenttypes.ContentType', null=True),
         ),
         migrations.AddField(
             model_name='taskdefinitionenvironment',
-            name='polymorphic_ctype',
-            field=models.ForeignKey(related_name='polymorphic_analysis.taskdefinitionenvironment_set+', editable=False, to='contenttypes.ContentType', null=True),
+            name='task_definition',
+            field=models.OneToOneField(related_name='environment', to='analysis.TaskDefinition'),
         ),
         migrations.AddField(
             model_name='runrequest',
@@ -896,7 +930,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='requestedenvironment',
-            name='environment',
+            name='step',
             field=models.OneToOneField(related_name='environment', to='analysis.Step'),
         ),
         migrations.AddField(
@@ -915,6 +949,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='fixed_inputs', to='analysis.Step'),
         ),
         migrations.AddField(
+            model_name='filecontent',
+            name='unnamed_file_content',
+            field=models.ForeignKey(related_name='file_contents', on_delete=django.db.models.deletion.PROTECT, to='analysis.UnnamedFileContent'),
+        ),
+        migrations.AddField(
             model_name='abstractworkflowrun',
             name='parent',
             field=models.ForeignKey(related_name='step_runs', to='analysis.WorkflowRun', null=True),
@@ -922,7 +961,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='abstractfileimport',
             name='file_data_object',
-            field=models.OneToOneField(related_name='file_import', to='analysis.FileDataObject'),
+            field=models.OneToOneField(related_name='file_import', null=True, to='analysis.FileDataObject'),
         ),
         migrations.AddField(
             model_name='taskruninput',

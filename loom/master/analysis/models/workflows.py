@@ -107,7 +107,7 @@ class Step(AbstractWorkflow):
 
 class RequestedEnvironment(BasePolymorphicModel):
 
-    environment = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='environment')
+    step = models.OneToOneField('Step', on_delete=models.CASCADE, related_name='environment')
 
 
 class RequestedDockerEnvironment(RequestedEnvironment):

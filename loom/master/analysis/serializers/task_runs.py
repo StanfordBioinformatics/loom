@@ -94,6 +94,8 @@ class TaskRunSerializer(NestedPolymorphicModelSerializer):
         model = TaskRun
         nested_x_to_one_serializers = {
             'task_definition': 'analysis.serializers.task_definitions.TaskDefinitionSerializer',
+        }
+        nested_reverse_x_to_one_serializers = {
             'resources': 'analysis.serializers.workflows.RequestedResourceSet',
         }
         nested_x_to_many_serializers = {

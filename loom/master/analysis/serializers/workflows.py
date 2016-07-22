@@ -31,7 +31,7 @@ class StepSerializer(AbstractWorkflowSerializer):
     class Meta:
         model = Step
         exclude = (POLYMORPHIC_TYPE_FIELD,)
-        nested_x_to_one_serializers = {
+        nested_reverse_x_to_one_serializers = {
             'environment': 'analysis.serializers.workflows.RequestedEnvironmentSerializer',
             'resources': 'analysis.serializers.workflows.RequestedResourceSetSerializer',
         }
