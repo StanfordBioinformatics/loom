@@ -1,9 +1,11 @@
 from django.db import models
+from django.db.models import ProtectedError
 #from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 import os
 import uuid
+
 
 from .base import BaseModel, BasePolymorphicModel
 from analysis import get_setting
@@ -24,14 +26,8 @@ class DataObject(BasePolymorphicModel):
         ('boolean', 'Boolean'),
         ('string', 'String'),
         ('integer', 'Integer'),
-        # ('file_array', 'File Array'),
-        # ('boolean_array', 'Boolean Array'),
-        # ('string_array', 'String Array'),
-        # ('integer_array', 'Integer Array'),
         # ('float', 'Float'),
-        # ('float_array', 'Float Array'),
         # ('json', 'JSON'),
-        # ('json_array', 'JSON Array')
     )
 
     def get_type(self):
@@ -56,8 +52,9 @@ class FileDataObject(DataObject):
     NAME_FIELD = 'file_content__filename'
     TYPE = 'file'
 
-    file_content = models.ForeignKey('FileContent', null=True, on_delete=models.PROTECT, related_name='data_object')
-    
+    file_content = models.ForeignKey('FileContent', related_name='file_data_object', on_delete=models.PROTECT)
+    file_location = models.ForeignKey('FileLocation',related_name='file_data_object', on_delete=models.PROTECT)
+
     def get_content(self):
         return self.file_content
 
@@ -117,9 +114,20 @@ class FileDataObject(DataObject):
             else:
                 instance.file_import.file_location = FileLocation.create_location_for_import(instance)
 
-        
-post_create.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
-post_update.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
+    def delete(self):
+        file_content = self.file_content
+        file_location = self.file_location
+        super(FileDataObject, self).delete()
+        try:
+            file_content.delete()
+        except ProtectedError:
+            # Content is referenced from another object.
+            pass
+        # Do not delete file_location until disk space can be freed.
+
+
+# post_create.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
+# post_update.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
 
 
 class FileContent(DataObjectContent):
@@ -141,6 +149,15 @@ class FileContent(DataObjectContent):
         assert location_count == 1, "Expected 1 location but found %s for file %s" % (location_count, self.filename)
         return self.unnamed_file_content.file_locations.first()
 
+    def delete(self):
+        unnamed_file_content = self.unnamed_file_content
+        super(FileContent, self).delete()
+        try:
+            unnamed_file_content.delete()
+        except ProtectedError:
+            # Content is referenced from another object.
+            pass
+        
 
 class UnnamedFileContent(BaseModel):
     """Represents file content, identified by a hash. Ignores file name.
@@ -157,11 +174,6 @@ class FileLocation(BaseModel):
     """Location of file content.
     """
 
-    unnamed_file_content = models.ForeignKey(
-        'UnnamedFileContent',
-        null=True,
-        related_name='file_locations',
-        on_delete=models.SET_NULL)
     url = models.CharField(max_length=1000)
     status = models.CharField(
         max_length=256,
@@ -170,6 +182,14 @@ class FileLocation(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )            
+    # The relationship to unnamed_file_content is for internal use only,
+    # not serialized or deserialized. This can be obtained through
+    # file_data_object.file_content.unnamed_file_content
+    unnamed_file_content = models.ForeignKey(
+        'UnnamedFileContent',
+        null=True,
+        related_name='file_locations',
+        on_delete=models.SET_NULL)
 
     @classmethod
     def create_location_for_import(cls, file_data_object):
@@ -244,17 +264,11 @@ class FileLocation(BaseModel):
             raise Exception('Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"' % FILE_SERVER_TYPE)
 
 
-class AbstractFileImport(BasePolymorphicModel):
-
-    file_data_object = models.OneToOneField('FileDataObject', related_name='file_import', null=True, on_delete=models.CASCADE)
-    file_location = models.OneToOneField('FileLocation', null=True, related_name='file_import', on_delete=models.SET_NULL)
-    temp_file_location = models.OneToOneField('FileLocation', null=True, related_name='file_import_as_temp', on_delete=models.SET_NULL)
-
-
-class FileImport(AbstractFileImport):
+class FileImport(BaseModel):
 
     note = models.TextField(max_length=10000, null=True)
     source_url = models.TextField(max_length=1000)
+    file_data_object = models.OneToOneField('FileDataObject', related_name='file_import', on_delete=models.CASCADE)
 
     def get_browsable_path(self):
         return 'imported'
@@ -288,6 +302,15 @@ class StringDataObject(DatabaseDataObject):
                 }
             }
         )
+
+    def delete(self):
+        content = self.string_content
+        super(StringDataObject, self).delete()
+        try:
+            content.delete()
+        except ProtectedError:
+            # Content is referenced from another object.
+            pass
 
 
 class StringContent(DataObjectContent):
@@ -323,6 +346,15 @@ class BooleanDataObject(DatabaseDataObject):
             }
         )
 
+    def delete(self):
+        content = self.boolean_content
+        super(BooleanDataObject, self).delete()
+        try:
+            content.delete()
+        except ProtectedError:
+            # Content is referenced from another object.
+            pass
+
 
 class BooleanContent(DataObjectContent):
 
@@ -350,6 +382,15 @@ class IntegerDataObject(DatabaseDataObject):
                 }
             }
         )
+
+    def delete(self):
+        content = self.integer_content
+        super(IntegerDataObject, self).delete()
+        try:
+            content.delete()
+        except ProtectedError:
+            # Content is referenced from another object.
+            pass
 
 
 class IntegerContent(DataObjectContent):

@@ -2,41 +2,105 @@ from django.db import IntegrityError
 from rest_framework import serializers
 
 from analysis.models.data_objects import *
-from .base import NestedPolymorphicModelSerializer, POLYMORPHIC_TYPE_FIELD
+from .base import SuperclassModelSerializer, NoCreateMixin, NoUpdateMixin
 
 
-class DataObjectSerializer(NestedPolymorphicModelSerializer):
+class StringContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
+
+    class Meta:
+        model = StringContent
+        fields = ('string_value',)
+
+    
+class StringDataObjectSerializer(serializers.ModelSerializer):
 
     loom_id = serializers.UUIDField(format='hex', required=False)
+    string_content = StringContentSerializer()
 
     class Meta:
-        model = DataObject
-        exclude = (POLYMORPHIC_TYPE_FIELD,)
-        subclass_serializers = {
-            'filedataobject': 'analysis.serializers.data_objects.FileDataObjectSerializer',
-            'stringdataobject': 'analysis.serializers.data_objects.StringDataObjectSerializer',
-            'integerdataobject': 'analysis.serializers.data_objects.IntegerDataObjectSerializer',
-        }
+        model = StringDataObject
+        fields = ('loom_id', 'string_content',)
+
+    def create(self, validated_data):
+        s = StringContentSerializer(data=validated_data['string_content'])
+        s.is_valid(raise_exception=True)
+        validated_data['string_content'] = s.save()
+        return super(StringDataObjectSerializer, self).create(validated_data)
+
+    def update(self, instance, validated_data):
+        if validated_data.get('string_content'):
+            s = StringContentSerializer(instance.string_content, data=validated_data['string_content'])
+            s.is_valid(raise_exception=True)
+            validated_data['string_content'] = s.save()
+        return super(StringDataObjectSerializer, self).update(instance, validated_data)
 
 
-class DataObjectContentSerializer(NestedPolymorphicModelSerializer):
+class BooleanContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
 
     class Meta:
-        model = DataObjectContent
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
-        subclass_serializers = {
-            'filecontent': 'analysis.serializers.data_objects.FileContentSerializer',
-            'stringcontent': 'analysis.serializers.data_objects.StringContentSerializer',
-            'integercontent': 'analysis.serializers.data_objects.IntegerContentSerializer',
-        }
+        model = BooleanContent
+        fields = ('boolean_value',)
+        
+
+class BooleanDataObjectSerializer(serializers.ModelSerializer):
+
+    loom_id = serializers.UUIDField(format='hex', required=False)
+    boolean_content = BooleanContentSerializer()
+
+    class Meta:
+        model = BooleanDataObject
+        fields = ('loom_id', 'boolean_content',)
+
+    def create(self, validated_data):
+        s = BooleanContentSerializer(data=validated_data['boolean_content'])
+        s.is_valid(raise_exception=True)
+        validated_data['boolean_content'] = s.save()
+        return super(BooleanDataObjectSerializer, self).create(validated_data)
+
+    def update(self, instance, validated_data):
+        if validated_data.get('boolean_content'):
+            s = BooleanContentSerializer(instance.boolean_content, data=validated_data['boolean_content'])
+            s.is_valid(raise_exception=True)
+            validated_data['boolean_content'] = s.save()
+        return super(BooleanDataObjectSerializer, self).update(instance, validated_data)
 
 
-class UnnamedFileContentSerializer(NestedPolymorphicModelSerializer):
+class IntegerContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
+
+    class Meta:
+        model = IntegerContent
+        fields = ('integer_value',)
+
+
+class IntegerDataObjectSerializer(serializers.ModelSerializer):
+
+    loom_id = serializers.UUIDField(format='hex', required=False)
+    integer_content = IntegerContentSerializer()
+
+    class Meta:
+        model = IntegerDataObject
+        fields = ('loom_id', 'integer_content',)
+
+    def create(self, validated_data):
+        s = IntegerContentSerializer(data=validated_data['integer_content'])
+        s.is_valid(raise_exception=True)
+        validated_data['integer_content'] = s.save()
+        return super(IntegerDataObjectSerializer, self).create(validated_data)
+
+    def update(self, instance, validated_data):
+        if validated_data.get('integer_content'):
+            s = IntegerContentSerializer(instance.integer_content, data=validated_data['integer_content'])
+            s.is_valid(raise_exception=True)
+            validated_data['integer_content'] = s.save()
+        return super(IntegerDataObjectSerializer, self).update(instance, validated_data)
+
+
+class UnnamedFileContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
 
     class Meta:
         model = UnnamedFileContent
-        exclude = ('id',)
-        validators = [] # Remove UniqueTogether validator, since this is handled by the serializer
+        fields = ('hash_value', 'hash_function',)
+        validators = [] # Remove UniqueTogether validator, since the exception should be handled by the serializer
 
     def create(self, validated_data):
         try:
@@ -44,134 +108,119 @@ class UnnamedFileContentSerializer(NestedPolymorphicModelSerializer):
         except IntegrityError:
             return self.Meta.model.objects.get(**validated_data)
 
-    def update(self, instance, validated_data):
-        # This class should never be updated, so we verify
-        # that the data is unchanged.
-        for (key, value) in validated_data.iteritems():
-            assert getattr(instance, key) == value
-        return instance
 
-
-class FileContentSerializer(NestedPolymorphicModelSerializer):
+class FileContentSerializer(serializers.ModelSerializer):
 
     unnamed_file_content = UnnamedFileContentSerializer()
 
     class Meta:
         model = FileContent
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
-        nested_x_to_one_serializers = {'unnamed_file_content': 'analysis.serializers.data_objects.UnnamedFileContentSerializer'}
+        fields = ('unnamed_file_content', 'filename',)
+
+    def create(self, validated_data):
+        s = UnnamedFileContentSerializer(data=validated_data['unnamed_file_content'])
+        s.is_valid(raise_exception=True)
+        validated_data['unnamed_file_content'] = s.save()
+        return super(FileContentSerializer, self).create(validated_data)
+    
+    def update(self, instance, validated_data):
+        s = UnnamedFileContentSerializer(instance.unnamed_file_content, data=validated_data['unnamed_file_content'])
+        s.is_valid(raise_exception=True)
+        validated_data['unnamed_file_content'] = s.save()
+        return super(FileContentSerializer, self).update(instance, validated_data)
 
 
-class FileLocationSerializer(NestedPolymorphicModelSerializer):
-
-    unnamed_file_content = UnnamedFileContentSerializer()
+class FileLocationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FileLocation
-        exclude = ('id',)
+        fields = ('url', 'status',)
 
 
-class AbstractFileImportSerializer(NestedPolymorphicModelSerializer):
-
-    temp_file_location = FileLocationSerializer(allow_null=True, required=False)
-    file_location = FileLocationSerializer(allow_null=True, required=False)
-
-    class Meta:
-        model = AbstractFileImport
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
-        subclass_serializers = {'fileimport': 'analysis.serializers.data_objects.FileImportSerializer'}
-        nested_x_to_one_serializers = {
-            'temp_file_location': 'analysis.serializers.data_objects.FileLocationSerializer',
-            'file_location': 'analysis.serializers.data_objects.FileLocationSerializer'
-        }
-
-
-class FileImportSerializer(AbstractFileImportSerializer):
+class FileImportSerializer(NoCreateMixin, NoUpdateMixin, serializers.ModelSerializer):
 
     class Meta:
         model = FileImport
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'file_data_object', 'id')
-        nested_x_to_one_serializers = AbstractFileImportSerializer.Meta.nested_x_to_one_serializers
+        fields = ('note', 'source_url',)
+
+    # Serializer is read-only.
+    # create is allowed through FileDataObjectSerializer
 
 
-class FileDataObjectSerializer(DataObjectSerializer):
+class FileDataObjectSerializer(serializers.ModelSerializer):
 
-    file_content = FileContentSerializer(allow_null=True, required=False)
-    file_import = AbstractFileImportSerializer(allow_null=True, required=False)
+    file_content = FileContentSerializer()
+    file_import = FileImportSerializer(allow_null=True, required=False)
+    file_location = FileLocationSerializer(allow_null=True, required=False)
 
     class Meta:
         model = FileDataObject
-        exclude = DataObjectSerializer.Meta.exclude
-        nested_x_to_one_serializers = {
-            'file_content': 'analysis.serializers.data_objects.FileContentSerializer',
-        }
-        nested_reverse_x_to_one_serializers = {
-            'file_import': 'analysis.serializers.data_objects.AbstractFileImportSerializer',
-        }
+        fields = ('file_content', 'file_import', 'file_location',)
 
-
-class StringContentSerializer(NestedPolymorphicModelSerializer):
-
-    class Meta:
-        model = StringContent
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
-
+    def create(self, validated_data):
         
-class StringDataObjectSerializer(DataObjectSerializer):
-
-    string_content = StringContentSerializer()
-
-    class Meta:
-        model = StringDataObject
-        exclude = DataObjectSerializer.Meta.exclude
-        nested_x_to_one_serializers = {
-            'string_content': 'analysis.serializers.data_objects.StringContentSerializer',
-        }
-
-
-class BooleanContentSerializer(NestedPolymorphicModelSerializer):
-
-    class Meta:
-        model = BooleanContent
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
-
+        file_import_data = validated_data.pop('file_import')
         
-class BooleanDataObjectSerializer(DataObjectSerializer):
+        if validated_data.get('file_content'):
+            s = FileContentSerializer(data=validated_data['file_content'])
+            s.is_valid(raise_exception=True)
+            validated_data['file_content'] = s.save()
+        if validated_data.get('file_location'):
+            s = FileLocationSerializer(data=validated_data['file_location'])
+            s.is_valid(raise_exception=True)
+            validated_data['file_location'] = s.save()
 
-    boolean_content = BooleanContentSerializer()
-
-    class Meta:
-        model = BooleanDataObject
-        exclude = DataObjectSerializer.Meta.exclude
-        nested_x_to_one_serializers = {
-            'boolean_content': 'analysis.serializers.data_objects.BooleanContentSerializer',
-        }
-
-
-class IntegerContentSerializer(NestedPolymorphicModelSerializer):
-
-    class Meta:
-        model = IntegerContent
-        exclude = (POLYMORPHIC_TYPE_FIELD, 'id')
+        model = super(FileDataObjectSerializer, self).create(validated_data)
         
+        if file_import_data:
+            file_import_data.update({'file_data_object': model})
+            FileImport(**file_import_data)
+            s.save()
 
-class IntegerDataObjectSerializer(DataObjectSerializer):
+        return model
 
-    integer_content = IntegerContentSerializer()
+    def update(self, instance, validated_data):
+        file_import_data = validated_data.pop('file_import')
+        
+        if validated_data.get('file_content'):
+            s = FileContentSerializer(instance.file_content, data=validated_data['file_content'])
+            s.is_valid(raise_exception=True)
+            validated_data['file_content'] = s.save()
+        if validated_data.get('file_location'):
+            s = FileLocationSerializer(instance.file_location, data=validated_data['file_location'])
+            s.is_valid(raise_exception=True)
+            validated_data['file_location'] = s.save()
 
-    class Meta:
-        model = IntegerDataObject
-        exclude = DataObjectSerializer.Meta.exclude
-        nested_x_to_one_serializers = {
-            'integer_content': 'analysis.serializers.data_objects.IntegerContentSerializer',
-        }
+        model = super(FileDataObjectSerializer, self).update(validated_data)
 
-"""
-class DataObjectArraySerializer(NestedPolymorphicModelSerializer):
+        if file_import_data:
+            instance.file_import.note = file_import_data.get('note', None)
+            instance.file_import.source_url = file_import_data.get('source_url', None)
+            instance.file_import.save()
+            
+        return super(FileContentSerializer, self).update(instance, validated_data)
 
-    class Meta:
-        model = DataObjectArray
-        nested_x_to_many_serializers = {
-            'items': 'analysis.serializers.data_objects.DataObjectSerializer',
-        }
-"""
+
+class DataObjectSerializer(SuperclassModelSerializer):
+
+    subclass_serializers = {
+        'stringdataobject': StringDataObjectSerializer,
+        'integerdataobject': IntegerDataObjectSerializer,
+        'booleandataobject': BooleanDataObjectSerializer,
+        'filedataobject': FileDataObjectSerializer,
+    }
+
+    class Meta(SuperclassModelSerializer.Meta):
+        model = DataObject
+
+class DataObjectContentSerializer(SuperclassModelSerializer):
+
+    subclass_serializers = {
+        'filecontent': FileContentSerializer,
+        'booleancontent': BooleanContentSerializer,
+        'stringcontent': StringContentSerializer,
+        'integercontent': IntegerContentSerializer,
+    }
+
+    class Meta(SuperclassModelSerializer.Meta):
+        model = DataObjectContent

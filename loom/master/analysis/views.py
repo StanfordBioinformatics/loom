@@ -7,6 +7,7 @@ import logging
 import os
 
 from analysis import get_setting
+from analysis.models import DataObject
 #from analysis.models import RunRequest, TaskRun, FileDataObject, TaskRunAttempt
 from loom.common import version
 
@@ -21,13 +22,14 @@ class QueryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
-        Model = self.serializer_class.Meta.model
+        Model = self.Model
         if query_string:
             return Model.query_by_name_or_id(query_string)
         else:
             return Model.objects.all()
 
 class DataObjectViewSet(QueryViewSet):
+    Model = DataObject
     serializer_class = serializers.DataObjectSerializer
 
 class DataObjectContentViewSet(viewsets.ModelViewSet):
@@ -46,15 +48,11 @@ class FileLocationViewSet(viewsets.ModelViewSet):
     queryset = models.FileLocation.objects.all()
     serializer_class = serializers.FileLocationSerializer
 
-class AbstractFileImportViewSet(viewsets.ModelViewSet):
-    queryset = models.AbstractFileImport.objects.all()
-    serializer_class = serializers.AbstractFileImportSerializer
-
 class FileImportViewSet(viewsets.ModelViewSet):
     queryset = models.FileImport.objects.all()
     serializer_class = serializers.FileImportSerializer
 
-class FileDataObjectViewSet(DataObjectViewSet):
+class FileDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.FileDataObject.objects.all()
     serializer_class = serializers.FileDataObjectSerializer
 
@@ -62,7 +60,7 @@ class StringContentViewSet(viewsets.ModelViewSet):
     queryset = models.StringContent.objects.all()
     serializer_class = serializers.StringContentSerializer
 
-class StringDataObjectViewSet(DataObjectViewSet):
+class StringDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.StringDataObject.objects.all()
     serializer_class = serializers.StringDataObjectSerializer
 
@@ -70,18 +68,19 @@ class BooleanContentViewSet(viewsets.ModelViewSet):
     queryset = models.BooleanContent.objects.all()
     serializer_class = serializers.BooleanContentSerializer
 
-class BooleanDataObjectViewSet(DataObjectViewSet):
+class BooleanDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.BooleanDataObject.objects.all()
-    serializer_clsas = serializers.BooleanDataObjectSerializer
+    serializer_class = serializers.BooleanDataObjectSerializer
 
 class IntegerContentViewSet(viewsets.ModelViewSet):
     queryset = models.IntegerContent.objects.all()
     serializer_class = serializers.IntegerContentSerializer
 
-class IntegerDataObjectViewSet(DataObjectViewSet):
+class IntegerDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.IntegerDataObject.objects.all()
     serializer_class = serializers.IntegerDataObjectSerializer
 
+"""
 class TaskDefinitionViewSet(viewsets.ModelViewSet):
     queryset = models.TaskDefinition.objects.all()
     serializer_class = serializers.TaskDefinitionSerializer
@@ -269,6 +268,7 @@ class RestartRequestViewSet(viewsets.ModelViewSet):
 class FailureNoticeViewSet(viewsets.ModelViewSet):
     queryset = models.FailureNotice.objects.all()
     serializer_class = serializers.FailureNoticeSerializer
+"""
 
 @require_http_methods(["GET"])
 def status(request):
