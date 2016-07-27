@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import uuid
 import warnings
 
 from ConfigParser import SafeConfigParser
@@ -372,15 +373,22 @@ class GoogleCloudServerControls(BaseServerControls):
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
         setup_gcloud_ssh()
-        
         env = self.get_ansible_env()
+        
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
-        returncode = self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
-        return returncode
+        return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
         return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
+
+    def build_docker_image(self, build_path, docker_tag):
+        """Build Docker image using current code. Dockerfile must exist at build_path."""
+        subprocess.call(['docker', 'build', build_path, '-t', docker_tag])
+
+    def push_docker_image(self, docker_tag):
+        """Use gcloud to push Docker image to registry specified in tag."""
+        subprocess.call(['docker', 'push', docker_tag])
 
     def start(self):
         """Start the gcloud server instance, then start the Loom server."""
@@ -395,7 +403,15 @@ class GoogleCloudServerControls(BaseServerControls):
             returncode = self.create()
             if returncode != 0:
                 raise Exception('Error deploying Google Cloud server instance.')
+
+        # If git checkout (as opposed to PyPI install), build and push Docker image
+        dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
+        docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4())
+        if os.path.exists(dockerfile_path):
+            self.build_docker_image(os.path.dirname(dockerfile_path), docker_tag)
+            self.push_docker_image(docker_tag)
         env = self.get_ansible_env()
+        env['DOCKER_TAG'] = docker_tag
         return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
 
     def stop(self):
