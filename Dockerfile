@@ -18,8 +18,7 @@ RUN apt-get update && apt-get install -y \
 #RUN ssh-keygen -t rsa -f ~/.ssh/google_compute_engine -P ""
 #RUN gcloud compute config-ssh
 
-# Install Loom.
-COPY . /opt/loom/
+# Install Loom's OS dependencies.
 RUN apt-get update && apt-get install -y \
     build-essential \
     libffi-dev \
@@ -28,12 +27,15 @@ RUN apt-get update && apt-get install -y \
     python-dev \
     python-pip \ 
     && pip install virtualenv \
-    && virtualenv /opt/loom \
-    && . /opt/loom/bin/activate \
-    && pip install /opt/loom \
     && apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Loom and its Python dependencies.
+COPY . /opt/loom/
+RUN virtualenv /opt/loom \
+    && . /opt/loom/bin/activate \
+    && pip install /opt/loom 
 
 ENV PATH /opt/loom/bin:$PATH
 EXPOSE 8000

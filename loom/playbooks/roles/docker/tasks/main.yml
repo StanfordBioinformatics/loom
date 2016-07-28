@@ -27,13 +27,13 @@
     dest: /etc/sysconfig/docker
 
 # Prefer when|changed over a notification so these run ASAP
-- name: restart cgconfig on rhel6
-  service:
-    name: cgconfig
-    state: restarted
-  when:
-    - docker_install|changed
-    - ansible_os_family == "RedHat" and ansible_distribution_major_version == "6"
+#- name: restart cgconfig on rhel6
+#  service:
+#    name: cgconfig
+#    state: restarted
+#  when:
+#    - docker_install|changed
+#    - ansible_os_family == "RedHat" and ansible_distribution_major_version == "6"
 
 - name: start and enable docker
   service:

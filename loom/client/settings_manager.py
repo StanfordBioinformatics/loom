@@ -66,6 +66,9 @@ class SettingsManager:
         if self.settings['GCE_BUCKET'] == 'None':
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
 
+        # Add DOCKER_TAG based on presence of Dockerfile
+        # Add DOCKER_NAME setting in default settings
+
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
         self.save_settings_to_file(get_deploy_settings_filename(), section='deploy')

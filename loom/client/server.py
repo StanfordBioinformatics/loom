@@ -373,8 +373,21 @@ class GoogleCloudServerControls(BaseServerControls):
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
         setup_gcloud_ssh()
-        env = self.get_ansible_env()
         
+        dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
+        docker_name = 'loomengine/loom'
+        if os.path.exists(dockerfile_path):
+            # If git checkout with a Dockerfile, build Docker image
+            #docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4()) # Server is a Docker registry
+            docker_tag = '%s-%s' % (version(), uuid.uuid4())
+            self.build_docker_image(os.path.dirname(dockerfile_path), docker_name, docker_tag)
+            #self.push_docker_image(docker_tag)
+        else:
+            # If PyPI install, with no Dockerfile, use Loom image from Dockerhub
+            docker_tag = version()
+        env = self.get_ansible_env()
+        env['DOCKER_NAME'] = docker_name
+        env['DOCKER_TAG'] = docker_tag
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
@@ -382,9 +395,9 @@ class GoogleCloudServerControls(BaseServerControls):
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
         return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
 
-    def build_docker_image(self, build_path, docker_tag):
+    def build_docker_image(self, build_path, docker_name, docker_tag):
         """Build Docker image using current code. Dockerfile must exist at build_path."""
-        subprocess.call(['docker', 'build', build_path, '-t', docker_tag])
+        subprocess.call(['docker', 'build', build_path, '-t', '%s:%s' % (docker_name, docker_tag)])
 
     def push_docker_image(self, docker_tag):
         """Use gcloud to push Docker image to registry specified in tag."""
@@ -404,14 +417,7 @@ class GoogleCloudServerControls(BaseServerControls):
             if returncode != 0:
                 raise Exception('Error deploying Google Cloud server instance.')
 
-        # If git checkout (as opposed to PyPI install), build and push Docker image
-        dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
-        docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4())
-        if os.path.exists(dockerfile_path):
-            self.build_docker_image(os.path.dirname(dockerfile_path), docker_tag)
-            self.push_docker_image(docker_tag)
         env = self.get_ansible_env()
-        env['DOCKER_TAG'] = docker_tag
         return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
 
     def stop(self):
