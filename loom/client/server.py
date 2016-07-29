@@ -7,7 +7,6 @@ import re
 import shutil
 import subprocess
 import sys
-import uuid
 import warnings
 
 from ConfigParser import SafeConfigParser
@@ -373,21 +372,15 @@ class GoogleCloudServerControls(BaseServerControls):
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
         setup_gcloud_ssh()
-        
-        dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
-        docker_name = 'loomengine/loom'
-        if os.path.exists(dockerfile_path):
-            # If git checkout with a Dockerfile, build Docker image
-            #docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4()) # Server is a Docker registry
-            docker_tag = '%s-%s' % (version(), uuid.uuid4())
-            self.build_docker_image(os.path.dirname(dockerfile_path), docker_name, docker_tag)
-            #self.push_docker_image(docker_tag)
-        else:
-            # If PyPI install, with no Dockerfile, use Loom image from Dockerhub
-            docker_tag = version()
         env = self.get_ansible_env()
-        env['DOCKER_NAME'] = docker_name
-        env['DOCKER_TAG'] = docker_tag
+
+        if is_dev_install():
+            # If we have a Dockerfile, build Docker image
+            #docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4()) # Server is a Docker registry
+            dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
+            self.build_docker_image(os.path.dirname(dockerfile_path), env['DOCKER_NAME'], env['DOCKER_TAG'])
+            #self.push_docker_image(docker_tag)
+
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         

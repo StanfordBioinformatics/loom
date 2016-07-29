@@ -208,6 +208,17 @@ def is_gce_json_valid():
     else:
         return False
 
+def is_dev_install():
+    """Checks if the client is installed in development mode by looking for a
+    Dockerfile in the parent dir of the loom package. This means:
+    - we can build a Loom Docker image
+    - we have setup.py
+    - we have /doc/examples
+    - we are probably a Git checkout
+    """ 
+    dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
+    return os.path.exists(dockerfile_path)
+
 def parse_as_json_or_yaml(text):
     def read_as_json(json_text):
         try:

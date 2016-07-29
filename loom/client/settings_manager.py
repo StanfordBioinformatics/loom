@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import uuid
 
 from ConfigParser import SafeConfigParser
 from loom.client.common import *
@@ -44,9 +45,6 @@ class SettingsManager:
             if user_settings_file:
                 self.load_settings_from_file(user_settings_file, section=server_type)
 
-        #TODO: extract settings from commandline arguments and override self.settings with them
-        #TODO: verify required settings are defined and raise error if not
-
     def load_gcloud_settings(self):
         """ Load Google Cloud-specific settings."""
         # Add server name from server.ini
@@ -66,8 +64,11 @@ class SettingsManager:
         if self.settings['GCE_BUCKET'] == 'None':
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
 
-        # Add DOCKER_TAG based on presence of Dockerfile
-        # Add DOCKER_NAME setting in default settings
+        if is_dev_install():
+            #self.settings['DOCKER_TAG'] = '%s:5000/%s:%s-%s' % (get_server_ip(), self.settings['DOCKER_NAME'], version(), uuid.uuid4()) # Server is a Docker registry
+            self.settings['DOCKER_TAG'] = '%s-%s' % (version(), uuid.uuid4())
+        else:
+            self.settings['DOCKER_TAG'] = '%s' % version()
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
