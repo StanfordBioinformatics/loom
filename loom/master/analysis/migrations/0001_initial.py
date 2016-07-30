@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='DataObject',
             fields=[
-                ('loom_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -40,6 +40,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('note', models.TextField(max_length=10000, null=True)),
                 ('source_url', models.TextField(max_length=1000)),
+                ('type', models.CharField(default=b'import', max_length=256, choices=[(b'import', b'Import'), (b'result', b'Result'), (b'log', b'Log')])),
             ],
             options={
                 'abstract': False,
@@ -49,7 +50,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='FileLocation',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('url', models.CharField(max_length=1000)),
                 ('status', models.CharField(default=b'incomplete', max_length=256, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
             ],
@@ -104,7 +105,7 @@ class Migration(migrations.Migration):
             name='FileDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('file_content', models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileContent')),
+                ('file_content', models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileContent', null=True)),
             ],
             options={
                 'abstract': False,
@@ -182,7 +183,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='filedataobject',
             name='file_location',
-            field=models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileLocation'),
+            field=models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileLocation', null=True),
+        ),
+        migrations.AddField(
+            model_name='filedataobject',
+            name='temp_file_location',
+            field=models.ForeignKey(related_name='file_data_object_as_temp', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileLocation', null=True),
         ),
         migrations.AddField(
             model_name='filecontent',

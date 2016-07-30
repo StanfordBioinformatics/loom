@@ -46,10 +46,19 @@ file_data_object = {
     'file_location': file_location
 }
 
+file_data_object_without_location = {
+    'file_content': file_content,
+    'file_import': file_import,
+}
+
+file_data_object_without_location_or_content = {
+    'file_import': file_import,
+}
+
 file_data_object_2 = {
     'file_content': file_content_2,
     'file_import': file_import_2,
-    'file_location': file_location_2
+    'temp_file_location': file_location_2
 }
 
 integer_content = {

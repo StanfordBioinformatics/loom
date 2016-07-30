@@ -46,25 +46,28 @@ class TestStringContentSerializer(TestCase):
 class TestStringDataObjectSerializer(TestCase):
 
     def testCreate(self):
-        s = StringDataObjectSerializer(data=fixtures.data_objects.string_data_object)
+        s = StringDataObjectSerializer(
+            data=fixtures.data_objects.string_data_object)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.string_content.string_value,
-                         fixtures.data_objects.string_data_object['string_content']['string_value'])
+        self.assertEqual(
+            m.string_content.string_value,
+            fixtures.data_objects.string_data_object['string_content'][
+                'string_value'])
 
     def testNegCreateWithNoContent(self):
         s = StringDataObjectSerializer(data={})
         self.assertFalse(s.is_valid())
         
-    def testNegCreateWithDuplicateLoomID(self):
+    def testNegCreateWithDuplicateID(self):
         data = copy.deepcopy(fixtures.data_objects.string_data_object)
         
         s1 = StringDataObjectSerializer(data=data)
         s1.is_valid()
         m1 = s1.save()
 
-        data.update({'loom_id': m1.loom_id})
+        data.update({'id': m1.id})
         s2 = StringDataObjectSerializer(data=data)
         s2.is_valid()
         with self.assertRaises(IntegrityError):
@@ -72,14 +75,17 @@ class TestStringDataObjectSerializer(TestCase):
         
     def testNegUpdateChild(self):
         # Create model
-        s = StringDataObjectSerializer(data=fixtures.data_objects.string_data_object)
+        s = StringDataObjectSerializer(
+            data=fixtures.data_objects.string_data_object)
         s.is_valid()
         m = s.save()
 
         # Update child model
         new_value = 'xx'
-        string_data_object = copy.deepcopy(fixtures.data_objects.string_data_object)
-        string_data_object['string_content'].update({'string_value': new_value})
+        string_data_object = copy.deepcopy(
+            fixtures.data_objects.string_data_object)
+        string_data_object['string_content'].update(
+            {'string_value': new_value})
         s = StringDataObjectSerializer(m, data=string_data_object)
         s.is_valid()
         with self.assertRaises(UpdateNotAllowedError):
@@ -94,57 +100,70 @@ class TestStringDataObjectSerializer(TestCase):
 class TestBooleanContentSerializer(TestCase):
     
     def testCreate(self):
-        s = BooleanContentSerializer(data=fixtures.data_objects.boolean_content)
+        s = BooleanContentSerializer(
+            data=fixtures.data_objects.boolean_content)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.boolean_value,
-                         fixtures.data_objects.boolean_content['boolean_value'])
+        self.assertEqual(
+            m.boolean_value,
+            fixtures.data_objects.boolean_content['boolean_value'])
 
 class TestBooleanDataObjectSerializer(TestCase):
     
     def testCreate(self):
-        s = BooleanDataObjectSerializer(data=fixtures.data_objects.boolean_data_object)
+        s = BooleanDataObjectSerializer(
+            data=fixtures.data_objects.boolean_data_object)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.boolean_content.boolean_value,
-                         fixtures.data_objects.boolean_data_object['boolean_content']['boolean_value'])
+        self.assertEqual(
+            m.boolean_content.boolean_value,
+            fixtures.data_objects.boolean_data_object['boolean_content'][
+                'boolean_value'])
 
 class TestIntegerContentSerializer(TestCase):
 
     def testCreate(self):
-        s = IntegerContentSerializer(data=fixtures.data_objects.integer_content)
+        s = IntegerContentSerializer(
+            data=fixtures.data_objects.integer_content)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.integer_value,
-                         fixtures.data_objects.integer_content['integer_value'])
+        self.assertEqual(
+            m.integer_value,
+            fixtures.data_objects.integer_content['integer_value'])
 
 
 class TestIntegerDataObjectSerializer(TestCase):
 
     def testCreate(self):
-        s = IntegerDataObjectSerializer(data=fixtures.data_objects.integer_data_object)
+        s = IntegerDataObjectSerializer(
+            data=fixtures.data_objects.integer_data_object)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.integer_content.integer_value,
-                         fixtures.data_objects.integer_data_object['integer_content']['integer_value'])
+        self.assertEqual(
+            m.integer_content.integer_value,
+            fixtures.data_objects.integer_data_object['integer_content'][
+                'integer_value'])
 
         
 class TestUnnamedFileContentSerializer(TestCase):
 
     def testCreate(self):
-        s = UnnamedFileContentSerializer(data=fixtures.data_objects.unnamed_file_content)
+        s = UnnamedFileContentSerializer(
+            data=fixtures.data_objects.unnamed_file_content)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.hash_value,
-                         fixtures.data_objects.unnamed_file_content['hash_value'])
+        self.assertEqual(
+            m.hash_value,
+            fixtures.data_objects.unnamed_file_content['hash_value'])
 
     def testUpdate(self):
-        s = UnnamedFileContentSerializer(data=fixtures.data_objects.unnamed_file_content)
+        s = UnnamedFileContentSerializer(
+            data=fixtures.data_objects.unnamed_file_content)
         s.is_valid()
         m = s.save()
 
@@ -187,12 +206,134 @@ class TestFileImportSerializer(TestCase):
 class TestFileDataObjectSerializer(TestCase):
     
     def testCreate(self):
-        s = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.file_content.filename,
-                         fixtures.data_objects.file_data_object['file_content']['filename'])
+        self.assertEqual(
+            m.file_content.filename,
+            fixtures.data_objects.file_data_object['file_content']['filename'])
+
+    def testCreateWithTempLocation(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object_2)
+        s.is_valid()
+        m = s.save()
+
+        self.assertEqual(
+            m.temp_file_location.url,
+            fixtures.data_objects.file_data_object_2['temp_file_location'][
+                'url'])
+
+    def testCreateWithExistingLocation(self):
+        data = copy.deepcopy(fixtures.data_objects.file_data_object)
+        s1 = FileLocationSerializer(data=data['file_location'])
+        s1.is_valid()
+        loc = s1.save()
+
+        # Update data with existing file location ID
+        data['file_location'] = s1.data
+
+        s2 = FileDataObjectSerializer(data=data)
+        s2.is_valid()
+        do = s2.save()
+
+        # FileDataObject should use existing location, not create new
+        self.assertEqual(FileLocation.objects.count(), 1)
+        self.assertEqual(
+            do.file_location.url,
+            fixtures.data_objects.file_data_object['file_location']['url'])
+
+    def testCreateWithLocationId(self):
+        data = copy.deepcopy(fixtures.data_objects.file_data_object)
+        new_id = uuid.uuid4().hex
+        data['file_location'].update({'id': new_id})
+
+        s = FileDataObjectSerializer(data=data)
+        s.is_valid()
+        do = s.save()
+
+        # FileLocation should have been created
+        self.assertEqual(FileLocation.objects.count(), 1)
+        # and it should have the id that was assigned
+        self.assertEqual(
+            new_id,
+            do.file_location.id.hex)
+
+    def testUpdateWithExistingLocation(self):
+        data = copy.deepcopy(fixtures.data_objects.file_data_object)
+        s = FileDataObjectSerializer(data=data)
+        s.is_valid()
+        m = s.save()
+
+        loc1_id = m.file_location.pk
+
+        new_url = 'new:///ur/l'
+        data['file_location']['url'] = new_url
+        
+        s = FileDataObjectSerializer(m, data=data)
+        s.is_valid()
+        m = s.save()
+
+        loc2_id = m.file_location.pk
+
+        self.assertEqual(m.file_location.url, new_url)
+        self.assertNotEqual(loc1_id, loc2_id)
+
+    def testUpdateWithNewLocation(self):
+        s1 = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s1.is_valid()
+        m = s1.save()
+
+        data = s1.data
+        data['file_location'] = fixtures.data_objects.file_location_2
+
+        s2 = FileDataObjectSerializer(m, data=data)
+        s2.is_valid()
+        m = s2.save()
+
+        self.assertEqual(m.file_location.url,
+                         fixtures.data_objects.file_location_2['url'])
+        self.assertEqual(FileLocation.objects.count(), 2)
+
+    def testNegUpdateLocationViaDataObject(self):
+        s1 = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s1.is_valid()
+        m = s1.save()
+
+        # Update should work if Location data is unchanged
+        data = s1.data
+        s2 = FileDataObjectSerializer(m, data=data)
+        s2.is_valid()
+        s2.save()
+
+        # But if Location data changes we should see an error
+        new_url = 'a:///new/url'
+        data['file_location']['url'] = new_url
+
+        s3 = FileDataObjectSerializer(m, data=data)
+        s3.is_valid()
+        with self.assertRaises(serializers.ValidationError):
+            s3.save()
+
+    def testNegUpdateContentViaDataObject(self):
+        s1 = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s1.is_valid()
+        m = s1.save()
+
+        data = s1.data
+
+        new_filename = 're.name'
+        data['file_content']['filename'] = new_filename
+
+        s2 = FileDataObjectSerializer(m, data=data)
+        s2.is_valid()
+        with self.assertRaises(UpdateNotAllowedError):
+            m = s2.save()
 
 
 class TestDataObjectSerializer(TestCase):
@@ -202,8 +343,9 @@ class TestDataObjectSerializer(TestCase):
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.string_content.string_value,
-                         fixtures.data_objects.string_data_object['string_content']['string_value'])
+        self.assertEqual(
+            m.string_content.string_value,
+            fixtures.data_objects.string_data_object['string_content']['string_value'])
 
     def testNegUpdate(self):
         # Create model
@@ -213,8 +355,10 @@ class TestDataObjectSerializer(TestCase):
 
         # Update model
         new_value = 'xx'
-        string_data_object = copy.deepcopy(fixtures.data_objects.string_data_object)
-        string_data_object['string_content'].update({'string_value': new_value})
+        string_data_object = copy.deepcopy(
+            fixtures.data_objects.string_data_object)
+        string_data_object['string_content'].update(
+            {'string_value': new_value})
         s = DataObjectSerializer(m, data=string_data_object)
         s.is_valid()
         with self.assertRaises(UpdateNotAllowedError):
@@ -223,32 +367,39 @@ class TestDataObjectSerializer(TestCase):
     def testNegInvalidCreate(self):
         baddata={'bad': 'data'}
         s = DataObjectSerializer(data=baddata)
+        s.is_valid()
         with self.assertRaises(serializers.ValidationError):
-            s.is_valid(baddata)
+            s.save()
 
     def testGetDataFromModel(self):
-        s1 = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s1 = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
         s1.is_valid()
         m = s1.save()
 
         s2 = DataObjectSerializer(m)
         d = s2.data
-        self.assertEqual(d['file_content']['unnamed_file_content']['hash_value'],
-                         fixtures.data_objects.file_data_object['file_content']['unnamed_file_content']['hash_value'])
+        self.assertEqual(
+            d['file_content']['unnamed_file_content']['hash_value'],
+            fixtures.data_objects.file_data_object['file_content']['unnamed_file_content']['hash_value'])
 
     def testGetDataFromData(self):
         s = DataObjectSerializer(data=fixtures.data_objects.file_data_object)
         s.is_valid()
         d = s.data
-        self.assertEqual(d['file_content']['unnamed_file_content']['hash_value'],
-                         fixtures.data_objects.file_data_object['file_content']['unnamed_file_content']['hash_value'])
+        self.assertEqual(
+            d['file_content']['unnamed_file_content']['hash_value'],
+            fixtures.data_objects.file_data_object['file_content']['unnamed_file_content']['hash_value'])
+
 
 class TestDataObjectContentSerializer(TestCase):
 
     def testCreate(self):
-        s = DataObjectContentSerializer(data=fixtures.data_objects.boolean_content)
+        s = DataObjectContentSerializer(
+            data=fixtures.data_objects.boolean_content)
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.boolean_value,
-                         fixtures.data_objects.boolean_content['boolean_value'])
+        self.assertEqual(
+            m.boolean_value,
+            fixtures.data_objects.boolean_content['boolean_value'])

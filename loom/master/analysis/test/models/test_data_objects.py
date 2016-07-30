@@ -4,6 +4,7 @@ from django.db import IntegrityError
 from django.db.models import ProtectedError
 
 from analysis.models.data_objects import *
+from analysis.serializers.data_objects import *
 from analysis.test import fixtures
 
 
@@ -12,7 +13,8 @@ class TestDataObject(TestCase):
     def testCreateAsSubclass(self):
         content = BooleanContent(**fixtures.data_objects.boolean_content)
         content.save()
-        boolean_data_object = copy.deepcopy(fixtures.data_objects.boolean_data_object)
+        boolean_data_object = copy.deepcopy(
+            fixtures.data_objects.boolean_data_object)
         boolean_data_object['boolean_content'] = content
         do = BooleanDataObject(**boolean_data_object)
         do.save()
@@ -68,8 +70,33 @@ class TestFileDataObject(TestCase):
 
         do.delete()
         self.assertEqual(FileDataObject.objects.count(), 0)
-        self.assertEqual(FileLocation.objects.count(), 1) # Should not be removed until disk space is freed.
+        # Location should not be removed until disk space is freed.
+        self.assertEqual(FileLocation.objects.count(), 1) 
         self.assertEqual(FileContent.objects.count(), 0)
+
+    def testAutoCreateTempLocation(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object_without_location_or_content)
+        s.is_valid()
+        file_data_object = s.save()
+        self.assertIsNotNone(file_data_object.temp_file_location.url)
+
+    def testAutoCreateFinalLocation(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object_without_location)
+        s.is_valid()
+        file_data_object = s.save()
+        self.assertIsNotNone(file_data_object.file_location.url)
+
+    def testAddImplicitLinks(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object_without_location)
+        s.is_valid()
+        file_data_object = s.save()
+        self.assertEqual(
+            file_data_object.file_location.unnamed_file_content.id,
+            file_data_object.file_content.unnamed_file_content.id
+        )
 
 
 class TestFileContent(TestCase):
@@ -123,7 +150,7 @@ class TestUnnamedFileContent(TestCase):
         u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
         with self.assertRaises(IntegrityError):
             u.save()
-        
+
 
 class TestFileLocation(TestCase):
 
@@ -153,6 +180,53 @@ class TestFileLocation(TestCase):
         with self.assertRaises(ProtectedError):
             location.delete()
 
+    def testCreateLocationForImport(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+
+        with self.settings(KEEP_DUPLICATE_FILES=True, FORCE_RERUN=True):
+            location = FileLocation.create_location_for_import(
+                file_data_object)
+
+        self.assertTrue('imported' in location.url)
+        self.assertTrue(file_data_object.id.hex in location.url)
+
+        with self.settings(KEEP_DUPLICATE_FILES=True, FORCE_RERUN=False):
+            location = FileLocation.create_location_for_import(
+                file_data_object)
+
+        self.assertTrue('imported' not in location.url)
+        self.assertTrue(file_data_object.id.hex in location.url)
+
+        with self.settings(KEEP_DUPLICATE_FILES=False, FORCE_RERUN=True):
+            location = FileLocation.create_location_for_import(
+                file_data_object)
+
+        self.assertTrue('imported' not in location.url)
+        self.assertTrue(
+            file_data_object.file_content.unnamed_file_content.hash_value \
+            in location.url)
+
+        with self.settings(KEEP_DUPLICATE_FILES=False, FORCE_RERUN=False):
+            location = FileLocation.create_location_for_import(
+                file_data_object)
+
+        self.assertTrue('imported' not in location.url)
+        self.assertTrue(
+            file_data_object.file_content.unnamed_file_content.hash_value \
+            in location.url)
+
+    def testGetBrowsablePathForResult(self):
+        #TODO
+        pass
+
+    def testGetBrowsablePathForLog(self):
+        #TODO
+        pass
+
+
 class TestFileImport(TestCase):
     
     def testCreate(self):
@@ -166,7 +240,9 @@ class TestFileImport(TestCase):
         do.save()
         self.assertEqual(FileDataObject.objects.count(), 1)
 
-        fi = FileImport(file_data_object=do, note='hey', source_url='file:///my/stuff')
+        fi = FileImport(file_data_object=do,
+                        note='hey',
+                        source_url='file:///my/stuff')
         fi.save()
         self.assertEqual(FileImport.objects.count(), 1)
 
@@ -181,7 +257,10 @@ class TestFileImport(TestCase):
         do.save()
         self.assertEqual(FileDataObject.objects.count(), 1)
 
-        fi = FileImport(file_data_object=do, note='hey', source_url='file:///my/stuff')
+        fi = FileImport(
+            file_data_object=do,
+            note='hey',
+            source_url='file:///my/stuff')
         fi.save()
 
         # Deleting data object cascades to delete import
@@ -199,7 +278,9 @@ class TestFileImport(TestCase):
         do.save()
         self.assertEqual(FileDataObject.objects.count(), 1)
 
-        fi = FileImport(file_data_object=do, note='hey', source_url='file:///my/stuff')
+        fi = FileImport(file_data_object=do,
+                        note='hey',
+                        source_url='file:///my/stuff')
         fi.save()
 
         # Deleting import leaves data object untouched
@@ -213,7 +294,8 @@ class TestStringDataObject(TestCase):
     def testCreate(self):
         content = StringContent(**fixtures.data_objects.string_content)
         content.save()
-        string_data_object = copy.deepcopy(fixtures.data_objects.string_data_object)
+        string_data_object = copy.deepcopy(
+            fixtures.data_objects.string_data_object)
         string_data_object['string_content'] = content
         do = StringDataObject(**string_data_object)
         do.save()
@@ -223,7 +305,8 @@ class TestStringDataObject(TestCase):
     def testDelete(self):
         content = StringContent(**fixtures.data_objects.string_content)
         content.save()
-        string_data_object = copy.deepcopy(fixtures.data_objects.string_data_object)
+        string_data_object = copy.deepcopy(
+            fixtures.data_objects.string_data_object)
         string_data_object['string_content'] = content
         do = StringDataObject(**string_data_object)
         do.save()
@@ -238,7 +321,8 @@ class TestStringContent(TestCase):
     def testCreate(self):
         content = StringContent(**fixtures.data_objects.string_content)
         content.save()
-        self.assertEqual(content.string_value, fixtures.data_objects.string_content['string_value'])
+        self.assertEqual(content.string_value,
+                         fixtures.data_objects.string_content['string_value'])
 
     def testDelete(self):
         content = StringContent(**fixtures.data_objects.string_content)
@@ -250,7 +334,8 @@ class TestStringContent(TestCase):
     def testDeleteProtected(self):
         content = StringContent(**fixtures.data_objects.string_content)
         content.save()
-        string_data_object = copy.deepcopy(fixtures.data_objects.string_data_object)
+        string_data_object = copy.deepcopy(
+            fixtures.data_objects.string_data_object)
         string_data_object['string_content'] = content
         do = StringDataObject(**string_data_object)
         do.save()
@@ -266,7 +351,8 @@ class TestBooleanDataObject(TestCase):
     def testCreate(self):
         content = BooleanContent(**fixtures.data_objects.boolean_content)
         content.save()
-        boolean_data_object = copy.deepcopy(fixtures.data_objects.boolean_data_object)
+        boolean_data_object = copy.deepcopy(
+            fixtures.data_objects.boolean_data_object)
         boolean_data_object['boolean_content'] = content
         do = BooleanDataObject(**boolean_data_object)
         do.save()
@@ -276,7 +362,8 @@ class TestBooleanDataObject(TestCase):
     def testDelete(self):
         content = BooleanContent(**fixtures.data_objects.boolean_content)
         content.save()
-        boolean_data_object = copy.deepcopy(fixtures.data_objects.boolean_data_object)
+        boolean_data_object = copy.deepcopy(
+            fixtures.data_objects.boolean_data_object)
         boolean_data_object['boolean_content'] = content
         do = BooleanDataObject(**boolean_data_object)
         do.save()
@@ -291,7 +378,9 @@ class TestBooleanContent(TestCase):
     def testCreate(self):
         content = BooleanContent(**fixtures.data_objects.boolean_content)
         content.save()
-        self.assertEqual(content.boolean_value, fixtures.data_objects.boolean_content['boolean_value'])
+        self.assertEqual(
+            content.boolean_value,
+            fixtures.data_objects.boolean_content['boolean_value'])
 
     def testDelete(self):
         content = BooleanContent(**fixtures.data_objects.boolean_content)
@@ -303,7 +392,8 @@ class TestBooleanContent(TestCase):
     def testDeleteProtected(self):
         content = BooleanContent(**fixtures.data_objects.boolean_content)
         content.save()
-        boolean_data_object = copy.deepcopy(fixtures.data_objects.boolean_data_object)
+        boolean_data_object = copy.deepcopy(
+            fixtures.data_objects.boolean_data_object)
         boolean_data_object['boolean_content'] = content
         do = BooleanDataObject(**boolean_data_object)
         do.save()
@@ -319,7 +409,8 @@ class TestIntegerDataObject(TestCase):
     def testCreate(self):
         content = IntegerContent(**fixtures.data_objects.integer_content)
         content.save()
-        integer_data_object = copy.deepcopy(fixtures.data_objects.integer_data_object)
+        integer_data_object = copy.deepcopy(
+            fixtures.data_objects.integer_data_object)
         integer_data_object['integer_content'] = content
         do = IntegerDataObject(**integer_data_object)
         do.save()
@@ -328,7 +419,8 @@ class TestIntegerDataObject(TestCase):
     def testDelete(self):
         content = IntegerContent(**fixtures.data_objects.integer_content)
         content.save()
-        integer_data_object = copy.deepcopy(fixtures.data_objects.integer_data_object)
+        integer_data_object = copy.deepcopy(
+            fixtures.data_objects.integer_data_object)
         integer_data_object['integer_content'] = content
         do = IntegerDataObject(**integer_data_object)
         do.save()
@@ -343,7 +435,9 @@ class TestIntegerContent(TestCase):
     def testCreate(self):
         content = IntegerContent(**fixtures.data_objects.integer_content)
         content.save()
-        self.assertEqual(content.integer_value, fixtures.data_objects.integer_content['integer_value'])
+        self.assertEqual(
+            content.integer_value,
+            fixtures.data_objects.integer_content['integer_value'])
 
     def testDelete(self):
         content = IntegerContent(**fixtures.data_objects.integer_content)
@@ -355,7 +449,8 @@ class TestIntegerContent(TestCase):
     def testDeleteProtected(self):
         content = IntegerContent(**fixtures.data_objects.integer_content)
         content.save()
-        integer_data_object = copy.deepcopy(fixtures.data_objects.integer_data_object)
+        integer_data_object = copy.deepcopy(
+            fixtures.data_objects.integer_data_object)
         integer_data_object['integer_content'] = content
         do = IntegerDataObject(**integer_data_object)
         do.save()

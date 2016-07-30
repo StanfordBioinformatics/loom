@@ -154,50 +154,20 @@ class TaskRunAttemptLogFile(BaseModel):
                 }
             )
 
-class AbstractTaskRunAttemptFileImport(AbstractFileImport):
-
-    def _get_browsable_path_prefix(self):
-        try:
-            # for output files
-            task_run_attempt = self.data_object.task_run_attempt_output.task_run_attempt
-        except ObjectDoesNotExist:
-            task_run_attempt = self.data_object.task_run_attempt_log_file.task_run_attempt
-            
-        assert task_run_attempt.task_run.step_runs.count() == 1
-        step_run = task_run_attempt.task_run.step_runs.first()
-        path = os.path.join(
-            "%s-%s" % (
-                step_run.template.name,
-                step_run.get_id(),
-            ),
-            "task-%s" % task_run_attempt.task_run.get_id(),
-            "attempt-%s" % task_run_attempt.get_id(),
-        )
-        while step_run.parent_run is not None:
-            step_run = step_run.parent_run
-            path = os.path.join(
-                "%s-%s" % (
-                    step_run.template.name,
-                    step_run.get_id(),
-                ),
-                path
-            )
-        return os.path.join('runs', path)
+class AbstractTaskRunAttemptFileImport():
 
     class Meta:
         abstract = True
 
 
-class TaskRunAttemptOutputFileImport(AbstractTaskRunAttemptFileImport):
+class TaskRunAttemptOutputFileImport(AbstractFileImport):
 
-    def get_browsable_path(self):
-        return os.path.join(self._get_browsable_path_prefix(), 'work')
+    pass
 
 
-class TaskRunAttemptLogFileImport(AbstractTaskRunAttemptFileImport):
+class TaskRunAttemptLogFileImport(AbstractFileImport):
 
-    def get_browsable_path(self):
-        return os.path.join(self._get_browsable_path_prefix(), 'logs')
+    pass
 
 
 class TaskRunBuilder(object):
