@@ -94,8 +94,6 @@ setup(
                         'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',
                         'django-polymorphic>=0.9.2',
-                        'django-sortedone2many>=0.1.8',
-                        'django-sortedm2m>=1.1.1',
                         'djangorestframework>=3.3.3',
                         'docker-py',
                         'docutils>=0.12',

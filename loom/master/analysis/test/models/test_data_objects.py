@@ -74,14 +74,7 @@ class TestFileDataObject(TestCase):
         self.assertEqual(FileLocation.objects.count(), 1) 
         self.assertEqual(FileContent.objects.count(), 0)
 
-    def testAutoCreateTempLocation(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object_without_location_or_content)
-        s.is_valid()
-        file_data_object = s.save()
-        self.assertIsNotNone(file_data_object.temp_file_location.url)
-
-    def testAutoCreateFinalLocation(self):
+    def testAutoCreateLocation(self):
         s = FileDataObjectSerializer(
             data=fixtures.data_objects.file_data_object_without_location)
         s.is_valid()

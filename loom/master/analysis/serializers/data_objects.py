@@ -164,7 +164,13 @@ class FileLocationSerializer(serializers.ModelSerializer):
     def no_update(cls, instance, data):
         for key, value in data.iteritems():
             if not getattr(instance, key) == value:
-                raise serializers.ValidationError("Update not allowed")
+                raise serializers.ValidationError(
+                    "You are not allowed to update a File Location as "\
+                    "part of a FileDataObject update, because one location "\
+                    "may belong to multiple files. This is to prevent "\
+                    "accidental data corruption. If you want to make the "\
+                    "update, you must update the FileLocation object "
+                    "directly in a separate request.")
 
 
 class FileImportSerializer(NoCreateMixin, NoUpdateMixin,
@@ -184,20 +190,18 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
     file_content = FileContentSerializer(allow_null=True, required=False)
     file_import = FileImportSerializer(allow_null=True, required=False)
     file_location = FileLocationSerializer(allow_null=True, required=False)
-    temp_file_location = FileLocationSerializer(allow_null=True,
-                                                required=False)
 
     class Meta:
         model = FileDataObject
         fields = ('id',
                   'file_content',
                   'file_import',
-                  'file_location',
-                  'temp_file_location')
+                  'file_location',)
+
 
     def create(self, validated_data):
         # Can't create FileImport until FileDataObject exists
-        file_import_data = validated_data.pop('file_import')
+        file_import_data = validated_data.pop('file_import', None)
 
         if validated_data.get('file_content'):
             s = FileContentSerializer(data=validated_data['file_content'])
@@ -205,28 +209,27 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             validated_data['file_content'] = s.save()
 
         # Handle file_location and temp_file_location in the same way
-        for location_field in ['file_location', 'temp_file_location']:
-            if validated_data.get(location_field):
+        if validated_data.get('file_location'):
                 # Since location is OneToMany,
                 # we may be connecting to an existing object
                 file_location = None
-                if validated_data[location_field].get('id'):
+                if validated_data['file_location'].get('id'):
                     try:
                         file_location = FileLocation.objects.get(
-                            id=validated_data[location_field]['id'])
+                            id=validated_data['file_location']['id'])
                     except FileLocation.DoesNotExist:
                         pass
                 if file_location is None:
                     s = FileLocationSerializer(
-                        data=validated_data[location_field])
+                        data=validated_data['file_location'])
                     s.is_valid(raise_exception=True)
                     file_location = s.save()
 
-                validated_data[location_field] = file_location
+                validated_data['file_location'] = file_location
 
         model = super(self.__class__, self).create(validated_data)
 
-        if file_import_data:
+        if file_import_data is not None:
             file_import_data.update({'file_data_object': model})
             fi = FileImport(**file_import_data)
             fi.save()
@@ -236,7 +239,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         # Can't create FileImport until FileDataObject exists
-        file_import_data = validated_data.pop('file_import')
+        file_import_data = validated_data.pop('file_import', None)
 
         if validated_data.get('file_content'):
             s = FileContentSerializer(
@@ -251,7 +254,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
                 try:
                     file_location = FileLocation.objects.get(
                         id=validated_data['file_location'].get('id'))
-                    # Raise error if data does not match
+                    # Verify no changes to FileLocation
                     FileLocationSerializer.no_update(
                         file_location,
                         data=validated_data['file_location'])
@@ -273,7 +276,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             instance,
             validated_data)
 
-        if file_import_data:
+        if file_import_data is not None:
             instance.file_import.note = file_import_data.get('note', None)
             instance.file_import.source_url = file_import_data.get(
                 'source_url',

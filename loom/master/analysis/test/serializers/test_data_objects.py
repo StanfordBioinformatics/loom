@@ -215,17 +215,6 @@ class TestFileDataObjectSerializer(TestCase):
             m.file_content.filename,
             fixtures.data_objects.file_data_object['file_content']['filename'])
 
-    def testCreateWithTempLocation(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object_2)
-        s.is_valid()
-        m = s.save()
-
-        self.assertEqual(
-            m.temp_file_location.url,
-            fixtures.data_objects.file_data_object_2['temp_file_location'][
-                'url'])
-
     def testCreateWithExistingLocation(self):
         data = copy.deepcopy(fixtures.data_objects.file_data_object)
         s1 = FileLocationSerializer(data=data['file_location'])

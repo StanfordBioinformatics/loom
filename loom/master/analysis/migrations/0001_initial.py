@@ -186,11 +186,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileLocation', null=True),
         ),
         migrations.AddField(
-            model_name='filedataobject',
-            name='temp_file_location',
-            field=models.ForeignKey(related_name='file_data_object_as_temp', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileLocation', null=True),
-        ),
-        migrations.AddField(
             model_name='filecontent',
             name='unnamed_file_content',
             field=models.ForeignKey(related_name='file_contents', on_delete=django.db.models.deletion.PROTECT, to='analysis.UnnamedFileContent'),

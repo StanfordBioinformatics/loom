@@ -123,6 +123,11 @@ class ObjectHandler(object):
             file_location,
             'file-locations/')
 
+    def update_file_location(self, file_location_id, file_location_update):
+        return self._put_object(
+            file_location_update,
+            'file-locations/%s/' % file_location_id)
+
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
             'file-data-objects/' + file_id + '/file-imports/'

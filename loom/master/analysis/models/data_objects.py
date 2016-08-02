@@ -59,11 +59,6 @@ class FileDataObject(DataObject):
         related_name='file_data_object',
         on_delete=models.PROTECT,
         null=True)
-    temp_file_location = models.ForeignKey(
-        'FileLocation',
-        related_name='file_data_object_as_temp',
-        on_delete=models.PROTECT,
-        null=True)
 
     def get_content(self):
         return self.file_content
@@ -85,7 +80,6 @@ class FileDataObject(DataObject):
 
     @classmethod
     def post_create_or_update(cls, sender, instance, **kwargs):
-        cls.add_temp_file_location(sender, instance)
         cls.add_file_location(sender, instance)
         cls.add_implicit_links(sender, instance)
 
@@ -103,17 +97,6 @@ class FileDataObject(DataObject):
             instance.file_location.unnamed_file_content \
                 = instance.file_content.unnamed_file_content
             instance.file_location.save()
-
-    @classmethod
-    def add_temp_file_location(cls, sender, instance):
-        # If there is no FileLocation, set a temporary one.
-        # The client will need this to know upload destination, but we
-        # can't create a permanent FileLocation until we know the file hash,
-        # since it may be used in the name of the file location.
-        if not instance.temp_file_location and not instance.file_location:
-            instance.temp_file_location \
-                = FileLocation.create_temp_file_location()
-            instance.save()
 
     @classmethod
     def add_file_location(cls, sender, instance):
@@ -221,12 +204,6 @@ class FileLocation(BaseModel):
         return location
 
     @classmethod
-    def create_temp_file_location(cls):
-        location = cls(url=cls._get_url(cls._get_temp_path_for_import()))
-        location.save()
-        return location
-
-    @classmethod
     def _get_path_for_import(cls, file_data_object):
         if get_setting('KEEP_DUPLICATE_FILES') and get_setting('FORCE_RERUN'):
             # If both are True, we can organize the directory structure in
@@ -312,15 +289,6 @@ class FileLocation(BaseModel):
                 path
             )
         return os.path.join('runs', path, subdir)
-
-    @classmethod
-    def _get_temp_path_for_import(cls):
-        return os.path.join(
-            '/',
-            get_setting('FILE_ROOT'),
-            'tmp',
-            uuid.uuid4().hex
-        )
 
     @classmethod
     def _get_url(cls, path):
