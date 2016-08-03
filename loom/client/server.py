@@ -58,7 +58,6 @@ def get_parser(parser=None):
 
     parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--fg_webserver', action='store_true', help=argparse.SUPPRESS) # Run webserver in the foreground. Needed to keep Docker container running.
     parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     subparsers = parser.add_subparsers(dest='command')
@@ -70,6 +69,9 @@ def get_parser(parser=None):
     create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
     create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
         help="A settings file can be provided to override default settings.")
+
+    start_parser = subparsers.add_parser('start')
+    start_parser.add_argument('--foreground', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
 
     delete_parser = subparsers.add_parser('delete')
 
@@ -188,7 +190,7 @@ class LocalServerControls(BaseServerControls):
                 self.settings_manager.settings['ERROR_LOGFILE'],
                 self.settings_manager.settings['LOG_LEVEL'],
                 )
-        if not self.args.fg_webserver:
+        if not self.args.foreground:
             cmd = cmd + " --daemon"
         if self.args.verbose:
             print("Starting webserver with command:\n%s\nand environment:\n%s" % (cmd, env))

@@ -66,9 +66,10 @@ class SettingsManager:
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
 
     def postprocess_settings(self):
-        self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
-        if self.settings['DOCKER_REGISTRY']:
-            self.settings['DOCKER_FULL_NAME'] = '/'.join([self.settings['DOCKER_REGISTRY'], self.settings['DOCKER_FULL_NAME']])
+        if get_server_type() == 'gcloud':
+            self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
+            if self.settings['DOCKER_REGISTRY']:
+                self.settings['DOCKER_FULL_NAME'] = '/'.join([self.settings['DOCKER_REGISTRY'], self.settings['DOCKER_FULL_NAME']])
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
