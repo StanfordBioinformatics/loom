@@ -59,10 +59,7 @@ def get_parser(parser=None):
     parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--fg_webserver', action='store_true', help=argparse.SUPPRESS) # Run webserver in the foreground. Needed to keep Docker container running.
-    parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
-    parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
-        help="A settings file can be provided to override default settings.")
 
     subparsers = parser.add_subparsers(dest='command')
     start_parser = subparsers.add_parser('start')
@@ -71,6 +68,8 @@ def get_parser(parser=None):
 
     create_parser = subparsers.add_parser('create')
     create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+    create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
+        help="A settings file can be provided to override default settings.")
 
     delete_parser = subparsers.add_parser('delete')
 
@@ -374,12 +373,10 @@ class GoogleCloudServerControls(BaseServerControls):
         setup_gcloud_ssh()
         env = self.get_ansible_env()
 
-        if is_dev_install():
-            # If we have a Dockerfile, build Docker image
-            #docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4()) # Server is a Docker registry
-            dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
-            self.build_docker_image(os.path.dirname(dockerfile_path), env['DOCKER_NAME'], env['DOCKER_TAG'])
-            #self.push_docker_image(docker_tag)
+        #if is_dev_install():
+        #    # If we have a Dockerfile, build Docker image
+        #    dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
+        #    self.build_docker_image(os.path.dirname(dockerfile_path), env['DOCKER_NAME'], env['DOCKER_TAG'])
 
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)

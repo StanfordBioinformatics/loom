@@ -39,5 +39,3 @@ RUN virtualenv /opt/loom \
 
 ENV PATH /opt/loom/bin:$PATH
 EXPOSE 8000
-
-# Test commit please ignore

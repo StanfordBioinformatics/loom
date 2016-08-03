@@ -40,10 +40,11 @@ class SettingsManager:
             # Add Google Cloud-specific settings
             if server_type == 'gcloud': 
                 self.load_gcloud_settings()
-
             # Override defaults with user-provided settings file
             if user_settings_file:
                 self.load_settings_from_file(user_settings_file, section=server_type)
+
+        self.postprocess_settings()
 
     def load_gcloud_settings(self):
         """ Load Google Cloud-specific settings."""
@@ -52,7 +53,7 @@ class SettingsManager:
         self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], self.settings['SERVER_NAME'], self.settings['EXTERNAL_PORT'])
 
         # Add other settings from gce.ini
-        gce_config = SafeConfigParser()
+        gce_config = SafeConfigParser(allow_no_value=True)
         gce_config.read(os.path.expanduser(GCE_INI_PATH))
         self.settings['GCE_INI_PATH'] = GCE_INI_PATH
         self.settings['GCE_EMAIL'] = gce_config.get('gce', 'gce_service_account_email_address')
@@ -64,11 +65,10 @@ class SettingsManager:
         if self.settings['GCE_BUCKET'] == 'None':
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
 
-        if is_dev_install():
-            #self.settings['DOCKER_TAG'] = '%s:5000/%s:%s-%s' % (get_server_ip(), self.settings['DOCKER_NAME'], version(), uuid.uuid4()) # Server is a Docker registry
-            self.settings['DOCKER_TAG'] = '%s-%s' % (version(), uuid.uuid4())
-        else:
-            self.settings['DOCKER_TAG'] = '%s' % version()
+    def postprocess_settings(self):
+        self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
+        if self.settings['DOCKER_REGISTRY']:
+            self.settings['DOCKER_FULL_NAME'] = '/'.join([self.settings['DOCKER_REGISTRY'], self.settings['DOCKER_FULL_NAME']])
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
@@ -86,8 +86,8 @@ class SettingsManager:
     def load_settings_from_file(self, settings_file, section):
         """Update current settings dict by reading from a file and section."""
         try:
-            config = SafeConfigParser()
-            config.optionxform = str                    # preserve uppercase in settings names
+            config = SafeConfigParser(allow_no_value=True)
+            config.optionxform = lambda option: option.upper() # preserve uppercase in settings names
             config.read(settings_file)
         except Exception as e: 
             raise SettingsError("Failed to open settings file %s: %s" % (settings_file, e))
@@ -101,8 +101,8 @@ class SettingsManager:
         if not self.settings:
             raise SettingsError("No settings loaded yet.")
         self.make_settings_directory(settings_file)
-        config = SafeConfigParser()
-        config.optionxform = str                    # preserve uppercase in settings names
+        config = SafeConfigParser(allow_no_value=True)
+        config.optionxform = lambda option: option.upper() # preserve uppercase in settings names
         config.add_section(section)
         for key in self.settings:
             config.set(section, key, self.settings[key])
