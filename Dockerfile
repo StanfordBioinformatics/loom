@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y \
 COPY . /opt/loom/
 RUN virtualenv /opt/loom \
     && . /opt/loom/bin/activate \
-    && pip install /opt/loom 
+    && pip install -e /opt/loom 
 
 ENV PATH /opt/loom/bin:$PATH
 EXPOSE 8000
