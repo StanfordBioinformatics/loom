@@ -2,11 +2,11 @@ from django.db import IntegrityError
 from rest_framework import serializers
 
 from analysis.models.data_objects import *
-from .base import SuperclassModelSerializer, NoCreateMixin, NoUpdateMixin
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, NoUpdateModelSerializer
 from .exceptions import *
 
 
-class StringContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
+class StringContentSerializer(NoUpdateModelSerializer):
 
     class Meta:
         model = StringContent
@@ -39,12 +39,12 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
             validated_data)
 
 
-class BooleanContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
+class BooleanContentSerializer(NoUpdateModelSerializer):
 
     class Meta:
         model = BooleanContent
         fields = ('boolean_value',)
-        
+
 
 class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
@@ -73,7 +73,7 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
             validated_data)
 
 
-class IntegerContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
+class IntegerContentSerializer(NoUpdateModelSerializer):
 
     class Meta:
         model = IntegerContent
@@ -107,7 +107,7 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
             validated_data)
 
 
-class UnnamedFileContentSerializer(NoUpdateMixin, serializers.ModelSerializer):
+class UnnamedFileContentSerializer(NoUpdateModelSerializer):
 
     class Meta:
         model = UnnamedFileContent
@@ -173,8 +173,8 @@ class FileLocationSerializer(serializers.ModelSerializer):
                     "directly in a separate request.")
 
 
-class FileImportSerializer(NoCreateMixin, NoUpdateMixin,
-                           serializers.ModelSerializer):
+class FileImportSerializer(CreateWithParentModelSerializer,
+                           NoUpdateModelSerializer):
 
     class Meta:
         model = FileImport
@@ -208,7 +208,6 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             s.is_valid(raise_exception=True)
             validated_data['file_content'] = s.save()
 
-        # Handle file_location and temp_file_location in the same way
         if validated_data.get('file_location'):
                 # Since location is OneToMany,
                 # we may be connecting to an existing object
@@ -230,9 +229,12 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         model = super(self.__class__, self).create(validated_data)
 
         if file_import_data is not None:
-            file_import_data.update({'file_data_object': model})
-            fi = FileImport(**file_import_data)
-            fi.save()
+            s = FileImportSerializer(
+                data=file_import_data,
+                context={'parent_field': 'file_data_object',
+                         'parent_instance': model,})
+            s.is_valid()
+            s.save()
 
         model.send_post_create()
         return model
@@ -254,7 +256,10 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
                 try:
                     file_location = FileLocation.objects.get(
                         id=validated_data['file_location'].get('id'))
-                    # Verify no changes to FileLocation
+                    # Verify no changes to FileLocation. You are not
+                    # allowed to update location via FileDataObject because
+                    # it may be used by other FDO's as well. This is to
+                    # prevent unintentionally editing location of other FDO's.
                     FileLocationSerializer.no_update(
                         file_location,
                         data=validated_data['file_location'])

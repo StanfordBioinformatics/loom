@@ -7,26 +7,39 @@ from rest_framework import serializers
 from .exceptions import *
 
 
-class NoCreateMixin(object):
-    """For models that cannot be created directly.
-    e.g. for children of a OneToMany relationship where the ForeignKey 
-    to the parent is required, the parent serializer should create the
-    children directly, and the child serializer is read-only.
+class CreateWithParentModelSerializer(serializers.ModelSerializer):
+    """Use this when a child has a required ForeignKey or OneToOne pointer 
+    to the parent such that the parent has to be saved before creating 
+    the child.
 
-    Make sure this Mixin is listed before other parent serializers
+    Make sure this Mixin is listed before other inherited serializers
     so that the create method will override.
     """
 
     def create(self, validated_data):
-        raise CreateNotAllowedError(self.Meta.model)
+        """ This is a standard method called indirectly by calling
+        'save' on the serializer.
+
+        This method expects the 'parent_field' and 'parent_instance' to
+        be included in the Serializer context.
+        """
+        if not (self.context.get('parent_field') \
+           and self.context.get('parent_instance')):
+            raise serializers.ValidationError(
+                'parent_field and parent_instance must be set '\
+                'in the serializer context.')
+        validated_data.update({
+            self.context.get('parent_field'):
+            self.context.get('parent_instance')})
+        return self.Meta.model.objects.create(**validated_data)
 
 
-class NoUpdateMixin(object):
+class NoUpdateModelSerializer(serializers.ModelSerializer):
     """For models that should not be edited after creation. This only works 
     with simple scalar fields. For non-updatable models with children,
     write a custom update function. For example, see FileContentSerializer.
 
-    Make sure this Mixin is listed before other parent serializers
+    Make sure this Mixin is listed before other inherited serializers
     so that the update method will override.
     """
 
@@ -52,9 +65,12 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
     subclass_serializers = {}
 
     def create(self, validated_data):
+        """ This is a standard method called indirectly by calling
+        'save' on the serializer
+        """
         SubclassSerializer \
-            = self._select_subclass_serializer_by_data(
-                self.initial_data)
+            = self._select_subclass_serializer_by_fields(
+                self.initial_data.keys())
         serializer = SubclassSerializer(
             data=self.initial_data,
             context=self.context)
@@ -63,8 +79,8 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         SubclassSerializer \
-            = self._select_subclass_serializer_by_data(
-                self.initial_data)
+            = self._select_subclass_serializer_by_fields(
+                self.initial_data.keys())
         serializer = SubclassSerializer(
             instance,
             data=self.initial_data,
@@ -78,8 +94,8 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             # "instance" is an OrderedDict. It may be missing data in fields
             # that are on the subclass but not on the superclass, so we go
             # back to initial_data.
-            SubclassSerializer = self._select_subclass_serializer_by_data(
-                self.initial_data)
+            SubclassSerializer = self._select_subclass_serializer_by_fields(
+                self.initial_data.keys())
             serializer = SubclassSerializer(data=self.initial_data)
             return super(serializer.__class__, serializer).to_representation(
                 self.initial_data)
@@ -92,30 +108,30 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             return super(serializer.__class__, serializer).to_representation(
                 instance)
 
-    def _select_subclass_serializer_by_data(self, data):
+    def _select_subclass_serializer_by_fields(self, fields):
         """For a given set of data to be deserialized, and for the model class
         associated with the current serializer (self), determine whether this 
-        model or one of its subclass models is the best match for the data, 
+        model or one of its subclass models is the best match for the fields, 
         and return the serializer associated with the matching model class
         """
 
         matching_serializers = []
         for Serializer in self.subclass_serializers.values():
-            if self._do_all_fields_match(Serializer.Meta.model, data.keys()):
+            if self._do_all_fields_match(Serializer.Meta.fields, fields):
                 matching_serializers.append(Serializer)
 
         # Verify just one match.
         if len(matching_serializers) == 0:
             raise serializers.ValidationError(
                 "Serializer %s does not have any subclasses matching "\
-                "the data given: %s" % (
-                    self.__class__.__name__, data))
+                "the fields given: %s" % (
+                    self.__class__.__name__, fields))
         elif len(matching_serializers) > 1:
             raise serializers.ValidationError(
                 "Multiple subclasses (%s) of serialier %s match "\
-                "the input data: %s" % (','.join(
+                "the fields given: %s" % (','.join(
                     [s.Meta.model.__name__ for s in matching_serializers]),
-                                        self.__class__.__name__, data))
+                                        self.__class__.__name__, fields))
 
         # Since we found a better matching subclass model class,
         # substitute its serializer for the current one
@@ -150,6 +166,6 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
                 "updated has multiple subclass instances, and we don't know "\
                 "which one to update. %s" % instance)
 
-    def _do_all_fields_match(self, model, fields):
+    def _do_all_fields_match(self, serializer_fields, data_fields):
         # All values in 'fields' can be found as fields on the model class
-        return set(fields).issubset(set(model._meta.get_all_field_names()))
+        return set(data_fields).issubset(set(serializer_fields))

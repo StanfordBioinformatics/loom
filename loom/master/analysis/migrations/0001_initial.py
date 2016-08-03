@@ -60,6 +60,51 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
+            name='TaskDefinition',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('command', models.CharField(max_length=256)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionEnvironment',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionInput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('filename', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('task_definition', models.ForeignKey(related_name='outputs', to='analysis.TaskDefinition')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='UnnamedFileContent',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -156,9 +201,40 @@ class Migration(migrations.Migration):
             },
             bases=('analysis.dataobject',),
         ),
+        migrations.CreateModel(
+            name='TaskDefinitionDockerEnvironment',
+            fields=[
+                ('taskdefinitionenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskDefinitionEnvironment')),
+                ('docker_image', models.CharField(max_length=100)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskdefinitionenvironment',),
+        ),
         migrations.AlterUniqueTogether(
             name='unnamedfilecontent',
             unique_together=set([('hash_value', 'hash_function')]),
+        ),
+        migrations.AddField(
+            model_name='taskdefinitioninput',
+            name='data_object_content',
+            field=models.ForeignKey(to='analysis.DataObjectContent', on_delete=django.db.models.deletion.PROTECT),
+        ),
+        migrations.AddField(
+            model_name='taskdefinitioninput',
+            name='task_definition',
+            field=models.ForeignKey(related_name='inputs', to='analysis.TaskDefinition'),
+        ),
+        migrations.AddField(
+            model_name='taskdefinitionenvironment',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analysis.taskdefinitionenvironment_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskdefinitionenvironment',
+            name='task_definition',
+            field=models.OneToOneField(related_name='environment', to='analysis.TaskDefinition'),
         ),
         migrations.AddField(
             model_name='filelocation',

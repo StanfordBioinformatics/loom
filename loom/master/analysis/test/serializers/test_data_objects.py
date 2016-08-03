@@ -197,10 +197,23 @@ class TestFileLocationSerializer(TestCase):
 
 class TestFileImportSerializer(TestCase):
 
+    def testCreate(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        m = s.save()
+
+        s = FileImportSerializer(
+            data=fixtures.data_objects.file_import,
+            context={'parent_field': 'file_data_object',
+                     'parent_instance': m}
+            )
+    
     def testNegCreate(self):
+        # Cannot create model without including parent in serializer context
         s = FileImportSerializer(data=fixtures.data_objects.file_import)
         s.is_valid()
-        with self.assertRaises(CreateNotAllowedError):
+        with self.assertRaises(serializers.ValidationError):
             model = s.save()
 
 class TestFileDataObjectSerializer(TestCase):

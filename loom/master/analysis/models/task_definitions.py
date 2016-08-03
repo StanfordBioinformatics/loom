@@ -5,13 +5,16 @@ from .data_objects import DataObject
 from analysis import get_setting
 
 
-"""Models in this module form the core definition of an analysis task to be run.
+"""Models in this module form the core definition of an analysis task 
+to be run.
 """
 
 class TaskDefinition(BaseModel):
     """A TaskDefinition is the fundamental unit of analysis work to be done.
-    It is an unambiguous definition of an analysis step, its inputs and environment.
-    It excludes requested resources, as these do not alter results.
+    It is an unambiguous definition of an analysis step, its inputs and 
+    environment. It excludes requested resources, as these do not alter 
+    results.
+
     The TaskDefinition exists so that if someone wants to execute analysis that
     has already been performed, it will match the old TaskDefinition and we can
     locate previously generated results.
@@ -22,7 +25,10 @@ class TaskDefinition(BaseModel):
 
 class TaskDefinitionEnvironment(BasePolymorphicModel):
 
-    task_definition = models.OneToOneField('TaskDefinition', on_delete=models.CASCADE, related_name='environment')
+    task_definition = models.OneToOneField(
+        'TaskDefinition',
+        on_delete=models.CASCADE,
+        related_name='environment')
 
 
 class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
@@ -32,17 +38,24 @@ class TaskDefinitionDockerEnvironment(TaskDefinitionEnvironment):
 
 class TaskDefinitionInput(BaseModel):
 
-    task_definition = models.ForeignKey('TaskDefinition', related_name='inputs', on_delete=models.CASCADE)
-    data_object_content = models.ForeignKey('DataObjectContent', on_delete=models.PROTECT)
+    task_definition = models.ForeignKey(
+        'TaskDefinition',
+        related_name='inputs',
+        on_delete=models.CASCADE)
+    data_object_content = models.ForeignKey(
+        'DataObjectContent',
+        on_delete=models.PROTECT)
     type = models.CharField(
         max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
+        choices=DataObject.TYPE_CHOICES)
 
 
 class TaskDefinitionOutput(BaseModel):
 
-    task_definition = models.ForeignKey('TaskDefinition', related_name='outputs', on_delete=models.CASCADE)
+    task_definition = models.ForeignKey(
+        'TaskDefinition',
+        related_name='outputs',
+        on_delete=models.CASCADE)
     filename = models.CharField(max_length=255)
     type = models.CharField(
         max_length=255,
