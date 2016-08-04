@@ -8,6 +8,7 @@ import os
 
 from analysis import get_setting
 from analysis.models import DataObject
+from analysis.models import AbstractWorkflow
 #from analysis.models import RunRequest, TaskRun, FileDataObject, TaskRunAttempt
 from loom.common import version
 
@@ -31,6 +32,10 @@ class QueryViewSet(viewsets.ModelViewSet):
 class DataObjectViewSet(QueryViewSet):
     Model = DataObject
     serializer_class = serializers.DataObjectSerializer
+
+class AbstractWorkflowViewSet(QueryViewSet):
+    Model = AbstractWorkflow
+    serializer_class = serializers.AbstractWorkflowSerializer
 
 class DataObjectContentViewSet(viewsets.ModelViewSet):
     queryset = models.DataObjectContent.objects.all()
@@ -112,10 +117,6 @@ class ChannelOutputViewSet(viewsets.ModelViewSet):
 class ChannelViewSet(viewsets.ModelViewSet):
     queryset = models.Channel.objects.all()
     serializer_class = serializers.ChannelSerializer
-
-class AbstractWorkflowViewSet(QueryViewSet):
-    queryset = models.AbstractWorkflow.objects.all()
-    serializer_class = serializers.AbstractWorkflowSerializer
 
 class WorkflowViewSet(AbstractWorkflowViewSet):
     queryset = models.Workflow.objects.all()

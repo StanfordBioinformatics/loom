@@ -80,7 +80,7 @@ class TaskDefinitionSerializer(NoUpdateModelSerializer):
                 s = TaskDefinitionInputSerializer(
                     data=input_data,
                     context={'parent_field': 'task_definition',
-                    'parent_instance': model})
+                             'parent_instance': model})
                 s.is_valid(raise_exception=True)
                 s.save()
 
@@ -94,7 +94,6 @@ class TaskDefinitionSerializer(NoUpdateModelSerializer):
                 s.is_valid(raise_exception=True)
                 s.save()
 
-
         if environment is not None:
             s = TaskDefinitionEnvironmentSerializer(
                 data=environment,
@@ -102,6 +101,5 @@ class TaskDefinitionSerializer(NoUpdateModelSerializer):
                          'parent_instance': model})
             s.is_valid(raise_exception=True)
             s.save()
-
 
         return model

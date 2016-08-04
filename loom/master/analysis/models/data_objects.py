@@ -34,6 +34,14 @@ class DataObject(BasePolymorphicModel):
     def get_by_value(cls, value, type):
         return class_type_map[type].get_by_value(value)
 
+    def get_display_value(self):
+        # Override this for files,
+        # where substitution value and display value are different
+        return self.get_content().get_substitution_value()
+
+    def does_value_match(self, display_value):
+        return str(display_value) == str(self.get_display_value())
+
 
 class DataObjectContent(BasePolymorphicModel):
     """A unit of data passed into or created by analysis steps.
@@ -65,12 +73,27 @@ class FileDataObject(DataObject):
 
     @classmethod
     def get_by_value(cls, value):
-        file_data_objects = cls.get_by_name_and_full_id(value)
-        assert len(file_data_objects) == 1
+        file_data_objects = cls.query_by_name_or_id(value)
+        if len(file_data_objects) < 1:
+            raise Exception('no match found for file: "%s"' % value)
+        if len(file_data_objects) > 1:
+            raise Exception(
+                'multiple matches found for file "%s": %s' % (
+                    value,
+                    [m.get_display_value() for m in file_data_objects.all()]
+                ))
         return file_data_objects.first()
+
+    def get_display_value(self):
+        return '%s@%s' % (self.file_content.filename, self.id.hex)
 
     def get_substitution_value(self):
         return self.file_content.get_substitution_value()
+
+    # override
+    def does_display_value_match(self, display_value):
+        matching_data_object = self.get_by_value(display_value)
+        return matching_data_object.id == self.id
 
     def is_ready(self):
         if self.file_location:
@@ -313,7 +336,7 @@ class FileImport(BaseModel):
         'FileDataObject',
         related_name='file_import',
         on_delete=models.CASCADE)
-    type = models.CharField(
+    import_type = models.CharField(
         max_length=256,
         default='import',
         choices=(('import', 'Import'),
@@ -346,14 +369,12 @@ class StringDataObject(DatabaseDataObject):
 
     @classmethod
     def get_by_value(cls, value):
-        return cls.create(
-            {
-                'string_content': {
-                    'string_value': value
-                }
-            }
-        )
-
+        content = StringContent(string_value=value)
+        content.save()
+        data_object = StringDataObject(string_content=content)
+        data_object.save()
+        return data_object
+    
     def delete(self):
         content = self.string_content
         super(StringDataObject, self).delete()
@@ -387,20 +408,19 @@ class BooleanDataObject(DatabaseDataObject):
     @classmethod
     def get_by_value(cls, value):
         if value == 'true':
-            b = True
+            bvalue = True
         elif value == 'false':
-            b = False
+            bvalue = False
         else:
             raise Exception(
                 'Could not parse boolean value "%s". Use "true" or "false".'\
                 % value)
-        return cls.create(
-            {
-                'boolean_content': {
-                    'boolean_value': b
-                }
-            }
-        )
+
+        content = BooleanContent(boolean_value=bvalue)
+        content.save()
+        data_object = BooleanDataObject(boolean_content=content)
+        data_object.save()
+        return data_object
 
     def delete(self):
         content = self.boolean_content
@@ -434,13 +454,11 @@ class IntegerDataObject(DatabaseDataObject):
 
     @classmethod
     def get_by_value(cls, value):
-        return cls.create(
-            {
-                'integer_content': {
-                    'integer_value': int(value)
-                }
-            }
-        )
+        content = IntegerContent(integer_value=value)
+        content.save()
+        data_object = IntegerDataObject(integer_content=content)
+        data_object.save()
+        return data_object
 
     def delete(self):
         content = self.integer_content

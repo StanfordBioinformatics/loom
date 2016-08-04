@@ -6,6 +6,20 @@ from rest_framework import serializers
 
 from .exceptions import *
 
+def _get_class_from_string(kls):
+    try:
+        if issubclass(kls, serializers.Serializer):
+            return kls
+    except TypeError:
+        pass
+
+    # Get class from string
+    parts = kls.split('.')
+    module = ".".join(parts[:-1])
+    m = __import__( module )
+    for comp in parts[1:]:
+        m = getattr(m, comp)
+    return m
 
 class CreateWithParentModelSerializer(serializers.ModelSerializer):
     """Use this when a child has a required ForeignKey or OneToOne pointer 
@@ -23,14 +37,11 @@ class CreateWithParentModelSerializer(serializers.ModelSerializer):
         This method expects the 'parent_field' and 'parent_instance' to
         be included in the Serializer context.
         """
-        if not (self.context.get('parent_field') \
-           and self.context.get('parent_instance')):
-            raise serializers.ValidationError(
-                'parent_field and parent_instance must be set '\
-                'in the serializer context.')
-        validated_data.update({
-            self.context.get('parent_field'):
-            self.context.get('parent_instance')})
+        if (self.context.get('parent_field') \
+            and self.context.get('parent_instance')):
+            validated_data.update({
+                self.context.get('parent_field'):
+                self.context.get('parent_instance')})
         return self.Meta.model.objects.create(**validated_data)
 
 
@@ -117,6 +128,7 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
 
         matching_serializers = []
         for Serializer in self.subclass_serializers.values():
+            Serializer = _get_class_from_string(Serializer)
             if self._do_all_fields_match(Serializer.Meta.fields, fields):
                 matching_serializers.append(Serializer)
 
@@ -141,6 +153,7 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             self, instance, data=None):
         matching_serializers=[]
         for (field, Serializer) in self.subclass_serializers.iteritems():
+            Serializer = _get_class_from_string(Serializer)
             try:
                 # If a model instance is assigned to 'field', it means there
                 # is a subclass instance of the current model. If so, get the

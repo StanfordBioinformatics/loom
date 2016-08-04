@@ -2,6 +2,7 @@ from django.db import models
 from polymorphic.models import PolymorphicModel, PolymorphicManager
 import re
 
+from analysis.exceptions import *
 from analysis.signals import post_create, post_update
 
 
@@ -67,12 +68,12 @@ class FilterHelper(object):
     def __init__(self, Model):
         self.Model = Model
 
-    def get_by_abbreviated_id(self, loom_id):
+    def get_by_abbreviated_id(self, id):
         """Find objects that match the given ID, and allow ID to be truncated
         """
-        if not loom_id:
-            raise InvalidIdError('Invalid query, no loom_id was found')
-        return self.Model.objects.filter(loom_id__startswith=loom_id)
+        if not id:
+            raise InvalidIdError('Invalid query, no id was found')
+        return self.Model.objects.filter(id__startswith=id)
 
     def get_by_name(self, name):
         """Returns a queryset of models matching the given name.
@@ -88,16 +89,16 @@ class FilterHelper(object):
         """Find objects that match the given ID, and allow ID to be truncated.
         No truncation allowed.
         """
-        name, loom_id, name_or_id = self._parse_query_string(query_string)
+        name, id, name_or_id = self._parse_query_string(query_string)
         models = self.get_by_name(name)
-        return models.filter(loom_id=loom_id)
+        return models.filter(id=id)
 
     def get_by_name_and_abbreviated_id(self, query_string):
         """Find objects that match the given {name}@{ID}, where ID may be truncated
         """
-        name, loom_id, name_or_id = self._parse_query_string(query_string)
+        name, id, name_or_id = self._parse_query_string(query_string)
         models = self.get_by_name(name)
-        return models.filter(loom_id__startswith=loom_id)
+        return models.filter(id__startswith=id)
 
     def get_by_name_or_id(self, query_string):
         """Find objects that match the identifier of form {name}@{ID}, {name}, {ID}, or @{ID}, 
@@ -105,15 +106,15 @@ class FilterHelper(object):
         """
         if not self._is_query_string_valid(query_string):
             return cls.objects.none()
-        name, loom_id, name_or_id = self._parse_query_string(query_string)
-        if loom_id and not name:
+        name, id, name_or_id = self._parse_query_string(query_string)
+        if id and not name:
             try:
-                return self.get_by_abbreviated_id(loom_id)
+                return self.get_by_abbreviated_id(id)
             except IdTooShortError:
                 return self.Model.objects.none()
-        elif name and not loom_id:
+        elif name and not id:
             return self.get_by_name(name)
-        elif name and loom_id:
+        elif name and id:
             return self.get_by_name_and_abbreviated_id(query_string)
         elif name_or_id:
             models1 = self.get_by_name(name_or_id)
@@ -134,12 +135,12 @@ class FilterHelper(object):
     def _parse_query_string(self, query_string):
         if '@' not in query_string:
             name = ''
-            loom_id = ''
+            id = ''
             name_or_id = query_string
         else:
-            (name, loom_id) = query_string.split('@')
+            (name, id) = query_string.split('@')
             name_or_id = ''
-        return (name, loom_id, name_or_id)
+        return (name, id, name_or_id)
 
 
         

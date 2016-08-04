@@ -91,6 +91,58 @@ class TestFileDataObject(TestCase):
             file_data_object.file_content.unnamed_file_content.id
         )
 
+    def testGetDisplayValue(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+
+        self.assertEqual(file_data_object.get_display_value(),
+                         '%s@%s' % (file_data_object.file_content.filename,
+                                    file_data_object.id.hex))
+
+    def testGetByDisplayValueNameAndId(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+
+        value = '%s@%s' % (file_data_object.file_content.filename,
+                           file_data_object.id.hex)
+        match = DataObject.get_by_value(value, 'file')
+        self.assertEqual(match.id, file_data_object.id)
+
+    def testGetByDisplayValueNameAndPartialId(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+
+        value = '%s@%s' % (file_data_object.file_content.filename,
+                           file_data_object.id.hex[0:5])
+        match = DataObject.get_by_value(value, 'file')
+        self.assertEqual(match.id, file_data_object.id)
+
+    def testGetByDisplayValueNameOnly(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+
+        value = '%s' % file_data_object.file_content.filename
+        match = DataObject.get_by_value(value, 'file')
+        self.assertEqual(match.id, file_data_object.id)
+
+    def testGetByDisplayValueIdOnly(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        file_data_object = s.save()
+
+        value = '%s' % file_data_object.file_content.filename
+        match = DataObject.get_by_value(value, 'file')
+        self.assertEqual(match.id, file_data_object.id)
+
 
 class TestFileContent(TestCase):
     
@@ -308,6 +360,25 @@ class TestStringDataObject(TestCase):
         self.assertEqual(StringDataObject.objects.count(), 0)
         self.assertEqual(StringContent.objects.count(), 0)
 
+    def testGetDisplayValue(self):
+        s = DataObjectSerializer(
+            data=fixtures.data_objects.string_data_object)
+        s.is_valid()
+        data_object = s.save()
+
+        self.assertEqual(data_object.get_display_value(),
+                         data_object.string_content.string_value)
+
+    def testGetByValue(self):
+        value = 3
+        do = DataObject.get_by_value(value, 'string')
+        self.assertEqual(str(do.get_display_value()),
+                        str(value))
+
+    def testDoesDisplayValueMatch(self):
+        value = 3
+        do = DataObject.get_by_value(value, 'string')
+        self.assertTrue(do.does_value_match(value))
 
 class TestStringContent(TestCase):
 

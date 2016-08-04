@@ -43,6 +43,7 @@ class TestStringContentSerializer(TestCase):
         s = StringContentSerializer(data=baddata)
         self.assertFalse(s.is_valid())
 
+
 class TestStringDataObjectSerializer(TestCase):
 
     def testCreate(self):
@@ -59,7 +60,7 @@ class TestStringDataObjectSerializer(TestCase):
     def testNegCreateWithNoContent(self):
         s = StringDataObjectSerializer(data={})
         self.assertFalse(s.is_valid())
-        
+
     def testNegCreateWithDuplicateID(self):
         data = copy.deepcopy(fixtures.data_objects.string_data_object)
         
@@ -72,7 +73,7 @@ class TestStringDataObjectSerializer(TestCase):
         s2.is_valid()
         with self.assertRaises(IntegrityError):
             m2 = s2.save()
-        
+
     def testNegUpdateChild(self):
         # Create model
         s = StringDataObjectSerializer(
@@ -109,6 +110,7 @@ class TestBooleanContentSerializer(TestCase):
             m.boolean_value,
             fixtures.data_objects.boolean_content['boolean_value'])
 
+
 class TestBooleanDataObjectSerializer(TestCase):
     
     def testCreate(self):
@@ -121,6 +123,7 @@ class TestBooleanDataObjectSerializer(TestCase):
             m.boolean_content.boolean_value,
             fixtures.data_objects.boolean_data_object['boolean_content'][
                 'boolean_value'])
+
 
 class TestIntegerContentSerializer(TestCase):
 
@@ -185,6 +188,7 @@ class TestFileContentSerializer(TestCase):
         self.assertEqual(m.filename,
                          fixtures.data_objects.file_content['filename'])
 
+
 class TestFileLocationSerializer(TestCase):
     
     def testCreate(self):
@@ -194,6 +198,7 @@ class TestFileLocationSerializer(TestCase):
 
         self.assertEqual(m.url,
                          fixtures.data_objects.file_location['url'])
+
 
 class TestFileImportSerializer(TestCase):
 
@@ -213,8 +218,9 @@ class TestFileImportSerializer(TestCase):
         # Cannot create model without including parent in serializer context
         s = FileImportSerializer(data=fixtures.data_objects.file_import)
         s.is_valid()
-        with self.assertRaises(serializers.ValidationError):
+        with self.assertRaises(IntegrityError):
             model = s.save()
+
 
 class TestFileDataObjectSerializer(TestCase):
     
@@ -405,3 +411,41 @@ class TestDataObjectContentSerializer(TestCase):
         self.assertEqual(
             m.boolean_value,
             fixtures.data_objects.boolean_content['boolean_value'])
+
+
+class TestDataObjectValueSerializer(TestCase):
+
+    def testCreateString(self):
+        value = 3
+        s = DataObjectValueSerializer(data=value,
+                                  context={'type': 'string'})
+        s.is_valid()
+        m = s.save()
+
+        self.assertTrue(m.does_value_match(value))
+
+    def testUpdateWithSameValue(self):
+        value = 3
+        s1 = DataObjectValueSerializer(data=value, context={'type': 'string'})
+                                  
+        s1.is_valid()
+        m1 = s1.save()
+
+        s2 = DataObjectValueSerializer(m1, data=value, context={'type': 'string'})
+        s2.is_valid()
+        # No error on save:
+        m2 = s2.save()
+
+    def testNegUpdateWithNewValue(self):
+        value = 3
+        s1 = DataObjectValueSerializer(data=value, context={'type': 'string'})
+                                  
+        s1.is_valid()
+        m1 = s1.save()
+
+        other_value = 4
+        s2 = DataObjectValueSerializer(m1, data=other_value, context={'type': 'string'})
+        s2.is_valid()
+        # Error on save since value is a mismatch:
+        with self.assertRaises(UpdateNotAllowedError):
+            m2 = s2.save()

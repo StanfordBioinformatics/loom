@@ -1,6 +1,10 @@
-from .data_objects import file
-
 # Workflow and related objects
+
+fixed_step_input = {
+    'type': 'string',
+    'channel': 'test',
+    'value': 'teststring',
+}
 
 step_a = {
     'name': 'step_a',
@@ -88,13 +92,15 @@ step_c = {
     'inputs': [
 	{
 	    'channel': 'c1',
-            'type': 'file'
+            'type': 'file',
+            'hint': 'here is what you should enter'
 	}
     ],
     'outputs': [
 	{
             'filename': 'result.txt',
-	    'channel': 'result'
+	    'channel': 'result',
+            'type': 'file'
 	}
     ]
 }

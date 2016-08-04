@@ -26,7 +26,7 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
         s = StringContentSerializer(data=validated_data['string_content'])
         s.is_valid(raise_exception=True)
         validated_data['string_content'] = s.save()
-        return super(self.__class__, self).create(validated_data)
+        return StringDataObject.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         if validated_data.get('string_content'):
@@ -59,7 +59,7 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
         s = BooleanContentSerializer(data=validated_data['boolean_content'])
         s.is_valid(raise_exception=True)
         validated_data['boolean_content'] = s.save()
-        return super(self.__class__, self).create(validated_data)
+        return BooleanDataObject.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         if validated_data.get('boolean_content'):
@@ -93,7 +93,7 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
         s = IntegerContentSerializer(data=validated_data['integer_content'])
         s.is_valid(raise_exception=True)
         validated_data['integer_content'] = s.save()
-        return super(self.__class__, self).create(validated_data)
+        return IntegerDataObject.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         if validated_data.get('integer_content'):
@@ -136,7 +136,7 @@ class FileContentSerializer(serializers.ModelSerializer):
             data=validated_data['unnamed_file_content'])
         s.is_valid(raise_exception=True)
         validated_data['unnamed_file_content'] = s.save()
-        return super(self.__class__, self).create(validated_data)
+        return FileContent.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         # Update not allowed. This method just raises an error if
@@ -226,7 +226,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
 
                 validated_data['file_location'] = file_location
 
-        model = super(self.__class__, self).create(validated_data)
+        model = FileDataObject.objects.create(**validated_data)
 
         if file_import_data is not None:
             s = FileImportSerializer(
@@ -316,3 +316,23 @@ class DataObjectContentSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = DataObjectContent
+
+class DataObjectValueSerializer(serializers.Serializer):
+
+    def to_representation(self, obj):
+        return obj['value']
+        
+    def to_internal_value(self, data):
+        return {'value': data}
+
+    def create(self, validated_data):
+        data_object = DataObject.get_by_value(
+            validated_data['value'],
+            self.context['type'])
+        # already saved in get_by_value
+        return data_object
+
+    def update(self, instance, validated_data):
+        if not instance.does_value_match(validated_data['value']):
+            raise UpdateNotAllowedError(instance)
+        return instance

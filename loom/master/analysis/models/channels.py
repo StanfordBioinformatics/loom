@@ -6,91 +6,15 @@ from analysis.models.data_objects import DataObject
 from analysis.fields import DuplicateManyToManyField
 
 """
-This module defines Channels for passing data between inputs/outputs of steps or workflows
+Channels represent the path for flow of data between nodes (inputs and outputs).
+Channels have no state, and are just represented in the database as a ForeignKey
+relationship between receiver node and sender node.
 """
-
-
-class Channel(BaseModel):
-    """Channel acts as a queue for data being being passed into or out of steps or workflows.
-    """
-
-    name = models.CharField(max_length=255)
-    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
-    sender = models.OneToOneField('InputOutputNode', related_name='to_channel', null=True, on_delete=models.CASCADE)
-    is_closed_to_new_data = models.BooleanField(default=False)
-
-    @classmethod
-    def create_from_sender(cls, sender, channel_name):
-        channel = cls.create({'name': channel_name})
-        channel.sender = sender
-        channel.save()
-        return channel
-
-    def push(self, data_object):
-        if self.is_closed_to_new_data:
-            return
-        self.data_objects.add(data_object)
-        for output in self.outputs.all():
-            output._push(data_object)
-        self.save()
-
-    def add_receivers(self, receivers):
-        for receiver in receivers:
-            self.add_receiver(receiver)
-
-    def add_receiver(self, receiver):
-        output = ChannelOutput.create({
-            # Typically data_objects is empty, we pass along any data_objects already
-            # received for cases when a receiver is added after the run has progressed
-            'data_objects': [do for do in self.data_objects.all()]
-        })
-        output.receiver = receiver
-        output.save()
-        self.outputs.add(output)
-
-    def close(self):
-        self.is_closed_to_new_data = True
-        self.save()
-
-
-class ChannelOutput(BaseModel):
-    """Every channel can have only one source but 0 or many destinations, representing
-    the possibility that a file produce by one step can be used by 0 or many other 
-    steps. Each of these destinations has its own queue, implemented as a ChannelOutput.
-    """
-
-    channel = models.ForeignKey('Channel', related_name='outputs', null=True, on_delete=models.CASCADE)
-    data_objects = models.ForeignKey('DataObject', null=True, on_delete=models.PROTECT)
-    receiver = models.OneToOneField('InputOutputNode', related_name='from_channel', null=True, on_delete=models.CASCADE)
-
-    def _push(self, data_object):
-        self.data_objects.add(data_object)
-        self.save()
-        self.receiver.push(data_object)
-
-    def is_empty(self):
-        return self.data_objects.count() == 0
-
-    def is_dead(self):
-        return self.channel.is_closed_to_new_data and self.is_empty()
-
-    def pop(self):
-        data_object = self.data_objects.first()
-        self.data_objects = self.data_objects.all()[1:]
-        return data_object.downcast()
-
-    def forward(self, to_channel):
-        """Pass channel contents to the downstream channel
-        """
-        if not self.is_empty():
-            to_channel.push(self.pop())
-
-        if self.is_dead():
-            to_channel.close()
 
 
 class InputOutputNode(BasePolymorphicModel):
 
+    sender = models.ForeignKey('InputOutputNode', related_name='receivers', null=True)
     channel = models.CharField(max_length=255)
     type = models.CharField(
         max_length=255,
