@@ -369,7 +369,7 @@ class GoogleCloudServerControls(BaseServerControls):
         """Create server deploy settings if they don't exist yet, set up SSH
         keys, create and set up a gcloud instance, copy deploy settings to the
         instance."""
-        self.settings_manager.create_deploy_settings_file(self.args.settings)
+        self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
         setup_gcloud_ssh()
@@ -385,7 +385,7 @@ class GoogleCloudServerControls(BaseServerControls):
         
     def run_playbook(self, playbook, env):
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
-        return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
+        return subprocess.call(['ansible-playbook', '-v', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
 
     def build_docker_image(self, build_path, docker_name, docker_tag):
         """Build Docker image using current code. Dockerfile must exist at build_path."""

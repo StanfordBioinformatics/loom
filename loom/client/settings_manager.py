@@ -42,7 +42,7 @@ class SettingsManager:
                 self.load_gcloud_settings()
             # Override defaults with user-provided settings file
             if user_settings_file:
-                self.load_settings_from_file(user_settings_file, section=server_type)
+                self.load_settings_from_file(settings_file=user_settings_file, section=server_type)
 
         self.postprocess_settings()
 
@@ -86,6 +86,8 @@ class SettingsManager:
 
     def load_settings_from_file(self, settings_file, section):
         """Update current settings dict by reading from a file and section."""
+        if not os.path.exists(settings_file):
+            raise Exception('Cannot find settings file "%s"' % settings_file)
         try:
             config = SafeConfigParser(allow_no_value=True)
             config.optionxform = lambda option: option.upper() # preserve uppercase in settings names
