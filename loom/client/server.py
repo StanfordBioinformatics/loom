@@ -60,7 +60,6 @@ def get_parser(parser=None):
     parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
 
     subparsers = parser.add_subparsers(dest='command')
-    stop_parser = subparsers.add_parser('stop')
     status_parser = subparsers.add_parser('status')
 
     create_parser = subparsers.add_parser('create')
@@ -73,7 +72,11 @@ def get_parser(parser=None):
     start_parser.add_argument('--foreground', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
     start_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
+    stop_parser = subparsers.add_parser('stop')
+    stop_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+
     delete_parser = subparsers.add_parser('delete')
+    delete_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     setserver_parser = subparsers.add_parser('set', help='Tells the client how to find the Loom server. This information is stored in %s.' % SERVER_LOCATION_FILE)
     setserver_parser.add_argument('type', choices=['local', 'gcloud'], help='The type of server the client will manage.')

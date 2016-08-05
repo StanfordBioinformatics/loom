@@ -36,5 +36,5 @@
     docker_tag: "{{lookup('env','DOCKER_TAG')}}"
   tasks:
   - name: Pull Docker image.
-    docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto
+    docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto force=True
 
