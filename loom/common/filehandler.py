@@ -510,7 +510,7 @@ class FileHandler:
         self._log('Importing file from %s...' % source.get_url())
 
         hash_function = self.settings['HASH_FUNCTION']
-        self._log('Calculating %s hash...' % hash_function)
+        self._log('...calculating %s hash...' % hash_function)
         hash_value = source.calculate_hash_value(hash_function)
 
         # Adding file_content will cause a file_location with status=incomplete

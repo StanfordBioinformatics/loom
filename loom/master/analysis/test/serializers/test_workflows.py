@@ -16,8 +16,9 @@ class TestFixedStepInputSerializer(TestCase):
         s.is_valid()
         fixed_input = s.save()
         
-        self.assertEqual(fixed_input.data_object.string_content.string_value,
-                         fixtures.workflows.fixed_step_input['value'])
+        self.assertEqual(
+            fixed_input.data_object.string_content.string_value,
+            fixtures.workflows.fixed_step_input['value'])
 
 
 class TestStepSerializer(TestCase):
@@ -28,8 +29,10 @@ class TestStepSerializer(TestCase):
         m = s.save()
 
         self.assertEqual(m.command, fixtures.workflows.step_a['command'])
-        self.assertEqual(m.fixed_inputs.first().data_object.string_content.string_value,
-                         fixtures.workflows.step_a['fixed_inputs'][0]['value'])
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.string_content.string_value,
+            fixtures.workflows.step_a['fixed_inputs'][0]['value'])
+
 
 class TestWorkflowSerializer(TestCase):
 
@@ -38,11 +41,25 @@ class TestWorkflowSerializer(TestCase):
         s.is_valid()
         m = s.save()
 
-        # TODO
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.string_content.string_value,
+            fixtures.workflows.flat_workflow['fixed_inputs'][0]['value'])
 
     def testCreateNestedWorkflow(self):
         s = WorkflowSerializer(data=fixtures.workflows.nested_workflow)
         s.is_valid()
         m = s.save()
 
-        # TODO
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.string_content.string_value,
+            fixtures.workflows.nested_workflow['fixed_inputs'][0]['value'])
+
+    def testRenderFixedInputValue(self):
+        s = WorkflowSerializer(data=fixtures.workflows.flat_workflow)
+        s.is_valid()
+        m = s.save()
+
+        data = WorkflowSerializer(m).data
+        self.assertEqual(
+            data['fixed_inputs'][0]['value'],
+            m.fixed_inputs.first().data_object.string_content.string_value)

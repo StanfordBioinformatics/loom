@@ -26,13 +26,26 @@ class AbstractWorkflow(BasePolymorphicModel):
                                         related_name='steps',
                                         null=True)
 
+    def get_name_and_id(self):
+        return "%s@%s" % (self.name, self.id.hex)
+
     def is_step(self):
         return self.downcast().is_step()
 
     def get_fixed_input(self, channel):
-        inputs = self.downcast().fixed_inputs.filter(channel=channel)
+        inputs = self.fixed_inputs.filter(channel=channel)
         assert inputs.count() == 1
         return inputs.first()
+
+    def get_input(self, channel):
+        inputs = self.inputs.filter(channel=channel)
+        assert inputs.count() == 1
+        return inputs.first()
+
+    def get_output(self, channel):
+        outputs = self.outputs.filter(channel=channel)
+        assert outputs.count() == 1
+        return outputs.first()
 
 
 class Workflow(AbstractWorkflow):
@@ -104,11 +117,6 @@ class Step(AbstractWorkflow):
     def is_step(self):
         return True
 
-    def get_output(self, channel):
-        outputs = self.outputs.filter(channel=channel)
-        assert outputs.count() == 1
-        return outputs.first()
-
 
 class RequestedEnvironment(BasePolymorphicModel):
 
@@ -156,6 +164,9 @@ class AbstractFixedWorkflowInput(AbstractWorkflowInput):
 
     data_object = models.ForeignKey('DataObject') # serialized as 'value'
 
+    def value(self):
+        return self.data_object.get_display_value()
+    
     class Meta:
         abstract = True
 

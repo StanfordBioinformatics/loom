@@ -6,9 +6,9 @@ from analysis.models.data_objects import DataObject
 from analysis.fields import DuplicateManyToManyField
 
 """
-Channels represent the path for flow of data between nodes (inputs and outputs).
-Channels have no state, and are just represented in the database as a ForeignKey
-relationship between receiver node and sender node.
+Channels represent the path for flow of data between nodes (inputs and 
+outputs). Channels have no state, and are just represented in the database 
+as a ForeignKey relationship between receiver node and sender node.
 """
 
 
@@ -16,10 +16,6 @@ class InputOutputNode(BasePolymorphicModel):
 
     sender = models.ForeignKey('InputOutputNode', related_name='receivers', null=True)
     channel = models.CharField(max_length=255)
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
 
     def push(self, *args, **kwargs):
         return self.downcast().push(*args, **kwargs)
@@ -29,6 +25,16 @@ class InputOutputNode(BasePolymorphicModel):
             return destination.from_channel.channel.sender._id == self._id
         except ObjectDoesNotExist:
             return False
+
+class TypedInputOutputNode(InputOutputNode):
+
+    type = models.CharField(
+        max_length=255,
+        choices=DataObject.TYPE_CHOICES
+    )
+
+    class Meta:
+        abstract = True
 
 
 class ChannelSet(object):

@@ -24,7 +24,7 @@ router.register(IntegerDataObject.get_class_name(plural=True, hyphen=True), view
 #router.register(LocalTaskRunAttempt.get_class_name(plural=True, hyphen=True), views.LocalTaskRunAttemptViewSet)
 #router.register(MockTaskRunAttempt.get_class_name(plural=True, hyphen=True), views.MockTaskRunAttemptViewSet)
 #router.register(RestartRequest.get_class_name(plural=True, hyphen=True), views.RestartRequestViewSet)
-#router.register(RunRequest.get_class_name(plural=True, hyphen=True), views.RunRequestViewSet)
+router.register(RunRequest.get_class_name(plural=True, hyphen=True), views.RunRequestViewSet)
 #router.register(Step.get_class_name(plural=True, hyphen=True), views.StepViewSet)
 #router.register(StepRun.get_class_name(plural=True, hyphen=True), views.StepRunViewSet)
 router.register(StringContent.get_class_name(plural=True, hyphen=True), views.StringContentViewSet)

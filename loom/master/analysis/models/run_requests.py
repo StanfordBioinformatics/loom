@@ -1,19 +1,20 @@
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.db import models
+import uuid
 
 from .base import BaseModel, BasePolymorphicModel
-from .channels import Channel, InputOutputNode
+from .channels import InputOutputNode
 from .data_objects import DataObject
-from .workflow_runs import AbstractWorkflowRun
+# from .workflow_runs import AbstractWorkflowRun
 from .workflows import Workflow
 from analysis import get_setting
 
 
 class RunRequest(BaseModel):
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     template = models.ForeignKey('AbstractWorkflow', on_delete=models.PROTECT)
-    run = models.OneToOneField('AbstractWorkflowRun', null=True, on_delete=models.PROTECT)
+#    run = models.OneToOneField('AbstractWorkflowRun', null=True, on_delete=models.PROTECT)
     is_running = models.BooleanField(default=True)
     is_stopping = models.BooleanField(default=False)
     is_hard_stop = models.BooleanField(default=False)
@@ -21,6 +22,9 @@ class RunRequest(BaseModel):
     is_canceled = models.BooleanField(default=False)
     is_completed = models.BooleanField(default=False)
 
+    def template_id(self):
+        return self.template.get_name_and_id()
+    
     def after_create_or_update(self, data):
         self._initialize_run()
         self._initialize_outputs()
@@ -132,9 +136,18 @@ class RunRequest(BaseModel):
 
 class RunRequestInput(InputOutputNode):
 
-    run_request = models.ForeignKey('RunRequest', related_name='inputs', on_delete=models.CASCADE)
-    value = models.CharField(max_length=255)
+    run_request = models.ForeignKey(
+        'RunRequest',
+        related_name='inputs',
+        on_delete=models.CASCADE)
+    data_object = models.ForeignKey(
+        'DataObject',
+        related_name='run_request_inputs',
+        on_delete=models.PROTECT)
 
+    def value(self):
+        return self.data_object.get_display_value()
+                
     def initial_push(self):
         data_object = self._get_data_object()
         self.to_channel.push(data_object)

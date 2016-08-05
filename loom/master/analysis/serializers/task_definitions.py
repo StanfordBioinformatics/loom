@@ -7,7 +7,6 @@ from analysis.models.task_definitions import *
 
 class TaskDefinitionInputSerializer(NoUpdateModelSerializer,
                                     CreateWithParentModelSerializer):
-                                    
 
     data_object_content = DataObjectContentSerializer(required=False)
 

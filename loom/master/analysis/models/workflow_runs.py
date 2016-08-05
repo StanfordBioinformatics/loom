@@ -5,7 +5,7 @@ from django.utils import timezone
 from analysis import get_setting
 from analysis.exceptions import *
 
-from analysis.models.channels import Channel, InputOutputNode, ChannelSet
+from analysis.models.channels import Channel, TypedInputOutputNode, ChannelSet
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
 from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
@@ -165,7 +165,7 @@ class StepRun(AbstractWorkflowRun):
             task_run.run()
 
 
-class AbstractStepRunInput(InputOutputNode):
+class AbstractStepRunInput(TypedInputOutputNode):
 
     # This table is needed because it is referenced by TaskRunInput,
     # and TaskRuns do not distinguish between fixed and runtime inputs
@@ -195,7 +195,7 @@ class FixedStepRunInput(AbstractStepRunInput):
         return DataObject.get_by_value(fixed_step_input.value, self.type)
 
 
-class StepRunOutput(InputOutputNode):
+class StepRunOutput(TypedInputOutputNode):
 
     task_run_outputs = models.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
     step_run = models.ForeignKey('StepRun', related_name='outputs', on_delete=models.CASCADE)
@@ -213,7 +213,7 @@ class StepRunOutput(InputOutputNode):
         return self.step_run.template.get_output(self.channel).type
 
 
-class WorkflowRunInput(InputOutputNode):
+class WorkflowRunInput(TypedInputOutputNode):
 
     workflow_run = models.ForeignKey('WorkflowRun', related_name='inputs', on_delete=models.CASCADE)
 
@@ -222,7 +222,7 @@ class WorkflowRunInput(InputOutputNode):
             self.update({'data_object': data_object})
             self.from_channel.forward(self.to_channel)
 
-class FixedWorkflowRunInput(InputOutputNode):
+class FixedWorkflowRunInput(TypedInputOutputNode):
 
     workflow_run = models.ForeignKey('WorkflowRun', related_name='fixed_inputs', on_delete=models.CASCADE)
 
@@ -235,7 +235,7 @@ class FixedWorkflowRunInput(InputOutputNode):
         return DataObject.get_by_value(fixed_workflow_input.value, self.type)
 
 
-class WorkflowRunOutput(InputOutputNode):
+class WorkflowRunOutput(TypedInputOutputNode):
 
     workflow_run = models.ForeignKey('WorkflowRun', related_name='outputs', on_delete=models.CASCADE)
 

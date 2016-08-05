@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .base import CreateWithParentModelSerializer, NoUpdateModelSerializer, \
     SuperclassModelSerializer
 from analysis.models.workflows import *
-from analysis.serializers.data_objects import DataObjectValueSerializer
+from .exceptions import *
 
 
 class RequestedDockerEnvironmentSerializer(CreateWithParentModelSerializer):
@@ -17,7 +17,6 @@ class RequestedEnvironmentSerializer(SuperclassModelSerializer):
 
     subclass_serializers = {
         'requesteddockerenvironment': RequestedDockerEnvironmentSerializer,
-        
     }
 
     class Meta:
@@ -48,14 +47,14 @@ class StepInputSerializer(CreateWithParentModelSerializer):
 
 class FixedInputSerializer(CreateWithParentModelSerializer):
 
+    value = serializers.CharField() # converted from DataObject
+
     def create(self, validated_data):
         # Convert 'value' into its corresponding data object
-        s1 = DataObjectValueSerializer(
-            data=self.initial_data['value'],
-            context={'type': validated_data['type']})
-        s1.is_valid()
-        validated_data['data_object'] = s1.save()
-
+        value = validated_data.pop('value')
+        validated_data['data_object'] = DataObject.get_by_value(
+            value,
+            validated_data['type'])
         return super(FixedInputSerializer, self).create(validated_data)
 
 
@@ -63,14 +62,14 @@ class FixedWorkflowInputSerializer(FixedInputSerializer):
 
     class Meta:
         model = FixedWorkflowInput
-        fields = ('type', 'channel')
+        fields = ('type', 'channel', 'value')
 
 
 class FixedStepInputSerializer(FixedInputSerializer):
 
     class Meta:
         model = FixedStepInput
-        fields = ('type', 'channel')
+        fields = ('type', 'channel', 'value')
 
 
 class WorkflowOutputSerializer(CreateWithParentModelSerializer):
@@ -89,8 +88,6 @@ class StepOutputSerializer(CreateWithParentModelSerializer):
 
 class AbstractWorkflowSerializer(SuperclassModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
-
     subclass_serializers = {
         'workflow': 'analysis.serializers.workflows.WorkflowSerializer',
         'step': 'analysis.serializers.workflows.StepSerializer',
@@ -102,6 +99,7 @@ class AbstractWorkflowSerializer(SuperclassModelSerializer):
 
 class WorkflowSerializer(CreateWithParentModelSerializer):
 
+    id = serializers.UUIDField(format='hex', required=False)
     inputs = WorkflowInputSerializer(
         many=True,
         required=False,
@@ -171,6 +169,7 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
 
 class StepSerializer(CreateWithParentModelSerializer):
 
+    id = serializers.UUIDField(format='hex', required=False)
     environment = RequestedEnvironmentSerializer()
     resources = RequestedResourceSetSerializer()
     inputs = StepInputSerializer(many=True, required=False)
@@ -248,3 +247,30 @@ class StepSerializer(CreateWithParentModelSerializer):
             s.save()
 
         return step
+
+class AbstractWorkflowIdSerializer(serializers.Serializer):
+
+    def to_representation(self, obj):
+        return obj.get_name_and_id()
+
+    def to_internal_value(self, data):
+        if not isinstance(data, dict):
+            return {'template_id': data}
+        else:
+            return data
+
+    def create(self, validated_data):
+        # We don't create a new object, but look up one that
+        # matches the given ID if it exists.
+        matches = AbstractWorkflow.query_by_name_or_id(
+            validated_data['template_id'])
+        if matches.count() < 1:
+            raise Exception('No match found for id %s' % validated_data['template_id'])
+        elif matches.count() > 1:
+            raise Exception('Multiple workflows match id %s' % validated_data['template_id'])
+        return  matches.first()
+
+    def update(self, instance, validated_data):
+        if not instance.get_name_and_id() == validated_data['template_id']:
+            raise UpdateNotAllowedError(instance)
+        return instance

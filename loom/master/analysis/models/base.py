@@ -105,7 +105,7 @@ class FilterHelper(object):
         where ID may be truncated
         """
         if not self._is_query_string_valid(query_string):
-            return cls.objects.none()
+            return self.Model.objects.none()
         name, id, name_or_id = self._parse_query_string(query_string)
         if id and not name:
             try:

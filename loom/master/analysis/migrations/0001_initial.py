@@ -26,6 +26,17 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
+            name='CancelRequest',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('is_hard_stop', models.BooleanField()),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='DataObject',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
@@ -39,6 +50,17 @@ class Migration(migrations.Migration):
             name='DataObjectContent',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='FailureNotice',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('is_hard_stop', models.BooleanField()),
             ],
             options={
                 'abstract': False,
@@ -99,9 +121,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
-                ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_analysis.inputoutputnode_set+', editable=False, to='contenttypes.ContentType', null=True)),
-                ('sender', models.ForeignKey(related_name='receivers', to='analysis.InputOutputNode', null=True)),
             ],
             options={
                 'abstract': False,
@@ -125,6 +144,32 @@ class Migration(migrations.Migration):
                 ('memory', models.CharField(max_length=255, null=True)),
                 ('disk_space', models.CharField(max_length=255, null=True)),
                 ('cores', models.CharField(max_length=255, null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='RestartRequest',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='RunRequest',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('is_running', models.BooleanField(default=True)),
+                ('is_stopping', models.BooleanField(default=False)),
+                ('is_hard_stop', models.BooleanField(default=False)),
+                ('is_failed', models.BooleanField(default=False)),
+                ('is_canceled', models.BooleanField(default=False)),
+                ('is_completed', models.BooleanField(default=False)),
             ],
             options={
                 'abstract': False,
@@ -318,6 +363,26 @@ class Migration(migrations.Migration):
             bases=('analysis.requestedenvironment',),
         ),
         migrations.CreateModel(
+            name='RunRequestInput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
+        migrations.CreateModel(
+            name='RunRequestOutput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
+        migrations.CreateModel(
             name='Step',
             fields=[
                 ('abstractworkflow_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflow')),
@@ -396,9 +461,29 @@ class Migration(migrations.Migration):
             field=models.OneToOneField(related_name='environment', to='analysis.TaskDefinition'),
         ),
         migrations.AddField(
+            model_name='runrequest',
+            name='template',
+            field=models.ForeignKey(to='analysis.AbstractWorkflow', on_delete=django.db.models.deletion.PROTECT),
+        ),
+        migrations.AddField(
+            model_name='restartrequest',
+            name='run_request',
+            field=models.ForeignKey(related_name='restart_requests', to='analysis.RunRequest'),
+        ),
+        migrations.AddField(
             model_name='requestedenvironment',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_analysis.requestedenvironment_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='inputoutputnode',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analysis.inputoutputnode_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='inputoutputnode',
+            name='sender',
+            field=models.ForeignKey(related_name='receivers', to='analysis.InputOutputNode', null=True),
         ),
         migrations.AddField(
             model_name='fixedworkflowinput',
@@ -426,6 +511,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='file_locations', on_delete=django.db.models.deletion.SET_NULL, to='analysis.UnnamedFileContent', null=True),
         ),
         migrations.AddField(
+            model_name='failurenotice',
+            name='run_request',
+            field=models.ForeignKey(related_name='failure_notices', to='analysis.RunRequest'),
+        ),
+        migrations.AddField(
             model_name='dataobjectcontent',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_analysis.dataobjectcontent_set+', editable=False, to='contenttypes.ContentType', null=True),
@@ -434,6 +524,11 @@ class Migration(migrations.Migration):
             model_name='dataobject',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_analysis.dataobject_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='cancelrequest',
+            name='run_request',
+            field=models.ForeignKey(related_name='cancel_requests', to='analysis.RunRequest'),
         ),
         migrations.AddField(
             model_name='abstractworkflow',
@@ -459,6 +554,21 @@ class Migration(migrations.Migration):
             model_name='stepinput',
             name='step',
             field=models.ForeignKey(related_name='inputs', to='analysis.Step'),
+        ),
+        migrations.AddField(
+            model_name='runrequestoutput',
+            name='run_request',
+            field=models.ForeignKey(related_name='outputs', to='analysis.RunRequest'),
+        ),
+        migrations.AddField(
+            model_name='runrequestinput',
+            name='data_object',
+            field=models.ForeignKey(related_name='run_request_inputs', on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='runrequestinput',
+            name='run_request',
+            field=models.ForeignKey(related_name='inputs', to='analysis.RunRequest'),
         ),
         migrations.AddField(
             model_name='requestedresourceset',

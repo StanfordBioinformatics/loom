@@ -37,11 +37,15 @@ class CreateWithParentModelSerializer(serializers.ModelSerializer):
         This method expects the 'parent_field' and 'parent_instance' to
         be included in the Serializer context.
         """
-        if (self.context.get('parent_field') \
+        if not (self.context.get('parent_field') \
             and self.context.get('parent_instance')):
-            validated_data.update({
-                self.context.get('parent_field'):
-                self.context.get('parent_instance')})
+            raise serializers.ValidationError(
+                'You must provide "parent_field" and "parent_instance" in '\
+                'the serializer context for %s' % self.__class__.__name__)
+        validated_data.update({
+            self.context.get('parent_field'):
+            self.context.get('parent_instance')})
+            
         return self.Meta.model.objects.create(**validated_data)
 
 

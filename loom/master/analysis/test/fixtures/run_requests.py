@@ -3,16 +3,12 @@ from .workflows import *
 
 run_request_input = {
     'value': 'some text',
+    'type': 'string',
     'channel': flat_workflow['inputs'][0]['channel']
 }
 
-flat_run_request = {
-    'template': flat_workflow,
+run_request = {
     'inputs': [
         run_request_input
     ]
-}
-
-nested_run_request = {
-    'template': nested_workflow,
 }

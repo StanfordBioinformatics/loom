@@ -131,9 +131,11 @@ class FileDataObject(DataObject):
                and not get_setting('KEEP_DUPLICATE_FILES'):
                 instance.file_location \
                     = instance.file_content.get_location()
+                instance.save()
             else:
                 instance.file_location \
                     = FileLocation.create_location_for_import(instance)
+                instance.save()
 
     def delete(self):
         file_content = self.file_content

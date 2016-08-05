@@ -316,23 +316,3 @@ class DataObjectContentSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = DataObjectContent
-
-class DataObjectValueSerializer(serializers.Serializer):
-
-    def to_representation(self, obj):
-        return obj['value']
-        
-    def to_internal_value(self, data):
-        return {'value': data}
-
-    def create(self, validated_data):
-        data_object = DataObject.get_by_value(
-            validated_data['value'],
-            self.context['type'])
-        # already saved in get_by_value
-        return data_object
-
-    def update(self, instance, validated_data):
-        if not instance.does_value_match(validated_data['value']):
-            raise UpdateNotAllowedError(instance)
-        return instance
