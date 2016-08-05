@@ -58,10 +58,8 @@ def get_parser(parser=None):
 
     parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     subparsers = parser.add_subparsers(dest='command')
-    start_parser = subparsers.add_parser('start')
     stop_parser = subparsers.add_parser('stop')
     status_parser = subparsers.add_parser('status')
 
@@ -69,9 +67,11 @@ def get_parser(parser=None):
     create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
     create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
         help="A settings file can be provided to override default settings.")
+    create_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     start_parser = subparsers.add_parser('start')
     start_parser.add_argument('--foreground', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
+    start_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     delete_parser = subparsers.add_parser('delete')
 
@@ -385,7 +385,10 @@ class GoogleCloudServerControls(BaseServerControls):
         
     def run_playbook(self, playbook, env):
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
-        return subprocess.call(['ansible-playbook', '-v', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
+        cmd_list = ['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
+        if self.args.verbose:
+            cmd_list.append('-vvv')
+        return subprocess.call(cmd_list, env=env)
 
     def build_docker_image(self, build_path, docker_name, docker_tag):
         """Build Docker image using current code. Dockerfile must exist at build_path."""
