@@ -372,7 +372,10 @@ class GoogleCloudServerControls(BaseServerControls):
         """Create server deploy settings if they don't exist yet, set up SSH
         keys, create and set up a gcloud instance, copy deploy settings to the
         instance."""
-        self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
+        if hasattr(self.args, 'settings'):
+            self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
+        else:
+            self.settings_manager.create_deploy_settings_file()
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
         setup_gcloud_ssh()
