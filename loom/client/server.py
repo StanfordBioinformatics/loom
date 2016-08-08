@@ -342,7 +342,6 @@ class GoogleCloudServerControls(BaseServerControls):
     def __init__(self, args=None):
         BaseServerControls.__init__(self, args)
         self.settings_manager = SettingsManager()
-        loom.common.cloud.setup_ansible_inventory_gce()
         setup_gce_ini_and_json()
 
     # Defines what commands this class can handle and maps names to functions.
@@ -391,7 +390,7 @@ class GoogleCloudServerControls(BaseServerControls):
         
     def run_playbook(self, playbook, env):
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
-        cmd_list = ['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
+        cmd_list = ['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
         if self.args.verbose:
             cmd_list.append('-vvv')
         return subprocess.call(cmd_list, env=env)

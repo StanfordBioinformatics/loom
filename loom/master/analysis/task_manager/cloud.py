@@ -50,8 +50,6 @@ class CloudTaskManager:
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
-        cls.inventory_file = loom.common.cloud.setup_ansible_inventory_gce()
-        loom.common.cloud.setup_gce_credentials()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
         hostname = socket.gethostname()
         node_name = cls.create_worker_name(hostname, task_run_attempt)
@@ -95,7 +93,7 @@ class CloudTaskManager:
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         playbook_vars_json_string = json.dumps(playbook_vars)
-        subprocess.call(['ansible-playbook', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
+        subprocess.call(['ansible-playbook', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', settings.GCE_INI_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
@@ -161,8 +159,6 @@ class CloudTaskManager:
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
-        cls.inventory_file = loom.common.cloud.setup_ansible_inventory_gce()
-        loom.common.cloud.setup_gce_credentials()
         zone = settings.WORKER_LOCATION
         s = Template(
 """---

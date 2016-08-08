@@ -210,9 +210,9 @@ LOGS_DIR = os.getenv('LOGS_DIR')
 PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.common.filehandler.GoogleStorageSource and GoogleStorageDestination
                                             # Retrieved but not used when filehandler is LocalSource and LocalDestination, so need to set a default value
 BUCKET_ID = os.getenv('GCE_BUCKET', '')
-ANSIBLE_PEM_FILE = os.getenv('GCE_PEM_FILE_PATH')
-ANSIBLE_GCE_INI_FILE = os.getenv('GCE_INI_PATH')
-GCE_KEY_FILE = os.getenv('GCE_KEY_FILE')
+GCE_PEM_FILE_PATH = os.getenv('GCE_PEM_FILE_PATH')
+GCE_INI_PATH = os.getenv('GCE_INI_PATH')
+GCE_SSH_KEY_FILE = os.getenv('GCE_SSH_KEY_FILE')
 WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
 WORKER_LOCATION = os.getenv('WORKER_LOCATION')
 WORKER_DISK_TYPE = os.getenv('WORKER_DISK_TYPE')
