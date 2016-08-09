@@ -24,7 +24,7 @@ class CloudTaskManager:
     PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
     GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
     GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
-    inventory_file = ''
+    GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
 
     @classmethod
     def run(cls, task_run):
@@ -93,7 +93,7 @@ class CloudTaskManager:
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         playbook_vars_json_string = json.dumps(playbook_vars)
-        subprocess.call(['ansible-playbook', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', settings.GCE_INI_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
+        subprocess.call(['ansible-playbook', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
