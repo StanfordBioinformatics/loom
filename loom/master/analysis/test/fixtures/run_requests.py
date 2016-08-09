@@ -7,8 +7,3 @@ run_request_input = {
     'channel': flat_workflow['inputs'][0]['channel']
 }
 
-run_request = {
-    'inputs': [
-        run_request_input
-    ]
-}

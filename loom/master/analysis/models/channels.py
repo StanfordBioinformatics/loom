@@ -16,15 +16,14 @@ class InputOutputNode(BasePolymorphicModel):
 
     sender = models.ForeignKey('InputOutputNode', related_name='receivers', null=True)
     channel = models.CharField(max_length=255)
+    data_object = models.ForeignKey(
+        'DataObject',
+        related_name='input_output_nodes',
+        on_delete=models.PROTECT,
+        null=True)
 
     def push(self, *args, **kwargs):
         return self.downcast().push(*args, **kwargs)
-
-    def has_destination(self, destination):
-        try:
-            return destination.from_channel.channel.sender._id == self._id
-        except ObjectDoesNotExist:
-            return False
 
 class TypedInputOutputNode(InputOutputNode):
 

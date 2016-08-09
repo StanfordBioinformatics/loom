@@ -1,3 +1,4 @@
+import copy
 from rest_framework import serializers
 
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, NoUpdateModelSerializer
@@ -16,19 +17,33 @@ class RunRequestInputSerializer(CreateWithParentModelSerializer):
         fields = ('channel', 'value',)
 
     def create(self, validated_data):
+        data = copy.deepcopy(validated_data)
+
         # Convert 'value' into its corresponding data object
-        value = validated_data.pop('value')
-        validated_data['data_object'] = DataObject.get_by_value(
+        value = data.pop('value')
+        data['data_object'] = DataObject.get_by_value(
             value,
             self.context['data_type'])
-        return super(RunRequestInputSerializer, self).create(validated_data)
+        return super(RunRequestInputSerializer, self).create(data)
 
 
 class RunRequestOutputSerializer(CreateWithParentModelSerializer):
 
+    value = serializers.CharField() #converted from DataObject
+
     class Meta:
         model = RunRequestOutput
-        fields = ('channel')
+        fields = ('channel', 'value',)
+
+    def create(self, validated_data):
+        data = copy.deepcopy(validated_data)
+
+        # Convert 'value' into its corresponding data object
+        value = data.pop('value')
+        data['data_object'] = DataObject.get_by_value(
+            value,
+            self.context['data_type'])
+        return super(RunRequestOutputSerializer, self).create(data)
 
 
 class CancelRequestSerializer(CreateWithParentModelSerializer):
@@ -53,37 +68,40 @@ class RunRequestSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
     inputs = RunRequestInputSerializer(many=True, required=False)
-    outputs = RunRequestInputSerializer(many=True, required=False)
+    outputs = RunRequestOutputSerializer(many=True, required=False)
     template = AbstractWorkflowIdSerializer()
-    # run = AbstractWorkflowRunSerialzier(required=False)
+    # run = AbstractWorkflowRunSerializer(required=False)
 
     class Meta:
         model = RunRequest
-        fields = ('id', 'template', 'inputs', 'outputs')
+        fields = ('id', 'template', 'inputs', 'outputs', 'datetime_created',)
 
     def create(self, validated_data):
+        data = copy.deepcopy(validated_data)
+        
         inputs = self.initial_data.get('inputs', None)
         outputs = self.initial_data.get('outputs', None)
-        validated_data.pop('inputs', None)
-        validated_data.pop('outputs', None)
+        data.pop('inputs', None)
+        data.pop('outputs', None)
 
         # convert 'template' name@id into its corresponding object
-        s = AbstractWorkflowIdSerializer(data=validated_data.pop('template'))
+        s = AbstractWorkflowIdSerializer(data=data.pop('template'))
         s.is_valid()
         workflow = s.save()
-        validated_data['template'] = workflow
+        data['template'] = workflow
 
         #run_serializer = AbstractWorkflowRunSerializer(
         #    data=self.initial_data.get('run', None))
         #run_serializer.is_valid()
-        #validated_data['run'] = run_serializer.save()
+        #data['run'] = run_serializer.save()
 
-        run_request = RunRequest.objects.create(**validated_data)
+        run_request = RunRequest.objects.create(**data)
 
         if inputs is not None:
             for input_data in inputs:
-                # We need to know the data type to find or create the data object from the
-                # value given. Get that from the corresponding workflow input.
+                # We need to know the data type to find or create the
+                # data object from the value given. Get that from the
+                # corresponding workflow input.
                 data_type = workflow.get_input(input_data['channel']).type
                 s = RunRequestInputSerializer(
                     data=input_data,
@@ -102,5 +120,7 @@ class RunRequestSerializer(serializers.ModelSerializer):
                              'parent_instance': run_request})
                 s.is_valid(raise_exception=True)
                 s.save()
+
+        run_request.post_create()
 
         return run_request

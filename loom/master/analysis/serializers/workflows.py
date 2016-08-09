@@ -1,3 +1,4 @@
+import copy
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, NoUpdateModelSerializer, \
@@ -50,12 +51,14 @@ class FixedInputSerializer(CreateWithParentModelSerializer):
     value = serializers.CharField() # converted from DataObject
 
     def create(self, validated_data):
+        data = copy.deepcopy(validated_data)
+        
         # Convert 'value' into its corresponding data object
-        value = validated_data.pop('value')
-        validated_data['data_object'] = DataObject.get_by_value(
+        value = data.pop('value')
+        data['data_object'] = DataObject.get_by_value(
             value,
-            validated_data['type'])
-        return super(FixedInputSerializer, self).create(validated_data)
+            data['type'])
+        return super(FixedInputSerializer, self).create(data)
 
 
 class FixedWorkflowInputSerializer(FixedInputSerializer):
@@ -113,21 +116,29 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
     
     class Meta:
         model = Workflow
-        fields = ('id', 'name', 'steps', 'inputs', 'fixed_inputs', 'outputs',)
+        fields = ('id',
+                  'name',
+                  'steps',
+                  'inputs',
+                  'fixed_inputs',
+                  'outputs',
+                  'datetime_created')
 
     def create(self, validated_data):
+        data = copy.deepcopy(validated_data)
+
         # Can't create inputs or outputs until workflow exists
         inputs = self.initial_data.get('inputs', None)
         fixed_inputs = self.initial_data.get('fixed_inputs', None)
         outputs = self.initial_data.get('outputs', None)
         steps = self.initial_data.get('steps', None)
         
-        validated_data.pop('inputs', None)
-        validated_data.pop('fixed_inputs', None)
-        validated_data.pop('outputs', None)
-        validated_data.pop('steps', None)
+        data.pop('inputs', None)
+        data.pop('fixed_inputs', None)
+        data.pop('outputs', None)
+        data.pop('steps', None)
 
-        workflow = Workflow.objects.create(**validated_data)
+        workflow = super(WorkflowSerializer, self).create(data)
 
         for step_data in steps:
             s = AbstractWorkflowSerializer(
@@ -185,9 +196,12 @@ class StepSerializer(CreateWithParentModelSerializer):
                   'resources',
                   'inputs',
                   'fixed_inputs',
-                  'outputs',)
+                  'outputs',
+                  'datetime_created')
 
     def create(self, validated_data):
+        data = copy.deepcopy(validated_data)
+        
         # Can't create inputs, outputs, environment, or resources until
         # step exists.
         inputs = self.initial_data.get('inputs', None)
@@ -195,13 +209,13 @@ class StepSerializer(CreateWithParentModelSerializer):
         outputs = self.initial_data.get('outputs', None)
         resources = self.initial_data.get('resources', None)
         environment = self.initial_data.get('environment', None)
-        validated_data.pop('inputs', None)
-        validated_data.pop('fixed_inputs', None)
-        validated_data.pop('outputs', None)
-        validated_data.pop('resources', None)
-        validated_data.pop('environment', None)
-        
-        step = Step.objects.create(**validated_data)
+        data.pop('inputs', None)
+        data.pop('fixed_inputs', None)
+        data.pop('outputs', None)
+        data.pop('resources', None)
+        data.pop('environment', None)
+
+        step = super(StepSerializer, self).create(data)
 
         if inputs is not None:
             for input_data in inputs:

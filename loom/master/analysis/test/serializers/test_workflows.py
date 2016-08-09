@@ -53,6 +53,9 @@ class TestWorkflowSerializer(TestCase):
         self.assertEqual(
             m.fixed_inputs.first().data_object.string_content.string_value,
             fixtures.workflows.nested_workflow['fixed_inputs'][0]['value'])
+        self.assertEqual(
+            m.steps.first().name,
+            fixtures.workflows.nested_workflow['steps'][0]['name'])
 
     def testRenderFixedInputValue(self):
         s = WorkflowSerializer(data=fixtures.workflows.flat_workflow)

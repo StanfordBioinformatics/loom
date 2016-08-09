@@ -12,7 +12,7 @@ class StringContentSerializer(NoUpdateModelSerializer):
         model = StringContent
         fields = ('string_value',)
 
-    
+
 class StringDataObjectSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
@@ -20,7 +20,7 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StringDataObject
-        fields = ('id', 'string_content',)
+        fields = ('id', 'string_content', 'datetime_created')
 
     def create(self, validated_data):
         s = StringContentSerializer(data=validated_data['string_content'])
@@ -53,7 +53,7 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BooleanDataObject
-        fields = ('id', 'boolean_content',)
+        fields = ('id', 'boolean_content', 'datetime_created')
 
     def create(self, validated_data):
         s = BooleanContentSerializer(data=validated_data['boolean_content'])
@@ -87,7 +87,7 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = IntegerDataObject
-        fields = ('id', 'integer_content',)
+        fields = ('id', 'integer_content', 'datetime_created')
 
     def create(self, validated_data):
         s = IntegerContentSerializer(data=validated_data['integer_content'])
@@ -158,7 +158,7 @@ class FileLocationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FileLocation
-        fields = ('id', 'url', 'status',)
+        fields = ('id', 'url', 'status', 'datetime_created')
 
     @classmethod
     def no_update(cls, instance, data):
@@ -196,7 +196,8 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         fields = ('id',
                   'file_content',
                   'file_import',
-                  'file_location',)
+                  'file_location',
+                  'datetime_created')
 
 
     def create(self, validated_data):
@@ -236,7 +237,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             s.is_valid()
             s.save()
 
-        model.send_post_create()
+        model.post_create()
         return model
 
     def update(self, instance, validated_data):
@@ -288,7 +289,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
                 None)
             instance.file_import.save()
 
-        model.send_post_update()
+        model.post_update()
         return model
 
 

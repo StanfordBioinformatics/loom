@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 import uuid
 
 from analysis.exceptions import *
@@ -21,6 +22,8 @@ class AbstractWorkflow(BasePolymorphicModel):
     NAME_FIELD = 'name'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
     name = models.CharField(max_length=255)
     parent_workflow = models.ForeignKey('Workflow',
                                         related_name='steps',
@@ -29,9 +32,6 @@ class AbstractWorkflow(BasePolymorphicModel):
     def get_name_and_id(self):
         return "%s@%s" % (self.name, self.id.hex)
 
-    def is_step(self):
-        return self.downcast().is_step()
-
     def get_fixed_input(self, channel):
         inputs = self.fixed_inputs.filter(channel=channel)
         assert inputs.count() == 1
@@ -39,7 +39,7 @@ class AbstractWorkflow(BasePolymorphicModel):
 
     def get_input(self, channel):
         inputs = self.inputs.filter(channel=channel)
-        assert inputs.count() == 1
+        assert inputs.count()
         return inputs.first()
 
     def get_output(self, channel):
@@ -47,9 +47,10 @@ class AbstractWorkflow(BasePolymorphicModel):
         assert outputs.count() == 1
         return outputs.first()
 
+    class Meta:
+        ordering = ['datetime_created']
 
 class Workflow(AbstractWorkflow):
-
     """A collection of steps and/or workflows
     """
 

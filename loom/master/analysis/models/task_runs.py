@@ -6,7 +6,7 @@ from jinja2 import DictLoader, Environment
 import os
 
 from analysis.models.task_definitions import *
-from analysis.models.data_objects import DataObject, AbstractFileImport
+from analysis.models.data_objects import DataObject
 from analysis.models.workflows import Step, RequestedResourceSet
 from analysis import get_setting
 from analysis.task_manager.factory import TaskManagerFactory
@@ -149,25 +149,11 @@ class TaskRunAttemptLogFile(BaseModel):
             self.update(
                 {
                     'file_data_object': {
-                        'file_import': TaskRunAttemptLogFileImport.create({})
+                        # TODO.
+                        # 'file_import': TaskRunAttemptLogFileImport.create({})
                     }
                 }
             )
-
-class AbstractTaskRunAttemptFileImport():
-
-    class Meta:
-        abstract = True
-
-
-class TaskRunAttemptOutputFileImport(AbstractFileImport):
-
-    pass
-
-
-class TaskRunAttemptLogFileImport(AbstractFileImport):
-
-    pass
 
 
 class TaskRunBuilder(object):

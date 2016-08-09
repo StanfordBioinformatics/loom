@@ -6,7 +6,6 @@ import uuid
 
 from .base import BaseModel, BasePolymorphicModel
 from analysis import get_setting
-from analysis.signals import post_update, post_create
 
 
 class DataObject(BasePolymorphicModel):
@@ -17,6 +16,7 @@ class DataObject(BasePolymorphicModel):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    datetime_created = models.DateTimeField(default=timezone.now, editable=False)
 
     TYPE_CHOICES = (
         ('file', 'File'),
@@ -101,41 +101,44 @@ class FileDataObject(DataObject):
         else:
             return False
 
-    @classmethod
-    def post_create_or_update(cls, sender, instance, **kwargs):
-        cls.add_file_location(sender, instance)
-        cls.add_implicit_links(sender, instance)
+    def post_create(self):
+        self.post_create_or_update()
 
-    @classmethod
-    def add_implicit_links(cls, sender, instance):
+    def post_update(self):
+        self.post_create_or_update()
+
+    def post_create_or_update(self):
+        self.add_file_location()
+        self.add_implicit_links()
+
+    def add_implicit_links(self):
         # Link FileLocation and UnnamedFileContent.
         # This link can be inferred from the DataObject
         # and therefore does not need to be serializer,
         # but having the link simplifies lookup
-        if instance.file_location is None:
+        if self.file_location is None:
             return
-        elif instance.file_location.unnamed_file_content is None \
-             and instance.file_content is not None:
+        elif self.file_location.unnamed_file_content is None \
+             and self.file_content is not None:
             # FileContent exists but link is missing. Create it.
-            instance.file_location.unnamed_file_content \
-                = instance.file_content.unnamed_file_content
-            instance.file_location.save()
+            self.file_location.unnamed_file_content \
+                = self.file_content.unnamed_file_content
+            self.file_location.save()
 
-    @classmethod
-    def add_file_location(cls, sender, instance):
+    def add_file_location(self):
         # A FileLocation should be generated once file_content is set
-        if instance.file_content and not instance.file_location:
+        if self.file_content and not self.file_location:
             # If a file with identical content has already been uploaded,
             # re-use it if permitted by settings.
-            if instance.file_content.has_location() \
+            if self.file_content.has_location() \
                and not get_setting('KEEP_DUPLICATE_FILES'):
-                instance.file_location \
-                    = instance.file_content.get_location()
-                instance.save()
+                self.file_location \
+                    = self.file_content.get_location()
+                self.save()
             else:
-                instance.file_location \
-                    = FileLocation.create_location_for_import(instance)
-                instance.save()
+                self.file_location \
+                    = FileLocation.create_location_for_import(self)
+                self.save()
 
     def delete(self):
         file_content = self.file_content
@@ -147,10 +150,6 @@ class FileDataObject(DataObject):
             # Content is referenced from another object.
             pass
         # Do not delete file_location until disk space can be freed.
-
-
-post_create.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
-post_update.connect(FileDataObject.post_create_or_update, sender=FileDataObject)
 
 
 class FileContent(DataObjectContent):
@@ -203,6 +202,8 @@ class FileLocation(BaseModel):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    datetime_created = models.DateTimeField(default=timezone.now, editable=False)
+    
     url = models.CharField(max_length=1000)
     status = models.CharField(
         max_length=256,

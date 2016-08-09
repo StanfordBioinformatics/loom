@@ -3,7 +3,6 @@ from polymorphic.models import PolymorphicModel, PolymorphicManager
 import re
 
 from analysis.exceptions import *
-from analysis.signals import post_create, post_update
 
 
 class _ModelNameMixin(object):
@@ -52,15 +51,6 @@ class _ModelNameMixin(object):
     def _camel_to_underscore(cls, text):
         s1 = cls.first_cap_re.sub(r'\1_\2', text)
         return cls.all_cap_re.sub(r'\1_\2', s1).lower()
-
-
-class _SignalMixin(object):
-
-    def send_post_create(self):
-        post_create.send(self.__class__, instance=self)
-
-    def send_post_update(self):
-        post_update.send(self.__class__, instance=self)
 
 
 class FilterHelper(object):
@@ -158,14 +148,14 @@ class _FilterMixin(object):
         return helper.get_by_name_or_id(query_string)
 
 
-class BaseModel(models.Model, _ModelNameMixin, _SignalMixin, _FilterMixin):
+class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):
 
     class Meta:
         abstract = True
         app_label = 'analysis'
 
 
-class BasePolymorphicModel(PolymorphicModel, _ModelNameMixin, _SignalMixin, _FilterMixin):
+class BasePolymorphicModel(PolymorphicModel, _ModelNameMixin, _FilterMixin):
 
     class Meta:
         abstract = True

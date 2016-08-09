@@ -218,7 +218,7 @@ class TestFileImportSerializer(TestCase):
         # Cannot create model without including parent in serializer context
         s = FileImportSerializer(data=fixtures.data_objects.file_import)
         s.is_valid()
-        with self.assertRaises(serializers.ValidationError):
+        with self.assertRaises(IntegrityError):
             model = s.save()
 
 

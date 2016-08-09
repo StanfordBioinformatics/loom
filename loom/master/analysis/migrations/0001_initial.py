@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 import django.db.models.deletion
+import django.utils.timezone
 import analysis.models.base
 import uuid
 
@@ -18,12 +19,23 @@ class Migration(migrations.Migration):
             name='AbstractWorkflow',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
                 ('name', models.CharField(max_length=255)),
+            ],
+            options={
+                'ordering': ['datetime_created'],
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='AbstractWorkflowRun',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
             ],
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='CancelRequest',
@@ -34,17 +46,18 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='DataObject',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
             ],
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='DataObjectContent',
@@ -54,7 +67,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='FailureNotice',
@@ -65,7 +78,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='FileImport',
@@ -78,19 +91,20 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='FileLocation',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
                 ('url', models.CharField(max_length=1000)),
                 ('status', models.CharField(default=b'incomplete', max_length=256, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
             ],
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='FixedStepInput',
@@ -102,7 +116,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='FixedWorkflowInput',
@@ -114,7 +128,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='InputOutputNode',
@@ -125,7 +139,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='RequestedEnvironment',
@@ -135,7 +149,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='RequestedResourceSet',
@@ -148,7 +162,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='RestartRequest',
@@ -158,12 +172,13 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='RunRequest',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
                 ('is_running', models.BooleanField(default=True)),
                 ('is_stopping', models.BooleanField(default=False)),
                 ('is_hard_stop', models.BooleanField(default=False)),
@@ -174,7 +189,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='StepInput',
@@ -188,7 +203,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='StepOutput',
@@ -202,7 +217,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinition',
@@ -213,7 +228,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinitionEnvironment',
@@ -223,7 +238,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinitionInput',
@@ -234,7 +249,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='TaskDefinitionOutput',
@@ -247,7 +262,70 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRun',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('resources', models.OneToOneField(to='analysis.RequestedResourceSet')),
+                ('task_definition', models.OneToOneField(related_name='task_run', on_delete=django.db.models.deletion.PROTECT, to='analysis.TaskDefinition')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunAttempt',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunAttemptLogFile',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('log_name', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunAttemptOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunInput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskRunOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='UnnamedFileContent',
@@ -256,7 +334,7 @@ class Migration(migrations.Migration):
                 ('hash_value', models.CharField(max_length=255)),
                 ('hash_function', models.CharField(max_length=255)),
             ],
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='WorkflowInput',
@@ -270,7 +348,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
             name='WorkflowOutput',
@@ -283,7 +361,18 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._SignalMixin, analysis.models.base._FilterMixin),
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='AbstractStepRunInput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
             name='BooleanContent',
@@ -330,6 +419,27 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
+            name='FixedWorkflowRunInput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
+        migrations.CreateModel(
+            name='GoogleCloudTaskRunAttempt',
+            fields=[
+                ('taskrunattempt_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunAttempt')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskrunattempt',),
+        ),
+        migrations.CreateModel(
             name='IntegerContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
@@ -350,6 +460,26 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.dataobject',),
+        ),
+        migrations.CreateModel(
+            name='LocalTaskRunAttempt',
+            fields=[
+                ('taskrunattempt_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunAttempt')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskrunattempt',),
+        ),
+        migrations.CreateModel(
+            name='MockTaskRunAttempt',
+            fields=[
+                ('taskrunattempt_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunAttempt')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.taskrunattempt',),
         ),
         migrations.CreateModel(
             name='RequestedDockerEnvironment',
@@ -394,6 +524,29 @@ class Migration(migrations.Migration):
             bases=('analysis.abstractworkflow',),
         ),
         migrations.CreateModel(
+            name='StepRun',
+            fields=[
+                ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowRun')),
+                ('template', models.ForeignKey(related_name='step_runs', on_delete=django.db.models.deletion.PROTECT, to='analysis.Step')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractworkflowrun',),
+        ),
+        migrations.CreateModel(
+            name='StepRunOutput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('step_run', models.ForeignKey(related_name='outputs', to='analysis.StepRun')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
+        migrations.CreateModel(
             name='StringContent',
             fields=[
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObjectContent')),
@@ -436,9 +589,104 @@ class Migration(migrations.Migration):
             },
             bases=('analysis.abstractworkflow',),
         ),
+        migrations.CreateModel(
+            name='WorkflowRun',
+            fields=[
+                ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflowRun')),
+                ('template', models.ForeignKey(related_name='runs', on_delete=django.db.models.deletion.PROTECT, to='analysis.Workflow')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractworkflowrun',),
+        ),
+        migrations.CreateModel(
+            name='WorkflowRunInput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('workflow_run', models.ForeignKey(related_name='inputs', to='analysis.WorkflowRun')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
+        migrations.CreateModel(
+            name='WorkflowRunOutput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('workflow_run', models.ForeignKey(related_name='outputs', to='analysis.WorkflowRun')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
         migrations.AlterUniqueTogether(
             name='unnamedfilecontent',
             unique_together=set([('hash_value', 'hash_function')]),
+        ),
+        migrations.AddField(
+            model_name='taskrunoutput',
+            name='data_object',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrunoutput',
+            name='task_definition_output',
+            field=models.OneToOneField(related_name='task_run_output', null=True, on_delete=django.db.models.deletion.SET_NULL, to='analysis.TaskDefinitionOutput'),
+        ),
+        migrations.AddField(
+            model_name='taskrunoutput',
+            name='task_run',
+            field=models.ForeignKey(related_name='outputs', to='analysis.TaskRun'),
+        ),
+        migrations.AddField(
+            model_name='taskruninput',
+            name='data_object',
+            field=models.ForeignKey(to='analysis.DataObject', on_delete=django.db.models.deletion.PROTECT),
+        ),
+        migrations.AddField(
+            model_name='taskruninput',
+            name='task_definition_input',
+            field=models.OneToOneField(related_name='task_run_input', null=True, on_delete=django.db.models.deletion.SET_NULL, to='analysis.TaskDefinitionInput'),
+        ),
+        migrations.AddField(
+            model_name='taskruninput',
+            name='task_run',
+            field=models.ForeignKey(related_name='inputs', to='analysis.TaskRun'),
+        ),
+        migrations.AddField(
+            model_name='taskrunattemptoutput',
+            name='data_object',
+            field=models.OneToOneField(related_name='task_run_attempt_output', null=True, on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='taskrunattemptoutput',
+            name='task_run_attempt',
+            field=models.ForeignKey(related_name='outputs', to='analysis.TaskRunAttempt'),
+        ),
+        migrations.AddField(
+            model_name='taskrunattemptoutput',
+            name='task_run_output',
+            field=models.ForeignKey(related_name='task_run_attempt_outputs', on_delete=django.db.models.deletion.SET_NULL, to='analysis.TaskRunOutput', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrunattemptlogfile',
+            name='task_run_attempt',
+            field=models.ForeignKey(related_name='log_files', to='analysis.TaskRunAttempt'),
+        ),
+        migrations.AddField(
+            model_name='taskrunattempt',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analysis.taskrunattempt_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskrunattempt',
+            name='task_run',
+            field=models.ForeignKey(related_name='task_run_attempts', to='analysis.TaskRun'),
         ),
         migrations.AddField(
             model_name='taskdefinitioninput',
@@ -462,6 +710,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='runrequest',
+            name='run',
+            field=models.OneToOneField(null=True, on_delete=django.db.models.deletion.PROTECT, to='analysis.AbstractWorkflowRun'),
+        ),
+        migrations.AddField(
+            model_name='runrequest',
             name='template',
             field=models.ForeignKey(to='analysis.AbstractWorkflow', on_delete=django.db.models.deletion.PROTECT),
         ),
@@ -474,6 +727,11 @@ class Migration(migrations.Migration):
             model_name='requestedenvironment',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_analysis.requestedenvironment_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='inputoutputnode',
+            name='data_object',
+            field=models.ForeignKey(related_name='input_output_nodes', on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject', null=True),
         ),
         migrations.AddField(
             model_name='inputoutputnode',
@@ -531,9 +789,36 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='cancel_requests', to='analysis.RunRequest'),
         ),
         migrations.AddField(
+            model_name='abstractworkflowrun',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analysis.abstractworkflowrun_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
             model_name='abstractworkflow',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_analysis.abstractworkflow_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.CreateModel(
+            name='FixedStepRunInput',
+            fields=[
+                ('abstractstepruninput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractStepRunInput')),
+                ('step_run', models.ForeignKey(related_name='fixed_inputs', to='analysis.StepRun')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractstepruninput',),
+        ),
+        migrations.CreateModel(
+            name='StepRunInput',
+            fields=[
+                ('abstractstepruninput_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractStepRunInput')),
+                ('step_run', models.ForeignKey(related_name='inputs', to='analysis.StepRun')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.abstractstepruninput',),
         ),
         migrations.AddField(
             model_name='workflowoutput',
@@ -544,6 +829,21 @@ class Migration(migrations.Migration):
             model_name='workflowinput',
             name='workflow',
             field=models.ForeignKey(related_name='inputs', to='analysis.Workflow'),
+        ),
+        migrations.AddField(
+            model_name='taskrunattemptlogfile',
+            name='file_data_object',
+            field=models.OneToOneField(related_name='task_run_attempt_log_file', null=True, on_delete=django.db.models.deletion.PROTECT, to='analysis.FileDataObject'),
+        ),
+        migrations.AddField(
+            model_name='taskrun',
+            name='step_run',
+            field=models.ForeignKey(related_name='task_runs', to='analysis.StepRun'),
+        ),
+        migrations.AddField(
+            model_name='steprunoutput',
+            name='task_run_outputs',
+            field=models.ManyToManyField(related_name='step_run_outputs', to='analysis.TaskRunOutput'),
         ),
         migrations.AddField(
             model_name='stepoutput',
@@ -562,11 +862,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='runrequestinput',
-            name='data_object',
-            field=models.ForeignKey(related_name='run_request_inputs', on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject'),
-        ),
-        migrations.AddField(
-            model_name='runrequestinput',
             name='run_request',
             field=models.ForeignKey(related_name='inputs', to='analysis.RunRequest'),
         ),
@@ -579,6 +874,11 @@ class Migration(migrations.Migration):
             model_name='requestedenvironment',
             name='step',
             field=models.OneToOneField(related_name='environment', to='analysis.Step'),
+        ),
+        migrations.AddField(
+            model_name='fixedworkflowruninput',
+            name='workflow_run',
+            field=models.ForeignKey(related_name='fixed_inputs', to='analysis.WorkflowRun'),
         ),
         migrations.AddField(
             model_name='fixedworkflowinput',
@@ -606,8 +906,18 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='file_contents', on_delete=django.db.models.deletion.PROTECT, to='analysis.UnnamedFileContent'),
         ),
         migrations.AddField(
+            model_name='abstractworkflowrun',
+            name='parent',
+            field=models.ForeignKey(related_name='step_runs', to='analysis.WorkflowRun', null=True),
+        ),
+        migrations.AddField(
             model_name='abstractworkflow',
             name='parent_workflow',
             field=models.ForeignKey(related_name='steps', to='analysis.Workflow', null=True),
+        ),
+        migrations.AddField(
+            model_name='taskruninput',
+            name='step_run_input',
+            field=models.ForeignKey(related_name='task_run_inputs', on_delete=django.db.models.deletion.SET_NULL, to='analysis.StepRunInput', null=True),
         ),
     ]

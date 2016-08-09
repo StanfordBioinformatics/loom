@@ -5,11 +5,13 @@ from django.utils import timezone
 from analysis import get_setting
 from analysis.exceptions import *
 
-from analysis.models.channels import Channel, TypedInputOutputNode, ChannelSet
+from analysis.models.channels import TypedInputOutputNode
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
-from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, TaskRunBuilder
-from analysis.models.workflows import AbstractWorkflow, Workflow, Step, WorkflowInput, WorkflowOutput, StepInput, StepOutput
+from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, \
+    TaskRunBuilder
+from analysis.models.workflows import AbstractWorkflow, Workflow, Step, \
+    WorkflowInput, WorkflowOutput, StepInput, StepOutput
 from .base import BaseModel, BasePolymorphicModel
 
 
@@ -19,25 +21,15 @@ running an analysis
 """
 
 class AbstractWorkflowRun(BasePolymorphicModel):
-    """AbstractWorkflowRun represents the process of executing a Workflow on a particular
-    set of inputs. The workflow may be either a Step or a Workflow composed of one or more Steps.
+    """AbstractWorkflowRun represents the process of executing a Workflow on 
+    a particular set of inputs. The workflow may be either a Step or a 
+    Workflow composed of one or more Steps.
     """
 
-    parent = models.ForeignKey('WorkflowRun', related_name='step_runs', null=True, on_delete=models.CASCADE)
-
-    @classmethod
-    def before_create_or_update(cls, data):
-        """Cast as WorkflowRun or StepRun according to the type of template given
-        """
-        if data.get('template') is not None:
-            template = AbstractWorkflow.create(data.get('template'))
-            if template.is_step():
-                data.update({'_class': 'StepRun'})
-            else:
-                data.update({'_class': 'WorkflowRun'})
-    
-    def is_step(self):
-        return self.downcast().is_step()
+    parent = models.ForeignKey('WorkflowRun',
+                               related_name='step_runs',
+                               null=True,
+                               on_delete=models.CASCADE)
 
     def get_input(self, channel):
         inputs = [i for i in self.downcast().inputs.filter(channel=channel)]
@@ -50,45 +42,69 @@ class WorkflowRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'workflow__name'
 
-    template = models.ForeignKey('Workflow', related_name='workflow_runs', on_delete=models.CASCADE)
+    template = models.ForeignKey('Workflow',
+                                 related_name='runs',
+                                 on_delete=models.PROTECT)
 
     def is_step(self):
         return False
 
-    def after_create_or_update(self, data):
-        if not self._is_initialized():
-            self._initialize_step_runs()
-            self._initialize_inputs_outputs()
-            self._initialize_channels()
+    def post_create(self):
+        self._initialize()
+
+    def _initialize(self):
+        self._initialize_step_runs()
+        self._initialize_inputs_outputs()
+        self._initialize_channels()
 
     def _is_initialized(self):
-        return self.step_runs.count() == self.template.steps.count() \
-            and self.inputs.count() == self.template.inputs.count() \
-            and self.fixed_inputs.count() == self.template.fixed_inputs.count() \
+        # TODO - break this down
+        return self.step_runs.count() == self.template.steps.count() and \
+            self.inputs.count() == self.template.inputs.count() and \
+            self.fixed_inputs.count() == self.template.fixed_inputs.count() \
             and self.outputs.count() == self.template.outputs.count()
 
     def _initialize_step_runs(self):
         """Create a run for each step
         """
-        # Workaround--not using the "update" method here to avoid infinite recursion
         for step in self.template.steps.all():
-            self.step_runs.add(AbstractWorkflowRun.create({'template': step}))
+            if step.is_step():
+                run = StepRun.objects.create(template=step,
+                                             parent=self)
+            else:
+                run = WorkflowRun.objects.create(template=step,
+                                                 parent=self)
+            run._initialize()
 
     def _initialize_inputs_outputs(self):
-        self.update({
-            'inputs': [{'channel': input.channel, 'type': input.type} for input in self.template.inputs.all()],
-            'fixed_inputs': [{'channel': input.channel, 'type': input.type} for input in self.template.fixed_inputs.all()],
-            'outputs': [{'channel': output.channel, 'type': output.type} for output in self.template.outputs.all()]
-        })
+        for input in self.template.inputs.all():
+            WorkflowRunInput.objects.create(
+                workflow_run=self,
+                channel = input.channel,
+                type = input.type)
+        for fixed_input in self.template.fixed_inputs.all():
+            FixedWorkflowRunInput.objects.create(
+                workflow_run=self,
+                channel=fixed_input.channel,
+                type=fixed_input.type)
+        for output in self.template.outputs.all():
+            WorkflowRunOutput.objects.create(
+                workflow_run=self,
+                channel=output.channel,
+                type=output.type)
 
     def _initialize_channels(self):
-        """Create the Channel objects connecting workflow input/outputs to step input/outputs
-        """
-        for source in self._get_all_sources():
-            destinations = self._get_destinations(source.channel)
-            channel = Channel.create_from_sender(source, source.channel)
-            channel.add_receivers(destinations)
+        for destination in self._get_destinations():
+            source = self._get_source(destination.channel)
 
+            # For a matching source and desination, make sure they are
+            # sender/receiver on the same channel 
+            if not destination.sender:
+                destination.sender = source
+                destination.save()
+            else:
+                assert destination.sender == source
+                
     def initial_push(self):
         # Runtime inputs will be pushed when data is added,
         # but fixed inputs have to be pushed now on creation
@@ -97,53 +113,69 @@ class WorkflowRun(AbstractWorkflowRun):
         for step_run in self.step_runs.all():
             step_run.downcast().initial_push()
 
-    def _get_all_sources(self):
-        sources = [source for source in self.inputs.all()]
-        sources.extend([source for source in self.fixed_inputs.all()])
+    def _get_destinations(self):
+        destinations = [dest for dest in self.outputs.all()]
         for step_run in self.step_runs.all():
-            sources.extend([source for source in step_run.downcast().outputs.all()])
-        return sources
-
-    def _get_destinations(self, channel):
-        destinations = [dest for dest in self.outputs.filter(channel=channel)]
-        for step_run in self.step_runs.all():
-            destinations.extend([dest for dest in step_run.downcast().inputs.filter(channel=channel)])
+            destinations.extend([dest for dest in step_run.inputs.all()])
         return destinations
+
+    def _get_source(self, channel):
+        sources = [source for source in self.inputs.filter(channel=channel)]
+        sources.extend([source for source in
+                        self.fixed_inputs.filter(channel=channel)])
+        for step_run in self.step_runs.all():
+            sources.extend([source for source in
+                            step_run.outputs.filter(channel=channel)])
+        assert len(sources) == 1
+        return sources[0]
 
 
 class StepRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'step__name'
 
-    template = models.ForeignKey('Step', related_name='step_runs', on_delete=models.CASCADE)
+    template = models.ForeignKey('Step', related_name='step_runs', on_delete=models.PROTECT)
 
-    def after_create_or_update(self, data):
-        if not self._is_initialized():
-            self._initialize_inputs_outputs()
-            self._initialize_channels()
+    def post_create(self):
+        self._initialize()
 
+    def _initialize(self):
+        self._initialize_inputs_outputs()
+        
     def _is_initialized(self):
         return self.inputs.count() == self.template.inputs.count() \
             and self.fixed_inputs.count() == self.template.fixed_inputs.count() \
             and self.outputs.count() == self.template.outputs.count()
 
     def _initialize_inputs_outputs(self):
-        self.update({
-            'inputs': [{'channel': input.channel, 'type': input.type} for input in self.template.inputs.all()],
-            'fixed_inputs': [{'channel': input.channel, 'type': input.type} for input in self.template.fixed_inputs.all()],
-            'outputs': [{'channel': output.channel, 'type': output.type} for output in self.template.outputs.all()]
-        })
+        for input in self.template.inputs.all():
+            StepRunInput.objects.create(
+                step_run=self,
+                channel = input.channel,
+                type = input.type)
+        for fixed_input in self.template.fixed_inputs.all():
+            FixedStepRunInput.objects.create(
+                step_run=self,
+                channel=fixed_input.channel,
+                type=fixed_input.type)
+        for output in self.template.outputs.all():
+            StepRunOutput.objects.create(
+                step_run=self,
+                channel=output.channel,
+                type=output.type)
 
     def _initialize_channels(self):
-        """The only Channels created here are to handle data from StepRun fixed inputs.
-        These are unusual, because the FixedInput is both source and destination
-        for the channel. Normally channels transmit data between objects, but here
-        they just act as a gatekeeper to know when the data has been consumed and
-        to integrate the data with other inputs for the step.
-        """
-        for input in self.fixed_inputs.all():
-            channel = Channel.create_from_sender(input, input.channel)
-            channel.add_receiver(input)
+        for destination in self._get_destinations():
+            source = self._get_source(destination.channel)
+
+            # For a matching source and desination, make sure they are
+            # sender/receiver on the same channel 
+            if not destination.sender:
+                destination.sender = source
+                destination.save()
+            else:
+                assert destination.sender == source
+                
 
     def initial_push(self):
         # Runtime inputs will be pushed when data is added,
