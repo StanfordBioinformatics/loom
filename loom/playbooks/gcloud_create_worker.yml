@@ -41,3 +41,7 @@
     pip: name=docker-py
   - name: Pull Loom Docker image.
     docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto
+  - name: Generate ssh keys. Overwrite if asked.
+    shell: echo -e  'y\n' | ssh-keygen -q -t rsa -f ~/.ssh/google_compute_engine -P ""
+  - name: Configure GCE ssh keys.
+    shell: gcloud compute config-ssh 

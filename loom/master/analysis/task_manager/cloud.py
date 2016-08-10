@@ -93,7 +93,7 @@ class CloudTaskManager:
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         playbook_vars_json_string = json.dumps(playbook_vars)
-        subprocess.call(['ansible-playbook', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', cls.GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
+        subprocess.call(['ansible-playbook', '-v', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', cls.GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
