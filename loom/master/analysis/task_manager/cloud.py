@@ -29,8 +29,8 @@ class CloudTaskManager:
 
     @classmethod
     def run(cls, task_run):
-	from analysis.models.task_runs import GoogleCloudTaskRunAttempt
-	task_run_attempt = GoogleCloudTaskRunAttempt.create({'task_run': task_run})
+        from analysis.models.task_runs import GoogleCloudTaskRunAttempt
+        task_run_attempt = GoogleCloudTaskRunAttempt.create({'task_run': task_run})
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile=os.path.join(settings.LOGS_DIR, 'loom_cloud_taskmanager.log'))
         
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
@@ -43,7 +43,7 @@ class CloudTaskManager:
     @classmethod
     def _run(cls, task_run_attempt_pickle):
         task_run_attempt = pickle.loads(task_run_attempt_pickle)
-	requested_resources = task_run_attempt.task_run.resources
+        requested_resources = task_run_attempt.task_run.resources
         logger = loom.common.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_run_attempt: %s" % task_run_attempt.to_json())
