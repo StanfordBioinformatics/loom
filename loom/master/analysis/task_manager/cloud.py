@@ -179,7 +179,7 @@ class CloudTaskManager:
         Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
         so leave 5 characters for the '-disk' suffix.
         """
-	task_run = task_run_attempt.task_run
+        task_run = task_run_attempt.task_run
         #workflow_name = task_run.workflow_name
         step_name = task_run.step_runs.first().template.name
         attempt_id = task_run_attempt.get_id()
