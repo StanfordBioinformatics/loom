@@ -37,5 +37,11 @@ RUN virtualenv /opt/loom \
     && . /opt/loom/bin/activate \
     && pip install -e /opt/loom 
 
+# Add Loom to the path.
 ENV PATH /opt/loom/bin:$PATH
+
+# Accept connections on port 8000.
 EXPOSE 8000
+
+# Create a loom user.
+RUN useradd -g root loom

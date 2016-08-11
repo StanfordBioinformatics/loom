@@ -41,7 +41,7 @@
 
 - name: Set up the Loom server on the new instance. 
   hosts: new_instances
-  remote_user: loom
+  become: yes
   roles:
   - docker
   - loom_master
