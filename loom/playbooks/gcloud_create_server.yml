@@ -32,16 +32,16 @@
     user: name=loom
   - name: Generate ssh keys. Overwrite if asked.
     shell: echo -e  'y\n' | ssh-keygen -q -t rsa -f ~/.ssh/google_compute_engine -P ""
+    become: yes
     become_user: loom
   - name: Configure GCE ssh keys.
     shell: gcloud compute config-ssh
+    become: yes
     become_user: loom
 
 - name: Set up the Loom server on the new instance. 
   hosts: new_instances
   remote_user: loom
-  become_method: sudo
-  become: yes
   roles:
   - docker
   - loom_master

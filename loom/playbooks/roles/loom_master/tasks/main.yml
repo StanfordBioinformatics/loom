@@ -15,9 +15,13 @@
       name: epel
       description: EPEL YUM repo
       baseurl: http://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+    become: yes
   - name: Install pip, which is needed to install docker-py.
     yum: name=python-pip disable_gpg_check=yes update_cache=yes
+    become: yes
   - name: Install docker-py, which is required by Ansible to use Docker modules.
     pip: name=docker-py
+    become: yes
   - name: Pull Docker image.
     docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto force=True
+    become: yes

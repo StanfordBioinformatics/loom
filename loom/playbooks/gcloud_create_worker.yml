@@ -17,6 +17,7 @@
   - name: Add host to groupname.
     add_host: hostname={{ item.private_ip }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
+
 - name: Set up new instance(s).
   hosts: new_instances
   remote_user: loom
