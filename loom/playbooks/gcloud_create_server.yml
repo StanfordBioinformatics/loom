@@ -25,20 +25,6 @@
     add_host: hostname={{ item.public_ip }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
 
-- name: Create a Loom user on the new instance and set up SSH keys.
-  hosts: new_instances
-  tasks:
-  - name: Create a Loom user on the new instance.
-    user: name=loom
-  - name: Generate ssh keys. Overwrite if asked.
-    shell: echo -e  'y\n' | ssh-keygen -q -t rsa -f ~/.ssh/google_compute_engine -P ""
-    become: yes
-    become_user: loom
-  - name: Configure GCE ssh keys.
-    shell: gcloud compute config-ssh
-    become: yes
-    become_user: loom
-
 - name: Set up the Loom server on the new instance. 
   hosts: new_instances
   become: yes

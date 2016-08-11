@@ -25,6 +25,7 @@ class CloudTaskManager:
     GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
     GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
     GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
+    LOOM_USER_SSH_KEY_FILE = '/home/loom/.ssh/google_compute_engine'
 
     @classmethod
     def run(cls, task_run):
@@ -93,7 +94,7 @@ class CloudTaskManager:
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         playbook_vars_json_string = json.dumps(playbook_vars)
-        subprocess.call(['ansible-playbook', '-vvv', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', cls.GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
+        subprocess.call(['ansible-playbook', '-vvv', '--key-file', cls.LOOM_USER_SSH_KEY_FILE, '-i', cls.GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):

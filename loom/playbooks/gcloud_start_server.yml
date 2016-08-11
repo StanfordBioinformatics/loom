@@ -3,7 +3,8 @@
   hosts: "{{lookup('env','SERVER_NAME')}}"
   become: yes
   vars:
-    remote_loom_settings_path: /home/loom/{{lookup('env', 'LOOM_HOME_SUBDIR')}}
+    docker_loom_settings_path: /home/loom/{{lookup('env', 'LOOM_HOME_SUBDIR')}}
+    remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
     local_loom_settings_path: "{{lookup('env','HOME')}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
     docker_full_name: "{{lookup('env', 'DOCKER_FULL_NAME')}}"
   tasks:
@@ -12,7 +13,7 @@
       name: loom
       image: "{{docker_full_name}}"
       ports: 8000:8000
-      volumes: "{{remote_loom_settings_path}}"
+      volumes: "{{remote_loom_settings_path}}:{{docker_loom_settings_path}}"
       restart_policy: always
       api_version: auto
       user: loom
@@ -22,7 +23,7 @@
       name: nginx
       image: nginx
       network_mode: host
-      volumes: "{{remote_loom_settings_path}}/nginx.conf:/etc/nginx/conf.d/default.conf,/var/log/nginx:/var/log/nginx,{{remote_loom_settings_path}}/ssl:/etc/nginx/ssl"
+      volumes: /var/log/nginx,{{remote_loom_settings_path}}/nginx.conf:/etc/nginx/conf.d/default.conf,/var/log/nginx,{{remote_loom_settings_path}}/ssl:/etc/nginx/ssl
       restart_policy: always
       api_version: auto
 #  - name: Copy newly generated TLS/SSL certificate to client.
