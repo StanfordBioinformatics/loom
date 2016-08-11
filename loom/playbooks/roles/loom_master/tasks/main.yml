@@ -10,10 +10,6 @@
     file: path={{remote_loom_settings_path}}/ssl state=directory mode=0755
   - name: Create self-signed SSL certificate and key.
     command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{remote_loom_settings_path}}/ssl/ssl.key -out {{remote_loom_settings_path}}/ssl/ssl.crt -subj "/C=US/ST=California/L=Palo Alto/O=Stanford University/CN={{ansible_fqdn}}"
-  - name: Generate ssh keys. Overwrite if asked.
-    shell: echo -e  'y\n' | ssh-keygen -q -t rsa -f ~/.ssh/google_compute_engine -P ""
-  - name: Configure GCE ssh keys.
-    shell: gcloud compute config-ssh 
   - name: Add epel repository to yum.
     yum_repository:
       name: epel
