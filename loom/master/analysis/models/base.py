@@ -84,15 +84,16 @@ class FilterHelper(object):
         return models.filter(id=id)
 
     def get_by_name_and_abbreviated_id(self, query_string):
-        """Find objects that match the given {name}@{ID}, where ID may be truncated
+        """Find objects that match the given {name}@{ID}, where ID may be 
+        truncated
         """
         name, id, name_or_id = self._parse_query_string(query_string)
         models = self.get_by_name(name)
         return models.filter(id__startswith=id)
 
     def get_by_name_or_id(self, query_string):
-        """Find objects that match the identifier of form {name}@{ID}, {name}, {ID}, or @{ID}, 
-        where ID may be truncated
+        """Find objects that match the identifier of form {name}@{ID}, {name},
+        {ID}, or @{ID}, where ID may be truncated
         """
         if not self._is_query_string_valid(query_string):
             return self.Model.objects.none()
@@ -119,7 +120,9 @@ class FilterHelper(object):
     def _is_query_string_valid(self, query_string):
         """Matches queries of the form ID, name, name@ID, or @ID.
         """
-        match = re.match(r'(^[a-zA-Z0-9_/-/.]*(@[a-fA-F0-9]+)?$)|(^@?[a-fA-F0-9]+$)', query_string)
+        match = re.match(
+            r'(^[a-zA-Z0-9_/-/.]*(@[a-fA-F0-9]+)?$)|(^@?[a-fA-F0-9]+$)',
+            query_string)
         return bool(match)
 
     def _parse_query_string(self, query_string):
@@ -132,16 +135,15 @@ class FilterHelper(object):
             name_or_id = ''
         return (name, id, name_or_id)
 
-
         
 class _FilterMixin(object):
 
     # This functionality logically belongs in a Manager class,
-    # instead of on the Model, but managers do not work well
-    # with django-polymorphic
+    # instead of on the Model, but custom managers conflict with
+    # django-polymorphic
 
     NAME_FIELD = None
-    
+
     @classmethod
     def query_by_name_or_id(cls, query_string):
         helper = FilterHelper(cls)

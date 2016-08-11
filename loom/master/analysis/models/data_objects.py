@@ -16,7 +16,8 @@ class DataObject(BasePolymorphicModel):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    datetime_created = models.DateTimeField(default=timezone.now, editable=False)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
 
     TYPE_CHOICES = (
         ('file', 'File'),
@@ -32,15 +33,16 @@ class DataObject(BasePolymorphicModel):
 
     @classmethod
     def get_by_value(cls, value, type):
+        # where value is a user input. In the case of Files,
+        # this looks up an existing file. For other data types,
+        # it creates a new object with the given value.
         return class_type_map[type].get_by_value(value)
 
     def get_display_value(self):
-        # Override this for files,
-        # where substitution value and display value are different
+        # This is the value rendered in string representations of the object.
+        # Same as substitution value for all data types except file.
+        # Override in FileDataObject.
         return self.get_content().get_substitution_value()
-
-    def does_value_match(self, display_value):
-        return str(display_value) == str(self.get_display_value())
 
 
 class DataObjectContent(BasePolymorphicModel):
@@ -85,17 +87,16 @@ class FileDataObject(DataObject):
         return file_data_objects.first()
 
     def get_display_value(self):
+        # This is the used as a reference to the FileDataObject
+        # in serialized data.
         return '%s@%s' % (self.file_content.filename, self.id.hex)
 
     def get_substitution_value(self):
+        # This is the value substituted into a command
         return self.file_content.get_substitution_value()
 
-    # override
-    def does_display_value_match(self, display_value):
-        matching_data_object = self.get_by_value(display_value)
-        return matching_data_object.id == self.id
-
     def is_ready(self):
+        # Is upload complete?
         if self.file_location:
             return self.file_location.status == 'complete'
         else:
@@ -130,15 +131,17 @@ class FileDataObject(DataObject):
         if self.file_content and not self.file_location:
             # If a file with identical content has already been uploaded,
             # re-use it if permitted by settings.
-            if self.file_content.has_location() \
-               and not get_setting('KEEP_DUPLICATE_FILES'):
-                self.file_location \
-                    = self.file_content.get_location()
-                self.save()
-            else:
-                self.file_location \
-                    = FileLocation.create_location_for_import(self)
-                self.save()
+            if not get_setting('KEEP_DUPLICATE_FILES'):
+                file_location = self.file_content.get_valid_location()
+                if file_location is not None:
+                    self.file_location = file_location
+                    self.save()
+                    return
+
+            # No existing file to use. Create a new location for upload.
+            self.file_location \
+                = FileLocation.create_location_for_import(self)
+            self.save()
 
     def delete(self):
         file_content = self.file_content
@@ -166,15 +169,23 @@ class FileContent(DataObjectContent):
     def get_substitution_value(self):
         return self.filename
 
-    def has_location(self):
-        return self.unnamed_file_content.file_locations.count() > 0
-
-    def get_location(self):
-        location_count = self.unnamed_file_content.file_locations.count()
-        assert location_count == 1, \
-            "Expected 1 location but found %s for file %s" % \
-            (location_count, self.filename)
-        return self.unnamed_file_content.file_locations.first()
+    def get_valid_location(self):
+        # This function will return a 'complete' location or return None.
+        #
+        # This function should only be called when KEEP_DUPLICATE_FILES is
+        # false, in which case we expect just one location. However, if
+        # multiple uploads are initialized at the same time from different
+        # clients, it can result in multiple locations, any number of which
+        # may be complete.
+        # 
+        # For that reason we return the first location with status 'complete'.
+        #
+        complete_locations = self.unnamed_file_content.file_locations.filter(
+            status='complete')
+        if complete_locations.count() == 0:
+            return None
+        else:
+            return complete_locations.first()
 
     def delete(self):
         unnamed_file_content = self.unnamed_file_content
@@ -202,7 +213,8 @@ class FileLocation(BaseModel):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    datetime_created = models.DateTimeField(default=timezone.now, editable=False)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
     
     url = models.CharField(max_length=1000)
     status = models.CharField(
@@ -211,15 +223,20 @@ class FileLocation(BaseModel):
         choices=(('incomplete', 'Incomplete'),
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
-    )            
+    )
+    
     # The relationship to unnamed_file_content is for internal use only,
     # not serialized or deserialized. This can be obtained through
-    # file_data_object.file_content.unnamed_file_content
+    # file_location.file_data_object.file_content.unnamed_file_content
+    # This is ManyToOne because while unnamed_file_content object is unique
+    # for a given hash, there can be many copies of the same content saved
+    # under different FileDataObjects and in different FileLocations.
+
     unnamed_file_content = models.ForeignKey(
         'UnnamedFileContent',
         null=True,
         related_name='file_locations',
-        on_delete=models.SET_NULL)
+        on_delete=models.PROTECT)
 
     @classmethod
     def create_location_for_import(cls, file_data_object):
@@ -263,8 +280,10 @@ class FileLocation(BaseModel):
                 '/',
                 get_setting('FILE_ROOT'),
                 '%s-%s' % (
-                    file_data_object.file_content.unnamed_file_content.hash_function,                    
-                    file_data_object.file_content.unnamed_file_content.hash_value
+                    file_data_object.file_content.unnamed_file_content\
+                    .hash_function,                    
+                    file_data_object.file_content.unnamed_file_content\
+                    .hash_value
                 )
             )
 
@@ -340,7 +359,7 @@ class FileImport(BaseModel):
         related_name='file_import',
         on_delete=models.CASCADE)
     import_type = models.CharField(
-        max_length=256,
+        max_length=255,
         default='import',
         choices=(('import', 'Import'),
                  ('result', 'Result'),

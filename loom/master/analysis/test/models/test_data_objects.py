@@ -375,11 +375,6 @@ class TestStringDataObject(TestCase):
         self.assertEqual(str(do.get_display_value()),
                         str(value))
 
-    def testDoesDisplayValueMatch(self):
-        value = 3
-        do = DataObject.get_by_value(value, 'string')
-        self.assertTrue(do.does_value_match(value))
-
 class TestStringContent(TestCase):
 
     def testCreate(self):

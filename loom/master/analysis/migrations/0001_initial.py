@@ -86,7 +86,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('note', models.TextField(max_length=10000, null=True)),
                 ('source_url', models.TextField(max_length=1000)),
-                ('import_type', models.CharField(default=b'import', max_length=256, choices=[(b'import', b'Import'), (b'result', b'Result'), (b'log', b'Log')])),
+                ('import_type', models.CharField(default=b'import', max_length=255, choices=[(b'import', b'Import'), (b'result', b'Result'), (b'log', b'Log')])),
             ],
             options={
                 'abstract': False,
@@ -124,6 +124,16 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
                 ('channel', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='IndexedDataObject',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -503,16 +513,6 @@ class Migration(migrations.Migration):
             bases=('analysis.inputoutputnode',),
         ),
         migrations.CreateModel(
-            name='RunRequestOutput',
-            fields=[
-                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.inputoutputnode',),
-        ),
-        migrations.CreateModel(
             name='Step',
             fields=[
                 ('abstractworkflow_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflow')),
@@ -730,11 +730,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='inputoutputnode',
-            name='data_object',
-            field=models.ForeignKey(related_name='input_output_nodes', on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject', null=True),
-        ),
-        migrations.AddField(
-            model_name='inputoutputnode',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_analysis.inputoutputnode_set+', editable=False, to='contenttypes.ContentType', null=True),
         ),
@@ -742,6 +737,16 @@ class Migration(migrations.Migration):
             model_name='inputoutputnode',
             name='sender',
             field=models.ForeignKey(related_name='receivers', to='analysis.InputOutputNode', null=True),
+        ),
+        migrations.AddField(
+            model_name='indexeddataobject',
+            name='data_object',
+            field=models.ForeignKey(related_name='indexed_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject', null=True),
+        ),
+        migrations.AddField(
+            model_name='indexeddataobject',
+            name='input_output_node',
+            field=models.ForeignKey(related_name='indexed_data_objects', to='analysis.InputOutputNode'),
         ),
         migrations.AddField(
             model_name='fixedworkflowinput',
@@ -766,7 +771,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='filelocation',
             name='unnamed_file_content',
-            field=models.ForeignKey(related_name='file_locations', on_delete=django.db.models.deletion.SET_NULL, to='analysis.UnnamedFileContent', null=True),
+            field=models.ForeignKey(related_name='file_locations', on_delete=django.db.models.deletion.PROTECT, to='analysis.UnnamedFileContent', null=True),
         ),
         migrations.AddField(
             model_name='failurenotice',
@@ -854,11 +859,6 @@ class Migration(migrations.Migration):
             model_name='stepinput',
             name='step',
             field=models.ForeignKey(related_name='inputs', to='analysis.Step'),
-        ),
-        migrations.AddField(
-            model_name='runrequestoutput',
-            name='run_request',
-            field=models.ForeignKey(related_name='outputs', to='analysis.RunRequest'),
         ),
         migrations.AddField(
             model_name='runrequestinput',

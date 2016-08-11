@@ -59,7 +59,7 @@ class WorkflowRunner(object):
         )
 
         self.logger.info('Created run request %s@%s' \
-            % (run_request['template'],
+            % (run_request['name'],
                run_request['id']
             ))
         return run_request

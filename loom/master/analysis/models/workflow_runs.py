@@ -5,7 +5,7 @@ from django.utils import timezone
 from analysis import get_setting
 from analysis.exceptions import *
 
-from analysis.models.channels import TypedInputOutputNode
+from analysis.models.channels import TypedInputOutputNode, InputNodeSet
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
 from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, \
@@ -32,8 +32,9 @@ class AbstractWorkflowRun(BasePolymorphicModel):
                                on_delete=models.CASCADE)
 
     def get_input(self, channel):
-        inputs = [i for i in self.downcast().inputs.filter(channel=channel)]
-        inputs.extend([i for i in self.downcast().fixed_inputs.filter(channel=channel)])
+        inputs = [i for i in self.inputs.filter(channel=channel)]
+        inputs.extend([i for i in self.fixed_inputs.filter(
+            channel=channel)])
         assert len(inputs) == 1
         return inputs[0]
 
@@ -57,24 +58,17 @@ class WorkflowRun(AbstractWorkflowRun):
         self._initialize_inputs_outputs()
         self._initialize_channels()
 
-    def _is_initialized(self):
-        # TODO - break this down
-        return self.step_runs.count() == self.template.steps.count() and \
-            self.inputs.count() == self.template.inputs.count() and \
-            self.fixed_inputs.count() == self.template.fixed_inputs.count() \
-            and self.outputs.count() == self.template.outputs.count()
-
     def _initialize_step_runs(self):
         """Create a run for each step
         """
         for step in self.template.steps.all():
             if step.is_step():
-                run = StepRun.objects.create(template=step,
-                                             parent=self)
+                ChildRunClass = StepRun
             else:
-                run = WorkflowRun.objects.create(template=step,
-                                                 parent=self)
-            run._initialize()
+                ChildRunClass = WorkflowRun
+            child_run = ChildRunClass.objects.create(template=step,
+                                                     parent=self)
+            child_run._initialize()
 
     def _initialize_inputs_outputs(self):
         for input in self.template.inputs.all():
@@ -105,14 +99,6 @@ class WorkflowRun(AbstractWorkflowRun):
             else:
                 assert destination.sender == source
                 
-    def initial_push(self):
-        # Runtime inputs will be pushed when data is added,
-        # but fixed inputs have to be pushed now on creation
-        for input in self.fixed_inputs.all():
-            input.initial_push()
-        for step_run in self.step_runs.all():
-            step_run.downcast().initial_push()
-
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
         for step_run in self.step_runs.all():
@@ -129,22 +115,38 @@ class WorkflowRun(AbstractWorkflowRun):
         assert len(sources) == 1
         return sources[0]
 
+    def initial_push(self):
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed now on creation
+        for input in self.fixed_inputs.all():
+            input.push_all()
+        # StepRun will normally be pushed as individual DataObjects arrive,
+        # but we push_all once just in case all inputs are fixed.
+        for step_run in self.step_runs.all():
+            step_run.initial_push()
+
 
 class StepRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'step__name'
 
-    template = models.ForeignKey('Step', related_name='step_runs', on_delete=models.PROTECT)
+    template = models.ForeignKey('Step',
+                                 related_name='step_runs',
+                                 on_delete=models.PROTECT)
+
+    def is_step(self):
+        return True
 
     def post_create(self):
         self._initialize()
 
     def _initialize(self):
         self._initialize_inputs_outputs()
-        
+
     def _is_initialized(self):
         return self.inputs.count() == self.template.inputs.count() \
-            and self.fixed_inputs.count() == self.template.fixed_inputs.count() \
+            and self.fixed_inputs.count() \
+            == self.template.fixed_inputs.count() \
             and self.outputs.count() == self.template.outputs.count()
 
     def _initialize_inputs_outputs(self):
@@ -175,26 +177,25 @@ class StepRun(AbstractWorkflowRun):
                 destination.save()
             else:
                 assert destination.sender == source
-                
-
-    def initial_push(self):
-        # Runtime inputs will be pushed when data is added,
-        # but fixed inputs have to be pushed on creation
-        for input in self.fixed_inputs.all():
-            input.initial_push()
-
-    def is_step(self):
-        return True
 
     def get_all_inputs(self):
         inputs = [i for i in self.inputs.all()]
         inputs.extend([i for i in self.fixed_inputs.all()])
         return inputs
 
-    def push(self):
-        for input_set in ChannelSet(self.get_all_inputs()).get_ready_input_sets():
-            task_run = TaskRunBuilder.create_from_step_run(self, input_set)
-            task_run.run()
+    def initial_push(self):
+        # TODO
+        # This is for running with all possible inputs.
+        # We may also want to check for just one specific index.
+        pass
+
+#    def push(self, indexed_data_object):
+#        pass
+        # TODO - make this specific for a single index
+#        for input_set in InputNodeSet(
+#                self.get_all_inputs()).get_ready_input_sets():
+#            task_run = TaskRunBuilder.create_from_step_run(self, input_set)
+#            task_run.run()
 
 
 class AbstractStepRunInput(TypedInputOutputNode):
@@ -202,41 +203,33 @@ class AbstractStepRunInput(TypedInputOutputNode):
     # This table is needed because it is referenced by TaskRunInput,
     # and TaskRuns do not distinguish between fixed and runtime inputs
 
-    def push(self, data_object):
-        if self.data_object is None:
-            self.update({'data_object': data_object})
-            if self.step_run:
-                self.step_run.push()
+#    def push(self, indexed_data_object):
+#        pass
+        #self.step_run.push()
+        # TODO
+    pass
 
 class StepRunInput(AbstractStepRunInput):
 
-    step_run = models.ForeignKey('StepRun', related_name='inputs', on_delete=models.CASCADE)
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='inputs',
+                                 on_delete=models.CASCADE)
 
 
 class FixedStepRunInput(AbstractStepRunInput):
 
-    step_run = models.ForeignKey('StepRun', related_name='fixed_inputs', on_delete=models.CASCADE)
-
-    def initial_push(self):
-        data_object = self._get_data_object()
-        self.to_channel.push(data_object)
-        self.to_channel.close()
-
-    def _get_data_object(self):
-        fixed_step_input = self.step_run.template.get_fixed_input(self.channel)
-        return DataObject.get_by_value(fixed_step_input.value, self.type)
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='fixed_inputs',
+                                 on_delete=models.CASCADE)
 
 
 class StepRunOutput(TypedInputOutputNode):
 
-    task_run_outputs = models.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
-    step_run = models.ForeignKey('StepRun', related_name='outputs', on_delete=models.CASCADE)
-
-    def push(self, data_object):
-        if self.data_object is None:
-            self.update({'data_object': data_object})
-            self.to_channel.push(data_object)
-            self.to_channel.close()
+    task_run_outputs = models.ManyToManyField('TaskRunOutput',
+                                              related_name='step_run_outputs')
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='outputs',
+                                 on_delete=models.CASCADE)
 
     def get_filename(self):
         return self.step_run.template.get_output(self.channel).filename
@@ -247,31 +240,20 @@ class StepRunOutput(TypedInputOutputNode):
 
 class WorkflowRunInput(TypedInputOutputNode):
 
-    workflow_run = models.ForeignKey('WorkflowRun', related_name='inputs', on_delete=models.CASCADE)
+    workflow_run = models.ForeignKey('WorkflowRun',
+                                     related_name='inputs',
+                                     on_delete=models.CASCADE)
 
-    def push(self, data_object):
-        if self.data_object is None:
-            self.update({'data_object': data_object})
-            self.from_channel.forward(self.to_channel)
 
 class FixedWorkflowRunInput(TypedInputOutputNode):
 
-    workflow_run = models.ForeignKey('WorkflowRun', related_name='fixed_inputs', on_delete=models.CASCADE)
-
-    def initial_push(self):
-        self.update({'data_object': self._get_data_object()})
-        self.to_channel.push(self.data_object)
-
-    def _get_data_object(self):
-        fixed_workflow_input = self.workflow_run.template.get_fixed_input(self.channel)
-        return DataObject.get_by_value(fixed_workflow_input.value, self.type)
+    workflow_run = models.ForeignKey('WorkflowRun',
+                                     related_name='fixed_inputs',
+                                     on_delete=models.CASCADE)
 
 
 class WorkflowRunOutput(TypedInputOutputNode):
 
-    workflow_run = models.ForeignKey('WorkflowRun', related_name='outputs', on_delete=models.CASCADE)
-
-    def push(self, data_object):
-        if self.data_object is None:
-            self.update({'data_object': data_object})
-            self.from_channel.forward(self.to_channel)
+    workflow_run = models.ForeignKey('WorkflowRun',
+                                     related_name='outputs',
+                                     on_delete=models.CASCADE)

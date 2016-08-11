@@ -27,7 +27,8 @@ class TestRunRequestSerializer(TestCase):
         rr = s.save()
 
         self.assertEqual(
-            rr.inputs.first().data_object.string_content.string_value,
+            rr.inputs.first().indexed_data_objects.first()\
+            .data_object.string_content.string_value,
             fixtures.run_requests.run_request_input['value'])
 
         self.assertEqual(
