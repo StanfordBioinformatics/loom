@@ -2,6 +2,7 @@
 - name: Set up a loom user that Ansible will use to talk to the worker instance, since SSH login as root is disabled.
   hosts: localhost
   connection: local
+  tasks:
   - name: Create a local loom user.
     user: name=loom
   - name: Generate ssh keys for the loom user. Overwrite if asked.
