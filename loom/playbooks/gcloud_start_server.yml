@@ -13,6 +13,7 @@
       image: "{{docker_full_name}}"
       ports: 8000:8000
       volumes: "{{remote_loom_settings_path}}"
+      hostname: "{{ansible_hostname}}"
       restart_policy: always
       api_version: auto
       command: [/bin/bash, -c, 'source /opt/loom/bin/activate && loom server set local && loom server start --foreground']
