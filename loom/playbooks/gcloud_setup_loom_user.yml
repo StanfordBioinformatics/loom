@@ -7,10 +7,8 @@
     user: name=loom
   - name: Generate ssh keys for the loom user. Overwrite if asked.
     shell: echo -e  'y\n' | ssh-keygen -q -t rsa -f ~/.ssh/google_compute_engine -P ""
-    become: yes
     become_user: loom
   - name: Add GCE ssh keys for the loom user to the project metadata.
     shell: gcloud compute config-ssh
-    become: yes
     become_user: loom
 
