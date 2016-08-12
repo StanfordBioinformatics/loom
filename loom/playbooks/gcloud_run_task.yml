@@ -1,6 +1,6 @@
 ---
 - name: Run the Loom task runner on the specified worker instance.
-  hosts: "{{node_name}}"
+  hosts: "{{hostvars[node_name]['gce_private_ip']}}"
   remote_user: loom
   become: yes
   become_method: sudo
