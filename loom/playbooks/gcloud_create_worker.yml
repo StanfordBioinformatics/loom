@@ -44,10 +44,10 @@
   - name: Pull Loom Docker image.
     docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto
 
-- name: Remove external IP. 
+- name: Remove worker external IP. 
   hosts: localhost
   connection: local
   gather_facts: no
   tasks:
-  - name: Remove external IP.
-    gce: name={{node_name}} disks={{node_name}} zone={{zone}} machine_type={{instance_type}} network={{worker_network}} service_account_permissions=cloud-platform tags={{worker_tags|default(omit)}} external_ip=none
+  - name: Remove worker external IP.
+    shell: gcloud compute instances delete-access-config {{node_name}} --access-config-name "External NAT" --zone {{zone}}
