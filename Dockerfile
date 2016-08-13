@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -y \
 # Install Loom's OS dependencies.
 RUN apt-get update && apt-get install -y \
     build-essential \
-    docker.io \
     libffi-dev \
     libmysqlclient-dev \
     libssl-dev \
