@@ -15,5 +15,5 @@
       volumes: ["{{remote_loom_settings_path}}:/root/.loom", "{{scratch_disk_mount_point}}"]
       restart_policy: always
       api_version: auto
-      command: [/bin/bash, -c, 'source /opt/loom/bin/activate && loom-taskrunner --run_attempt_id {{task_run_attempt_id}} --master_url {{master_url}}']
+      command: /bin/bash -c 'source /opt/loom/bin/activate && loom-taskrunner --run_attempt_id {{task_run_attempt_id}} --master_url {{master_url}}'
 

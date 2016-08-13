@@ -43,6 +43,8 @@
     pip: name=docker-py
   - name: Pull Loom Docker image.
     docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto
+  - name: Pull task run Docker image.
+    docker_image: name={{task_run_docker_image}} api_version=auto
 
 - name: Remove worker external IP. 
   hosts: localhost
