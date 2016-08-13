@@ -12,7 +12,7 @@
     docker_container:
       name: loom
       image: "{{docker_full_name}}"
-      volumes: ["{{remote_loom_settings_path}}:/root/.loom", "{{scratch_disk_mount_point}}"]
+      volumes: ["{{remote_loom_settings_path}}:/root/.loom", {{scratch_disk_mount_point}}, /var/run/docker.sock]
       restart_policy: always
       api_version: auto
       command: /bin/bash -c 'source /opt/loom/bin/activate && loom-taskrunner --run_attempt_id {{task_run_attempt_id}} --master_url {{master_url}}'
