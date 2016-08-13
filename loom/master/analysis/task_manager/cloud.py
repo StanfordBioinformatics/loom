@@ -74,7 +74,7 @@ class CloudTaskManager:
             'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
             'zone': settings.WORKER_LOCATION,
             'task_run_attempt_id': task_run_attempt.get_id(),
-            'task_run_docker_image': task_run_attempt.task_run.task_definition.environment.docker_image,
+            'task_run_docker_image': task_run_attempt['task_run']['task_definition']['environment']['docker_image'],
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
             'worker_network': settings.WORKER_NETWORK,
