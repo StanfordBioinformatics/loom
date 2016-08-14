@@ -50,7 +50,10 @@ class SettingsManager:
         """ Load Google Cloud-specific settings."""
         # Add server name from server.ini
         self.settings['SERVER_NAME'] = get_gcloud_server_name()
-        self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], self.settings['SERVER_NAME'], self.settings['EXTERNAL_PORT'])
+        if self.settings['MASTER_URL_FOR_WORKER_USES_INTERNAL_IP']:
+            self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], get_gcloud_server_private_ip(get_gcloud_server_name()), self.settings['EXTERNAL_PORT'])
+        else:
+            self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], self.settings['SERVER_NAME'], self.settings['EXTERNAL_PORT'])
 
         # Add other settings from gce.ini
         gce_config = SafeConfigParser(allow_no_value=True)

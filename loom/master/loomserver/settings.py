@@ -202,6 +202,7 @@ GRAPH_MODELS = {
 # Get settings from the environment and expand paths if needed
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
+MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
 FILE_ROOT = os.getenv('FILE_ROOT', tempfile.mkdtemp())
 FILE_ROOT_FOR_WORKER = os.getenv('FILE_ROOT_FOR_WORKER')
 FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')

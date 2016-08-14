@@ -49,21 +49,28 @@ def get_gcloud_server_name():
     server_name = config.get('server', 'name')
     return server_name
 
-def get_server_ip():
+def get_server_public_ip():
     server_type = get_server_type()
     if server_type == 'local':
         return '127.0.0.1'
     elif server_type == 'gcloud':
         server_instance_name = get_gcloud_server_name()
-        return get_gcloud_server_ip(server_instance_name)
+        return get_gcloud_server_public_ip(server_instance_name)
     else:
         raise Exception("Unknown server type: %s" % server_type)
 
-def get_gcloud_server_ip(name):
+def get_gcloud_server_public_ip(name):
     inv_hosts = get_gcloud_hosts()
     if name not in inv_hosts:
         raise Exception("%s not found in Ansible dynamic inventory. Current hosts: %s" % (name, inv_hosts.keys()))
     ip = inv_hosts[name]['gce_public_ip'].encode('utf-8')
+    return ip
+
+def get_gcloud_server_private_ip(name):
+    inv_hosts = get_gcloud_hosts()
+    if name not in inv_hosts:
+        raise Exception("%s not found in Ansible dynamic inventory. Current hosts: %s" % (name, inv_hosts.keys()))
+    ip = inv_hosts[name]['gce_private_ip'].encode('utf-8')
     return ip
 
 def get_inventory():
@@ -93,7 +100,7 @@ def get_server_url():
         raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
-    ip = get_server_ip()
+    ip = get_server_public_ip()
     port = settings['EXTERNAL_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
 
