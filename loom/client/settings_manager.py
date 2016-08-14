@@ -31,7 +31,7 @@ class SettingsManager:
         self.require_default_settings = require_default_settings
 
     def create_deploy_settings(self, server_type=None, user_settings_file=None):
-        """ Create deploy settings by loading defaults and overriding with user-provided settings."""
+        """Create deploy settings by loading defaults and overriding with user-provided settings."""
         if server_type == None:
             server_type = get_server_type()
         self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section=server_type)
@@ -47,11 +47,9 @@ class SettingsManager:
         self.postprocess_settings()
 
     def load_gcloud_settings(self):
-        """ Load Google Cloud-specific settings."""
+        """Load Google Cloud-specific settings."""
         # Add server name from server.ini
         self.settings['SERVER_NAME'] = get_gcloud_server_name()
-        if self.settings['MASTER_URL_FOR_WORKER_USES_INTERNAL_IP']:
-            self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], get_gcloud_server_private_ip(get_gcloud_server_name()), self.settings['EXTERNAL_PORT'])
         else:
             self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], self.settings['SERVER_NAME'], self.settings['EXTERNAL_PORT'])
 
@@ -69,6 +67,7 @@ class SettingsManager:
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
 
     def postprocess_settings(self):
+        """Write settings that depend on other settings being defined first."""
         if get_server_type() == 'gcloud':
             self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
             if self.settings['DOCKER_REGISTRY']:
@@ -141,6 +140,10 @@ class SettingsManager:
         self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section)
         return self.settings[option]
 
+    def add_gcloud_settings_on_server(self):
+        """Write settings that can't be defined prior to having a running server instance."""
+        if self.settings['MASTER_URL_FOR_WORKER_USES_INTERNAL_IP']:
+            self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], get_gcloud_server_private_ip(get_gcloud_server_name()), self.settings['EXTERNAL_PORT'])
 
 class SettingsError(Exception):
     pass

@@ -164,12 +164,16 @@ class LocalServerControls(BaseServerControls):
         return command_to_method_map
 
     def start(self):
-        if loom.common.cloud.on_gcloud_vm():
-            subprocess.call(['ansible-playbook', GCLOUD_SETUP_LOOM_USER_PLAYBOOK])
             
         if not os.path.exists(get_deploy_settings_filename()):
             self.create()
         self.settings_manager.load_deploy_settings_file()
+
+        if loom.common.cloud.on_gcloud_vm():
+            """We're in gcloud and the client is starting the server on the local instance."""
+            subprocess.call(['ansible-playbook', GCLOUD_SETUP_LOOM_USER_PLAYBOOK])
+            self.settings_manager.add_gcloud_settings_on_server()
+
         env = os.environ.copy()
         env = self._add_server_to_python_path(env)
         env = self._set_database(env)
