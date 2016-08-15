@@ -76,8 +76,6 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=[]),
-
-    # Include files that are checked into source control
     include_package_data=True,
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
@@ -116,7 +114,7 @@ setup(
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
                         'uritemplate>=0.6',
-                        # For packaging 
+                        # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git>=1.1',
                         'twine',
     ],

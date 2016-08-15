@@ -95,6 +95,7 @@ class CloudTaskManager:
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
+        os.chmod(GCE_PY_PATH, 0755)                         # Make sure dynamic inventory is executable
         playbook_vars_json_string = json.dumps(playbook_vars)
         subprocess.call(['ansible-playbook', '-vvv', '--key-file', cls.LOOM_USER_SSH_KEY_FILE, '-i', cls.GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 

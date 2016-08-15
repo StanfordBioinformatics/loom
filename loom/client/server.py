@@ -397,7 +397,10 @@ class GoogleCloudServerControls(BaseServerControls):
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
+        if self.settings_manager.settings['CLIENT_USES_SERVER_INTERNAL_IP']:
+            env['INVENTORY_IP_TYPE'] = 'internal'   # Tell gce.py to use internal IP for ansible_ssh_host
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
+        os.chmod(GCE_PY_PATH, 0755)                 # Make sure dynamic inventory is executable
         cmd_list = ['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
         if self.args.verbose:
             cmd_list.append('-vvv')
