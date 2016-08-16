@@ -52,7 +52,7 @@ class FixedInputSerializer(CreateWithParentModelSerializer):
 
     def create(self, validated_data):
         data = copy.deepcopy(validated_data)
-        
+
         # Convert 'value' into its corresponding data object
         value = data.pop('value')
         data['data_object'] = DataObject.get_by_value(
@@ -201,7 +201,7 @@ class StepSerializer(CreateWithParentModelSerializer):
 
     def create(self, validated_data):
         data = copy.deepcopy(validated_data)
-        
+
         # Can't create inputs, outputs, environment, or resources until
         # step exists.
         inputs = self.initial_data.get('inputs', None)
@@ -253,7 +253,7 @@ class StepSerializer(CreateWithParentModelSerializer):
             s.save()
 
         if environment is not None:
-            RequestedEnvironmentSerializer(
+            s = RequestedEnvironmentSerializer(
                 data=environment,
                 context={'parent_field': 'step',
                          'parent_instance': step})
@@ -279,9 +279,12 @@ class AbstractWorkflowIdSerializer(serializers.Serializer):
         matches = AbstractWorkflow.query_by_name_or_id(
             validated_data['template_id'])
         if matches.count() < 1:
-            raise Exception('No match found for id %s' % validated_data['template_id'])
+            raise Exception(
+                'No match found for id %s' % validated_data['template_id'])
         elif matches.count() > 1:
-            raise Exception('Multiple workflows match id %s' % validated_data['template_id'])
+            raise Exception(
+                'Multiple workflows match id %s' % validated_data[
+                    'template_id'])
         return  matches.first()
 
     def update(self, instance, validated_data):

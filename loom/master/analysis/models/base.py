@@ -1,8 +1,16 @@
 from django.db import models
+from jinja2 import DictLoader, Environment
 from polymorphic.models import PolymorphicModel, PolymorphicManager
 import re
 
 from analysis.exceptions import *
+
+
+def render_from_template(raw_text, context):
+    loader = DictLoader({'template': raw_text})
+    env = Environment(loader=loader)
+    template = env.get_template('template')
+    return template.render(**context)
 
 
 class _ModelNameMixin(object):

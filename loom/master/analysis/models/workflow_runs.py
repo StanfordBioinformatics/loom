@@ -5,11 +5,10 @@ from django.utils import timezone
 from analysis import get_setting
 from analysis.exceptions import *
 
-from analysis.models.channels import TypedInputOutputNode, InputNodeSet
+from analysis.models.channels import InputOutputNode, InputNodeSet
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
-from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, \
-    TaskRunBuilder
+from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput
 from analysis.models.workflows import AbstractWorkflow, Workflow, Step, \
     WorkflowInput, WorkflowOutput, StepInput, StepOutput
 from .base import BaseModel, BasePolymorphicModel
@@ -38,6 +37,15 @@ class AbstractWorkflowRun(BasePolymorphicModel):
         assert len(inputs) == 1
         return inputs[0]
 
+    @classmethod
+    def create_from_template(cls, template):
+        if template.is_step():
+            run = StepRun.objects.create(template=template)
+        else:
+            run = WorkflowRun.objects.create(template=template)
+        run.post_create()
+        return run
+
 
 class WorkflowRun(AbstractWorkflowRun):
 
@@ -52,6 +60,7 @@ class WorkflowRun(AbstractWorkflowRun):
 
     def post_create(self):
         self._initialize()
+        self.initial_push()
 
     def _initialize(self):
         self._initialize_step_runs()
@@ -71,21 +80,23 @@ class WorkflowRun(AbstractWorkflowRun):
             child_run._initialize()
 
     def _initialize_inputs_outputs(self):
+        # TODO - check to see if the input already exists
         for input in self.template.inputs.all():
             WorkflowRunInput.objects.create(
                 workflow_run=self,
                 channel = input.channel,
-                type = input.type)
+                workflow_input=input)
         for fixed_input in self.template.fixed_inputs.all():
-            FixedWorkflowRunInput.objects.create(
+            fixed_workflow_run_input = FixedWorkflowRunInput.objects.create(
                 workflow_run=self,
                 channel=fixed_input.channel,
-                type=fixed_input.type)
+                workflow_input=fixed_input)
+            fixed_workflow_run_input.initial_push()
         for output in self.template.outputs.all():
             WorkflowRunOutput.objects.create(
                 workflow_run=self,
                 channel=output.channel,
-                type=output.type)
+                workflow_output=output)
 
     def _initialize_channels(self):
         for destination in self._get_destinations():
@@ -102,7 +113,7 @@ class WorkflowRun(AbstractWorkflowRun):
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
         for step_run in self.step_runs.all():
-            destinations.extend([dest for dest in step_run.inputs.all()])
+            destinations.extend([dest for dest in step_run.get_all_inputs()])
         return destinations
 
     def _get_source(self, channel):
@@ -154,17 +165,17 @@ class StepRun(AbstractWorkflowRun):
             StepRunInput.objects.create(
                 step_run=self,
                 channel = input.channel,
-                type = input.type)
+                step_input=input)
         for fixed_input in self.template.fixed_inputs.all():
             FixedStepRunInput.objects.create(
                 step_run=self,
                 channel=fixed_input.channel,
-                type=fixed_input.type)
+                step_input=fixed_input)
         for output in self.template.outputs.all():
             StepRunOutput.objects.create(
                 step_run=self,
                 channel=output.channel,
-                type=output.type)
+                step_output=output)
 
     def _initialize_channels(self):
         for destination in self._get_destinations():
@@ -184,76 +195,100 @@ class StepRun(AbstractWorkflowRun):
         return inputs
 
     def initial_push(self):
-        # TODO
-        # This is for running with all possible inputs.
-        # We may also want to check for just one specific index.
-        pass
+        # This is essential only when all inputs
+        # are FixedInputs on this step, so
+        # push is never triggered data arriving over
+        # a channel.
+        self.push()
+        
+    def push(self):
+        if self.task_runs.count() == 0:
+            for input in self.fixed_inputs.all():
+                input.push_all()
+            for input_set in InputNodeSet(
+                    self.get_all_inputs()).get_ready_input_sets():
+                task_run = TaskRun.create_from_input_set(input_set, self)
+                task_run.run()
 
-#    def push(self, indexed_data_object):
-#        pass
-        # TODO - make this specific for a single index
-#        for input_set in InputNodeSet(
-#                self.get_all_inputs()).get_ready_input_sets():
-#            task_run = TaskRunBuilder.create_from_step_run(self, input_set)
-#            task_run.run()
 
-
-class AbstractStepRunInput(TypedInputOutputNode):
+class AbstractStepRunInput(InputOutputNode):
 
     # This table is needed because it is referenced by TaskRunInput,
     # and TaskRuns do not distinguish between fixed and runtime inputs
 
-#    def push(self, indexed_data_object):
-#        pass
-        #self.step_run.push()
-        # TODO
-    pass
+    def push(self, indexed_data_object):
+        # Save arriving data as on any InputOutputNode
+        super(AbstractStepRunInput, self).push(indexed_data_object)
+        # Also make the step_run check to see if it is ready to kick
+        # off a new TaskRun
+        self.step_run.push()
 
 class StepRunInput(AbstractStepRunInput):
 
     step_run = models.ForeignKey('StepRun',
                                  related_name='inputs',
                                  on_delete=models.CASCADE)
-
+    step_input = models.ForeignKey('StepInput',
+                                   related_name='step_run_inputs',
+                                   on_delete=models.PROTECT)
+    def push_to_receivers(self, indexed_data_object):
+        # No receivers, but we need to push to the step_run
+        self.step_run.push()
 
 class FixedStepRunInput(AbstractStepRunInput):
 
     step_run = models.ForeignKey('StepRun',
                                  related_name='fixed_inputs',
                                  on_delete=models.CASCADE)
+    step_input = models.ForeignKey('FixedStepInput',
+                                   related_name='step_run_inputs',
+                                   on_delete=models.PROTECT)
+    def initial_push(self):
+        self.push_without_index(self.step_input.data_object)
 
+class StepRunOutput(InputOutputNode):
 
-class StepRunOutput(TypedInputOutputNode):
-
-    task_run_outputs = models.ManyToManyField('TaskRunOutput',
-                                              related_name='step_run_outputs')
     step_run = models.ForeignKey('StepRun',
                                  related_name='outputs',
                                  on_delete=models.CASCADE)
+    step_output = models.ForeignKey('StepOutput',
+                                    related_name='step_run_outputs',
+                                    on_delete=models.PROTECT)
 
     def get_filename(self):
-        return self.step_run.template.get_output(self.channel).filename
-
-    def get_type(self):
-        return self.step_run.template.get_output(self.channel).type
+        return self.step_output.filename
 
 
-class WorkflowRunInput(TypedInputOutputNode):
+class WorkflowRunInput(InputOutputNode):
 
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='inputs',
                                      on_delete=models.CASCADE)
+    workflow_input = models.ForeignKey('WorkflowInput',
+                                   related_name='workflow_run_inputs',
+                                   on_delete=models.PROTECT)
 
 
-class FixedWorkflowRunInput(TypedInputOutputNode):
+class FixedWorkflowRunInput(InputOutputNode):
 
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='fixed_inputs',
                                      on_delete=models.CASCADE)
+    workflow_input = models.ForeignKey('FixedWorkflowInput',
+                                   related_name='workflow_run_inputs',
+                                   on_delete=models.PROTECT)
+    def initial_push(self):
+        self.push_without_index(self.workflow_input.data_object)
+
+    def initial_push(self):
+        self.push_without_index(self.workflow_input.data_object)
 
 
-class WorkflowRunOutput(TypedInputOutputNode):
+class WorkflowRunOutput(InputOutputNode):
 
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='outputs',
                                      on_delete=models.CASCADE)
+    workflow_output = models.ForeignKey('WorkflowOutput',
+                                   related_name='workflow_run_outputs',
+                                   on_delete=models.PROTECT)

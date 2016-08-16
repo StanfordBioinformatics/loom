@@ -3,7 +3,6 @@ from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
 from analysis.models.data_objects import DataObject
-from analysis.fields import DuplicateManyToManyField
 
 """
 Channels represent the path for flow of data between nodes (inputs and 
@@ -20,9 +19,12 @@ class InputOutputNode(BasePolymorphicModel):
     channel = models.CharField(max_length=255)
 
     def push(self, indexed_data_object):
-        self.add_indexed_data_object(indexed_data_object.data_object)
-        self.push_to_receivers(indexed_data_object)
+        self.push_without_index(indexed_data_object.data_object)
 
+    def push_without_index(self, data_object):
+        indexed_data_object = self.add_indexed_data_object(data_object)
+        self.push_to_receivers(indexed_data_object)
+        
     def push_all(self):
         for indexed_data_object in self.indexed_data_objects.all():
             self.push_to_receivers(indexed_data_object)
@@ -33,28 +35,24 @@ class InputOutputNode(BasePolymorphicModel):
 
     def add_indexed_data_object(self, data_object):
         if self.indexed_data_objects.count() == 0:
-            self.indexed_data_objects.add(
-                IndexedDataObject.objects.create(
-                    input_output_node = self,
-                    data_object = data_object
-                ))
+            indexed_data_object = IndexedDataObject.objects.create(
+                input_output_node = self,
+                data_object = data_object
+            )
+            self.indexed_data_objects.add(indexed_data_object)
+            return indexed_data_object
 
-
-class TypedInputOutputNode(InputOutputNode):
-
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
-
-    class Meta:
-        abstract = True
+    def is_ready(self):
+        # TODO - handle parallel
+        try:
+            return self.indexed_data_objects.first().is_ready()
+        except AttributeError:
+            return False
 
 
 class IndexedDataObject(BaseModel):
     """Embodies many-to-many relation between InputOutputNode and 
-    DataObject. Tracks whether the DataObject index and wehther it has
-    been used.
+    DataObject. Tracks whether the DataObject index.
     """
 
     input_output_node = models.ForeignKey('InputOutputNode',
@@ -92,14 +90,14 @@ class InputNodeSet(object):
         for input_node in self.input_nodes:
             if not input_node.is_ready():
                 return []
-        return InputSet(self.input_nodes)
+        return [InputSet(self.input_nodes)]
 
 
 class InputItem(object):
     """A DataObject and its channel name"""
     
     def __init__(self, input_node):
-        self.data_object = input_node.pop()
+        self.data_object = input_node.indexed_data_objects.first().data_object
         self.channel = input_node.channel
 
 

@@ -44,6 +44,10 @@ class DataObject(BasePolymorphicModel):
         # Override in FileDataObject.
         return self.get_content().get_substitution_value()
 
+    def get_substitution_value(self):
+        # This is the value substituted into a command
+        return self.get_content().get_substitution_value()
+
 
 class DataObjectContent(BasePolymorphicModel):
     """A unit of data passed into or created by analysis steps.
@@ -90,10 +94,6 @@ class FileDataObject(DataObject):
         # This is the used as a reference to the FileDataObject
         # in serialized data.
         return '%s@%s' % (self.file_content.filename, self.id.hex)
-
-    def get_substitution_value(self):
-        # This is the value substituted into a command
-        return self.file_content.get_substitution_value()
 
     def is_ready(self):
         # Is upload complete?
@@ -218,7 +218,7 @@ class FileLocation(BaseModel):
     
     url = models.CharField(max_length=1000)
     status = models.CharField(
-        max_length=256,
+        max_length=255,
         default='incomplete',
         choices=(('incomplete', 'Incomplete'),
                  ('complete', 'Complete'),

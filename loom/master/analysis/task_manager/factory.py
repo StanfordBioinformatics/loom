@@ -20,11 +20,9 @@ class TaskManagerFactory:
     MOCK = 'MOCK'
 
     @classmethod
-    def get_task_manager(cls, is_mock=False):
-        if is_mock == True:
-            return MockTaskManager()
-        
-        logger.debug('Getting task manager of type "%s"' % get_setting('WORKER_TYPE'))
+    def get_task_manager(cls):
+        logger.debug('Getting task manager of type "%s"'
+                     % get_setting('WORKER_TYPE'))
         if get_setting('WORKER_TYPE') == cls.LOCAL:
             return LocalTaskManager()
         elif get_setting('WORKER_TYPE') == cls.CLUSTER:
@@ -34,7 +32,8 @@ class TaskManagerFactory:
         elif get_setting('WORKER_TYPE') == cls.MOCK:
             return MockTaskManager()
         else:
-            raise Exception('Invalid selection WORKER_TYPE=%s' % get_setting('WORKER_TYPE'))
+            raise Exception('Invalid selection WORKER_TYPE=%s' %
+                            get_setting('WORKER_TYPE'))
 
 
 class TaskManager:

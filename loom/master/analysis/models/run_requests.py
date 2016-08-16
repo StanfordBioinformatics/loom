@@ -8,7 +8,7 @@ from .channels import InputOutputNode
 from .data_objects import DataObject
 from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
 from .workflows import Workflow
-from analysis import get_setting
+#from analysis import get_setting
 
 
 class RunRequest(BaseModel):
@@ -38,12 +38,7 @@ class RunRequest(BaseModel):
 
     def _initialize_run(self):
         if not self.run:
-            if self.template.is_step():
-                self.run = StepRun.objects.create(template=self.template)
-            else:
-                self.run = WorkflowRun.objects.create(template=self.template)
-            self.save()
-            self.run.post_create()
+            self.run = AbstractWorkflowRun.create_from_template(self.template)
 
     def _initialize_channels(self):
         for run_request_input in self.inputs.all():
