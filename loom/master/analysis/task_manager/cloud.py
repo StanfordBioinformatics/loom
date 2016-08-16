@@ -19,13 +19,13 @@ import loom.common.logger
 import loom.common.version
 import loom.common.cloud
 
-class CloudTaskManager:
+PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
+GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
+GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
+GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
+LOOM_USER_SSH_KEY_FILE = '/home/loom/.ssh/google_compute_engine'
 
-    PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
-    GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
-    GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
-    GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
-    LOOM_USER_SSH_KEY_FILE = '/home/loom/.ssh/google_compute_engine'
+class CloudTaskManager:
 
     @classmethod
     def run(cls, task_run):
@@ -84,8 +84,8 @@ class CloudTaskManager:
         }
         logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
         ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)
-        cls._run_playbook(cls.GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
-        cls._run_playbook(cls.GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         logger.debug("CloudTaskManager process done.")
         ansible_logfile.close()
 
@@ -97,7 +97,7 @@ class CloudTaskManager:
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
         os.chmod(GCE_PY_PATH, 0755)                         # Make sure dynamic inventory is executable
         playbook_vars_json_string = json.dumps(playbook_vars)
-        subprocess.call(['ansible-playbook', '-vvv', '--key-file', cls.LOOM_USER_SSH_KEY_FILE, '-i', cls.GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
+        subprocess.call(['ansible-playbook', '-vvv', '--key-file', LOOM_USER_SSH_KEY_FILE, '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
