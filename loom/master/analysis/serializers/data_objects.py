@@ -20,7 +20,7 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StringDataObject
-        fields = ('id', 'string_content', 'datetime_created')
+        fields = ('id', 'string_content', 'datetime_created', 'type',)
 
     def create(self, validated_data):
         s = StringContentSerializer(data=validated_data['string_content'])
@@ -53,7 +53,7 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BooleanDataObject
-        fields = ('id', 'boolean_content', 'datetime_created')
+        fields = ('id', 'boolean_content', 'datetime_created', 'type',)
 
     def create(self, validated_data):
         s = BooleanContentSerializer(data=validated_data['boolean_content'])
@@ -87,7 +87,7 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = IntegerDataObject
-        fields = ('id', 'integer_content', 'datetime_created')
+        fields = ('id', 'integer_content', 'datetime_created', 'type',)
 
     def create(self, validated_data):
         s = IntegerContentSerializer(data=validated_data['integer_content'])
@@ -197,7 +197,9 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
                   'file_content',
                   'file_import',
                   'file_location',
-                  'datetime_created')
+                  'datetime_created',
+                  'source_type',
+                  'type',)
 
 
     def create(self, validated_data):

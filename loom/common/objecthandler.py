@@ -32,6 +32,15 @@ class ObjectHandler(object):
                 headers={'content-type': 'application/json'}),
             raise_for_status=raise_for_status)
 
+    def _patch(self, data, relative_url, raise_for_status=True):
+        url = self.api_root_url + relative_url
+        return self._make_request_to_server(
+            lambda: requests.patch(
+                url,
+                data=json.dumps(data),
+                headers={'content-type': 'application/json'}),
+            raise_for_status=raise_for_status)
+
     def _get(self, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
         return self._make_request_to_server(lambda: requests.get(url), raise_for_status=raise_for_status)
@@ -68,6 +77,9 @@ class ObjectHandler(object):
 
     def _put_object(self, object_data, relative_url):
         return self._put(object_data, relative_url, raise_for_status=True).json()
+
+    def _patch_object(self, object_data, relative_url):
+        return self._patch(object_data, relative_url, raise_for_status=True).json()
 
     def _get_object(self, relative_url, raise_for_status=True):
         response = self._get(relative_url, raise_for_status=raise_for_status)
@@ -108,9 +120,9 @@ class ObjectHandler(object):
             url = 'file-data-objects/'
         file_data_objects =  self._get_object_index(url)
         if len(file_data_objects) < min:
-            raise IdMatchedTooFewFileDataError('Found %s FileDataObjects, expected at least %s' %(len(file_data_objects), min))
+            raise IdMatchedTooFewFileDataObjectsError('Found %s FileDataObjects, expected at least %s' %(len(file_data_objects), min))
         if len(file_data_objects) > max:
-            raise IdMatchedTooManyFileDataError('Found %s FileDataObjects, expected at most %s' %(len(file_data_objects), max))
+            raise IdMatchedTooManyFileDataObjectsError('Found %s FileDataObjects, expected at most %s' %(len(file_data_objects), max))
         return file_data_objects
 
     def get_file_locations_by_file(self, file_id):

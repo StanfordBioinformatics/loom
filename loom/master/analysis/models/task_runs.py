@@ -3,9 +3,10 @@ from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 import os
+import uuid
 
 from analysis.models.task_definitions import *
-from analysis.models.data_objects import DataObject
+from analysis.models.data_objects import DataObject, FileDataObject
 from analysis.models.workflows import Step, RequestedResourceSet
 from analysis import get_setting
 from analysis.task_manager.factory import TaskManagerFactory
@@ -18,6 +19,7 @@ class TaskRun(BaseModel):
     particular set of inputs.
     """
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     step_run = models.ForeignKey('StepRun',
                                  related_name='task_runs',
                                  on_delete=models.CASCADE)
@@ -59,8 +61,8 @@ class TaskRun(BaseModel):
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
-            context[input.get_channel()] = input.data_object\
-                                                .get_substitution_value()
+            context[input.channel] = input.data_object\
+                                            .get_substitution_value()
         return context
         
     def get_output_context(self):
@@ -69,8 +71,8 @@ class TaskRun(BaseModel):
             # This returns a value only for Files, where the filename
             # is known beforehand and may be used in the command.
             # For other types, nothing is added to the context.
-            if output.get_type() == 'file':
-                context[output.get_channel()] = output.get_filename()
+            if output.type == 'file':
+                context[output.channel] = output.filename
         return context
 
     def get_full_context(self):
@@ -99,10 +101,12 @@ class TaskRunInput(BaseModel):
                                        null=True,
                                        on_delete=models.PROTECT)
 
-    def get_channel(self):
+    @property
+    def channel(self):
         return self.step_run_input.channel
 
-    def get_type(self):
+    @property
+    def type(self):
         return self.step_run_input.type
 
 class TaskRunOutput(BaseModel):
@@ -118,13 +122,16 @@ class TaskRunOutput(BaseModel):
                                     null=True,
                                     on_delete=models.PROTECT)
 
-    def get_filename(self):
-        return self.step_run_output.get_filename()
+    @property
+    def filename(self):
+        return self.step_run_output.filename
 
-    def get_channel(self):
+    @property
+    def channel(self):
         return self.step_run_output.step_output.channel
 
-    def get_type(self):
+    @property
+    def type(self):
         return self.step_run_output.step_output.type
 
     def push(self, data_object):
@@ -144,6 +151,7 @@ class TaskRunResourceSet(BaseModel):
 
 class TaskRunAttempt(BasePolymorphicModel):
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task_run = models.ForeignKey('TaskRun',
                                  related_name='task_run_attempts',
                                  on_delete=models.CASCADE)
@@ -154,6 +162,9 @@ class TaskRunAttempt(BasePolymorphicModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed')))
 
+    def task_definition(self):
+        return self.task_run.task_definition
+    
     @classmethod
     def create_from_task_run(cls, task_run):
         model = cls.objects.create(task_run=task_run)
@@ -192,26 +203,6 @@ class TaskRunAttempt(BasePolymorphicModel):
                             task_run_attempt_id,
                             'logs')
 
-    def create_log_file(self, log_file_struct):
-        log_file = TaskRunAttemptLogFile.create(log_file_struct)
-        self.log_files.add(log_file)
-        return log_file
-
-
-class MockTaskRunAttempt(TaskRunAttempt):
-
-    pass
-
-
-class LocalTaskRunAttempt(TaskRunAttempt):
-
-    pass
-
-
-class GoogleCloudTaskRunAttempt(TaskRunAttempt):
-
-    pass
-
 
 class TaskRunAttemptInput(BaseModel):
 
@@ -229,9 +220,13 @@ class TaskRunAttemptInput(BaseModel):
         related_name='task_run_attempt_inputs',
         null=True, on_delete=models.PROTECT)
 
-    def get_type(self):
-        return self.task_run_input.get_type()
+    @property
+    def type(self):
+        return self.task_run_input.type
 
+    @property
+    def channel(self):
+        return self.task_run_input.channel
 
 class TaskRunAttemptOutput(BaseModel):
 
@@ -239,21 +234,30 @@ class TaskRunAttemptOutput(BaseModel):
         'TaskRunAttempt',
         related_name='outputs',
         on_delete=models.CASCADE)
-    data_object = models.ForeignKey(
+    data_object = models.OneToOneField(
         'DataObject',
         null=True,
-        related_name='task_run_attempt_outputs',
+        related_name='task_run_attempt_output',
         on_delete=models.PROTECT)
     task_run_output = models.ForeignKey(
         'TaskRunOutput',
         related_name='task_run_attempt_outputs',
         null=True, on_delete=models.PROTECT)
 
+    @property
+    def type(self):
+        return self.task_run_output.type
+
+    @property
+    def channel(self):
+        return self.task_run_output.channel
+
+    @property
+    def filename(self):
+        return self.task_run_output.filename
+
     def push(self, data_object):
         self.task_run_output.push(data_object)
-
-    def get_type(self):
-        return self.task_run_output.get_type()
 
 
 class TaskRunAttemptLogFile(BaseModel):
@@ -268,3 +272,8 @@ class TaskRunAttemptLogFile(BaseModel):
         null=True,
         related_name='task_run_attempt_log_file',
         on_delete=models.PROTECT)
+
+    def post_create(self):
+        if self.file_data_object is None:
+            self.file_data_object = FileDataObject.objects.create(source_type='log')
+            self.save()

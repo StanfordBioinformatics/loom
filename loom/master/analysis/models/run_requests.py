@@ -33,6 +33,7 @@ class RunRequest(BaseModel):
     def post_create(self):
         self._initialize_run()
         self._validate_run_request()
+        self._initialize_outputs()
         self._initialize_channels()
         self.initial_push()
 
@@ -40,12 +41,23 @@ class RunRequest(BaseModel):
         if not self.run:
             self.run = AbstractWorkflowRun.create_from_template(self.template)
 
+    def _initialize_outputs(self):
+        for run_request_output in self.run.outputs.all():
+            RunRequestOutput.objects.create(
+                run_request=self,
+                channel=run_request_output.channel)
+
     def _initialize_channels(self):
         for run_request_input in self.inputs.all():
             run_input = self.run.get_input(run_request_input.channel)
             if not run_input.sender == run_request_input:
                 run_input.sender = run_request_input
                 run_input.save()
+        for run_request_output in self.outputs.all():
+            run_output = self.run.get_output(run_request_output.channel)
+            if not run_request_output.sender == run_output:
+               run_request_output.sender = run_output
+               run_request_output.save()
 
     def initial_push(self):
         for input in self.inputs.all():
@@ -120,6 +132,14 @@ class RunRequestInput(InputOutputNode):
 
     def get_type(self):
         return self.run_request.run.get_input(self.channel).type
+
+
+class RunRequestOutput(InputOutputNode):
+    
+    run_request = models.ForeignKey(
+        'RunRequest',
+        related_name='outputs',
+        on_delete=models.CASCADE)    
 
 
 class CancelRequest(BaseModel):

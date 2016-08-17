@@ -5,15 +5,15 @@ from analysis.models import FileDataObject
 
 class MockTaskManager(object):
     """Generate fake results for a TaskRun.
-    For development use only.
+    For testing and development use only.
     """
 
     mock_data_counter = 0
 
     @classmethod
     def run(cls, task_run):
-        from analysis.models.task_runs import MockTaskRunAttempt
-        attempt = MockTaskRunAttempt.create_from_task_run(task_run)
+        from analysis.models.task_runs import TaskRunAttempt
+        attempt = TaskRunAttempt.create_from_task_run(task_run)
 
         for output in attempt.outputs.all():
             cls._add_mock_data(output)

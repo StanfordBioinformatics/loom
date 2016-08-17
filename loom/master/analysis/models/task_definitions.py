@@ -40,7 +40,8 @@ class TaskDefinition(BaseModel):
             TaskDefinitionInput.objects.create(
                 data_object_content=input.data_object.get_content(),
                 task_definition=self,
-                task_run_input=input)
+                task_run_input=input,
+                type=input.type)
 
     def _initialize_outputs(self):
         for output in self.task_run.outputs.all():
@@ -48,8 +49,10 @@ class TaskDefinition(BaseModel):
                 task_definition=self,
                 task_run_output=output,
                 filename=render_from_template(
-                    output.get_filename(),
-                    self.task_run.get_input_context()))
+                    output.filename,
+                    self.task_run.get_input_context()),
+                type=output.type,
+            )
 
     def _initialize_environment(self):
         # TODO get specific docker image ID
@@ -91,6 +94,10 @@ class TaskDefinitionInput(BaseModel):
     data_object_content = models.ForeignKey(
         'DataObjectContent',
         on_delete=models.PROTECT)
+    type = models.CharField(
+        max_length=255,
+        choices=DataObject.TYPE_CHOICES
+    )
 
 
 class TaskDefinitionOutput(BaseModel):
@@ -104,3 +111,7 @@ class TaskDefinitionOutput(BaseModel):
         related_name='task_definition_output',
         on_delete=models.CASCADE)
     filename = models.CharField(max_length=255)
+    type = models.CharField(
+        max_length=255,
+        choices=DataObject.TYPE_CHOICES
+    )

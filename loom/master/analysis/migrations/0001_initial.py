@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AbstractWorkflowRun',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -86,7 +86,6 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('note', models.TextField(max_length=10000, null=True)),
                 ('source_url', models.TextField(max_length=1000)),
-                ('import_type', models.CharField(default=b'import', max_length=255, choices=[(b'import', b'Import'), (b'result', b'Result'), (b'log', b'Log')])),
             ],
             options={
                 'abstract': False,
@@ -254,6 +253,7 @@ class Migration(migrations.Migration):
             name='TaskDefinitionInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
             ],
             options={
                 'abstract': False,
@@ -265,6 +265,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('filename', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
                 ('task_definition', models.ForeignKey(related_name='outputs', to='analysis.TaskDefinition')),
             ],
             options={
@@ -275,7 +276,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='TaskRun',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -285,8 +286,10 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='TaskRunAttempt',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('status', models.CharField(default=b'incomplete', max_length=255, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
+                ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_analysis.taskrunattempt_set+', editable=False, to='contenttypes.ContentType', null=True)),
+                ('task_run', models.ForeignKey(related_name='task_run_attempts', to='analysis.TaskRun')),
             ],
             options={
                 'abstract': False,
@@ -308,6 +311,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('log_name', models.CharField(max_length=255)),
+                ('task_run_attempt', models.ForeignKey(related_name='log_files', to='analysis.TaskRunAttempt')),
             ],
             options={
                 'abstract': False,
@@ -441,6 +445,7 @@ class Migration(migrations.Migration):
             name='FileDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
+                ('source_type', models.CharField(default=b'import', max_length=255, choices=[(b'import', b'Import'), (b'result', b'Result'), (b'log', b'Log')])),
                 ('file_content', models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileContent', null=True)),
             ],
             options={
@@ -457,16 +462,6 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.inputoutputnode',),
-        ),
-        migrations.CreateModel(
-            name='GoogleCloudTaskRunAttempt',
-            fields=[
-                ('taskrunattempt_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunAttempt')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.taskrunattempt',),
         ),
         migrations.CreateModel(
             name='IntegerContent',
@@ -491,26 +486,6 @@ class Migration(migrations.Migration):
             bases=('analysis.dataobject',),
         ),
         migrations.CreateModel(
-            name='LocalTaskRunAttempt',
-            fields=[
-                ('taskrunattempt_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunAttempt')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.taskrunattempt',),
-        ),
-        migrations.CreateModel(
-            name='MockTaskRunAttempt',
-            fields=[
-                ('taskrunattempt_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.TaskRunAttempt')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('analysis.taskrunattempt',),
-        ),
-        migrations.CreateModel(
             name='RequestedDockerEnvironment',
             fields=[
                 ('requestedenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.RequestedEnvironment')),
@@ -523,6 +498,16 @@ class Migration(migrations.Migration):
         ),
         migrations.CreateModel(
             name='RunRequestInput',
+            fields=[
+                ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analysis.inputoutputnode',),
+        ),
+        migrations.CreateModel(
+            name='RunRequestOutput',
             fields=[
                 ('inputoutputnode_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.InputOutputNode')),
             ],
@@ -670,7 +655,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='taskrunattemptoutput',
             name='data_object',
-            field=models.ForeignKey(related_name='task_run_attempt_outputs', on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject', null=True),
+            field=models.OneToOneField(related_name='task_run_attempt_output', null=True, on_delete=django.db.models.deletion.PROTECT, to='analysis.DataObject'),
         ),
         migrations.AddField(
             model_name='taskrunattemptoutput',
@@ -681,11 +666,6 @@ class Migration(migrations.Migration):
             model_name='taskrunattemptoutput',
             name='task_run_output',
             field=models.ForeignKey(related_name='task_run_attempt_outputs', on_delete=django.db.models.deletion.PROTECT, to='analysis.TaskRunOutput', null=True),
-        ),
-        migrations.AddField(
-            model_name='taskrunattemptlogfile',
-            name='task_run_attempt',
-            field=models.ForeignKey(related_name='log_files', to='analysis.TaskRunAttempt'),
         ),
         migrations.AddField(
             model_name='taskrunattemptinput',
@@ -701,16 +681,6 @@ class Migration(migrations.Migration):
             model_name='taskrunattemptinput',
             name='task_run_input',
             field=models.ForeignKey(related_name='task_run_attempt_inputs', on_delete=django.db.models.deletion.PROTECT, to='analysis.TaskRunInput', null=True),
-        ),
-        migrations.AddField(
-            model_name='taskrunattempt',
-            name='polymorphic_ctype',
-            field=models.ForeignKey(related_name='polymorphic_analysis.taskrunattempt_set+', editable=False, to='contenttypes.ContentType', null=True),
-        ),
-        migrations.AddField(
-            model_name='taskrunattempt',
-            name='task_run',
-            field=models.ForeignKey(related_name='task_run_attempts', to='analysis.TaskRun'),
         ),
         migrations.AddField(
             model_name='taskdefinitionoutput',
@@ -901,6 +871,11 @@ class Migration(migrations.Migration):
             model_name='stepinput',
             name='step',
             field=models.ForeignKey(related_name='inputs', to='analysis.Step'),
+        ),
+        migrations.AddField(
+            model_name='runrequestoutput',
+            name='run_request',
+            field=models.ForeignKey(related_name='outputs', to='analysis.RunRequest'),
         ),
         migrations.AddField(
             model_name='runrequestinput',

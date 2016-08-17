@@ -28,8 +28,8 @@ class DataObject(BasePolymorphicModel):
         # ('json', 'JSON'),
     )
 
-    def get_type(self):
-        return self.TYPE
+    def type(self):
+        return self.DATA_TYPE
 
     @classmethod
     def get_by_value(cls, value, type):
@@ -61,7 +61,7 @@ class DataObjectContent(BasePolymorphicModel):
 class FileDataObject(DataObject):
 
     NAME_FIELD = 'file_content__filename'
-    TYPE = 'file'
+    DATA_TYPE = 'file'
 
     file_content = models.ForeignKey(
         'FileContent',
@@ -73,6 +73,13 @@ class FileDataObject(DataObject):
         related_name='file_data_object',
         on_delete=models.PROTECT,
         null=True)
+    source_type = models.CharField(
+        max_length=255,
+        default='import',
+        choices=(('import', 'Import'),
+                 ('result', 'Result'),
+                 ('log', 'Log'))
+    )
 
     def get_content(self):
         return self.file_content
@@ -292,44 +299,39 @@ class FileLocation(BaseModel):
         """Create a path for a given file, in such a way
         that files end up being organized and browsable by run
         """
-        try:
-            # Having a FileImport implies it is imported.
-            file_data_object.file_import
+        if file_data_object.source_type == 'import':
             return 'imported'
-        except FileImport.DoesNotExist:
-            pass
-        try:
-            # Having a task_run_attempt_log_file implies it is a log
+        
+        if file_data_object.source_type == 'log':
+            subdir = 'logs'
             task_run_attempt \
                 = file_data_object.task_run_attempt_log_file.task_run_attempt
-            subdir = 'logs'
-        except AttributeError:
-            try:
-                # Having a task_run_attempt_output implies it is a result
-                task_run_attempt \
-                    = file_data_object.task_run_attempt_output.task_run_attempt
-                subdir = 'work'
-            except AttributeError:
-                raise Exception(
-                    "Could not classify FileDataObject %s as an import, "\
-                    "log, or result" % file_data_object.id.hex)
             
-        step_run = task_run_attempt.task_run.step_runs.first()
-        assert task_run_attempt.task_run.step_runs.count() == 1
+        elif file_data_object.source_type == 'result':
+            subdir = 'work'
+            task_run_attempt \
+                = file_data_object.task_run_attempt_output.task_run_attempt
+        else:
+            raise Exception('Unrecognized source_type %s'
+                            % file_data_object.source_type)
+            
+        task_run = task_run_attempt.task_run
+        step_run = task_run.step_run
+
         path = os.path.join(
             "%s-%s" % (
                 step_run.template.name,
-                step_run.get_id(),
+                step_run.id.hex,
             ),
-            "task-%s" % task_run_attempt.task_run.get_id(),
-            "attempt-%s" % task_run_attempt.get_id(),
+            "task-%s" % task_run.id.hex,
+            "attempt-%s" % task_run_attempt.id.hex,
         )
-        while step_run.parent_run is not None:
-            step_run = step_run.parent_run
+        while step_run.parent is not None:
+            step_run = step_run.parent
             path = os.path.join(
                 "%s-%s" % (
                     step_run.template.name,
-                    step_run.get_id(),
+                    step_run.id.hex,
                 ),
                 path
             )
@@ -358,13 +360,6 @@ class FileImport(BaseModel):
         'FileDataObject',
         related_name='file_import',
         on_delete=models.CASCADE)
-    import_type = models.CharField(
-        max_length=255,
-        default='import',
-        choices=(('import', 'Import'),
-                 ('result', 'Result'),
-                 ('log', 'Log'))
-    )
 
 
 class DatabaseDataObject(DataObject):
@@ -379,7 +374,7 @@ class DatabaseDataObject(DataObject):
 
 class StringDataObject(DatabaseDataObject):
 
-    TYPE = 'string'
+    DATA_TYPE = 'string'
 
     string_content = models.OneToOneField(
         'StringContent',
@@ -417,7 +412,7 @@ class StringContent(DataObjectContent):
 
 class BooleanDataObject(DatabaseDataObject):
 
-    TYPE = 'boolean'
+    DATA_TYPE = 'boolean'
 
     boolean_content = models.OneToOneField(
         'BooleanContent',
@@ -464,7 +459,7 @@ class BooleanContent(DataObjectContent):
 
 class IntegerDataObject(DatabaseDataObject):
     
-    TYPE = 'integer'
+    DATA_TYPE = 'integer'
 
     integer_content = models.OneToOneField(
         'IntegerContent',

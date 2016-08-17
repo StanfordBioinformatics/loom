@@ -1,10 +1,10 @@
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+import uuid
 
 from analysis import get_setting
 from analysis.exceptions import *
-
 from analysis.models.channels import InputOutputNode, InputNodeSet
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
@@ -25,6 +25,7 @@ class AbstractWorkflowRun(BasePolymorphicModel):
     Workflow composed of one or more Steps.
     """
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     parent = models.ForeignKey('WorkflowRun',
                                related_name='step_runs',
                                null=True,
@@ -36,6 +37,11 @@ class AbstractWorkflowRun(BasePolymorphicModel):
             channel=channel)])
         assert len(inputs) == 1
         return inputs[0]
+
+    def get_output(self, channel):
+        outputs = [o for o in self.outputs.filter(channel=channel)]
+        assert len(outputs) == 1
+        return outputs[0]
 
     @classmethod
     def create_from_template(cls, template):
@@ -231,6 +237,11 @@ class StepRunInput(AbstractStepRunInput):
     step_input = models.ForeignKey('StepInput',
                                    related_name='step_run_inputs',
                                    on_delete=models.PROTECT)
+
+    @property
+    def type(self):
+        return self.step_input.type
+
     def push_to_receivers(self, indexed_data_object):
         # No receivers, but we need to push to the step_run
         self.step_run.push()
@@ -243,6 +254,11 @@ class FixedStepRunInput(AbstractStepRunInput):
     step_input = models.ForeignKey('FixedStepInput',
                                    related_name='step_run_inputs',
                                    on_delete=models.PROTECT)
+    
+    @property
+    def type(self):
+        return self.step_input.type
+
     def initial_push(self):
         self.push_without_index(self.step_input.data_object)
 
@@ -255,7 +271,8 @@ class StepRunOutput(InputOutputNode):
                                     related_name='step_run_outputs',
                                     on_delete=models.PROTECT)
 
-    def get_filename(self):
+    @property
+    def filename(self):
         return self.step_output.filename
 
 
@@ -268,6 +285,9 @@ class WorkflowRunInput(InputOutputNode):
                                    related_name='workflow_run_inputs',
                                    on_delete=models.PROTECT)
 
+    @property
+    def type(self):
+        return self.workflow_input.type
 
 class FixedWorkflowRunInput(InputOutputNode):
 
@@ -283,6 +303,10 @@ class FixedWorkflowRunInput(InputOutputNode):
     def initial_push(self):
         self.push_without_index(self.workflow_input.data_object)
 
+    @property
+    def type(self):
+        return self.workflow_input.type
+
 
 class WorkflowRunOutput(InputOutputNode):
 
@@ -292,3 +316,6 @@ class WorkflowRunOutput(InputOutputNode):
     workflow_output = models.ForeignKey('WorkflowOutput',
                                    related_name='workflow_run_outputs',
                                    on_delete=models.PROTECT)
+    @property
+    def type(self):
+        return self.workflow_output.type

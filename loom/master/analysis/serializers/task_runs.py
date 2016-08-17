@@ -1,89 +1,111 @@
-from .base import NestedPolymorphicModelSerializer, POLYMORPHIC_TYPE_FIELD
+from .base import CreateWithParentModelSerializer, NoUpdateModelSerializer, \
+        SuperclassModelSerializer
+from rest_framework import serializers
+
 from analysis.models.task_runs import *
-from analysis.serializers.data_objects import AbstractFileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
+from analysis.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
 from analysis.serializers.task_definitions import *
 from analysis.serializers.workflows import RequestedResourceSetSerializer
 
 
-class TaskRunAttemptOutputFileImportSerializer(AbstractFileImportSerializer):
-
-    class Meta:
-        model = TaskRunAttemptOutputFileImport
-
-
-class TaskRunAttemptLogFileImportSerializer(AbstractFileImportSerializer):
-
-    class Meta:
-        model =TaskRunAttemptLogFileImport
-
-
-class TaskRunAttemptOutputSerializer(NestedPolymorphicModelSerializer):
+class TaskRunAttemptOutputSerializer(CreateWithParentModelSerializer):
 
     data_object = DataObjectSerializer(allow_null=True, required=False)
+    type = serializers.CharField(read_only=True)
+    channel = serializers.CharField(read_only=True)
+    filename = serializers.CharField(read_only=True)
 
     class Meta:
         model = TaskRunAttemptOutput
+        fields = ('id', 'data_object', 'filename', 'type', 'channel',)
+
+    def update(self, instance, validated_data):
+        data_object_data = self.initial_data.get('data_object', None)
+        validated_data.pop('data_object', None)
+
+        s = DataObjectSerializer(data=data_object_data)
+        s.is_valid(raise_exception=True)
+        validated_data['data_object'] = s.save()
+
+        return super(self.__class__, self).update(
+            instance,
+            validated_data)
 
 
-class TaskRunAttemptLogFileSerializer(NestedPolymorphicModelSerializer):
+class TaskRunAttemptInputSerializer(CreateWithParentModelSerializer):
+
+    data_object = DataObjectSerializer(allow_null=True, required=False)
+    type = serializers.CharField(read_only=True)
+    channel = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = TaskRunAttemptInput
+        fields = ('id', 'data_object', 'type', 'channel',)
+
+
+class TaskRunAttemptLogFileSerializer(CreateWithParentModelSerializer):
 
     file_data_object = FileDataObjectSerializer(allow_null=True, required=False)
 
     class Meta:
         model = TaskRunAttemptLogFile
+        fields = ('log_name', 'file_data_object',)
 
+    def create(self, validated_data):
+        log = super(TaskRunAttemptLogFileSerializer, self).create(validated_data)
+        log.post_create()
+        return log
+        
 
-class TaskRunAttemptSerializer(NestedPolymorphicModelSerializer):
+class TaskRunAttemptSerializer(serializers.ModelSerializer):
 
+    id = serializers.UUIDField(format='hex', required=False)
     log_files = TaskRunAttemptLogFileSerializer(many=True, allow_null=True, required=False)
+    inputs = TaskRunAttemptInputSerializer(many=True, allow_null=True, required=False)
     outputs = TaskRunAttemptOutputSerializer(many=True, allow_null=True, required=False)
+    task_definition = TaskDefinitionSerializer()
 
     class Meta:
         model = TaskRunAttempt
+        fields = ('id', 'log_files', 'inputs', 'outputs', 'status', 'task_definition',)
+        
+    def update(self, instance, validated_data):
 
+        # Ignore other fields. No update allowed.
+        status = validated_data.pop('status', None)
+        if status is not None:
+            instance.status = status
+            instance.save()
+            instance.post_update()
+        return instance
 
-class MockTaskRunAttemptSerializer(TaskRunAttemptSerializer):
-
-    class Meta:
-        model = MockTaskRunAttempt
-
-
-class LocalTaskRunAttemptSerializer(TaskRunAttemptSerializer):
-
-    class Meta:
-        model = LocalTaskRunAttempt
-
-
-class GoogleCloudTaskRunAttemptSerializer(TaskRunAttemptSerializer):
-
-    class Meta:
-        model = GoogleCloudTaskRunAttempt
-
-
-class TaskRunInputSerializer(NestedPolymorphicModelSerializer):
+        
+class TaskRunInputSerializer(CreateWithParentModelSerializer):
 
     data_object = DataObjectSerializer()
+    type = serializers.CharField(read_only=True)
+    channel = serializers.CharField(read_only=True)
 
     class Meta:
         model = TaskRunInput
-        nested_x_to_one_serializers = {
-            'data_object': 'analysis.serializers.data_objects.DataObjectSerializer'
-        }
+        fields = ('data_object', 'type', 'channel',)
 
 
-class TaskRunOutputSerializer(NestedPolymorphicModelSerializer):
+class TaskRunOutputSerializer(CreateWithParentModelSerializer):
 
     data_object = DataObjectSerializer()
+    type = serializers.CharField(read_only=True)
+    channel = serializers.CharField(read_only=True)
+    filename = serializers.CharField(read_only=True)
 
     class Meta:
         model = TaskRunOutput
-        nested_x_to_one_serializers = {
-            'data_object': 'analysis.serializers.data_objects.DataObjectSerializer'
-        }
+        fields = ('data_object', 'filename', 'type', 'channel',)
 
 
-class TaskRunSerializer(NestedPolymorphicModelSerializer):
+class TaskRunSerializer(serializers.ModelSerializer):
 
+    id = serializers.UUIDField(format='hex', required=False)
     task_definition = TaskDefinitionSerializer()
     resources = RequestedResourceSetSerializer()
     inputs = TaskRunInputSerializer(many=True, allow_null=True, required=False)
@@ -92,14 +114,4 @@ class TaskRunSerializer(NestedPolymorphicModelSerializer):
 
     class Meta:
         model = TaskRun
-        nested_x_to_one_serializers = {
-            'task_definition': 'analysis.serializers.task_definitions.TaskDefinitionSerializer',
-        }
-        nested_reverse_x_to_one_serializers = {
-            'resources': 'analysis.serializers.workflows.RequestedResourceSet',
-        }
-        nested_x_to_many_serializers = {
-            'inputs': 'analysis.serializers.task_runs.TaskRunInputSerializer',
-            'outputs': 'analysis.serializers.task_runs.TaskRunOutputSerializer',
-            'task_run_attempts': 'analysis.serializers.task_runs.TaskRunAttemptSerializer',
-        }
+        fields = ('id', 'task_definition', 'resources', 'inputs', 'outputs', 'task_run_attempts',)

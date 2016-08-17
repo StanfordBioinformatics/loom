@@ -465,6 +465,7 @@ class FileHandler:
 
     def _create_file_data_object_for_import(self, source_url, note):
         return self.objecthandler.post_data_object({
+            'source_type': 'import',
             'file_import': {
                 'note': note,
                 'source_url': Source(source_url, self.settings).get_url(),
@@ -476,24 +477,20 @@ class FileHandler:
             self._create_task_run_attempt_output_file(task_run_attempt_output),
             source_url
         )
-        # Trigger the TaskRunAttemptOutput so it can detect the new data
-        # and push it to downstream steps
-        self.objecthandler.update_task_run_attempt_output(task_run_attempt_output['_id'], {})
         return file_data_object
 
     def _create_task_run_attempt_output_file(self, task_run_attempt_output):
         updated_task_run_attempt_output = self.objecthandler.update_task_run_attempt_output(
-            task_run_attempt_output['_id'],
+            task_run_attempt_output['id'],
             {
                 'data_object': {
-                    'file_import': {
-                        '_class': 'TaskRunAttemptOutputFileImport'
-                    }}})
+                    'source_type': 'result',
+                }})
         return updated_task_run_attempt_output['data_object']
 
     def import_log_file(self, task_run_attempt, source_url):
         log_name = os.path.basename(source_url)
-        log_file = self.objecthandler.post_task_run_attempt_log_file(task_run_attempt['_id'], {'log_name': log_name})
+        log_file = self.objecthandler.post_task_run_attempt_log_file(task_run_attempt['id'], {'log_name': log_name})
         return self._execute_file_import(
             log_file['file_data_object'],
             source_url
@@ -502,15 +499,14 @@ class FileHandler:
     def _execute_file_import(self, file_data_object, source_url):
         # Prior to import, file_data_object should have no content and no
         # location
-        assert file_data_object.get('file_import') is not None
-        assert file_data_object.get('file_import').get('file_location') is None
+        assert file_data_object.get('file_location') is None
         assert file_data_object.get('file_content') is None
 
         source = Source(source_url, self.settings)
         self._log('Importing file from %s...' % source.get_url())
 
         hash_function = self.settings['HASH_FUNCTION']
-        self._log('...calculating %s hash...' % hash_function)
+        self._log('   calculating %s hash...' % hash_function)
         hash_value = source.calculate_hash_value(hash_function)
 
         # Adding file_content will cause a file_location with status=incomplete
@@ -527,18 +523,18 @@ class FileHandler:
         )
 
         if file_data_object['file_location']['status'] == 'complete':
-            self._log('...server already has the file. Skipping upload.')
+            self._log('   server already has the file. Skipping upload.')
         else:
             destination = Destination(
                 file_data_object['file_location']['url'],
                 self.settings)
             source.copy_to(destination)
             
-            self._log('...copying to destination %s...' % destination.get_url())
+            self._log('   copying to destination %s...' % destination.get_url())
 
         # Signal that the upload completed successfully
         file_data_object = self._flag_upload_as_complete(file_data_object)
-        self._log('...finished importing file %s@%s' % (
+        self._log('   imported file %s@%s' % (
             file_data_object['file_content']['filename'],
             file_data_object['id']))
         return file_data_object
@@ -581,7 +577,7 @@ class FileHandler:
 
     def export_file(self, file_id, destination_url=None):
         # Error raised if there is not exactly one matching file.
-        file_data_object = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
+        file_data_object = self.objecthandler.get_file_data_object_index(query_string=file_id, max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()
@@ -589,11 +585,11 @@ class FileHandler:
         destination_url = self.get_destination_file_url(destination_url, default_name)
         destination = Destination(destination_url, self.settings)
 
-        self._log('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['_id'], destination.get_url()))
+        self._log('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['id'], destination.get_url()))
 
         # Copy from the first file location
-        location = self.objecthandler.get_file_locations_by_file(file_data_object['_id'])[0]
-        Source(location['url'], self.settings).copy_to(destination)
+        source_url = file_data_object['file_location']['url']
+        Source(source_url, self.settings).copy_to(destination)
 
         self._log('...finished exporting file')
 

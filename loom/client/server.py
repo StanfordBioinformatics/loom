@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
 import argparse
+from datetime import datetime
 import imp
 import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 import warnings
 
 from ConfigParser import SafeConfigParser
@@ -64,6 +66,7 @@ def get_parser(parser=None):
     subparsers = parser.add_subparsers(dest='command')
     start_parser = subparsers.add_parser('start')
     stop_parser = subparsers.add_parser('stop')
+    restart_parser = subparsers.add_parser('restart')
     status_parser = subparsers.add_parser('status')
 
     create_parser = subparsers.add_parser('create')
@@ -148,22 +151,57 @@ class LocalServerControls(BaseServerControls):
         command_to_method_map = {
             'create': self.create,
             'start': self.start,
+            'restart': self.restart,
             'stop': self.stop,
             'delete': self.delete,
         }
         return command_to_method_map
 
     def start(self):
-        if not os.path.exists(get_deploy_settings_filename()):
-            self.create()
-        self.settings_manager.load_deploy_settings_file()
-        env = os.environ.copy()
-        env = self._add_server_to_python_path(env)
-        env = self._set_database(env)
-        env = self._export_django_settings(env)
-        self._create_logdirs()
-        self._start_daemon(env)
-        self._start_webserver(env)
+        if not is_server_running():
+            if not os.path.exists(get_deploy_settings_filename()):
+                self.create()
+            self.settings_manager.load_deploy_settings_file()
+            env = os.environ.copy()
+            env = self._add_server_to_python_path(env)
+            env = self._set_database(env)
+            env = self._export_django_settings(env)
+            self._create_logdirs()
+            self._start_daemon(env)
+            print 'Starting Loom server...'
+            self._start_webserver(env)
+            self._wait_for_server(target_running_state=True)
+        print 'Loom server is running.'
+
+    def stop(self):
+        # Settings needed to get pidfile names.
+        if is_server_running():
+            if not os.path.exists(get_deploy_settings_filename()):
+                raise Exception('No server deploy settings found. Create them with "loom server create" first.')
+            self.settings_manager.load_deploy_settings_file()
+            print "Stopping Loom server..."
+            self._stop_webserver()
+            self._stop_daemon()
+            self._wait_for_server(target_running_state=False)
+        print "Loom server is stopped."
+
+    def restart(self):
+        self.stop()
+        self.start()
+
+    def _wait_for_server(self, target_running_state=True):
+        timeout_seconds=5
+        poll_interval_seconds=0.1
+        start_time = datetime.now()
+
+        while True:
+            time_running = datetime.now() - start_time
+            if time_running.seconds > timeout_seconds:
+                if target_running_state==True:
+                    raise Exception("Timeout while waiting for server to %s" % "start" if target_running_state==True else "stop")
+            if is_server_running() == target_running_state:
+                return
+            time.sleep(poll_interval_seconds)
 
     def _create_logdirs(self):
         for logfile in (self.settings_manager.settings['ACCESS_LOGFILE'],
@@ -218,14 +256,6 @@ class LocalServerControls(BaseServerControls):
         (stdout, stderr) = process.communicate()
         if not process.returncode == 0:
             raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
-
-    def stop(self):
-        # Settings needed to get pidfile names.
-        if not os.path.exists(get_deploy_settings_filename()):
-            raise Exception('No server deploy settings found. Create them with "loom server create" first.')
-        self.settings_manager.load_deploy_settings_file()
-        self._stop_webserver()
-        self._stop_daemon()
 
     def _stop_webserver(self):
         pid = self._get_pid(self.settings_manager.settings['WEBSERVER_PIDFILE'])
@@ -290,7 +320,7 @@ class LocalServerControls(BaseServerControls):
                 stdout=subprocess.PIPE,
                 env=env).communicate()
             if re.search('\[ \]', stdout[0]):
-  	        print("The Loom database needs to be initialized or updated. Proceeding...")
+  	        print("Welcome to Loom!\nInitializing database for first use...")
 		try:
 	            stdout = subprocess.Popen(
 		        manage_cmd + ['migrate'],

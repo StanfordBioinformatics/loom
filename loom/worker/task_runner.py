@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 import argparse
+import copy
 from datetime import datetime
 import errno
-import string
 import logging
 import os
 import requests
+import string
 import subprocess
 import sys
 import time
@@ -88,24 +89,31 @@ class TaskRunner(object):
 
         self._import_outputs()
         self._import_log_files()
+        self._flag_attempt_as_complete()
 
-        # self._flag_run_as_complete(self.step_run)
-
+    def _flag_attempt_as_complete(self):
+        task_run_attempt = copy.deepcopy(self.task_run_attempt)
+        task_run_attempt.update({'status': 'complete'})
+        
+        self.objecthandler.update_task_run_attempt(
+            task_run_attempt['id'],
+            task_run_attempt)
+        
     def _export_inputs(self):
-        if self.task_run_attempt['task_run'].get('inputs') is None:
+        if self.task_run_attempt.get('inputs') is None:
             return
         file_data_object_ids = []
-        for input in self.task_run_attempt['task_run']['inputs']:
-            if input['data_object']['_class'] == 'FileDataObject':
-                file_data_object_ids.append('@'+input['data_object']['_id'])
+        for input in self.task_run_attempt['inputs']:
+            if input['data_object']['type'] == 'file':
+                file_data_object_ids.append('@'+input['data_object']['id'])
         self.filehandler.export_files(
             file_data_object_ids,
             destination_url=self.settings['WORKING_DIR'])
 
     def _import_outputs(self):
         for output in self.task_run_attempt['outputs']:
-            if output['task_run_output']['task_definition_output']['type'] == 'file':
-                filename = output['task_run_output']['task_definition_output']['filename']
+            if output['type'] == 'file':
+                filename = output['filename']
                 self.filehandler.import_result_file(
                     output,
                     os.path.join(self.settings['WORKING_DIR'], filename)
@@ -113,7 +121,7 @@ class TaskRunner(object):
             else:
                 # TODO handle non-file output types
                 raise Exception("Can't handle outputs of type %s" %
-                                output['task_run_output']['task_definition_output']['type'])
+                                output['type'])
 
     def _import_log_files(self):
         for log_file in (self.settings['WORKER_LOG_FILE'],
@@ -125,7 +133,7 @@ class TaskRunner(object):
                 )
 
     def _execute(self, stdoutlog, stderrlog):
-        task_definition = self.task_run_attempt['task_run']['task_definition']
+        task_definition = self.task_run_attempt['task_definition']
         environment = task_definition['environment']
         docker_image = environment['docker_image']
         user_command = task_definition['command']

@@ -73,5 +73,5 @@ class TestHelloWorld(TestCase, AbstractRunTest):
                              .first().task_run_attempts.first()\
                              .outputs.first().data_object)
         self.assertIsNotNone(
-            self.run_request.run.outputs.first()\
+            self.run_request.outputs.first()\
             .indexed_data_objects.first().data_object)
