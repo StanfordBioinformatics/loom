@@ -11,7 +11,7 @@ import warnings
 include_models = os.getenv('GRAPH_MODELS_INCLUDE_MODELS')
 
 BASE_DIR = os.path.dirname(__file__)
-DOC_ROOT = os.path.join(BASE_DIR, '..', 'webclient')
+WEBCLIENT_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'webclient'))
 
 def get_secret_key():
     SECRET_FILE = os.path.join(BASE_DIR, 'secret.txt')
@@ -206,7 +206,11 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_TZ = True
 
-STATIC_URL = '/static/'
+STATIC_URL = '/home/'
+
+STATICFILES_DIRS = [
+    WEBCLIENT_ROOT,
+]
 
 # Graph Models settings to generate model schema plots
 GRAPH_MODELS = {
