@@ -30,34 +30,45 @@ class CloudTaskManager:
     @classmethod
     def run(cls, task_run):
         from analysis.models.task_runs import TaskRunAttempt
-        task_run_attempt = TaskRunAttempt.create({'task_run': task_run})
+        task_run_attempt = TaskRunAttempt.create_from_task_run(task_run)
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile=os.path.join(settings.LOGS_DIR, 'loom_cloud_taskmanager.log'))
         
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger.debug("Launching CloudTaskManager as a separate process.")
-        task_run_attempt_pickle = pickle.dumps(task_run_attempt)
-        logger.debug("task_run_attempt: %s" % task_run_attempt.to_json())
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_pickle,))
+        #task_run_attempt_pickle = pickle.dumps(task_run_attempt)
+        #logger.debug("task_run_attempt: %s" % task_run_attempt)
+
+        requested_resources = {
+            'cores': task_run_attempt.task_run.step_run.resources.cores,
+            'memory': task_run_attempt.task_run.step_run.resources.memory,
+            'disk_size': task_run_attempt.task_run.step_run.resources.disk_size,
+        }
+        environment = {
+            'docker_image': task_run_attempt.task_definition.environment.docker_image,
+        }
+        
+        hostname = socket.gethostname()
+        node_name = cls.create_worker_name(hostname, task_run_attempt)
+        task_run_attempt_id = task_run_attempt.id.hex
+        
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_id, requested_resources, environment, node_name,))
         process.start()
 
     @classmethod
-    def _run(cls, task_run_attempt_pickle):
-        task_run_attempt = pickle.loads(task_run_attempt_pickle)
-        requested_resources = task_run_attempt.task_run.resources
+    def _run(cls,task_run_attempt_id, requested_resources, environment, node_name):
         logger = loom.common.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
-        logger.debug("task_run_attempt: %s" % task_run_attempt.to_json())
+        logger.debug("task_run_attempt: %s" % task_run_attempt_id)
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
-        instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
-        hostname = socket.gethostname()
-        node_name = cls.create_worker_name(hostname, task_run_attempt)
+        instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources['cores'], memory=requested_resources['memory'])
+        
         scratch_disk_name = node_name+'-disk'
         scratch_disk_device_path = '/dev/disk/by-id/google-'+scratch_disk_name
-        if hasattr(requested_resources, 'disk_size'):
-            scratch_disk_size_gb = requested_resources.disk_size
+        if requested_resources.get('disk_size') is not None:
+            scratch_disk_size_gb = requested_resources['disk_size']
         else:   
             scratch_disk_size_gb = settings.WORKER_SCRATCH_DISK_SIZE
         
@@ -73,8 +84,8 @@ class CloudTaskManager:
             'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
             'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
             'zone': settings.WORKER_LOCATION,
-            'task_run_attempt_id': task_run_attempt.get_id(),
-            'task_run_docker_image': json.loads(task_run_attempt.to_json())['task_run']['task_definition']['environment']['docker_image'],
+            'task_run_attempt_id': task_run_attempt_id,
+            'task_run_docker_image': environment['docker_image'],
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
             'worker_network': settings.WORKER_NETWORK,
@@ -185,8 +196,8 @@ class CloudTaskManager:
         """
         task_run = task_run_attempt.task_run
         #workflow_name = task_run.workflow_name
-        step_name = task_run.step_runs.first().template.name
-        attempt_id = task_run_attempt.get_id()
+        step_name = task_run.step_run.template.name
+        attempt_id = task_run_attempt.id.hex
         name_base = '-'.join([hostname, step_name])
         sanitized_name_base = cls.sanitize_instance_name_base(name_base)
         sanitized_name_base = sanitized_name_base[:53]      # leave 10 characters at the end for location id and -disk suffix

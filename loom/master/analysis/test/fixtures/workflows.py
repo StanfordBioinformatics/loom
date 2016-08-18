@@ -15,7 +15,7 @@ step_a = {
     'resources': {
         'cores': '1',
         'memory': '1',
-        'disk_space': '1024' 
+        'disk_size': '1024' 
     },
     'inputs': [
 	{
@@ -50,7 +50,7 @@ step_b = {
     'resources': {
         'cores': '1',
         'memory': '1',
-        'disk_space': '1024'
+        'disk_size': '1024'
     },
     'inputs': [
 	{
@@ -87,7 +87,7 @@ step_c = {
     'resources': {
         'cores': '1',
         'memory': '1',
-        'disk_space': '1024'
+        'disk_size': '1024'
     },
     'inputs': [
 	{

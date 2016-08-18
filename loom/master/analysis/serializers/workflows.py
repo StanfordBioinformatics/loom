@@ -37,7 +37,7 @@ class RequestedResourceSetSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = RequestedResourceSet
-        fields = ('memory', 'disk_space', 'cores',)
+        fields = ('memory', 'disk_size', 'cores',)
 
 
 class WorkflowInputSerializer(CreateWithParentModelSerializer):

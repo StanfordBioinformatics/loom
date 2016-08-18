@@ -165,7 +165,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('memory', models.CharField(max_length=255, null=True)),
-                ('disk_space', models.CharField(max_length=255, null=True)),
+                ('disk_size', models.CharField(max_length=255, null=True)),
                 ('cores', models.CharField(max_length=255, null=True)),
             ],
             options={
@@ -353,7 +353,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('memory', models.CharField(max_length=255, null=True)),
-                ('disk_space', models.CharField(max_length=255, null=True)),
+                ('disk_size', models.CharField(max_length=255, null=True)),
                 ('cores', models.CharField(max_length=255, null=True)),
                 ('task_run', models.OneToOneField(related_name='resources', to='analysis.TaskRun')),
             ],
@@ -457,7 +457,7 @@ class Migration(migrations.Migration):
             name='FileDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.DataObject')),
-                ('source_type', models.CharField(default=b'import', max_length=255, choices=[(b'import', b'Import'), (b'result', b'Result'), (b'log', b'Log')])),
+                ('source_type', models.CharField(default=b'imported', max_length=255, choices=[(b'imported', b'Imported'), (b'result', b'Result'), (b'log', b'Log')])),
                 ('file_content', models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='analysis.FileContent', null=True)),
             ],
             options={

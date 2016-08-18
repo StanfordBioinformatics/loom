@@ -17,7 +17,7 @@ task_run = {
     'resources': {
         'cores': '1',
         'memory': '1',
-        'disk_space': '1024'
+        'disk_size': '1024'
     },
 }
 

@@ -137,7 +137,7 @@ class RequestedResourceSet(BaseModel):
                                 on_delete=models.CASCADE,
                                 related_name='resources')
     memory = models.CharField(max_length=255, null=True)
-    disk_space = models.CharField(max_length=255, null=True)
+    disk_size = models.CharField(max_length=255, null=True)
     cores = models.CharField(max_length=255, null=True)
 
 
