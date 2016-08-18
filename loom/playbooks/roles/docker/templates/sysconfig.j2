@@ -1,0 +1,12 @@
+{% if ansible_distribution_major_version == "7" %}
+DOCKER_OPTS="{{ docker_opts }}"
+{% for k,v in docker_env.iteritems() %}
+{{ k }}="{{ v }}"
+{% endfor %}
+{% elif ansible_distribution_major_version == "6" %}
+other_args="{{ docker_opts }}"
+{# We need to export environment variables on RHEL 6 #}
+{% for k,v in docker_env.iteritems() %}
+export {{ k }}="{{ v }}"
+{% endfor %}
+{% endif %}

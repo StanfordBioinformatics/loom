@@ -88,14 +88,7 @@ class FileDataObject(DataObject):
     @classmethod
     def get_by_value(cls, value):
         file_data_objects = cls.query_by_name_or_id(value)
-        if len(file_data_objects) < 1:
-            raise Exception('no match found for file: "%s"' % value)
-        if len(file_data_objects) > 1:
-            raise Exception(
-                'multiple matches found for file "%s": %s' % (
-                    value,
-                    [m.get_display_value() for m in file_data_objects.all()]
-                ))
+        assert len(file_data_objects) == 1, 'expected one file but found %s: %s' % (len(file_data_objects), file_data_objects)
         return file_data_objects.first()
 
     def get_display_value(self):

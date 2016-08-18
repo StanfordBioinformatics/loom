@@ -4,6 +4,12 @@ import time
 import datetime
 from loom.common.exceptions import *
 
+def disable_insecure_request_warning():
+    """Suppress warning about untrusted SSL certificate."""
+    import requests
+    from requests.packages.urllib3.exceptions import InsecureRequestWarning
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 class ObjectHandler(object):
     """ObjectHandler provides functions to create and work with objects in the 
     Loom database via the HTTP API
@@ -16,35 +22,42 @@ class ObjectHandler(object):
     
     def _post(self, data, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
+        disable_insecure_request_warning()
         return self._make_request_to_server(
             lambda: requests.post(
                 url,
                 data=json.dumps(data),
-                headers={'content-type': 'application/json'}),
+                headers={'content-type': 'application/json'},
+                verify=False),
             raise_for_status=raise_for_status)
 
     def _put(self, data, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
+        disable_insecure_request_warning()
         return self._make_request_to_server(
             lambda: requests.put(
                 url,
                 data=json.dumps(data),
-                headers={'content-type': 'application/json'}),
+                headers={'content-type': 'application/json'},
+                verify=False),
             raise_for_status=raise_for_status)
 
     def _patch(self, data, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
+        disable_insecure_request_warning()
         return self._make_request_to_server(
             lambda: requests.patch(
                 url,
                 data=json.dumps(data),
-                headers={'content-type': 'application/json'}),
+                headers={'content-type': 'application/json'},
+                verify=False),
             raise_for_status=raise_for_status)
 
     def _get(self, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
-        return self._make_request_to_server(lambda: requests.get(url), raise_for_status=raise_for_status)
-    
+        disable_insecure_request_warning()
+        return self._make_request_to_server(lambda: requests.get(url, verify=False), raise_for_status=raise_for_status) # Don't fail on unrecognized SSL certificate
+
     def _make_request_to_server(self, query_function, raise_for_status=True):
         """Verifies server connection and handles response errors
         for either get or post requests

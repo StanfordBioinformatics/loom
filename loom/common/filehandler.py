@@ -420,6 +420,13 @@ class Local2GoogleStorageCopier(AbstractCopier):
 class GoogleStorage2LocalCopier(AbstractCopier):
 
     def copy(self):
+        try:
+            os.makedirs(os.path.dirname(self.destination.get_path()))
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise e
         self.source.blob.download_to_filename(self.destination.get_path())
 
     def move(self):

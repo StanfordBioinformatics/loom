@@ -95,8 +95,8 @@ setup(
                         'django-extensions>=1.5.5',
                         'django-polymorphic>=0.9.2',
                         'djangorestframework>=3.3.3',
-                        'docker-py',
                         'docutils>=0.12',
+                        'docker-py',                        # used by server to run NGINX container
                         'gcloud>=0.8.0,<0.10.0',
                         'google-api-python-client>=1.5.0',  #1.5.0 requires oath2client>=2.0.0
                         'google-apitools>=0.4.13',
@@ -109,15 +109,10 @@ setup(
                         'MarkupSafe>=0.23',
                         # 'MySQL-python>=1.2.5',
                         'oauth2client>=2.0.0',
-                        'protobuf>=3.0.0b2',
-                        'protorpc>=0.11.1',
-                        'pyasn1>=0.1.9',
-                        'pyasn1-modules>=0.0.8',
-                        'pycrypto>=2.6.1',
+                        'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
                         'python-daemon>=2.0.0,<2.1.0',
                         'PyYAML>=3.11',
                         'requests>=2.6.0',
-                        'rsa>=3.3',
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
                         'uritemplate>=0.6',

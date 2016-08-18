@@ -24,10 +24,13 @@ DAEMON_EXECUTABLE = os.path.abspath(
     ))
 
 GCLOUD_SERVER_DEFAULT_NAME = SettingsManager().get_default_setting('gcloud', 'SERVER_NAME')
-GCLOUD_CREATE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_create_playbook.yml'))
-GCLOUD_START_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_start_playbook.yml'))
-GCLOUD_STOP_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_stop_playbook.yml'))
-GCLOUD_DELETE_PLAYBOOK = os.path.abspath(os.path.join(os.path.dirname(__file__), 'gcloud_delete_playbook.yml'))
+
+PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
+GCLOUD_CREATE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server.yml')
+GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
+GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
+GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
+GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
 NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
 
 def ServerControlsFactory(args):
@@ -117,6 +120,7 @@ class BaseServerControls:
         # Create directory/directories if they don't exist
         ini_dir = os.path.dirname(server_location_file)
         if not os.path.exists(ini_dir):
+            print 'Creating Loom settings directory %s...' % ini_dir
             os.makedirs(ini_dir)
 
         # Write server.ini file
@@ -127,6 +131,7 @@ class BaseServerControls:
             name = self.args.name
             config.set('server', 'name', name)
         with open(server_location_file, 'w') as configfile:
+            print 'Updating %s...' % server_location_file
             config.write(configfile)
 
         # Copy NGINX config file to same place
@@ -303,7 +308,7 @@ class LocalServerControls(BaseServerControls):
     def _set_database(self, env):
         manage_cmd = [sys.executable, '%s/manage.py' % SERVER_PATH]
         if self.args.test_database:
-            # If test database requested, set LOOM_TEST_DATABSE to true and reset database
+            # If test database requested, set LOOM_TEST_DATABASE to true and reset database
             env['LOOM_TEST_DATABASE'] = 'true'
             commands = [
                 manage_cmd + ['flush', '--noinput'],
@@ -349,7 +354,7 @@ class LocalServerControls(BaseServerControls):
 
     def delete(self):
         '''Stops server and deletes deploy settings.'''
-        # TODO: Ask for confirmation before continuing; add -f option to continue without asking
+        # TODO: Add -f option to continue without asking
         if not os.path.exists(get_deploy_settings_filename()):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
@@ -364,6 +369,7 @@ class GoogleCloudServerControls(BaseServerControls):
         BaseServerControls.__init__(self, args)
         self.settings_manager = SettingsManager()
         loom.common.cloud.setup_ansible_inventory_gce()
+        setup_gce_ini_and_json()
 
     # Defines what commands this class can handle and maps names to functions.
     def _get_command_map(self):
@@ -389,30 +395,51 @@ class GoogleCloudServerControls(BaseServerControls):
         return env
 
     def create(self):
-        """Create server deploy settings if they don't exist yet, create and
-        set up a gcloud instance, copy deploy settings to the instance, and
-        start the Loom server."""
-        # TODO: Prevent overwriting existing deploy settings, but add -f option to force overwriting
-        # if os.path.exists(get_deploy_settings_filename()):
-        #     raise Exception('Google Cloud server deploy settings already exist. Please delete them with "loom server delete" first.')
+        """Create server deploy settings if they don't exist yet, set up SSH
+        keys, create and set up a gcloud instance, copy deploy settings to the
+        instance."""
         self.settings_manager.create_deploy_settings_file(self.args.settings)
-        # TODO: Add nginx server to playbook
-        # TODO: add gcloud-specific server settings
-        # env['MASTER_URL_FOR_WORKER'] = '' # TODO: get internal gcloud ip that is reachable by workers
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
-        
+
+        setup_gcloud_ssh()
         env = self.get_ansible_env()
+
+        if is_dev_install():
+            # If we have a Dockerfile, build Docker image
+            #docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4()) # Server is a Docker registry
+            dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
+            self.build_docker_image(os.path.dirname(dockerfile_path), env['DOCKER_NAME'], env['DOCKER_TAG'])
+            #self.push_docker_image(docker_tag)
+
+        self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
-        env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail when creating a new instance with the same IP
+        env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
         return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
+
+    def build_docker_image(self, build_path, docker_name, docker_tag):
+        """Build Docker image using current code. Dockerfile must exist at build_path."""
+        subprocess.call(['docker', 'build', build_path, '-t', '%s:%s' % (docker_name, docker_tag)])
+
+    def push_docker_image(self, docker_tag):
+        """Use gcloud to push Docker image to registry specified in tag."""
+        subprocess.call(['docker', 'push', docker_tag])
 
     def start(self):
         """Start the gcloud server instance, then start the Loom server."""
         # TODO: Start the gcloud server instance once supported by Ansible
+        instance_name = get_gcloud_server_name()
+        current_hosts = get_gcloud_hosts()
         if not os.path.exists(get_deploy_settings_filename()):
-            self.create()
+            print 'Deploy settings %s not found. Creating it first.' % get_deploy_settings_filename()
+        if instance_name not in current_hosts:
+            print 'No instance named \"%s\" found in project \"%s\". Creating it first.' % (instance_name, get_gcloud_project())
+        if instance_name not in current_hosts or not os.path.exists(get_deploy_settings_filename()):
+            returncode = self.create()
+            if returncode != 0:
+                raise Exception('Error deploying Google Cloud server instance.')
+
         env = self.get_ansible_env()
         return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
 
@@ -428,7 +455,10 @@ class GoogleCloudServerControls(BaseServerControls):
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
         if instance_name not in current_hosts:
-            print 'Instance named \"%s\" not found in project \"%s\".' % (instance_name, env['GCE_PROJECT'])
+            print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
+            if os.path.exists(get_deploy_settings_filename()):
+                print 'Deleting %s...' % get_deploy_settings_filename()
+                os.remove(get_deploy_settings_filename())
             return
         else:
             confirmation_input = raw_input('WARNING! This will delete the server instance and attached disks. Data will be lost!\n'+ 
@@ -438,7 +468,10 @@ class GoogleCloudServerControls(BaseServerControls):
             else:
                 delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
                 if delete_returncode == 0:
-                    os.remove(get_deploy_settings_filename())
+                    print 'Instance successfully deleted.'
+                    if os.path.exists(get_deploy_settings_filename()):
+                        print 'Deleting %s...' % get_deploy_settings_filename()
+                        os.remove(get_deploy_settings_filename())
                 return delete_returncode
 
 

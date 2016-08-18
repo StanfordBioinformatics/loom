@@ -52,7 +52,9 @@ class ShowFile(AbstractShow):
 
     def _show_files(self):
         for file_data_object in self.files:
-            print self._render_file(file_data_object)
+            text = self._render_file(file_data_object)
+            if text is not None:
+                print text
 
     def _render_file(self, file_data_object):
         file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['id'])
