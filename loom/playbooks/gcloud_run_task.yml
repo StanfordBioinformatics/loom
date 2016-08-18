@@ -1,0 +1,18 @@
+---
+- name: Run the Loom task runner on the specified worker instance.
+  hosts: "{{node_name}}"
+  #hosts: "{{hostvars[node_name]['gce_private_ip']}}"
+  remote_user: loom
+  become: yes
+  become_method: sudo
+  vars:
+    remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
+  tasks:
+  - name: Run the Loom task runner.
+    docker_container:
+      name: loom
+      image: "{{docker_full_name}}"
+      volumes: ["{{remote_loom_settings_path}}:/root/.loom", "{{scratch_disk_mount_point}}:{{scratch_disk_mount_point}}", "/var/run/docker.sock:/var/run/docker.sock"]
+      api_version: auto
+      command: /bin/bash -c 'source /opt/loom/bin/activate && loom-taskrunner --run_attempt_id {{task_run_attempt_id}} --master_url {{master_url}}'
+

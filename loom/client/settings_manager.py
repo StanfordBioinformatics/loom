@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import uuid
 
 from ConfigParser import SafeConfigParser
 from loom.client.common import *
@@ -30,7 +31,7 @@ class SettingsManager:
         self.require_default_settings = require_default_settings
 
     def create_deploy_settings(self, server_type=None, user_settings_file=None):
-        """ Create deploy settings by loading defaults and overriding with user-provided settings."""
+        """Create deploy settings by loading defaults and overriding with user-provided settings."""
         if server_type == None:
             server_type = get_server_type()
         self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section=server_type)
@@ -39,22 +40,20 @@ class SettingsManager:
             # Add Google Cloud-specific settings
             if server_type == 'gcloud': 
                 self.load_gcloud_settings()
-
             # Override defaults with user-provided settings file
             if user_settings_file:
-                self.load_settings_from_file(user_settings_file, section=server_type)
+                self.load_settings_from_file(settings_file=user_settings_file, section=server_type)
 
-        #TODO: extract settings from commandline arguments and override self.settings with them
-        #TODO: verify required settings are defined and raise error if not
+        self.postprocess_settings()
 
     def load_gcloud_settings(self):
-        """ Load Google Cloud-specific settings."""
+        """Load Google Cloud-specific settings."""
         # Add server name from server.ini
         self.settings['SERVER_NAME'] = get_gcloud_server_name()
         self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], self.settings['SERVER_NAME'], self.settings['EXTERNAL_PORT'])
 
         # Add other settings from gce.ini
-        gce_config = SafeConfigParser()
+        gce_config = SafeConfigParser(allow_no_value=True)
         gce_config.read(os.path.expanduser(GCE_INI_PATH))
         self.settings['GCE_INI_PATH'] = GCE_INI_PATH
         self.settings['GCE_EMAIL'] = gce_config.get('gce', 'gce_service_account_email_address')
@@ -65,6 +64,13 @@ class SettingsManager:
         # If bucket not provided, default to project id with '-loom' appended
         if self.settings['GCE_BUCKET'] == 'None':
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
+
+    def postprocess_settings(self):
+        """Write settings that depend on other settings being defined first."""
+        if get_server_type() == 'gcloud':
+            self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
+            if self.settings['DOCKER_REGISTRY']:
+                self.settings['DOCKER_FULL_NAME'] = '/'.join([self.settings['DOCKER_REGISTRY'], self.settings['DOCKER_FULL_NAME']])
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
@@ -81,9 +87,11 @@ class SettingsManager:
 
     def load_settings_from_file(self, settings_file, section):
         """Update current settings dict by reading from a file and section."""
+        if not os.path.exists(settings_file):
+            raise Exception('Cannot find settings file "%s"' % settings_file)
         try:
-            config = SafeConfigParser()
-            config.optionxform = str                    # preserve uppercase in settings names
+            config = SafeConfigParser(allow_no_value=True)
+            config.optionxform = lambda option: option.upper() # preserve uppercase in settings names
             config.read(settings_file)
         except Exception as e: 
             raise SettingsError("Failed to open settings file %s: %s" % (settings_file, e))
@@ -97,8 +105,8 @@ class SettingsManager:
         if not self.settings:
             raise SettingsError("No settings loaded yet.")
         self.make_settings_directory(settings_file)
-        config = SafeConfigParser()
-        config.optionxform = str                    # preserve uppercase in settings names
+        config = SafeConfigParser(allow_no_value=True)
+        config.optionxform = lambda option: option.upper() # preserve uppercase in settings names
         config.add_section(section)
         for key in self.settings:
             config.set(section, key, self.settings[key])
@@ -131,6 +139,10 @@ class SettingsManager:
         self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section)
         return self.settings[option]
 
+    def add_gcloud_settings_on_server(self):
+        """Write settings that can't be defined prior to having a running server instance."""
+        if self.settings['WORKER_USES_SERVER_INTERNAL_IP'] == 'True':
+            self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], get_gcloud_server_private_ip(self.settings['SERVER_NAME']), self.settings['EXTERNAL_PORT'])
 
 class SettingsError(Exception):
     pass

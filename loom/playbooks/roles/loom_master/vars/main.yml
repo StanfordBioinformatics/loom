@@ -1,0 +1,7 @@
+client_version: "{{lookup('env','CLIENT_VERSION')}}"
+gce_ini_path: "{{lookup('env', 'GCE_INI_PATH')}}"
+gce_pem_file_path: "{{lookup('env', 'GCE_PEM_FILE_PATH')}}"
+deploy_settings_filename: "{{lookup('env', 'DEPLOY_SETTINGS_FILENAME')}}"
+remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
+docker_tag: "{{lookup('env','DOCKER_TAG')}}"
+docker_full_name: "{{lookup('env','DOCKER_FULL_NAME')}}"
