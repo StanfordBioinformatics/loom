@@ -228,3 +228,12 @@ class StepOutput(AbstractOutput):
     step = models.ForeignKey('Step',
                              related_name='outputs',
                              on_delete=models.CASCADE)
+
+class WorkflowImport(BaseModel):
+
+    note = models.TextField(max_length=10000, null=True)
+    source_url = models.TextField(max_length=1000)
+    workflow = models.OneToOneField(
+        'AbstractWorkflow',
+        related_name='workflow_import',
+        on_delete=models.CASCADE)

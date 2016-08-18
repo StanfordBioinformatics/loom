@@ -30,6 +30,9 @@ class AbstractWorkflowRun(BasePolymorphicModel):
                                related_name='step_runs',
                                null=True,
                                on_delete=models.CASCADE)
+    @property
+    def name(self):
+        return self.template.name
 
     def get_input(self, channel):
         inputs = [i for i in self.inputs.filter(channel=channel)]
@@ -151,6 +154,18 @@ class StepRun(AbstractWorkflowRun):
                                  related_name='step_runs',
                                  on_delete=models.PROTECT)
 
+    @property
+    def command(self):
+        return self.template.command
+
+    @property
+    def environment(self):
+        return self.template.environment
+
+    @property
+    def resources(self):
+        return self.template.resources
+
     def is_step(self):
         return True
 
@@ -270,6 +285,10 @@ class StepRunOutput(InputOutputNode):
     step_output = models.ForeignKey('StepOutput',
                                     related_name='step_run_outputs',
                                     on_delete=models.PROTECT)
+
+    @property
+    def type(self):
+        return self.step_output.type
 
     @property
     def filename(self):

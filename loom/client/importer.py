@@ -62,28 +62,37 @@ class WorkflowImporter(AbstractImporter):
         parser.add_argument(
             'workflow',
             metavar='WORKFLOW_FILE', help='Workflow to be imported, in YAML or JSON format.')
+        parser.add_argument(
+            '--note',
+            metavar='SOURCE_NOTE',
+            help='Description of the workflow source. '\
+            'Give enough detail for traceability.')
         return parser
 
     def run(self):
-        return self.import_workflow(self.args.workflow, self.filehandler, self.objecthandler, self.logger)
+        return self.import_workflow(self.args.workflow, self.args.note, self.filehandler, self.objecthandler, self.logger)
 
     @classmethod
-    def import_workflow(cls, workflow_file, filehandler, objecthandler, logger):
+    def import_workflow(cls, workflow_file, note, filehandler, objecthandler, logger):
         logger.info('Importing workflow from %s...' % filehandler.normalize_url(workflow_file))
-        workflow = cls._get_workflow(workflow_file, filehandler)
+        (workflow, source_url) = cls._get_workflow(workflow_file, filehandler)
+        workflow.update({
+            'workflow_import': {
+                'note': note,
+                'source_url': source_url,
+            }})
         workflow_from_server = objecthandler.post_abstract_workflow(workflow)
         logger.info('   imported workflow %s@%s' % \
             (workflow_from_server['name'],
              workflow_from_server['id'],
-            ))
-        
+            ))        
         return workflow_from_server
 
     @classmethod
     def _get_workflow(cls, workflow_file, filehandler):
-        workflow_text = filehandler.read_file(workflow_file)
+        (workflow_text, source_url) = filehandler.read_file(workflow_file)
         workflow = parse_as_json_or_yaml(workflow_text)
-        return workflow
+        return workflow, source_url
 
 
 class Importer:

@@ -8,9 +8,9 @@ ResultFileListController.$inject = ['$scope', 'DataService'];
 
 function ResultFileListController($scope, DataService){
     $scope.loading = true;
-    DataService.getResultFiles().then(function(result_files) {
+    DataService.getResultFiles().then(function(files) {
 	$scope.loading = false;
-	$scope.result_files = result_files;
+	$scope.files = files;
     });
 };    
 

@@ -372,6 +372,18 @@ class Migration(migrations.Migration):
             bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
         ),
         migrations.CreateModel(
+            name='WorkflowImport',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('note', models.TextField(max_length=10000, null=True)),
+                ('source_url', models.TextField(max_length=1000)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, analysis.models.base._ModelNameMixin, analysis.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='WorkflowInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -627,6 +639,11 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('analysis.inputoutputnode',),
+        ),
+        migrations.AddField(
+            model_name='workflowimport',
+            name='workflow',
+            field=models.OneToOneField(related_name='workflow_import', to='analysis.AbstractWorkflow'),
         ),
         migrations.AlterUniqueTogether(
             name='unnamedfilecontent',

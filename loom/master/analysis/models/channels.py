@@ -18,6 +18,14 @@ class InputOutputNode(BasePolymorphicModel):
                                null=True)
     channel = models.CharField(max_length=255)
 
+    @property
+    def value(self):
+        if self.indexed_data_objects.count() == 0:
+            return ''
+        elif self.indexed_data_objects.count() > 1:
+            raise Exception("Can't handle more than one input")
+        return self.indexed_data_objects.first().data_object.get_display_value()
+
     def push(self, indexed_data_object):
         self.push_without_index(indexed_data_object.data_object)
 

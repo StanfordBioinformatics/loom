@@ -7,7 +7,7 @@ import logging
 import os
 
 from analysis import get_setting
-from analysis.models import DataObject, AbstractWorkflow, TaskRunAttempt, FileDataObject
+from analysis.models import DataObject, AbstractWorkflow, FileDataObject
 from analysis.serializers import TaskRunAttemptLogFileSerializer
 # from analysis.models import RunRequest, TaskRun, FileDataObject
 from loom.common import version
@@ -37,6 +37,10 @@ class AbstractWorkflowViewSet(QueryViewSet):
     Model = AbstractWorkflow
     serializer_class = serializers.AbstractWorkflowSerializer
 
+class ImportedWorkflowViewSet(viewsets.ModelViewSet):
+    queryset = models.AbstractWorkflow.objects.filter(workflow_import__isnull=False)
+    serializer_class = serializers.AbstractWorkflowSerializer
+    
 class DataObjectContentViewSet(viewsets.ModelViewSet):
     queryset = models.DataObjectContent.objects.all()
     serializer_class = serializers.DataObjectContentSerializer
@@ -59,6 +63,18 @@ class FileImportViewSet(viewsets.ModelViewSet):
 
 class FileDataObjectViewSet(QueryViewSet):
     Model=FileDataObject
+    serializer_class = serializers.FileDataObjectSerializer
+
+class ImportedFileDataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.FileDataObject.objects.filter(source_type='imported')
+    serializer_class = serializers.FileDataObjectSerializer
+
+class ResultFileDataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.FileDataObject.objects.filter(source_type='result')
+    serializer_class = serializers.FileDataObjectSerializer
+
+class LogFileDataObjectViewSet(viewsets.ModelViewSet):
+    queryset = models.FileDataObject.objects.filter(source_type='log')
     serializer_class = serializers.FileDataObjectSerializer
 
 class StringContentViewSet(viewsets.ModelViewSet):
@@ -101,6 +117,18 @@ class TaskRunAttemptOutputViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.TaskRunAttemptOutput.objects.all()
     serializer_class = serializers.TaskRunAttemptOutputSerializer
 
+class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
+    queryset = models.AbstractWorkflowRun.objects.all()
+    serializer_class = serializers.AbstractWorkflowRunSerializer
+
+class WorkflowRunViewSet(viewsets.ModelViewSet):
+    queryset = models.WorkflowRun.objects.all()
+    serializer_class = serializers.WorkflowRunSerializer
+
+class StepRunViewSet(viewsets.ModelViewSet):
+    queryset = models.StepRun.objects.all()
+    serializer_class = serializers.StepRunSerializer
+
 
 """
 class TaskDefinitionViewSet(viewsets.ModelViewSet):
@@ -131,18 +159,6 @@ class TaskRunAttemptLogFileViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.TaskRunAttemptLogFile.objects.all()
     serializer_class = serializers.TaskRunAttemptLogFileSerializer
 
-class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
-    queryset = models.AbstractWorkflowRun.objects.all()
-    serializer_class = serializers.AbstractWorkflowRunSerializer
-
-class WorkflowRunViewSet(viewsets.ModelViewSet):
-    queryset = models.WorkflowRun.objects.all()
-    serializer_class = serializers.WorkflowRunSerializer
-
-class StepRunViewSet(viewsets.ModelViewSet):
-    queryset = models.StepRun.objects.all()
-    serializer_class = serializers.StepRunSerializer
-
 """
 
 @require_http_methods(["GET"])
@@ -152,8 +168,8 @@ def status(request):
 @require_http_methods(["GET"])
 def worker_settings(request, id):
     try:
-        WORKING_DIR = TaskRunAttempt.get_working_dir(id)
-        LOG_DIR = TaskRunAttempt.get_log_dir(id)
+        WORKING_DIR = models.TaskRunAttempt.get_working_dir(id)
+        LOG_DIR = models.TaskRunAttempt.get_log_dir(id)
         return JsonResponse({
             'LOG_LEVEL': get_setting('LOG_LEVEL'),
             'WORKING_DIR': WORKING_DIR,
@@ -184,7 +200,7 @@ def create_task_run_attempt_log_file(request, id):
     data_json = request.body
     data = json.loads(data_json)
     try:
-        task_run_attempt = TaskRunAttempt.objects.get(id=id)
+        task_run_attempt = models.TaskRunAttempt.objects.get(id=id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     s = TaskRunAttemptLogFileSerializer(

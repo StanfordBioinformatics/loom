@@ -28,6 +28,7 @@ class DataObject(BasePolymorphicModel):
         # ('json', 'JSON'),
     )
 
+    @property
     def type(self):
         return self.DATA_TYPE
 
@@ -75,8 +76,8 @@ class FileDataObject(DataObject):
         null=True)
     source_type = models.CharField(
         max_length=255,
-        default='import',
-        choices=(('import', 'Import'),
+        default='imported',
+        choices=(('imported', 'Imported'),
                  ('result', 'Result'),
                  ('log', 'Log'))
     )
@@ -299,7 +300,7 @@ class FileLocation(BaseModel):
         """Create a path for a given file, in such a way
         that files end up being organized and browsable by run
         """
-        if file_data_object.source_type == 'import':
+        if file_data_object.source_type == 'imported':
             return 'imported'
         
         if file_data_object.source_type == 'log':

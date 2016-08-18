@@ -50,8 +50,9 @@
     <div ng-include="'partials/menubar.html'"></div>
     <div class="container-fluid">
       <div class="row">
-	<div ng-include="'partials/sidebar.html'" ng-controller="SidebarController"></div>
+	<div ng-include="'partials/sidebar.html'" ng-controller="NavbarController"></div>
         <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+	  <div ng-include="'partials/navbar.html'" ng-controller="NavbarController"></div>
           <div ng-include="'partials/breadcrumb.html'" ng-controller="BreadcrumbController"></div>
           <div ng-view=""></div>
         </div>
@@ -76,14 +77,16 @@
     <script src="scripts/loom.js"></script>
     <script src="scripts/loom.routes.js"></script>
     <script src="scripts/services/data.service.js"></script>
-    <script src="scripts/controllers/sidebar.controller.js"></script>
+    <script src="scripts/controllers/navbar.controller.js"></script>
     <script src="scripts/controllers/breadcrumb.controller.js"></script>
     <script src="scripts/controllers/runList.controller.js"></script>
     <script src="scripts/controllers/runDetail.controller.js"></script>
-    <script src="scripts/controllers/workflowList.controller.js"></script>
-    <script src="scripts/controllers/workflowDetail.controller.js"></script>
+    <script src="scripts/controllers/templateList.controller.js"></script>
+    <script src="scripts/controllers/templateDetail.controller.js"></script>
     <script src="scripts/controllers/importedFileList.controller.js"></script>
     <script src="scripts/controllers/resultFileList.controller.js"></script>
-    <script src="scripts/controllers/dataDetail.controller.js"></script>
+    <script src="scripts/controllers/logFileList.controller.js"></script>
+    <script src="scripts/controllers/fileDetail.controller.js"></script>
+    <script src="scripts/filters/parseId.filter.js"></script>
   </body>
 </html>

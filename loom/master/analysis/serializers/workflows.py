@@ -7,6 +7,14 @@ from analysis.models.workflows import *
 from .exceptions import *
 
 
+class WorkflowImportSerializer(CreateWithParentModelSerializer,
+                               NoUpdateModelSerializer):
+
+    class Meta:
+        model = WorkflowImport
+        fields = ('note', 'source_url',)
+
+
 class RequestedDockerEnvironmentSerializer(CreateWithParentModelSerializer):
 
     class Meta:
@@ -113,6 +121,7 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
         allow_null=True)
     outputs = WorkflowOutputSerializer(many=True)
     steps = AbstractWorkflowSerializer(many=True)
+    workflow_import = WorkflowImportSerializer(allow_null=True, required=False)
     
     class Meta:
         model = Workflow
@@ -122,7 +131,8 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
                   'inputs',
                   'fixed_inputs',
                   'outputs',
-                  'datetime_created')
+                  'datetime_created',
+                  'workflow_import')
 
     def create(self, validated_data):
         data = copy.deepcopy(validated_data)
@@ -132,12 +142,14 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
         fixed_inputs = self.initial_data.get('fixed_inputs', None)
         outputs = self.initial_data.get('outputs', None)
         steps = self.initial_data.get('steps', None)
+        workflow_import = self.initial_data.get('workflow_import', None)
         
         data.pop('inputs', None)
         data.pop('fixed_inputs', None)
         data.pop('outputs', None)
         data.pop('steps', None)
-
+        data.pop('workflow_import', None)
+        
         workflow = super(WorkflowSerializer, self).create(data)
 
         for step_data in steps:
@@ -174,7 +186,15 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
                          'parent_instance': workflow})
             s.is_valid(raise_exception=True)
             s.save()
-                
+
+        if workflow_import is not None:
+            s = WorkflowImportSerializer(
+                data=workflow_import,
+                context={'parent_field': 'workflow',
+                         'parent_instance': workflow})
+            s.is_valid(raise_exception=True)
+            s.save()
+
         return workflow
 
 

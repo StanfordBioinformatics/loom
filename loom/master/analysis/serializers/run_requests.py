@@ -7,7 +7,7 @@ from analysis.models.channels import IndexedDataObject
 from analysis.models.run_requests import *
 from analysis.models.workflows import AbstractWorkflow
 from analysis.serializers.workflows import AbstractWorkflowIdSerializer
-# from analysis.serializers.workflow_runs import AbstractWorkflowRunSerializer
+from analysis.serializers.workflow_runs import AbstractWorkflowRunSerializer
 
 
 class RunRequestInputSerializer(CreateWithParentModelSerializer):
@@ -119,7 +119,7 @@ class RunRequestSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=False, read_only=True)
     inputs = RunRequestInputSerializer(many=True, required=False)
     template = AbstractWorkflowIdSerializer()
-    # run = AbstractWorkflowRunSerializer(required=False)
+    run = AbstractWorkflowRunSerializer(required=False)
 
     class Meta:
         model = RunRequest
@@ -127,7 +127,8 @@ class RunRequestSerializer(serializers.ModelSerializer):
                   'name',
                   'template',
                   'inputs',
-                  'datetime_created',)
+                  'datetime_created',
+                  'run',)
 
     def create(self, validated_data):
         data = copy.deepcopy(validated_data)

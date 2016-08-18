@@ -465,7 +465,7 @@ class FileHandler:
 
     def _create_file_data_object_for_import(self, source_url, note):
         return self.objecthandler.post_data_object({
-            'source_type': 'import',
+            'source_type': 'imported',
             'file_import': {
                 'note': note,
                 'source_url': Source(source_url, self.settings).get_url(),
@@ -620,7 +620,8 @@ class FileHandler:
         return destination_path
 
     def read_file(self, url):
-        return Source(url, self.settings).read()
+        source = Source(url, self.settings)
+        return source.read(), source.get_url()
 
     def write_to_file(self, url, content):
         Destination(url, self.settings).write(content)

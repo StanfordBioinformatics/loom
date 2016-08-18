@@ -1,0 +1,30 @@
+<img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<div class="table-responsive" ng-hide="loading">
+  <table class="table table-striped" ng-show="files.length">
+    <thead>
+      <tr>
+        <th>Filename</th>
+	<th>ID</th>
+        <th>Hash function</th>
+	<th>Hash value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="file in files">
+        <td>
+	    {{file.file_content.filename}}
+	</td>
+        <td><a ng-href="#/file/{{file.id}}">
+	    {{file.id}}
+	</a></td>
+        <td>
+          {{file.file_content.unnamed_file_content.hash_function}}
+        </td>
+	<td>
+	  {{file.file_content.unnamed_file_content.hash_value}}
+	</td>
+      </tr>
+    </tbody>
+  </table>
+  <div ng-hide="files.length">no files</div>
+</div>

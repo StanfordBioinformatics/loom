@@ -7,46 +7,54 @@
 	  Name
 	</th>
 	<td>
-	  {{activeData.workflow.name}}
+	  {{activeData.template.name}}
 	</td>
       </tr>
-      <tr ng-show="activeData.workflow.command">
+      <tr>
+	<th>
+	  Template ID
+	</th>
+	<td>
+	  {{activeData.template.id}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.template.command">
 	<th>
 	  Command
 	</th>
 	<td>
-	  {{activeData.workflow.command}}
+	  {{activeData.template.command}}
 	</td>
       </tr>
-      <tr ng-show="activeData.workflow.environment.docker_image">
+      <tr ng-show="activeData.template.environment.docker_image">
 	<th>Docker Image</th>
 	<td>
-	  {{activeData.workflow.environment.docker_image}}
+	  {{activeData.template.environment.docker_image}}
 	</td>
       </tr>
-      <tr ng-show="activeData.workflow.resources.cores">
+      <tr ng-show="activeData.template.resources.cores">
 	<th>Cores</th>
 	<td>
-	  {{activeData.workflow.resources.cores}}
+	  {{activeData.template.resources.cores}}
 	</td>
       </tr>
-      <tr ng-show="activeData.workflow.resources.memory">
+      <tr ng-show="activeData.template.resources.memory">
 	<th>Memory</th>
 	<td>
-	  {{activeData.workflow.resources.memory}}
+	  {{activeData.template.resources.memory}}
 	</td>
       </tr>
     </table>
   </div>
-  <div ng-show="activeData.workflow.steps">
+  <div ng-show="activeData.template.steps">
     <h4>Step</h4>
     <div class="table-responsive">
       <table class="table table-striped">
 	<tbody>
-	  <tr ng-repeat="step in activeData.workflow.steps">
+	  <tr ng-repeat="step in activeData.template.steps">
             <td>
-	      <a ng-href="#/workflows/{{step._id}}">
-		{{step.name}}@{{step._id | limitTo:8}}
+	      <a ng-href="#/templates/{{step.id}}">
+		{{step.name}}
 	      </a>
 	    </td>
 	  </tr>
@@ -54,7 +62,7 @@
       </table>
     </div>
   </div>
-  <div ng-show="activeData.workflow.inputs">
+  <div ng-show="activeData.template.inputs.length">
     <h4>Inputs</h4>
     <div class="table-responsive">
       <table class="table table-striped">
@@ -69,7 +77,7 @@
 	  </tr>
 	</thead>
 	<tbody>
-	  <tr ng-repeat="input in activeData.workflow.inputs">
+	  <tr ng-repeat="input in activeData.template.inputs">
             <td>
 	      {{input.channel}}
 	    </td>
@@ -81,7 +89,7 @@
       </table>
     </div>
   </div>
-  <div ng-show="activeData.workflow.fixed_inputs">
+  <div ng-show="activeData.template.fixed_inputs.length">
     <h4>Fixed inputs</h4>
     <div class="table-responsive">
       <table class="table table-striped">
@@ -93,22 +101,33 @@
 	    <th>
 	      Type
 	    </th>
+	    <th>
+	      Value
+	    </th>
 	  </tr>
 	</thead>
 	<tbody>
-	  <tr ng-repeat="input in activeData.workflow.fixed_inputs">
+	  <tr ng-repeat="input in activeData.template.fixed_inputs">
             <td>
 	      {{input.channel}}
 	    </td>
 	    <td>
 	      {{input.type}}
 	    </td>
+	    <td ng-show="input.type=='file'">
+	      <a ng-href="#/files/{{input.value | parseId:'id'}}" ng-show="input.value">
+		{{input.value | parseId:'name'}}
+	      </a>
+	    </td>
+	    <td ng-hide="input.type=='file'">
+	      {{input.value}}
+	    </td>
 	  </tr>
 	</tbody>
       </table>
     </div>
   </div>
-  <div ng-show="activeData.workflow.outputs">
+  <div ng-show="activeData.template.outputs.length">
     <h4>Outputs</h4>
     <div class="table-responsive">
       <table class="table table-striped">
@@ -123,7 +142,7 @@
 	  </tr>
 	</thead>
 	<tbody>
-	  <tr ng-repeat="output in activeData.workflow.outputs">
+	  <tr ng-repeat="output in activeData.template.outputs">
             <td>
 	      {{output.channel}}
 	    </td>

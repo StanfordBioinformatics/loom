@@ -7,7 +7,7 @@ from analysis import views
 
 router = routers.DefaultRouter()
 
-#router.register(AbstractWorkflowRun.get_class_name(plural=True, hyphen=True), views.AbstractWorkflowRunViewSet)
+router.register(AbstractWorkflowRun.get_class_name(plural=True, hyphen=True), views.AbstractWorkflowRunViewSet)
 router.register(BooleanContent.get_class_name(plural=True, hyphen=True), views.BooleanContentViewSet)
 router.register(BooleanDataObject.get_class_name(plural=True, hyphen=True), views.BooleanDataObjectViewSet)
 #router.register(CancelRequest.get_class_name(plural=True, hyphen=True), views.CancelRequestViewSet)
@@ -16,6 +16,9 @@ router.register(DataObjectContent.get_class_name(plural=True, hyphen=True), view
 #router.register(FailureNotice.get_class_name(plural=True, hyphen=True), views.FailureNoticeViewSet)
 router.register(FileContent.get_class_name(plural=True, hyphen=True), views.FileContentViewSet)
 router.register(FileDataObject.get_class_name(plural=True, hyphen=True), views.FileDataObjectViewSet, base_name='FileDataObject')
+router.register('imported-file-data-objects', views.ImportedFileDataObjectViewSet)
+router.register('result-file-data-objects', views.ResultFileDataObjectViewSet)
+router.register('log-file-data-objects', views.LogFileDataObjectViewSet)
 router.register(FileImport.get_class_name(plural=True, hyphen=True), views.FileImportViewSet)
 router.register(FileLocation.get_class_name(plural=True, hyphen=True), views.FileLocationViewSet)
 router.register(IntegerContent.get_class_name(plural=True, hyphen=True), views.IntegerContentViewSet)
@@ -35,6 +38,7 @@ router.register(TaskRunAttemptOutput.get_class_name(plural=True, hyphen=True), v
 #router.register(TaskRunAttemptOutputFileImport.get_class_name(plural=True, hyphen=True), views.TaskRunAttemptOutputFileImportViewSet)
 router.register(UnnamedFileContent.get_class_name(plural=True, hyphen=True), views.UnnamedFileContentViewSet)
 router.register(AbstractWorkflow.get_class_name(plural=True, hyphen=True), views.AbstractWorkflowViewSet, base_name='AbstractWorkflow')
+router.register('imported-workflows', views.ImportedWorkflowViewSet)
 #router.register(Workflow.get_class_name(plural=True, hyphen=True), views.WorkflowViewSet)
 #router.register(WorkflowRun.get_class_name(plural=True, hyphen=True), views.WorkflowRunViewSet)
 

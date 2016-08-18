@@ -40,6 +40,7 @@ class RunRequest(BaseModel):
     def _initialize_run(self):
         if not self.run:
             self.run = AbstractWorkflowRun.create_from_template(self.template)
+            self.save()
 
     def _initialize_outputs(self):
         for run_request_output in self.run.outputs.all():

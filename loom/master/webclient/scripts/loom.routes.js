@@ -18,25 +18,30 @@ function config($routeProvider) {
             controller: 'RunDetailController'
         })
 
-        .when('/workflows', {
-            templateUrl: 'views/workflow-list.html',
-            controller: 'WorkflowListController'
+        .when('/templates', {
+            templateUrl: 'views/template-list.html',
+            controller: 'TemplateListController'
         })
-        .when('/workflows/:workflowId', {
-            templateUrl: 'views/workflow-detail.html',
-            controller: 'WorkflowDetailController'
+        .when('/templates/:templateId', {
+            templateUrl: 'views/template-detail.html',
+            controller: 'TemplateDetailController'
         })
-        .when('/result-files', {
-            templateUrl: 'views/result-file-list.html',
-            controller: 'ResultFileListController'
-        })
-        .when('/imported-files', {
-            templateUrl: 'views/imported-file-list.html',
+        .when('/files/imported', {
+            templateUrl: 'views/file-list.html',
             controller: 'ImportedFileListController'
         })
-        .when('/data/:dataId', {
-            templateUrl: 'views/data-detail.html',
-            controller: 'DataDetailController'
+        .when('/files/results', {
+            templateUrl: 'views/file-list.html',
+            controller: 'ResultFileListController'
+        })
+        .when('/files/logs', {
+            templateUrl: 'views/file-list.html',
+            controller: 'LogFileListController'
+        })
+    	.when('/files', {redirectTo: '/files/imported'})
+        .when('/files/:fileId', {
+            templateUrl: 'views/file-detail.html',
+            controller: 'FileDetailController'
         })
 	.otherwise('/runs');
 };
