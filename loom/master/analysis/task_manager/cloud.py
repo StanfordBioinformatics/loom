@@ -1,4 +1,5 @@
 import errno 
+import imp
 import json
 import logging
 import multiprocessing
@@ -18,14 +19,18 @@ import loom.common.logger
 import loom.common.version
 import loom.common.cloud
 
-class CloudTaskManager:
+PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
+GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
+GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
+GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
+LOOM_USER_SSH_KEY_FILE = '/home/loom/.ssh/google_compute_engine'
 
-    inventory_file = ''
+class CloudTaskManager:
 
     @classmethod
     def run(cls, task_run):
-	from analysis.models.task_runs import GoogleCloudTaskRunAttempt
-	task_run_attempt = GoogleCloudTaskRunAttempt.create({'task_run': task_run})
+        from analysis.models.task_runs import GoogleCloudTaskRunAttempt
+        task_run_attempt = GoogleCloudTaskRunAttempt.create({'task_run': task_run})
         logger = loom.common.logger.get_logger('TaskManagerLogger', logfile=os.path.join(settings.LOGS_DIR, 'loom_cloud_taskmanager.log'))
         
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
@@ -38,7 +43,7 @@ class CloudTaskManager:
     @classmethod
     def _run(cls, task_run_attempt_pickle):
         task_run_attempt = pickle.loads(task_run_attempt_pickle)
-	requested_resources = task_run_attempt.task_run.resources
+        requested_resources = task_run_attempt.task_run.resources
         logger = loom.common.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_run_attempt: %s" % task_run_attempt.to_json())
@@ -46,131 +51,53 @@ class CloudTaskManager:
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
-        cls.inventory_file = loom.common.cloud.setup_ansible_inventory_gce()
-        loom.common.cloud.setup_gce_credentials()
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources.cores, memory=requested_resources.memory)
         hostname = socket.gethostname()
         node_name = cls.create_worker_name(hostname, task_run_attempt)
-        disk_name = node_name+'-disk'
-        device_path = '/dev/disk/by-id/google-'+disk_name
+        scratch_disk_name = node_name+'-disk'
+        scratch_disk_device_path = '/dev/disk/by-id/google-'+scratch_disk_name
         if hasattr(requested_resources, 'disk_size'):
-            disk_size_gb = requested_resources.disk_size
+            scratch_disk_size_gb = requested_resources.disk_size
         else:   
-            disk_size_gb = settings.WORKER_DISK_SIZE
+            scratch_disk_size_gb = settings.WORKER_SCRATCH_DISK_SIZE
         
-        playbook_values = {
+        playbook_vars = {
             'node_name': node_name,
             'image': settings.WORKER_VM_IMAGE,
             'instance_type': instance_type,
-            'disk_name': disk_name,
-            'device_path': device_path,
-            'mount_point': settings.WORKER_DISK_MOUNT_POINT,
-            'disk_type': settings.WORKER_DISK_TYPE,
-            'size_gb': disk_size_gb,
+            'scratch_disk_name': scratch_disk_name,
+            'scratch_disk_device_path': scratch_disk_device_path,
+            'scratch_disk_mount_point': settings.WORKER_SCRATCH_DISK_MOUNT_POINT,
+            'scratch_disk_type': settings.WORKER_SCRATCH_DISK_TYPE,
+            'scratch_disk_size_gb': scratch_disk_size_gb,
+            'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
+            'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
             'zone': settings.WORKER_LOCATION,
             'task_run_attempt_id': task_run_attempt.get_id(),
+            'task_run_docker_image': json.loads(task_run_attempt.to_json())['task_run']['task_definition']['environment']['docker_image'],
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'version': loom.common.version.version(),
             'worker_network': settings.WORKER_NETWORK,
             'worker_tags': settings.WORKER_TAGS,
+            'docker_full_name': settings.DOCKER_FULL_NAME,
+            'docker_tag': settings.DOCKER_TAG,
         }
-        playbook = cls._create_taskrun_playbook(playbook_values)
-        logger.debug('Starting worker VM using playbook: %s' % playbook)
+        logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
         ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)
-        cls._run_playbook_string(playbook, ansible_logfile)
+        cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         logger.debug("CloudTaskManager process done.")
         ansible_logfile.close()
 
     @classmethod
-    def _create_taskrun_playbook(cls, playbook_values_dict):
-        s = Template(
-"""---
-- name: Create new instance.
-  hosts: localhost
-  connection: local
-  gather_facts: no
-  vars:
-  - worker_tags: $worker_tags
-  tasks:
-  - name: Boot up a new instance.
-    gce: name=$node_name zone=$zone image=$image machine_type=$instance_type network=$worker_network service_account_permissions=storage-rw tags={{worker_tags|default(omit)}}
-    register: gce_result
-  - name: Create a disk and attach it to the instance.
-    gce_pd: instance_name=$node_name name=$disk_name disk_type=$disk_type size_gb=$size_gb zone=$zone mode=READ_WRITE
-  - name: Wait for SSH to come up.
-    wait_for: host={{ item.private_ip }} port=22 delay=10 timeout=60
-    with_items: '{{ gce_result.instance_data }}'
-  - name: Add host to groupname.
-    add_host: hostname={{ item.private_ip }} groupname=new_instances
-    with_items: '{{ gce_result.instance_data }}'
-- name: Set up new instance(s).
-  hosts: new_instances
-  become: yes
-  become_method: sudo
-  tasks:
-  - name: Create a filesystem on the disk.
-    filesystem: fstype=ext4 dev=$device_path force=no
-  - name: Create the mount point.
-    file: path=$mount_point state=directory
-  - name: Mount the disk at the mount point.
-    mount: name=$mount_point fstype=ext4 src=$device_path state=mounted
-  - name: Update apt-get's cache.
-    apt: update_cache=yes
-    register: result
-    until: result|succeeded
-    retries: 6
-    delay: 10
-  - name: Install pip using apt-get.
-    apt: name=python-pip state=present
-    register: result
-    until: result|succeeded
-    retries: 6
-    delay: 10
-  - name: Install python-dev using apt-get, which is needed to build certain Python dependencies.
-    apt: name=python-dev state=present
-    register: result
-    until: result|succeeded
-    retries: 6
-    delay: 10
-  - name: Install build-essential using apt-get, which is needed to build certain Python dependencies.
-    apt: name=build-essential state=present
-    register: result
-    until: result|succeeded
-    retries: 6
-    delay: 10
-  - name: Install libffi-dev using apt-get, which is needed to build certain Python dependencies.
-    apt: name=libffi-dev state=present
-    register: result
-    until: result|succeeded
-    retries: 6
-    delay: 10
-  - name: Install libmysqlclient-dev using apt-get, which is needed to install the MySQL-python Python package.
-    apt: name=libmysqlclient-dev state=present
-    register: result
-    until: result|succeeded
-    retries: 6
-    delay: 10
-  - name: Install virtualenv using pip.
-    pip: name=virtualenv state=present
-  - name: Install Loom using pip in a virtualenv. Make sure to install the same version on the worker as the master.
-    pip: name=loomengine virtualenv=/opt/loom version=$version
-  - name: Run the Loom task runner.
-    shell: source /opt/loom/bin/activate; loom-taskrunner --run_attempt_id $task_run_attempt_id --master_url $master_url
-    args:
-      executable: /bin/bash
-""")
-        return s.substitute(playbook_values_dict)
-
-    @classmethod
-    def _run_playbook_string(cls, playbook_string, logfile=None):
-        """ Runs a string as a playbook by writing it to a tempfile and passing the filename to ansible-playbook. """
+    def _run_playbook(cls, playbook, playbook_vars, logfile=None):
+        """ Runs a playbook by passing it a dict of vars on the command line."""
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
-        with tempfile.NamedTemporaryFile() as playbook:
-            playbook.write(playbook_string)
-            playbook.flush()
-            subprocess.call(['ansible-playbook', '--key-file', settings.GCE_KEY_FILE, '-i', cls.inventory_file, playbook.name], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
-
+        ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
+        os.chmod(GCE_PY_PATH, 0755)                         # Make sure dynamic inventory is executable
+        playbook_vars_json_string = json.dumps(playbook_vars)
+        subprocess.call(['ansible-playbook', '-vvv', '--key-file', LOOM_USER_SSH_KEY_FILE, '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
@@ -236,8 +163,6 @@ class CloudTaskManager:
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
-        cls.inventory_file = loom.common.cloud.setup_ansible_inventory_gce()
-        loom.common.cloud.setup_gce_credentials()
         zone = settings.WORKER_LOCATION
         s = Template(
 """---
@@ -258,7 +183,7 @@ class CloudTaskManager:
         Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
         so leave 5 characters for the '-disk' suffix.
         """
-	task_run = task_run_attempt.task_run
+        task_run = task_run_attempt.task_run
         #workflow_name = task_run.workflow_name
         step_name = task_run.step_runs.first().template.name
         attempt_id = task_run_attempt.get_id()

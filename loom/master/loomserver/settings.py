@@ -220,6 +220,7 @@ GRAPH_MODELS = {
 # Get settings from the environment and expand paths if needed
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
+MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
 FILE_ROOT = os.getenv('FILE_ROOT', tempfile.mkdtemp())
 FILE_ROOT_FOR_WORKER = os.getenv('FILE_ROOT_FOR_WORKER')
 FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')
@@ -228,16 +229,20 @@ LOGS_DIR = os.getenv('LOGS_DIR')
 PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.common.filehandler.GoogleStorageSource and GoogleStorageDestination
                                             # Retrieved but not used when filehandler is LocalSource and LocalDestination, so need to set a default value
 BUCKET_ID = os.getenv('GCE_BUCKET', '')
-ANSIBLE_PEM_FILE = os.getenv('GCE_PEM_FILE_PATH')
-ANSIBLE_GCE_INI_FILE = os.getenv('GCE_INI_PATH')
-GCE_KEY_FILE = os.getenv('GCE_KEY_FILE')
+GCE_PEM_FILE_PATH = os.getenv('GCE_PEM_FILE_PATH')
+GCE_INI_PATH = os.getenv('GCE_INI_PATH')
+GCE_SSH_KEY_FILE = os.getenv('GCE_SSH_KEY_FILE')
 WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
 WORKER_LOCATION = os.getenv('WORKER_LOCATION')
-WORKER_DISK_TYPE = os.getenv('WORKER_DISK_TYPE')
-WORKER_DISK_SIZE = os.getenv('WORKER_DISK_SIZE')
-WORKER_DISK_MOUNT_POINT = os.getenv('WORKER_DISK_MOUNT_POINT')
+WORKER_SCRATCH_DISK_MOUNT_POINT = os.getenv('WORKER_SCRATCH_DISK_MOUNT_POINT')
+WORKER_SCRATCH_DISK_TYPE = os.getenv('WORKER_SCRATCH_DISK_TYPE')
+WORKER_SCRATCH_DISK_SIZE = os.getenv('WORKER_SCRATCH_DISK_SIZE')
+WORKER_BOOT_DISK_TYPE = os.getenv('WORKER_BOOT_DISK_TYPE')
+WORKER_BOOT_DISK_SIZE = os.getenv('WORKER_BOOT_DISK_SIZE')
 WORKER_NETWORK = os.getenv('WORKER_NETWORK')
 WORKER_TAGS = os.getenv('WORKER_TAGS')
+DOCKER_TAG = os.getenv('DOCKER_TAG')
+DOCKER_FULL_NAME = os.getenv('DOCKER_FULL_NAME')
 
 HASH_FUNCTION = 'md5'
 

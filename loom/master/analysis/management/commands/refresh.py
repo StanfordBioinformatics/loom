@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 from loomdaemon import loom_daemon_logger
 
@@ -19,7 +21,7 @@ class Command(BaseCommand):
         logfile = options.get('logfile')
         logger = loom_daemon_logger.get_logger(logfile)
         try:
-            response = requests.post(settings.MASTER_URL_FOR_WORKER+'/api/controls/refresh/')
+            response = requests.post(settings.MASTER_URL_FOR_SERVER+'/api/controls/refresh/', verify=False)
             logger.debug(response.text)
         except Exception as e:
             logger.exception(e)

@@ -31,6 +31,7 @@ GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
 GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
 GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
 GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
+GCLOUD_SETUP_LOOM_USER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_setup_loom_user.yml')
 NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
 
 def ServerControlsFactory(args):
@@ -60,22 +61,27 @@ def get_parser(parser=None):
 
     parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--fg_webserver', action='store_true', help=argparse.SUPPRESS) # Run webserver in the foreground. Needed to keep Docker container running.
-    parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
-    parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
-        help="A settings file can be provided to override default settings.")
 
     subparsers = parser.add_subparsers(dest='command')
-    start_parser = subparsers.add_parser('start')
-    stop_parser = subparsers.add_parser('stop')
-    restart_parser = subparsers.add_parser('restart')
     status_parser = subparsers.add_parser('status')
 
     create_parser = subparsers.add_parser('create')
     create_parser.add_argument('--require_default_settings', '-d', action='store_true', help=argparse.SUPPRESS)
+    create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
+        help="A settings file can be provided to override default settings.")
+    create_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
+    start_parser = subparsers.add_parser('start')
+    start_parser.add_argument('--foreground', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
+    start_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+
+    stop_parser = subparsers.add_parser('stop')
+    stop_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+
+    restart_parser = subparsers.add_parser('restart')
+    
     delete_parser = subparsers.add_parser('delete')
+    delete_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     setserver_parser = subparsers.add_parser('set', help='Tells the client how to find the Loom server. This information is stored in %s.' % SERVER_LOCATION_FILE)
     setserver_parser.add_argument('type', choices=['local', 'gcloud'], help='The type of server the client will manage.')
@@ -167,6 +173,12 @@ class LocalServerControls(BaseServerControls):
             if not os.path.exists(get_deploy_settings_filename()):
                 self.create()
             self.settings_manager.load_deploy_settings_file()
+
+            if loom.common.cloud.on_gcloud_vm():
+                """We're in gcloud and the client is starting the server on the local instance."""
+                subprocess.call(['ansible-playbook', GCLOUD_SETUP_LOOM_USER_PLAYBOOK])
+                self.settings_manager.add_gcloud_settings_on_server()
+
             env = os.environ.copy()
             env = self._add_server_to_python_path(env)
             env = self._set_database(env)
@@ -227,7 +239,7 @@ class LocalServerControls(BaseServerControls):
                 self.settings_manager.settings['ERROR_LOGFILE'],
                 self.settings_manager.settings['LOG_LEVEL'],
                 )
-        if not self.args.fg_webserver:
+        if not self.args.foreground:
             cmd = cmd + " --daemon"
         if self.args.verbose:
             print("Starting webserver with command:\n%s\nand environment:\n%s" % (cmd, env))
@@ -368,7 +380,6 @@ class GoogleCloudServerControls(BaseServerControls):
     def __init__(self, args=None):
         BaseServerControls.__init__(self, args)
         self.settings_manager = SettingsManager()
-        loom.common.cloud.setup_ansible_inventory_gce()
         setup_gce_ini_and_json()
 
     # Defines what commands this class can handle and maps names to functions.
@@ -398,25 +409,34 @@ class GoogleCloudServerControls(BaseServerControls):
         """Create server deploy settings if they don't exist yet, set up SSH
         keys, create and set up a gcloud instance, copy deploy settings to the
         instance."""
-        self.settings_manager.create_deploy_settings_file(self.args.settings)
+        if hasattr(self.args, 'settings'):
+            self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
+        else:
+            self.settings_manager.create_deploy_settings_file()
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
         setup_gcloud_ssh()
         env = self.get_ansible_env()
 
-        if is_dev_install():
-            # If we have a Dockerfile, build Docker image
-            #docker_tag = '%s:5000/loomengine/loom:%s-%s' % (get_server_ip(), version(), uuid.uuid4()) # Server is a Docker registry
-            dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
-            self.build_docker_image(os.path.dirname(dockerfile_path), env['DOCKER_NAME'], env['DOCKER_TAG'])
-            #self.push_docker_image(docker_tag)
+        #if is_dev_install():
+        #    # If we have a Dockerfile, build Docker image
+        #    dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
+        #    self.build_docker_image(os.path.dirname(dockerfile_path), env['DOCKER_NAME'], env['DOCKER_TAG'])
 
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
+        if self.settings_manager.settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
+            env['INVENTORY_IP_TYPE'] = 'internal'   # Tell gce.py to use internal IP for ansible_ssh_host
+        else:
+            env['INVENTORY_IP_TYPE'] = 'external'   
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
-        return subprocess.call(['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_KEY_FILE'], '-i', GCE_PY_PATH, playbook], env=env)
+        os.chmod(GCE_PY_PATH, 0755)                 # Make sure dynamic inventory is executable
+        cmd_list = ['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
+        if self.args.verbose:
+            cmd_list.append('-vvv')
+        return subprocess.call(cmd_list, env=env)
 
     def build_docker_image(self, build_path, docker_name, docker_tag):
         """Build Docker image using current code. Dockerfile must exist at build_path."""

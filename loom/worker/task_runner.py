@@ -49,7 +49,8 @@ class TaskRunner(object):
                               os.path.dirname(self.settings['STDERR_LOG_FILE']),
         ]):
             try:
-                os.makedirs(directory)
+                if not os.path.exists(directory):
+                    os.makedirs(directory)
             except OSError as e:
                 raise Exception('Failed to create directory %s. %s' % (directory, e.strerror))
 

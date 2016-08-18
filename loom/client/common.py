@@ -19,6 +19,8 @@ from loom.client.exceptions import *
 LOOM_HOME_SUBDIR = '.loom'
 LOOM_SETTINGS_PATH = os.path.join('~', LOOM_HOME_SUBDIR)
 SERVER_LOCATION_FILE = os.path.join(LOOM_SETTINGS_PATH, 'server.ini')
+SSL_CERT_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.crt'))
+SSL_KEY_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.key'))
 GCE_INI_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce.ini')
 GCE_JSON_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce_key.json')
 GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
@@ -47,21 +49,28 @@ def get_gcloud_server_name():
     server_name = config.get('server', 'name')
     return server_name
 
-def get_server_ip():
+def get_server_public_ip():
     server_type = get_server_type()
     if server_type == 'local':
         return '127.0.0.1'
     elif server_type == 'gcloud':
         server_instance_name = get_gcloud_server_name()
-        return get_gcloud_server_ip(server_instance_name)
+        return get_gcloud_server_public_ip(server_instance_name)
     else:
         raise Exception("Unknown server type: %s" % server_type)
 
-def get_gcloud_server_ip(name):
+def get_gcloud_server_public_ip(name):
     inv_hosts = get_gcloud_hosts()
     if name not in inv_hosts:
         raise Exception("%s not found in Ansible dynamic inventory. Current hosts: %s" % (name, inv_hosts.keys()))
     ip = inv_hosts[name]['gce_public_ip'].encode('utf-8')
+    return ip
+
+def get_gcloud_server_private_ip(name):
+    inv_hosts = get_gcloud_hosts()
+    if name not in inv_hosts:
+        raise Exception("%s not found in Ansible dynamic inventory. Current hosts: %s" % (name, inv_hosts.keys()))
+    ip = inv_hosts[name]['gce_private_ip'].encode('utf-8')
     return ip
 
 def get_inventory():
@@ -91,7 +100,7 @@ def get_server_url():
         raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
-    ip = get_server_ip()
+    ip = get_server_public_ip()
     port = settings['EXTERNAL_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
 
@@ -101,13 +110,15 @@ def get_deploy_settings_filename():
 def is_server_running():
     try:
         loom.common.objecthandler.disable_insecure_request_warning()
-        response = requests.get(get_server_url() + '/api/status/', verify=False) # Don't fail on unrecognized SSL certificate
-        if response.status_code == 200:
-            return True
-        else:
-            raise Exception("unexpected status code %s from server" % response.status_code)
+        #response = requests.get(get_server_url() + '/api/status/', cert=(SSL_CERT_PATH, SSL_KEY_PATH)) 
+        response = requests.get(get_server_url() + '/api/status/', verify=False) 
     except requests.exceptions.ConnectionError:
         return False
+
+    if response.status_code == 200:
+        return True
+    else:
+        raise Exception("unexpected status code %s from server" % response.status_code)
 
 def get_gcloud_project():
     """Queries gcloud CLI for current project."""

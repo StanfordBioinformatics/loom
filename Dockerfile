@@ -14,9 +14,14 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up GCE SSH keys.
-#RUN ssh-keygen -t rsa -f ~/.ssh/google_compute_engine -P ""
-#RUN gcloud compute config-ssh
+# Install Docker.
+RUN apt-get update && apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    && apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D \
+    && echo 'deb https://apt.dockerproject.org/repo debian-jessie main' > /etc/apt/sources.list.d/docker.list
+RUN apt-get update && apt-get install -y \
+    docker-engine
 
 # Install Loom's OS dependencies.
 RUN apt-get update && apt-get install -y \
@@ -35,7 +40,10 @@ RUN apt-get update && apt-get install -y \
 COPY . /opt/loom/
 RUN virtualenv /opt/loom \
     && . /opt/loom/bin/activate \
-    && pip install /opt/loom 
+    && pip install -e /opt/loom 
 
+# Add Loom to the path.
 ENV PATH /opt/loom/bin:$PATH
+
+# Accept connections on port 8000.
 EXPOSE 8000

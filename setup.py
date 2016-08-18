@@ -76,8 +76,6 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=[]),
-
-    # Include files that are checked into source control
     include_package_data=True,
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
@@ -89,7 +87,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-                        'ansible>=2.1.0.0',
+                        'ansible==2.1.1.0',
                         'apache-libcloud==1.0.0rc2',
                         'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',
@@ -116,7 +114,7 @@ setup(
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
                         'uritemplate>=0.6',
-                        # For packaging 
+                        # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git>=1.1',
                         'twine',
     ],
