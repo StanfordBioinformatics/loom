@@ -82,6 +82,10 @@ LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
 LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
 LOOM_MYSQL_USER = os.getenv('LOOM_MYSQL_USER')
 LOOM_MYSQL_DB_NAME = os.getenv('LOOM_MYSQL_DB_NAME')
+LOOM_MYSQL_PORT = os.getenv('LOOM_MYSQL_PORT')
+LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
+LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
+LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
 
 def get_sqlite_database_name():
     DATABASE_NAME_FILE = os.path.join(BASE_DIR, 'sqlite_dbname.txt')
@@ -108,7 +112,7 @@ if LOOM_MYSQL_HOST:
             "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_PASSWORD")
     if not LOOM_MYSQL_DB_NAME:
         raise Exception(
-            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_DB__NAME")
+            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_DB_NAME")
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -118,6 +122,34 @@ if LOOM_MYSQL_HOST:
             'PASSWORD': LOOM_MYSQL_PASSWORD,
         }
     }
+    if LOOM_MYSQL_PORT:
+        DATABASES['default'].update({
+            'PORT': LOOM_MYSQL_PORT
+        })
+    if LOOM_MYSQL_SSL_CA_CERT_PATH \
+       or LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
+       or LOOM_MYSQL_SSL_CLIENT_KEY_PATH:
+        if not (LOOM_MYSQL_SSL_CA_CERT_PATH \
+           and LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
+           and LOOM_MYSQL_SSL_CLIENT_KEY_PATH):
+            raise Exception(
+                'One or more required values missing: '\
+                'LOOM_MYSQL_SSL_CA_CERT_PATH="%s", '\
+                'LOOM_MYSQL_SSL_CLIENT_CERT_PATH="%s", '\
+                'LOOM_MYSQL_SSL_CLIENT_KEY_PATH="%s"' % (
+                    LOOM_MYSQL_SSL_CA_CERT_PATH,
+                    LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
+                    LOOM_MYSQL_SSL_CLIENT_KEY_PATH))
+        else:
+            DATABASES['default'].update({
+                'OPTIONS': {
+                    'ssl': {
+                        'ca': LOOM_MYSQL_SSL_CA_CERT_PATH,
+                        'cert': LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
+                        'key': LOOM_MYSQL_SSL_CLIENT_KEY_PATH
+                    }
+                }
+            })
 elif not os.getenv('LOOM_TEST_DATABASE'):
     SQLITE_DATABASE_NAME = get_sqlite_database_name()
     DATABASES = {

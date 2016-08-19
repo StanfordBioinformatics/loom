@@ -105,7 +105,7 @@ setup(
                         'jsonschema>=2.4.0',
                         'lockfile>=0.12.2',
                         'MarkupSafe>=0.23',
-                        # 'MySQL-python>=1.2.5',
+                        'MySQL-python>=1.2.5',
                         'oauth2client>=2.0.0',
                         'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
                         'python-daemon>=2.0.0,<2.1.0',
