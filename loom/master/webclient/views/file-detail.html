@@ -1,0 +1,50 @@
+<img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<div class="table-responsive" ng-hide="loading">
+  <table class="table table-striped">
+    <tbody>
+      <tr>
+        <th>Filename</th>
+	<td>
+          {{activeData.file.file_content.filename}}
+	</td>
+      </tr>
+      <tr>
+        <th>File ID</th>
+	<td>
+          {{activeData.file.id}}
+	</td>
+      </tr>
+      <tr>
+	<th>Hash function</th>
+	<td>
+	  {{activeData.file.file_content.unnamed_file_content.hash_function}}
+        </td>
+      </tr>
+      <tr>
+	<th>Hash value</th>
+	<td>
+          {{activeData.file.file_content.unnamed_file_content.hash_value}}
+        </td>
+      </tr>
+      <tr ng-show="activeData.file.file_location">
+	<th>File location</th>
+	<td>
+	  {{activeData.file.file_location.url}}
+        </td>
+      </tr>
+      <tr ng-show="activeData.file.file_import.source_url">
+        <th>Original source</th>
+	<td>
+	  {{activeData.file.file_import.source_url}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.file.file_import.note">
+	<th>Note</th>
+	<td>
+	  {{activeData.file.file_import.note}}
+	</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+

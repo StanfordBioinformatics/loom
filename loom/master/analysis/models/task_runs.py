@@ -1,325 +1,280 @@
 from copy import deepcopy
+from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
-from jinja2 import DictLoader, Environment
 import os
+import uuid
 
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
 from analysis.models.task_definitions import *
-from analysis.models.data_objects import DataObject, AbstractFileImport
+from analysis.models.data_objects import DataObject, FileDataObject
 from analysis.models.workflows import Step, RequestedResourceSet
 from analysis import get_setting
 from analysis.task_manager.factory import TaskManagerFactory
-from universalmodels import fields
+from .base import BaseModel, BasePolymorphicModel, render_from_template
 
 
-class TaskRun(AnalysisAppInstanceModel):
-    """One instance of executing a TaskDefinition, i.e. executing a Step on a particular set
-    of inputs.
+class TaskRun(BaseModel):
+
+    """One instance of executing a TaskDefinition, i.e. executing a Step on a 
+    particular set of inputs.
     """
 
-    task_definition = fields.ForeignKey('TaskDefinition', related_name='task_runs')
-    inputs = fields.OneToManyField('TaskRunInput', related_name='task_run')
-    outputs = fields.OneToManyField('TaskRunOutput', related_name='task_run')
-    resources = fields.ForeignKey('RequestedResourceSet')
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='task_runs',
+                                 on_delete=models.CASCADE)
 
-    def run(self, is_mock=False):
-        task_manager = TaskManagerFactory.get_task_manager(is_mock=is_mock)
+    # No 'environment' field, because this is in the TaskDefinition.
+    # 'resources' field included (by FK) since this is not in TaskDefinition.
+
+    @classmethod
+    def create_from_input_set(cls, input_set, step_run):
+        task_run = TaskRun.objects.create(step_run=step_run)
+        for input in input_set:
+            step_run_input = step_run.get_input(input.channel)
+            TaskRunInput.objects.create(
+                step_run_input=step_run_input,
+                task_run=task_run,
+                data_object = input.data_object)
+        for step_run_output in step_run.outputs.all():
+            TaskRunOutput.objects.create(
+                step_run_output=step_run_output,
+                task_run=task_run)
+        TaskDefinition.create_from_task_run(task_run)
+        return task_run
+
+    def run(self):
+        task_manager = TaskManagerFactory.get_task_manager()
         task_manager.run(self)
 
-    def mock_run(self):
-        return self.run(is_mock=True)
+    def post_create(self):
+        self._initialize_inputs_outputs()
+
+    def _initialize_inputs_outputs(self):
+        # TODO - check to see if the input already exists
+        for step_run_input in self.step_run.inputs.all():
+            TaskRunInput.objects.create(
+                task_run=self,
+                step_run_input=step_run_input,
+                task_definition_input=task_definition_input)
+
+    def get_input_context(self):
+        context = {}
+        for input in self.inputs.all():
+            context[input.channel] = input.data_object\
+                                            .get_substitution_value()
+        return context
+        
+    def get_output_context(self):
+        context = {}
+        for output in self.outputs.all():
+            # This returns a value only for Files, where the filename
+            # is known beforehand and may be used in the command.
+            # For other types, nothing is added to the context.
+            if output.type == 'file':
+                context[output.channel] = output.filename
+        return context
+
+    def get_full_context(self):
+        context = self.get_input_context()
+        context.update(self.get_output_context())
+        return context
+
+    def render_command(self):
+        return render_from_template(
+            self.step_run.template.command,
+            self.get_full_context())
+
+    def push_results_from_task_run_attempt(self, attempt):
+        for output in attempt.outputs.all():
+            output.task_run_output.push(output.data_object)
 
 
-class TaskRunInput(AnalysisAppInstanceModel):
-    task_definition_input = fields.ForeignKey('TaskDefinitionInput')
-    data_object = fields.ForeignKey('DataObject')
+class TaskRunInput(BaseModel):
 
-    def get_step_run_input(self, step_run):
-        # Get the related StepRunInput in the given StepRun
-        step_run_inputs = self.step_run_inputs.filter(step_run=step_run)
-        if step_run_inputs.count() == 1:
-            return step_run_inputs.first()
-        elif step_run_inputs.count() == 0:
-            fixed_step_run_inputs = self.fixed_step_run_inputs.filter(step_run=step_run)
-            if step_run_inputs.count() == 1:
-                return fixed_step_run_inputs.first()
-        else:
-            assert False
+    task_run = models.ForeignKey('TaskRun',
+                                 related_name='inputs',
+                                 on_delete=models.CASCADE)
+    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
+    step_run_input = models.ForeignKey('AbstractStepRunInput',
+                                       related_name='task_run_inputs',
+                                       null=True,
+                                       on_delete=models.PROTECT)
 
-    def get_channel(self, step_run):
-        return self.get_step_run_input(step_run).channel
+    @property
+    def channel(self):
+        return self.step_run_input.channel
 
+    @property
+    def type(self):
+        return self.step_run_input.type
 
-class TaskRunOutput(AnalysisAppInstanceModel):
-    task_definition_output = fields.ForeignKey('TaskDefinitionOutput')
-    data_object = fields.ForeignKey('DataObject', null=True)
+class TaskRunOutput(BaseModel):
 
-    def get_step_run_output(self, step_run):
-        # Get the related StepRunOutput in the given StepRun
-        step_run_outputs = self.step_run_outputs.filter(step_run=step_run)
-        assert step_run_outputs.count() == 1
-        return step_run_outputs.first()
+    step_run_output = models.ForeignKey('StepRunOutput',
+                                        related_name='task_run_outputs',
+                                        on_delete=models.CASCADE,
+                                        null=True)
+    task_run = models.ForeignKey('TaskRun',
+                                 related_name='outputs',
+                                 on_delete=models.CASCADE)
+    data_object = models.ForeignKey('DataObject',
+                                    null=True,
+                                    on_delete=models.PROTECT)
 
-    def get_channel(self, step_run):
-        return self.get_step_run_output(step_run).channel
+    @property
+    def filename(self):
+        return self.step_run_output.filename
 
-    def push(self, data_object, step_run=None):
+    @property
+    def channel(self):
+        return self.step_run_output.step_output.channel
+
+    @property
+    def type(self):
+        return self.step_run_output.step_output.type
+
+    def push(self, data_object):
         if self.data_object is None:
-            self.update({'data_object': data_object})
-            # Sometimes this is called to push to a specific StepRun that was added late
-            # Otherwise, we push to all StepRuns available
-            if step_run is not None:
-                self.get_step_run_output(step_run).push(self.data_object)
-            else:
-                for step_run_output in self.step_run_outputs.all():
-                    step_run_output.push(self.data_object)
+            self.data_object=data_object
+            self.save()
+        self.step_run_output.push_without_index(data_object)
+
+class TaskRunResourceSet(BaseModel):
+    task_run = models.OneToOneField('TaskRun',
+                                on_delete=models.CASCADE,
+                                related_name='resources')
+    memory = models.CharField(max_length=255, null=True)
+    disk_size = models.CharField(max_length=255, null=True)
+    cores = models.CharField(max_length=255, null=True)
 
 
-class TaskRunAttempt(AnalysisAppInstanceModel):
-    task_run = fields.ForeignKey('TaskRun')
-    log_files = fields.OneToManyField('TaskRunAttemptLogFile', related_name='task_run_attempt')
-    outputs = fields.OneToManyField('TaskRunAttemptOutput', related_name='task_run_attempt')
+class TaskRunAttempt(BasePolymorphicModel):
 
-    def after_create_or_update(self, data):
-        if self.outputs.count() == 0:
-            for output in self.task_run.outputs.all():
-                self.outputs.add(
-                    TaskRunAttemptOutput.create(
-                        {'task_run_output': output}
-                    ))
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_run = models.ForeignKey('TaskRun',
+                                 related_name='task_run_attempts',
+                                 on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=255,
+        default='incomplete',
+        choices=(('incomplete', 'Incomplete'),
+                 ('complete', 'Complete'),
+                 ('failed', 'Failed')))
+
+    @property
+    def task_definition(self):
+        return self.task_run.task_definition
+    
+    @classmethod
+    def create_from_task_run(cls, task_run):
+        model = cls.objects.create(task_run=task_run)
+        model.post_create()
+        return model
+
+    def post_create(self):
+        self._initialize_inputs_outputs()
+
+    def post_update(self):
+        self.task_run.push_results_from_task_run_attempt(self)
+
+    def _initialize_inputs_outputs(self):
+        # TODO check if inputs/outputs already exist
+        for input in self.task_run.inputs.all():
+            TaskRunAttemptInput.objects.create(
+                task_run_attempt=self,
+                task_run_input=input,
+                data_object=input.data_object)
+        for output in self.task_run.outputs.all():
+            TaskRunAttemptOutput.objects.create(
+                task_run_attempt=self,
+                task_run_output=output)
 
     @classmethod
     def get_working_dir(cls, task_run_attempt_id):
-        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_attempt_id, 'work')
+        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
+                            'runtime_volumes',
+                            task_run_attempt_id,
+                            'work')
     
     @classmethod
     def get_log_dir(cls, task_run_attempt_id):
-        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'), 'runtime_volumes', task_run_attempt_id, 'logs')
-
-    def create_log_file(self, log_file_struct):
-        log_file = TaskRunAttemptLogFile.create(log_file_struct)
-        self.log_files.add(log_file)
-        return log_file
-
-class MockTaskRunAttempt(TaskRunAttempt):
-
-    pass
+        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
+                            'runtime_volumes',
+                            task_run_attempt_id,
+                            'logs')
 
 
-class LocalTaskRunAttempt(TaskRunAttempt):
+class TaskRunAttemptInput(BaseModel):
 
-    pass
+    task_run_attempt = models.ForeignKey(
+        'TaskRunAttempt',
+        related_name='inputs',
+        on_delete=models.CASCADE)
+    data_object = models.ForeignKey(
+        'DataObject',
+        null=True,
+        related_name='task_run_attempt_inputs',
+        on_delete=models.PROTECT)
+    task_run_input = models.ForeignKey(
+        'TaskRunInput',
+        related_name='task_run_attempt_inputs',
+        null=True, on_delete=models.PROTECT)
 
-class GoogleCloudTaskRunAttempt(TaskRunAttempt):
+    @property
+    def type(self):
+        return self.task_run_input.type
 
-    pass
+    @property
+    def channel(self):
+        return self.task_run_input.channel
 
+class TaskRunAttemptOutput(BaseModel):
 
-class TaskRunAttemptOutput(AnalysisAppInstanceModel):
+    task_run_attempt = models.ForeignKey(
+        'TaskRunAttempt',
+        related_name='outputs',
+        on_delete=models.CASCADE)
+    data_object = models.OneToOneField(
+        'DataObject',
+        null=True,
+        related_name='task_run_attempt_output',
+        on_delete=models.PROTECT)
+    task_run_output = models.ForeignKey(
+        'TaskRunOutput',
+        related_name='task_run_attempt_outputs',
+        null=True, on_delete=models.PROTECT)
 
-    task_run_output = fields.ForeignKey('TaskRunOutput')
-    data_object = fields.OneToOneField('DataObject', null=True, related_name='task_run_attempt_output')
+    @property
+    def type(self):
+        return self.task_run_output.type
 
-    def after_create_or_update(self, data):
-        if not get_setting('DISABLE_AUTO_PUSH'):
-            if self.data_object:
-                if self.data_object.is_ready():
-                    self.push(self.data_object)
+    @property
+    def channel(self):
+        return self.task_run_output.channel
+
+    @property
+    def filename(self):
+        return self.task_run_output.filename
 
     def push(self, data_object):
         self.task_run_output.push(data_object)
 
 
-class TaskRunAttemptLogFile(AnalysisAppInstanceModel):
+class TaskRunAttemptLogFile(BaseModel):
 
-    log_name = fields.CharField(max_length=255)
-    file_data_object = fields.OneToOneField('FileDataObject', null=True, related_name='task_run_attempt_log_file')
+    task_run_attempt = models.ForeignKey(
+        'TaskRunAttempt',
+        related_name='log_files',
+        on_delete=models.CASCADE)
+    log_name = models.CharField(max_length=255)
+    file_data_object = models.OneToOneField(
+        'FileDataObject',
+        null=True,
+        related_name='task_run_attempt_log_file',
+        on_delete=models.PROTECT)
 
-    def after_create_or_update(self, data):
+    def post_create(self):
         if self.file_data_object is None:
-            self.update(
-                {
-                    'file_data_object': {
-                        'file_import': TaskRunAttemptLogFileImport.create({})
-                    }
-                }
-            )
-
-class AbstractTaskRunAttemptFileImport(AbstractFileImport):
-
-    def _get_browsable_path_prefix(self):
-        try:
-            # for output files
-            task_run_attempt = self.data_object.task_run_attempt_output.task_run_attempt
-        except ObjectDoesNotExist:
-            task_run_attempt = self.data_object.task_run_attempt_log_file.task_run_attempt
-            
-        assert task_run_attempt.task_run.step_runs.count() == 1
-        step_run = task_run_attempt.task_run.step_runs.first()
-        path = os.path.join(
-            "%s-%s" % (
-                step_run.template.name,
-                step_run.get_id(),
-            ),
-            "task-%s" % task_run_attempt.task_run.get_id(),
-            "attempt-%s" % task_run_attempt.get_id(),
-        )
-        while step_run.parent_run is not None:
-            step_run = step_run.parent_run
-            path = os.path.join(
-                "%s-%s" % (
-                    step_run.template.name,
-                    step_run.get_id(),
-                ),
-                path
-            )
-        return os.path.join('runs', path)
-
-    class Meta:
-        abstract = True
-
-class TaskRunAttemptOutputFileImport(AbstractTaskRunAttemptFileImport):
-
-    def get_browsable_path(self):
-        return os.path.join(self._get_browsable_path_prefix(), 'work')
-
-
-class TaskRunAttemptLogFileImport(AbstractTaskRunAttemptFileImport):
-
-    def get_browsable_path(self):
-        return os.path.join(self._get_browsable_path_prefix(), 'logs')
-
-
-class TaskRunBuilder(object):
-
-    @classmethod
-    def create_from_step_run(cls, step_run, input_set):
-        task_definition_inputs = cls._create_task_definition_inputs(input_set)
-        input_context = cls._get_input_context(input_set)
-        task_definition_outputs = cls._create_task_definition_outputs(step_run, input_context)
-        output_context = cls._get_output_context(task_definition_outputs, step_run)
-        context = deepcopy(input_context)
-        context.update(output_context)
-        task_definition = cls._create_task_definition(step_run, task_definition_inputs, task_definition_outputs, context)
-
-        if task_definition.task_runs.count() > 0 and not get_setting('FORCE_RERUN'):
-            # Re-use an old TaskRun
-            task_run = task_definition.task_runs.first()
-        else:
-            # Create a new TaskRun
-            task_run_inputs = cls._create_task_run_inputs(task_definition_inputs, input_set, step_run)
-            task_run_outputs = cls._create_task_run_outputs(task_definition_outputs, step_run)
-            resources = cls._get_task_run_resources(step_run.template.resources, input_context)
-            task_run = cls._create_task_run(task_run_inputs, task_run_outputs, task_definition, resources)
-
-        task_run.step_runs.add(step_run)
-        return task_run
-
-    @classmethod
-    def _get_input_context(cls, input_set):
-        context = {}
-        for input_item in input_set:
-            context[input_item.channel] = input_item.data_object.get_content().get_substitution_value()
-        return context
-        
-    @classmethod
-    def _get_output_context(cls, task_definition_outputs, step_run):
-        context = {}
-        for (task_definition_output, step_run_output) in zip(task_definition_outputs, step_run.outputs.all()):
-            context[step_run_output.channel] = task_definition_output.get_substitution_value()
-        return context
-
-    @classmethod
-    def _create_task_definition_inputs(cls, input_set):
-        return [cls._create_task_definition_input(input_item) for input_item in input_set]
-
-    @classmethod
-    def _create_task_definition_input(cls, input_item):
-        return TaskDefinitionInput.create({
-            'data_object_content': input_item.data_object.get_content(),
-            'type': input_item.data_object.get_type()
-        })
-
-    @classmethod
-    def _create_task_definition_outputs(cls, step_run, input_context):
-        return [cls._create_task_definition_output(output, input_context) for output in step_run.outputs.all()]
-
-    @classmethod
-    def _create_task_definition_output(cls, step_run_output, input_context):
-        return TaskDefinitionOutput.create({
-            'filename': cls._render_from_template(step_run_output.get_filename(), input_context),
-            'type': step_run_output.get_type()
-        })
-
-    @classmethod
-    def _create_task_definition(cls, step_run, task_definition_inputs, task_definition_outputs, context):
-        task_definition = TaskDefinition.create({
-            'inputs': task_definition_inputs,
-            'outputs': task_definition_outputs,
-            'command': cls._render_from_template(step_run.template.command, context),
-            'environment': cls._get_task_definition_environment(step_run.template.environment),
-        })
-        return task_definition
-
-    @classmethod
-    def _create_task_run_inputs(cls, task_definition_inputs, input_sets, step_run):
-        return [cls._create_task_run_input(task_definition_input, input_item, step_run) for (task_definition_input, input_item) in zip(task_definition_inputs, input_sets)]
-
-    @classmethod
-    def _create_task_run_input(cls, task_definition_input, input_item, step_run):
-        task_run_input = TaskRunInput.create(
-            {
-                'task_definition_input': task_definition_input,
-                'data_object': input_item.data_object,
-            }
-        )
-        task_run_input.step_run_inputs.add(step_run.get_input(input_item.channel))
-        return task_run_input
-
-    @classmethod
-    def _create_task_run_outputs(cls, task_definition_outputs, step_run):
-        return [cls._create_task_run_output(task_definition_output, step_run_output)
-                for (task_definition_output, step_run_output)
-                in zip(task_definition_outputs, step_run.outputs.all())]
-
-    @classmethod
-    def _create_task_run_output(cls, task_definition_output, step_run_output):
-        task_run_output = TaskRunOutput.create({
-            'task_definition_output': task_definition_output,
-        })
-        task_run_output.step_run_outputs.add(step_run_output)
-        return task_run_output
-
-
-    @classmethod
-    def _create_task_run(cls, task_run_inputs, task_run_outputs, task_definition, resources):
-        return TaskRun.create({
-            'inputs': task_run_inputs,
-            'outputs': task_run_outputs,
-            'task_definition': task_definition,
-            'resources': resources,
-        })
-
-    @classmethod
-    def _get_task_run_resources(cls, step_resources, input_context):
-        return {
-            'cores': cls._render_from_template(step_resources.cores, input_context),
-            'memory': cls._render_from_template(step_resources.memory, input_context),
-            'disk_space': cls._render_from_template(step_resources.disk_space, input_context),
-        }
-
-    @classmethod
-    def _render_from_template(cls, raw_text, context):
-        loader = DictLoader({'template': raw_text})
-        env = Environment(loader=loader)
-        template = env.get_template('template')
-        return template.render(**context)
-
-    @classmethod
-    def _get_task_definition_environment(cls, raw_environment):
-        # TODO get specific docker image ID
-        return {
-            'docker_image': raw_environment.downcast().docker_image
-        }
-
+            self.file_data_object = FileDataObject.objects.create(source_type='log')
+            self.save()

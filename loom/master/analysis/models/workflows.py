@@ -1,9 +1,11 @@
+from django.db import models
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+import uuid
 
 from analysis.exceptions import *
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
-from analysis.models.data_objects import DataObject
-from universalmodels import fields
+from .base import BaseModel, BasePolymorphicModel
+from .data_objects import DataObject
 
 
 """
@@ -12,34 +14,45 @@ A Workflow is a template of an analysis to run, where
 some inputs may be specified at runtime.
 """
 
+class AbstractWorkflow(BasePolymorphicModel):
 
-class AbstractWorkflow(AnalysisAppImmutableModel):
     """An AbstractWorkflow is either a step or a collection of steps.
-    Workflows are ImmutableModels in order to prevent clutter. If the same workflow 
-    or step is uploaded multiple times, duplicate objects will not be created.
     """
 
     NAME_FIELD = 'name'
-    
-    name = fields.CharField(max_length=255)
 
-    def is_step(self):
-        return self.downcast().is_step()
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
+    name = models.CharField(max_length=255)
+    parent_workflow = models.ForeignKey('Workflow',
+                                        related_name='steps',
+                                        null=True)
+
+    def get_name_and_id(self):
+        return "%s@%s" % (self.name, self.id.hex)
 
     def get_fixed_input(self, channel):
-        inputs = self.downcast().fixed_inputs.filter(channel=channel)
+        inputs = self.fixed_inputs.filter(channel=channel)
         assert inputs.count() == 1
         return inputs.first()
 
+    def get_input(self, channel):
+        inputs = self.inputs.filter(channel=channel)
+        assert inputs.count()
+        return inputs.first()
+
+    def get_output(self, channel):
+        outputs = self.outputs.filter(channel=channel)
+        assert outputs.count() == 1
+        return outputs.first()
+
+    class Meta:
+        ordering = ['datetime_created']
 
 class Workflow(AbstractWorkflow):
-    """A collection of steps or workflows
+    """A collection of steps and/or workflows
     """
-
-    steps = fields.ManyToManyField('AbstractWorkflow', related_name='parent_workflow')
-    inputs = fields.ManyToManyField('WorkflowInput')
-    fixed_inputs = fields.ManyToManyField('FixedWorkflowInput')
-    outputs = fields.ManyToManyField('WorkflowOutput')
 
     def after_create_or_update(self, data):
         self._validate_workflow()
@@ -60,11 +73,14 @@ class Workflow(AbstractWorkflow):
 
         for channel, count in source_counts.iteritems():
             if count > 1:
-                raise ValidationError('The workflow %s@%s is invalid. It has more than one source for channel "%s". Check workflow inputs and step outputs.' % (
-                    self.name,
-                    self._id,
-                    channel
-                ))
+                raise ValidationError(
+                    'The workflow %s@%s is invalid. It has more than one '\
+                    'source for channel "%s". Check workflow inputs and step '\
+                    'outputs.' % (
+                        self.name,
+                        self._id,
+                        channel
+                    ))
 
         destinations = []
         for output in self.outputs.all():
@@ -77,11 +93,12 @@ class Workflow(AbstractWorkflow):
         sources = source_counts.keys()
         for destination in destinations:
             if not destination in sources:
-                raise ValidationError('The workflow %s@%s is invalid. The channel "%s" has no source.' % (
-                    self.name,
-                    self._id,
-                    destination
-                ))
+                raise ValidationError('The workflow %s@%s is invalid. '\
+                                      'The channel "%s" has no source.' % (
+                                          self.name,
+                                          self._id,
+                                          destination
+                                      ))
 
     def _increment_sources_count(self, sources, channel):
         sources.setdefault(channel, 0)
@@ -91,94 +108,104 @@ class Workflow(AbstractWorkflow):
         return False
 
 class Step(AbstractWorkflow):
-    """Steps are smaller units of processing within a Workflow. A Step can give rise to a single process,
-    or it may iterate over an array to produce many parallel processing tasks.
+    """Steps are smaller units of processing within a Workflow. A Step can 
+    give rise to a single process, or it may iterate over an array to produce 
+    many parallel processing tasks.
     """
 
-    command = fields.CharField(max_length=255)
-    environment = fields.ForeignKey('RequestedEnvironment')
-    resources = fields.ForeignKey('RequestedResourceSet')
-    inputs = fields.ManyToManyField('StepInput')
-    fixed_inputs = fields.ManyToManyField('FixedStepInput')
-    outputs = fields.ManyToManyField('StepOutput')
+    command = models.CharField(max_length=255)
 
     def is_step(self):
         return True
 
-    def get_output(self, channel):
-        outputs = self.outputs.filter(channel=channel)
-        assert outputs.count() == 1
-        return outputs.first()
 
-class RequestedEnvironment(AnalysisAppImmutableModel):
+class RequestedEnvironment(BasePolymorphicModel):
 
-    pass
+    step = models.OneToOneField('Step',
+                                on_delete=models.CASCADE,
+                                related_name='environment')
 
 
 class RequestedDockerEnvironment(RequestedEnvironment):
 
-    docker_image = fields.CharField(max_length=255)
+    docker_image = models.CharField(max_length=255)
 
 
-class RequestedResourceSet(AnalysisAppImmutableModel):
+class RequestedResourceSet(BaseModel):
 
-    memory = fields.CharField(max_length=255)
-    disk_space = fields.CharField(max_length=255)
-    cores = fields.CharField(max_length=255)
+    step = models.OneToOneField('Step',
+                                on_delete=models.CASCADE,
+                                related_name='resources')
+    memory = models.CharField(max_length=255, null=True)
+    disk_size = models.CharField(max_length=255, null=True)
+    cores = models.CharField(max_length=255, null=True)
 
 
-class AbstractInput(AnalysisAppImmutableModel):
+class AbstractWorkflowInput(BasePolymorphicModel):
 
-    type = fields.CharField(
+    type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )
-    channel = fields.CharField(max_length=255)
+    channel = models.CharField(max_length=255)
 
     class Meta:
         abstract = True
 
 
-class AbstractRuntimeInput(AbstractInput):
+class AbstractRuntimeWorkflowInput(AbstractWorkflowInput):
 
-    hint = fields.CharField(max_length=255, null=True)
-
-    class Meta:
-        abstract = True
-
-
-class AbstractFixedInput(AbstractInput):
-
-    value = fields.CharField(max_length=255)
+    hint = models.CharField(max_length=255, null=True)
 
     class Meta:
         abstract = True
 
 
-class WorkflowInput(AbstractRuntimeInput):
+class AbstractFixedWorkflowInput(AbstractWorkflowInput):
 
-    pass
+    data_object = models.ForeignKey('DataObject') # serialized as 'value'
 
-
-class StepInput(AbstractRuntimeInput):
-
-    pass
-
-
-class FixedStepInput(AbstractFixedInput):
-
-    pass
+    def value(self):
+        return self.data_object.get_display_value()
+    
+    class Meta:
+        abstract = True
 
 
-class FixedWorkflowInput(AbstractFixedInput):
+class WorkflowInput(AbstractRuntimeWorkflowInput):
 
-    pass
+    workflow = models.ForeignKey('Workflow',
+                                 related_name='inputs',
+                                 on_delete=models.CASCADE)
 
 
-class AbstractOutput(AnalysisAppImmutableModel):
+class StepInput(AbstractRuntimeWorkflowInput):
 
-    channel = fields.CharField(max_length=255)
-    type = fields.CharField(
+    step = models.ForeignKey('Step',
+                             related_name='inputs',
+                             on_delete=models.CASCADE)
+
+
+class FixedWorkflowInput(AbstractFixedWorkflowInput):
+
+    workflow = models.ForeignKey(
+        'Workflow',
+        related_name='fixed_inputs',
+        on_delete=models.CASCADE)
+
+
+class FixedStepInput(AbstractFixedWorkflowInput):
+
+    step = models.ForeignKey(
+        'Step',
+        related_name='fixed_inputs',
+        on_delete=models.CASCADE)
+
+
+class AbstractOutput(BasePolymorphicModel):
+
+    channel = models.CharField(max_length=255)
+    type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES,
         blank=False
@@ -190,9 +217,23 @@ class AbstractOutput(AnalysisAppImmutableModel):
 
 class WorkflowOutput(AbstractOutput):
 
-    pass
+    workflow = models.ForeignKey('Workflow',
+                                 related_name='outputs',
+                                 on_delete=models.CASCADE)
 
 
 class StepOutput(AbstractOutput):
 
-    filename = fields.CharField(max_length=255)
+    filename = models.CharField(max_length=255)
+    step = models.ForeignKey('Step',
+                             related_name='outputs',
+                             on_delete=models.CASCADE)
+
+class WorkflowImport(BaseModel):
+
+    note = models.TextField(max_length=10000, null=True)
+    source_url = models.TextField(max_length=1000)
+    workflow = models.OneToOneField(
+        'AbstractWorkflow',
+        related_name='workflow_import',
+        on_delete=models.CASCADE)

@@ -1,12 +1,22 @@
-from copy import deepcopy
 from django.test import TestCase
-import uuid
 
 from analysis.models import *
 from . import fixtures
-from .common import ModelTestMixin
+
+class TestDataObject(TestCase):
+
+    def testCreate(self):
+        file_data_object = FileDataObject(fixtures.data_objects.file)
+        try:
+            hash_value = file_data_object.file_content.unnamed_file_content.hash_value
+        except AttributeError:
+            hash_value = None
+        self.assertEqual(hash_value,
+                         fixtures.data_objects.file['file_content']['unnamed_file_content']['hash_value']
+        )
 
 
+"""
 class TestFile(TestCase, ModelTestMixin):
 
     def testFile(self):
@@ -116,3 +126,4 @@ class TestDataObjects(TestCase, ModelTestMixin):
         do = DataObject.create(fixtures.json_data_object)
         self.assertEqual(do.json_content.json_value['data'], fixtures.json_data_object['json_content']['json_value']['data'])
         self.roundTrip(do)
+"""

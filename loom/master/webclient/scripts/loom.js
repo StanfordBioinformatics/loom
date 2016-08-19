@@ -4,6 +4,7 @@ angular
     .module('loom', [
 	'loom.routes',
 	'loom.controllers',
+	'loom.filters',
 	'loom.services',
     ]);
 
@@ -15,3 +16,6 @@ angular
 
 angular
     .module('loom.services', []);
+
+angular
+    .module('loom.filters', []);

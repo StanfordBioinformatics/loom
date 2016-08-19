@@ -23,7 +23,35 @@ class ObjectHandler(object):
     def _post(self, data, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
         disable_insecure_request_warning()
-        return self._make_request_to_server(lambda: requests.post(url, verify=False, data=json.dumps(data)), raise_for_status=raise_for_status) # Don't fail on unrecognized SSL certificate
+        return self._make_request_to_server(
+            lambda: requests.post(
+                url,
+                data=json.dumps(data),
+                headers={'content-type': 'application/json'},
+                verify=False),
+            raise_for_status=raise_for_status)
+
+    def _put(self, data, relative_url, raise_for_status=True):
+        url = self.api_root_url + relative_url
+        disable_insecure_request_warning()
+        return self._make_request_to_server(
+            lambda: requests.put(
+                url,
+                data=json.dumps(data),
+                headers={'content-type': 'application/json'},
+                verify=False),
+            raise_for_status=raise_for_status)
+
+    def _patch(self, data, relative_url, raise_for_status=True):
+        url = self.api_root_url + relative_url
+        disable_insecure_request_warning()
+        return self._make_request_to_server(
+            lambda: requests.patch(
+                url,
+                data=json.dumps(data),
+                headers={'content-type': 'application/json'},
+                verify=False),
+            raise_for_status=raise_for_status)
 
     def _get(self, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
@@ -58,7 +86,13 @@ class ObjectHandler(object):
         raise error
 
     def _post_object(self, object_data, relative_url):
-        return self._post(object_data, relative_url, raise_for_status=True).json()['object']
+        return self._post(object_data, relative_url, raise_for_status=True).json()
+
+    def _put_object(self, object_data, relative_url):
+        return self._put(object_data, relative_url, raise_for_status=True).json()
+
+    def _patch_object(self, object_data, relative_url):
+        return self._patch(object_data, relative_url, raise_for_status=True).json()
 
     def _get_object(self, relative_url, raise_for_status=True):
         response = self._get(relative_url, raise_for_status=raise_for_status)
@@ -76,7 +110,7 @@ class ObjectHandler(object):
         else:
             raise BadResponseError("Status code %s." % response.status_code)
 
-    # ---- Post/Get [object_type] methods ----
+    # ---- Post/Put/Get [object_type] methods ----
 
     def post_data_object(self, data_object):
         return self._post_object(
@@ -84,7 +118,7 @@ class ObjectHandler(object):
             'data-objects/')
 
     def update_data_object(self, data_object_id, data_object_update):
-        return self._post_object(
+        return self._put_object(
             data_object_update,
             'data-objects/%s/' % data_object_id)
 
@@ -97,27 +131,32 @@ class ObjectHandler(object):
             url = 'file-data-objects/?q='+query_string
         else:
             url = 'file-data-objects/'
-        file_data_objects =  self._get_object_index(url)['file_data_objects']
+        file_data_objects =  self._get_object_index(url)
         if len(file_data_objects) < min:
-            raise IdMatchedTooFewFileDataError('Found %s FileDataObjects, expected at least %s' %(len(file_data_objects), min))
+            raise IdMatchedTooFewFileDataObjectsError('Found %s FileDataObjects, expected at least %s' %(len(file_data_objects), min))
         if len(file_data_objects) > max:
-            raise IdMatchedTooManyFileDataError('Found %s FileDataObjects, expected at most %s' %(len(file_data_objects), max))
+            raise IdMatchedTooManyFileDataObjectsError('Found %s FileDataObjects, expected at most %s' %(len(file_data_objects), max))
         return file_data_objects
 
     def get_file_locations_by_file(self, file_id):
         return self._get_object(
             'file-data-objects/'+file_id+'/file-locations/'
-        )['file_locations']
+        )
 
     def post_file_location(self, file_location):
         return self._post_object(
             file_location,
             'file-locations/')
 
+    def update_file_location(self, file_location_id, file_location_update):
+        return self._put_object(
+            file_location_update,
+            'file-locations/%s/' % file_location_id)
+
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
             'file-data-objects/' + file_id + '/file-imports/'
-        )['file_imports']
+        )
     
     def get_abstract_workflow(self, workflow_id):
         return self._get_object(
@@ -129,7 +168,7 @@ class ObjectHandler(object):
             url = 'abstract-workflows/?q='+query_string
         else:
             url = 'abstract-workflows/'
-        workflows = self._get_object_index(url)['abstract_workflows']
+        workflows = self._get_object_index(url)
         if len(workflows) < min:
             raise Error('Found %s workflows, expected at least %s' %(len(workflows), min))
         if len(workflows) > max:
@@ -151,7 +190,7 @@ class ObjectHandler(object):
             url = 'workflow-runs/?q='+query_string
         else:
             url = 'workflow-runs/'
-        workflow_runs = self._get_object_index(url)['workflow_runs']
+        workflow_runs = self._get_object_index(url)
         if len(workflow_runs) < min:
             raise Error('Found %s workflow runs, expected at least %s' %(len(workflow_runs), min))
         if len(workflow_runs) > max:
@@ -192,7 +231,7 @@ class ObjectHandler(object):
         )
 
     def update_task_run_attempt(self, task_run_attempt_id, task_run_attempt_update):
-        return self._post_object(
+        return self._put_object(
             task_run_attempt_update,
             'task-run-attempts/%s/' % task_run_attempt_id)
 
@@ -202,12 +241,11 @@ class ObjectHandler(object):
         )
 
     def update_task_run_attempt_output(self, task_run_attempt_output_id, task_run_attempt_output_update):
-        return self._post_object(
+        return self._put_object(
             task_run_attempt_output_update,
             'task-run-attempt-outputs/%s/' % task_run_attempt_output_id)
 
     def post_task_run_attempt_log_file(self, task_run_attempt_id, task_run_attempt_log_file):
-        print task_run_attempt_log_file
         return self._post_object(
             task_run_attempt_log_file,
             'task-run-attempts/%s/task-run-attempt-log-files/' % task_run_attempt_id
@@ -219,7 +257,7 @@ class ObjectHandler(object):
             'abstract-file-imports/')
 
     def update_abstract_file_import(self, file_import_id, file_import_update):
-        return self._post_object(
+        return self._put_object(
             file_import_update,
             'abstract-file-imports/%s/' % file_import_id)
 
@@ -243,9 +281,9 @@ class ObjectHandler(object):
     def get_worker_settings(self, attempt_id):
         return self._get_object(
             'task-run-attempts/%s/worker-settings/' % attempt_id
-        )['worker_settings']
+        )
 
     def get_filehandler_settings(self):
         return self._get_object(
             'filehandler-settings/'
-        )['filehandler_settings']
+        )

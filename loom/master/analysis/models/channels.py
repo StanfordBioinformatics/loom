@@ -1,138 +1,121 @@
-from django.core.exceptions import ObjectDoesNotExist
+from .base import BaseModel, BasePolymorphicModel
 from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
 
-from analysis.models.base import AnalysisAppInstanceModel
 from analysis.models.data_objects import DataObject
-from universalmodels import fields
 
 """
-This module defines Channels for passing data between inputs/outputs of steps or workflows
+Channels represent the path for flow of data between nodes (inputs and 
+outputs). Channels have no state, and are just represented in the database 
+as a ForeignKey relationship between receiver node and sender node.
 """
 
 
-class Channel(AnalysisAppInstanceModel):
-    """Channel acts as a queue for data being being passed into or out of steps or workflows.
-    """
+class InputOutputNode(BasePolymorphicModel):
 
-    name = fields.CharField(max_length=255)
-    outputs = fields.OneToManyField('ChannelOutput')
-    data_objects = fields.ManyToManyField('DataObject')
-    sender = fields.OneToOneField('InputOutputNode', related_name='to_channel', null=True)
-    is_closed_to_new_data = fields.BooleanField(default=False)
+    sender = models.ForeignKey('InputOutputNode',
+                               related_name='receivers',
+                               null=True)
+    channel = models.CharField(max_length=255)
 
-    @classmethod
-    def create_from_sender(cls, sender, channel_name):
-        channel = cls.create({'name': channel_name})
-        channel.sender = sender
-        channel.save()
-        return channel
+    @property
+    def value(self):
+        if self.indexed_data_objects.count() == 0:
+            return ''
+        elif self.indexed_data_objects.count() > 1:
+            raise Exception("Can't handle more than one input")
+        return self.indexed_data_objects.first().data_object.get_display_value()
 
-    def push(self, data_object):
-        if self.is_closed_to_new_data:
-            return
-        self.data_objects.add(data_object)
-        for output in self.outputs.all():
-            output._push(data_object)
-        self.save()
+    def push(self, indexed_data_object):
+        self.push_without_index(indexed_data_object.data_object)
 
-    def add_receivers(self, receivers):
-        for receiver in receivers:
-            self.add_receiver(receiver)
+    def push_without_index(self, data_object):
+        indexed_data_object = self.add_indexed_data_object(data_object)
+        self.push_to_receivers(indexed_data_object)
+        
+    def push_all(self):
+        for indexed_data_object in self.indexed_data_objects.all():
+            self.push_to_receivers(indexed_data_object)
 
-    def add_receiver(self, receiver):
-        output = ChannelOutput.create({
-            # Typically data_objects is empty, we pass along any data_objects already
-            # received for cases when a receiver is added after the run has progressed
-            'data_objects': [do for do in self.data_objects.all()]
-        })
-        output.receiver = receiver
-        output.save()
-        self.outputs.add(output)
+    def push_to_receivers(self, indexed_data_object):
+        for receiver in self.receivers.all():
+            receiver.push(indexed_data_object)
 
-    def close(self):
-        self.is_closed_to_new_data = True
-        self.save()
+    def add_indexed_data_object(self, data_object):
+        if self.indexed_data_objects.count() == 0:
+            indexed_data_object = IndexedDataObject.objects.create(
+                input_output_node = self,
+                data_object = data_object
+            )
+            self.indexed_data_objects.add(indexed_data_object)
+            return indexed_data_object
 
-
-class ChannelOutput(AnalysisAppInstanceModel):
-    """Every channel can have only one source but 0 or many destinations, representing
-    the possibility that a file produce by one step can be used by 0 or many other 
-    steps. Each of these destinations has its own queue, implemented as a ChannelOutput.
-    """
-
-    data_objects = fields.ManyToManyField('DataObject')
-    receiver = fields.OneToOneField('InputOutputNode', related_name='from_channel', null=True)
-
-    def _push(self, data_object):
-        self.data_objects.add(data_object)
-        self.save()
-        self.receiver.push(data_object)
-
-    def is_empty(self):
-        return self.data_objects.count() == 0
-
-    def is_dead(self):
-        return self.channel.is_closed_to_new_data and self.is_empty()
-
-    def pop(self):
-        data_object = self.data_objects.first()
-        self.data_objects = self.data_objects.all()[1:]
-        return data_object.downcast()
-
-    def forward(self, to_channel):
-        """Pass channel contents to the downstream channel
-        """
-        if not self.is_empty():
-            to_channel.push(self.pop())
-
-        if self.is_dead():
-            to_channel.close()
-
-
-class InputOutputNode(AnalysisAppInstanceModel):
-
-    def push(self, *args, **kwargs):
-        return self.downcast().push(*args, **kwargs)
-
-    def has_destination(self, destination):
+    def is_ready(self):
+        # TODO - handle parallel
         try:
-            return destination.from_channel.channel.sender._id == self._id
-        except ObjectDoesNotExist:
+            return self.indexed_data_objects.first().is_ready()
+        except AttributeError:
             return False
-            
 
-class ChannelSet(object):
 
-    def __init__(self, inputs):
-        self._are_inputs_initialized = True
-        self.channels = []
-        for input in inputs:
-            try:
-                self.channels.append(input.from_channel)
-            except ObjectDoesNotExist:
-                self._are_inputs_initialized=False
+class IndexedDataObject(BaseModel):
+    """Embodies many-to-many relation between InputOutputNode and 
+    DataObject. Tracks whether the DataObject index.
+    """
+
+    input_output_node = models.ForeignKey('InputOutputNode',
+                                          related_name='indexed_data_objects')
+    data_object = models.ForeignKey(
+        'DataObject',
+        related_name='indexed_data_object',
+        on_delete=models.PROTECT,
+        null=True)
+
+    def is_ready(self):
+        if self.data_object is None:
+            return False
+        return self.data_object.is_ready()
+
+"""
+class Index(BaseModel):
+    indexed_data_object = models.ForeignKey('IndexedDataObject',
+                                            related_name='indexes')
+    dimension = models.IntegerField()
+    position = models.IntegerField()
+"""
+
+class InputNodeSet(object):
+    """Set of nodes acting as inputs for one step.
+    Each input node may have more than one DataObject,
+    and DataObjects may arrive to the node at different times.
+    An InputNodeSet corresponds to a single StepRun.
+    """
+    def __init__(self, input_nodes):
+        self.input_nodes = input_nodes
 
     def get_ready_input_sets(self):
-        if not self._are_inputs_initialized:
-            return []
-        else:
-            for channel in self.channels:
-                if channel.is_empty():
-                    return []
-            return [InputSet(self.channels)]
+        # This is simplified and only handles scalar inputs
+        for input_node in self.input_nodes:
+            if not input_node.is_ready():
+                return []
+        return [InputSet(self.input_nodes)]
 
 
 class InputItem(object):
+    """A DataObject and its channel name"""
     
-    def __init__(self, channel):
-        self.data_object = channel.pop()
-        self.channel = channel.channel.name
+    def __init__(self, input_node):
+        self.data_object = input_node.indexed_data_objects.first().data_object
+        self.channel = input_node.channel
 
 
 class InputSet(object):
+    """An InputNodeSet can produce one or more InputSets, and each
+    InputSet corresponds to a single TaskRun.
+    """
 
-    def __init__(self, channels):
-        self.input_items = [InputItem(c) for c in channels]
+    def __init__(self, input_nodes):
+        self.input_items = [InputItem(i) for i in input_nodes]
 
     def __iter__(self):
         return self.input_items.__iter__()

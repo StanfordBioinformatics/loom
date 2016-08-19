@@ -57,15 +57,13 @@ class ShowFile(AbstractShow):
                 print text
 
     def _render_file(self, file_data_object):
-        if file_data_object.get('file_content') is None:
-            return None
-        file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['_id'])
+        file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['id'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
             text += '  - Hash: %s$%s\n' % (file_data_object['file_content']['unnamed_file_content']['hash_function'],
                                            file_data_object['file_content']['unnamed_file_content']['hash_value'])
-            file_imports = self.objecthandler.get_file_imports_by_file(file_data_object['_id'])
+            file_imports = self.objecthandler.get_file_imports_by_file(file_data_object['id'])
             for file_import in file_imports:
                 text += '    - Imported: %s from %s\n' % (file_import['datetime_created'], file_import['source_url'])
                 if file_import.get('note'):
@@ -103,7 +101,7 @@ class ShowWorkflow(AbstractShow):
             print self._render_workflow(workflow)
 
     def _render_workflow(self, workflow):
-        workflow_identifier = '%s@%s' % (workflow['name'], workflow['_id'])
+        workflow_identifier = '%s@%s' % (workflow['name'], workflow['id'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Workflow: %s\n' % workflow_identifier
@@ -118,7 +116,7 @@ class ShowWorkflow(AbstractShow):
             if workflow.get('steps'):
                 text += '  - Steps\n'
                 for step in workflow['steps']:
-                    text += '    - %s@%s\n' % (step['name'], step['_id'])
+                    text += '    - %s@%s\n' % (step['name'], step['id'])
             if workflow.get('command'):
                 text += '  - Command: %s\n' % workflow['command']
 

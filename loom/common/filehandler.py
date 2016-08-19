@@ -71,7 +71,7 @@ class AbstractSourceSet:
 class LocalSourceSet(AbstractSourceSet):
     """A set of source files on local storage
     """
-    
+
     def __init__(self, pattern, settings):
         url = _urlparse(pattern)
         matches = self._get_matching_files(url.path)
@@ -99,7 +99,7 @@ class GoogleStorageSourceSet(AbstractSourceSet):
     def __iter__(self):
         return self.sources.__iter__()
 
-    # TODO support wildcards with multiplt matches
+    # TODO support wildcards with multiple matches
 
 
 def Source(url, settings):
@@ -128,9 +128,6 @@ class AbstractSource:
     def __init__(self, url, settings):
         pass
 
-    def hash_and_copy_to(self, destination, hash_function):
-        copier = Copier(self, destination)
-        return copier.hash_and_copy(hash_function)
 
     def copy_to(self, destination):
         copier = Copier(self, destination)
@@ -141,7 +138,7 @@ class AbstractSource:
         copier.move()
 
     @abc.abstractmethod
-    def get_hash_value(self, hash_function):
+    def calculate_hash_value(self, hash_function):
         pass
 
     @abc.abstractmethod
@@ -162,7 +159,7 @@ class LocalSource(AbstractSource):
     def __init__(self, url, settings):
         self.url = _urlparse(url)
 
-    def get_hash_value(self, hash_function):
+    def calculate_hash_value(self, hash_function):
         if not hash_function == 'md5':
             raise Exception('Unsupported hash function %s' % hash_function)
         return md5calc.calculate_md5sum(self.get_path())
@@ -182,7 +179,7 @@ class LocalSource(AbstractSource):
 
     def delete(self):
         os.remove(self.get_path())
-        
+
 
 class GoogleStorageSource(AbstractSource):
     """A source file on Google Storage.
@@ -207,7 +204,7 @@ class GoogleStorageSource(AbstractSource):
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
 
 
-    def get_hash_value(self, hash_function):
+    def calculate_hash_value(self, hash_function):
         if hash_function == 'md5':
             return self._get_md5_hash_value()
         elif hash_function == 'crcmod32c':
@@ -240,7 +237,7 @@ class GoogleStorageSource(AbstractSource):
     def delete(self):
         self.blob.delete()
 
-        
+
 def Destination(url, settings):
     """Factory method
     """
@@ -369,10 +366,6 @@ class AbstractCopier:
         self.destination = destination
             
     @abc.abstractmethod
-    def hash_and_copy(self, hash_function):
-        pass
-
-    @abc.abstractmethod
     def copy(self, hash_function):
         pass
 
@@ -383,12 +376,6 @@ class AbstractCopier:
 
 class LocalCopier(AbstractCopier):
 
-    def hash_and_copy(self, hash_function):
-        # TODO make these concurrent
-        hash_value = self.source.get_hash_value(hash_function)
-        self.copy()
-        return hash_value
-        
     def copy(self):
         try:
             os.makedirs(os.path.dirname(self.destination.get_path()))
@@ -412,10 +399,6 @@ class LocalCopier(AbstractCopier):
 
 class GoogleStorageCopier(AbstractCopier):
 
-    def hash_and_copy(self, hash_function):
-        self.copy()
-        return self.source.get_hash_value(hash_function)
-
     def copy(self):
         self.source.bucket.copy_blob(self.source.blob, self.destination.bucket, self.destination.blob_id)
 
@@ -427,10 +410,6 @@ class GoogleStorageCopier(AbstractCopier):
 
 class Local2GoogleStorageCopier(AbstractCopier):
 
-    def hash_and_copy(self, hash_function):
-        self.copy()
-        return self.source.get_hash_value(hash_function)
-
     def copy(self):
         self.destination.blob.upload_from_filename(self.source.get_path())
 
@@ -439,10 +418,6 @@ class Local2GoogleStorageCopier(AbstractCopier):
 
 
 class GoogleStorage2LocalCopier(AbstractCopier):
-
-    def hash_and_copy(self, hash_function):
-        self.copy()
-        return self.source.get_hash_value(hash_function)
 
     def copy(self):
         try:
@@ -497,6 +472,7 @@ class FileHandler:
 
     def _create_file_data_object_for_import(self, source_url, note):
         return self.objecthandler.post_data_object({
+            'source_type': 'imported',
             'file_import': {
                 'note': note,
                 'source_url': Source(source_url, self.settings).get_url(),
@@ -508,72 +484,71 @@ class FileHandler:
             self._create_task_run_attempt_output_file(task_run_attempt_output),
             source_url
         )
-        # Trigger the TaskRunAttemptOutput so it can detect the new data
-        # and push it to downstream steps
-        self.objecthandler.update_task_run_attempt_output(task_run_attempt_output['_id'], {})
         return file_data_object
 
     def _create_task_run_attempt_output_file(self, task_run_attempt_output):
         updated_task_run_attempt_output = self.objecthandler.update_task_run_attempt_output(
-            task_run_attempt_output['_id'],
+            task_run_attempt_output['id'],
             {
                 'data_object': {
-                    'file_import': {
-                        '_class': 'TaskRunAttemptOutputFileImport'
-                    }}})
+                    'source_type': 'result',
+                }})
         return updated_task_run_attempt_output['data_object']
 
     def import_log_file(self, task_run_attempt, source_url):
         log_name = os.path.basename(source_url)
-        log_file = self.objecthandler.post_task_run_attempt_log_file(task_run_attempt['_id'], {'log_name': log_name})
+        log_file = self.objecthandler.post_task_run_attempt_log_file(task_run_attempt['id'], {'log_name': log_name})
         return self._execute_file_import(
             log_file['file_data_object'],
             source_url
         )
 
     def _execute_file_import(self, file_data_object, source_url):
-        # Prior to import, file_data_object should have no content and only a temp_file_location
-        assert file_data_object.get('file_import') is not None
-        assert file_data_object.get('file_import').get('temp_file_location') is not None
-        assert file_data_object.get('file_import').get('file_location') is None
+        # Prior to import, file_data_object should have no content and no
+        # location
+        assert file_data_object.get('file_location') is None
         assert file_data_object.get('file_content') is None
 
         source = Source(source_url, self.settings)
         self._log('Importing file from %s...' % source.get_url())
 
-        temp_destination = Destination(file_data_object['file_import']['temp_file_location']['url'], self.settings)
-        self._log('...to temporary destination %s...' % temp_destination.get_url())
         hash_function = self.settings['HASH_FUNCTION']
-        hash_value = source.hash_and_copy_to(temp_destination, hash_function)
+        self._log('   calculating %s hash...' % hash_function)
+        hash_value = source.calculate_hash_value(hash_function)
 
         # Adding file_content will cause a file_location with status=incomplete
-        # to be added to data_object.file_import.
-        # If the server is configured not to save multiple files with identical content,
-        # the data_object.file_import.file_location will has status=complete
+        # to be added to file_data_object
+        # If the server is configured not to save multiple files with
+        # identical content, the data_object.file_location may have
+        # status=complete, indicating that no re-upload is needed.
         #
-        updated_file_data_object = self._add_file_content_to_data_object(file_data_object, source.get_filename(), hash_value, hash_function)
+        file_data_object = self._add_file_content_to_data_object(
+            file_data_object,
+            source.get_filename(),
+            hash_value,
+            hash_function
+        )
 
-        if updated_file_data_object['file_import']['file_location']['status'] == 'complete':
-            # Cancel upload, server already has a copy
-            self._log('...server already has the file, deleting temp copy...')
-            temp_source = Source(temp_destination.get_url(), self.settings)
-            temp_source.delete()
+        if file_data_object['file_location']['status'] == 'complete':
+            self._log('   server already has the file. Skipping upload.')
         else:
-            # Move temp copy to permanent location
-            temp_source = Source(temp_destination.get_url(), self.settings)
-            final_destination = Destination(updated_file_data_object['file_import']['file_location']['url'], self.settings)
-            self._log('...to final destination %s...' % final_destination.get_url())
-            temp_source.move_to(final_destination)
+            destination = Destination(
+                file_data_object['file_location']['url'],
+                self.settings)
+            source.copy_to(destination)
+            
+            self._log('   copying to destination %s...' % destination.get_url())
 
         # Signal that the upload completed successfully
-        final_file_data_object = self._finalize_file_import(updated_file_data_object)
-        self._log('...finished importing file %s@%s' % (final_file_data_object['file_content']['filename'],
-                                           final_file_data_object['_id']))
-        return final_file_data_object
+        file_data_object = self._flag_upload_as_complete(file_data_object)
+        self._log('   imported file %s@%s' % (
+            file_data_object['file_content']['filename'],
+            file_data_object['id']))
+        return file_data_object
 
     def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
         return self.objecthandler.update_data_object(
-            file_data_object['_id'],
+            file_data_object['id'],
             {
                 'file_content': {
                     'filename': filename,
@@ -585,17 +560,17 @@ class FileHandler:
             }
         )
 
-    def _finalize_file_import(self, file_data_object):
-        """ Nullify temp location and mark final location as "complete".
+    def _flag_upload_as_complete(self, file_data_object):
+        """ Mark upload location as "complete".
         """
-        updated_file_data_object = copy.deepcopy(file_data_object)
-        updated_file_data_object['file_import']['temp_file_location'] = None
-        updated_file_data_object['file_import']['file_location']['status'] = 'complete'
-        
-        return self.objecthandler.update_data_object(
-            file_data_object['_id'],
-            updated_file_data_object
+        file_location = file_data_object['file_location']
+        file_location['status'] = 'complete'
+        file_location = self.objecthandler.update_file_location(
+            file_location['id'],
+            file_location
         )
+        file_data_object['file_location'] = file_location
+        return file_data_object
 
     def export_files(self, file_ids, destination_url=None):
         if destination_url is not None and len(file_ids) > 1:
@@ -609,7 +584,7 @@ class FileHandler:
 
     def export_file(self, file_id, destination_url=None):
         # Error raised if there is not exactly one matching file.
-        file_data_object = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
+        file_data_object = self.objecthandler.get_file_data_object_index(query_string=file_id, max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()
@@ -617,11 +592,11 @@ class FileHandler:
         destination_url = self.get_destination_file_url(destination_url, default_name)
         destination = Destination(destination_url, self.settings)
 
-        self._log('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['_id'], destination.get_url()))
+        self._log('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['id'], destination.get_url()))
 
         # Copy from the first file location
-        location = self.objecthandler.get_file_locations_by_file(file_data_object['_id'])[0]
-        Source(location['url'], self.settings).copy_to(destination)
+        source_url = file_data_object['file_location']['url']
+        Source(source_url, self.settings).copy_to(destination)
 
         self._log('...finished exporting file')
 
@@ -652,7 +627,8 @@ class FileHandler:
         return destination_path
 
     def read_file(self, url):
-        return Source(url, self.settings).read()
+        source = Source(url, self.settings)
+        return source.read(), source.get_url()
 
     def write_to_file(self, url, content):
         Destination(url, self.settings).write(content)

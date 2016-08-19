@@ -10,13 +10,14 @@ function DataService($http) {
     /* DataService retrieves and caches data from the server. */
     
     this.setActiveRun = setActiveRun;
-    this.setActiveWorkflow = setActiveWorkflow;
-    this.setActiveData = setActiveData;
+    this.setActiveTemplate = setActiveTemplate;
+    this.setActiveFile = setActiveFile;
     this.getAllActive = getAllActive;
     this.getRunRequests = getRunRequests;
-    this.getWorkflows = getWorkflows;
+    this.getTemplates = getTemplates;
     this.getImportedFiles = getImportedFiles;
     this.getResultFiles = getResultFiles;
+    this.getLogFiles = getLogFiles;
 
     var activeData = {};
     
@@ -31,44 +32,50 @@ function DataService($http) {
             });
     };
 
-    function setActiveWorkflow(workflowId) {
-	return $http.get('/api/abstract-workflows/' + workflowId + '/')
+    function setActiveTemplate(templateId) {
+	return $http.get('/api/abstract-workflows/' + templateId + '/')
             .then(function(response) {
-		activeData.workflow = response.data;
+		activeData.template = response.data;
             });
     };
 
-    function setActiveData(dataId) {
-	return $http.get('/api/data-objects/' + dataId + '/')
+    function setActiveFile(fileId) {
+	return $http.get('/api/file-data-objects/' + fileId + '/')
             .then(function(response) {
-		activeData.data = response.data;
+		activeData.file = response.data;
             });
     };
 
     function getRunRequests() {
 	return $http.get('/api/run-requests/')
 	    .then(function(response) {
-		return response.data.run_requests;
+		return response.data;
 	    });
     };
 
-    function getWorkflows() {
-	return $http.get('/api/abstract-workflows/')
+    function getTemplates() {
+	return $http.get('/api/imported-workflows/')
 	    .then(function(response) {
-		return response.data.abstract_workflows;
+		return response.data;
 	    });
     };
 
     function getImportedFiles() {
 	return $http.get('/api/imported-file-data-objects/')
 	    .then(function(response) {
-		return response.data.file_data_objects;
+		return response.data;
 	    });
     };
     function getResultFiles() {
 	return $http.get('/api/result-file-data-objects/')
 	    .then(function(response) {
-		return response.data.file_data_objects;
+		return response.data;
+	    });
+    };
+    function getLogFiles() {
+	return $http.get('/api/log-file-data-objects/')
+	    .then(function(response) {
+		return response.data;
 	    });
     };
 };

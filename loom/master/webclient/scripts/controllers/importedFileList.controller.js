@@ -8,10 +8,8 @@ ImportedFileListController.$inject = ['$scope', 'DataService'];
 
 function ImportedFileListController($scope, DataService){
     $scope.loading = true;
-    DataService.getImportedFiles().then(function(imported_files) {
+    DataService.getImportedFiles().then(function(files) {
 	$scope.loading = false;
-	$scope.imported_files = imported_files;
+	$scope.files = files;
     });
 };    
-
-

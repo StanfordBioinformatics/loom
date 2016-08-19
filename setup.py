@@ -91,8 +91,8 @@ setup(
                         'apache-libcloud==1.0.0rc2',
                         'Django>=1.8,<1.9',
                         'django-extensions>=1.5.5',
-                        'django-sortedone2many>=0.1.8',
-                        'django-sortedm2m>=1.1.1',
+                        'django-polymorphic>=0.9.2',
+                        'djangorestframework>=3.3.3',
                         'docutils>=0.12',
                         'docker-py',                        # used by server to run NGINX container
                         'gcloud>=0.8.0,<0.10.0',

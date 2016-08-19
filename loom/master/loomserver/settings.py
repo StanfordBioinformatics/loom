@@ -11,7 +11,7 @@ import warnings
 include_models = os.getenv('GRAPH_MODELS_INCLUDE_MODELS')
 
 BASE_DIR = os.path.dirname(__file__)
-DOC_ROOT = os.path.join(BASE_DIR, '..', 'webclient')
+WEBCLIENT_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'webclient'))
 
 def get_secret_key():
     SECRET_FILE = os.path.join(BASE_DIR, 'secret.txt')
@@ -40,14 +40,15 @@ TEMPLATE_DEBUG = True
 ALLOWED_HOSTS = ['127.0.0.1']
 
 INSTALLED_APPS = (
-#    'django.contrib.auth',
+    'django.contrib.auth',
+    'django.contrib.contenttypes', #required by polymorphic
     'django_extensions',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'universalmodels',
+    'polymorphic',
+    'rest_framework',
     'analysis',
-    'editor',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -63,6 +64,19 @@ MIDDLEWARE_CLASSES = (
 ROOT_URLCONF = 'loomserver.urls'
 
 WSGI_APPLICATION = 'loomserver.wsgi.application'
+
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ),
+}
+
+APPEND_SLASH = False
 
 LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
 LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
@@ -224,7 +238,11 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_TZ = True
 
-STATIC_URL = '/static/'
+STATIC_URL = '/home/'
+
+STATICFILES_DIRS = [
+    WEBCLIENT_ROOT,
+]
 
 # Graph Models settings to generate model schema plots
 GRAPH_MODELS = {
