@@ -32,3 +32,6 @@
   roles:
   - docker
   - loom_master
+
+- name: Run the user-provided playbook.
+  include: "{{lookup('env','RUN_AFTER_SERVER_CREATE_PLAYBOOK_PATH')}}"
