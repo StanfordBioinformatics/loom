@@ -153,7 +153,7 @@ class ShowRun(AbstractShow):
             print self._render_run(run)
 
     def _render_run(self, run):
-        run_identifier = '%s@%s' % (run['workflow']['name'], run['_id'])
+        run_identifier = '%s@%s' % (run['name'], run['id'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier

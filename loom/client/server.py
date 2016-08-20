@@ -79,6 +79,8 @@ def get_parser(parser=None):
     stop_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     restart_parser = subparsers.add_parser('restart')
+    restart_parser.add_argument('--foreground', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
+    restart_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
     
     delete_parser = subparsers.add_parser('delete')
     delete_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')

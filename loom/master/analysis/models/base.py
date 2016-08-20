@@ -66,14 +66,14 @@ class FilterHelper(object):
     def __init__(self, Model):
         self.Model = Model
 
-    def get_by_abbreviated_id(self, id):
+    def filter_by_abbreviated_id(self, id):
         """Find objects that match the given ID, and allow ID to be truncated
         """
         if not id:
             raise InvalidIdError('Invalid query, no id was found')
         return self.Model.objects.filter(id__startswith=id)
 
-    def get_by_name(self, name):
+    def filter_by_name(self, name):
         """Returns a queryset of models matching the given name.
         Searches for name at self.Model.NAME_FIELD of the form 
         {field1}[__{field2}[__{field3}...]]
@@ -83,67 +83,82 @@ class FilterHelper(object):
         kwargs = {self.Model.NAME_FIELD: name}
         return self.Model.objects.filter(**kwargs)
 
-    def get_by_name_and_full_id(self, query_string):
-        """Find objects that match the given ID, and allow ID to be truncated.
-        No truncation allowed.
-        """
-        name, id, name_or_id = self._parse_query_string(query_string)
-        models = self.get_by_name(name)
-        return models.filter(id=id)
-
-    def get_by_name_and_abbreviated_id(self, query_string):
+    def filter_by_name_and_abbreviated_id(self, query_string):
         """Find objects that match the given {name}@{ID}, where ID may be 
         truncated
         """
-        name, id, name_or_id = self._parse_query_string(query_string)
-        models = self.get_by_name(name)
+        name, id = self._parse_as_name_or_id(query_string)
+        models = self.filter_by_name(name)
         return models.filter(id__startswith=id)
 
-    def get_by_name_or_id(self, query_string):
+    def filter_by_name_or_id_or_hash(self, query_string):
+        kwargs = {}
+        name, id, hash_value = self._parse_as_name_or_id_or_hash(query_string)
+        if name is not None:
+            kwargs[self.Model.NAME_FIELD+'__startswith'] = name
+        if hash_value is not None:
+            kwargs[self.Model.HASH_FIELD+'__startswith'] = hash_value
+        if id is not None:
+            kwargs['id__startswith'] = id
+        return self.Model.objects.filter(**kwargs)
+
+    def filter_by_name_or_id(self, query_string):
         """Find objects that match the identifier of form {name}@{ID}, {name},
-        {ID}, or @{ID}, where ID may be truncated
+        or @{ID}, where ID may be truncated
         """
-        if not self._is_query_string_valid(query_string):
-            return self.Model.objects.none()
-        name, id, name_or_id = self._parse_query_string(query_string)
+#        if not self._is_query_string_valid(query_string):
+#            return self.Model.objects.none()
+        name, id = self._parse_as_name_or_id(query_string)
         if id and not name:
-            try:
-                return self.get_by_abbreviated_id(id)
-            except IdTooShortError:
-                return self.Model.objects.none()
+            return self.filter_by_abbreviated_id(id)
         elif name and not id:
-            return self.get_by_name(name)
+            return self.filter_by_name(name)
         elif name and id:
-            return self.get_by_name_and_abbreviated_id(query_string)
-        elif name_or_id:
-            models1 = self.get_by_name(name_or_id)
-            try:
-                models2 = self.get_by_abbreviated_id(name_or_id)
-            except IdTooShortError:
-                models2 = self.Model.objects.none()
-            return models1 | models2
+            return self.filter_by_name_and_abbreviated_id(query_string)
         else:
             return self.Model.objects.none()
 
+    '''
     def _is_query_string_valid(self, query_string):
-        """Matches queries of the form ID, name, name@ID, or @ID.
+        #TODO
+        """Matches queries of the form name, @ID, $hash, 
+        name@ID, name$hash, $hash@ID, @ID$hash,
+        name@ID$hash, or name$hash@ID
         """
+        name = '[a-zA-Z0-9_/-/.]*'
+        id = '(@[a-fA-F0-9]+)'
+        hash = '(@[a-zA-Z0-9\+\/=]+)'
         match = re.match(
             r'(^[a-zA-Z0-9_/-/.]*(@[a-fA-F0-9]+)?$)|(^@?[a-fA-F0-9]+$)',
             query_string)
         return bool(match)
+    '''
 
-    def _parse_query_string(self, query_string):
-        if '@' not in query_string:
-            name = ''
-            id = ''
-            name_or_id = query_string
-        else:
-            (name, id) = query_string.split('@')
-            name_or_id = ''
-        return (name, id, name_or_id)
+    def _parse_as_name_or_id_or_hash(self, query_string):
+        name = None
+        id = None
+        hash_value = None
 
-        
+        # Name comes at the beginning and ends with $, @, or end of string
+        name_match = re.match('^(?!\$|@)(.+?)($|\$|@)', query_string)
+        if name_match is not None:
+            name = name_match.groups()[0]
+        # id starts with @ and ends with $ or end of string
+        id_match = re.match('^.*?@(.*?)($|\$)', query_string)
+        if id_match is not None:
+            id = id_match.groups()[0]
+        # hash starts with $ and ends with @ or end of string
+        hash_match = re.match('^.*?\$(.*?)($|@)', query_string)
+        if hash_match is not None:
+            hash_value = hash_match.groups()[0]
+        return name, id, hash_value
+
+    def _parse_as_name_or_id(self, query_string):
+        parts = query_string.split('@')
+        name = parts[0]
+        id = '@'.join(parts[1:])
+        return name, id
+
 class _FilterMixin(object):
 
     # This functionality logically belongs in a Manager class,
@@ -153,9 +168,18 @@ class _FilterMixin(object):
     NAME_FIELD = None
 
     @classmethod
-    def query_by_name_or_id(cls, query_string):
+    def filter_by_name_or_id_or_hash(cls, filter_string):
         helper = FilterHelper(cls)
-        return helper.get_by_name_or_id(query_string)
+        return helper.filter_by_name_or_id_or_hash(filter_string)
+
+    @classmethod
+    def filter_by_name_or_id(cls, filter_string):
+        helper = FilterHelper(cls)
+        return helper.filter_by_name_or_id(filter_string)
+
+    @classmethod
+    def query(cls, filter_string):
+        return self.filter_by_name_or_id(query_string)
 
 
 class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):

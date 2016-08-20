@@ -62,6 +62,7 @@ class DataObjectContent(BasePolymorphicModel):
 class FileDataObject(DataObject):
 
     NAME_FIELD = 'file_content__filename'
+    HASH_FIELD = 'file_content__unnamed_file_content__hash_value'
     DATA_TYPE = 'file'
 
     file_content = models.ForeignKey(
@@ -87,14 +88,19 @@ class FileDataObject(DataObject):
 
     @classmethod
     def get_by_value(cls, value):
-        file_data_objects = cls.query_by_name_or_id(value)
-        assert len(file_data_objects) == 1, 'expected one file but found %s: %s' % (len(file_data_objects), file_data_objects)
+        file_data_objects = cls.filter_by_name_or_id_or_hash(value)
+        if not file_data_objects.count() == 1:
+            raise Exception('Expected one file but found %s for value %s' % (len(file_data_objects), value))
         return file_data_objects.first()
 
     def get_display_value(self):
         # This is the used as a reference to the FileDataObject
         # in serialized data.
         return '%s@%s' % (self.file_content.filename, self.id.hex)
+
+    @classmethod
+    def query(cls, query_string):
+        return cls.filter_by_name_or_id_or_hash(query_string)
 
     def is_ready(self):
         # Is upload complete?

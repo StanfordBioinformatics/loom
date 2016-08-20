@@ -296,7 +296,7 @@ class AbstractWorkflowIdSerializer(serializers.Serializer):
     def create(self, validated_data):
         # We don't create a new object, but look up one that
         # matches the given ID if it exists.
-        matches = AbstractWorkflow.query_by_name_or_id(
+        matches = AbstractWorkflow.filter_by_name_or_id(
             validated_data['template_id'])
         if matches.count() < 1:
             raise Exception(

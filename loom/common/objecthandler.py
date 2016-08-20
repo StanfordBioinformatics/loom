@@ -212,7 +212,7 @@ class ObjectHandler(object):
             url = 'run-requests/?q='+query_string
         else:
             url = 'run-requests/'
-        run_requests = self._get_object_index(url)['run_requests']
+        run_requests = self._get_object_index(url)
         if len(run_requests) < min:
             raise Error('Found %s run requests, expected at least %s' %(len(run_requests), min))
         if len(run_requests) > max:

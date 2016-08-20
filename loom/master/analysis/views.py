@@ -25,7 +25,7 @@ class QueryViewSet(viewsets.ModelViewSet):
         query_string = self.request.query_params.get('q', '')
         Model = self.Model
         if query_string:
-            return Model.query_by_name_or_id(query_string)
+            return Model.query(query_string)
         else:
             return Model.objects.all()
 
