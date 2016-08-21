@@ -251,7 +251,6 @@ class LocalServerControls(BaseServerControls):
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
-        process.wait()
         (stdout, stderr) = process.communicate()
         if not process.returncode == 0:
             raise Exception('Loom webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
@@ -334,19 +333,29 @@ class LocalServerControls(BaseServerControls):
                     stdout=subprocess.PIPE,
                     env=env).communicate()
         else:
-            stdout = subprocess.Popen(
+            proc = subprocess.Popen(
                 manage_cmd + ['migrate', '-l'],
                 stdout=subprocess.PIPE,
-                env=env).communicate()
-            if re.search('\[ \]', stdout[0]):
+                stderr=subprocess.STDOUT,
+                env=env)
+            output = proc.communicate()
+            if proc.returncode != 0 or re.search('Error', output[0]):
+                msg = "Loom could not connect to its database. Exiting now. "
+                if self.args.verbose:
+                    msg += output[0]
+                raise Exception(msg)
+            elif re.search('\[ \]', output[0]):
   	        print("Welcome to Loom!\nInitializing database for first use...")
-		try:
-	            stdout = subprocess.Popen(
-		        manage_cmd + ['migrate'],
-		        stdout=subprocess.PIPE,
-		        env=env).communicate()
-                except:
-                    raise Exception("Failed to apply database migrations. Exiting now.")
+                proc = subprocess.Popen(
+		    manage_cmd + ['migrate'],
+		    stdout=subprocess.PIPE,
+		    env=env)
+                output = proc.communicate()
+                if proc.returncode != 0 or re.search('Error', output[0]):
+                    msg = "Failed to apply database migrations. Exiting now. "
+                    if self.args.verbose:
+                        msg += stdout[0]
+                    raise Exception(msg)
         return env
 
     def _export_django_settings(self, env):
