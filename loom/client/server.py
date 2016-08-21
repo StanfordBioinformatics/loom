@@ -183,8 +183,8 @@ class LocalServerControls(BaseServerControls):
 
             env = os.environ.copy()
             env = self._add_server_to_python_path(env)
-            env = self._set_database(env)
             env = self._export_django_settings(env)
+            env = self._set_database(env)
             self._create_logdirs()
             self._start_daemon(env)
             print 'Starting Loom server...'
