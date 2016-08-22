@@ -4,6 +4,18 @@ from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, No
 from analysis.models.workflow_runs import *
 from analysis.serializers.workflows import AbstractWorkflowIdSerializer, RequestedEnvironmentSerializer, RequestedResourceSetSerializer
 
+
+class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
+
+    subclass_serializers = {
+        'workflowrun': 'analysis.serializers.WorkflowRunSerializer',
+        'steprun': 'analysis.serializers.StepRunSerializer'
+    }
+
+    class Meta:
+        model = AbstractWorkflowRun
+
+
 class StepRunInputSerializer(CreateWithParentModelSerializer):
 
     value = serializers.CharField()
@@ -82,7 +94,7 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
     template = AbstractWorkflowIdSerializer()
-    step_runs = StepRunSerializer(many=True)
+    step_runs = AbstractWorkflowRunSerializer(many=True)
     inputs = WorkflowRunInputSerializer(many=True,
                                         required=False,
                                         allow_null=True)
@@ -95,14 +107,3 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = WorkflowRun
         fields = ('id', 'template', 'step_runs', 'inputs', 'fixed_inputs', 'outputs', 'name',)
-
-
-class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
-
-    subclass_serializers = {
-        'workflowrun': WorkflowRunSerializer,
-        'steprun': StepRunSerializer
-    }
-
-    class Meta:
-        model = AbstractWorkflowRun
