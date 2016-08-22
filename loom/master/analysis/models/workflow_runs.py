@@ -122,7 +122,7 @@ class WorkflowRun(AbstractWorkflowRun):
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
         for step_run in self.step_runs.all():
-            destinations.extend([dest for dest in step_run.get_all_inputs()])
+            destinations.extend([dest for dest in step_run.inputs.all()])
         return destinations
 
     def _get_source(self, channel):
@@ -132,7 +132,10 @@ class WorkflowRun(AbstractWorkflowRun):
         for step_run in self.step_runs.all():
             sources.extend([source for source in
                             step_run.outputs.filter(channel=channel)])
-        assert len(sources) == 1
+        if len(sources) < 1:
+            raise Exception('Could not find data source for channel "%s"' % channel)
+        elif len(sources) > 1:
+            raise Exception('Found multiple data sources for channel "%s"' % channel)
         return sources[0]
 
     def initial_push(self):
