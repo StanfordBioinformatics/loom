@@ -6,6 +6,7 @@
     remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
     local_loom_settings_path: "{{lookup('env','HOME')}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
     docker_full_name: "{{lookup('env', 'DOCKER_FULL_NAME')}}"
+    external_port: "{{lookup('env', 'EXTERNAL_PORT')}}"
   tasks:
   - name: Start the Loom server.
     docker_container:
@@ -25,6 +26,8 @@
       volumes: /var/log/nginx:/var/log/nginx,{{remote_loom_settings_path}}/nginx.conf:/etc/nginx/conf.d/default.conf,{{remote_loom_settings_path}}/ssl:/etc/nginx/ssl
       restart_policy: always
       api_version: auto
+  - name: Wait for Loom server to be available.
+    wait_for: port={{external_port}}
 #  - name: Copy newly generated TLS/SSL certificate to client.
 #    fetch: src={{remote_loom_settings_path}}/ssl/ssl.crt dest={{local_loom_settings_path}}/ flat=yes
 #  - name: Copy newly generated TLS/SSL key to client.

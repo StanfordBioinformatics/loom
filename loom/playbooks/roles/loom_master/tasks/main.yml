@@ -21,3 +21,5 @@
     pip: name=docker-py
   - name: Pull Docker image.
     docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto force=True
+  - name: Pull NGINX image.
+    docker_image: name=nginx tag=stable api_version=auto force=True
