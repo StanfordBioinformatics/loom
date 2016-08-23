@@ -112,7 +112,7 @@ class Step(AbstractWorkflow):
     many parallel processing tasks.
     """
 
-    command = models.CharField(max_length=255)
+    command = models.TextField()
 
     def is_step(self):
         return True

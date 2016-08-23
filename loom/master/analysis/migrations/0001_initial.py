@@ -532,7 +532,7 @@ class Migration(migrations.Migration):
             name='Step',
             fields=[
                 ('abstractworkflow_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analysis.AbstractWorkflow')),
-                ('command', models.CharField(max_length=255)),
+                ('command', models.TextField()),
             ],
             options={
                 'abstract': False,
