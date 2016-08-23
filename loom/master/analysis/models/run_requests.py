@@ -32,7 +32,7 @@ class RunRequest(BaseModel):
 
     def post_create(self):
         self._initialize_run()
-        self._validate_run_request()
+        self._validate()
         self._initialize_outputs()
         self._initialize_channels()
         self.initial_push()
@@ -65,7 +65,7 @@ class RunRequest(BaseModel):
             input.push_all()
         self.run.initial_push()
 
-    def _validate_run_request(self):
+    def _validate(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput
         # and that their channel names match
         workflow_inputs = [input.channel for input

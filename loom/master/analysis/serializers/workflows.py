@@ -195,6 +195,7 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
             s.is_valid(raise_exception=True)
             s.save()
 
+        workflow.post_create()
         return workflow
 
 

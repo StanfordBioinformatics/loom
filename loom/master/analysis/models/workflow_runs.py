@@ -100,7 +100,6 @@ class WorkflowRun(AbstractWorkflowRun):
                 workflow_run=self,
                 channel=fixed_input.channel,
                 workflow_input=fixed_input)
-            fixed_workflow_run_input.initial_push()
         for output in self.template.outputs.all():
             WorkflowRunOutput.objects.create(
                 workflow_run=self,
@@ -142,9 +141,9 @@ class WorkflowRun(AbstractWorkflowRun):
         # Runtime inputs will be pushed when data is added,
         # but fixed inputs have to be pushed now on creation
         for input in self.fixed_inputs.all():
-            input.push_all()
+            input.initial_push()
         # StepRun will normally be pushed as individual DataObjects arrive,
-        # but we push_all once just in case all inputs are fixed.
+        # but we do the initial_push in case all inputs are fixed
         for step_run in self.step_runs.all():
             step_run.initial_push()
 
@@ -219,16 +218,14 @@ class StepRun(AbstractWorkflowRun):
         return inputs
 
     def initial_push(self):
-        # This is essential only when all inputs
-        # are FixedInputs on this step, so
-        # push is never triggered data arriving over
-        # a channel.
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed now on creation
+        for input in self.fixed_inputs.all():
+            input.initial_push()
         self.push()
         
     def push(self):
         if self.task_runs.count() == 0:
-            for input in self.fixed_inputs.all():
-                input.push_all()
             for input_set in InputNodeSet(
                     self.get_all_inputs()).get_ready_input_sets():
                 task_run = TaskRun.create_from_input_set(input_set, self)
@@ -247,6 +244,11 @@ class AbstractStepRunInput(InputOutputNode):
         # off a new TaskRun
         self.step_run.push()
 
+    def push_to_receivers(self, indexed_data_object):
+        # No receivers, but we need to push to the step_run
+        self.step_run.push()
+
+
 class StepRunInput(AbstractStepRunInput):
 
     step_run = models.ForeignKey('StepRun',
@@ -260,9 +262,6 @@ class StepRunInput(AbstractStepRunInput):
     def type(self):
         return self.step_input.type
 
-    def push_to_receivers(self, indexed_data_object):
-        # No receivers, but we need to push to the step_run
-        self.step_run.push()
 
 class FixedStepRunInput(AbstractStepRunInput):
 
@@ -279,6 +278,7 @@ class FixedStepRunInput(AbstractStepRunInput):
 
     def initial_push(self):
         self.push_without_index(self.step_input.data_object)
+
 
 class StepRunOutput(InputOutputNode):
 
@@ -319,8 +319,6 @@ class FixedWorkflowRunInput(InputOutputNode):
     workflow_input = models.ForeignKey('FixedWorkflowInput',
                                    related_name='workflow_run_inputs',
                                    on_delete=models.PROTECT)
-    def initial_push(self):
-        self.push_without_index(self.workflow_input.data_object)
 
     def initial_push(self):
         self.push_without_index(self.workflow_input.data_object)

@@ -535,9 +535,8 @@ class FileHandler:
             destination = Destination(
                 file_data_object['file_location']['url'],
                 self.settings)
-            source.copy_to(destination)
-            
             self._log('   copying to destination %s...' % destination.get_url())
+            source.copy_to(destination)
 
         # Signal that the upload completed successfully
         file_data_object = self._flag_upload_as_complete(file_data_object)

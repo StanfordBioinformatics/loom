@@ -54,22 +54,26 @@ class Workflow(AbstractWorkflow):
     """A collection of steps and/or workflows
     """
 
-    def after_create_or_update(self, data):
-        self._validate_workflow()
+    def post_create(self):
+        self._validate()
 
-    def _validate_workflow(self):
+    def _validate(self):
         """Make sure all channel destinations have exactly one source
         """
 
         source_counts = {}
+
+        def increment_sources_count(sources, channel):
+            sources.setdefault(channel, 0)
+            sources[channel] += 1
+
         for input in self.inputs.all():
-            self._increment_sources_count(source_counts, input.channel)
+            increment_sources_count(source_counts, input.channel)
         for fixed_input in self.fixed_inputs.all():
-            self._increment_sources_count(source_counts, fixed_input.channel)
+            increment_sources_count(source_counts, fixed_input.channel)
         for step in self.steps.all():
-            step = step.downcast()
             for output in step.outputs.all():
-                self._increment_sources_count(source_counts, output.channel)
+                increment_sources_count(source_counts, output.channel)
 
         for channel, count in source_counts.iteritems():
             if count > 1:
@@ -78,7 +82,7 @@ class Workflow(AbstractWorkflow):
                     'source for channel "%s". Check workflow inputs and step '\
                     'outputs.' % (
                         self.name,
-                        self._id,
+                        self.id,
                         channel
                     ))
 
@@ -86,7 +90,6 @@ class Workflow(AbstractWorkflow):
         for output in self.outputs.all():
             destinations.append(output.channel)
         for step in self.steps.all():
-            step = step.downcast()
             for input in step.inputs.all():
                 destinations.append(input.channel)
 
@@ -96,13 +99,9 @@ class Workflow(AbstractWorkflow):
                 raise ValidationError('The workflow %s@%s is invalid. '\
                                       'The channel "%s" has no source.' % (
                                           self.name,
-                                          self._id,
+                                          self.id,
                                           destination
                                       ))
-
-    def _increment_sources_count(self, sources, channel):
-        sources.setdefault(channel, 0)
-        sources[channel] += 1
 
     def is_step(self):
         return False

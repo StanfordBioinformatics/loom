@@ -31,7 +31,8 @@ class InputOutputNode(BasePolymorphicModel):
 
     def push_without_index(self, data_object):
         indexed_data_object = self.add_indexed_data_object(data_object)
-        self.push_to_receivers(indexed_data_object)
+        if indexed_data_object is not None:
+            self.push_to_receivers(indexed_data_object)
         
     def push_all(self):
         for indexed_data_object in self.indexed_data_objects.all():
