@@ -21,7 +21,7 @@
   - name: Start NGINX.
     docker_container:
       name: nginx
-      image: nginx
+      image: nginx:stable
       network_mode: host
       volumes: /var/log/nginx:/var/log/nginx,{{remote_loom_settings_path}}/nginx.conf:/etc/nginx/conf.d/default.conf,{{remote_loom_settings_path}}/ssl:/etc/nginx/ssl
       restart_policy: always
