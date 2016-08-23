@@ -66,36 +66,11 @@ class FilterHelper(object):
     def __init__(self, Model):
         self.Model = Model
 
-    def filter_by_abbreviated_id(self, id):
-        """Find objects that match the given ID, and allow ID to be truncated
-        """
-        if not id:
-            raise InvalidIdError('Invalid query, no id was found')
-        return self.Model.objects.filter(id__startswith=id)
-
-    def filter_by_name(self, name):
-        """Returns a queryset of models matching the given name.
-        Searches for name at self.Model.NAME_FIELD of the form 
-        {field1}[__{field2}[__{field3}...]]
-        """
-        if self.Model.NAME_FIELD is None:
-            return self.Model.objects.none()
-        kwargs = {self.Model.NAME_FIELD: name}
-        return self.Model.objects.filter(**kwargs)
-
-    def filter_by_name_and_abbreviated_id(self, query_string):
-        """Find objects that match the given {name}@{ID}, where ID may be 
-        truncated
-        """
-        name, id = self._parse_as_name_or_id(query_string)
-        models = self.filter_by_name(name)
-        return models.filter(id__startswith=id)
-
     def filter_by_name_or_id_or_hash(self, query_string):
         kwargs = {}
         name, id, hash_value = self._parse_as_name_or_id_or_hash(query_string)
         if name is not None:
-            kwargs[self.Model.NAME_FIELD+'__startswith'] = name
+            kwargs[self.Model.NAME_FIELD] = name
         if hash_value is not None:
             kwargs[self.Model.HASH_FIELD+'__startswith'] = hash_value
         if id is not None:
@@ -106,17 +81,13 @@ class FilterHelper(object):
         """Find objects that match the identifier of form {name}@{ID}, {name},
         or @{ID}, where ID may be truncated
         """
-#        if not self._is_query_string_valid(query_string):
-#            return self.Model.objects.none()
+        kwargs = {}
         name, id = self._parse_as_name_or_id(query_string)
-        if id and not name:
-            return self.filter_by_abbreviated_id(id)
-        elif name and not id:
-            return self.filter_by_name(name)
-        elif name and id:
-            return self.filter_by_name_and_abbreviated_id(query_string)
-        else:
-            return self.Model.objects.none()
+        if name is not None:
+            kwargs[self.Model.NAME_FIELD] = name
+        if id is not None:
+            kwargs['id__startswith'] = id
+        return self.Model.objects.filter(**kwargs)
 
     '''
     def _is_query_string_valid(self, query_string):
@@ -179,7 +150,7 @@ class _FilterMixin(object):
 
     @classmethod
     def query(cls, filter_string):
-        return self.filter_by_name_or_id(query_string)
+        return cls.filter_by_name_or_id(filter_string)
 
 
 class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):
