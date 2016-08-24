@@ -207,6 +207,7 @@ class StepSerializer(CreateWithParentModelSerializer):
     inputs = StepInputSerializer(many=True, required=False)
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
     outputs = StepOutputSerializer(many=True)
+    workflow_import = WorkflowImportSerializer(allow_null=True, required=False)
 
     class Meta:
         model = Step
@@ -218,7 +219,8 @@ class StepSerializer(CreateWithParentModelSerializer):
                   'inputs',
                   'fixed_inputs',
                   'outputs',
-                  'datetime_created')
+                  'datetime_created',
+                  'workflow_import',)
 
     def create(self, validated_data):
         data = copy.deepcopy(validated_data)
@@ -230,12 +232,14 @@ class StepSerializer(CreateWithParentModelSerializer):
         outputs = self.initial_data.get('outputs', None)
         resources = self.initial_data.get('resources', None)
         environment = self.initial_data.get('environment', None)
+        workflow_import = self.initial_data.get('workflow_import', None)
         data.pop('inputs', None)
         data.pop('fixed_inputs', None)
         data.pop('outputs', None)
         data.pop('resources', None)
         data.pop('environment', None)
-
+        data.pop('workflow_import', None)
+        
         step = super(StepSerializer, self).create(data)
 
         if inputs is not None:
@@ -277,6 +281,14 @@ class StepSerializer(CreateWithParentModelSerializer):
             s = RequestedEnvironmentSerializer(
                 data=environment,
                 context={'parent_field': 'step',
+                         'parent_instance': step})
+            s.is_valid(raise_exception=True)
+            s.save()
+
+        if workflow_import is not None:
+            s = WorkflowImportSerializer(
+                data=workflow_import,
+                context={'parent_field': 'workflow',
                          'parent_instance': step})
             s.is_valid(raise_exception=True)
             s.save()
