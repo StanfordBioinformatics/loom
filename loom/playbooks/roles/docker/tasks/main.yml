@@ -20,7 +20,7 @@
     name: docker-engine
     state: present
   register: docker_install
-  until: docker_install.rc == 0
+  until: docker_install|succeeded
   retries: 10
   delay: 10
 
