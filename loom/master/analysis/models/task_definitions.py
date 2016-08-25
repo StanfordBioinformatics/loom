@@ -24,7 +24,7 @@ class TaskDefinition(BaseModel):
     task_run = models.OneToOneField('TaskRun',
                                     related_name='task_definition',
                                     on_delete=models.CASCADE)
-    command = models.CharField(max_length=255)
+    command = models.TextField()
 
     @classmethod
     def create_from_task_run(cls, task_run):
