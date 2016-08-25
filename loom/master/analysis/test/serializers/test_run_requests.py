@@ -24,7 +24,9 @@ class TestRunRequestSerializer(TestCase):
         s = RunRequestSerializer(
             data=run_request_data)
         s.is_valid()
-        rr = s.save()
+        
+        with self.settings(WORKER_TYPE='MOCK'):
+            rr = s.save()
 
         self.assertEqual(
             rr.inputs.first().indexed_data_objects.first()\
@@ -52,7 +54,9 @@ class TestRunRequestSerializer(TestCase):
         s = RunRequestSerializer(
             data=run_request_data)
         s.is_valid()
-        rr = s.save()
+
+        with self.settings(WORKER_TYPE='MOCK'):
+            rr = s.save()
 
         self.assertEqual(rr.run.template.name, workflow.name)
         self.assertEqual(rr.run.step_runs.first().template.name,

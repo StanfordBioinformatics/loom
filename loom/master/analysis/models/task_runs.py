@@ -124,7 +124,9 @@ class TaskRunOutput(BaseModel):
 
     @property
     def filename(self):
-        return self.step_run_output.filename
+        # This will raise ObjectDoesNotExist if task_definition_output
+        # is not yet attached.
+        return self.task_definition_output.filename
 
     @property
     def channel(self):
@@ -243,7 +245,7 @@ class TaskRunAttemptOutput(BaseModel):
     task_run_output = models.ForeignKey(
         'TaskRunOutput',
         related_name='task_run_attempt_outputs',
-        null=True, on_delete=models.PROTECT)
+        on_delete=models.PROTECT)
 
     @property
     def type(self):

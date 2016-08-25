@@ -24,7 +24,7 @@ class MockTaskManager(object):
         
     @classmethod
     def _add_mock_data(cls, output):
-        if output.get_type() == 'file':
+        if output.type == 'file':
             cls._add_mock_file_data_object(output)
 
     @classmethod
@@ -33,7 +33,7 @@ class MockTaskManager(object):
 
         self.mock_data_counter += 1
         mock_text = "mock%s" % self.mock_data_counter
-        mock_md5 = hashlib.md5(mock_text)
+        mock_md5 = hashlib.md5(mock_text).hexdigest()
 
         file_data = {
             'file_content': {

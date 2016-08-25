@@ -139,6 +139,9 @@
 	    <th>
 	      Type
 	    </th>
+	    <th>
+	      Filename
+	    </th>
 	  </tr>
 	</thead>
 	<tbody>
@@ -148,6 +151,12 @@
 	    </td>
 	    <td>
 	      {{output.type}}
+	    </td>
+	    <td ng-show="output.type=='file'">
+	      {{output.filename}}
+	    </td>
+	    <td ng-hide="output.type=='file'">
+	      -
 	    </td>
 	  </tr>
 	</tbody>

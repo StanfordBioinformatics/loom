@@ -682,7 +682,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='taskrunattemptoutput',
             name='task_run_output',
-            field=models.ForeignKey(related_name='task_run_attempt_outputs', on_delete=django.db.models.deletion.PROTECT, to='analysis.TaskRunOutput', null=True),
+            field=models.ForeignKey(related_name='task_run_attempt_outputs', on_delete=django.db.models.deletion.PROTECT, to='analysis.TaskRunOutput'),
         ),
         migrations.AddField(
             model_name='taskrunattemptinput',

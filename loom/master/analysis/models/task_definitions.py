@@ -29,11 +29,11 @@ class TaskDefinition(BaseModel):
     @classmethod
     def create_from_task_run(cls, task_run):
         task_definition = cls.objects.create(
-            task_run=task_run,
-            command=task_run.render_command())
+            task_run=task_run)
         task_definition._initialize_inputs()
         task_definition._initialize_outputs()
         task_definition._initialize_environment()
+        task_definition._initialize_command()
 
     def _initialize_inputs(self):
         for input in self.task_run.inputs.all():
@@ -49,7 +49,7 @@ class TaskDefinition(BaseModel):
                 task_definition=self,
                 task_run_output=output,
                 filename=render_from_template(
-                    output.filename,
+                    output.step_run_output.filename,
                     self.task_run.get_input_context()),
                 type=output.type,
             )
@@ -66,8 +66,13 @@ class TaskDefinition(BaseModel):
             context={'parent_field': 'task_definition',
                      'parent_instance': self})
         s.is_valid(raise_exception=True)
-        return s.save()
+        s.save()
 
+    def _initialize_command(self):
+        self.command = self.task_run.render_command()
+        self.save()
+        
+        
 class TaskDefinitionEnvironment(BasePolymorphicModel):
 
     task_definition = models.OneToOneField(
