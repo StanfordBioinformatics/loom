@@ -368,10 +368,7 @@ class LocalServerControls(BaseServerControls):
         return env
 
     def create(self):
-        '''Create server deploy settings if they don't exist yet.'''
-        # TODO: Add -f option to overwrite existing settings
-        if os.path.exists(get_deploy_settings_filename()):
-            raise Exception('Local server deploy settings already exist at %s.\nTo create new settings, please delete the current ones with "loom server delete" first.' % get_deploy_settings_filename())
+        '''Create server deploy settings. Overwrite existing ones.'''
         self.settings_manager.create_deploy_settings_file(self.args.settings)
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
@@ -463,9 +460,9 @@ class GoogleCloudServerControls(BaseServerControls):
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
         if not os.path.exists(get_deploy_settings_filename()):
-            print 'Deploy settings %s not found. Creating it first.' % get_deploy_settings_filename()
+            print 'Server deploy settings %s not found. Creating it using default settings.' % get_deploy_settings_filename()
         if instance_name not in current_hosts:
-            print 'No instance named \"%s\" found in project \"%s\". Creating it first.' % (instance_name, get_gcloud_project())
+            print 'No instance named \"%s\" found in project \"%s\". Creating it using default settings.' % (instance_name, get_gcloud_project())
         if instance_name not in current_hosts or not os.path.exists(get_deploy_settings_filename()):
             returncode = self.create()
             if returncode != 0:
