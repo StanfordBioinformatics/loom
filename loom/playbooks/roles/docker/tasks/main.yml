@@ -15,12 +15,12 @@
     dest: /etc/systemd/system/docker.service.d/override.conf
   when: ansible_distribution_major_version == "7"
 
-- name: update yum cache and get new GPG keys
-  command: yum -y check-update
-  register: update_yum
-  until: update_yum|succeeded
-  retries: 10
-  delay: 10
+#- name: update yum cache and get new GPG keys
+#  command: yum -y check-update
+#  register: update_yum
+#  until: update_yum|succeeded
+#  retries: 10
+#  delay: 10
 
 - name: install docker
   yum:
