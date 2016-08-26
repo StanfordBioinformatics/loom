@@ -26,6 +26,7 @@
   yum:
     name: docker-engine
     state: present
+    update_cache: yes
   register: docker_install
   until: docker_install|succeeded
   retries: 10
