@@ -368,10 +368,7 @@ class LocalServerControls(BaseServerControls):
         return env
 
     def create(self):
-        '''Create server deploy settings if they don't exist yet.'''
-        # TODO: Add -f option to overwrite existing settings
-        if os.path.exists(get_deploy_settings_filename()):
-            raise Exception('Local server deploy settings already exist at %s.\nTo create new settings, please delete the current ones with "loom server delete" first.' % get_deploy_settings_filename())
+        '''Create server deploy settings. Overwrite existing ones.'''
         self.settings_manager.create_deploy_settings_file(self.args.settings)
         print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
@@ -421,18 +418,14 @@ class GoogleCloudServerControls(BaseServerControls):
         keys, create and set up a gcloud instance, copy deploy settings to the
         instance."""
         if hasattr(self.args, 'settings') and self.args.settings != None:
+            print 'Creating deploy settings %s using user settings %s...' % (get_deploy_settings_filename(), self.args.settings)
             self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
         else:
+            print 'Creating deploy settings %s using default settings...' % get_deploy_settings_filename()
             self.settings_manager.create_deploy_settings_file()
-        print 'Created deploy settings at %s.' % get_deploy_settings_filename()
 
         setup_gcloud_ssh()
         env = self.get_ansible_env()
-
-        #if is_dev_install():
-        #    # If we have a Dockerfile, build Docker image
-        #    dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
-        #    self.build_docker_image(os.path.dirname(dockerfile_path), env['DOCKER_NAME'], env['DOCKER_TAG'])
 
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
@@ -463,9 +456,9 @@ class GoogleCloudServerControls(BaseServerControls):
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
         if not os.path.exists(get_deploy_settings_filename()):
-            print 'Deploy settings %s not found. Creating it first.' % get_deploy_settings_filename()
+            print 'Server deploy settings %s not found. Creating it using default settings.' % get_deploy_settings_filename()
         if instance_name not in current_hosts:
-            print 'No instance named \"%s\" found in project \"%s\". Creating it first.' % (instance_name, get_gcloud_project())
+            print 'No instance named \"%s\" found in project \"%s\". Creating it using default settings.' % (instance_name, get_gcloud_project())
         if instance_name not in current_hosts or not os.path.exists(get_deploy_settings_filename()):
             returncode = self.create()
             if returncode != 0:
