@@ -43,7 +43,7 @@ class DataObject(BasePolymorphicModel):
         # This is the value rendered in string representations of the object.
         # Same as substitution value for all data types except file.
         # Override in FileDataObject.
-        return self.get_content().get_substitution_value()
+        return self.get_substitution_value()
 
     def get_substitution_value(self):
         # This is the value substituted into a command
@@ -96,6 +96,8 @@ class FileDataObject(DataObject):
     def get_display_value(self):
         # This is the used as a reference to the FileDataObject
         # in serialized data.
+        if self.file_content is None:
+            return ''
         return '%s@%s' % (self.file_content.filename, self.id.hex)
 
     @classmethod

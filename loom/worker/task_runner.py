@@ -87,11 +87,20 @@ class TaskRunner(object):
             with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
                 process = self._execute(stdoutlog, stderrlog)
                 self._wait_for_process(process)
-        self._import_log_files()
+
         if process.returncode == 0:
             self._import_outputs()
+            self._import_log_files()
             self._flag_attempt_as_complete()
-        # TODO detect and report failure
+        else:
+            err_message = 'Worker process failed with nonzero returncode %s. \nFor more '\
+                          'information check the stderr log file' % str(process.returncode)
+            self.logger.error(err_message)
+            # TODO report failure to server
+
+            # Still report output for debugging purposes
+            self._import_outputs()
+            self._import_log_files()
 
     def _flag_attempt_as_complete(self):
         task_run_attempt = copy.deepcopy(self.task_run_attempt)
@@ -122,8 +131,9 @@ class TaskRunner(object):
                         os.path.join(self.settings['WORKING_DIR'], filename)
                     )
                 except IOError:
+                    self.logger.error('Failed to upload output file %s' % filename)
                     # TODO report failure due to missing file
-                    pass # Continue uploading other log files
+                    # Catch error to continue uploading other files
             else:
                 # TODO handle non-file output types
                 raise Exception("Can't handle outputs of type %s" %
@@ -139,7 +149,7 @@ class TaskRunner(object):
                     log_file
                 )
             except IOError:
-                pass # Continue uploading other log files
+                self.logger.error('Failed to upload log file %s' % filename)
 
     def _execute(self, stdoutlog, stderrlog):
         task_definition = self.task_run_attempt['task_definition']
@@ -158,7 +168,9 @@ class TaskRunner(object):
             '-w',
             container_dir,
             docker_image,
-            'sh',
+            'bash',
+            '-o',
+            'pipefail',
             '-c',
             user_command,
             ]
@@ -173,16 +185,8 @@ class TaskRunner(object):
                 raise Exception("Timeout")
             returncode = process.poll()
             if returncode is not None:
-                break
+                return
             time.sleep(poll_interval_seconds)
-        if returncode == 0:
-            return
-        else:
-            err_message = 'Worker process failed with error %s. \nFor more '\
-                          'information check the stderr log file at "%s"' \
-                          % (str(returncode), self.settings.get('STDERR_LOG_FILE'))
-            self.logger.error(err_message)
-            raise Exception(err_message)
 
     def _get_args(self):
         parser = self.get_parser()

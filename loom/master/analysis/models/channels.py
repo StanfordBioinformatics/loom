@@ -24,7 +24,7 @@ class InputOutputNode(BasePolymorphicModel):
             return ''
         elif self.indexed_data_objects.count() > 1:
             raise Exception("Can't handle more than one input")
-        return self.indexed_data_objects.first().data_object.get_display_value()
+        return self.indexed_data_objects.first().get_display_value()
 
     def push(self, indexed_data_object):
         self.push_without_index(indexed_data_object.data_object)
@@ -77,6 +77,12 @@ class IndexedDataObject(BaseModel):
             return False
         return self.data_object.is_ready()
 
+    def get_display_value(self):
+        if self.data_object is None:
+            return ''
+        return self.data_object.get_display_value()
+        
+    
 """
 class Index(BaseModel):
     indexed_data_object = models.ForeignKey('IndexedDataObject',

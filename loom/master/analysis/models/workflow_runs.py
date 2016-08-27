@@ -295,6 +295,8 @@ class StepRunOutput(InputOutputNode):
 
     @property
     def filename(self):
+        if self.step_output is None:
+            return ''
         return self.step_output.filename
 
 
