@@ -87,10 +87,11 @@ class TaskRunner(object):
             with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
                 process = self._execute(stdoutlog, stderrlog)
                 self._wait_for_process(process)
-
-        self._import_outputs()
         self._import_log_files()
-        self._flag_attempt_as_complete()
+        if process.returncode == 0:
+            self._import_outputs()
+            self._flag_attempt_as_complete()
+        # TODO detect and report failure
 
     def _flag_attempt_as_complete(self):
         task_run_attempt = copy.deepcopy(self.task_run_attempt)
@@ -115,10 +116,14 @@ class TaskRunner(object):
         for output in self.task_run_attempt['outputs']:
             if output['type'] == 'file':
                 filename = output['filename']
-                self.filehandler.import_result_file(
-                    output,
-                    os.path.join(self.settings['WORKING_DIR'], filename)
-                )
+                try:
+                    self.filehandler.import_result_file(
+                        output,
+                        os.path.join(self.settings['WORKING_DIR'], filename)
+                    )
+                except IOError:
+                    # TODO report failure due to missing file
+                    pass # Continue uploading other log files
             else:
                 # TODO handle non-file output types
                 raise Exception("Can't handle outputs of type %s" %
@@ -128,10 +133,13 @@ class TaskRunner(object):
         for log_file in (self.settings['WORKER_LOG_FILE'],
                         self.settings['STDOUT_LOG_FILE'],
                         self.settings['STDERR_LOG_FILE']):
+            try:
                 self.filehandler.import_log_file(
                     self.task_run_attempt,
                     log_file
                 )
+            except IOError:
+                pass # Continue uploading other log files
 
     def _execute(self, stdoutlog, stderrlog):
         task_definition = self.task_run_attempt['task_definition']
