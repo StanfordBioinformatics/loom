@@ -90,6 +90,7 @@ setup(
                         'ansible==2.1.1.0',
                         'apache-libcloud==1.0.0rc2',
                         'Django>=1.8,<1.9',
+                        'django-cors-headers>=1.1.0',
                         'django-extensions>=1.5.5',
                         'django-polymorphic>=0.9.2',
                         'djangorestframework>=3.3.3',
