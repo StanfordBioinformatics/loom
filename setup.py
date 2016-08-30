@@ -115,7 +115,7 @@ setup(
                         'requests>=2.6.0',
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
-                        'uritemplate>=0.6',
+                        'uritemplate>=0.6,<1',              # match google-api-python-client dependency
                         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git>=1.1',
                         'twine',
