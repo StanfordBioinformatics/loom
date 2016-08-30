@@ -185,6 +185,10 @@ class GoogleStorageSource(AbstractSource):
     """A source file on Google Storage.
     """
     type = 'google_storage'
+    
+    # CHUNK_SIZE must be multiple of 256.
+    # 2016-08-30: With default 1024*1024, download is 20x slower than gsutil.
+    CHUNK_SIZE = 1024*1024*100 
 
     def __init__(self, url, settings):
         self.url = _urlparse(url)
@@ -200,6 +204,7 @@ class GoogleStorageSource(AbstractSource):
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
+            self.blob.chunk_size = self.CHUNK_SIZE
         except HttpAccessTokenRefreshError:
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
 
