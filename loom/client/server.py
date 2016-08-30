@@ -27,6 +27,7 @@ GCLOUD_SERVER_DEFAULT_NAME = SettingsManager().get_default_setting('gcloud', 'SE
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
 GCLOUD_CREATE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server.yml')
+GCLOUD_CREATE_SKIP_INSTALLS_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server_skip_installs.yml')
 GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
 GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
 GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
@@ -428,7 +429,10 @@ class GoogleCloudServerControls(BaseServerControls):
         env = self.get_ansible_env()
 
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
-        return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
+        if self.settings_manager.settings['SERVER_SKIP_INSTALLS'] == 'True':
+            return self.run_playbook(GCLOUD_CREATE_SKIP_INSTALLS_PLAYBOOK, env)
+        else:
+            return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
         if self.settings_manager.settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
