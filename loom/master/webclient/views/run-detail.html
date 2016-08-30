@@ -165,4 +165,27 @@
       </tbody>
     </table>
   </div>
+  <div ng-show="activeData.run.task_runs">
+    <h4>Log Files</h4>
+    <div class="table-responsive" >
+      <table class="table table-striped">
+	<thead>
+	  <th>Log</th>
+	  <th>Created</th>
+	</thead>
+	<tbody ng-repeat="attempt in activeData.run.task_runs[0].task_run_attempts">
+	  <tr ng-repeat="log in attempt.log_files">
+	    <td>
+	      <a ng-href="#/files/{{log.file_data_object.id}}">
+		{{log.log_name}}
+	      </a>
+	    </td>
+	    <td>
+	      {{log.file_data_object.datetime_created | date:'medium'}}
+	    </td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
+  </div>
 </div>
