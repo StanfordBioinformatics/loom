@@ -21,6 +21,7 @@ import loom.common.cloud
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
 GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
+GCLOUD_CREATE_WORKER_SKIP_INSTALLS_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker_skip_installs.yml')
 GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
 GCE_PY_PATH = os.path.join(imp.find_module('loom')[1], 'common', 'gce.py')
 LOOM_USER_SSH_KEY_FILE = '/home/loom/.ssh/google_compute_engine'
@@ -95,7 +96,10 @@ class CloudTaskManager:
         }
         logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
         ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)
-        cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        if settings.WORKER_SKIP_INSTALLS == "True":
+            cls._run_playbook(GCLOUD_CREATE_WORKER_SKIP_INSTALLS_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        else:
+            cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         logger.debug("CloudTaskManager process done.")
         ansible_logfile.close()
