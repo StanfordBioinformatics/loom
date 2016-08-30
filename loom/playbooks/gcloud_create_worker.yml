@@ -37,6 +37,8 @@
       name: epel
       description: EPEL YUM repo
       baseurl: http://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+  - name: Add public GPG key for EPEL 7 repo.
+    rpm_key: state=present key=https://getfedora.org/static/352C64E5.txt
   - name: Install pip, which is needed to install docker-py.
     yum: name=python-pip state=present update_cache=yes
     register: pip_install
