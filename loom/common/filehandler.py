@@ -186,8 +186,6 @@ class GoogleStorageSource(AbstractSource):
     """
     type = 'google_storage'
 
-    CHUNK_SIZE = 1024 * 1024 * 100 # Must be multiple of 256
-
     def __init__(self, url, settings):
         self.url = _urlparse(url)
         assert self.url.scheme == 'gs'
@@ -201,7 +199,7 @@ class GoogleStorageSource(AbstractSource):
         self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])    
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
-            self.blob = gcloud.storage.Blob(self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
+            self.blob = self.bucket.get_blob(self.blob_id)
         except HttpAccessTokenRefreshError:
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
 
