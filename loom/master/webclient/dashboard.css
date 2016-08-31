@@ -103,3 +103,23 @@ body {
   display: inline-block;
   border-radius: 50%;
 }
+
+
+/*
+ * dagre graph
+ */
+
+g {
+    font: 300 14px 'Helvetica Neue', Helvetica;
+}
+
+.node rect {
+    stroke: #333;
+    fill: #fff;
+}
+
+.edgePath path {
+    stroke: #333;
+    fill: #333;
+    stroke-width: 1.5px;
+}

@@ -43,5 +43,9 @@ function config($routeProvider) {
             templateUrl: 'views/file-detail.html',
             controller: 'FileDetailController'
         })
+        .when('/files/:fileId/provenance', {
+            templateUrl: 'views/file-provenance.html',
+            controller: 'FileProvenanceController'
+        })
 	.otherwise('/runs');
 };
