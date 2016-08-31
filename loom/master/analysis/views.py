@@ -65,6 +65,10 @@ class FileDataObjectViewSet(QueryViewSet):
     Model=FileDataObject
     serializer_class = serializers.FileDataObjectSerializer
 
+class FileProvenanceViewSet(QueryViewSet):
+    Model=FileDataObject
+    serializer_class = serializers.FileProvenanceSerializer
+
 class ImportedFileDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.FileDataObject.objects.filter(source_type='imported')
     serializer_class = serializers.FileDataObjectSerializer

@@ -42,9 +42,12 @@ router.register('imported-workflows', views.ImportedWorkflowViewSet)
 #router.register(Workflow.get_class_name(plural=True, hyphen=True), views.WorkflowViewSet)
 #router.register(WorkflowRun.get_class_name(plural=True, hyphen=True), views.WorkflowRunViewSet)
 
+file_provenance_detail = views.FileProvenanceViewSet.as_view({'get':'retrieve'})
+
 urlpatterns = patterns(
     '',
     url(r'^', include(router.urls)),
+    url(r'^file-data-objects/(?P<pk>[a-zA-Z0-9]+)/provenance/$', file_provenance_detail, name='file_provenance_detail'),
     url(r'^status/$', 'analysis.views.status'),
     url(r'^info/$', 'analysis.views.info'),
     url(r'^filehandler-settings/$', 'analysis.views.filehandler_settings'),

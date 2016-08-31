@@ -44,6 +44,12 @@
 	  {{activeData.file.file_import.note}}
 	</td>
       </tr>
+      <tr ng-show="activeData.file.source_type=='result'">
+	<th>Provenance</th>
+	<td>
+	  <a ng-href="#/files/{{activeData.file.id}}/provenance/">Provenance graph</a>
+	</td>
+      </tr>
     </tbody>
   </table>
 </div>

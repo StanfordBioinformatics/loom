@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import ProtectedError
 from django.utils import timezone
@@ -163,6 +164,49 @@ class FileDataObject(DataObject):
             pass
         # Do not delete file_location until disk space can be freed.
 
+    def get_provenance_data(self, files=None, tasks=None, edges=None):
+        if files is None:
+            files = set()
+        if tasks is None:
+            tasks = set()
+        if edges is None:
+            edges = set()
+
+        files.add(self)
+        try:
+            task_run_attempt_output =  self.task_run_attempt_output
+        except ObjectDoesNotExist:
+            return files, tasks, edges
+
+        task_run_attempt = task_run_attempt_output.task_run_attempt
+        tasks.add(task_run_attempt)
+        edges.add((task_run_attempt.id.hex, self.id.hex))
+        task_run_attempt.get_provenance_data(files, tasks, edges)
+
+        return files, tasks, edges
+
+        """
+        return {
+            'files': [
+                {'id': '1'},
+                {'id': '2'},
+                {'id': '3',
+                 'task': 'a'},
+                {'id': '4',
+                 'task': 'b'},
+                {'id': '5',
+                 'task': 'c'}
+            ],
+            'tasks': [
+                {'id': 'a',
+                 'inputs': ['1']},
+                    {'id': 'b',
+                     'inputs': ['2']},
+                    {'id': 'c',
+                     'inputs': ['3', '4']}
+            ]
+        }
+        """
 
 class FileContent(DataObjectContent):
     """Represents a file, including its content (identified by a hash), its 
