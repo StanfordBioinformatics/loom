@@ -26,6 +26,16 @@
     add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
 
+- name: Wait for SSH to come up on host IP.
+  hosts: new_instances
+  tasks:
+  - name: Wait for SSH to come up on host IP.
+    wait_for: host={{ansible_hostname}} port=22 delay=10 timeout=60
+    register: status
+    until: status|succeeded
+    retries: 10
+    delay: 10
+
 - name: Set up the Loom server on the new instance. 
   hosts: new_instances
   become: yes
