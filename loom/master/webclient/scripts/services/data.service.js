@@ -29,7 +29,13 @@ function DataService($http) {
 	return $http.get('/api/abstract-workflow-runs/' + runId + '/')
             .then(function(response) {
 		activeData.run = response.data;
-            });
+		if (response.data.task_runs) {
+		    return $http.get('/api/task-runs/' + activeData.run.task_runs[0].id + '/')
+			.then(function(response) {
+			    activeData.run.task_runs[0] = response.data;
+			});
+		};
+	    });
     };
 
     function setActiveTemplate(templateId) {

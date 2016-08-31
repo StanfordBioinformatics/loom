@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, NoUpdateModelSerializer
 from analysis.models.workflow_runs import *
 from analysis.serializers.workflows import AbstractWorkflowIdSerializer, RequestedEnvironmentSerializer, RequestedResourceSetSerializer
-
+from analysis.serializers.task_runs import TaskRunIdSerializer
 
 class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
 
@@ -58,10 +58,11 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     resources = RequestedResourceSetSerializer()
     environment = RequestedEnvironmentSerializer()
     name = serializers.CharField()
+    task_runs = TaskRunIdSerializer(many=True)
     
     class Meta:
         model = StepRun
-        fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs', 'command', 'environment', 'resources', 'name',)
+        fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs', 'command', 'environment', 'resources', 'name', 'task_runs',)
 
 
 class WorkflowRunInputSerializer(CreateWithParentModelSerializer):
