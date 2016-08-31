@@ -5,7 +5,8 @@
   gather_facts: no
   vars:
     gce_bucket: "{{lookup('env', 'GCE_BUCKET')}}"
+    gce_project: "{{lookup('env', 'GCE_PROJECT')}}"
   tasks:
   - name: Create storage bucket. Ignore error if bucket already exists.
-    shell: gsutil mb gs://{{gce_bucket}}/
+    shell: gsutil mb -p {{gce_project}} gs://{{gce_bucket}}/
     ignore_errors: yes 

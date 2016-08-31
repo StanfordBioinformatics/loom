@@ -40,8 +40,7 @@
   hosts: new_instances
   become: yes
   roles:
-  - docker
-  - loom_master
+  - loom_master_skip_installs
 
 - name: Run the user-provided playbook.
   include: "{{lookup('env','RUN_AFTER_SERVER_CREATE_PLAYBOOK_PATH')}}"

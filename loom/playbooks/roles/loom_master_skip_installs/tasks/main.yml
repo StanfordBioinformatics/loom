@@ -1,0 +1,16 @@
+  - name: Create directory for deploy settings.
+    file: path={{remote_loom_settings_path}} state=directory mode=0755
+  - name: Copy deploy settings to server.
+    copy: src={{deploy_settings_filename}} dest={{remote_loom_settings_path}}/local_deploy_settings.ini
+  - name: Copy service account key to server.
+    copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
+  - name: Copy Ansible dynamic inventory settings file to server.
+    copy: src={{gce_ini_path}} dest={{remote_loom_settings_path}}
+  - name: Create directory for SSL certificate and key.
+    file: path={{remote_loom_settings_path}}/ssl state=directory mode=0755
+  - name: Create self-signed SSL certificate and key.
+    command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{remote_loom_settings_path}}/ssl/ssl.key -out {{remote_loom_settings_path}}/ssl/ssl.crt -subj "/C=US/ST=California/L=Palo Alto/O=Stanford University/CN={{ansible_hostname}}"
+  - name: Pull Docker image.
+    docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto force=True
+  - name: Pull NGINX image.
+    docker_image: name=nginx tag=stable api_version=auto force=True
