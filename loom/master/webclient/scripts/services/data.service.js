@@ -54,9 +54,10 @@ function DataService($http, $q) {
     };
 
     function getFileProvenance(fileId) {
-	var deferred = $q.defer();
-	deferred.resolve({'fileId': fileId});
-	return deferred.promise;
+	return $http.get('/api/file-data-objects/' + fileId + '/provenance/')
+	    .then(function(response) {
+		return response.data.provenance;
+	    });
     };
 
     function getRunRequests() {

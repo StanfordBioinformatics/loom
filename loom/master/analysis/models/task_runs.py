@@ -27,6 +27,10 @@ class TaskRun(BaseModel):
     # No 'environment' field, because this is in the TaskDefinition.
     # 'resources' field included (by FK) since this is not in TaskDefinition.
 
+    @property
+    def name(self):
+        return self.step_run.name
+                    
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
         task_run = TaskRun.objects.create(step_run=step_run)
@@ -167,7 +171,11 @@ class TaskRunAttempt(BasePolymorphicModel):
     @property
     def task_definition(self):
         return self.task_run.task_definition
-    
+
+    @property
+    def name(self):
+        return self.task_run.name
+
     @classmethod
     def create_from_task_run(cls, task_run):
         model = cls.objects.create(task_run=task_run)
@@ -205,6 +213,28 @@ class TaskRunAttempt(BasePolymorphicModel):
                             'runtime_volumes',
                             task_run_attempt_id,
                             'logs')
+
+    def get_provenance_data(self, files=None, tasks=None, edges=None):
+        if files is None:
+            files = set()
+        if tasks is None:
+            tasks = set()
+        if edges is None:
+            edges = set()
+
+        tasks.add(self)
+
+        for input in self.task_run.inputs.all():
+            data = input.data_object
+            if data.type == 'file':
+                files.add(data)
+                edges.add((data.id.hex, self.id.hex))
+                data.get_provenance_data(files, tasks, edges)
+            else:
+                # TODO
+                pass
+
+        return files, tasks, edges
 
 
 class TaskRunAttemptInput(BaseModel):

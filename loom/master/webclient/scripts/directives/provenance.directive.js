@@ -33,54 +33,21 @@ function linkFunction(scope, element, attrs) {
 
 function changeFunction (newVal, oldVal) {
 
-    console.log(newVal.fileId);
+    if (!newVal) {
+	return;
+    }
+
+    var files = newVal.files
+    var tasks = newVal.tasks
+    var edges = newVal.edges
     
     // Create a new directed graph
     var g = new dagreD3.graphlib.Graph().setGraph({});
 
-    var files = [
-	{id: "1"},
-	{id: "2"},
-	{id: "3",
-	 task: "a"},
-	{id: "4",
-	 task: "b"},
-	{id: "5",
-	 task: "c"}
-    ];
-
-    var tasks = [
-	{id: "a",
-	 inputs: ["1"]},
-	{id: "b",
-	 inputs: ["2"]},
-	{id: "c",
-	 inputs: ["3", "4"]}
-    ];
-
     // Automatically label each of the nodes
-    files.forEach(function(file) { g.setNode(file.id, { label: file.id, shape: "diamond" }); g.node(file.id).style = "fill: #f99; stroke: #000"; });
-    tasks.forEach(function(task) { g.setNode(task.id, { label: task.id, shape: "ellipse" }); g.node(task.id).style = "fill: #8bf; stroke: #000"; });
-
-    files.forEach(
-	function(file) {
-	    if (file.task) {
-		g.setEdge(file.task, file.id, {});
-	    };
-	}
-    );
-
-    tasks.forEach(
-	function(task) {
-	    if (task.inputs) {
-		task.inputs.forEach(
-		    function(input){
-			g.setEdge(input, task.id, {});
-		    }
-		);
-	    };
-	}
-    );
+    files.forEach(function(file) { g.setNode(file.id, { label: file.file_content.filename, shape: "diamond" }); g.node(file.id).style = "fill: #f99; stroke: #000"; });
+    tasks.forEach(function(task) { g.setNode(task.id, { label: task.name, shape: "ellipse" }); g.node(task.id).style = "fill: #8bf; stroke: #000"; });
+    edges.forEach(function(edge) { g.setEdge(edge[0], edge[1], {}); });
 
     // Set up zoom support
     var zoom = d3.behavior.zoom().on("zoom", function() {
@@ -92,9 +59,6 @@ function changeFunction (newVal, oldVal) {
     // Create the renderer
     var render = new dagreD3.render();
 
-    console.log(inner);
-    console.log(g);
-    
     // Run the renderer. This is what draws the final graph.
     render(inner, g);
 
