@@ -103,6 +103,14 @@ class TaskRunOutputSerializer(CreateWithParentModelSerializer):
         fields = ('data_object', 'filename', 'type', 'channel',)
 
 
+class TaskRunIdSerializer(serializers.ModelSerializer):
+
+    id = serializers.UUIDField(format='hex', required=False)
+
+    class Meta:
+        model = TaskRun
+        fields = ('id',)
+        
 class TaskRunSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
