@@ -1,2 +1,0 @@
--r ../common/requirements.txt
-Django==1.8

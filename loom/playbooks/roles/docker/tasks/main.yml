@@ -1,0 +1,46 @@
+- name: add docker main repository
+  template:
+    src: docker-main.repo.j2
+    dest: /etc/yum.repos.d/docker-main.repo
+
+- name: create systemd override directory
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+  when: ansible_distribution_major_version == "7"
+
+- name: add systemd override
+  copy:
+    src: override.conf
+    dest: /etc/systemd/system/docker.service.d/override.conf
+  when: ansible_distribution_major_version == "7"
+
+- name: install docker
+  yum:
+    name: docker-engine
+    state: present
+    update_cache: yes
+  register: docker_install
+  until: docker_install|succeeded
+  retries: 10
+  delay: 10
+
+- name: create sysconfig file
+  template:
+    src: sysconfig.j2
+    dest: /etc/sysconfig/docker
+
+# Prefer when|changed over a notification so these run ASAP
+#- name: restart cgconfig on rhel6
+#  service:
+#    name: cgconfig
+#    state: restarted
+#  when:
+#    - docker_install|changed
+#    - ansible_os_family == "RedHat" and ansible_distribution_major_version == "6"
+
+- name: start and enable docker
+  service:
+    name: docker
+    state: started
+    enabled: yes

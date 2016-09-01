@@ -3,7 +3,7 @@
     "workflow_inputs": [
 	{
 	    "type": "file_array",
-	    "value": ["hello.txt@e2971d1d4"],
+	    "value": ["hello.txt@1532ee289e"],
 	    "to_channel": "my_files"
 	}
     ],

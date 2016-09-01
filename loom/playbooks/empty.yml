@@ -1,0 +1,6 @@
+---
+- hosts: localhost
+  name: Empty play.
+  tasks:
+  - name: Empty task.
+    debug: msg='' verbosity=5

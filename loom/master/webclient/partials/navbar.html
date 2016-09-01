@@ -1,0 +1,7 @@
+<div ng-show="$location.$$path.startsWith('/files')">
+  <ul class="nav nav-tabs">
+    <li ng-class="{active: $location.$$path.startsWith('/files/imported')}"><a href="#/files/imported">Imported files</a></li>
+    <li ng-class="{active: $location.$$path.startsWith('/files/results')}"><a href="#/files/results">Results</a></li>
+    <li ng-class="{active: $location.$$path.startsWith('/files/logs')}"><a href="#/files/logs">Logs</a></li>
+  </ul>
+</div>

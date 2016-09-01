@@ -1,403 +1,641 @@
-#!/usr/bin/env python
-
 import abc
-from copy import copy
-import datetime
+import copy
 import errno
+import glob
+import logging
 import os
 import shutil
-import subprocess
-
+import sys
+import tempfile
+import urlparse
 import gcloud.storage
 import requests
 
 from loom.common import md5calc
 from loom.common.exceptions import *
 from loom.common.objecthandler import ObjectHandler
+from loom.common.logger import StreamToLogger
 
 # Google Storage JSON API imports
 from apiclient.http import MediaIoBaseDownload
 from oauth2client.client import GoogleCredentials
+from oauth2client.client import HttpAccessTokenRefreshError
 import apiclient.discovery
 
 
-def FileHandler(master_url, *args, **kwargs):
-    """Factory method that communicates with master server to retrieve settings 
-    and determine which concrete subclass to instantiate.
+def _urlparse(pattern):
+    """Like urlparse except it assumes 'file://' if no scheme is specified
     """
-    settings = _get_settings(master_url)
-    if settings['FILE_SERVER_TYPE'] == 'LOCAL':
-        return LocalFileHandler(master_url, settings, *args, **kwargs)
-    elif settings['FILE_SERVER_TYPE'] == 'REMOTE':
-        return RemoteFileHandler(master_url, settings, *args, **kwargs)
-    elif settings['FILE_SERVER_TYPE'] == 'GOOGLE_CLOUD':
-        return GoogleCloudFileHandler(master_url, settings, *args, **kwargs)
+    url = urlparse.urlparse(pattern)
+    if not url.scheme:
+        url = urlparse.urlparse('file://' + os.path.abspath(os.path.expanduser(pattern)))
+    return url
+
+
+def SourceSet(pattern, settings):
+    """Factory Method that returns a set of Sources matching the given pattern.
+    Each Source represents one source file to be copied.
+    """
+
+    url = _urlparse(pattern)
+
+    if url.scheme == 'gs':
+        return GoogleStorageSourceSet(pattern, settings)
+    elif url.scheme == 'file':
+        if url.hostname == 'localhost' or url.hostname is None:
+            return LocalSourceSet(pattern, settings)
+        else:
+            raise Exception("Cannot process file pattern %s. Remote file hosts not supported." % pattern)
     else:
-        raise UnrecognizedFileServerTypeError(
-            'Unrecognized file server type: %s' % settings['FILE_SERVER_TYPE'])
-
-def _get_settings(master_url):
-    url = master_url + '/api/filehandlerinfo/'
-    try:
-        response = requests.get(url)
-    except requests.exceptions.ConnectionError:
-        raise ServerConnectionError(
-            'No response from server at %s. Do you need to run "loom server start"?' \
-            % master_url)
-    try:
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        raise BadResponseError("%s\n%s" % (e.message, response.text))
-    settings = response.json()['filehandlerinfo']
-    return settings
+        raise Exception('Cannot recognize file scheme in "%s". '\
+                        'Make sure the pattern starts with a supported protocol like gs:// or file://'
+                        % pattern)
 
 
-class AbstractFileHandler:
+class AbstractSourceSet:
+    """Creates an iterable set of Sources that match the given pattern.
+    Pattern may include wildcards.
+    """
+
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __init__(self, pattern, settings):
+        pass
+
+    @abc.abstractmethod
+    def __iter__(self):
+        pass
+
+
+class LocalSourceSet(AbstractSourceSet):
+    """A set of source files on local storage
+    """
+
+    def __init__(self, pattern, settings):
+        url = _urlparse(pattern)
+        matches = self._get_matching_files(url.path)
+        self.sources = [LocalSource('file://' + path, settings) for path in matches]
+
+    def __iter__(self):
+        return self.sources.__iter__()
+
+    def _get_matching_files(self, path):
+        all_matches = glob.glob(path)
+        return self._remove_directories(all_matches)
+
+    def _remove_directories(self, all_matches):
+        return filter(lambda x: os.path.isfile(x), all_matches)
+
+
+class GoogleStorageSourceSet(AbstractSourceSet):
+    """A set of source files on Google Storage
+    """
+
+    def __init__(self, pattern, settings):
+        self.settings = settings
+        self.sources = [GoogleStorageSource(pattern, settings)]
+
+    def __iter__(self):
+        return self.sources.__iter__()
+
+    # TODO support wildcards with multiple matches
+
+
+def Source(url, settings):
+    """Factory method
+    """
+    parsed_url = _urlparse(url)
+
+    if parsed_url.scheme == 'gs':
+        return GoogleStorageSource(url, settings)
+    elif parsed_url.scheme == 'file':
+        if parsed_url.hostname == 'localhost' or parsed_url.hostname is None:
+            return LocalSource(url, settings)
+        else:
+            raise Exception("Cannot process file url %s. Remote file hosts not supported." % url)
+    else:
+        raise Exception('Unsupported scheme "%s" in file "%s"' % (parsed_url.scheme, url))
+
+
+class AbstractSource:
+    """A Source represents a single file to be copied.
+    """
+
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __init__(self, url, settings):
+        pass
+
+
+    def copy_to(self, destination):
+        copier = Copier(self, destination)
+        copier.copy()
+
+    def move_to(self, destination):
+        copier = Copier(self, destination)
+        copier.move()
+
+    @abc.abstractmethod
+    def calculate_hash_value(self, hash_function):
+        pass
+
+    @abc.abstractmethod
+    def get_url(self):
+        pass
+
+    @abc.abstractmethod
+    def get_filename(self):
+        pass
+
+
+class LocalSource(AbstractSource):
+    """A source file on local storage.
+    """
+
+    type = 'local'
+
+    def __init__(self, url, settings):
+        self.url = _urlparse(url)
+
+    def calculate_hash_value(self, hash_function):
+        if not hash_function == 'md5':
+            raise Exception('Unsupported hash function %s' % hash_function)
+        return md5calc.calculate_md5sum(self.get_path())
+
+    def get_url(self):
+        return self.url.geturl()
+
+    def get_path(self):
+        return self.url.path
+
+    def get_filename(self):
+        return os.path.basename(self.get_path())
+
+    def read(self):
+        with open(self.get_path()) as f:
+            return f.read()
+
+    def delete(self):
+        os.remove(self.get_path())
+
+
+class GoogleStorageSource(AbstractSource):
+    """A source file on Google Storage.
+    """
+    type = 'google_storage'
+    
+    # CHUNK_SIZE must be multiple of 256.
+    # 2016-08-30: With default 1024*1024, download is 20x slower than gsutil.
+    CHUNK_SIZE = 1024*1024*100 
+
+    def __init__(self, url, settings):
+        self.url = _urlparse(url)
+        assert self.url.scheme == 'gs'
+        self.bucket_id = self.url.hostname
+        self.blob_id = self.url.path.lstrip('/')
+        if not self.bucket_id or not self.blob_id:
+            raise Exception('Could not parse url "%s". Be sure to use the format "gs://bucket/blob_id".' % url)
+        
+        self.settings = settings
+
+        self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])    
+        try:
+            self.bucket = self.client.get_bucket(self.bucket_id)
+            self.blob = self.bucket.get_blob(self.blob_id)
+            self.blob.chunk_size = self.CHUNK_SIZE
+        except HttpAccessTokenRefreshError:
+            raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
+
+
+    def calculate_hash_value(self, hash_function):
+        if hash_function == 'md5':
+            return self._get_md5_hash_value()
+        elif hash_function == 'crcmod32c':
+            return self._get_crc32c_hash_value()
+        
+    def _get_md5_hash_value(self):
+        md5_base64 = self.blob.md5_hash
+        md5_hex = md5_base64.decode('base64').encode('hex').strip()
+        return md5_hex
+
+    def _get_crc32c_hash_value(self):
+        return self.blob.crc32c
+        
+    def get_url(self):
+        return self.url.geturl()
+
+    def get_filename(self):
+        return os.path.basename(self.blob_id)
+
+    def read(self):
+        tempdir = tempfile.mkdtemp()
+        dest_file = os.path.join(tempdir, self.get_filename())
+        self.copy_to(Destination(dest_file, self.settings))
+        with open(dest_file) as f:
+            text = f.read()
+        os.remove(dest_file)
+        os.rmdir(tempdir)
+        return text
+
+    def delete(self):
+        self.blob.delete()
+
+
+def Destination(url, settings):
+    """Factory method
+    """
+    parsed_url = _urlparse(url)
+
+    if parsed_url.scheme == 'gs':
+        return GoogleStorageDestination(url, settings)
+    elif parsed_url.scheme == 'file':
+        if parsed_url.hostname == 'localhost' or parsed_url.hostname is None:
+            return LocalDestination(url, settings)
+        else:
+            raise Exception("Cannot process file url %s. Remote file hosts not supported." % url)
+    else:
+        raise Exception('Unsupported scheme "%s" in file "%s"' % (parsed_url.scheme, url))
+
+
+class AbstractDestination:
+    """A Destination represents a path or directory to which a file will be copied
+    """
+
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __init__(self, url, settings):
+        pass
+    
+    @abc.abstractmethod
+    def get_url(self):
+        pass
+
+    @abc.abstractmethod
+    def exists(self):
+        pass
+
+    @abc.abstractmethod
+    def is_dir(self):
+        pass
+
+    @abc.abstractmethod
+    def write(self, content):
+        pass
+
+class LocalDestination(AbstractDestination):
+
+    type = 'local'
+
+    def __init__(self, url, settings):
+        self.url = _urlparse(url)
+        self.settings = settings
+
+    def get_path(self):
+        return os.path.abspath(os.path.expanduser(self.url.path))
+
+    def get_url(self):
+        return 'file://'+ self.get_path()
+
+    def exists(self):
+        return os.path.exists(self.get_path())
+
+    def is_dir(self):
+        return os.path.isdir(self.get_path())
+
+    def write(self, content):
+        with open(self.get_path(), 'w') as f:
+            f.write(content)
+
+
+class GoogleStorageDestination(AbstractDestination):
+
+    type = 'google_storage'
+
+    def __init__(self, url, settings):
+        self.settings = settings
+        self.url = _urlparse(url)
+        assert self.url.scheme == 'gs'
+        self.bucket_id = self.url.hostname
+        self.blob_id = self.url.path.lstrip('/')
+        self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])
+        try:
+            self.bucket = self.client.get_bucket(self.bucket_id)
+            self.blob = self.bucket.get_blob(self.blob_id)
+        except HttpAccessTokenRefreshError:
+            raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
+        if self.blob is None:
+            self.blob = gcloud.storage.blob.Blob(self.blob_id, self.bucket)
+
+    def get_url(self):
+        return self.url.geturl()
+
+    def exists(self):
+        return self.blob.exists()
+
+    def is_dir(self):
+        # No dirs in Google Storage, just blobs
+        return False
+
+    def write(self, content):
+        with tempfile.NamedTemporaryFile('w') as f:
+            f.write(content)
+            f.flush()
+            Source(f.name, self.settings).copy_to(self)
+
+
+def Copier(source, destination):
+    """Factory method to select the right copier for a given source and destination.
+    """
+
+    if source.type == 'local' and destination.type == 'local':
+        return LocalCopier(source, destination)
+    elif source.type == 'local' and destination.type == 'google_storage':
+        return Local2GoogleStorageCopier(source, destination)
+    elif source.type == 'google_storage' and destination.type == 'local':
+        return GoogleStorage2LocalCopier(source, destination)
+    elif source.type == 'google_storage' and destination.type == 'google_storage':
+        return GoogleStorageCopier(source, destination)
+    else:
+        raise Exception('Could not find method to copy from source "%s" to destination "%s".'
+                        % (source, destination))
+
+
+class AbstractCopier:
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, source, destination):
+        self.source = source
+        self.destination = destination
+            
+    @abc.abstractmethod
+    def copy(self, hash_function):
+        pass
+
+    @abc.abstractmethod
+    def move(self):
+        pass
+
+
+class LocalCopier(AbstractCopier):
+
+    def copy(self):
+        try:
+            os.makedirs(os.path.dirname(self.destination.get_path()))
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise e
+        shutil.copy(self.source.get_path(), self.destination.get_path())
+
+    def move(self):
+        try:
+            os.makedirs(os.path.dirname(self.destination.get_path()))
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise e
+        shutil.move(self.source.get_path(), self.destination.get_path())
+
+
+class GoogleStorageCopier(AbstractCopier):
+
+    def copy(self):
+        self.source.bucket.copy_blob(self.source.blob, self.destination.bucket, self.destination.blob_id)
+
+    def move(self):
+        if not self.source.bucket_id == self.destination.bucket_id:
+            raise Exception('"move" operation is not supported between buckets.')
+        self.source.bucket.rename_blob(self.source.blob, self.destination.blob_id)
+
+
+class Local2GoogleStorageCopier(AbstractCopier):
+
+    def copy(self):
+        self.destination.blob.upload_from_filename(self.source.get_path())
+
+    def move(self):
+        raise Exception('"move" operation is not supported from local to Google Storage.')
+
+
+class GoogleStorage2LocalCopier(AbstractCopier):
+
+    def copy(self):
+        try:
+            os.makedirs(os.path.dirname(self.destination.get_path()))
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise e
+        self.source.blob.download_to_filename(self.destination.get_path())
+
+    def move(self):
+        raise Exception('"move" operation is not supported from Google Storage to local.')
+
+
+class FileHandler:
     """Abstract base class for filehandlers.
     Public interface and required overrides. Perform file transfer or create 
     locations differently depending on fileserver type.
     """
-    __metaclass__ = abc.ABCMeta
 
-    def __init__(self, master_url, settings, logger=None):
+    def __init__(self, master_url, logger=None):
         self.objecthandler = ObjectHandler(master_url)
-        self.settings = settings
+        self.settings = self.objecthandler.get_filehandler_settings()
         self.logger = logger
-
-    @abc.abstractmethod
-    def upload(self, local_path, destination_location):
-        pass
-
-    @abc.abstractmethod
-    def download(self, source_location, local_path):
-        pass
-
-    @abc.abstractmethod
-    def get_step_output_location(self, local_path, file_object=None):
-        pass
-
-    @abc.abstractmethod
-    def get_import_location(self, file_object, timestamp):
-        pass
-
-    def _get_import_path(self, file_object, timestamp):
-        """Imported files are placed in IMPORT_DIR and named with timestamp, 
-        file ID, and filename.
-        """
-        file_id = file_object.get('_id')
-        if file_id is None:
-            raise UndefinedFileIDError("File ID must be defined")
-        return os.path.join(
-            self.settings['FILE_ROOT'],
-            self.settings['IMPORT_DIR'],
-            "%s_%s_%s" % (timestamp, file_id[0:10], file_object['file_name']),
-        )
-
-    def download_by_file_id(self, file_id, local_path):
-        storage_locations = self.objecthandler.get_file_storage_locations_by_file(file_id)
-        # Attempt to download from each location
-        for location in storage_locations:
-            if os.path.exists(local_path):
-                raise FileAlreadyExistsError('File "%s" already exists' % local_path)
-            self.download(location, local_path)
-            # TODO handle download failures
-            break
-    
-    def _get_step_output_path(self, local_path):
-        """Step outputs are placed in directories of the same name as the
-        local directories, and named with the same filename.
-        """
-        filename = os.path.basename(local_path)
-        step_run_dir = os.path.basename(os.path.dirname(local_path))
-        workflow_dir = os.path.basename(os.path.dirname(
-            os.path.dirname(local_path)))
-        workflows_dir = os.path.basename(os.path.dirname(
-            os.path.dirname(os.path.dirname(local_path))))
-        return os.path.join(
-            self.settings['FILE_ROOT'],
-            workflows_dir,
-            workflow_dir,
-            step_run_dir,
-            filename
-        )
-
-    @classmethod
-    def create_file_data_object_from_local_path(cls, file_path):
-        file_data_object = {
-            'file_contents': {
-                'hash_value': md5calc.calculate_md5sum(file_path),
-                'hash_function': 'md5',
-            },
-            'file_name': os.path.basename(file_path)
-        }
-        return file_data_object
+        stdout_logger = StreamToLogger(self.logger, logging.INFO)
+        sys.stdout = stdout_logger
+        stderr_logger = StreamToLogger(self.logger, logging.ERROR)
+        sys.stderr = stderr_logger
 
     def _log(self, message):
         if not self.logger:
             return
         self.logger.info(message)
-    
-    def upload_files_from_local_paths(self, local_paths, source_record=None, source_directory=None):
-        upload_request_time = self.objecthandler.get_server_time()
-        file_objects = []
-        destination_locations = []
-        # Upload files, create FileDataObjects and StorageLocations
-        for local_path in local_paths:
-            file_objects.append(self.upload_file_from_local_path(local_path, source_directory=source_directory, upload_request_time=upload_request_time))
-        # Create source_record if one exists
-        self._create_source_record(file_objects, source_record=source_record)
-        return file_objects
-            
-    def upload_file_from_local_path(self, local_path, source_directory=None, source_record=None, upload_request_time=None):
-        """Upload files, create FileDataObjects and StorageLocations
-        """
-        local_path = self._add_directory(source_directory, local_path)
-        
-        if upload_request_time is None:
-            upload_request_time = self.objecthandler.get_server_time()
-        self._log("Uploading %s ..." % local_path)
-        file_object = self.create_file_data_object_from_local_path(local_path)
-        file_object = self.objecthandler.post_data_object(file_object)
 
-        # Create source_record if one exists
-        self._create_source_record([file_object], source_record=source_record)
-        self._log("Created file %s@%s" % (file_object['file_name'], file_object['_id']))
+    def import_from_patterns(self, patterns, note):
+        for pattern in patterns:
+            self.import_from_pattern(pattern, note)
 
-        storage_locations = self.objecthandler.get_file_storage_locations_by_file(file_object['_id'])
-        if len(storage_locations) == 0:
-            destination_location = self.get_import_location(file_object, upload_request_time)
-            self.upload(local_path, destination_location)
-            self.objecthandler.post_file_storage_location(destination_location)
-
-        return file_object
-
-    def _add_directory(self, root_directory, local_path):
-        if root_directory is None:
-            return local_path
-        if local_path.startswith('/'):
-            raise ValidationError('Cannot use absolute path %s with root directory %s' % (local_path, root_directory))
-        return os.path.join(root_directory, local_path)
-        
-    def _create_source_record(self, data_objects, source_record=None):
-        if source_record is not None:
-            self.objecthandler.post_data_source_record(
-                {'data_objects': data_objects,
-                 'source_description': source_record}
+    def import_from_pattern(self, pattern, note):
+        for source in SourceSet(pattern, self.settings):
+            self.import_file(
+                source.get_url(),
+                note
             )
 
-    def download_files(self, file_ids, local_names=None, target_directory=None):
-        if local_names is None:
-            local_names = [None] * len(file_ids)
-        if len(local_names) != len(file_ids):
-            raise WrongNumberOfFileNamesError('Cannot process %s file_names for %s files. '\
-                                              'The lengths must match.' % (len(local_names), len(file_ids)))
+    def import_file(self, source_url, note):
+        return self._execute_file_import(
+            self._create_file_data_object_for_import(source_url, note),
+            source_url
+        )
 
-        for (file_id, local_name) in zip(file_ids, local_names):
-            file = self.objecthandler.get_file_data_object_index(file_id, max=1, min=1)[0]
-            # If no local name specified, use the file name from the object.
-            if local_name is None:
-                local_name = file['file_name']
-                # Don't overwrite anyone's root directory based on a file path from the server.
-                self._verify_not_absolute(local_name)
-            if target_directory is not None:
-                # We should never use target directory along with absolute paths.
-                if self._is_absolute_path(local_name):
-                    raise AbsolutePathInFileNameError('Cannot set download directory since the file name "%s" '\
-                                                      'uses an absolute path.' % local_name)
-                local_path = os.path.join(os.path.expanduser(target_directory), local_name)
-            else:
-                local_path = local_name
-            self._log('Downloading file %s@%s to %s...' % (file['file_name'], file['_id'], local_path))
-            self.download_by_file_id(file['_id'], local_path)
-            self._log('...complete.')
+    def _create_file_data_object_for_import(self, source_url, note):
+        return self.objecthandler.post_data_object({
+            'source_type': 'imported',
+            'file_import': {
+                'note': note,
+                'source_url': Source(source_url, self.settings).get_url(),
+                }
+        })
 
-    def _verify_not_absolute(self, file_name):
-        if self._is_absolute_path(file_name):
-            raise AbsolutePathInFileNameError('Refusing to download a file whose name is an absolute path.')
+    def import_result_file(self, task_run_attempt_output, source_url):
+        file_data_object = self._execute_file_import(
+            self._create_task_run_attempt_output_file(task_run_attempt_output),
+            source_url
+        )
+        return file_data_object
 
-    def _is_absolute_path(self, file_names):
-        return any([file_name.startswith('/') for file_name in file_names])
+    def _create_task_run_attempt_output_file(self, task_run_attempt_output):
+        updated_task_run_attempt_output = self.objecthandler.update_task_run_attempt_output(
+            task_run_attempt_output['id'],
+            {
+                'data_object': {
+                    'source_type': 'result',
+                }})
+        return updated_task_run_attempt_output['data_object']
 
+    def import_log_file(self, task_run_attempt, source_url):
+        log_name = os.path.basename(source_url)
+        log_file = self.objecthandler.post_task_run_attempt_log_file(task_run_attempt['id'], {'log_name': log_name})
+        return self._execute_file_import(
+            log_file['file_data_object'],
+            source_url
+        )
 
-class AbstractPosixPathFileHandler(AbstractFileHandler):
-    """Base class for filehandlers that deal with POSIX-style file paths."""
-    __metaclass__ = abc.ABCMeta
+    def _execute_file_import(self, file_data_object, source_url):
+        # Prior to import, file_data_object should have no content and no
+        # location
+        assert file_data_object.get('file_location') is None
+        assert file_data_object.get('file_content') is None
 
-    def get_step_output_location(self, local_path, file_object=None):
-        if file_object is None:
-            file_object = create_file_data_object_from_local_path(local_path)
-        location = {
-            'file_contents': file_object['file_contents'],
-            'file_path': self._get_step_output_path(local_path),
-            'host_url': self.settings['FILE_SERVER_FOR_WORKER']
+        source = Source(source_url, self.settings)
+        self._log('Importing file from %s...' % source.get_url())
+
+        hash_function = self.settings['HASH_FUNCTION']
+        self._log('   calculating %s hash...' % hash_function)
+        hash_value = source.calculate_hash_value(hash_function)
+
+        # Adding file_content will cause a file_location with status=incomplete
+        # to be added to file_data_object
+        # If the server is configured not to save multiple files with
+        # identical content, the data_object.file_location may have
+        # status=complete, indicating that no re-upload is needed.
+        #
+        file_data_object = self._add_file_content_to_data_object(
+            file_data_object,
+            source.get_filename(),
+            hash_value,
+            hash_function
+        )
+
+        if file_data_object['file_location']['status'] == 'complete':
+            self._log('   server already has the file. Skipping upload.')
+        else:
+            destination = Destination(
+                file_data_object['file_location']['url'],
+                self.settings)
+            self._log('   copying to destination %s...' % destination.get_url())
+            source.copy_to(destination)
+
+        # Signal that the upload completed successfully
+        file_data_object = self._flag_upload_as_complete(file_data_object)
+        self._log('   imported file %s@%s' % (
+            file_data_object['file_content']['filename'],
+            file_data_object['id']))
+        return file_data_object
+
+    def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
+        return self.objecthandler.update_data_object(
+            file_data_object['id'],
+            {
+                'file_content': {
+                    'filename': filename,
+                    'unnamed_file_content': {
+                        'hash_function': hash_function,
+                        'hash_value': hash_value
+                    }
+                }
             }
-        return location
+        )
 
-    def get_import_location(self, file_object, timestamp):
-        location = {
-            'file_contents': file_object['file_contents'],
-            'file_path': self._get_import_path(file_object, timestamp),
-            'host_url': self.settings['FILE_SERVER_FOR_WORKER']
-            }
-        return location
-
-
-class LocalFileHandler(AbstractPosixPathFileHandler):
-    """Subclass of FileHandler that uses cp or ln to 'copy' files.
-    """
-    def upload(self, local_path, destination_location):
-        """For imports, create imports directory and copy file.
-        For step outputs, don't need to do anything, because the working 
-        directory is the destination.
+    def _flag_upload_as_complete(self, file_data_object):
+        """ Mark upload location as "complete".
         """
-        destination_path = destination_location['file_path']
-        if local_path != destination_path:
-            try:
-                os.makedirs(os.path.dirname(destination_path))
-            except OSError as e:
-                if e.errno == errno.EEXIST:
-                    pass
-                else:
-                    raise e
-            shutil.copyfile(local_path, destination_path)
-        return
+        file_location = file_data_object['file_location']
+        file_location['status'] = 'complete'
+        file_location = self.objecthandler.update_file_location(
+            file_location['id'],
+            file_location
+        )
+        file_data_object['file_location'] = file_location
+        return file_data_object
 
-    def download(self, source_location, local_path):
-        """Save space by hardlinking file into the working dir instead of 
-        copying. However, won't work if the two locations are on different 
-        filesystems.
+    def export_files(self, file_ids, destination_url=None):
+        if destination_url is not None and len(file_ids) > 1:
+            # destination must be a directory
+            if not Destination(destination_url, self.settings).is_dir():
+                raise Exception(
+                    'Destination must be a directory if multiple files are exported. "%s" is not a directory.'
+                    % destination_url)
+        for file_id in file_ids:
+            self.export_file(file_id, destination_url=destination_url)
+
+    def export_file(self, file_id, destination_url=None):
+        # Error raised if there is not exactly one matching file.
+        file_data_object = self.objecthandler.get_file_data_object_index(query_string=file_id, max=1, min=1)[0]
+
+        if not destination_url:
+            destination_url = os.getcwd()
+        default_name = file_data_object['file_content']['filename']
+        destination_url = self.get_destination_file_url(destination_url, default_name)
+        destination = Destination(destination_url, self.settings)
+
+        self._log('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['id'], destination.get_url()))
+
+        # Copy from the first file location
+        source_url = file_data_object['file_location']['url']
+        Source(source_url, self.settings).copy_to(destination)
+
+        self._log('...finished exporting file')
+
+    def get_destination_file_url(self, requested_destination, default_name):
+        """destination may be a file, a directory, or None
+        This function accepts the specified file desitnation, 
+        or creates a sensible default that will not overwrite an existing file.
         """
-        cmd = ['ln', source_location['file_path'], local_path]
-        subprocess.check_call(cmd)
+        if requested_destination is None:
+            auto_destination = os.path.join(os.getcwd(), default_name)
+            destination = self._rename_to_avoid_overwrite(auto_destination)
+        elif Destination(requested_destination, self.settings).is_dir():
+            auto_destination = os.path.join(requested_destination, default_name)
+            destination = self._rename_to_avoid_overwrite(auto_destination)
+        else:
+            # Don't modify a file destination specified by the user, even if it overwrites something.
+            destination = requested_destination
+        return self.normalize_url(destination)
 
-class RemoteFileHandler(AbstractPosixPathFileHandler):
-    """Subclass of FileHandler that uses ssh and scp to copy files."""
+    def _rename_to_avoid_overwrite(self, destination_path):
+        root = destination_path
+        destination = Destination(root, self.settings)
+        counter = 0
+        while destination.exists():
+            counter += 1
+            destination_path = '%s(%s)' % (root, counter)
+            destination = Destination(destination_path, self.settings)
+        return destination_path
 
-    def upload(self, local_path, destination_location):
-        destination_path = destination_location['file_path']
-        subprocess.check_call(
-            ['ssh',
-             self.fileserver,
-             'mkdir',
-             '-p',
-             os.path.dirname(destination_path)]
-        )
-        subprocess.check_call(
-            ['scp',
-             local_path,
-             ':'.join([self.fileserver, destination_path])]
-        )
+    def read_file(self, url):
+        source = Source(url, self.settings)
+        return source.read(), source.get_url()
 
-    def download(self, source_location, local_path):
-        subprocess.check_call(
-            ['scp',
-             ':'.join(
-                 [source_location['host_url'],
-                  source_location['file_path']]
-             ),
-             local_path]
-        )
+    def write_to_file(self, url, content):
+        Destination(url, self.settings).write(content)
 
-    def get_cluster_remote_path(self, username):
-        if not hasattr(self,'_remote_path'):
-            timestamp = datetime.datetime.now().strftime("%Y%m%d-%Hh%Mm%Ss")
-            self._remote_path = os.path.join(
-                '/home',
-                username,
-                'working_dir',
-                self.IMPORTED_FILES_DIR,
-                "%s_%s_%s" % (timestamp, self.file_id[0:10], os.path.split(self.local_path)[1]),
-            )
-        return self._remote_path
-
-class ElasticlusterFileHandler(AbstractPosixPathFileHandler):
-    """ TODO: Use elasticluster and GCE-specific parameters for file transfer. 
-    Consider using elasticluster's ssh and sftp commands instead.
-    - Would decouple loom from cloud specifics (key management, username, fileserver IP).
-    - However, nesting virtualenvs seems problematic, and would have to locate
-      elasticluster installation or let user specify.
-    """
-
-    def _upload_file_to_elasticluster(self):
-        username = self.settings_manager.get_remote_username()
-        gce_key = os.path.join(os.getenv('HOME'),'.ssh','google_compute_engine')
-        if not os.path.exists(gce_key):
-            raise FileHandlerError("GCE key not found at %s" % gce_key)
-        print "Creating working directory on elasticluster at %s" % self.file_server
-        subprocess.check_call(
-            ['ssh',
-             username+'@'+self.file_server,
-             '-i',
-             gce_key,
-             'mkdir',
-             '-p',
-             os.path.dirname(self.get_cluster_remote_path(username))]
-             )
-        print "Uploading file to elasticluster at %s" % self.file_server
-        subprocess.check_call(
-            ['scp',
-             '-i',
-             gce_key,
-             self.local_path,
-             ':'.join([username+'@'+self.file_server, self.get_cluster_remote_path(username)])]
-            )
-
-
-class GoogleCloudFileHandler(AbstractFileHandler):
-    """Subclass of FileHandler that uses the gcloud module to copy files to and from Google Storage."""
-
-    def upload(self, local_path, destination_location):
-        blob = self._get_blob(destination_location)
-        blob.upload_from_filename(local_path)
-
-    def download(self, source_location, local_path):
-        blob = self._get_blob(source_location)
-        blob.download_to_filename(local_path)
-
-    def download_with_json_api(self, destination_location, local_path):
-        """Download using Google Storage JSON API instead of gcloud-python."""
-        blob_path = destination_location['blob_path']
-        bucket_id = destination_location['bucket_id']
-        credentials = GoogleCredentials.get_application_default()
-        service = apiclient.discovery.build('storage', 'v1', credentials=credentials)
-        file_request = service.objects().get_media(bucket=bucket_id, object=blob_path)
-        with open(local_path, 'w') as local_file:
-            downloader = MediaIoBaseDownload(local_file, file_request, chunksize=1024*1024)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
-                if status:
-                    print 'Download %d%%.' % int(status.progress() * 100)
-                print 'Download Complete!'
-
-    def _get_blob(self, location):
-        """Instantiate, configure, and return a gcloud blob."""
-        blob_path = location['blob_path']
-        project_id = location['project_id']
-        bucket_id = location['bucket_id']
-        client = gcloud.storage.client.Client(project_id)
-        bucket = client.get_bucket(bucket_id)
-        blob = bucket.get_blob(blob_path)
-        if blob is None:
-            blob = gcloud.storage.blob.Blob(blob_path, bucket)
-        return blob
-
-    def get_step_output_location(self, local_path, file_object=None):
-        if file_object is None:
-            file_object = create_file_data_object_from_local_path(local_path)
-        location = {
-            'file_contents': file_object['file_contents'],
-            'project_id': self.settings['PROJECT_ID'],
-            'bucket_id': self.settings['BUCKET_ID'],
-            'blob_path': self._get_step_output_path(local_path),
-            }
-        return location
-
-    def get_import_location(self, file_object, timestamp):
-        location = {
-            'file_contents': file_object['file_contents'],
-            'project_id': self.settings['PROJECT_ID'],
-            'bucket_id': self.settings['BUCKET_ID'],
-            'blob_path': self._get_import_path(file_object, timestamp),
-            }
-        return location
+    def normalize_url(self, url):
+        return _urlparse(url).geturl()

@@ -1,0 +1,17 @@
+---
+- name: Set up a loom user that Ansible will use to talk to the worker instance, since SSH login as root is disabled.
+  hosts: localhost
+  connection: local
+  tasks:
+  - name: Create a local loom user.
+    user: name=loom
+  - name: Generate ssh keys for the loom user. Overwrite if asked.
+    shell: echo -e  'y\n' | ssh-keygen -q -t rsa -f ~/.ssh/google_compute_engine -P ""
+    become_user: loom
+    become_method: su
+    become: yes
+  - name: Add GCE ssh keys for the loom user to the project metadata.
+    shell: gcloud compute config-ssh
+    become_user: loom
+    become_method: su
+    become: yes

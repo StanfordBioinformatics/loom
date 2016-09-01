@@ -10,5 +10,14 @@ class UnknownNameFieldError(Error):
 class IdTooShortError(Error):
     pass
 
+class InvalidIdError(Error):
+    pass
+
 class MissingInputsError(Error):
+    pass
+
+class IdNotFoundError(Error):
+    pass
+
+class TooManyMatchesError(Error):
     pass

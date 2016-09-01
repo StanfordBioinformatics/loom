@@ -1,4 +1,0 @@
-- name: Install Docker on a server running Ubuntu
-  hosts: docker_ubuntu
-  roles:
-    - angstwad.docker_ubuntu

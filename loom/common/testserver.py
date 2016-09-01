@@ -10,6 +10,7 @@ import sys
 import time
 from loom.common import helper
 from loom.client import server
+from loom.client.common import get_server_url
 
 
 class TestServer:
@@ -19,39 +20,46 @@ class TestServer:
     The test server has its database flushed each time it starts.
     """
 
+    def setlocal(self):
+        xsc_parser = server.get_parser()
+        args = xsc_parser.parse_args(['--require_default_settings', 'set', 'local'])
+        self.xs = server.ServerControlsFactory(args=args)
+        self.xs.run() # set local server
+
     def start(self, no_daemon=True):
-        xsc_parser = server.ServerControls.get_parser()
-        arglist = ['start', '--require_default_settings', '--test_database']
+        xsc_parser = server.get_parser()
+        arglist = ['--require_default_settings', '--test_database']
         if no_daemon == True:
             arglist.append('--no_daemon')
+        arglist.append('start')
         args = xsc_parser.parse_args(arglist)
-        self.xs = server.ServerControls(args=args)
+        self.xs = server.ServerControlsFactory(args=args)
         self.xs.run() # start server
-        self.server_url = self.xs.settings_manager.get_server_url_for_client()
+        self.server_url = get_server_url()
 
         # Confirm server started
         helper.wait_for_true(self._webserver_started, timeout_seconds=5)
 
     def stop(self):
-        xsc_parser = server.ServerControls.get_parser()
-        args = xsc_parser.parse_args(['stop', '--require_default_settings'])
-        self.xs = server.ServerControls(args=args)
+        xsc_parser = server.get_parser()
+        args = xsc_parser.parse_args(['--require_default_settings', 'stop'])
+        self.xs = server.ServerControlsFactory(args=args)
         self.xs.run() # stop server
 
         # Confirm server stopped
         helper.wait_for_true(self._webserver_stopped, timeout_seconds=5)
 
     def status(self):
-        xsc_parser = server.ServerControls.get_parser()
-        args = xsc_parser.parse_args(['status', '--require_default_settings'])
-        xs = server.ServerControls(args=args)
+        xsc_parser = server.get_parser()
+        args = xsc_parser.parse_args(['--require_default_settings', 'status'])
+        xs = server.ServerControlsFactory(args=args)
         xs.run() # get server status
 
     def _webserver_started(self):
-        return os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
+        return os.path.exists(self.xs.settings_manager.settings['WEBSERVER_PIDFILE'])
 
     def _webserver_stopped(self):
-        return not os.path.exists(self.xs.settings_manager.get_webserver_pidfile())
+        return not os.path.exists(self.xs.settings_manager.settings['WEBSERVER_PIDFILE'])
 
     def run_job_queues(self):
         env = self._get_test_env()
@@ -78,13 +86,15 @@ class TestServer:
     @classmethod
     def _get_parser(cls):
         parser = argparse.ArgumentParser("testserver")
-        parser.add_argument('command', choices=['start', 'stop', 'status'])
+        parser.add_argument('command', choices=['start', 'stop', 'status', 'set'])
         return parser
 
 if __name__=='__main__':
     parser = TestServer._get_parser()
     args = parser.parse_args()
-    if args.command == 'start':
+    if args.command == 'set':
+        TestServer().setlocal()
+    elif args.command == 'start':
         TestServer().start()
     elif args.command == 'stop':
         TestServer().stop()

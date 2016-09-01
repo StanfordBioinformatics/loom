@@ -5,32 +5,29 @@ import json
 import os
 import sys
 import yaml
-    
-from loom.client import settings_manager
-from loom.client.common import get_settings_manager_from_parsed_args
-from loom.client.common import add_settings_options_to_parser
+from loom.client.common import get_server_url
+
 from loom.client.exceptions import *
-from loom.common import filehandler, objecthandler
+from loom.common.objecthandler import ObjectHandler
 
 
-class AbstractShowHandler(object):
+class AbstractShow(object):
     """Common functions for the various subcommands under 'show'
     """
-    
+
     def __init__(self, args):
         """Common init tasks for all Show classes
         """
         self.args = args
-        self.settings_manager = get_settings_manager_from_parsed_args(self.args)
-        self.master_url = self.settings_manager.get_server_url_for_client()
+        self.master_url = get_server_url()
+        self.objecthandler = ObjectHandler(self.master_url)
 
     @classmethod
     def get_parser(cls, parser):
-        parser = add_settings_options_to_parser(parser)
         return parser
 
 
-class ShowFileHandler(AbstractShowHandler):
+class ShowFile(AbstractShow):
 
     @classmethod
     def get_parser(cls, parser):
@@ -43,39 +40,40 @@ class ShowFileHandler(AbstractShowHandler):
             '--detail',
             action='store_true',
             help='Show detailed view of files')
-        parser = super(ShowFileHandler, cls).get_parser(parser)
+        parser = super(ShowFile, cls).get_parser(parser)
         return parser
 
     def run(self):
-        self._get_objecthandler()
         self._get_files()
         self._show_files()
-
-    def _get_objecthandler(self):
-        self.objecthandler = objecthandler.ObjectHandler(self.master_url)
 
     def _get_files(self):
         self.files = self.objecthandler.get_file_data_object_index(self.args.file_id)
 
     def _show_files(self):
-        for file in self.files:
-            print self._render_file(file)
+        for file_data_object in self.files:
+            text = self._render_file(file_data_object)
+            if text is not None:
+                print text
 
-    def _render_file(self, file):
-        file_identifier = file['file_name'] + '@' + file['_id']
+    def _render_file(self, file_data_object):
+        file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['id'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
-            text += ' - Hash: %s\n' % (file['file_contents']['hash_function'] + '$' + file['file_contents']['hash_value'])
-            source_records = self.objecthandler.get_source_records_by_file(file['_id'])
-            for source_record in source_records:
-                text += ' - Source Record: ' + source_record['source_description'] + '\n'
+            text += '  - Hash: %s$%s\n' % (file_data_object['file_content']['unnamed_file_content']['hash_function'],
+                                           file_data_object['file_content']['unnamed_file_content']['hash_value'])
+            file_imports = self.objecthandler.get_file_imports_by_file(file_data_object['id'])
+            for file_import in file_imports:
+                text += '    - Imported: %s from %s\n' % (file_import['datetime_created'], file_import['source_url'])
+                if file_import.get('note'):
+                    text += '      With note: %s\n' % file_import['note']
         else:
             text = 'File: %s' % file_identifier
         return text
 
 
-class ShowWorkflowHandler(AbstractShowHandler):
+class ShowWorkflow(AbstractShow):
 
     @classmethod
     def get_parser(cls, parser):
@@ -88,74 +86,80 @@ class ShowWorkflowHandler(AbstractShowHandler):
             '--detail',
             action='store_true',
             help='Show detailed view of workflows')
-        parser = super(ShowWorkflowHandler, cls).get_parser(parser)
+        parser = super(ShowWorkflow, cls).get_parser(parser)
         return parser
 
     def run(self):
-        self._get_objecthandler()
         self._get_workflows()
         self._show_workflows()
 
-    def _get_objecthandler(self):
-        self.objecthandler = objecthandler.ObjectHandler(self.master_url)
-
     def _get_workflows(self):
-        self.workflows = self.objecthandler.get_workflow_index(self.args.workflow_id)
+        self.workflows = self.objecthandler.get_abstract_workflow_index(self.args.workflow_id)
 
     def _show_workflows(self):
         for workflow in self.workflows:
             print self._render_workflow(workflow)
 
     def _render_workflow(self, workflow):
-        workflow_identifier = workflow['workflow_name'] + '@' + workflow['_id']
+        workflow_identifier = '%s@%s' % (workflow['name'], workflow['id'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Workflow: %s\n' % workflow_identifier
-            text += ' - Contents: %s' % (workflow)
+            if workflow.get('inputs'):
+                text += '  - Inputs\n'
+                for input in workflow['inputs']:
+                    text += '    - %s\n' % input['channel']
+            if workflow.get('outputs'):
+                text += '  - Outputs\n'
+                for output in workflow['outputs']:
+                    text += '    - %s\n' % output['channel']
+            if workflow.get('steps'):
+                text += '  - Steps\n'
+                for step in workflow['steps']:
+                    text += '    - %s@%s\n' % (step['name'], step['id'])
+            if workflow.get('command'):
+                text += '  - Command: %s\n' % workflow['command']
+
         else:
             text = 'Workflow: %s' % workflow_identifier
         return text
 
 
-class ShowWorkflowRunHandler(AbstractShowHandler):
+class ShowRun(AbstractShow):
 
     @classmethod
     def get_parser(cls, parser):
         parser.add_argument(
-            'workflow_run_id',
+            'run_id',
             nargs='?',
-            metavar='WORKFLOW_RUN_IDENTIFIER',
+            metavar='RUN_IDENTIFIER',
             help='Name or ID of run(s) to show.')
         parser.add_argument(
             '--detail',
             action='store_true',
             help='Show detailed view of runs')
-        parser = super(ShowWorkflowRunHandler, cls).get_parser(parser)
+        parser = super(ShowRun, cls).get_parser(parser)
         return parser
 
     def run(self):
-        self._get_objecthandler()
-        self._get_workflow_runs()
-        self._show_workflow_runs()
+        runs = self._get_runs()
+        self._show_runs(runs)
 
-    def _get_objecthandler(self):
-        self.objecthandler = objecthandler.ObjectHandler(self.master_url)
+    def _get_runs(self):
+        return self.objecthandler.get_run_request_index(self.args.run_id)
 
-    def _get_workflow_runs(self):
-        self.workflow_runs = self.objecthandler.get_workflow_run_index(self.args.workflow_run_id)
+    def _show_runs(self, runs):
+        for run in runs:
+            print self._render_run(run)
 
-    def _show_workflow_runs(self):
-        for workflow_run in self.workflow_runs:
-            print self._render_workflow_run(workflow_run)
-
-    def _render_workflow_run(self, workflow_run):
-        workflow_run_identifier = workflow_run['workflow']['workflow_name'] + '@' + workflow_run['_id']
+    def _render_run(self, run):
+        run_identifier = '%s@%s' % (run['name'], run['id'])
         if self.args.detail:
             text = '---------------------------------------\n'
-            text += 'Run: %s\n' % workflow_run_identifier
-            text += ' - Contents: %s' % (workflow_run)
+            text += 'Run: %s\n' % run_identifier
+            text += '  - Submitted: %s\n' % run['datetime_created']
         else:
-            text = 'Run: %s' % workflow_run_identifier
+            text = 'Run: %s' % run_identifier
         return text
 
 
@@ -186,28 +190,28 @@ class Show:
         subparsers = parser.add_subparsers(help='select the type of object to  show', metavar='{file,workflow,run}')
 
         file_subparser = subparsers.add_parser('file', help='show files')
-        ShowFileHandler.get_parser(file_subparser)
-        file_subparser.set_defaults(SubSubcommandClass=ShowFileHandler)
+        ShowFile.get_parser(file_subparser)
+        file_subparser.set_defaults(SubSubcommandClass=ShowFile)
 
         hidden_file_subparser = subparsers.add_parser('files')
-        ShowFileHandler.get_parser(hidden_file_subparser)
-        hidden_file_subparser.set_defaults(SubSubcommandClass=ShowFileHandler)
+        ShowFile.get_parser(hidden_file_subparser)
+        hidden_file_subparser.set_defaults(SubSubcommandClass=ShowFile)
 
         workflow_subparser = subparsers.add_parser('workflow', help='show workflows')
-        ShowWorkflowHandler.get_parser(workflow_subparser)
-        workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflowHandler)
+        ShowWorkflow.get_parser(workflow_subparser)
+        workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflow)
 
         hidden_workflow_subparser = subparsers.add_parser('workflows')
-        ShowWorkflowHandler.get_parser(hidden_workflow_subparser)
-        hidden_workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflowHandler)
+        ShowWorkflow.get_parser(hidden_workflow_subparser)
+        hidden_workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflow)
 
-        workflow_run_subparser = subparsers.add_parser('run', help='show runs')
-        ShowWorkflowRunHandler.get_parser(workflow_run_subparser)
-        workflow_run_subparser.set_defaults(SubSubcommandClass=ShowWorkflowRunHandler)
+        run_subparser = subparsers.add_parser('run', help='show runs')
+        ShowRun.get_parser(run_subparser)
+        run_subparser.set_defaults(SubSubcommandClass=ShowRun)
 
-        hidden_workflow_run_subparser = subparsers.add_parser('runs')
-        ShowWorkflowRunHandler.get_parser(hidden_workflow_run_subparser)
-        hidden_workflow_run_subparser.set_defaults(SubSubcommandClass=ShowWorkflowRunHandler)
+        hidden_run_subparser = subparsers.add_parser('runs')
+        ShowRun.get_parser(hidden_run_subparser)
+        hidden_run_subparser.set_defaults(SubSubcommandClass=ShowRun)
 
         return parser
 

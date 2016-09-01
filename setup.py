@@ -10,6 +10,7 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
+from loom.common import version
 
 here = path.abspath(path.dirname(__file__))
 
@@ -17,8 +18,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
-with open(path.join(here, 'VERSION')) as version_file:
-    version = version_file.read().strip()
+version = version.version()
 
 setup(
     name='loomengine',
@@ -76,8 +76,6 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=[]),
-
-    # Include files that are checked into source control
     include_package_data=True,
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
@@ -89,37 +87,36 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-                        'ansible>=2.0.1.0',
+                        'ansible==2.1.1.0',
+                        'apache-libcloud==1.0.0rc2',
                         'Django>=1.8,<1.9',
+                        'django-cors-headers>=1.1.0',
                         'django-extensions>=1.5.5',
-                        'django-sortedone2many>=0.1.8',
-                        'django-sortedm2m>=1.1.1',
+                        'django-polymorphic>=0.9.2',
+                        'djangorestframework>=3.3.3',
                         'docutils>=0.12',
+                        'docker-py',                        # used by server to run NGINX container
                         'gcloud>=0.8.0,<0.10.0',
-                        'google-api-python-client>=1.5.0', #1.5.0 requires oath2client>=2.0.0
+                        'google-api-python-client>=1.5.0',  #1.5.0 requires oath2client>=2.0.0
                         'google-apitools>=0.4.13',
-                        'gunicorn>=19.3.0',
+                        #'google_compute_engine',            # needed for gsutil
+                        'gunicorn>=19.6.0',
                         'httplib2>=0.9.2',
                         'Jinja2>=2.8',
                         'jsonfield>=1.0.3',
                         'jsonschema>=2.4.0',
                         'lockfile>=0.12.2',
                         'MarkupSafe>=0.23',
-                        #'MySQL-python>=1.2.5',
+                        'MySQL-python>=1.2.5',
                         'oauth2client>=2.0.0',
-                        'protobuf>=3.0.0b2',
-                        'protorpc>=0.11.1',
-                        'pyasn1>=0.1.9',
-                        'pyasn1-modules>=0.0.8',
-                        'pycrypto>=2.6.1',
+                        'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
                         'python-daemon>=2.0.0,<2.1.0',
                         'PyYAML>=3.11',
                         'requests>=2.6.0',
-                        'rsa>=3.3',
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
-                        'uritemplate>=0.6',
-                        # For packaging 
+                        'uritemplate>=0.6,<1',              # match google-api-python-client dependency
+                        # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git>=1.1',
                         'twine',
     ],

@@ -1,8 +1,8 @@
 import os
 import unittest
 
-from loom.common.fixtures import *
 from loom.common.integration_tests.workflows.abstract_workflow_tester import AbstractWorkflowTester
+from .fixtures import *
 
 hello_world_json_path = os.path.join(
     os.path.dirname(__file__), 

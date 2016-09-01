@@ -1,0 +1,14 @@
+<h4 class="sub-header">
+  <ol class="breadcrumb" ng-show="$location.$$path.startsWith('/runs')"> 
+    <li><a href="#/runs">Runs</a></li>
+    <li ng-show="params.runId"><a ng-href="#/runs/{{params.runId}}">{{activeData.run.name}}</a></li>
+  </ol>
+  <ol class="breadcrumb" ng-show="$location.$$path.startsWith('/templates')">
+    <li><a href="#/templates">Templates</a></li>
+    <li ng-show="params.templateId"><a ng-href="#/templates/{{params.templateId}}">{{activeData.template.name}}</a></li> 
+  </ol>
+  <ol class="breadcrumb" ng-show="$location.$$path.startsWith('/files')">
+    <li>Files</li>
+    <li ng-show="params.dataId"><a ng-href="#/data/{{params.dataId}}">{{activeData.data.file_content.filename}}</a></li>
+  </ol>
+</h4>

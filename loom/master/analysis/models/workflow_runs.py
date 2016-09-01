@@ -1,408 +1,343 @@
+from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
+import uuid
+
+from analysis import get_setting
 from analysis.exceptions import *
-from analysis.models.base import AnalysisAppInstanceModel, AnalysisAppImmutableModel
+from analysis.models.channels import InputOutputNode, InputNodeSet
 from analysis.models.data_objects import DataObject
 from analysis.models.task_definitions import TaskDefinition
 from analysis.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput
-from jinja2 import DictLoader, Environment
-from universalmodels import fields
+from analysis.models.workflows import AbstractWorkflow, Workflow, Step, \
+    WorkflowInput, WorkflowOutput, StepInput, StepOutput
+from .base import BaseModel, BasePolymorphicModel
 
 
 """
 This module defines WorkflowRun and other classes related to
-receiving and running a request for analysis.
+running an analysis
 """
 
-
-class WorkflowRun(AnalysisAppInstanceModel):
-    """WorkflowRun represents a request to execute a Workflow on a particular
-    set of inputs, and the execution status of that Workflow
+class AbstractWorkflowRun(BasePolymorphicModel):
+    """AbstractWorkflowRun represents the process of executing a Workflow on 
+    a particular set of inputs. The workflow may be either a Step or a 
+    Workflow composed of one or more Steps.
     """
 
-    NAME_FIELD = 'workflow__workflow_name'
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    parent = models.ForeignKey('WorkflowRun',
+                               related_name='step_runs',
+                               null=True,
+                               on_delete=models.CASCADE)
+    @property
+    def name(self):
+        return self.template.name
 
-    workflow = fields.ForeignKey('Workflow')
-    workflow_run_inputs = fields.OneToManyField('WorkflowRunInput')
-    workflow_run_outputs = fields.OneToManyField('WorkflowRunOutput')
-    step_runs = fields.OneToManyField('StepRun', related_name='workflow_run')
-    channels = fields.OneToManyField('Channel')
-    status = fields.CharField(
-        max_length=255,
-        default='running',
-        choices=(('running', 'Running'),
-                 ('canceled', 'Canceled'),
-                 ('completed', 'Completed')
-        )
-    )
+    def get_input(self, channel):
+        inputs = [i for i in self.inputs.filter(channel=channel)]
+        inputs.extend([i for i in self.fixed_inputs.filter(
+            channel=channel)])
+        assert len(inputs) == 1
+        return inputs[0]
+
+    def get_output(self, channel):
+        outputs = [o for o in self.outputs.filter(channel=channel)]
+        assert len(outputs) == 1
+        return outputs[0]
 
     @classmethod
-    def update_status_for_all(cls):
-        for workflow_run in cls.objects.filter(status='running'):
-            workflow_run.update_status()
-
-    def update_status(self):
-        for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
-            step_run.update_status()
-        for output in self.workflow_run_outputs.all():
-            output.update_status()
-        step_run_statuses = [step_run.status for step_run in self.step_runs.all()]
-        if all([status == 'completed' for status in step_run_statuses]):
-            self.update({'status': 'completed'})
-        if any([status == 'error' for status in step_run_statuses]):
-            self.update({'status': 'error'})
-
-    def cancel(self):
-        for step_run in self.step_runs.filter(status='waiting') | self.step_runs.filter(status='running'):
-            step_run.cancel()
-        self.update({'status': 'canceled'})
-    
-    @classmethod
-    def order_by_most_recent(cls, count=None):
-        workflow_runs = cls.objects.order_by('datetime_created').reverse()
-        if count is not None and (workflow_runs.count() > count):
-            return workflow_runs[:count]
+    def create_from_template(cls, template):
+        if template.is_step():
+            run = StepRun.objects.create(template=template)
         else:
-            return workflow_runs
+            run = WorkflowRun.objects.create(template=template)
+        run.post_create()
+        return run
 
-    @classmethod
-    def create(cls, *args, **kwargs):
-        workflow_run = super(WorkflowRun, cls).create(*args, **kwargs)
-        # WorkflowRunInputs must be already created by the client
-        workflow_run._sync_outputs()
-        workflow_run._sync_step_runs()
-        workflow_run._sync_channels()
-        # TODO Assign workflow status (probably w/ default field)
-        return workflow_run
 
-    def _sync_outputs(self):
-        for workflow_output in self.workflow.workflow_outputs.all():
-            self._sync_output(workflow_output)
+class WorkflowRun(AbstractWorkflowRun):
 
-    def _sync_output(self, workflow_output):
-        """Create a workflow_run_output corresponding each workflow_output if it does not already exist.
+    NAME_FIELD = 'workflow__name'
+
+    template = models.ForeignKey('Workflow',
+                                 related_name='runs',
+                                 on_delete=models.PROTECT)
+
+    def is_step(self):
+        return False
+
+    def post_create(self):
+        self._initialize()
+        self.initial_push()
+
+    def _initialize(self):
+        self._initialize_step_runs()
+        self._initialize_inputs_outputs()
+        self._initialize_channels()
+
+    def _initialize_step_runs(self):
+        """Create a run for each step
         """
-        try:
-            self.workflow_run_outputs.get(workflow_output___id=workflow_output._id)
-            return
-        except ObjectDoesNotExist:
-            self.workflow_run_outputs.add(
-                WorkflowRunOutput.create(
-                    {'workflow_output': workflow_output.to_struct()}
-                )
-            )
-
-    def _sync_step_runs(self):
-        for step in self.workflow.steps.all():
-            self._sync_step_run(step)
-
-    def _sync_step_run(self, step):
-        """Create a step_run corresponding each step if it does not already exist.
-        """
-        try:
-            self.step_runs.get(step___id=step._id)
-            return
-        except ObjectDoesNotExist:
-            step_run = StepRun.create(
-                {'step': step.to_struct()}
-            )
-            self.step_runs.add(step_run)
-            for step_input in step_run.step.step_inputs.all():
-                step_run.step_run_inputs.add(
-                    StepRunInput.create(
-                        {'step_input': step_input.to_struct()}
-                    ))
-            for step_output in step_run.step.step_outputs.all():
-                step_run.step_run_outputs.add(
-                    StepRunOutput.create(
-                        {'step_output': step_output.to_struct()}
-                    )
-                )
-    
-    def _sync_channels(self):
-        # One per workflow_run_input and one per step_run_output
-        for workflow_run_input in self.workflow_run_inputs.all():
-            channel_name = workflow_run_input.workflow_input.to_channel
-            try:
-                self._get_channel_by_name(channel_name)
-            except ObjectDoesNotExist:
-                self._add_channel(workflow_run_input, channel_name)
-        for step_run in self.step_runs.all():
-            for step_run_output in step_run.step_run_outputs.all():
-                channel_name = step_run_output.step_output.to_channel
-                try:
-                    self._get_channel_by_name(channel_name)
-                except ObjectDoesNotExist:
-                    self._add_channel(step_run_output, channel_name)
-        self._create_subchannels()
-        self._add_input_data_objects_to_channels()
-                
-    def _add_channel(self, workflow_run_input_or_step_run_output, channel_name):
-        channel = Channel.create({'channel_name': channel_name})
-        self.channels.add(channel)
-        workflow_run_input_or_step_run_output.add_channel(channel)
-
-    def _get_channel_by_name(self, channel_name):
-        return self.channels.get(channel_name=channel_name)
-
-    def _create_subchannels(self):
-        # One per workflow_run_ouput and step_run_input
-        for workflow_run_output in self.workflow_run_outputs.all():
-            channel_name = workflow_run_output.workflow_output.from_channel
-            self._add_subchannel(workflow_run_output, channel_name)
-        for step_run in self.step_runs.all():
-            for step_run_input in step_run.step_run_inputs.all():
-                channel_name = step_run_input.step_input.from_channel
-                self._add_subchannel(step_run_input, channel_name)
-
-    def _add_subchannel(self, workflow_run_output_or_step_run_input, channel_name):
-        channel = self._get_channel_by_name(channel_name)
-        if workflow_run_output_or_step_run_input.subchannel is None:
-            subchannel = channel.create_subchannel(workflow_run_output_or_step_run_input)
-    
-    def _add_input_data_objects_to_channels(self):
-        for workflow_run_input in self.workflow_run_inputs.all():
-            channel_name = workflow_run_input.workflow_input.to_channel
-            channel = self._get_channel_by_name(channel_name)
-            channel.add_data_object(workflow_run_input.data_object)
-            channel.update({'is_closed_to_new_data': True})
-
-    def get_workflow_run_input_by_name(self, input_name):
-        return self.workflow_run_inputs.get(input_name=input_name)
-        
-    
-class WorkflowRunInput(AnalysisAppInstanceModel):
-    """WorkflowRunInput serves as a binding between a DataObject and a Workflow input
-    in a WorkflowRun
-    """
-
-    workflow_input = fields.ForeignKey('WorkflowInput')
-    data_object = fields.ForeignKey('DataObject', null=True)
-    channel = fields.ForeignKey('Channel', null=True)
-
-    def add_channel(self, channel):
-        self.update({'channel': channel.to_struct()})
-
-
-class WorkflowRunOutput(AnalysisAppInstanceModel):
-
-    workflow_output = fields.ForeignKey('WorkflowOutput')
-    subchannel = fields.ForeignKey('Subchannel', null=True)
-
-    def add_subchannel(self, subchannel):
-        self.update({'subchannel': subchannel.to_struct()})
-
-
-class Channel(AnalysisAppInstanceModel):
-    """Channel acts as a queue for data objects being being passed into or out of steps.
-    """
-
-    channel_name = fields.CharField(max_length=255)
-    subchannels = fields.OneToManyField('Subchannel')
-    is_closed_to_new_data = fields.BooleanField(default=False)
-
-    def add_data_object(self, data_object):
-        for subchannel in self.subchannels.all():
-            subchannel.add_data_object(data_object)
-    
-    def create_subchannel(self, workflow_run_output_or_step_run_input):
-        subchannel = Subchannel.create({'channel_name': self.channel_name})
-        self.subchannels.add(subchannel)
-        workflow_run_output_or_step_run_input.add_subchannel(subchannel)
-
-    def close(self):
-        self.update({'is_closed_to_new_data': True})
-
-
-class Subchannel(AnalysisAppInstanceModel):
-    """Every channel can have only one source but 0 or many destinations, representing
-    the possibility that a file produce by one step can be used by 0 or many other 
-    steps. Each of these destinations has its own queue, implemented as a Subchannel.
-    """
-
-    channel_name = fields.CharField(max_length=255)
-    data_objects = fields.ManyToManyField('DataObject')
-
-    def add_data_object(self, data_object):
-        self.data_objects.add(data_object)
-
-    def is_empty(self):
-        return self.data_objects.count() == 0
-
-    def is_dead(self):
-        return self.channel.is_closed_to_new_data and self.is_empty()
-
-    def pop(self):
-        data_object = self.data_objects.first()
-        self.data_objects = self.data_objects.all()[1:]
-        return data_object
-
-
-class StepRun(AnalysisAppInstanceModel):
-
-    step = fields.ForeignKey('Step')
-    step_run_inputs = fields.OneToManyField('StepRunInput')
-    step_run_outputs = fields.OneToManyField('StepRunOutput')
-    task_runs = fields.OneToManyField('TaskRun')
-    status = fields.CharField(
-        max_length=255,
-        default='waiting',
-        choices=(('waiting', 'Waiting'),
-                 ('running', 'Running'),
-                 ('completed', 'Completed'),
-                 ('canceled', 'Canceled'),
-                 ('error', 'Error'),
-        )
-    )
-
-    def update_status(self):
-        while True:
-            if not self._are_inputs_ready():
-                break
+        for step in self.template.steps.all():
+            if step.is_step():
+                ChildRunClass = StepRun
             else:
-                self.update({'status': 'running'})
-                self._create_task_run()
-        for task_run in self.task_runs.filter(status='ready_to_run') | self.task_runs.filter(status='running'):
-            task_run.update_status()
-        # Are input sources all finished?
-        if all([input.subchannel.is_dead() for input in self.step_run_inputs.all()]):
-            # Are all the lingering runs finished?
-            if all([task_run.status == 'completed' for task_run in self.task_runs.all()]):
-                #Then mark the StepRun completed and close all the channels it feeds
-                self._mark_completed()
-        if any([task_run.status == 'error' for task_run in self.task_runs.all()]):
-            self.update({'status': 'error'})
+                ChildRunClass = WorkflowRun
+            child_run = ChildRunClass.objects.create(template=step,
+                                                     parent=self)
+            child_run._initialize()
 
-    def cancel(self):
-        for task_run in self.task_runs.filter(status='ready_to_run') | self.task_runs.filter(status='running'):
-            task_run.cancel()
-        self.update({'status': 'canceled'})
+    def _initialize_inputs_outputs(self):
+        # TODO - check to see if the input already exists
+        for input in self.template.inputs.all():
+            WorkflowRunInput.objects.create(
+                workflow_run=self,
+                channel = input.channel,
+                workflow_input=input)
+        for fixed_input in self.template.fixed_inputs.all():
+            fixed_workflow_run_input = FixedWorkflowRunInput.objects.create(
+                workflow_run=self,
+                channel=fixed_input.channel,
+                workflow_input=fixed_input)
+        for output in self.template.outputs.all():
+            WorkflowRunOutput.objects.create(
+                workflow_run=self,
+                channel=output.channel,
+                workflow_output=output)
+
+    def _initialize_channels(self):
+        for destination in self._get_destinations():
+            source = self._get_source(destination.channel)
+
+            # For a matching source and desination, make sure they are
+            # sender/receiver on the same channel 
+            if not destination.sender:
+                destination.sender = source
+                destination.save()
+            else:
+                assert destination.sender == source
                 
-    def _mark_completed(self):
-        for output in self.step_run_outputs.all():
-            output.close()
-        self.update({'status': 'completed'})
+    def _get_destinations(self):
+        destinations = [dest for dest in self.outputs.all()]
+        for step_run in self.step_runs.all():
+            destinations.extend([dest for dest in step_run.inputs.all()])
+        return destinations
 
-    def _get_task_inputs(self):
-        if not self._are_inputs_ready():
-            raise MissingInputsError('Inputs are missing')
-        input_data_objects = []
-        for step_run_input in self.step_run_inputs.all():
-            name = step_run_input.step_input.from_channel
-            data_object = step_run_input.subchannel.pop()
-            input_data_objects.append((name, data_object))
-        return input_data_objects
+    def _get_source(self, channel):
+        sources = [source for source in self.inputs.filter(channel=channel)]
+        sources.extend([source for source in
+                        self.fixed_inputs.filter(channel=channel)])
+        for step_run in self.step_runs.all():
+            sources.extend([source for source in
+                            step_run.outputs.filter(channel=channel)])
+        if len(sources) < 1:
+            raise Exception('Could not find data source for channel "%s"' % channel)
+        elif len(sources) > 1:
+            raise Exception('Found multiple data sources for channel "%s"' % channel)
+        return sources[0]
 
-    def _are_inputs_ready(self):
-        if self.step_run_inputs.count() == 0:
-            # Special case: Task has no inputs. We can't determine if this has been processed by
-            # checking for an empty queue.
-            # If there exists a healthy TaskRun, say no.
-            return self.task_runs.count() == 0
-        # Return False if any input channel has 0 items in queue
-        for step_run_input in self.step_run_inputs.all():
-            if step_run_input.subchannel.data_objects.count() == 0:
-                return False
+    def initial_push(self):
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed now on creation
+        for input in self.fixed_inputs.all():
+            input.initial_push()
+        # StepRun will normally be pushed as individual DataObjects arrive,
+        # but we do the initial_push in case all inputs are fixed
+        for step_run in self.step_runs.all():
+            step_run.initial_push()
+
+
+class StepRun(AbstractWorkflowRun):
+
+    NAME_FIELD = 'step__name'
+
+    template = models.ForeignKey('Step',
+                                 related_name='step_runs',
+                                 on_delete=models.PROTECT)
+
+    @property
+    def command(self):
+        return self.template.command
+
+    @property
+    def environment(self):
+        return self.template.environment
+
+    @property
+    def resources(self):
+        return self.template.resources
+
+    def is_step(self):
         return True
 
-    def _create_task_run(self):
-        # This has the form [(channel_name, data_object), ...]
-        input_data_objects = self._get_task_inputs()
+    def post_create(self):
+        self._initialize()
+
+    def _initialize(self):
+        self._initialize_inputs_outputs()
+
+    def _is_initialized(self):
+        return self.inputs.count() == self.template.inputs.count() \
+            and self.fixed_inputs.count() \
+            == self.template.fixed_inputs.count() \
+            and self.outputs.count() == self.template.outputs.count()
+
+    def _initialize_inputs_outputs(self):
+        for input in self.template.inputs.all():
+            StepRunInput.objects.create(
+                step_run=self,
+                channel = input.channel,
+                step_input=input)
+        for fixed_input in self.template.fixed_inputs.all():
+            FixedStepRunInput.objects.create(
+                step_run=self,
+                channel=fixed_input.channel,
+                step_input=fixed_input)
+        for output in self.template.outputs.all():
+            StepRunOutput.objects.create(
+                step_run=self,
+                channel=output.channel,
+                step_output=output)
+
+    def _initialize_channels(self):
+        for destination in self._get_destinations():
+            source = self._get_source(destination.channel)
+
+            # For a matching source and desination, make sure they are
+            # sender/receiver on the same channel 
+            if not destination.sender:
+                destination.sender = source
+                destination.save()
+            else:
+                assert destination.sender == source
+
+    def get_all_inputs(self):
+        inputs = [i for i in self.inputs.all()]
+        inputs.extend([i for i in self.fixed_inputs.all()])
+        return inputs
+
+    def initial_push(self):
+        # Runtime inputs will be pushed when data is added,
+        # but fixed inputs have to be pushed now on creation
+        for input in self.fixed_inputs.all():
+            input.initial_push()
+        self.push()
         
-        task_run_inputs = self._create_task_run_inputs(input_data_objects)
-        task_run_outputs = self._create_task_run_outputs()
-        task_definition = self._create_task_definition(task_run_inputs, task_run_outputs)
-
-        task_run = TaskRun.create({
-            'task_run_inputs': task_run_inputs,
-            'task_run_outputs': task_run_outputs,
-            'task_definition': task_definition
-        })
-        
-        self.task_runs.add(task_run)
-
-    def _create_task_run_inputs(self, input_data_objects):
-        task_run_inputs = []
-        for channel_name, data_object in input_data_objects:
-            task_run_input = TaskRunInput.create(
-                {
-                    'task_definition_input': {
-                        'data_object': data_object.to_struct()
-                    }
-                }
-            )
-            step_run_input = self._get_input_by_channel(channel_name)
-            step_run_input.add_task_run_input(task_run_input)
-            task_run_inputs.append(task_run_input.to_struct())
-        return task_run_inputs
-
-    def _create_task_run_outputs(self):
-        task_run_outputs = []
-        for step_run_output in self.step_run_outputs.all():
-            task_run_output = TaskRunOutput.create({
-                'task_definition_output': {
-                    'path': step_run_output.step_output.from_path
-                }
-            })
-            step_run_output.add_task_run_output(task_run_output)
-            task_run_outputs.append(task_run_output.to_struct())
-        return task_run_outputs
-
-    def _create_task_definition(self, task_run_inputs, task_run_outputs):
-        task_definition_inputs = [i['task_definition_input'] for i in task_run_inputs]
-        task_definition_outputs = [o['task_definition_output'] for o in task_run_outputs]
-        return {
-            'inputs': task_definition_inputs,
-            'outputs': task_definition_outputs,
-            'command': self._get_task_definition_command(self.step.command, task_definition_inputs, task_definition_outputs),
-            'environment': self._get_task_definition_environment(self.step.environment)
-        }
-
-    def _get_task_definition_command(self, raw_command, task_definition_inputs, task_definition_outputs):
-        context = {}
-        for (step_run_input, task_definition_input) in zip(self.step_run_inputs.all(), task_definition_inputs):
-            context[step_run_input.subchannel.channel_name] = task_definition_input['data_object']['file_name']
-        for (step_run_output, task_definition_output) in zip(self.step_run_outputs.all(), task_definition_outputs):
-            context[step_run_output.channel.channel_name] = task_definition_output['path']
-        loader = DictLoader({'template': raw_command})
-        env = Environment(loader=loader)
-        template = env.get_template('template')
-        command = template.render(**context)
-        return command
-
-    def _get_task_definition_environment(self, requested_environment):
-        # TODO get specific docker image ID
-        return {
-            'docker_image': requested_environment.downcast().docker_image
-        }
-
-    def _get_input_by_channel(self, channel_name):
-        return self.step_run_inputs.get(subchannel__channel_name=channel_name)
-
-    def _get_output_by_channel():
-        return self.step_run_outputs.get(channel__channel_name=channel_name)
+    def push(self):
+        if self.task_runs.count() == 0:
+            for input_set in InputNodeSet(
+                    self.get_all_inputs()).get_ready_input_sets():
+                task_run = TaskRun.create_from_input_set(input_set, self)
+                task_run.run()
 
 
-class StepRunInput(AnalysisAppInstanceModel):
-    step_input = fields.ForeignKey('StepInput')
-    task_run_inputs = fields.ManyToManyField('TaskRunInput')
-    subchannel = fields.ForeignKey('Subchannel', null=True)
+class AbstractStepRunInput(InputOutputNode):
 
-    def add_subchannel(self, subchannel):
-        self.update({'subchannel': subchannel.to_struct()})
+    # This table is needed because it is referenced by TaskRunInput,
+    # and TaskRuns do not distinguish between fixed and runtime inputs
 
-    def add_task_run_input(self, task_run_input):
-        self.task_run_inputs.add(task_run_input)
+    def push(self, indexed_data_object):
+        # Save arriving data as on any InputOutputNode
+        super(AbstractStepRunInput, self).push(indexed_data_object)
+        # Also make the step_run check to see if it is ready to kick
+        # off a new TaskRun
+        self.step_run.push()
 
-class StepRunOutput(AnalysisAppInstanceModel):
-    step_output = fields.ForeignKey('StepOutput', null=True)
-    task_run_outputs = fields.ManyToManyField('TaskRunOutput', related_name='step_run_outputs')
-    channel = fields.ForeignKey('Channel', null=True)
+    def push_to_receivers(self, indexed_data_object):
+        # No receivers, but we need to push to the step_run
+        self.step_run.push()
 
-    def add_channel(self, channel):
-        self.update({'channel': channel.to_struct()})
 
-    def add_task_run_output(self, task_run_output):
-        self.task_run_outputs.add(task_run_output)
+class StepRunInput(AbstractStepRunInput):
 
-    def close(self):
-        self.channel.close()
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='inputs',
+                                 on_delete=models.CASCADE)
+    step_input = models.ForeignKey('StepInput',
+                                   related_name='step_run_inputs',
+                                   on_delete=models.PROTECT)
+
+    @property
+    def type(self):
+        return self.step_input.type
+
+
+class FixedStepRunInput(AbstractStepRunInput):
+
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='fixed_inputs',
+                                 on_delete=models.CASCADE)
+    step_input = models.ForeignKey('FixedStepInput',
+                                   related_name='step_run_inputs',
+                                   on_delete=models.PROTECT)
+    
+    @property
+    def type(self):
+        return self.step_input.type
+
+    def initial_push(self):
+        self.push_without_index(self.step_input.data_object)
+
+
+class StepRunOutput(InputOutputNode):
+
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='outputs',
+                                 on_delete=models.CASCADE)
+    step_output = models.ForeignKey('StepOutput',
+                                    related_name='step_run_outputs',
+                                    on_delete=models.PROTECT)
+
+    @property
+    def type(self):
+        return self.step_output.type
+
+    @property
+    def filename(self):
+        if self.step_output is None:
+            return ''
+        return self.step_output.filename
+
+
+class WorkflowRunInput(InputOutputNode):
+
+    workflow_run = models.ForeignKey('WorkflowRun',
+                                     related_name='inputs',
+                                     on_delete=models.CASCADE)
+    workflow_input = models.ForeignKey('WorkflowInput',
+                                   related_name='workflow_run_inputs',
+                                   on_delete=models.PROTECT)
+
+    @property
+    def type(self):
+        return self.workflow_input.type
+
+class FixedWorkflowRunInput(InputOutputNode):
+
+    workflow_run = models.ForeignKey('WorkflowRun',
+                                     related_name='fixed_inputs',
+                                     on_delete=models.CASCADE)
+    workflow_input = models.ForeignKey('FixedWorkflowInput',
+                                   related_name='workflow_run_inputs',
+                                   on_delete=models.PROTECT)
+
+    def initial_push(self):
+        self.push_without_index(self.workflow_input.data_object)
+
+    @property
+    def type(self):
+        return self.workflow_input.type
+
+
+class WorkflowRunOutput(InputOutputNode):
+
+    workflow_run = models.ForeignKey('WorkflowRun',
+                                     related_name='outputs',
+                                     on_delete=models.CASCADE)
+    workflow_output = models.ForeignKey('WorkflowOutput',
+                                   related_name='workflow_run_outputs',
+                                   on_delete=models.PROTECT)
+    @property
+    def type(self):
+        return self.workflow_output.type

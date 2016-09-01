@@ -3,35 +3,37 @@ import logging
 
 from django.conf import settings
 
-from loom.master.analysis.task_manager.local import LocalTaskManager
-from loom.master.analysis.task_manager.cluster import ClusterTaskManager
-from loom.master.analysis.task_manager.cloud import CloudTaskManager
-from loom.master.analysis.task_manager.dummy import DummyTaskManager
+from analysis import get_setting
+from analysis.task_manager.local import LocalTaskManager
+from analysis.task_manager.cluster import ClusterTaskManager
+from analysis.task_manager.cloud import CloudTaskManager
+from analysis.task_manager.mock import MockTaskManager
 
 logger = logging.getLogger('LoomDaemon')
 
 class TaskManagerFactory:
+    
+    # Worker types
     LOCAL = 'LOCAL'
     CLUSTER = 'ELASTICLUSTER'
     GOOGLE_CLOUD = 'GOOGLE_CLOUD'
-    DUMMY = 'DUMMY'
+    MOCK = 'MOCK'
 
     @classmethod
-    def get_task_manager(cls, test=False):
-        if test == True:
-            return DummyTaskManager()
-        
-        logger.debug('Getting task manager of type "%s"' % settings.WORKER_TYPE)
-        if settings.WORKER_TYPE == cls.LOCAL:
+    def get_task_manager(cls):
+        logger.debug('Getting task manager of type "%s"'
+                     % get_setting('WORKER_TYPE'))
+        if get_setting('WORKER_TYPE') == cls.LOCAL:
             return LocalTaskManager()
-        elif settings.WORKER_TYPE == cls.CLUSTER:
+        elif get_setting('WORKER_TYPE') == cls.CLUSTER:
             return ClusterTaskManager()
-        elif settings.WORKER_TYPE == cls.GOOGLE_CLOUD:
+        elif get_setting('WORKER_TYPE') == cls.GOOGLE_CLOUD:
             return CloudTaskManager()
-        elif settings.WORKER_TYPE == cls.DUMMY:
-            return DummyTaskManager()
+        elif get_setting('WORKER_TYPE') == cls.MOCK:
+            return MockTaskManager()
         else:
-            raise Exception('Invalid selection WORKER_TYPE=%s' % settings.WORKER_TYPE)
+            raise Exception('Invalid selection WORKER_TYPE=%s' %
+                            get_setting('WORKER_TYPE'))
 
 
 class TaskManager:
@@ -39,11 +41,11 @@ class TaskManager:
     """ Abstract base class for TaskManagers."""
     
     @abc.abstractmethod
-    def run(cls, task_run, task_run_location_id, requested_resources):
+    def run(cls, task_run):
         """ Subclasses are required to implement this function prototype."""
         pass
 
 TaskManager.register(LocalTaskManager)
 TaskManager.register(ClusterTaskManager)
 TaskManager.register(CloudTaskManager)
-TaskManager.register(DummyTaskManager)
+TaskManager.register(MockTaskManager)

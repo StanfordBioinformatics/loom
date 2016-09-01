@@ -1,0 +1,11 @@
+---
+- name: Stop the Loom server.
+  hosts: "{{lookup('env','SERVER_NAME')}}"
+  become: yes
+  tasks:
+  - name: Stop the Docker container running the Loom server.
+    docker_container:
+      name: loom
+      api_version: auto
+      state: stopped
+
