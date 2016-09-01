@@ -12,7 +12,7 @@
   - name: Create a scratch disk and attach it to the worker instance.
     gce_pd: instance_name={{node_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE
   - name: Wait for SSH to come up.
-    wait_for: host={{ item.private_ip }} port=22 delay=10 timeout=60
+    wait_for: host={{ item.private_ip }} port=22 delay=10 timeout=300 search_regex=OpenSSH
     with_items: '{{ gce_result.instance_data }}'
   - name: Add host to groupname.
     add_host: hostname={{ item.private_ip }} groupname=new_instances
