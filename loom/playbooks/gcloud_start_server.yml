@@ -33,5 +33,5 @@
     uri: url={{protocol}}://{{ansible_hostname}}:{{external_port}}/api/status/ validate_certs=False
     register: response
     until: response.status == 200
-    retries: 10
+    retries: 30
     delay: 10
