@@ -23,7 +23,7 @@ SSL_CERT_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.crt'))
 SSL_KEY_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.key'))
 GCE_INI_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce.ini')
 GCE_JSON_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce_key.json')
-GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'common', 'gce.py')
+GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
 SERVER_PATH = os.path.join(imp.find_module('loomengine')[1], 'master')
 
 def get_server_type():
