@@ -5,8 +5,6 @@
     "BIND_IP": "127.0.0.1",
     "BIND_PORT": "8000",
     "CLIENT_TYPE": "LOCAL",
-    "DAEMON_LOGFILE": "/tmp/test_loom_daemon.log",
-    "DAEMON_PIDFILE": "/tmp/test_loom_daemon.pid",
     "DJANGO_LOGFILE": "/tmp/test_loom_django.log",
     "ERROR_LOGFILE": "/tmp/test_loom_http_error.log",
     "FILE_ROOT": "/tmp/test_loom_working_dir",

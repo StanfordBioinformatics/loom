@@ -17,12 +17,6 @@ from loom.client.common import *
 from loom.common.version import version
 import loom.common.cloud
 
-DAEMON_EXECUTABLE = os.path.abspath(
-    os.path.join(
-    os.path.dirname(__file__),
-    '../master/loomdaemon/loom_daemon.py'
-    ))
-
 GCLOUD_SERVER_DEFAULT_NAME = SettingsManager().get_default_setting('gcloud', 'SERVER_NAME')
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loom')[1], 'playbooks')
@@ -61,7 +55,6 @@ def get_parser(parser=None):
         parser = argparse.ArgumentParser(__file__)
 
     parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--no_daemon', '-n', action='store_true', help=argparse.SUPPRESS)
 
     subparsers = parser.add_subparsers(dest='command')
     status_parser = subparsers.add_parser('status')
@@ -187,7 +180,6 @@ class LocalServerControls(BaseServerControls):
             env = self._export_django_settings(env)
             env = self._set_database(env)
             self._create_logdirs()
-            self._start_daemon(env)
             print 'Starting Loom server...'
             self._start_webserver(env)
             self._wait_for_server(target_running_state=True)
@@ -201,7 +193,6 @@ class LocalServerControls(BaseServerControls):
             self.settings_manager.load_deploy_settings_file()
             print "Stopping Loom server..."
             self._stop_webserver()
-            self._stop_daemon()
             self._wait_for_server(target_running_state=False)
         print "Loom server is stopped."
 
@@ -226,7 +217,6 @@ class LocalServerControls(BaseServerControls):
     def _create_logdirs(self):
         for logfile in (self.settings_manager.settings['ACCESS_LOGFILE'],
                         self.settings_manager.settings['ERROR_LOGFILE'],
-                        self.settings_manager.settings['DAEMON_LOGFILE'],
                         ):
             logdir = os.path.dirname(os.path.expanduser(logfile))
             if not os.path.exists(logdir):
@@ -256,26 +246,6 @@ class LocalServerControls(BaseServerControls):
         if not process.returncode == 0:
             raise Exception('Loom webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
 
-    def _start_daemon(self, env):
-        if self.args.no_daemon == True:
-            return
-        pidfile = self.settings_manager.settings['DAEMON_PIDFILE']
-        logfile = self.settings_manager.settings['DAEMON_LOGFILE']
-        loglevel = self.settings_manager.settings['LOG_LEVEL']
-        cmd = "%s %s start --pidfile %s --logfile %s --loglevel %s" % (sys.executable, DAEMON_EXECUTABLE, pidfile, logfile, loglevel)
-        if self.args.verbose:
-            print("Starting loom daemon with command:\n%s\nand environment:\n%s" % (cmd, env))
-        process = subprocess.Popen(
-            cmd,
-            shell=True,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
-        process.wait()
-        (stdout, stderr) = process.communicate()
-        if not process.returncode == 0:
-            raise Exception('Loom Daemon failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stderr, stdout))
-
     def _stop_webserver(self):
         pid = self._get_pid(self.settings_manager.settings['WEBSERVER_PIDFILE'])
         if pid is not None:
@@ -284,13 +254,6 @@ class LocalServerControls(BaseServerControls):
                 shell=True,
                 )
         self._cleanup_pidfile(self.settings_manager.settings['WEBSERVER_PIDFILE'])
-
-    def _stop_daemon(self):
-        subprocess.call(
-            "%s %s --pidfile %s stop" % (sys.executable, DAEMON_EXECUTABLE, self.settings_manager.settings['DAEMON_PIDFILE']),
-            shell=True
-            )
-        self._cleanup_pidfile(self.settings_manager.settings['DAEMON_PIDFILE'])
 
     def _get_pid(self, pidfile):
         if not os.path.exists(pidfile):

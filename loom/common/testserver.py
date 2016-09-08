@@ -26,11 +26,9 @@ class TestServer:
         self.xs = server.ServerControlsFactory(args=args)
         self.xs.run() # set local server
 
-    def start(self, no_daemon=True):
+    def start(self):
         xsc_parser = server.get_parser()
         arglist = ['--require_default_settings', '--test_database']
-        if no_daemon == True:
-            arglist.append('--no_daemon')
         arglist.append('start')
         args = xsc_parser.parse_args(arglist)
         self.xs = server.ServerControlsFactory(args=args)

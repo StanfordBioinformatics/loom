@@ -18,7 +18,7 @@ class AbstractWorkflowTester(unittest.TestCase):
 
     def start_server(self):
         self.test_server = TestServer()
-        self.test_server.start(no_daemon=False)
+        self.test_server.start()
 
     def start_job(self, workflow_json_path):
         run_parser = submit.Submit.get_parser()
