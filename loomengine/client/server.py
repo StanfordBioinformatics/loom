@@ -324,7 +324,7 @@ class LocalServerControls(BaseServerControls):
 
     def _export_django_settings(self, env):
         """Update the environment with settings before launching the webserver.
-        This allows master/loomserver/settings.py to load them and make them
+        This allows master/settings.py to load them and make them
         available to Django. Passing settings this way only works in local mode
         (the server is on the same machine as the client launching it).
         """
