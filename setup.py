@@ -10,7 +10,7 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
-from loom.common import version
+from loomengine.utils import version
 
 here = path.abspath(path.dirname(__file__))
 
@@ -147,8 +147,8 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
      entry_points={
          'console_scripts': [
-             'loom=loom.client.main:main',
-             'loom-taskrunner=loom.worker.task_runner:main',
+             'loom=loomengine.client.main:main',
+             'loom-taskrunner=loomengine.worker.task_runner:main',
          ],
      },
 )
