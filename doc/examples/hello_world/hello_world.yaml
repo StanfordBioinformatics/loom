@@ -49,7 +49,8 @@
           type: "file"
           channel: "world"
       outputs: 
-        - 
+        -
+          type: "file"
           channel: "world_cap"
           filename: "world_cap.txt"
     - 
@@ -61,14 +62,17 @@
         cores: "1"
         memory: "1"
       inputs: 
-        - 
+        -
+          type: "file"
           channel: "hello_cap"
-        - 
+        -
+          type: "file"
           channel: "world_cap"
-        - 
+        -
+          type: "file"
           channel: "final_punc"
       outputs: 
-        - 
+        -
+          type: "file"
           filename: "hello_world.txt"
           channel: "hello_world"
-
