@@ -52,7 +52,7 @@ class AbstractWorkflowRun(BasePolymorphicModel):
             run = StepRun.objects.create(template=template)
         else:
             run = WorkflowRun.objects.create(template=template)
-        run.post_create()
+        run.after_create()
         return run
 
 
@@ -67,7 +67,7 @@ class WorkflowRun(AbstractWorkflowRun):
     def is_step(self):
         return False
 
-    def post_create(self):
+    def after_create(self):
         self._initialize()
         self.initial_push()
 
@@ -171,7 +171,7 @@ class StepRun(AbstractWorkflowRun):
     def is_step(self):
         return True
 
-    def post_create(self):
+    def after_create(self):
         self._initialize()
 
     def _initialize(self):

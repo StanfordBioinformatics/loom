@@ -164,6 +164,6 @@ class RunRequestSerializer(serializers.ModelSerializer):
                 s.is_valid(raise_exception=True)
                 s.save()
 
-        run_request.post_create()
+        run_request.after_create()
 
         return run_request

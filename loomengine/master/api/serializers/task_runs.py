@@ -53,7 +53,7 @@ class TaskRunAttemptLogFileSerializer(CreateWithParentModelSerializer):
 
     def create(self, validated_data):
         log = super(TaskRunAttemptLogFileSerializer, self).create(validated_data)
-        log.post_create()
+        log.after_create()
         return log
 
 class WorkerProcessSerializer(CreateWithParentModelSerializer):
@@ -85,7 +85,7 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
         if status is not None:
             instance.status = status
             instance.save()
-            instance.post_update()
+            instance.after_update()
         return instance
 
         

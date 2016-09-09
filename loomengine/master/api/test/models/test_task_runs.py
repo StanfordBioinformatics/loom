@@ -12,7 +12,7 @@ class TestTaskRun(TestCase):
         task_run = TaskRun.objects.create(step_run=step_run)
 
         task_run_attempt = TaskRunAttempt.objects.create(task_run=task_run)
-        task_run_attempt.post_create()
+        task_run_attempt.after_create()
 
         # Worker Process should be automatically created
         self.assertIsNotNone(task_run_attempt.worker_process)

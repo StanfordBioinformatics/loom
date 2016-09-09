@@ -54,7 +54,7 @@ class Workflow(AbstractWorkflow):
     """A collection of steps and/or workflows
     """
 
-    def post_create(self):
+    def after_create(self):
         self._validate()
 
     def _validate(self):

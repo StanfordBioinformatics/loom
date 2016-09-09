@@ -32,7 +32,7 @@ class RunRequest(BaseModel):
     def name(self):
         return self.template.name
 
-    def post_create(self):
+    def after_create(self):
         self._initialize_run()
         self._validate()
         self._initialize_outputs()

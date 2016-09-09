@@ -112,13 +112,13 @@ class FileDataObject(DataObject):
         else:
             return False
 
-    def post_create(self):
-        self.post_create_or_update()
+    def after_create(self):
+        self.after_create_or_update()
 
-    def post_update(self):
-        self.post_create_or_update()
+    def after_update(self):
+        self.after_create_or_update()
 
-    def post_create_or_update(self):
+    def after_create_or_update(self):
         self.add_file_location()
         self.add_implicit_links()
 

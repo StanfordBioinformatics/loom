@@ -239,7 +239,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             s.is_valid()
             s.save()
 
-        model.post_create()
+        model.after_create()
         return model
 
     def update(self, instance, validated_data):
@@ -291,7 +291,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
                 None)
             instance.file_import.save()
 
-        model.post_update()
+        model.after_update()
         return model
 
 

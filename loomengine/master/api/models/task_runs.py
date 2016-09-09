@@ -51,7 +51,7 @@ class TaskRun(BaseModel):
         task_manager = TaskManagerFactory.get_task_manager()
         task_manager.run(self)
 
-    def post_create(self):
+    def after_create(self):
         self._initialize_inputs_outputs()
 
     def _initialize_inputs_outputs(self):
@@ -180,14 +180,14 @@ class TaskRunAttempt(BasePolymorphicModel):
     @classmethod
     def create_from_task_run(cls, task_run):
         model = cls.objects.create(task_run=task_run)
-        model.post_create()
+        model.after_create()
         return model
 
-    def post_create(self):
+    def after_create(self):
         self._initialize_inputs_outputs()
         self._initialize_worker_process()
 
-    def post_update(self):
+    def after_update(self):
         self.task_run.push_results_from_task_run_attempt(self)
 
     def _initialize_inputs_outputs(self):
@@ -316,7 +316,7 @@ class TaskRunAttemptLogFile(BaseModel):
         related_name='task_run_attempt_log_file',
         on_delete=models.PROTECT)
 
-    def post_create(self):
+    def after_create(self):
         if self.file_data_object is None:
             self.file_data_object = FileDataObject.objects.create(source_type='log')
             self.save()
