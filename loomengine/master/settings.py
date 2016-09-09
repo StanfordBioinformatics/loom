@@ -61,9 +61,9 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'urls'
+ROOT_URLCONF = 'loomengine.master.urls'
 
-WSGI_APPLICATION = 'wsgi.application'
+WSGI_APPLICATION = 'loomengine.master.wsgi.application'
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -282,11 +282,6 @@ HARD_STOP_ON_CANCEL = True
 HARD_STOP_ON_FAIL = True
 
 DISABLE_AUTO_PUSH = False
-
-# Graph Models settings to generate model schema plots
-GRAPH_MODELS = {
-    'include_models': include_models,
-}
 
 if DEBUG:
     CORS_ORIGIN_ALLOW_ALL = True

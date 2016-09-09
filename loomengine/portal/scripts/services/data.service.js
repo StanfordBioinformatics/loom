@@ -47,14 +47,14 @@ function DataService($http, $q) {
     };
 
     function setActiveFile(fileId) {
-	return $http.get('/api/file-data-objects/' + fileId + '/')
+	return $http.get('/api/files/' + fileId + '/')
             .then(function(response) {
 		activeData.file = response.data;
             });
     };
 
     function getFileProvenance(fileId) {
-	return $http.get('/api/file-data-objects/' + fileId + '/provenance/')
+	return $http.get('/api/files/' + fileId + '/provenance/')
 	    .then(function(response) {
 		return response.data.provenance;
 	    });
@@ -75,19 +75,19 @@ function DataService($http, $q) {
     };
 
     function getImportedFiles() {
-	return $http.get('/api/imported-file-data-objects/')
+	return $http.get('/api/imported-files/')
 	    .then(function(response) {
 		return response.data;
 	    });
     };
     function getResultFiles() {
-	return $http.get('/api/result-file-data-objects/')
+	return $http.get('/api/result-files/')
 	    .then(function(response) {
 		return response.data;
 	    });
     };
     function getLogFiles() {
-	return $http.get('/api/log-file-data-objects/')
+	return $http.get('/api/log-files/')
 	    .then(function(response) {
 		return response.data;
 	    });

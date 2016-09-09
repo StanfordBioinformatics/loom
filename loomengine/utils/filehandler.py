@@ -476,7 +476,7 @@ class FileHandler:
         )
 
     def _create_file_data_object_for_import(self, source_url, note):
-        return self.objecthandler.post_data_object({
+        return self.objecthandler.post_file_data_object({
             'source_type': 'imported',
             'file_import': {
                 'note': note,
@@ -551,7 +551,7 @@ class FileHandler:
         return file_data_object
 
     def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
-        return self.objecthandler.update_data_object(
+        return self.objecthandler.update_file_data_object(
             file_data_object['id'],
             {
                 'file_content': {

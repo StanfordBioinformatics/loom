@@ -13,6 +13,8 @@ from .workflows import Workflow
 
 class RunRequest(BaseModel):
 
+    NAME_FIELD = 'template__name'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+from datetime import datetime
+import dateutil.parser
 import json
 import os
 import sys
@@ -10,6 +12,8 @@ from loomengine.client.common import get_server_url
 from loomengine.client.exceptions import *
 from loomengine.utils.objecthandler import ObjectHandler
 
+
+DATETIME_FORMAT = '%b %d, %Y %-I:%M:%S %p'
 
 class AbstractShow(object):
     """Common functions for the various subcommands under 'show'
@@ -57,17 +61,23 @@ class ShowFile(AbstractShow):
                 print text
 
     def _render_file(self, file_data_object):
-        file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['id'])
+        try:
+            file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['id'])
+        except TypeError:
+            file_identifier = '@%s' % file_data_object['id']
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
-            text += '  - Hash: %s$%s\n' % (file_data_object['file_content']['unnamed_file_content']['hash_function'],
-                                           file_data_object['file_content']['unnamed_file_content']['hash_value'])
-            file_imports = self.objecthandler.get_file_imports_by_file(file_data_object['id'])
-            for file_import in file_imports:
-                text += '    - Imported: %s from %s\n' % (file_import['datetime_created'], file_import['source_url'])
-                if file_import.get('note'):
-                    text += '      With note: %s\n' % file_import['note']
+            try:
+                text += '  - Imported: %s\n' % format(dateutil.parser.parse(file_data_object['datetime_created']), DATETIME_FORMAT)
+                text += '  - %s: %s\n' % (file_data_object['file_content']['unnamed_file_content'].get('hash_function'),
+                                          file_data_object['file_content']['unnamed_file_content']['hash_value'])
+                if file_data_object.get('file_import'):
+                    text += '  - Source URL: %s\n' % file_data_object['file_import']['source_url']
+                    if file_data_object['file_import'].get('note'):
+                        text += '  - Import note: %s\n' % file_data_object['file_import']['note']
+            except TypeError:
+                pass
         else:
             text = 'File: %s' % file_identifier
         return text
@@ -105,6 +115,7 @@ class ShowWorkflow(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Workflow: %s\n' % workflow_identifier
+            text += '  - Imported: %s\n' % format(dateutil.parser.parse(workflow['datetime_created']), DATETIME_FORMAT)
             if workflow.get('inputs'):
                 text += '  - Inputs\n'
                 for input in workflow['inputs']:
@@ -157,7 +168,7 @@ class ShowRun(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
-            text += '  - Submitted: %s\n' % run['datetime_created']
+            text += '  - Submitted: %s\n' % format(dateutil.parser.parse(run['datetime_created']), DATETIME_FORMAT)
         else:
             text = 'Run: %s' % run_identifier
         return text

@@ -112,25 +112,25 @@ class ObjectHandler(object):
 
     # ---- Post/Put/Get [object_type] methods ----
 
-    def post_data_object(self, data_object):
+    def post_file_data_object(self, file_data):
         return self._post_object(
-            data_object,
-            'data-objects/')
-
-    def update_data_object(self, data_object_id, data_object_update):
+            file_data,
+            'files/')
+        
+    def update_file_data_object(self, file_id, file_data_update):
         return self._put_object(
-            data_object_update,
-            'data-objects/%s/' % data_object_id)
-
+            file_data_update,
+            'files/%s/' % file_id)
+    
     def get_file_data_object(self, file_id):
         return self._get_object(
-            'file-data-objects/%s/' % file_id)
+            'files/%s/' % file_id)
 
     def get_file_data_object_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'file-data-objects/?q='+query_string
+            url = 'files/?q='+query_string
         else:
-            url = 'file-data-objects/'
+            url = 'files/'
         file_data_objects =  self._get_object_index(url)
         if len(file_data_objects) < min:
             raise IdMatchedTooFewFileDataObjectsError('Found %s FileDataObjects, expected at least %s' %(len(file_data_objects), min))
@@ -140,7 +140,7 @@ class ObjectHandler(object):
 
     def get_file_locations_by_file(self, file_id):
         return self._get_object(
-            'file-data-objects/'+file_id+'/file-locations/'
+            'files/'+file_id+'/file-locations/'
         )
 
     def post_file_location(self, file_location):
@@ -155,7 +155,7 @@ class ObjectHandler(object):
 
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
-            'file-data-objects/' + file_id + '/file-imports/'
+            'files/' + file_id + '/file-imports/'
         )
     
     def get_abstract_workflow(self, workflow_id):
