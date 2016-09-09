@@ -7,9 +7,9 @@ from loomengine.client.common import get_server_url
 from loomengine.client.common import parse_as_json_or_yaml
 from loomengine.client.exceptions import *
 from loomengine.utils import exceptions as common_exceptions
-from loomengine.utils.filehandler import FileHandler, Source
+from loomengine.utils.filemanager import FileManager, Source
 from loomengine.utils.helper import get_console_logger
-from loomengine.utils.objecthandler import ObjectHandler
+from loomengine.utils.connection import Connection
 
 
 class AbstractImporter(object):
@@ -30,8 +30,8 @@ class AbstractImporter(object):
             logger = get_console_logger(name=__file__)
         self.logger = logger
 
-        self.filehandler = FileHandler(master_url, logger=self.logger)
-        self.objecthandler = ObjectHandler(master_url)
+        self.filemanager = FileManager(master_url, logger=self.logger)
+        self.connection = Connection(master_url)
 
 
 class FileImporter(AbstractImporter):
@@ -49,7 +49,7 @@ class FileImporter(AbstractImporter):
         return parser
 
     def run(self):
-        return self.filehandler.import_from_patterns(
+        return self.filemanager.import_from_patterns(
             self.args.files,
             self.args.note
         )
@@ -70,18 +70,18 @@ class WorkflowImporter(AbstractImporter):
         return parser
 
     def run(self):
-        return self.import_workflow(self.args.workflow, self.args.note, self.filehandler, self.objecthandler, self.logger)
+        return self.import_workflow(self.args.workflow, self.args.note, self.filemanager, self.connection, self.logger)
 
     @classmethod
-    def import_workflow(cls, workflow_file, note, filehandler, objecthandler, logger):
-        logger.info('Importing workflow from %s...' % filehandler.normalize_url(workflow_file))
-        (workflow, source_url) = cls._get_workflow(workflow_file, filehandler)
+    def import_workflow(cls, workflow_file, note, filemanager, connection, logger):
+        logger.info('Importing workflow from %s...' % filemanager.normalize_url(workflow_file))
+        (workflow, source_url) = cls._get_workflow(workflow_file, filemanager)
         workflow.update({
             'workflow_import': {
                 'note': note,
                 'source_url': source_url,
             }})
-        workflow_from_server = objecthandler.post_abstract_workflow(workflow)
+        workflow_from_server = connection.post_abstract_workflow(workflow)
         logger.info('   imported workflow %s@%s' % \
             (workflow_from_server['name'],
              workflow_from_server['id'],
@@ -89,8 +89,8 @@ class WorkflowImporter(AbstractImporter):
         return workflow_from_server
 
     @classmethod
-    def _get_workflow(cls, workflow_file, filehandler):
-        (workflow_text, source_url) = filehandler.read_file(workflow_file)
+    def _get_workflow(cls, workflow_file, filemanager):
+        (workflow_text, source_url) = filemanager.read_file(workflow_file)
         workflow = parse_as_json_or_yaml(workflow_text)
         return workflow, source_url
 

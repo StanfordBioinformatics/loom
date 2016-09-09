@@ -10,8 +10,8 @@ def disable_insecure_request_warning():
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-class ObjectHandler(object):
-    """ObjectHandler provides functions to create and work with objects in the 
+class Connection(object):
+    """Connection provides functions to create and work with objects in the 
     Loom database via the HTTP API
     """
 
@@ -283,7 +283,7 @@ class ObjectHandler(object):
             'task-run-attempts/%s/worker-settings/' % attempt_id
         )
 
-    def get_filehandler_settings(self):
+    def get_filemanager_settings(self):
         return self._get_object(
-            'filehandler-settings/'
+            'filemanager-settings/'
         )

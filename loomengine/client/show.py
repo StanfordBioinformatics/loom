@@ -10,7 +10,7 @@ import yaml
 from loomengine.client.common import get_server_url
 
 from loomengine.client.exceptions import *
-from loomengine.utils.objecthandler import ObjectHandler
+from loomengine.utils.connection import Connection
 
 
 DATETIME_FORMAT = '%b %d, %Y %-I:%M:%S %p'
@@ -24,7 +24,7 @@ class AbstractShow(object):
         """
         self.args = args
         self.master_url = get_server_url()
-        self.objecthandler = ObjectHandler(self.master_url)
+        self.connection = Connection(self.master_url)
 
     @classmethod
     def get_parser(cls, parser):
@@ -52,7 +52,7 @@ class ShowFile(AbstractShow):
         self._show_files()
 
     def _get_files(self):
-        self.files = self.objecthandler.get_file_data_object_index(self.args.file_id)
+        self.files = self.connection.get_file_data_object_index(self.args.file_id)
 
     def _show_files(self):
         for file_data_object in self.files:
@@ -104,7 +104,7 @@ class ShowWorkflow(AbstractShow):
         self._show_workflows()
 
     def _get_workflows(self):
-        self.workflows = self.objecthandler.get_abstract_workflow_index(self.args.workflow_id)
+        self.workflows = self.connection.get_abstract_workflow_index(self.args.workflow_id)
 
     def _show_workflows(self):
         for workflow in self.workflows:
@@ -157,7 +157,7 @@ class ShowRun(AbstractShow):
         self._show_runs(runs)
 
     def _get_runs(self):
-        return self.objecthandler.get_run_request_index(self.args.run_id)
+        return self.connection.get_run_request_index(self.args.run_id)
 
     def _show_runs(self, runs):
         for run in runs:

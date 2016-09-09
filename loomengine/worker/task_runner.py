@@ -13,8 +13,8 @@ import sys
 import time
 import uuid
 
-from loomengine.utils.filehandler import FileHandler
-from loomengine.utils.objecthandler import ObjectHandler
+from loomengine.utils.filemanager import FileManager
+from loomengine.utils.connection import Connection
 from loomengine.utils.logger import StreamToLogger
 
 class TaskRunner(object):
@@ -26,21 +26,21 @@ class TaskRunner(object):
             'TASK_RUN_ATTEMPT_ID': args.run_attempt_id,
             'MASTER_URL': args.master_url
         }
-        self._init_objecthandler()
+        self._init_connection()
         self.settings.update(self._get_worker_settings())
         self._init_directories()
         self._init_logger()
-        self._init_filehandler()
+        self._init_filemanager()
         self._init_task_run_attempt()
 
-    def _init_objecthandler(self):
-        self.objecthandler = ObjectHandler(self.settings['MASTER_URL'])
+    def _init_connection(self):
+        self.connection = Connection(self.settings['MASTER_URL'])
 
-    def _init_filehandler(self):
-        self.filehandler = FileHandler(self.settings['MASTER_URL'], logger=self.logger)
+    def _init_filemanager(self):
+        self.filemanager = FileManager(self.settings['MASTER_URL'], logger=self.logger)
 
     def _get_worker_settings(self):
-        return self.objecthandler.get_worker_settings(self.settings['TASK_RUN_ATTEMPT_ID'])
+        return self.connection.get_worker_settings(self.settings['TASK_RUN_ATTEMPT_ID'])
 
     def _init_directories(self):
         for directory in set([self.settings['WORKING_DIR'],
@@ -76,7 +76,7 @@ class TaskRunner(object):
             return logging.FileHandler(self.settings['WORKER_LOG_FILE'])
 
     def _init_task_run_attempt(self):
-        self.task_run_attempt = self.objecthandler.get_task_run_attempt(self.settings['TASK_RUN_ATTEMPT_ID'])
+        self.task_run_attempt = self.connection.get_task_run_attempt(self.settings['TASK_RUN_ATTEMPT_ID'])
         if self.task_run_attempt is None:
             raise Exception('TaskRunAttempt ID "%s" not found' % self.settings['TASK_RUN_ATTEMPT_ID'])
 
@@ -106,7 +106,7 @@ class TaskRunner(object):
         task_run_attempt = copy.deepcopy(self.task_run_attempt)
         task_run_attempt.update({'status': 'complete'})
         
-        self.objecthandler.update_task_run_attempt(
+        self.connection.update_task_run_attempt(
             task_run_attempt['id'],
             task_run_attempt)
         
@@ -117,7 +117,7 @@ class TaskRunner(object):
         for input in self.task_run_attempt['inputs']:
             if input['data_object']['type'] == 'file':
                 file_data_object_ids.append('@'+input['data_object']['id'])
-        self.filehandler.export_files(
+        self.filemanager.export_files(
             file_data_object_ids,
             destination_url=self.settings['WORKING_DIR'])
 
@@ -126,7 +126,7 @@ class TaskRunner(object):
             if output['type'] == 'file':
                 filename = output['filename']
                 try:
-                    self.filehandler.import_result_file(
+                    self.filemanager.import_result_file(
                         output,
                         os.path.join(self.settings['WORKING_DIR'], filename)
                     )
@@ -144,7 +144,7 @@ class TaskRunner(object):
                         self.settings['STDOUT_LOG_FILE'],
                         self.settings['STDERR_LOG_FILE']):
             try:
-                self.filehandler.import_log_file(
+                self.filemanager.import_log_file(
                     self.task_run_attempt,
                     log_file
                 )

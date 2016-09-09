@@ -253,8 +253,8 @@ FILE_ROOT_FOR_WORKER = os.getenv('FILE_ROOT_FOR_WORKER')
 FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')
 LOGS_DIR = os.getenv('LOGS_DIR')
 
-PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.utils.filehandler.GoogleStorageSource and GoogleStorageDestination
-                                            # Retrieved but not used when filehandler is LocalSource and LocalDestination, so need to set a default value
+PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.utils.filemanager.GoogleStorageSource and GoogleStorageDestination
+                                            # Retrieved but not used when filemanager is LocalSource and LocalDestination, so need to set a default value
 BUCKET_ID = os.getenv('GCE_BUCKET', '')
 GCE_PEM_FILE_PATH = os.getenv('GCE_PEM_FILE_PATH')
 GCE_INI_PATH = os.getenv('GCE_INI_PATH')

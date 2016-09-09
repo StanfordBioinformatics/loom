@@ -13,7 +13,7 @@ import sys
 import yaml
 
 import loomengine.client.settings_manager
-import loomengine.utils.objecthandler
+import loomengine.utils.connection
 from loomengine.client.exceptions import *
 
 LOOM_HOME_SUBDIR = '.loom'
@@ -109,7 +109,7 @@ def get_deploy_settings_filename():
 
 def is_server_running():
     try:
-        loomengine.utils.objecthandler.disable_insecure_request_warning()
+        loomengine.utils.connection.disable_insecure_request_warning()
         #response = requests.get(get_server_url() + '/api/status/', cert=(SSL_CERT_PATH, SSL_KEY_PATH)) 
         response = requests.get(get_server_url() + '/api/status/', verify=False) 
     except requests.exceptions.ConnectionError:

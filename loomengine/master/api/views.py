@@ -119,7 +119,7 @@ def worker_settings(request, id):
         return JsonResponse({"message": e.message}, status=500)
 
 @require_http_methods(["GET"])
-def filehandler_settings(request):
+def filemanager_settings(request):
     return JsonResponse({
         'HASH_FUNCTION': get_setting('HASH_FUNCTION'),
         'PROJECT_ID': get_setting('PROJECT_ID'),

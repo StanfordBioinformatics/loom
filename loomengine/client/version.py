@@ -3,7 +3,7 @@
 import argparse
 from loomengine.client.common import get_server_url
 import loomengine.utils.version
-from loomengine.utils.objecthandler import ObjectHandler
+from loomengine.utils.connection import Connection
 
 
 class Version:
@@ -16,11 +16,11 @@ class Version:
         if args is None:
             args = self._get_args()
         self.args = args
-        self.objecthandler = self._get_objecthandler()
+        self.connection = self._get_connection()
 
-    def _get_objecthandler(self):
+    def _get_connection(self):
         master_url = get_server_url()
-        return  ObjectHandler(master_url)
+        return  Connection(master_url)
 
     def _get_args(self):
         parser = self.get_parser()
@@ -43,7 +43,7 @@ class Version:
         print "server version: %s" % server_version
 
     def get_server_version(self):
-        return self.objecthandler.get_version()
+        return self.connection.get_version()
 
 if __name__=='__main__':
     response = Version().run()

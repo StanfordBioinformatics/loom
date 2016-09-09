@@ -13,7 +13,7 @@ import requests
 
 from loomengine.utils import md5calc
 from loomengine.utils.exceptions import *
-from loomengine.utils.objecthandler import ObjectHandler
+from loomengine.utils.connection import Connection
 from loomengine.utils.logger import StreamToLogger
 
 # Google Storage JSON API imports
@@ -438,15 +438,13 @@ class GoogleStorage2LocalCopier(AbstractCopier):
         raise Exception('"move" operation is not supported from Google Storage to local.')
 
 
-class FileHandler:
-    """Abstract base class for filehandlers.
-    Public interface and required overrides. Perform file transfer or create 
-    locations differently depending on fileserver type.
+class FileManager:
+    """Manages file import/export
     """
 
     def __init__(self, master_url, logger=None):
-        self.objecthandler = ObjectHandler(master_url)
-        self.settings = self.objecthandler.get_filehandler_settings()
+        self.connection = Connection(master_url)
+        self.settings = self.connection.get_filemanager_settings()
         self.logger = logger
         stdout_logger = StreamToLogger(self.logger, logging.INFO)
         sys.stdout = stdout_logger
@@ -476,7 +474,7 @@ class FileHandler:
         )
 
     def _create_file_data_object_for_import(self, source_url, note):
-        return self.objecthandler.post_file_data_object({
+        return self.connection.post_file_data_object({
             'source_type': 'imported',
             'file_import': {
                 'note': note,
@@ -492,7 +490,7 @@ class FileHandler:
         return file_data_object
 
     def _create_task_run_attempt_output_file(self, task_run_attempt_output):
-        updated_task_run_attempt_output = self.objecthandler.update_task_run_attempt_output(
+        updated_task_run_attempt_output = self.connection.update_task_run_attempt_output(
             task_run_attempt_output['id'],
             {
                 'data_object': {
@@ -502,7 +500,7 @@ class FileHandler:
 
     def import_log_file(self, task_run_attempt, source_url):
         log_name = os.path.basename(source_url)
-        log_file = self.objecthandler.post_task_run_attempt_log_file(task_run_attempt['id'], {'log_name': log_name})
+        log_file = self.connection.post_task_run_attempt_log_file(task_run_attempt['id'], {'log_name': log_name})
         return self._execute_file_import(
             log_file['file_data_object'],
             source_url
@@ -551,7 +549,7 @@ class FileHandler:
         return file_data_object
 
     def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
-        return self.objecthandler.update_file_data_object(
+        return self.connection.update_file_data_object(
             file_data_object['id'],
             {
                 'file_content': {
@@ -569,7 +567,7 @@ class FileHandler:
         """
         file_location = file_data_object['file_location']
         file_location['status'] = 'complete'
-        file_location = self.objecthandler.update_file_location(
+        file_location = self.connection.update_file_location(
             file_location['id'],
             file_location
         )
@@ -588,7 +586,7 @@ class FileHandler:
 
     def export_file(self, file_id, destination_url=None):
         # Error raised if there is not exactly one matching file.
-        file_data_object = self.objecthandler.get_file_data_object_index(query_string=file_id, max=1, min=1)[0]
+        file_data_object = self.connection.get_file_data_object_index(query_string=file_id, max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()

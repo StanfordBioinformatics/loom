@@ -7,8 +7,8 @@ import sys
 import yaml
 from loomengine.client.common import get_server_url
 from loomengine.client.exceptions import *
-from loomengine.utils.filehandler import FileHandler
-from loomengine.utils.objecthandler import ObjectHandler
+from loomengine.utils.filemanager import FileManager
+from loomengine.utils.connection import Connection
 from loomengine.utils.helper import get_console_logger
 
 
@@ -26,8 +26,8 @@ class AbstractExporter(object):
         self.logger = logger
         
         master_url = get_server_url_for_client()
-        self.objecthandler = ObjectHandler(master_url)
-        self.filehandler = FileHandler(master_url, logger=self.logger)
+        self.connection = Connection(master_url)
+        self.filemanager = FileManager(master_url, logger=self.logger)
 
 
 class FileExporter(AbstractExporter):
@@ -46,7 +46,7 @@ class FileExporter(AbstractExporter):
         return parser
 
     def run(self):
-        self.filehandler.export_files(
+        self.filemanager.export_files(
             self.args.file_ids,
             destination_url=self.args.destination
         )
@@ -71,13 +71,13 @@ class WorkflowExporter(AbstractExporter):
         return parser
 
     def run(self):
-        workflow = self.objecthandler.get_abstract_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
+        workflow = self.connection.get_abstract_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
         destination_url = self._get_destination_url(workflow)
         self._save_workflow(workflow, destination_url)
 
     def _get_destination_url(self, workflow):
         default_name = '%s.%s' % (workflow['name'], self.args.format)
-        return self.filehandler.get_destination_file_url(self.args.destination, default_name)
+        return self.filemanager.get_destination_file_url(self.args.destination, default_name)
 
     def _save_workflow(self, workflow, destination):
         self.logger.info('Exporting workflow %s@%s to %s...' % (workflow.get('name'), workflow.get('_id'), destination))
@@ -87,7 +87,7 @@ class WorkflowExporter(AbstractExporter):
             workflow_text = yaml.safe_dump(workflow)
         else:
             raise Exception('Invalid format type %s' % self.args.format)
-        self.filehandler.write_to_file(destination, workflow_text)
+        self.filemanager.write_to_file(destination, workflow_text)
         self.logger.info('...finished exporting workflow')
 
 class Exporter:

@@ -7,8 +7,8 @@ from loomengine.client.importer import WorkflowImporter
 from loomengine.client.common import get_server_url, read_as_json_or_yaml
 from loomengine.client.exceptions import *
 from loomengine.utils.helper import get_console_logger
-from loomengine.utils.filehandler import FileHandler
-from loomengine.utils.objecthandler import ObjectHandler
+from loomengine.utils.filemanager import FileManager
+from loomengine.utils.connection import Connection
 
 
 class WorkflowRunner(object):
@@ -23,8 +23,8 @@ class WorkflowRunner(object):
         if logger is None:
             logger = get_console_logger(name=__file__)
         self.logger = logger
-        self.objecthandler = ObjectHandler(self.master_url)
-        self.filehandler = FileHandler(self.master_url, logger=self.logger)
+        self.connection = Connection(self.master_url)
+        self.filemanager = FileManager(self.master_url, logger=self.logger)
 
     @classmethod
     def _get_args(cls):
@@ -51,7 +51,7 @@ class WorkflowRunner(object):
                 raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
 
     def run(self):
-        run_request = self.objecthandler.post_run_request(
+        run_request = self.connection.post_run_request(
             {
                 'template': self.args.workflow,
                 'inputs': self._get_inputs()
