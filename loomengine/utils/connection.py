@@ -20,7 +20,7 @@ class Connection(object):
 
     # ---- General methods ----
     
-    def _post(self, data, relative_url, raise_for_status=True):
+    def _post(self, data, relative_url):
         url = self.api_root_url + relative_url
         disable_insecure_request_warning()
         return self._make_request_to_server(
@@ -28,10 +28,9 @@ class Connection(object):
                 url,
                 data=json.dumps(data),
                 headers={'content-type': 'application/json'},
-                verify=False),
-            raise_for_status=raise_for_status)
+                verify=False))
 
-    def _put(self, data, relative_url, raise_for_status=True):
+    def _put(self, data, relative_url):
         url = self.api_root_url + relative_url
         disable_insecure_request_warning()
         return self._make_request_to_server(
@@ -39,10 +38,9 @@ class Connection(object):
                 url,
                 data=json.dumps(data),
                 headers={'content-type': 'application/json'},
-                verify=False),
-            raise_for_status=raise_for_status)
+                verify=False))
 
-    def _patch(self, data, relative_url, raise_for_status=True):
+    def _patch(self, data, relative_url):
         url = self.api_root_url + relative_url
         disable_insecure_request_warning()
         return self._make_request_to_server(
@@ -50,15 +48,17 @@ class Connection(object):
                 url,
                 data=json.dumps(data),
                 headers={'content-type': 'application/json'},
-                verify=False),
-            raise_for_status=raise_for_status)
+                verify=False))
 
-    def _get(self, relative_url, raise_for_status=True):
+    def _get(self, relative_url):
         url = self.api_root_url + relative_url
         disable_insecure_request_warning()
-        return self._make_request_to_server(lambda: requests.get(url, verify=False), raise_for_status=raise_for_status) # Don't fail on unrecognized SSL certificate
+        return self._make_request_to_server(
+            lambda: requests.get(
+                url,
+                verify=False)) # Don't fail on unrecognized SSL certificate
 
-    def _make_request_to_server(self, query_function, raise_for_status=True):
+    def _make_request_to_server(self, query_function):
         """Verifies server connection and handles response errors
         for either get or post requests
         """
@@ -71,11 +71,10 @@ class Connection(object):
             error = None
             try:
                 response = query_function()
-                if raise_for_status:
-                    try:
-                        response.raise_for_status()
-                    except requests.exceptions.HTTPError as e:
-                        error = BadResponseError("%s\n%s" % (e.message, response.text))
+                try:
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    error = BadResponseError("%s\n%s" % (e.message, response.text))
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError("No response from server.\n%s" % e.message)
             if error:
@@ -86,16 +85,16 @@ class Connection(object):
         raise error
 
     def _post_object(self, object_data, relative_url):
-        return self._post(object_data, relative_url, raise_for_status=True).json()
+        return self._post(object_data, relative_url).json()
 
     def _put_object(self, object_data, relative_url):
-        return self._put(object_data, relative_url, raise_for_status=True).json()
+        return self._put(object_data, relative_url).json()
 
     def _patch_object(self, object_data, relative_url):
-        return self._patch(object_data, relative_url, raise_for_status=True).json()
+        return self._patch(object_data, relative_url).json()
 
-    def _get_object(self, relative_url, raise_for_status=True):
-        response = self._get(relative_url, raise_for_status=raise_for_status)
+    def _get_object(self, relative_url):
+        response = self._get(relative_url)
         if response.status_code == 404:
             return None
         elif response.status_code == 200:
@@ -103,7 +102,7 @@ class Connection(object):
         else:
             raise BadResponseError("Status code %s. %s" % (response.status_code, response.text))
 
-    def _get_object_index(self, relative_url, raise_for_status=True):
+    def _get_object_index(self, relative_url):
         response = self._get(relative_url)
         if response.status_code == 200:
             return response.json()
@@ -121,7 +120,7 @@ class Connection(object):
         return self._put_object(
             file_data_update,
             'files/%s/' % file_id)
-    
+
     def get_file_data_object(self, file_id):
         return self._get_object(
             'files/%s/' % file_id)
@@ -226,8 +225,7 @@ class Connection(object):
 
     def get_task_run_attempt(self, task_run_attempt_id):
         return self._get_object(
-            'task-run-attempts/%s/' % task_run_attempt_id,
-            raise_for_status=True
+            'task-run-attempts/%s/' % task_run_attempt_id
         )
 
     def update_task_run_attempt(self, task_run_attempt_id, task_run_attempt_update):
@@ -260,6 +258,11 @@ class Connection(object):
         return self._put_object(
             file_import_update,
             'abstract-file-imports/%s/' % file_import_id)
+
+    def update_worker_process(self, worker_process_id, data):
+        return self._patch_object(
+            data,
+            'worker-processes/%s/' % worker_process_id)
 
     def get_info(self):
         try:

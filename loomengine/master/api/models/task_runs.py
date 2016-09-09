@@ -161,13 +161,14 @@ class TaskRunAttempt(BasePolymorphicModel):
     task_run = models.ForeignKey('TaskRun',
                                  related_name='task_run_attempts',
                                  on_delete=models.CASCADE)
+
     status = models.CharField(
         max_length=255,
         default='incomplete',
         choices=(('incomplete', 'Incomplete'),
                  ('complete', 'Complete'),
                  ('failed', 'Failed')))
-
+                        
     @property
     def task_definition(self):
         return self.task_run.task_definition
@@ -184,6 +185,7 @@ class TaskRunAttempt(BasePolymorphicModel):
 
     def post_create(self):
         self._initialize_inputs_outputs()
+        self._initialize_worker_process()
 
     def post_update(self):
         self.task_run.push_results_from_task_run_attempt(self)
@@ -199,6 +201,13 @@ class TaskRunAttempt(BasePolymorphicModel):
             TaskRunAttemptOutput.objects.create(
                 task_run_attempt=self,
                 task_run_output=output)
+
+    def _initialize_worker_process(self):
+        try:
+            self.worker_process
+        except ObjectDoesNotExist:
+            self.worker_process = WorkerProcess.objects.create(
+                task_run_attempt=self)
 
     @classmethod
     def get_working_dir(cls, task_run_attempt_id):
@@ -252,7 +261,8 @@ class TaskRunAttemptInput(BaseModel):
         'TaskRunInput',
         related_name='task_run_attempt_inputs',
         null=True, on_delete=models.PROTECT)
-
+    
+    
     @property
     def type(self):
         return self.task_run_input.type
@@ -310,3 +320,43 @@ class TaskRunAttemptLogFile(BaseModel):
         if self.file_data_object is None:
             self.file_data_object = FileDataObject.objects.create(source_type='log')
             self.save()
+
+"""
+class WorkerProcessHost(BaseModel):
+    task_run_attempt = models.OneToOneField(
+        'TaskRunAttempt',
+        related_name='host',
+        on_delete=models.CASCADE
+    )
+    status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(
+            ('not_started', 'Not started'),
+            ('provisioning', 'Provisioning'),
+            ('active', 'Active'),
+            ('stopping', 'Stopping'),
+            ('failed', 'Failed'),
+            ('deleted', 'Deleted'),
+        )
+    )
+"""
+
+class WorkerProcess(BaseModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_run_attempt = models.OneToOneField(
+        'TaskRunAttempt',
+        related_name='worker_process',
+        on_delete=models.CASCADE,
+    )
+    status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(
+            ('not_started', 'Not started'),
+            ('starting', 'Starting'),
+            ('running', 'Running'),
+            ('finished_success', 'Finished successfully'),
+            ('finished_with_error', 'Finished with error'),
+        ),
+    )

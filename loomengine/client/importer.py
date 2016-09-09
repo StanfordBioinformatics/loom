@@ -49,10 +49,12 @@ class FileImporter(AbstractImporter):
         return parser
 
     def run(self):
-        return self.filemanager.import_from_patterns(
+        files_imported = self.filemanager.import_from_patterns(
             self.args.files,
             self.args.note
         )
+        if len(files_imported) == 0:
+            raise Exception('No files found')
 
 
 class WorkflowImporter(AbstractImporter):

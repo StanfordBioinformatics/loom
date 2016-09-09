@@ -86,16 +86,19 @@ class TaskRunner(object):
         with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
             with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
                 process = self._execute(stdoutlog, stderrlog)
+                # TODO verify started, then self._set_process_status('running')
                 self._wait_for_process(process)
 
         if process.returncode == 0:
             self._import_outputs()
             self._import_log_files()
+            self._set_process_status('finished_success')
             self._flag_attempt_as_complete()
         else:
             err_message = 'Worker process failed with nonzero returncode %s. \nFor more '\
                           'information check the stderr log file' % str(process.returncode)
             self.logger.error(err_message)
+            self._set_process_status('finished_with_error')
             # TODO report failure to server
 
             # Still report output for debugging purposes
@@ -175,6 +178,7 @@ class TaskRunner(object):
             user_command,
             ]
         self.logger.debug(' '.join(full_command))
+        self._set_process_status('starting')
         return subprocess.Popen(full_command, stdout=stdoutlog, stderr=stderrlog)
 
     def _wait_for_process(self, process, poll_interval_seconds=1, timeout_seconds=86400):
@@ -188,6 +192,12 @@ class TaskRunner(object):
                 return
             time.sleep(poll_interval_seconds)
 
+    def _set_process_status(self, status):
+        self.connection.update_worker_process(
+            self.task_run_attempt['worker_process']['id'],
+            {'status': status}
+        )
+            
     def _get_args(self):
         parser = self.get_parser()
         return parser.parse_args()

@@ -457,15 +457,19 @@ class FileManager:
         self.logger.info(message)
 
     def import_from_patterns(self, patterns, note):
+        files = []
         for pattern in patterns:
-            self.import_from_pattern(pattern, note)
+            files.extend(self.import_from_pattern(pattern, note))
+        return files
 
     def import_from_pattern(self, pattern, note):
+        files = []
         for source in SourceSet(pattern, self.settings):
-            self.import_file(
+            files.append(self.import_file(
                 source.get_url(),
                 note
-            )
+            ))
+        return files
 
     def import_file(self, source_url, note):
         return self._execute_file_import(

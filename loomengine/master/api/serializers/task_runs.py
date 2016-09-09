@@ -55,7 +55,14 @@ class TaskRunAttemptLogFileSerializer(CreateWithParentModelSerializer):
         log = super(TaskRunAttemptLogFileSerializer, self).create(validated_data)
         log.post_create()
         return log
-        
+
+class WorkerProcessSerializer(CreateWithParentModelSerializer):
+    
+    id = serializers.UUIDField(format='hex', required=False)
+
+    class Meta:
+        model = WorkerProcess
+        fields = ('id', 'status',)
 
 class TaskRunAttemptSerializer(serializers.ModelSerializer):
 
@@ -65,10 +72,11 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
     inputs = TaskRunAttemptInputSerializer(many=True, allow_null=True, required=False)
     outputs = TaskRunAttemptOutputSerializer(many=True, allow_null=True, required=False)
     task_definition = TaskDefinitionSerializer()
+    worker_process = WorkerProcessSerializer()
 
     class Meta:
         model = TaskRunAttempt
-        fields = ('id', 'name', 'log_files', 'inputs', 'outputs', 'status', 'task_definition',)
+        fields = ('id', 'name', 'log_files', 'inputs', 'outputs', 'status', 'task_definition', 'worker_process')
         
     def update(self, instance, validated_data):
 
@@ -111,7 +119,7 @@ class TaskRunIdSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskRun
         fields = ('id',)
-        
+
 class TaskRunSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)

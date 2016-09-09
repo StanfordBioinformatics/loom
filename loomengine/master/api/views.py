@@ -83,10 +83,6 @@ class RunRequestViewSet(viewsets.ModelViewSet):
             queryset = models.RunRequest.objects.all()
         return queryset.order_by('-datetime_created')
 
-class TaskRunAttemptViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.TaskRunAttempt.objects.all()
-    serializer_class = serializers.TaskRunAttemptSerializer
-
 class TaskRunViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.TaskRun.objects.all()
     serializer_class = serializers.TaskRunSerializer
@@ -98,6 +94,14 @@ class TaskRunAttemptOutputViewSet(viewsets.ModelViewSet):
 class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
     queryset = models.AbstractWorkflowRun.objects.all()
     serializer_class = serializers.AbstractWorkflowRunSerializer
+
+class TaskRunAttemptViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunAttempt.objects.all()
+    serializer_class = serializers.TaskRunAttemptSerializer
+
+class WorkerProcessViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.WorkerProcess.objects.all()
+    serializer_class = serializers.WorkerProcessSerializer
 
 @require_http_methods(["GET"])
 def status(request):

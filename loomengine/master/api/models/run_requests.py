@@ -8,7 +8,7 @@ from .channels import InputOutputNode
 from .data_objects import DataObject
 from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
 from .workflows import Workflow
-#from api import get_setting
+from api import get_setting
 
 
 class RunRequest(BaseModel):

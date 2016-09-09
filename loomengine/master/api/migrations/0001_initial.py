@@ -372,6 +372,18 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
+            name='WorkerProcess',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'starting', b'Starting'), (b'running', b'Running'), (b'finished_success', b'Finished successfully'), (b'finished_with_errors', b'Finished with errors')])),
+                ('task_run_attempt', models.OneToOneField(related_name='worker_process', to='api.TaskRunAttempt')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='WorkflowImport',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),

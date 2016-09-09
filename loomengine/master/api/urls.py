@@ -19,6 +19,7 @@ router.register('task-run-attempts', views.TaskRunAttemptViewSet)
 router.register('task-run-attempt-outputs', views.TaskRunAttemptOutputViewSet)
 router.register('file-imports', views.FileImportViewSet)
 router.register('file-locations', views.FileLocationViewSet)
+router.register('worker-processes', views.WorkerProcessViewSet)
 
 file_provenance_detail = views.FileProvenanceViewSet.as_view({'get':'retrieve'})
 
