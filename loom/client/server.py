@@ -138,6 +138,7 @@ class BaseServerControls:
         config.set('server', 'type', self.args.type)
         if self.args.type == 'gcloud':
             name = self.args.name
+            validate_gcloud_instance_name(name)
             config.set('server', 'name', name)
         with open(server_location_file, 'w') as configfile:
             print 'Updating %s...' % server_location_file
@@ -389,7 +390,6 @@ class GoogleCloudServerControls(BaseServerControls):
     def __init__(self, args=None):
         BaseServerControls.__init__(self, args)
         self.settings_manager = SettingsManager()
-        setup_gce_ini_and_json()
 
     # Defines what commands this class can handle and maps names to functions.
     def _get_command_map(self):
@@ -415,15 +415,28 @@ class GoogleCloudServerControls(BaseServerControls):
         return env
 
     def create(self):
-        """Create server deploy settings if they don't exist yet, set up SSH
-        keys, create and set up a gcloud instance, copy deploy settings to the
-        instance."""
+        """Create a service account for the server, create gce.ini, create
+        JSON credential, create server deploy settings, set up SSH keys,
+        create and set up a gcloud instance, and copy deploy settings to the
+        instance.
+        """
+        server_name = get_gcloud_server_name()
+        print 'Creating service account for instance %s...' % server_name 
+        create_service_account(server_name)
+        email = find_service_account_email(server_name)
+        if email != None:
+            print 'Created service account %s.' % email
+
+        grant_editor_role(email)
+        setup_gce_ini_and_json()
+
         if hasattr(self.args, 'settings') and self.args.settings != None:
             print 'Creating deploy settings %s using user settings %s...' % (get_deploy_settings_filename(), self.args.settings)
             self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
         else:
             print 'Creating deploy settings %s using default settings...' % get_deploy_settings_filename()
             self.settings_manager.create_deploy_settings_file()
+
 
         setup_gcloud_ssh()
         env = self.get_ansible_env()
@@ -500,6 +513,7 @@ class GoogleCloudServerControls(BaseServerControls):
                     if os.path.exists(get_deploy_settings_filename()):
                         print 'Deleting %s...' % get_deploy_settings_filename()
                         os.remove(get_deploy_settings_filename())
+                # TODO: delete service account corresponding to server
                 return delete_returncode
 
 

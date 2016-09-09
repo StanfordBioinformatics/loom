@@ -7,6 +7,7 @@ import io
 import json
 import oauth2client.client
 import os
+import re
 import requests
 import subprocess
 import sys
@@ -48,6 +49,20 @@ def get_gcloud_server_name():
         raise Exception("Tried to get gcloud instance name, but %s is not configured for gcloud." % server_location_file)
     server_name = config.get('server', 'name')
     return server_name
+
+def validate_gcloud_label(label):
+    """Many identifiers in gcloud must conform to RFC 1035."""
+    if len(label) > 63 or len(label) < 6:
+        raise Exception('Identifier is not 6-63 characters long: %s' % label)
+    result = re.match('[a-z]([-a-z0-9]*[a-z0-9])', label)
+    if result == None:
+        raise Exception('Identifier does not match regular expression [a-z]([-a-z0-9]*[a-z0-9]): %s' % label)
+
+def validate_gcloud_service_account_id(account_id):
+    validate_gcloud_label(account_id)
+
+def validate_gcloud_instance_name(name):
+    validate_gcloud_label(name)
 
 def get_server_public_ip():
     server_type = get_server_type()
@@ -152,24 +167,9 @@ def setup_gce_ini_and_json():
     if is_gce_ini_valid() and is_gce_json_valid():
         return
 
-    check_for_gcloud()
-
-    try:
-        credentials = oauth2client.client.GoogleCredentials.get_application_default()
-    except oauth2client.client.ApplicationDefaultCredentialsError:
-        raise Exception('Could not get credentials from Google Cloud SDK. Please run "gcloud init" first.')
-
-    iam_service = googleapiclient.discovery.build('iam', 'v1', credentials=credentials)
     project = get_gcloud_project()
-
-    request = iam_service.projects().serviceAccounts().list(name='projects/%s' % project)
-    response = request.execute()
-    service_account_email = None
-    for account in response['accounts']:
-        if account['displayName'] == 'Compute Engine default service account':
-            service_account_email = account['email']
-    if not service_account_email:
-        raise Exception('Could not retrieve Compute Engine default service account email.')
+    server_name = get_gcloud_server_name()
+    service_account_email = find_service_account_email(server_name)
 
     if not is_gce_ini_valid():
         print 'Creating or updating %s...' % GCE_INI_PATH
@@ -182,14 +182,19 @@ def setup_gce_ini_and_json():
             config.write(configfile)
 
     if not is_gce_json_valid():
-        if os.path.exists(os.path.expanduser(GCE_JSON_PATH)):
-            raise Exception('%s doesn\'t match the current gcloud project. Please move it, delete it, or run "gcloud init" to change the current project.' % GCE_JSON_PATH)
         print 'Creating %s...' % GCE_JSON_PATH
-        request = iam_service.projects().serviceAccounts().keys().create(name='projects/%s/serviceAccounts/%s' % (project, service_account_email), body={})
-        response = request.execute()
-        credential_filestring = response['privateKeyData'].decode('base64')
-        with open(os.path.expanduser(GCE_JSON_PATH), 'w') as credential_file:
-            credential_file.write(credential_filestring)
+        create_service_account_key(project, service_account_email, GCE_JSON_PATH)
+
+def create_service_account_key(project, email, path):
+    """Creates a service account key in the provided project, using the provided
+    service account email, and saves it to the provided path.
+    """
+    iam_service = get_iam_service()
+    request = iam_service.projects().serviceAccounts().keys().create(name='projects/%s/serviceAccounts/%s' % (project, email), body={})
+    response = request.execute()
+    credential_filestring = response['privateKeyData'].decode('base64')
+    with open(os.path.expanduser(path), 'w') as credential_file:
+        credential_file.write(credential_filestring)
     
 def is_gce_ini_valid():
     """Makes sure that gce.ini exists, and that its project id matches gcloud CLI's."""
@@ -229,6 +234,120 @@ def is_dev_install():
     """ 
     dockerfile_path = os.path.join(os.path.dirname(imp.find_module('loom')[1]), 'Dockerfile')
     return os.path.exists(dockerfile_path)
+
+def create_service_account(account_id):
+    """Creates a service account in the current project using the provided id.
+    """
+    validate_gcloud_service_account_id(account_id)
+
+    iam_service = get_iam_service()
+    project = get_gcloud_project()
+    display_name = account_id               # Note: display name is not guaranteed to be unique in project
+    request_body =  {"serviceAccount": { "displayName": display_name}, "accountId": account_id}
+
+    request = iam_service.projects().serviceAccounts().create(name='projects/%s' % project, body=request_body)
+    response = request.execute()
+    return response
+
+def delete_service_account(account_email):
+    """Deletes the service account in the current project with the provided email."""
+    iam_service = get_iam_service()
+    project = get_gcloud_project()
+
+    request = iam_service.projects().serviceAccounts().delete(name='projects/%s/serviceAccounts/%s' % (project, account_email))
+    response = request.execute()
+    return response
+
+def list_service_accounts():
+    """Lists service accounts in the current project."""
+    iam_service = get_iam_service()
+    project = get_gcloud_project()
+
+    request = iam_service.projects().serviceAccounts().list(name='projects/%s' % project)
+    response = request.execute()
+    return response['accounts']
+
+def find_service_account_email(account_id=None):
+    """Looks for a service account email in the current project using the
+    provided account id. If none provided, defaults to current instance name.
+    Matches the specified ID to the email username (before the @). If more than
+    one match, raise an error since we don't know which email is the right one. 
+    """
+    if account_id == None:
+        account_id = get_gcloud_server_name()
+    accounts = list_service_accounts()
+    emails = []
+    for account in accounts:
+        email = account['email']
+        if email.split('@')[0] == account_id:
+            emails.append(email)
+    if len(emails) == 1:
+        return emails[0]
+    elif len(emails) > 1:
+        raise Exception('More than one service account email matches account ID: %s' % account_id)
+    elif len(emails) < 1:
+        return None
+
+def get_serviceaccount_policy(email=None):
+    """Gets the IAM policy for the provided service account email in the current
+    project. If no email provided, defaults to account for the current instance.
+    """
+    if email == None:
+        email = find_service_account_email()
+
+    iam_service = get_iam_service()
+    project = get_gcloud_project()
+    request = iam_service.projects().serviceAccounts().getIamPolicy(resource='projects/%s/serviceAccounts/%s' % (project, email))
+    response = request.execute()
+    return response
+
+def get_project_policy(project=None):
+    """Gets the IAM policy for the specified project. If none specified,
+    defaults to current project.
+    """
+    if project == None:
+        project = get_gcloud_project()
+
+    crm_service = get_crm_service()
+    request = crm_service.projects().getIamPolicy(resource='projects/%s' % project, body={}) #TODO: Filed a support ticket to ask how to specify empty request body.
+    response = request.execute()
+    return response
+
+# TODO: Add a function to set project policy.
+# TODO: Add a function to get project IAM policy, modify it, and set it to grant relevant permissions to service accounts. 
+
+def grant_editor_role(email=None):
+    """Grants the editor role to the specified service account in the current 
+    project. If no email provided, defaults to account for the current instance.
+    """
+    if email == None:
+        email = find_service_account_email()
+
+    iam_service = get_iam_service()
+    project = get_gcloud_project()
+    request_body = {"policy": {"bindings": [{"role": "roles/editor", "members": ["serviceAccount:%s" % email]}]}}
+    request = iam_service.projects().serviceAccounts().setIamPolicy(resource='projects/%s/serviceAccounts/%s' % (project, email), body=request_body)
+    response = request.execute()
+    return response
+
+def get_iam_service():
+    try:
+        credentials = oauth2client.client.GoogleCredentials.get_application_default()
+    except oauth2client.client.ApplicationDefaultCredentialsError:
+        raise Exception('Could not get credentials from Google Cloud SDK. Please run "gcloud init" first.')
+
+    iam_service = googleapiclient.discovery.build('iam', 'v1', credentials=credentials)
+    return iam_service
+
+def get_crm_service():
+    try:
+        credentials = oauth2client.client.GoogleCredentials.get_application_default()
+    except oauth2client.client.ApplicationDefaultCredentialsError:
+        raise Exception('Could not get credentials from Google Cloud SDK. Please run "gcloud init" first.')
+
+    crm_service = googleapiclient.discovery.build('cloudresourcemanager', 'v1', credentials=credentials)
+    return crm_service
+    
 
 def parse_as_json_or_yaml(text):
     def read_as_json(json_text):
