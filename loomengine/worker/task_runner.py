@@ -6,6 +6,7 @@ from datetime import datetime
 import errno
 import logging
 import os
+import docker
 import requests
 import string
 import subprocess
@@ -19,6 +20,8 @@ from loomengine.utils.logger import StreamToLogger
 
 class TaskRunner(object):
 
+    DOCKER_SOCKET = 'unix://var/run/docker.sock'
+
     def __init__(self, args=None):
         if args is None:
             args = self._get_args()
@@ -26,12 +29,16 @@ class TaskRunner(object):
             'TASK_RUN_ATTEMPT_ID': args.run_attempt_id,
             'MASTER_URL': args.master_url
         }
+        self._init_docker_client()
         self._init_connection()
         self.settings.update(self._get_worker_settings())
         self._init_directories()
         self._init_logger()
         self._init_filemanager()
         self._init_task_run_attempt()
+
+    def _init_docker_client(self):
+        self.docker_client = docker.Client(base_url=self.DOCKER_SOCKET)
 
     def _init_connection(self):
         self.connection = Connection(self.settings['MASTER_URL'])
@@ -66,7 +73,7 @@ class TaskRunner(object):
         sys.stdout = stdout_logger
         stderr_logger = StreamToLogger(self.logger, logging.ERROR)
         sys.stderr = stderr_logger
-
+    
     def _init_handler(self):
         if self.settings.get('WORKER_LOG_FILE') is None:
             return logging.StreamHandler()
@@ -83,27 +90,28 @@ class TaskRunner(object):
     def run(self):
         self._export_inputs()
 
+        self._set_process_status('preparing_runtime_environment')
+
         with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
             with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
-                process = self._execute(stdoutlog, stderrlog)
-                # TODO verify started, then self._set_process_status('running')
-                self._wait_for_process(process)
+                self._prepare_container(stdoutlog, stderrlog)
+                self._run_container(stdoutlog, stderrlog)
 
-        if process.returncode == 0:
-            self._import_outputs()
-            self._import_log_files()
+        self._set_process_status('running')
+
+        returncode = self._poll_for_returncode()
+
+        if returncode == 0:
             self._set_process_status('finished_success')
-            self._flag_attempt_as_complete()
         else:
             err_message = 'Worker process failed with nonzero returncode %s. \nFor more '\
                           'information check the stderr log file' % str(process.returncode)
             self.logger.error(err_message)
             self._set_process_status('finished_with_error')
-            # TODO report failure to server
 
-            # Still report output for debugging purposes
-            self._import_outputs()
-            self._import_log_files()
+        self._import_outputs()
+        self._import_log_files()
+        self._flag_attempt_as_complete()
 
     def _flag_attempt_as_complete(self):
         task_run_attempt = copy.deepcopy(self.task_run_attempt)
@@ -112,7 +120,7 @@ class TaskRunner(object):
         self.connection.update_task_run_attempt(
             task_run_attempt['id'],
             task_run_attempt)
-        
+
     def _export_inputs(self):
         if self.task_run_attempt.get('inputs') is None:
             return
@@ -154,50 +162,90 @@ class TaskRunner(object):
             except IOError:
                 self.logger.error('Failed to upload log file %s' % filename)
 
-    def _execute(self, stdoutlog, stderrlog):
-        task_definition = self.task_run_attempt['task_definition']
-        environment = task_definition['environment']
-        docker_image = environment['docker_image']
-        user_command = task_definition['command']
+    def _prepare_container(self, stdoutlog, stderrlog):
+        self._pull_image_if_not_local()
+        self._create_container()
+        self._set_container_id(self.container['Id'])
+
+    def _run_container(self, stdoutlog, stderrlog):
+        self.docker_client.start(self.container)
+        self._verify_container_started_running()
+
+    def _pull_image_if_not_local(self):
+        docker_image = self.task_run_attempt['task_definition']['environment']['docker_image']
+        try:
+            self.docker_client.inspect_image(docker_image)
+        except docker.errors.NotFound:
+            # Image is not available locally. Pull it now.
+            pull_data = self.docker_client.pull(docker_image)
+            if pull_data.get('errorDetail'):
+                import pdb; pdb.set_trace()
+                # Error
+                pass
+
+    def  _create_container(self):
+        docker_image = self.task_run_attempt['task_definition']['environment']['docker_image']
+        user_command = self.task_run_attempt['task_definition']['command']
         host_dir = self.settings['WORKING_DIR']
-        container_dir = '/working_dir'
-        
-        full_command = [
-            'docker',
-            'run',
-            '--rm',
-            '-v',
-            '%s:%s:rw' % (host_dir, container_dir),
-            '-w',
-            container_dir,
-            docker_image,
+        container_dir = '/loom_workspace'
+
+        command = [
             'bash',
             '-o',
             'pipefail',
             '-c',
             user_command,
-            ]
-        self.logger.debug(' '.join(full_command))
-        self._set_process_status('starting')
-        return subprocess.Popen(full_command, stdout=stdoutlog, stderr=stderrlog)
+        ]
 
-    def _wait_for_process(self, process, poll_interval_seconds=1, timeout_seconds=86400):
+        # may raise docker.errors.NotFound
+        self.container = self.docker_client.create_container(
+            image=docker_image,
+            command=command,
+            volumes=[container_dir],
+            host_config=self.docker_client.create_host_config(
+                binds={host_dir: {
+                    'bind': container_dir,
+                    'mode': 'rw',
+                }}),
+            working_dir=container_dir,
+        )
+
+    def _verify_container_started_running(self):
+        status = self.docker_client.inspect_container(self.container)['State'].get('Status')
+        if status == 'running' or status == 'exited':
+            return
+        else:
+            #TODO
+            raise Exception()
+
+    def _poll_for_returncode(self, poll_interval_seconds=1, timeout_seconds=86400):
         start_time = datetime.now()
         while True:
             time_running = datetime.now() - start_time
             if time_running.seconds > timeout_seconds:
                 raise Exception("Timeout")
-            returncode = process.poll()
-            if returncode is not None:
-                return
-            time.sleep(poll_interval_seconds)
+
+            container_data = self.docker_client.inspect_container(self.container)
+
+            if container_data['State'].get('Status') == 'exited':
+                return container_data['State'].get('Pid')
+            elif container_data['State'].get('Status') == 'running':
+                time.sleep(poll_interval_seconds)
+            else:
+                raise Exception() # TODO
 
     def _set_process_status(self, status):
         self.connection.update_worker_process(
             self.task_run_attempt['worker_process']['id'],
             {'status': status}
         )
-            
+
+    def _set_container_id(self, container_id):
+        self.connection.update_worker_process(
+            self.task_run_attempt['worker_process']['id'],
+            {'container_id': container_id}
+        )
+
     def _get_args(self):
         parser = self.get_parser()
         return parser.parse_args()

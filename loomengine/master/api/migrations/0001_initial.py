@@ -375,7 +375,8 @@ class Migration(migrations.Migration):
             name='WorkerProcess',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'starting', b'Starting'), (b'running', b'Running'), (b'finished_success', b'Finished successfully'), (b'finished_with_errors', b'Finished with errors')])),
+                ('container_id', models.CharField(max_length=255, null=True)),
+                ('status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'preparing_runtime_environment', b'Preparing runtime environment'), (b'running', b'Running'), (b'finished_success', b'Finished successfully'), (b'finished_with_error', b'Finished with error')])),
                 ('task_run_attempt', models.OneToOneField(related_name='worker_process', to='api.TaskRunAttempt')),
             ],
             options={

@@ -62,7 +62,7 @@ class WorkerProcessSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = WorkerProcess
-        fields = ('id', 'status',)
+        fields = ('id', 'status', 'container_id')
 
 class TaskRunAttemptSerializer(serializers.ModelSerializer):
 

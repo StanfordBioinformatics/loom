@@ -344,6 +344,7 @@ class WorkerProcessHost(BaseModel):
 
 class WorkerProcess(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    container_id = models.CharField(max_length=255, null=True)
     task_run_attempt = models.OneToOneField(
         'TaskRunAttempt',
         related_name='worker_process',
@@ -354,7 +355,7 @@ class WorkerProcess(BaseModel):
         default='not_started',
         choices=(
             ('not_started', 'Not started'),
-            ('starting', 'Starting'),
+            ('preparing_runtime_environment', 'Preparing runtime environment'),
             ('running', 'Running'),
             ('finished_success', 'Finished successfully'),
             ('finished_with_error', 'Finished with error'),
