@@ -1,12 +1,11 @@
 from rest_framework import serializers
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, NoUpdateModelSerializer
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from .data_objects import DataObjectContentSerializer
 from api.models.task_definitions import *
 
 
-class TaskDefinitionInputSerializer(NoUpdateModelSerializer,
-                                    CreateWithParentModelSerializer):
+class TaskDefinitionInputSerializer(CreateWithParentModelSerializer):
 
     data_object_content = DataObjectContentSerializer(required=False)
 
@@ -22,25 +21,21 @@ class TaskDefinitionInputSerializer(NoUpdateModelSerializer,
         return super(self.__class__, self).create(validated_data)
 
 
-class TaskDefinitionOutputSerializer(NoUpdateModelSerializer,
-                                     CreateWithParentModelSerializer):
+class TaskDefinitionOutputSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = TaskDefinitionOutput
         fields = ('filename', 'type',)
 
 
-class TaskDefinitionDockerEnvironmentSerializer(
-        CreateWithParentModelSerializer,
-        NoUpdateModelSerializer):
+class TaskDefinitionDockerEnvironmentSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = TaskDefinitionDockerEnvironment
         fields = ('docker_image',)
 
 
-class TaskDefinitionEnvironmentSerializer(NoUpdateModelSerializer,
-                                          SuperclassModelSerializer):
+class TaskDefinitionEnvironmentSerializer(SuperclassModelSerializer):
 
     subclass_serializers = {
         'taskdefinitiondockerenvironment':
@@ -52,7 +47,7 @@ class TaskDefinitionEnvironmentSerializer(NoUpdateModelSerializer,
         fields = ()
 
 
-class TaskDefinitionSerializer(NoUpdateModelSerializer):
+class TaskDefinitionSerializer(serializers.ModelSerializer):
 
     inputs = TaskDefinitionInputSerializer(many=True, required=False)
     outputs = TaskDefinitionOutputSerializer(many=True, required=False)

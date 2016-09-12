@@ -1,7 +1,6 @@
-from .base import CreateWithParentModelSerializer, NoUpdateModelSerializer, \
-        SuperclassModelSerializer
 from rest_framework import serializers
 
+from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.task_runs import *
 from api.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
 from api.serializers.task_definitions import *

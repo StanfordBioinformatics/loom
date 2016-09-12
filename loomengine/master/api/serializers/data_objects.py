@@ -2,11 +2,11 @@ from django.db import IntegrityError
 from rest_framework import serializers
 
 from api.models.data_objects import *
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, NoUpdateModelSerializer
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from .exceptions import *
 
 
-class StringContentSerializer(NoUpdateModelSerializer):
+class StringContentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StringContent
@@ -39,7 +39,7 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
             validated_data)
 
 
-class BooleanContentSerializer(NoUpdateModelSerializer):
+class BooleanContentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BooleanContent
@@ -73,7 +73,7 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
             validated_data)
 
 
-class IntegerContentSerializer(NoUpdateModelSerializer):
+class IntegerContentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = IntegerContent
@@ -107,7 +107,7 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
             validated_data)
 
 
-class UnnamedFileContentSerializer(NoUpdateModelSerializer):
+class UnnamedFileContentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UnnamedFileContent
@@ -174,7 +174,7 @@ class FileLocationSerializer(serializers.ModelSerializer):
 
 
 class FileImportSerializer(CreateWithParentModelSerializer,
-                           NoUpdateModelSerializer):
+                           serializers.ModelSerializer):
 
     class Meta:
         model = FileImport

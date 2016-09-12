@@ -1,14 +1,13 @@
 import copy
 from rest_framework import serializers
 
-from .base import CreateWithParentModelSerializer, NoUpdateModelSerializer, \
-    SuperclassModelSerializer
+from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.workflows import *
 from .exceptions import *
 
 
-class WorkflowImportSerializer(CreateWithParentModelSerializer,
-                               NoUpdateModelSerializer):
+class WorkflowImportSerializer(CreateWithParentModelSerializer):
+                               
 
     class Meta:
         model = WorkflowImport

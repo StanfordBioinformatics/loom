@@ -45,24 +45,6 @@ class CreateWithParentModelSerializer(serializers.ModelSerializer):
         return self.Meta.model.objects.create(**validated_data)
 
 
-class NoUpdateModelSerializer(serializers.ModelSerializer):
-    """For models that should not be edited after creation. This only works 
-    with simple scalar fields. For non-updatable models with children,
-    write a custom update function. For example, see FileContentSerializer.
-
-    Make sure this Mixin is listed before other inherited serializers
-    so that the update method will override.
-    """
-
-    def update(self, instance, validated_data):
-        # This class should never be updated, so we verify
-        # that the data is unchanged.
-        for (key, value) in validated_data.iteritems():
-            if not getattr(instance, key) == value:
-                raise UpdateNotAllowedError(instance)
-        return instance
-
-
 class SuperclassModelSerializer(serializers.ModelSerializer):
     """This class helps to ser/deserialize a base model with
     several subclasses.

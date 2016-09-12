@@ -2,7 +2,7 @@ import copy
 from rest_framework import serializers
 import re
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, NoUpdateModelSerializer
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.channels import IndexedDataObject
 from api.models.run_requests import *
 from api.models.workflows import AbstractWorkflow

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, NoUpdateModelSerializer
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.workflow_runs import *
 from api.serializers.workflows import AbstractWorkflowIdSerializer, RequestedEnvironmentSerializer, RequestedResourceSetSerializer
 from api.serializers.task_runs import TaskRunIdSerializer
