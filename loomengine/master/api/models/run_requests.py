@@ -84,40 +84,6 @@ class RunRequest(BaseModel):
                 'Missing input for channel(s) "%s"' %
                 ', '.join([channel for channel in workflow_inputs]))
 
-    @classmethod
-    def cancel_all(cls, is_hard_stop=None):
-        for run_request in cls.objects.filter(running=True):
-            run_request.cancel()
-
-    def cancel(self, is_hard_stop=None):
-        self.cancel_requests.add(
-            CancelRequest.create(
-                {'is_hard_stop': is_hard_stop}
-            ))
-
-    def fail(self, is_hard_stop=None):
-        self.failure_notices.add(
-            FailureNotice.create(
-                {'is_hard_stop': is_hard_stop}
-            ))
-
-    def restart(self):
-        self.restart_requests.add(
-            RestartRequest.create({})
-        )
-
-    @classmethod
-    def refresh_status_for_all(cls):
-        for run_request in cls.objects.filter(is_running=True):
-            run_request.refresh_status()
-
-    def refresh_status(self):
-        """ Arbitrate between 0 or more FailureNotices, CancelRequests, 
-        and RestartRequests
-        """
-        # TODO
-        pass
-
 
 class RunRequestInput(InputOutputNode):
 
@@ -143,49 +109,3 @@ class RunRequestOutput(InputOutputNode):
         'RunRequest',
         related_name='outputs',
         on_delete=models.CASCADE)    
-
-
-class CancelRequest(BaseModel):
-
-    run_request = models.ForeignKey('RunRequest',
-                                    related_name='cancel_requests',
-                                    on_delete=models.CASCADE)
-    is_hard_stop = models.BooleanField()
-
-    @classmethod
-    def before_create_or_update(cls, data):
-        if data.get('is_hard_stop') is None:
-            data.update({
-                'is_hard_stop': get_setting('HARD_STOP_ON_CANCEL')
-            })
-
-    def after_create_or_update(self, data):
-        self.run_request.refresh_status()
-
-
-class RestartRequest(BaseModel):
-
-    run_request = models.ForeignKey('RunRequest',
-                                    related_name='restart_requests',
-                                    on_delete=models.CASCADE)
-    
-    def after_create_or_update(self, data):
-        self.run_request.refresh_status()
-
-
-class FailureNotice(BaseModel):
-
-    run_request = models.ForeignKey('RunRequest',
-                                    related_name='failure_notices',
-                                    on_delete=models.CASCADE)
-    is_hard_stop = models.BooleanField()
-
-    @classmethod
-    def before_create_or_update(cls, data):
-        if data.get('is_hard_stop') is None:
-            data.update({
-                'is_hard_stop': get_setting('HARD_STOP_ON_FAIL')
-            })
-
-    def after_create_or_update(self, data):
-        self.run_request.refresh_status()

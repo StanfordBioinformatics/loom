@@ -5,12 +5,12 @@ from django.core.exceptions import ObjectDoesNotExist
 import os
 import uuid
 
+from .base import BaseModel, BasePolymorphicModel, render_from_template
 from api.models.task_definitions import *
 from api.models.data_objects import DataObject, FileDataObject
 from api.models.workflows import Step, RequestedResourceSet
 from api import get_setting
 from api.task_manager.factory import TaskManagerFactory
-from .base import BaseModel, BasePolymorphicModel, render_from_template
 
 
 class TaskRun(BaseModel):
@@ -113,6 +113,7 @@ class TaskRunInput(BaseModel):
     def type(self):
         return self.step_run_input.type
 
+
 class TaskRunOutput(BaseModel):
 
     step_run_output = models.ForeignKey('StepRunOutput',
@@ -145,6 +146,7 @@ class TaskRunOutput(BaseModel):
             self.data_object=data_object
             self.save()
         self.step_run_output.push_without_index(data_object)
+
 
 class TaskRunResourceSet(BaseModel):
     task_run = models.OneToOneField('TaskRun',
@@ -270,6 +272,7 @@ class TaskRunAttemptInput(BaseModel):
     @property
     def channel(self):
         return self.task_run_input.channel
+
 
 class TaskRunAttemptOutput(BaseModel):
 

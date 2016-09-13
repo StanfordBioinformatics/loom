@@ -1,8 +1,9 @@
 from rest_framework import serializers
 
-from api.models.data_objects import *
 from .data_objects import FileDataObjectSerializer
 from .task_runs import TaskRunAttemptSerializer
+from api.models.data_objects import FileDataObject
+
 
 class FileProvenanceSerializer(serializers.ModelSerializer):
 

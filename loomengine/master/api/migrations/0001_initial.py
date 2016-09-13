@@ -38,17 +38,6 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
-            name='CancelRequest',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('is_hard_stop', models.BooleanField()),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
             name='DataObject',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
@@ -63,17 +52,6 @@ class Migration(migrations.Migration):
             name='DataObjectContent',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
-            name='FailureNotice',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('is_hard_stop', models.BooleanField()),
             ],
             options={
                 'abstract': False,
@@ -167,16 +145,6 @@ class Migration(migrations.Migration):
                 ('memory', models.CharField(max_length=255, null=True)),
                 ('disk_size', models.CharField(max_length=255, null=True)),
                 ('cores', models.CharField(max_length=255, null=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
-            name='RestartRequest',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -461,9 +429,6 @@ class Migration(migrations.Migration):
                 ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObjectContent')),
                 ('filename', models.CharField(max_length=255)),
             ],
-            options={
-                'abstract': False,
-            },
             bases=('api.dataobjectcontent',),
         ),
         migrations.CreateModel(
@@ -758,11 +723,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='api.AbstractWorkflow', on_delete=django.db.models.deletion.PROTECT),
         ),
         migrations.AddField(
-            model_name='restartrequest',
-            name='run_request',
-            field=models.ForeignKey(related_name='restart_requests', to='api.RunRequest'),
-        ),
-        migrations.AddField(
             model_name='requestedenvironment',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_api.requestedenvironment_set+', editable=False, to='contenttypes.ContentType', null=True),
@@ -813,11 +773,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='file_locations', on_delete=django.db.models.deletion.PROTECT, to='api.UnnamedFileContent', null=True),
         ),
         migrations.AddField(
-            model_name='failurenotice',
-            name='run_request',
-            field=models.ForeignKey(related_name='failure_notices', to='api.RunRequest'),
-        ),
-        migrations.AddField(
             model_name='dataobjectcontent',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_api.dataobjectcontent_set+', editable=False, to='contenttypes.ContentType', null=True),
@@ -826,11 +781,6 @@ class Migration(migrations.Migration):
             model_name='dataobject',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_api.dataobject_set+', editable=False, to='contenttypes.ContentType', null=True),
-        ),
-        migrations.AddField(
-            model_name='cancelrequest',
-            name='run_request',
-            field=models.ForeignKey(related_name='cancel_requests', to='api.RunRequest'),
         ),
         migrations.AddField(
             model_name='abstractworkflowrun',
@@ -986,5 +936,9 @@ class Migration(migrations.Migration):
             model_name='fixedstepruninput',
             name='step_run',
             field=models.ForeignKey(related_name='fixed_inputs', to='api.StepRun'),
+        ),
+        migrations.AlterUniqueTogether(
+            name='filecontent',
+            unique_together=set([('filename', 'unnamed_file_content')]),
         ),
     ]

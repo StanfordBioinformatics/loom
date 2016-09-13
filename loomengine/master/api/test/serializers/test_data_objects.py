@@ -3,9 +3,9 @@ from django.db import IntegrityError
 from django.test import TestCase
 import json
 from rest_framework import serializers
+import uuid
 
 from api.serializers.data_objects import *
-from api.serializers.exceptions import *
 from api.test import fixtures
 
 
@@ -18,31 +18,6 @@ class TestStringContentSerializer(TestCase):
 
         self.assertEqual(m.string_value,
                          fixtures.data_objects.string_content['string_value'])
-
-    def testNegCreateMissingData(self):
-        s = StringContentSerializer(data={})
-        self.assertFalse(s.is_valid())
-
-    def testNegUpdate(self):
-        # Create model
-        s = StringContentSerializer(data=fixtures.data_objects.string_content)
-        s.is_valid()
-        m = s.save()
-
-        # Update model
-        new_value = 'xx'
-        string_content = copy.deepcopy(fixtures.data_objects.string_content)
-        string_content.update({'string_value': new_value})
-        s = StringContentSerializer(m, data=string_content)
-        s.is_valid()
-        with self.assertRaises(UpdateNotAllowedError):
-            m = s.save()
-
-    def testNegInvalidCreate(self):
-        baddata = {'bad': 'data'}
-        s = StringContentSerializer(data=baddata)
-        self.assertFalse(s.is_valid())
-
 
 class TestStringDataObjectSerializer(TestCase):
 
@@ -57,10 +32,6 @@ class TestStringDataObjectSerializer(TestCase):
             fixtures.data_objects.string_data_object['string_content'][
                 'string_value'])
 
-    def testNegCreateWithNoContent(self):
-        s = StringDataObjectSerializer(data={})
-        self.assertFalse(s.is_valid())
-
     def testNegCreateWithDuplicateID(self):
         data = copy.deepcopy(fixtures.data_objects.string_data_object)
         
@@ -73,24 +44,6 @@ class TestStringDataObjectSerializer(TestCase):
         s2.is_valid()
         with self.assertRaises(IntegrityError):
             m2 = s2.save()
-
-    def testNegUpdateChild(self):
-        # Create model
-        s = StringDataObjectSerializer(
-            data=fixtures.data_objects.string_data_object)
-        s.is_valid()
-        m = s.save()
-
-        # Update child model
-        new_value = 'xx'
-        string_data_object = copy.deepcopy(
-            fixtures.data_objects.string_data_object)
-        string_data_object['string_content'].update(
-            {'string_value': new_value})
-        s = StringDataObjectSerializer(m, data=string_data_object)
-        s.is_valid()
-        with self.assertRaises(UpdateNotAllowedError):
-            m = s.save()
 
     def testNegInvalidChildCreate(self):
         badchilddata = {'string_content': {'bad': 'data'}}
@@ -151,7 +104,7 @@ class TestIntegerDataObjectSerializer(TestCase):
             fixtures.data_objects.integer_data_object['integer_content'][
                 'integer_value'])
 
-        
+
 class TestUnnamedFileContentSerializer(TestCase):
 
     def testCreate(self):
@@ -163,19 +116,6 @@ class TestUnnamedFileContentSerializer(TestCase):
         self.assertEqual(
             m.hash_value,
             fixtures.data_objects.unnamed_file_content['hash_value'])
-
-    def testUpdate(self):
-        s = UnnamedFileContentSerializer(
-            data=fixtures.data_objects.unnamed_file_content)
-        s.is_valid()
-        m = s.save()
-
-        data = copy.deepcopy(fixtures.data_objects.unnamed_file_content)
-        data.update({'hash_value': 'xx'})
-        s = UnnamedFileContentSerializer(m, data=data)
-        s.is_valid()
-        with self.assertRaises(UpdateNotAllowedError):
-            m = s.save()
 
 
 class TestFileContentSerializer(TestCase):
@@ -190,7 +130,7 @@ class TestFileContentSerializer(TestCase):
 
 
 class TestFileLocationSerializer(TestCase):
-    
+
     def testCreate(self):
         s = FileLocationSerializer(data=fixtures.data_objects.file_location)
         s.is_valid()
@@ -306,43 +246,22 @@ class TestFileDataObjectSerializer(TestCase):
                          fixtures.data_objects.file_location_2['url'])
         self.assertEqual(FileLocation.objects.count(), 2)
 
-    def testNegUpdateLocationViaDataObject(self):
+    def testUpdateAddContent(self):
+        data = copy.deepcopy(fixtures.data_objects.file_data_object)
+        file_content_data = data.pop('file_content')
+        
         s1 = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
+            data=data)
         s1.is_valid()
-        m = s1.save()
+        m1 = s1.save()
 
-        # Update should work if Location data is unchanged
-        data = s1.data
-        s2 = FileDataObjectSerializer(m, data=data)
+        s2 = FileDataObjectSerializer(m1, data={'file_content': file_content_data})
         s2.is_valid()
-        s2.save()
+        m2 = s2.save()
 
-        # But if Location data changes we should see an error
-        new_url = 'a:///new/url'
-        data['file_location']['url'] = new_url
-
-        s3 = FileDataObjectSerializer(m, data=data)
-        s3.is_valid()
-        with self.assertRaises(serializers.ValidationError):
-            s3.save()
-
-    def testNegUpdateContentViaDataObject(self):
-        s1 = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s1.is_valid()
-        m = s1.save()
-
-        data = s1.data
-
-        new_filename = 're.name'
-        data['file_content']['filename'] = new_filename
-
-        s2 = FileDataObjectSerializer(m, data=data)
-        s2.is_valid()
-        with self.assertRaises(UpdateNotAllowedError):
-            m = s2.save()
-
+        self.assertEqual(m2.file_content.unnamed_file_content.hash_value,
+                         file_content_data['unnamed_file_content']['hash_value'])
+        
 
 class TestDataObjectSerializer(TestCase):
 
@@ -354,23 +273,6 @@ class TestDataObjectSerializer(TestCase):
         self.assertEqual(
             m.string_content.string_value,
             fixtures.data_objects.string_data_object['string_content']['string_value'])
-
-    def testNegUpdate(self):
-        # Create model
-        s = DataObjectSerializer(data=fixtures.data_objects.string_data_object)
-        s.is_valid()
-        m = s.save()
-
-        # Update model
-        new_value = 'xx'
-        string_data_object = copy.deepcopy(
-            fixtures.data_objects.string_data_object)
-        string_data_object['string_content'].update(
-            {'string_value': new_value})
-        s = DataObjectSerializer(m, data=string_data_object)
-        s.is_valid()
-        with self.assertRaises(UpdateNotAllowedError):
-            m = s.save()
 
     def testNegInvalidCreate(self):
         baddata={'bad': 'data'}

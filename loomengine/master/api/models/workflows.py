@@ -3,9 +3,9 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 import uuid
 
-from api.exceptions import *
 from .base import BaseModel, BasePolymorphicModel
 from .data_objects import DataObject
+from api.exceptions import *
 
 
 """
@@ -49,6 +49,7 @@ class AbstractWorkflow(BasePolymorphicModel):
 
     class Meta:
         ordering = ['datetime_created']
+
 
 class Workflow(AbstractWorkflow):
     """A collection of steps and/or workflows
@@ -105,6 +106,7 @@ class Workflow(AbstractWorkflow):
 
     def is_step(self):
         return False
+
 
 class Step(AbstractWorkflow):
     """Steps are smaller units of processing within a Workflow. A Step can 
@@ -227,6 +229,7 @@ class StepOutput(AbstractOutput):
     step = models.ForeignKey('Step',
                              related_name='outputs',
                              on_delete=models.CASCADE)
+
 
 class WorkflowImport(BaseModel):
 

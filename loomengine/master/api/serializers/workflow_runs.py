@@ -1,9 +1,13 @@
 from rest_framework import serializers
 
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
-from api.models.workflow_runs import *
-from api.serializers.workflows import AbstractWorkflowIdSerializer, RequestedEnvironmentSerializer, RequestedResourceSetSerializer
+from api.models.workflow_runs import AbstractWorkflowRun, StepRun, \
+    StepRunInput, FixedStepRunInput, StepRunOutput, WorkflowRunInput, \
+    FixedWorkflowRunInput, WorkflowRunOutput, WorkflowRun
+from api.serializers.workflows import AbstractWorkflowIdSerializer, \
+    RequestedEnvironmentSerializer, RequestedResourceSetSerializer
 from api.serializers.task_runs import TaskRunIdSerializer
+
 
 class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
 
@@ -62,7 +66,8 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     
     class Meta:
         model = StepRun
-        fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs', 'command', 'environment', 'resources', 'name', 'task_runs',)
+        fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs',
+                  'command', 'environment', 'resources', 'name', 'task_runs',)
 
 
 class WorkflowRunInputSerializer(CreateWithParentModelSerializer):
@@ -72,6 +77,7 @@ class WorkflowRunInputSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = WorkflowRunInput
         fields = ('type', 'channel', 'value',)
+
 
 class FixedWorkflowRunInputSerializer(CreateWithParentModelSerializer):
 
@@ -107,4 +113,5 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     
     class Meta:
         model = WorkflowRun
-        fields = ('id', 'template', 'step_runs', 'inputs', 'fixed_inputs', 'outputs', 'name',)
+        fields = ('id', 'template', 'step_runs', 'inputs', 'fixed_inputs',
+                  'outputs', 'name',)

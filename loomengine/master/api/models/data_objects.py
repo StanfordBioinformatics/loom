@@ -208,9 +208,10 @@ class FileDataObject(DataObject):
         }
         """
 
+
 class FileContent(DataObjectContent):
-    """Represents a file, including its content (identified by a hash), its 
-    file name, and user-defined metadata.
+    """Represents a file, including its content (identified by a hash), and its 
+    file name.
     """
 
     filename = models.CharField(max_length=255)
@@ -219,15 +220,19 @@ class FileContent(DataObjectContent):
         related_name='file_contents',
         on_delete=models.PROTECT)
 
+    class Meta:
+        unique_together= (('filename', 'unnamed_file_content'),)
+
     def get_substitution_value(self):
         return self.filename
 
     def get_valid_location(self):
-        # This function will return a 'complete' location or return None.
+        # This function will return a location with status='complete'
+        # or return None.
         #
         # This function should only be called when KEEP_DUPLICATE_FILES is
-        # false, in which case we expect just one location. However, if
-        # multiple uploads are initialized at the same time from different
+        # false, in which case we typically expect just one location. However,
+        # if multiple uploads are initialized at the same time from different
         # clients, it can result in multiple locations, any number of which
         # may be complete.
         # 

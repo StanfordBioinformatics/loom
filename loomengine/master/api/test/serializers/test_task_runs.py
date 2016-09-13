@@ -13,9 +13,9 @@ class TestWorkerProcessSerializer(TestCase):
         task_run_attempt = TaskRunAttempt.objects.create(task_run=task_run)
 
         s = WorkerProcessSerializer(
-            data={'status': 'starting'},
+            data={'status': 'running'},
             context={'parent_field': 'task_run_attempt',
                      'parent_instance': task_run_attempt})
         s.is_valid(raise_exception=True)
         m = s.save()
-        self.assertEqual(m.status, 'starting')
+        self.assertEqual(m.status, 'running')

@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
-from api.models.task_runs import *
+from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput,\
+    TaskRunAttempt, TaskRunAttemptInput, TaskRunAttemptOutput, \
+    TaskRunAttemptLogFile, WorkerProcess
 from api.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
-from api.serializers.task_definitions import *
+from api.serializers.task_definitions import TaskDefinitionSerializer
 from api.serializers.workflows import RequestedResourceSetSerializer
 
 
@@ -78,8 +80,6 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'log_files', 'inputs', 'outputs', 'status', 'task_definition', 'worker_process')
         
     def update(self, instance, validated_data):
-
-        # Ignore other fields. No update allowed.
         status = validated_data.pop('status', None)
         if status is not None:
             instance.status = status

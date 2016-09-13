@@ -1,10 +1,9 @@
-import copy
 from rest_framework import serializers
-import re
 
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
+from api.models.data_objects import DataObject
 from api.models.channels import IndexedDataObject
-from api.models.run_requests import *
+from api.models.run_requests import RunRequest, RunRequestInput
 from api.models.workflows import AbstractWorkflow
 from api.serializers.workflows import AbstractWorkflowIdSerializer
 from api.serializers.workflow_runs import AbstractWorkflowRunSerializer
@@ -19,15 +18,13 @@ class RunRequestInputSerializer(CreateWithParentModelSerializer):
         fields = ('channel', 'value',)
 
     def create(self, validated_data):
-        data = copy.deepcopy(validated_data)
-
         # Convert 'value' into its corresponding data object
-        value = data.pop('value')
+        value = validated_data.pop('value')
         data_object = DataObject.get_by_value(
             value,
             self.context['data_type'])
 
-        run_request_input = super(RunRequestInputSerializer, self).create(data)
+        run_request_input = super(RunRequestInputSerializer, self).create(validated_data)
 
         # TODO: for each (index, data_object)
         IndexedDataObject.objects.create(
@@ -95,24 +92,6 @@ class RunRequestInputSerializer(CreateWithParentModelSerializer):
         pass
     '''
 
-class CancelRequestSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = CancelRequest
-
-
-class RestartRequestSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = RestartRequest
-
-
-class FailureNoticeSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = FailureNotice
-
-
 class RunRequestSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
@@ -131,23 +110,16 @@ class RunRequestSerializer(serializers.ModelSerializer):
                   'run',)
 
     def create(self, validated_data):
-        data = copy.deepcopy(validated_data)
-        
         inputs = self.initial_data.get('inputs', None)
-        data.pop('inputs', None)
+        validated_data.pop('inputs', None)
 
-        # convert 'template' name@id into its corresponding object
-        s = AbstractWorkflowIdSerializer(data=data.pop('template'))
+        # Look up workflow or step 'template' using identifier string
+        s = AbstractWorkflowIdSerializer(data=validated_data.pop('template'))
         s.is_valid()
         workflow = s.save()
-        data['template'] = workflow
+        validated_data['template'] = workflow
 
-        #run_serializer = AbstractWorkflowRunSerializer(
-        #    data=self.initial_data.get('run', None))
-        #run_serializer.is_valid()
-        #data['run'] = run_serializer.save()
-
-        run_request = RunRequest.objects.create(**data)
+        run_request = RunRequest.objects.create(**validated_data)
 
         if inputs is not None:
             for input_data in inputs:

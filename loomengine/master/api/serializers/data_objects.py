@@ -1,9 +1,11 @@
 from django.db import IntegrityError
 from rest_framework import serializers
 
-from api.models.data_objects import *
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
-from .exceptions import *
+from api.models.data_objects import StringContent, StringDataObject, \
+    BooleanContent, BooleanDataObject, IntegerContent, IntegerDataObject, \
+    UnnamedFileContent, FileContent, FileImport, FileLocation, \
+    FileDataObject, DataObject, DataObjectContent
 
 
 class StringContentSerializer(serializers.ModelSerializer):
@@ -28,16 +30,6 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
         validated_data['string_content'] = s.save()
         return StringDataObject.objects.create(**validated_data)
 
-    def update(self, instance, validated_data):
-        if validated_data.get('string_content'):
-            s = StringContentSerializer(instance.string_content,
-                                        data=validated_data['string_content'])
-            s.is_valid(raise_exception=True)
-            validated_data['string_content'] = s.save()
-        return super(self.__class__, self).update(
-            instance,
-            validated_data)
-
 
 class BooleanContentSerializer(serializers.ModelSerializer):
 
@@ -60,17 +52,6 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
         s.is_valid(raise_exception=True)
         validated_data['boolean_content'] = s.save()
         return BooleanDataObject.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        if validated_data.get('boolean_content'):
-            s = BooleanContentSerializer(
-                instance.boolean_content,
-                data=validated_data['boolean_content'])
-            s.is_valid(raise_exception=True)
-            validated_data['boolean_content'] = s.save()
-        return super(self.__class__, self).update(
-            instance,
-            validated_data)
 
 
 class IntegerContentSerializer(serializers.ModelSerializer):
@@ -95,17 +76,6 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
         validated_data['integer_content'] = s.save()
         return IntegerDataObject.objects.create(**validated_data)
 
-    def update(self, instance, validated_data):
-        if validated_data.get('integer_content'):
-            s = IntegerContentSerializer(
-                instance.integer_content,
-                data=validated_data['integer_content'])
-            s.is_valid(raise_exception=True)
-            validated_data['integer_content'] = s.save()
-        return super(self.__class__, self).update(
-            instance,
-            validated_data)
-
 
 class UnnamedFileContentSerializer(serializers.ModelSerializer):
 
@@ -113,15 +83,17 @@ class UnnamedFileContentSerializer(serializers.ModelSerializer):
         model = UnnamedFileContent
         fields = ('hash_value', 'hash_function',)
         # Remove UniqueTogether validator, since the exception
-        # should be handled by the serializer
+        # should be handled by the create method
         validators = []
 
     def create(self, validated_data):
+        # If the object already exists, return return the existing object.
         try:
-            return self.Meta.model.objects.create(**validated_data)
+            return UnnamedFileContent.objects.create(**validated_data)
         except IntegrityError:
-            return self.Meta.model.objects.get(**validated_data)
-
+            # (hash_function, hash_value) are unique_together.
+            # IntegrityError implies object already exists.
+            return UnnamedFileContent.objects.get(**validated_data)
 
 class FileContentSerializer(serializers.ModelSerializer):
 
@@ -136,21 +108,12 @@ class FileContentSerializer(serializers.ModelSerializer):
             data=validated_data['unnamed_file_content'])
         s.is_valid(raise_exception=True)
         validated_data['unnamed_file_content'] = s.save()
-        return FileContent.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        # Update not allowed. This method just raises an error if
-        # any data was changed.
-        s = UnnamedFileContentSerializer(
-            instance.unnamed_file_content,
-            data=validated_data['unnamed_file_content'])
-        s.is_valid(raise_exception=True)
-        s.save()
-        if validated_data.get('filename'):
-            if not validated_data.get('filename') == instance.filename:
-                raise UpdateNotAllowedError(instance)
-        return instance
-
+        # Same pattern as for UnnamedFileContent.
+        # Here (filename, unnamed_file_content) are unique_together
+        try:
+            return FileContent.objects.create(**validated_data)
+        except IntegrityError:
+            return FileContent.objects.get(**validated_data)
 
 class FileLocationSerializer(serializers.ModelSerializer):
 
@@ -160,28 +123,15 @@ class FileLocationSerializer(serializers.ModelSerializer):
         model = FileLocation
         fields = ('id', 'url', 'status', 'datetime_created')
 
-    @classmethod
-    def no_update(cls, instance, data):
-        for key, value in data.iteritems():
-            if not getattr(instance, key) == value:
-                raise serializers.ValidationError(
-                    "You are not allowed to update a File Location as "\
-                    "part of a FileDataObject update, because one location "\
-                    "may belong to multiple files. This is to prevent "\
-                    "accidental data corruption. If you want to make the "\
-                    "update, you must update the FileLocation object "
-                    "directly in a separate request.")
 
+class FileImportSerializer(CreateWithParentModelSerializer):
 
-class FileImportSerializer(CreateWithParentModelSerializer,
-                           serializers.ModelSerializer):
+    # FileImportSerializer is read-only.
+    # create is allowed through FileDataObjectSerializer
 
     class Meta:
         model = FileImport
         fields = ('note', 'source_url',)
-
-    # FileImportSerializer is read-only.
-    # create is allowed through FileDataObjectSerializer
 
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
@@ -201,29 +151,29 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
                   'source_type',
                   'type',)
 
-
     def create(self, validated_data):
-        # Can't create FileImport until FileDataObject exists
         file_import_data = validated_data.pop('file_import', None)
+        file_content_data = validated_data.pop('file_content', None)
+        file_location_data = validated_data.pop('file_location', None)
 
-        if validated_data.get('file_content'):
-            s = FileContentSerializer(data=validated_data['file_content'])
+        if file_content_data:
+            s = FileContentSerializer(data=file_content_data)
             s.is_valid(raise_exception=True)
             validated_data['file_content'] = s.save()
 
-        if validated_data.get('file_location'):
+        if file_location_data:
                 # Since location is OneToMany,
                 # we may be connecting to an existing object
                 file_location = None
-                if validated_data['file_location'].get('id'):
+                if file_location_data.get('id'):
                     try:
                         file_location = FileLocation.objects.get(
-                            id=validated_data['file_location']['id'])
+                            id=file_location_data['id'])
                     except FileLocation.DoesNotExist:
                         pass
                 if file_location is None:
                     s = FileLocationSerializer(
-                        data=validated_data['file_location'])
+                        data=file_location_data)
                     s.is_valid(raise_exception=True)
                     file_location = s.save()
 
@@ -231,6 +181,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
 
         model = FileDataObject.objects.create(**validated_data)
 
+        # FileImport can only be created after FileDataObject exists
         if file_import_data is not None:
             s = FileImportSerializer(
                 data=file_import_data,
@@ -243,56 +194,24 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         return model
 
     def update(self, instance, validated_data):
-        # Can't create FileImport until FileDataObject exists
-        file_import_data = validated_data.pop('file_import', None)
+        file_content_data = validated_data.pop('file_content', None)
+        file_location_data = validated_data.pop('file_location', None)
 
-        if validated_data.get('file_content'):
+        if file_content_data and not instance.file_content:
             s = FileContentSerializer(
-                instance.file_content,
-                data=validated_data['file_content'])
+                data=file_content_data)
             s.is_valid(raise_exception=True)
-            validated_data['file_content'] = s.save()
-        if validated_data.get('file_location'):
-            file_location = None
-            if validated_data['file_location'].get('id') is not None:
-                # This is an update if a model with the specified ID exists.
-                try:
-                    file_location = FileLocation.objects.get(
-                        id=validated_data['file_location'].get('id'))
-                    # Verify no changes to FileLocation. You are not
-                    # allowed to update location via FileDataObject because
-                    # it may be used by other FDO's as well. This is to
-                    # prevent unintentionally editing location of other FDO's.
-                    FileLocationSerializer.no_update(
-                        file_location,
-                        data=validated_data['file_location'])
-                except FileLocation.DoesNotExist:
-                    pass
+            instance.file_content = s.save()
 
-            if file_location is None:
-                # This is a create operation, either because
-                # no Location with the specified id exists,
-                # or because no id was given
-                s = FileLocationSerializer(
-                    data=validated_data['file_location'])
-                s.is_valid(raise_exception=True)
-                file_location = s.save()
+        if file_location_data:
+            s = FileLocationSerializer(
+                data=file_location_data)
+            s.is_valid(raise_exception=True)
+            instance.file_location = s.save()
 
-            validated_data['file_location'] = file_location
-
-        model = super(self.__class__, self).update(
-            instance,
-            validated_data)
-
-        if file_import_data is not None:
-            instance.file_import.note = file_import_data.get('note', None)
-            instance.file_import.source_url = file_import_data.get(
-                'source_url',
-                None)
-            instance.file_import.save()
-
-        model.after_update()
-        return model
+        instance.save()
+        instance.after_update()
+        return instance
 
 
 class DataObjectSerializer(SuperclassModelSerializer):

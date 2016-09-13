@@ -1,10 +1,7 @@
-import copy
-from django.apps import AppConfig
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from rest_framework import serializers
 
-from .exceptions import *
 
 def _get_class_from_string(kls):
     try:
@@ -20,6 +17,7 @@ def _get_class_from_string(kls):
     for comp in parts[1:]:
         m = getattr(m, comp)
     return m
+
 
 class CreateWithParentModelSerializer(serializers.ModelSerializer):
     """Use this when a child has a required ForeignKey or OneToOne pointer 

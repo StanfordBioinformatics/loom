@@ -1,18 +1,23 @@
 from django.test import TestCase
 
+from api.models import Step, StepRun, TaskRun, TaskDefinition, RequestedDockerEnvironment
+from api.serializers.task_definitions import TaskDefinitionSerializer
 from api.test import fixtures
-from api.serializers.task_definitions import *
+
+
+
 
 class TestTaskDefinition(TestCase):
 
     def testCreate(self):
-        pass
-    # TODO create with TaskRun
-#        s = TaskDefinitionSerializer(
-#            data=fixtures.task_definitions.task_definition)
-#        s.is_valid()
-#        m = s.save()
-#        self.assertEqual(m.inputs.first().data_object_content.string_value,
-#                         fixtures.task_definitions.task_definition\
-#                         ['inputs'][0]['data_object_content']['string_value'])
-                         
+        docker_image = 'ubuntu'
+        step = Step.objects.create(command='blank')
+        environment = RequestedDockerEnvironment.objects.create(docker_image=docker_image, step=step)
+        step_run = StepRun.objects.create(template=step)
+        task_run = TaskRun.objects.create(step_run=step_run)
+        task_definition = TaskDefinition.create_from_task_run(task_run)
+        
+        s = TaskDefinitionSerializer(task_definition)
+
+        # No values set, but still run the rendering code
+        self.assertEqual(s.data['command'], '')
