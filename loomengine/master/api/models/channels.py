@@ -26,24 +26,40 @@ class InputOutputNode(BasePolymorphicModel):
             raise Exception("Can't handle more than one input")
         return self.indexed_data_objects.first().get_display_value()
 
-    def push(self, indexed_data_object):
-        self.push_without_index(indexed_data_object.data_object)
+    def push(self, *args):
+        # Calling push() with no arguments, it will push all data to receivers.
+        # If you call push() with an item, it will register that item to this node and
+        # push it to all receivers.
+        # The item may be either a data_object or an indexed_data_object.
+        if args:
+            if len(args) > 1:
+                raise Exception
+            item = args[0]
+            try:
+                # If it's an indexed data object, retrieve the data object
+                data_object = item.data_object
+            except AttributeError:
+                data_object = item
+            indexed_data_object = self.add_indexed_data_object(data_object)
+            self.push_items([indexed_data_object])
+        else:
+            self.push_items(self.indexed_data_objects.all())
 
-    def push_without_index(self, data_object):
-        indexed_data_object = self.add_indexed_data_object(data_object)
-        if indexed_data_object is not None:
+    def push_items(self, indexed_data_objects):
+        for indexed_data_object in indexed_data_objects:
             self.push_to_receivers(indexed_data_object)
         
-    def push_all(self):
-        for indexed_data_object in self.indexed_data_objects.all():
-            self.push_to_receivers(indexed_data_object)
-
     def push_to_receivers(self, indexed_data_object):
         for receiver in self.receivers.all():
             receiver.push(indexed_data_object)
 
     def add_indexed_data_object(self, data_object):
-        if self.indexed_data_objects.count() == 0:
+        if self.indexed_data_objects.count() > 0:
+            # don't re-add if it was already added.
+            assert data_object.id \
+                == self.indexed_data_objects.first().data_object.id
+            return self.indexed_data_objects.first()
+        else:
             indexed_data_object = IndexedDataObject.objects.create(
                 input_output_node = self,
                 data_object = data_object

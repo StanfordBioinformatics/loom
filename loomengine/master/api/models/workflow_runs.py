@@ -1,4 +1,5 @@
 from django.db import models
+from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import uuid
@@ -51,7 +52,6 @@ class AbstractWorkflowRun(BasePolymorphicModel):
             run = StepRun.objects.create(template=template)
         else:
             run = WorkflowRun.objects.create(template=template)
-        run.after_create()
         return run
 
 
@@ -66,14 +66,16 @@ class WorkflowRun(AbstractWorkflowRun):
     def is_step(self):
         return False
 
-    def after_create(self):
-        self._initialize()
-        self.initial_push()
+    def _post_save(self):
+        if self.step_runs.count() == 0:
+            self._initialize_step_runs()
 
-    def _initialize(self):
-        self._initialize_step_runs()
-        self._initialize_inputs_outputs()
-        self._initialize_channels()
+        if self.inputs.count() == 0 \
+           and self.fixed_inputs.count() == 0 \
+           and self.outputs.count() == 0:
+            self._initialize_inputs_outputs()
+
+        self.push_fixed_inputs()
 
     def _initialize_step_runs(self):
         """Create a run for each step
@@ -85,20 +87,28 @@ class WorkflowRun(AbstractWorkflowRun):
                 ChildRunClass = WorkflowRun
             child_run = ChildRunClass.objects.create(template=step,
                                                      parent=self)
-            child_run._initialize()
 
     def _initialize_inputs_outputs(self):
-        # TODO - check to see if the input already exists
+        self._initialize_inputs()
+        self._initialize_fixed_inputs()
+        self._initialize_outputs()
+        self._initialize_channels()
+
+    def _initialize_inputs(self):
         for input in self.template.inputs.all():
             WorkflowRunInput.objects.create(
                 workflow_run=self,
                 channel = input.channel,
                 workflow_input=input)
+
+    def _initialize_fixed_inputs(self):
         for fixed_input in self.template.fixed_inputs.all():
             fixed_workflow_run_input = FixedWorkflowRunInput.objects.create(
                 workflow_run=self,
                 channel=fixed_input.channel,
                 workflow_input=fixed_input)
+
+    def _initialize_outputs(self):
         for output in self.template.outputs.all():
             WorkflowRunOutput.objects.create(
                 workflow_run=self,
@@ -116,7 +126,7 @@ class WorkflowRun(AbstractWorkflowRun):
                 destination.save()
             else:
                 assert destination.sender == source
-                
+
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
         for step_run in self.step_runs.all():
@@ -136,15 +146,17 @@ class WorkflowRun(AbstractWorkflowRun):
             raise Exception('Found multiple data sources for channel "%s"' % channel)
         return sources[0]
 
-    def initial_push(self):
-        # Runtime inputs will be pushed when data is added,
-        # but fixed inputs have to be pushed now on creation
+    def push_fixed_inputs(self):
+        # Runtime inputs will be pushed whenever data is added,
+        # but fixed inputs have to be pushed at least once on creation
         for input in self.fixed_inputs.all():
-            input.initial_push()
-        # StepRun will normally be pushed as individual DataObjects arrive,
-        # but we do the initial_push in case all inputs are fixed
+            input.push(input.workflow_input.data_object)
         for step_run in self.step_runs.all():
-            step_run.initial_push()
+            step_run.push_fixed_inputs()
+
+@receiver(models.signals.post_save, sender=WorkflowRun)
+def _post_save_workflow_run_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
 
 
 class StepRun(AbstractWorkflowRun):
@@ -170,59 +182,47 @@ class StepRun(AbstractWorkflowRun):
     def is_step(self):
         return True
 
-    def after_create(self):
-        self._initialize()
-
-    def _initialize(self):
-        self._initialize_inputs_outputs()
-
-    def _is_initialized(self):
-        return self.inputs.count() == self.template.inputs.count() \
-            and self.fixed_inputs.count() \
-            == self.template.fixed_inputs.count() \
-            and self.outputs.count() == self.template.outputs.count()
+    def _post_save(self):
+        if self.inputs.count() == 0 \
+           and self.fixed_inputs.count() == 0 \
+           and self.outputs.count() == 0:
+            self._initialize_inputs_outputs()
 
     def _initialize_inputs_outputs(self):
+        self._initialize_inputs()
+        self._initialize_fixed_inputs()
+        self._initialize_outputs()
+            
+    def _initialize_inputs(self):
         for input in self.template.inputs.all():
             StepRunInput.objects.create(
                 step_run=self,
                 channel = input.channel,
                 step_input=input)
+
+    def _initialize_fixed_inputs(self):
         for fixed_input in self.template.fixed_inputs.all():
             FixedStepRunInput.objects.create(
                 step_run=self,
                 channel=fixed_input.channel,
                 step_input=fixed_input)
+
+    def _initialize_outputs(self):
         for output in self.template.outputs.all():
             StepRunOutput.objects.create(
                 step_run=self,
                 channel=output.channel,
                 step_output=output)
 
-    def _initialize_channels(self):
-        for destination in self._get_destinations():
-            source = self._get_source(destination.channel)
-
-            # For a matching source and desination, make sure they are
-            # sender/receiver on the same channel 
-            if not destination.sender:
-                destination.sender = source
-                destination.save()
-            else:
-                assert destination.sender == source
-
     def get_all_inputs(self):
         inputs = [i for i in self.inputs.all()]
         inputs.extend([i for i in self.fixed_inputs.all()])
         return inputs
 
-    def initial_push(self):
-        # Runtime inputs will be pushed when data is added,
-        # but fixed inputs have to be pushed now on creation
+    def push_fixed_inputs(self):
         for input in self.fixed_inputs.all():
-            input.initial_push()
-        self.push()
-        
+            input.push(input.step_input.data_object)
+
     def push(self):
         if self.task_runs.count() == 0:
             for input_set in InputNodeSet(
@@ -246,6 +246,10 @@ class AbstractStepRunInput(InputOutputNode):
     def push_to_receivers(self, indexed_data_object):
         # No receivers, but we need to push to the step_run
         self.step_run.push()
+
+@receiver(models.signals.post_save, sender=StepRun)
+def _post_save_step_run_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
 
 
 class StepRunInput(AbstractStepRunInput):
@@ -274,9 +278,6 @@ class FixedStepRunInput(AbstractStepRunInput):
     @property
     def type(self):
         return self.step_input.type
-
-    def initial_push(self):
-        self.push_without_index(self.step_input.data_object)
 
 
 class StepRunOutput(InputOutputNode):
@@ -320,9 +321,6 @@ class FixedWorkflowRunInput(InputOutputNode):
     workflow_input = models.ForeignKey('FixedWorkflowInput',
                                    related_name='workflow_run_inputs',
                                    on_delete=models.PROTECT)
-
-    def initial_push(self):
-        self.push_without_index(self.workflow_input.data_object)
 
     @property
     def type(self):

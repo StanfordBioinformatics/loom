@@ -1,12 +1,13 @@
 from django.db import models
+from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 import uuid
 
 from .base import BaseModel, BasePolymorphicModel
 from .data_objects import DataObject
+from .signals import post_save_children
 from api.exceptions import *
-
 
 """
 This module defines Workflow and its children.
@@ -55,7 +56,7 @@ class Workflow(AbstractWorkflow):
     """A collection of steps and/or workflows
     """
 
-    def after_create(self):
+    def _post_save_children(self):
         self._validate()
 
     def _validate(self):
@@ -106,6 +107,10 @@ class Workflow(AbstractWorkflow):
 
     def is_step(self):
         return False
+
+@receiver(post_save_children, sender=AbstractWorkflow)
+def _post_save_children_workflow_signal_receiver(sender, instance, **kwargs):
+    instance._post_save_children()
 
 
 class Step(AbstractWorkflow):

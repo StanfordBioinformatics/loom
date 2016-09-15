@@ -1,9 +1,10 @@
 from rest_framework import serializers
-
+        
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.data_objects import DataObject
 from api.models.channels import IndexedDataObject
 from api.models.run_requests import RunRequest, RunRequestInput
+from api.models.signals import post_save_children
 from api.models.workflows import AbstractWorkflow
 from api.serializers.workflows import AbstractWorkflowIdSerializer
 from api.serializers.workflow_runs import AbstractWorkflowRunSerializer
@@ -121,6 +122,7 @@ class RunRequestSerializer(serializers.ModelSerializer):
 
         run_request = RunRequest.objects.create(**validated_data)
 
+        
         if inputs is not None:
             for input_data in inputs:
                 # We need to know the data type to find or create the
@@ -136,6 +138,5 @@ class RunRequestSerializer(serializers.ModelSerializer):
                 s.is_valid(raise_exception=True)
                 s.save()
 
-        run_request.after_create()
-
+        post_save_children.send(sender=self.Meta.model, instance=run_request)
         return run_request

@@ -1,11 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.dispatch import receiver
 from django.utils import timezone
 import uuid
 
 from .base import BaseModel, BasePolymorphicModel
 from .channels import InputOutputNode
 from .data_objects import DataObject
+from .signals import post_save_children
 from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
 from .workflows import Workflow
 from api import get_setting
@@ -32,12 +34,12 @@ class RunRequest(BaseModel):
     def name(self):
         return self.template.name
 
-    def after_create(self):
+    def _post_save_children(self):
         self._initialize_run()
         self._validate()
         self._initialize_outputs()
         self._initialize_channels()
-        self.initial_push()
+        self.push()
 
     def _initialize_run(self):
         if not self.run:
@@ -62,10 +64,10 @@ class RunRequest(BaseModel):
                run_request_output.sender = run_output
                run_request_output.save()
 
-    def initial_push(self):
+    def push(self):
         for input in self.inputs.all():
-            input.push_all()
-        self.run.initial_push()
+            input.push()
+        self.run.push_fixed_inputs()
 
     def _validate(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput
@@ -83,6 +85,10 @@ class RunRequest(BaseModel):
             raise ValidationError(
                 'Missing input for channel(s) "%s"' %
                 ', '.join([channel for channel in workflow_inputs]))
+
+@receiver(post_save_children, sender=RunRequest)
+def _post_save_children_run_request_signal_receiver(sender, instance, **kwargs):
+    instance._post_save_children()
 
 
 class RunRequestInput(InputOutputNode):

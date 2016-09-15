@@ -258,6 +258,7 @@ class Migration(migrations.Migration):
                 ('status', models.CharField(default=b'incomplete', max_length=255, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
                 ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_api.taskrunattempt_set+', editable=False, to='contenttypes.ContentType', null=True)),
                 ('task_run', models.ForeignKey(related_name='task_run_attempts', to='api.TaskRun')),
+                ('task_run_as_accepted_attempt', models.OneToOneField(related_name='accepted_task_run_attempt', null=True, to='api.TaskRun')),
             ],
             options={
                 'abstract': False,

@@ -1,7 +1,8 @@
 from copy import deepcopy
-from django.db import models
-from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import models
+from django.dispatch import receiver
+from django.utils import timezone
 import os
 import uuid
 
@@ -51,17 +52,6 @@ class TaskRun(BaseModel):
         task_manager = TaskManagerFactory.get_task_manager()
         task_manager.run(self)
 
-    def after_create(self):
-        self._initialize_inputs_outputs()
-
-    def _initialize_inputs_outputs(self):
-        # TODO - check to see if the input already exists
-        for step_run_input in self.step_run.inputs.all():
-            TaskRunInput.objects.create(
-                task_run=self,
-                step_run_input=step_run_input,
-                task_definition_input=task_definition_input)
-
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
@@ -89,7 +79,8 @@ class TaskRun(BaseModel):
             self.step_run.template.command,
             self.get_full_context())
 
-    def push_results_from_task_run_attempt(self, attempt):
+    def accept_attempt(self, attempt):
+        self.accepted_task_run_attempt = attempt
         for output in attempt.outputs.all():
             output.task_run_output.push(output.data_object)
 
@@ -145,7 +136,7 @@ class TaskRunOutput(BaseModel):
         if self.data_object is None:
             self.data_object=data_object
             self.save()
-        self.step_run_output.push_without_index(data_object)
+        self.step_run_output.push(data_object)
 
 
 class TaskRunResourceSet(BaseModel):
@@ -163,6 +154,11 @@ class TaskRunAttempt(BasePolymorphicModel):
     task_run = models.ForeignKey('TaskRun',
                                  related_name='task_run_attempts',
                                  on_delete=models.CASCADE)
+    task_run_as_accepted_attempt = models.OneToOneField(
+        'TaskRun',
+        related_name='accepted_task_run_attempt',
+        on_delete=models.CASCADE,
+        null=True)
 
     status = models.CharField(
         max_length=255,
@@ -181,35 +177,44 @@ class TaskRunAttempt(BasePolymorphicModel):
 
     @classmethod
     def create_from_task_run(cls, task_run):
-        model = cls.objects.create(task_run=task_run)
-        model.after_create()
-        return model
+        return cls.objects.create(task_run=task_run)
 
-    def after_create(self):
-        self._initialize_inputs_outputs()
-        self._initialize_worker_process()
+    def _post_save(self):
+        if self.status == 'complete':
+            # If no other attempt has been accepted,
+            # accept this one.
+            try:
+                self.task_run.accepted_task_run_attempt
+            except ObjectDoesNotExist:
+                self.task_run.accept_attempt(self)
 
-    def after_update(self):
-        self.task_run.push_results_from_task_run_attempt(self)
+        if self.inputs.count() == 0:
+            self._initialize_inputs()
 
-    def _initialize_inputs_outputs(self):
-        # TODO check if inputs/outputs already exist
+        if self.outputs.count() == 0:
+            self._initialize_outputs()
+
+        try:
+            self.worker_process
+        except ObjectDoesNotExist:
+            self._initialize_worker_process()
+
+    def _initialize_inputs(self):
         for input in self.task_run.inputs.all():
             TaskRunAttemptInput.objects.create(
                 task_run_attempt=self,
                 task_run_input=input,
                 data_object=input.data_object)
+
+    def _initialize_outputs(self):
         for output in self.task_run.outputs.all():
             TaskRunAttemptOutput.objects.create(
                 task_run_attempt=self,
                 task_run_output=output)
 
     def _initialize_worker_process(self):
-        try:
-            self.worker_process
-        except ObjectDoesNotExist:
-            self.worker_process = WorkerProcess.objects.create(
-                task_run_attempt=self)
+        self.worker_process = WorkerProcess.objects.create(
+            task_run_attempt=self)
 
     @classmethod
     def get_working_dir(cls, task_run_attempt_id):
@@ -246,6 +251,10 @@ class TaskRunAttempt(BasePolymorphicModel):
                 pass
 
         return files, tasks, edges
+
+@receiver(models.signals.post_save, sender=TaskRunAttempt)
+def _post_save_task_run_attempt_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
 
 
 class TaskRunAttemptInput(BaseModel):
@@ -302,9 +311,6 @@ class TaskRunAttemptOutput(BaseModel):
     def filename(self):
         return self.task_run_output.filename
 
-    def push(self, data_object):
-        self.task_run_output.push(data_object)
-
 
 class TaskRunAttemptLogFile(BaseModel):
 
@@ -319,10 +325,14 @@ class TaskRunAttemptLogFile(BaseModel):
         related_name='task_run_attempt_log_file',
         on_delete=models.PROTECT)
 
-    def after_create(self):
+    def _post_save(self):
         if self.file_data_object is None:
             self.file_data_object = FileDataObject.objects.create(source_type='log')
             self.save()
+
+@receiver(models.signals.post_save, sender=TaskRunAttemptLogFile)
+def _post_save_task_run_attempt_log_file_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
 
 """
 class WorkerProcessHost(BaseModel):

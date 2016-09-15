@@ -20,7 +20,6 @@ class MockTaskManager(object):
 
         attempt.status='complete'
         attempt.save()
-        attempt.after_update()
         
     @classmethod
     def _add_mock_data(cls, output):

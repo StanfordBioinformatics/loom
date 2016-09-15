@@ -111,11 +111,12 @@ class TaskRunner(object):
 
         self._import_outputs()
         self._import_log_files()
-        self._flag_attempt_as_complete()
 
-    def _flag_attempt_as_complete(self):
+        self._set_task_run_attempt_status('complete')
+
+    def _set_task_run_attempt_status(self, status):
         task_run_attempt = copy.deepcopy(self.task_run_attempt)
-        task_run_attempt.update({'status': 'complete'})
+        task_run_attempt.update({'status': status})
         
         self.connection.update_task_run_attempt(
             task_run_attempt['id'],

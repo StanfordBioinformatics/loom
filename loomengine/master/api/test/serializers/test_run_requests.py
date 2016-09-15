@@ -20,7 +20,7 @@ class TestRunRequestSerializer(TestCase):
                 fixtures.run_requests.run_request_input,
             ]
         }
-        
+
         s = RunRequestSerializer(
             data=run_request_data)
         s.is_valid()

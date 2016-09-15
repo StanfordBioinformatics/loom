@@ -1,11 +1,13 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import ProtectedError
+from django.dispatch import receiver
 from django.utils import timezone
 import os
 import uuid
 
 from .base import BaseModel, BasePolymorphicModel
+from .signals import post_save_children
 from api import get_setting
 
 
@@ -112,13 +114,7 @@ class FileDataObject(DataObject):
         else:
             return False
 
-    def after_create(self):
-        self.after_create_or_update()
-
-    def after_update(self):
-        self.after_create_or_update()
-
-    def after_create_or_update(self):
+    def _post_save_children(self):
         self.add_file_location()
         self.add_implicit_links()
 
@@ -207,6 +203,10 @@ class FileDataObject(DataObject):
             ]
         }
         """
+
+@receiver(post_save_children, sender=FileDataObject)
+def _post_save_file_data_object_signal_receiver(sender, instance, **kwargs):
+    instance._post_save_children()
 
 
 class FileContent(DataObjectContent):

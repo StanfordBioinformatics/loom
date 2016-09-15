@@ -6,6 +6,7 @@ from api.models.data_objects import StringContent, StringDataObject, \
     BooleanContent, BooleanDataObject, IntegerContent, IntegerDataObject, \
     UnnamedFileContent, FileContent, FileImport, FileLocation, \
     FileDataObject, DataObject, DataObjectContent
+from api.models.signals import post_save_children
 
 
 class StringContentSerializer(serializers.ModelSerializer):
@@ -190,7 +191,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             s.is_valid()
             s.save()
 
-        model.after_create()
+        post_save_children.send(sender=self.Meta.model, instance=model)
         return model
 
     def update(self, instance, validated_data):
@@ -210,7 +211,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             instance.file_location = s.save()
 
         instance.save()
-        instance.after_update()
+        post_save_children.send(sender=self.Meta.model, instance=instance)
         return instance
 
 

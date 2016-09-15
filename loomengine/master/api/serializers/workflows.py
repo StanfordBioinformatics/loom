@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.workflows import *
-
+from api.models.signals import post_save_children
 
 class WorkflowImportSerializer(CreateWithParentModelSerializer):
 
@@ -184,7 +184,7 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
             s.is_valid(raise_exception=True)
             s.save()
 
-        workflow.after_create()
+        post_save_children.send(sender=self.Meta.model, instance=workflow)
         return workflow
 
 
