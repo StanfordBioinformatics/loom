@@ -112,7 +112,7 @@ setup(
                         'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
                         'python-dateutil',
                         'PyYAML>=3.11',
-                        'requests>=2.6.0',
+                        'requests>=2.6.0,<2.11',            # match docker-py dependency
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
                         'uritemplate>=0.6,<1',              # match google-api-python-client dependency
