@@ -74,25 +74,27 @@ class CloudTaskManager:
             scratch_disk_size_gb = settings.WORKER_SCRATCH_DISK_SIZE
         
         playbook_vars = {
-            'node_name': node_name,
-            'image': settings.WORKER_VM_IMAGE,
+            'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
+            'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
+            'docker_full_name': settings.DOCKER_FULL_NAME,
+            'docker_tag': settings.DOCKER_TAG,
+            'gce_email': settings.GCE_EMAIL,
+            'gce_credential': settings.GCE_PEM_FILE_PATH,
+            'instance_name': node_name,
+            'instance_image': settings.WORKER_VM_IMAGE,
             'instance_type': instance_type,
+            'master_url': settings.MASTER_URL_FOR_WORKER,
+            'network': settings.WORKER_NETWORK,
             'scratch_disk_name': scratch_disk_name,
             'scratch_disk_device_path': scratch_disk_device_path,
             'scratch_disk_mount_point': settings.WORKER_SCRATCH_DISK_MOUNT_POINT,
             'scratch_disk_type': settings.WORKER_SCRATCH_DISK_TYPE,
             'scratch_disk_size_gb': scratch_disk_size_gb,
-            'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
-            'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
-            'zone': settings.WORKER_LOCATION,
+            'tags': settings.WORKER_TAGS,
             'task_run_attempt_id': task_run_attempt_id,
             'task_run_docker_image': environment['docker_image'],
-            'master_url': settings.MASTER_URL_FOR_WORKER,
-            'version': loom.common.version.version(),
-            'worker_network': settings.WORKER_NETWORK,
-            'worker_tags': settings.WORKER_TAGS,
-            'docker_full_name': settings.DOCKER_FULL_NAME,
-            'docker_tag': settings.DOCKER_TAG,
+            'use_internal_ip': settings.WORKER_USES_SERVER_INTERNAL_IP,
+            'zone': settings.WORKER_LOCATION,
         }
         logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
         ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)

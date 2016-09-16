@@ -426,8 +426,8 @@ class GoogleCloudServerControls(BaseServerControls):
         email = find_service_account_email(server_name)
         if email != None:
             print 'Created service account %s.' % email
-
         grant_editor_role(email)
+
         setup_gce_ini_and_json()
 
         if hasattr(self.args, 'settings') and self.args.settings != None:
@@ -436,7 +436,6 @@ class GoogleCloudServerControls(BaseServerControls):
         else:
             print 'Creating deploy settings %s using default settings...' % get_deploy_settings_filename()
             self.settings_manager.create_deploy_settings_file()
-
 
         setup_gcloud_ssh()
         env = self.get_ansible_env()

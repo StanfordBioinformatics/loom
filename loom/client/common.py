@@ -11,6 +11,7 @@ import re
 import requests
 import subprocess
 import sys
+import time
 import yaml
 
 import loom.client.settings_manager
@@ -309,12 +310,21 @@ def get_project_policy(project=None):
         project = get_gcloud_project()
 
     crm_service = get_crm_service()
-    request = crm_service.projects().getIamPolicy(resource='projects/%s' % project, body={}) #TODO: Filed a support ticket to ask how to specify empty request body.
+    request = crm_service.projects().getIamPolicy(resource='%s' % project, body={})
     response = request.execute()
     return response
 
-# TODO: Add a function to set project policy.
-# TODO: Add a function to get project IAM policy, modify it, and set it to grant relevant permissions to service accounts. 
+def set_project_policy(policy, project=None):
+    """Sets the IAM policy for the specified project. If no project specified,
+    defaults to current project.
+    """
+    if project == None:
+        project = get_gcloud_project()
+
+    crm_service = get_crm_service()
+    request = crm_service.projects().setIamPolicy(resource='%s' % project, body=policy)
+    response = request.execute()
+    return response
 
 def grant_editor_role(email=None):
     """Grants the editor role to the specified service account in the current 
@@ -323,13 +333,25 @@ def grant_editor_role(email=None):
     if email == None:
         email = find_service_account_email()
 
-    iam_service = get_iam_service()
     project = get_gcloud_project()
+
+    # Set policy on service account
+    iam_service = get_iam_service()
     request_body = {"policy": {"bindings": [{"role": "roles/editor", "members": ["serviceAccount:%s" % email]}]}}
     request = iam_service.projects().serviceAccounts().setIamPolicy(resource='projects/%s/serviceAccounts/%s' % (project, email), body=request_body)
     response = request.execute()
-    return response
 
+    # Set policy on project
+    policy = get_project_policy(project)
+    jsonfilename = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'policy-%s.json' % time.strftime("%Y%m%d-%H%M%S")))
+    with open(jsonfilename, 'w') as jsonfile:
+        json.dump(policy, jsonfile)
+    print 'Current project policy saved to %s' % jsonfilename
+    for binding in policy['bindings']:
+        if binding['role'] == 'roles/editor':
+            binding['members'].append('serviceAccount:%s' % email)
+    set_project_policy({"policy": policy}, project)
+    
 def get_iam_service():
     try:
         credentials = oauth2client.client.GoogleCredentials.get_application_default()
@@ -347,7 +369,6 @@ def get_crm_service():
 
     crm_service = googleapiclient.discovery.build('cloudresourcemanager', 'v1', credentials=credentials)
     return crm_service
-    
 
 def parse_as_json_or_yaml(text):
     def read_as_json(json_text):
