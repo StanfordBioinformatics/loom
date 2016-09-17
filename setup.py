@@ -95,9 +95,9 @@ setup(
                         'django-polymorphic>=0.9.2',
                         'djangorestframework>=3.3.3',
                         'docutils>=0.12',
-                        'docker-py',                        # used by server to run NGINX container
+                        'docker-py==1.9.0',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
                         'gcloud>=0.8.0,<0.10.0',
-                        'google-api-python-client>=1.5.0',  #1.5.0 requires oath2client>=2.0.0
+                        'google-api-python-client>=1.5.0',   # 1.5.0 requires oath2client>=2.0.0
                         'google-apitools>=0.4.13',
                         #'google_compute_engine',            # needed for gsutil
                         'gunicorn>=19.6.0',
