@@ -420,10 +420,13 @@ class GoogleCloudServerControls(BaseServerControls):
         """
         server_name = get_gcloud_server_name()
         print 'Creating service account for instance %s...' % server_name 
-        create_service_account(server_name)
+        try:
+            create_service_account(server_name)
+        except googleapiclient.errors.HttpError as e:
+            print 'Warning: %s' % e._get_reason()
         email = find_service_account_email(server_name)
         if email != None:
-            print 'Created service account %s.' % email
+            print 'Service account %s is created.' % email
         grant_editor_role(email)
 
         setup_gce_ini_and_json()
