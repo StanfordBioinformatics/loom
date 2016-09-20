@@ -12,15 +12,6 @@
   become_method: sudo
   become: yes
   roles:
-  roles:
-  - {role: docker, when: "{{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
-  - {role: docker-py, when: "{{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
+  - {role: docker, when: "not {{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
+  - {role: docker-py, when: "not {{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
   - loom-worker
-
-#- name: Remove worker external IP. 
-#  hosts: localhost
-#  connection: local
-#  gather_facts: no
-#  tasks:
-#  - name: Remove worker external IP.
-#    shell: gcloud compute instances delete-access-config {{node_name}} --access-config-name "External NAT" --zone {{zone}}
