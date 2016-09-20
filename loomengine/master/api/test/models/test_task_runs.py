@@ -12,11 +12,30 @@ class TestTaskRunAttempt(TestCase):
         task_run = TaskRun.objects.create(step_run=step_run)
 
         task_run_attempt = TaskRunAttempt.objects.create(task_run=task_run)
-        task_run_attempt._post_save()
 
-        # Worker Process should be automatically created
+        # Worker Process and monitor should be automatically created
         self.assertIsNotNone(task_run_attempt.worker_process)
+        self.assertIsNotNone(task_run_attempt.worker_process_monitor)
 
-        # Its status should be 'not_started'
+        # Their statuses should be 'not_started'
         self.assertEqual(task_run_attempt.worker_process.status, 'not_started')
+        self.assertEqual(task_run_attempt.worker_process_monitor.status, 'not_started')
+        
+    def test_status_updates_local_finished_successfully(self):
+        step = Step.objects.create(command='blank')
+        step_run = StepRun.objects.create(template=step)
+        task_run = TaskRun.objects.create(step_run=step_run)
+
+        task_run_attempt = TaskRunAttempt.objects.create(task_run=task_run)
+
+        process = task_run_attempt.worker_process
+        monitor = task_run_attempt.worker_process_monitor
+
+        # Initial status
+        self.assertEqual(process.status, 'not_started')
+        self.assertEqual(monitor.status, 'not_started')
+        self.assertEqual(task_run.status, 'initializing_monitor_process')
+
+        monitor.status = 'gathering_input_files'
+        monitor.status = 'preparing_runtime_environment'
         

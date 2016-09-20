@@ -442,19 +442,10 @@ class FileManager:
     """Manages file import/export
     """
 
-    def __init__(self, master_url, logger=None):
+    def __init__(self, master_url):
         self.connection = Connection(master_url)
         self.settings = self.connection.get_filemanager_settings()
-        self.logger = logger
-        stdout_logger = StreamToLogger(self.logger, logging.INFO)
-        sys.stdout = stdout_logger
-        stderr_logger = StreamToLogger(self.logger, logging.ERROR)
-        sys.stderr = stderr_logger
-
-    def _log(self, message):
-        if not self.logger:
-            return
-        self.logger.info(message)
+        self.logger = logging.getLogger(__name__)
 
     def import_from_patterns(self, patterns, note):
         files = []
@@ -517,10 +508,10 @@ class FileManager:
         assert file_data_object.get('file_content') is None
 
         source = Source(source_url, self.settings)
-        self._log('Importing file from %s...' % source.get_url())
+        self.logger.info('Importing file from %s...' % source.get_url())
 
         hash_function = self.settings['HASH_FUNCTION']
-        self._log('   calculating %s hash...' % hash_function)
+        self.logger.info('   calculating %s hash...' % hash_function)
         hash_value = source.calculate_hash_value(hash_function)
 
         # Adding file_content will cause a file_location with status=incomplete
@@ -537,17 +528,17 @@ class FileManager:
         )
 
         if file_data_object['file_location']['status'] == 'complete':
-            self._log('   server already has the file. Skipping upload.')
+            self.logger.info('   server already has the file. Skipping upload.')
         else:
             destination = Destination(
                 file_data_object['file_location']['url'],
                 self.settings)
-            self._log('   copying to destination %s...' % destination.get_url())
+            self.logger.info('   copying to destination %s...' % destination.get_url())
             source.copy_to(destination)
 
         # Signal that the upload completed successfully
         file_data_object = self._flag_upload_as_complete(file_data_object)
-        self._log('   imported file %s@%s' % (
+        self.logger.info('   imported file %s@%s' % (
             file_data_object['file_content']['filename'],
             file_data_object['id']))
         return file_data_object
@@ -598,13 +589,13 @@ class FileManager:
         destination_url = self.get_destination_file_url(destination_url, default_name)
         destination = Destination(destination_url, self.settings)
 
-        self._log('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['id'], destination.get_url()))
+        self.logger.info('Exporting file %s%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['id'], destination.get_url()))
 
         # Copy from the first file location
         source_url = file_data_object['file_location']['url']
         Source(source_url, self.settings).copy_to(destination)
 
-        self._log('...finished exporting file')
+        self.logger.info('...finished exporting file')
 
     def get_destination_file_url(self, requested_destination, default_name):
         """destination may be a file, a directory, or None

@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput,\
     TaskRunAttempt, TaskRunAttemptInput, TaskRunAttemptOutput, \
-    TaskRunAttemptLogFile, WorkerProcess
+    TaskRunAttemptLogFile, WorkerProcess, WorkerProcessMonitor, WorkerHost
 from api.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
 from api.serializers.task_definitions import TaskDefinitionSerializer
 from api.serializers.workflows import RequestedResourceSetSerializer
@@ -53,13 +53,31 @@ class TaskRunAttemptLogFileSerializer(CreateWithParentModelSerializer):
         fields = ('log_name', 'file_data_object',)
 
 
+class WorkerHostSerializer(CreateWithParentModelSerializer):
+    
+    id = serializers.UUIDField(format='hex', required=False)
+
+    class Meta:
+        model = WorkerHost
+        fields = ('id', 'status',)
+
+
 class WorkerProcessSerializer(CreateWithParentModelSerializer):
     
     id = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = WorkerProcess
-        fields = ('id', 'status', 'container_id')
+        fields = ('id', 'status', 'status_message', 'container_id')
+
+
+class WorkerProcessMonitorSerializer(CreateWithParentModelSerializer):
+    
+    id = serializers.UUIDField(format='hex', required=False)
+    
+    class Meta:
+        model = WorkerProcessMonitor
+        fields = ('id', 'status', 'last_update')
 
 
 class TaskRunAttemptSerializer(serializers.ModelSerializer):
@@ -70,11 +88,13 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
     inputs = TaskRunAttemptInputSerializer(many=True, allow_null=True, required=False)
     outputs = TaskRunAttemptOutputSerializer(many=True, allow_null=True, required=False)
     task_definition = TaskDefinitionSerializer()
+    worker_host = WorkerHostSerializer()
     worker_process = WorkerProcessSerializer()
+    worker_process_monitor = WorkerProcessMonitorSerializer()
 
     class Meta:
         model = TaskRunAttempt
-        fields = ('id', 'name', 'log_files', 'inputs', 'outputs', 'status', 'task_definition', 'worker_process')
+        fields = ('id', 'name', 'log_files', 'inputs', 'outputs', 'status', 'status_message', 'task_definition', 'worker_process', 'worker_process_monitor', 'worker_host')
         
     def update(self, instance, validated_data):
         status = validated_data.pop('status', None)

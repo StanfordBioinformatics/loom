@@ -5,7 +5,6 @@ from django.conf import settings
 
 from api import get_setting
 from api.task_manager.local import LocalTaskManager
-from api.task_manager.cluster import ClusterTaskManager
 from api.task_manager.cloud import CloudTaskManager
 from api.task_manager.mock import MockTaskManager
 
@@ -15,7 +14,6 @@ class TaskManagerFactory:
     
     # Worker types
     LOCAL = 'LOCAL'
-    CLUSTER = 'ELASTICLUSTER'
     GOOGLE_CLOUD = 'GOOGLE_CLOUD'
     MOCK = 'MOCK'
 
@@ -25,8 +23,6 @@ class TaskManagerFactory:
                      % get_setting('WORKER_TYPE'))
         if get_setting('WORKER_TYPE') == cls.LOCAL:
             return LocalTaskManager()
-        elif get_setting('WORKER_TYPE') == cls.CLUSTER:
-            return ClusterTaskManager()
         elif get_setting('WORKER_TYPE') == cls.GOOGLE_CLOUD:
             return CloudTaskManager()
         elif get_setting('WORKER_TYPE') == cls.MOCK:
@@ -46,6 +42,5 @@ class TaskManager:
         pass
 
 TaskManager.register(LocalTaskManager)
-TaskManager.register(ClusterTaskManager)
 TaskManager.register(CloudTaskManager)
 TaskManager.register(MockTaskManager)

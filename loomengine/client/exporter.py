@@ -6,28 +6,23 @@ import os
 import sys
 import yaml
 from loomengine.client.common import get_server_url
-from loomengine.client.exceptions import *
+from loomengine.client.common import is_server_running
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-from loomengine.utils.helper import get_console_logger
 
 
 class AbstractExporter(object):
     """Common functions for the various subcommands under 'export'
     """
     
-    def __init__(self, args, logger=None):
+    def __init__(self, args):
         """Common init tasks for all Export classes
         """
         self.args = args
-
-        if logger is None:
-            logger = get_console_logger()
-        self.logger = logger
-        
         master_url = get_server_url_for_client()
+        is_server_running(prompt=True)
         self.connection = Connection(master_url)
-        self.filemanager = FileManager(master_url, logger=self.logger)
+        self.filemanager = FileManager(master_url)
 
 
 class FileExporter(AbstractExporter):
@@ -80,7 +75,7 @@ class WorkflowExporter(AbstractExporter):
         return self.filemanager.get_destination_file_url(self.args.destination, default_name)
 
     def _save_workflow(self, workflow, destination):
-        self.logger.info('Exporting workflow %s@%s to %s...' % (workflow.get('name'), workflow.get('_id'), destination))
+        print 'Exporting workflow %s@%s to %s...' % (workflow.get('name'), workflow.get('_id'), destination)
         if self.args.format == 'json':
             workflow_text = json.dumps(workflow)
         elif self.args.format == 'yaml':
@@ -88,7 +83,7 @@ class WorkflowExporter(AbstractExporter):
         else:
             raise Exception('Invalid format type %s' % self.args.format)
         self.filemanager.write_to_file(destination, workflow_text)
-        self.logger.info('...finished exporting workflow')
+        print '...finished exporting workflow'
 
 class Exporter:
     """Sets up and executes commands under "download" on the main parser.

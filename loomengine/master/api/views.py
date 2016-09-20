@@ -99,9 +99,17 @@ class TaskRunAttemptViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.TaskRunAttempt.objects.all()
     serializer_class = serializers.TaskRunAttemptSerializer
 
+class WorkerHostViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.WorkerHost.objects.all()
+    serializer_class = serializers.WorkerHostSerializer
+
 class WorkerProcessViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.WorkerProcess.objects.all()
     serializer_class = serializers.WorkerProcessSerializer
+
+class WorkerProcessMonitorViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.WorkerProcessMonitor.objects.all()
+    serializer_class = serializers.WorkerProcessMonitorSerializer
 
 @require_http_methods(["GET"])
 def status(request):
@@ -110,15 +118,14 @@ def status(request):
 @require_http_methods(["GET"])
 def worker_settings(request, id):
     try:
-        WORKING_DIR = models.TaskRunAttempt.get_working_dir(id)
-        LOG_DIR = models.TaskRunAttempt.get_log_dir(id)
+        task_run_attempt = models.TaskRunAttempt.objects.get(id=id)
         return JsonResponse({
-            'LOG_LEVEL': get_setting('LOG_LEVEL'),
-            'WORKING_DIR': WORKING_DIR,
-            'WORKER_LOG_FILE': os.path.join(LOG_DIR, 'worker.log'),
-            'STDOUT_LOG_FILE': os.path.join(LOG_DIR, 'stdout.log'),
-            'STDERR_LOG_FILE': os.path.join(LOG_DIR, 'stderr.log'),
-        })
+            'WORKING_DIR': task_run_attempt.get_working_dir(),
+            'STDOUT_LOG_FILE': task_run_attempt.get_stdout_log_file(),
+            'STDERR_LOG_FILE': task_run_attempt.get_stderr_log_file(),
+        }, status=200)
+    except ObjectDoesNotExist:
+        return JsonResponse({"message": "Not Found"}, status=404)
     except Exception as e:
         return JsonResponse({"message": e.message}, status=500)
 

@@ -3,12 +3,10 @@
 import argparse
 import glob
 import os
+from loomengine.client.common import verify_server_is_running
 from loomengine.client.common import get_server_url
 from loomengine.client.common import parse_as_json_or_yaml
-from loomengine.client.exceptions import *
-from loomengine.utils import exceptions as common_exceptions
-from loomengine.utils.filemanager import FileManager, Source
-from loomengine.utils.helper import get_console_logger
+from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
 
@@ -16,21 +14,15 @@ class AbstractImporter(object):
     """Common functions for the various subcommands under 'loom import'
     """
     
-    def __init__(self, args, logger=None):
+    def __init__(self, args):
         """Common init tasks for all Importer classes
         """
 
         self.args = args
 
         master_url = get_server_url()
-        
-        # Log to console unless another logger is given
-        # (e.g. by unittests to prevent terminal output)
-        if logger is None:
-            logger = get_console_logger(name=__file__)
-        self.logger = logger
-
-        self.filemanager = FileManager(master_url, logger=self.logger)
+        verify_server_is_running()
+        self.filemanager = FileManager(master_url)
         self.connection = Connection(master_url)
 
 
@@ -72,11 +64,11 @@ class WorkflowImporter(AbstractImporter):
         return parser
 
     def run(self):
-        return self.import_workflow(self.args.workflow, self.args.note, self.filemanager, self.connection, self.logger)
+        return self.import_workflow(self.args.workflow, self.args.note, self.filemanager, self.connection)
 
     @classmethod
-    def import_workflow(cls, workflow_file, note, filemanager, connection, logger):
-        logger.info('Importing workflow from %s...' % filemanager.normalize_url(workflow_file))
+    def import_workflow(cls, workflow_file, note, filemanager, connection):
+        print 'Importing workflow from %s...' % filemanager.normalize_url(workflow_file)
         (workflow, source_url) = cls._get_workflow(workflow_file, filemanager)
         workflow.update({
             'workflow_import': {
@@ -84,10 +76,9 @@ class WorkflowImporter(AbstractImporter):
                 'source_url': source_url,
             }})
         workflow_from_server = connection.post_abstract_workflow(workflow)
-        logger.info('   imported workflow %s@%s' % \
-            (workflow_from_server['name'],
-             workflow_from_server['id'],
-            ))        
+        print '   imported workflow %s@%s' % (
+            workflow_from_server['name'],
+            workflow_from_server['id'])
         return workflow_from_server
 
     @classmethod

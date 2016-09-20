@@ -2,7 +2,6 @@ from copy import deepcopy
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.dispatch import receiver
-from django.utils import timezone
 import os
 import uuid
 
@@ -19,12 +18,25 @@ class TaskRun(BaseModel):
     """One instance of executing a TaskDefinition, i.e. executing a Step on a 
     particular set of inputs.
     """
-
+        
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     step_run = models.ForeignKey('StepRun',
                                  related_name='task_runs',
                                  on_delete=models.CASCADE)
-
+    status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(('not_started', 'Not started'),
+                 ('provisioning_host', 'Provisioning host'),
+                 ('gathering_input_files', 'Gathering input files'),
+                 ('preparing_runtime_environment', 'Preparing runtime environment'),
+                 ('running', 'Running'),
+                 ('saving_output_files', 'Saving output files'),
+                 ('finished', 'Finished'),
+        ),
+    )
+    status_message = models.TextField(null=True, blank=True)
+        
     # No 'environment' field, because this is in the TaskDefinition.
     # 'resources' field included (by FK) since this is not in TaskDefinition.
 
@@ -47,7 +59,7 @@ class TaskRun(BaseModel):
                 task_run=task_run)
         TaskDefinition.create_from_task_run(task_run)
         return task_run
-
+        
     def run(self):
         task_manager = TaskManagerFactory.get_task_manager()
         task_manager.run(self)
@@ -79,10 +91,14 @@ class TaskRun(BaseModel):
             self.step_run.template.command,
             self.get_full_context())
 
-    def accept_attempt(self, attempt):
-        self.accepted_task_run_attempt = attempt
-        for output in attempt.outputs.all():
-            output.task_run_output.push(output.data_object)
+    def update_status(self):
+        if self.task_run_attempts.count() > 0:
+            if self.status != self.task_run_attempts.first().status \
+               or self.status_message != self.task_run_attempts.first().status_message:
+                self.status = self.task_run_attempts.first().status
+                self.status_message = self.task_run_attempts.first().status_message
+                self.save()
+        self.step_run.update_status()
 
 
 class TaskRunInput(BaseModel):
@@ -99,7 +115,7 @@ class TaskRunInput(BaseModel):
     @property
     def channel(self):
         return self.step_run_input.channel
-
+    
     @property
     def type(self):
         return self.step_run_input.type
@@ -137,7 +153,7 @@ class TaskRunOutput(BaseModel):
             self.data_object=data_object
             self.save()
         self.step_run_output.push(data_object)
-
+            
 
 class TaskRunResourceSet(BaseModel):
     task_run = models.OneToOneField('TaskRun',
@@ -159,14 +175,27 @@ class TaskRunAttempt(BasePolymorphicModel):
         related_name='accepted_task_run_attempt',
         on_delete=models.CASCADE,
         null=True)
-
     status = models.CharField(
         max_length=255,
-        default='incomplete',
-        choices=(('incomplete', 'Incomplete'),
-                 ('complete', 'Complete'),
-                 ('failed', 'Failed')))
-                        
+        default='not_started',
+        choices=(
+            ('not_started', 'Not started'),
+            ('provisioning_host', 'Provisioning host'),
+            ('initializing_monitor_process', 'Initializing monitor process'),
+            ('running_monitor_process', 'Running monitor process'),
+            ('gathering_input_files', 'Gathering input files'),
+            ('preparing_runtime_environment', 'Preparing runtime environment'),
+            ('starting_analysis', 'Starting analysis'),
+            ('running_analysis', 'Running analysis'),
+            ('failed_without_completing', 'Failed without completing'),
+            ('finished_with_error', 'Finished with error'),
+            ('saving_output_files', 'Saving output files'),
+            ('finished_successfully', 'Finished successfully'),
+            ('unknown', 'Unknown'),
+        )
+    )
+    status_message = models.TextField(null=True, blank=True)
+    
     @property
     def task_definition(self):
         return self.task_run.task_definition
@@ -180,14 +209,12 @@ class TaskRunAttempt(BasePolymorphicModel):
         return cls.objects.create(task_run=task_run)
 
     def _post_save(self):
-        if self.status == 'complete':
-            # If no other attempt has been accepted,
-            # accept this one.
-            try:
-                self.task_run.accepted_task_run_attempt
-            except ObjectDoesNotExist:
-                self.task_run.accept_attempt(self)
+        self._idempotent_initialize()
+        self.task_run.update_status()
+        if self.status == 'finished_success':
+            self._push_outputs()
 
+    def _idempotent_initialize(self):
         if self.inputs.count() == 0:
             self._initialize_inputs()
 
@@ -195,9 +222,20 @@ class TaskRunAttempt(BasePolymorphicModel):
             self._initialize_outputs()
 
         try:
+            self.worker_host
+        except ObjectDoesNotExist:
+            if get_setting('WORKER_TYPE') != 'LOCAL':
+                self._initialize_worker_host()
+
+        try:
             self.worker_process
         except ObjectDoesNotExist:
             self._initialize_worker_process()
+
+        try:
+            self.worker_process_monitor
+        except ObjectDoesNotExist:
+            self._initialize_worker_process_monitor()
 
     def _initialize_inputs(self):
         for input in self.task_run.inputs.all():
@@ -212,23 +250,103 @@ class TaskRunAttempt(BasePolymorphicModel):
                 task_run_attempt=self,
                 task_run_output=output)
 
+    def _initialize_worker_host(self):
+        self.worker_host = WorkerHost.objects.create(
+            task_run_attempt=self)
+
     def _initialize_worker_process(self):
         self.worker_process = WorkerProcess.objects.create(
             task_run_attempt=self)
 
-    @classmethod
-    def get_working_dir(cls, task_run_attempt_id):
+    def _initialize_worker_process_monitor(self):
+        self.worker_process_monitor = WorkerProcessMonitor.objects.create(
+            task_run_attempt=self)
+
+    def get_working_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
                             'runtime_volumes',
-                            task_run_attempt_id,
+                            self.id.hex,
                             'work')
-    
-    @classmethod
-    def get_log_dir(cls, task_run_attempt_id):
+
+    def get_log_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
                             'runtime_volumes',
-                            task_run_attempt_id,
+                            self.id.hex,
                             'logs')
+
+    def get_worker_log_file(self):
+        return os.path.join(self.get_log_dir(), 'worker.log')
+
+    def get_stdout_log_file(self):
+        return os.path.join(self.get_log_dir(), 'stdout.log')
+
+    def get_stderr_log_file(self):
+        return os.path.join(self.get_log_dir(), 'stderr.log')
+
+    def update_status(self):
+        status_message = None
+
+        try:
+            host_status = self.worker_host.status
+        except ObjectDoesNotExist:
+            host_status = None
+
+        try:
+            monitor_status = self.worker_process_monitor.status
+        except ObjectDoesNotExist:
+            monitor_status = 'not_started'
+
+        try:
+            process_status = self.worker_process.status
+            process_status_message = self.worker_process.status_message
+        except ObjectDoesNotExist:
+            process_status = 'not_started'
+            process_status_message = None
+
+        if monitor_status == 'not_started' \
+           and host_status == 'not_started':
+            self.status = 'not_started'
+        elif monitor_status == 'not_started' \
+             and host_status == 'provisioning_host':
+            self.status = 'provisioning_host'
+        elif monitor_status == 'not_started':
+            self.status = 'initializing_monitor_process'
+        elif monitor_status == 'initialized':
+            self.status = 'running_monitor_process'
+        elif monitor_status == 'gathering_input_files':
+            self.status = 'gathering_input_files'
+        elif monitor_status == 'preparing_runtime_environment':
+            self.status = 'preparing_runtime_environment'
+        elif monitor_status == 'running_process' \
+             and process_status == 'not_started':
+            self.status = 'starting_analysis'
+        elif monitor_status == 'running_process' \
+             and process_status == 'running':
+            self.status = 'running_analysis'
+        elif process_status == 'failed_without_completing':
+            self.status = 'failed_without_completing'
+            status_message = process_status_message
+        elif process_status == 'finished_with_error':
+            self.status = 'finished_with_error'
+            status_message = process_status_message
+        elif process_status == 'finished_success' \
+             and monitor_status == 'saving_output_files':
+            self.status = 'saving_output_files'
+        elif process_status == 'finished_success' \
+             and monitor_status == 'finished':
+            self.status = 'finished_success'
+        else:
+            self.status = 'unknown'
+            status_message = 'Something is wrong. process status is "%s". '\
+                             'monitor status is "%s". host status is "%s".' \
+                             % (process_status,
+                                monitor_status,
+                                host_status)
+
+        if status_message is None:
+            status_message = self.get_status_display()
+        self.status_message = status_message
+        self.save()
 
     def get_provenance_data(self, files=None, tasks=None, edges=None):
         if files is None:
@@ -251,6 +369,10 @@ class TaskRunAttempt(BasePolymorphicModel):
                 pass
 
         return files, tasks, edges
+
+    def push_outputs(self):
+        for output in self.outputs.all():
+            output.push()
 
 @receiver(models.signals.post_save, sender=TaskRunAttempt)
 def _post_save_task_run_attempt_signal_receiver(sender, instance, **kwargs):
@@ -311,6 +433,8 @@ class TaskRunAttemptOutput(BaseModel):
     def filename(self):
         return self.task_run_output.filename
 
+    def push(self):
+        self.task_run_output.push(self.data_object)
 
 class TaskRunAttemptLogFile(BaseModel):
 
@@ -334,26 +458,31 @@ class TaskRunAttemptLogFile(BaseModel):
 def _post_save_task_run_attempt_log_file_signal_receiver(sender, instance, **kwargs):
     instance._post_save()
 
-"""
-class WorkerProcessHost(BaseModel):
+
+class WorkerHost(BaseModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task_run_attempt = models.OneToOneField(
         'TaskRunAttempt',
-        related_name='host',
+        related_name='worker_host',
         on_delete=models.CASCADE
     )
     status = models.CharField(
         max_length=255,
         default='not_started',
-        choices=(
-            ('not_started', 'Not started'),
-            ('provisioning', 'Provisioning'),
-            ('active', 'Active'),
-            ('stopping', 'Stopping'),
-            ('failed', 'Failed'),
-            ('deleted', 'Deleted'),
-        )
+        choices=(('not_started', 'Not started'),
+                 ('provisioning_host', 'Provisioning host'),
+                 ('active', 'Active'),
+                 ('deleted', 'Deleted'),
+        ),
     )
-"""
+
+    def _post_save(self):
+        self.task_run_attempt.update_status()
+
+@receiver(models.signals.post_save, sender=WorkerHost)
+def _post_save_worker_host_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
+
 
 class WorkerProcess(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -366,11 +495,55 @@ class WorkerProcess(BaseModel):
     status = models.CharField(
         max_length=255,
         default='not_started',
-        choices=(
-            ('not_started', 'Not started'),
-            ('preparing_runtime_environment', 'Preparing runtime environment'),
-            ('running', 'Running'),
-            ('finished_success', 'Finished successfully'),
-            ('finished_with_error', 'Finished with error'),
+        choices=(('not_started', 'Not started'),
+                 ('running', 'Running'),
+                 ('failed_without_completing', 'Failed without completing'),
+                 ('finished_successfully', 'Finished successfully'),
+                 ('finished_with_error', 'Finished with error'),
         ),
     )
+    status_message = models.TextField(null=True, blank=True)
+
+    def _post_save(self):
+        self.task_run_attempt.update_status()
+
+@receiver(models.signals.post_save, sender=WorkerProcess)
+def _post_save_worker_process_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
+
+class WorkerProcessMonitor(BaseModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_run_attempt = models.OneToOneField(
+        'TaskRunAttempt',
+        related_name='worker_process_monitor',
+        on_delete=models.CASCADE,
+    )
+    last_update = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(('not_started', 'Not started'),
+                 ('initializing', 'Initializing'),
+                 ('failed_to_initialize', 'Failed to initialize'),
+                 ('copying_input_files', 'Gathering input files'),
+                 ('failed_to_copy_input_files', 'Failed to copy input files'),
+                 ('getting_runtime_environment_image', 'Getting runtime environment image'),
+                 ('failed_to_get_runtime_environment_image', 'Failed to get runtime environment image'),
+                 ('creating_runtime_environment', 'Creating runtime environment'),
+                 ('failed_to_create_runtime_environment', 'Failed to create runtime environment'),
+                 ('starting_run', 'Starting run'),
+                 ('failed_to_start_run', 'Failed to start run'),
+                 ('waiting_for_run', 'Waiting for run'),
+                 ('saving_output_files', 'Saving output files'),
+                 ('failed_to_save_output_files', 'Failed to save output files'),
+                 ('finished', 'Finished'),
+        ),
+    )
+    status_message = models.TextField(null=True, blank=True)
+
+    def _post_save(self):
+        self.task_run_attempt.update_status()
+
+@receiver(models.signals.post_save, sender=WorkerProcessMonitor)
+def _post_save_worker_process_monitor_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()

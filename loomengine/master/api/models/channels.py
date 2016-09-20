@@ -123,6 +123,13 @@ class InputNodeSet(object):
                 return []
         return [InputSet(self.input_nodes)]
 
+    def get_missing_inputs(self):
+        missing = []
+        for input_node in self.input_nodes:
+            if not input_node.is_ready():
+                missing.append(input_node)
+        return missing
+
 
 class InputItem(object):
     """A DataObject and its channel name"""

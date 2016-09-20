@@ -35,11 +35,14 @@ class RunRequest(BaseModel):
         return self.template.name
 
     def _post_save_children(self):
+        self._idempotent_initialize()
+
+    def _idempotent_initialize(self):
         self._initialize_run()
         self._validate()
         self._initialize_outputs()
         self._initialize_channels()
-        self.push()
+        self.push_inputs()
 
     def _initialize_run(self):
         if not self.run:
@@ -64,7 +67,7 @@ class RunRequest(BaseModel):
                run_request_output.sender = run_output
                run_request_output.save()
 
-    def push(self):
+    def push_inputs(self):
         for input in self.inputs.all():
             input.push()
         self.run.push_fixed_inputs()

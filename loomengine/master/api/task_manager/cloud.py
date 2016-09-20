@@ -51,12 +51,13 @@ class CloudTaskManager:
         hostname = socket.gethostname()
         node_name = cls.create_worker_name(hostname, task_run_attempt)
         task_run_attempt_id = task_run_attempt.id.hex
+        worker_log_file = task_run_attempt.get_worker_log_file()
         
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_id, requested_resources, environment, node_name,))
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_id, requested_resources, environment, node_name, worker_log_file))
         process.start()
 
     @classmethod
-    def _run(cls,task_run_attempt_id, requested_resources, environment, node_name):
+    def _run(cls, task_run_attempt_id, requested_resources, environment, node_name, worker_log_file):
         logger = loomengine.utils.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_run_attempt: %s" % task_run_attempt_id)
@@ -93,6 +94,8 @@ class CloudTaskManager:
             'worker_tags': settings.WORKER_TAGS,
             'docker_full_name': settings.DOCKER_FULL_NAME,
             'docker_tag': settings.DOCKER_TAG,
+            'log_level': settings.LOG_LEVEL,
+            'worker_log_file': worker_log_file
         }
         logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
         ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)

@@ -6,7 +6,6 @@ import os
 from loomengine.client.importer import WorkflowImporter
 from loomengine.client.common import get_server_url, read_as_json_or_yaml
 from loomengine.client.exceptions import *
-from loomengine.utils.helper import get_console_logger
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
@@ -15,16 +14,13 @@ class WorkflowRunner(object):
     """Run a workflow on the server.
     """
 
-    def __init__(self, args=None, logger=None):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
         self.master_url = get_server_url()
-        if logger is None:
-            logger = get_console_logger(name=__file__)
-        self.logger = logger
         self.connection = Connection(self.master_url)
-        self.filemanager = FileManager(self.master_url, logger=self.logger)
+        self.filemanager = FileManager(self.master_url)
 
     @classmethod
     def _get_args(cls):
@@ -58,10 +54,9 @@ class WorkflowRunner(object):
             }
         )
 
-        self.logger.info('Created run request %s@%s' \
-            % (run_request['name'],
-               run_request['id']
-            ))
+        print 'Created run request %s@%s' % (
+            run_request['name'],
+            run_request['id'])
         return run_request
 
     def _get_inputs(self):

@@ -42,3 +42,6 @@ class IdMatchedTooManyFileDataObjectsError(Error):
 
 class IdDoesNotMatchError(Error):
     pass
+
+class ServerConnectionError(Error):
+    pass

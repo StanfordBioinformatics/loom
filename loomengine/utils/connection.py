@@ -50,15 +50,16 @@ class Connection(object):
                 headers={'content-type': 'application/json'},
                 verify=False))
 
-    def _get(self, relative_url):
+    def _get(self, relative_url, raise_for_status=True):
         url = self.api_root_url + relative_url
         disable_insecure_request_warning()
         return self._make_request_to_server(
             lambda: requests.get(
                 url,
-                verify=False)) # Don't fail on unrecognized SSL certificate
+                verify=False), # Don't fail on unrecognized SSL certificate
+            raise_for_status=raise_for_status)
 
-    def _make_request_to_server(self, query_function):
+    def _make_request_to_server(self, query_function, raise_for_status=True):
         """Verifies server connection and handles response errors
         for either get or post requests
         """
@@ -71,10 +72,11 @@ class Connection(object):
             error = None
             try:
                 response = query_function()
-                try:
-                    response.raise_for_status()
-                except requests.exceptions.HTTPError as e:
-                    error = BadResponseError("%s\n%s" % (e.message, response.text))
+                if raise_for_status:
+                    try:
+                        response.raise_for_status()
+                    except requests.exceptions.HTTPError as e:
+                        error = BadResponseError("%s\n%s" % (e.message, response.text))
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError("No response from server.\n%s" % e.message)
             if error:
@@ -94,7 +96,8 @@ class Connection(object):
         return self._patch(object_data, relative_url).json()
 
     def _get_object(self, relative_url):
-        response = self._get(relative_url)
+        # Do not raise_for_status, because we want to check for 404 here
+        response = self._get(relative_url, raise_for_status=False)
         if response.status_code == 404:
             return None
         elif response.status_code == 200:
@@ -104,10 +107,7 @@ class Connection(object):
 
     def _get_object_index(self, relative_url):
         response = self._get(relative_url)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise BadResponseError("Status code %s." % response.status_code)
+        return response.json()
 
     # ---- Post/Put/Get [object_type] methods ----
 
@@ -263,6 +263,16 @@ class Connection(object):
         return self._patch_object(
             data,
             'worker-processes/%s/' % worker_process_id)
+
+    def update_worker_host(self, worker_host_id, data):
+        return self._patch_object(
+            data,
+            'worker-hosts/%s/' % worker_host_id)
+
+    def update_worker_process_monitor(self, worker_process_monitor_id, data):
+        return self._patch_object(
+            data,
+            'worker-process-monitors/%s/' % worker_process_monitor_id)
 
     def get_info(self):
         try:

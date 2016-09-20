@@ -10,9 +10,9 @@ if __name__ == "__main__" and __package__ is None:
 import argparse
     
 from loomengine.client import server
-from loomengine.client.common import get_server_url, is_server_running
+from loomengine.client.common import get_server_url, verify_server_is_running
 from loomengine.client.exceptions import *
-                
+
 
 class Browser:
     """Sets up and executes commands under "browser"" on the main parser.
@@ -26,6 +26,7 @@ class Browser:
             args = self._get_args()
         self.args = args
         self.master_url = get_server_url()
+        verify_server_is_running()
         
     def _get_args(self):
         parser = self.get_parser()
@@ -42,13 +43,10 @@ class Browser:
         return parser
 
     def run(self):
-        if is_server_running():
-            try:
-                webbrowser.open(self.master_url)
-            except webbrowser.Error:
-                print 'Unable to open browser. To open the Loom webserver, please launch a browser and go to this url: %s' % self.master_url
-        else:
-            print 'The Loom server is not currently running at %s. Try launching the web server with "loom server start".' % self.master_url
+        try:
+            webbrowser.open(self.master_url)
+        except webbrowser.Error:
+            print 'Unable to open browser. To open the Loom webserver, please launch a browser and go to this url: %s' % self.master_url
 
 
 if __name__=='__main__':

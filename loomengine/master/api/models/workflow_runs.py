@@ -67,6 +67,9 @@ class WorkflowRun(AbstractWorkflowRun):
         return False
 
     def _post_save(self):
+        self._idempotent_initialize()
+
+    def _idempotent_initialize(self):
         if self.step_runs.count() == 0:
             self._initialize_step_runs()
 
@@ -166,7 +169,19 @@ class StepRun(AbstractWorkflowRun):
     template = models.ForeignKey('Step',
                                  related_name='step_runs',
                                  on_delete=models.PROTECT)
-
+    status = models.CharField(
+        max_length=255,
+        default='waiting_for_inputs',
+        choices=(('waiting_for_inputs', 'Waiting for inputs'),
+                 ('provisioning_host', 'Provisioning host'),
+                 ('preparing_runtime_environment', 'Preparing runtime environment'),
+                 ('running', 'Running'),
+                 ('saving_output_files', 'Saving output files'),
+                 ('complete', 'Complete'),
+        )
+    )
+    status_message = models.TextField(null=True, blank=True)
+    
     @property
     def command(self):
         return self.template.command
@@ -183,6 +198,9 @@ class StepRun(AbstractWorkflowRun):
         return True
 
     def _post_save(self):
+        self._idempotent_initialize()
+
+    def _idempotent_initialize(self):
         if self.inputs.count() == 0 \
            and self.fixed_inputs.count() == 0 \
            and self.outputs.count() == 0:
@@ -229,6 +247,25 @@ class StepRun(AbstractWorkflowRun):
                     self.get_all_inputs()).get_ready_input_sets():
                 task_run = TaskRun.create_from_input_set(input_set, self)
                 task_run.run()
+
+    def update_status(self):
+        if self.task_runs.count() == 0:
+            status = 'waiting_for_inputs'
+            missing_inputs = InputNodeSet(
+                self.get_all_input()).get_missing_inputs()
+            if len(missing_inputs) == 1:
+                status_message = 'Waiting for input "%s"' % missing_inputs[0].channel
+            else:
+                status_message = 'Waiting for inputs "%s"' % '", "'.join(
+                    [input.channel for input in missing_inputs])
+        else:
+            status = self.task_runs.first().status
+            status_message = self.task_runs.first().get_status_display()
+
+        if status != self.status or status_message != self.status_message:
+            self.status = status
+            self.status_message = status_message
+            self.save()
 
 
 class AbstractStepRunInput(InputOutputNode):

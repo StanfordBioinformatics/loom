@@ -28,7 +28,11 @@ class LocalTaskManager:
             '--run_attempt_id',
             task_run_attempt.id.hex,
             '--master_url',
-            get_setting('MASTER_URL_FOR_WORKER')
+            get_setting('MASTER_URL_FOR_WORKER'),
+            '--log_level',
+            get_setting('LOG_LEVEL'),
+            '--log_file',
+            task_run_attempt.get_worker_log_file(),
         ]
         logger.debug(cmd)
         proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT)

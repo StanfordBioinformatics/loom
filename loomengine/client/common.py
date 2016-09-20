@@ -14,7 +14,8 @@ import yaml
 
 import loomengine.client.settings_manager
 import loomengine.utils.connection
-from loomengine.client.exceptions import *
+from loomengine.client import exceptions
+from loomengine.utils.exceptions import ServerConnectionError
 
 LOOM_HOME_SUBDIR = '.loom'
 LOOM_SETTINGS_PATH = os.path.join('~', LOOM_HOME_SUBDIR)
@@ -111,14 +112,18 @@ def is_server_running():
     try:
         loomengine.utils.connection.disable_insecure_request_warning()
         #response = requests.get(get_server_url() + '/api/status/', cert=(SSL_CERT_PATH, SSL_KEY_PATH)) 
-        response = requests.get(get_server_url() + '/api/status/', verify=False) 
+        response = requests.get(get_server_url() + '/api/status/', verify=False)
     except requests.exceptions.ConnectionError:
         return False
 
     if response.status_code == 200:
         return True
     else:
-        raise Exception("unexpected status code %s from server" % response.status_code)
+        raise Exception("Unexpected status code %s from server" % response.status_code)
+
+def verify_server_is_running():
+    if not is_server_running():
+        raise exceptions.ServerConnectionError('The Loom server is not currently running at %s. Try launching the web server with "loom server start".' % get_server_url())
 
 def get_gcloud_project():
     """Queries gcloud CLI for current project."""
@@ -243,11 +248,11 @@ def parse_as_json_or_yaml(text):
     except yaml.parser.ParserError:
         data = read_as_json(text)
         if data is None:
-            raise InvalidFormatError('Text is not valid YAML or JSON format')
+            raise exceptions.InvalidFormatError('Text is not valid YAML or JSON format')
     except yaml.scanner.ScannerError as e:
         data = read_as_json(text)
         if data is None:
-            raise InvalidFormatError(e.message)
+            raise exceptions.InvalidFormatError(e.message)
     return data
 
 def read_as_json_or_yaml(file):
@@ -255,9 +260,9 @@ def read_as_json_or_yaml(file):
         with open(file) as f:
             text = f.read()
     except IOError:
-        raise NoFileError('Could not find or could not read file %s' % file)
+        raise exceptions.NoFileError('Could not find or could not read file %s' % file)
 
     try:
         return parse_as_json_or_yaml(text)
-    except InvalidFormatError:
-        raise InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
+    except exceptions.InvalidFormatError:
+        raise exceptions.InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
