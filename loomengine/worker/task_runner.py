@@ -42,7 +42,7 @@ class TaskRunner(object):
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
     HEARTBEAT_INTERVAL_SECONDS = 60
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
         if args is None:
             args = self._get_args()
         self.settings = {
@@ -54,28 +54,41 @@ class TaskRunner(object):
 
         # Errors here can't be report since there is no server connection
         # or logger
-        self._init_logger()
+        self._init_loggers()
 
         # Errors here can be logged but not reported to server
-        try:
-            self.connection = Connection(self.settings['MASTER_URL'])
-        except Exception as e:
-            self.logger.error('Failed to initialize server connection: "%s"' % str(e))
-            raise e
+        if mock_connection is not None:
+            self.connection = mock_connection
+        else:
+            try:
+                self.connection = Connection(self.settings['MASTER_URL'])
+            except Exception as e:
+                self.logger.error('Failed to initialize server connection: "%s"' % str(e))
+                raise e
 
         # Errors here can be both logged and reported to server
         try:
-            self._init_task_run_attempt()
             self._set_monitor_status_to_initializing()
-            self.filemanager = FileManager(self.settings['MASTER_URL'])
+            self.logger.info('Initializing process monitor')
+            self._init_task_run_attempt()
+            if mock_filemanager is not None:
+                self.filemanager = mock_filemanager
+            else:
+                self.filemanager = FileManager(self.settings['MASTER_URL'])
             self.settings.update(self._get_worker_settings())
             self._init_docker_client()
+            self._init_working_dir()
         except Exception as e:
-            self._set_monitor_status_to_failed_to_initialize(e)
+            try:
+                self._set_monitor_status_to_failed_to_initialize(e)
+            except:
+                # Raise original error, not status change error
+                pass
             raise e
 
-    def _init_logger(self):
+    def _init_loggers(self):
         self.logger = logging.getLogger(__name__)
+        self.utils_logger = logging.getLogger(loomengine.utils.__name__)
 
         LEVELS = {
             'CRITICAL': logging.CRITICAL,
@@ -86,8 +99,10 @@ class TaskRunner(object):
         }
         log_level = LEVELS[self.settings['LOG_LEVEL']]
         self.logger.setLevel(log_level)
+        self.utils_logger.setLevel(log_level)
         if log_level != 'DEBUG':
             self.logger.raiseExceptions = False
+            self.utils_logger.raiseExceptions = False
 
         if self.settings['LOG_FILE'] is None:
             self._init_logger_stdout_handler()
@@ -95,18 +110,16 @@ class TaskRunner(object):
             self._init_logger_file_handler()
 
     def _init_logger_stdout_handler(self):
-        utils_logger = logging.getLogger(loomengine.utils.__name__)
         self.logger.addHandler(logging.StreamHandler(sys.stdout))
-        utils_logger.addHandler(logging.StreamHandler(sys.stdout))
+        self.utils_logger.addHandler(logging.StreamHandler(sys.stdout))
 
     def _init_logger_file_handler(self):
-        utils_logger = logging.getLogger(loomengine.utils.__name__)
-        self._init_directory(os.path.dirname(self.settings['WORKER_LOG_FILE']))
-        file_handler = logging.FileHandler(self.settings['WORKER_LOG_FILE'])
+        self._init_directory(os.path.dirname(self.settings['LOG_FILE']))
+        file_handler = logging.FileHandler(self.settings['LOG_FILE'])
         file_handler.setFormatter(
             logging.Formatter('%(levelname)s [%(asctime)s] %(message)s'))
         self.logger.addHandler(file_handler)
-        utils_logger.addHandler(file_handler)
+        self.utils_logger.addHandler(file_handler)
 
         # Route stdout and stderr to logger
         stdout_logger = StreamToLogger(self.logger, logging.INFO)
@@ -114,7 +127,11 @@ class TaskRunner(object):
         stderr_logger = StreamToLogger(self.logger, logging.ERROR)
         sys.stderr = stderr_logger
 
-    def _init_directory(self, directory):
+    def _init_directory(self, directory, new=False):
+        if new and os.path.exists(directory):
+            raise Exception('Directory %s already exists' % directory)
+        if os.path.exists(directory) and not os.path.isdir(directory):
+            raise Exception('Cannot initialize directory %s since a file exists with that name' % directory)
         try:
             if not os.path.exists(directory):
                 os.makedirs(directory)
@@ -142,6 +159,10 @@ class TaskRunner(object):
         except requests.exceptions.ConnectionError:
             raise DockerDaemonNotFoundError('Failed to connect to Docker daemon')
 
+    def _init_working_dir(self):
+        self.logger.info('Initializing working directory %s' % self.settings['WORKING_DIR'])
+        self._init_directory(self.settings['WORKING_DIR'], new=True)
+
     def run(self):
         try:
             self._try_to_copy_input_files()
@@ -150,22 +171,21 @@ class TaskRunner(object):
             self._try_to_run_container()
             self._try_to_get_returncode()
         except Exception as e:
-            self.logger.error('Exiting with error: %s' % str(e))
-
-        self.cleanup()
-        self.logger.debug('Exiting.')
+            self.logger.error('Exiting run with error: %s' % str(e))
+            raise e
 
     def cleanup(self):
-        self._set_monitor_status_to_saving_output_files()
+        self._set_monitor_status_to_waiting_for_cleanup()
 
-        if self._try_to_save_process_logs() \
-           and self._try_to_save_outputs() \
-           and self._try_to_save_monitor_log():
-            self._set_monitor_status_to_finished()
-        else:
-            self._set_monitor_status_to_failed_to_save_output_files()
+        self._try_to_save_process_logs()
+        self._try_to_save_outputs()
+        self._try_to_save_monitor_log()
+
+        self._set_monitor_status_to_finished()
+        self.logger.info('Done.')
 
     def _try_to_copy_input_files(self):
+        self.logger.info('Downloading input files')
         self._set_monitor_status_to_copying_input_files()
         try:
             self._copy_input_files()
@@ -175,11 +195,13 @@ class TaskRunner(object):
 
     def _copy_input_files(self):
         if self.task_run_attempt.get('inputs') is None:
+            self.logger.info('No inputs.')
             return
         file_data_object_ids = []
         for input in self.task_run_attempt['inputs']:
             if input['data_object']['type'] == 'file':
                 file_data_object_ids.append('@'+input['data_object']['id'])
+        self.logger.debug('Copying inputs %s to %s.' % ( file_data_object_ids, self.settings['WORKING_DIR']))
         self.filemanager.export_files(
             file_data_object_ids,
             destination_url=self.settings['WORKING_DIR'])
@@ -222,7 +244,7 @@ class TaskRunner(object):
         docker_image = self._get_docker_image()
         user_command = self.task_run_attempt['task_definition']['command']
         host_dir = self.settings['WORKING_DIR']
-        # container_dir = '/loom_workspace'
+        container_dir = '/loom_workspace'
 
         command = [
             'bash',
@@ -233,19 +255,18 @@ class TaskRunner(object):
         self.container = self.docker_client.create_container(
             image=docker_image,
             command=command,
-#            volumes=[container_dir],
-#            host_config=self.docker_client.create_host_config(
-#                binds={host_dir: {
-#                    'bind': container_dir,
-#                    'mode': 'rw',
-#                }}),
-#            working_dir=container_dir,
+            volumes=[container_dir],
+            host_config=self.docker_client.create_host_config(
+                binds={host_dir: {
+                    'bind': container_dir,
+                    'mode': 'rw',
+                }}),
+            working_dir=container_dir,
         )
 
     def _try_to_run_container(self):
         self._set_monitor_status_to_starting_run()
         try:
-            import pdb; pdb.set_trace()
             self.docker_client.start(self.container)
             self._verify_container_started_running()
         except Exception as e:
@@ -261,16 +282,16 @@ class TaskRunner(object):
 
     def _try_to_get_returncode(self):
         self._set_monitor_status_to_waiting_for_run()
-        self._set_worker_process_status_to_running()
+        self._set_process_status_to_running()
         try:
             returncode = self._poll_for_returncode()
             if returncode == 0:
-                self._set_worker_process_status_to_finished_success()
+                self._set_process_status_to_finished_success()
             else:
                 # bad returncode
-                self._set_worker_process_status_to_finished_with_error(returncode)
+                self._set_process_status_to_finished_with_error(returncode)
         except Exception as e:
-            self._set_worker_process_status_to_failed_without_completing()
+            self._set_process_status_to_failed_without_completing()
             # Do not raise error. Attempt to save log files.
 
     def _poll_for_returncode(self, poll_interval_seconds=1, timeout_seconds=86400):
@@ -293,7 +314,7 @@ class TaskRunner(object):
 
             if container_data['State'].get('Status') == 'exited':
                 # Success
-                return container_data['State'].get('Pid')
+                return container_data['State'].get('ExitCode')
             elif container_data['State'].get('Status') == 'running':
                 time.sleep(poll_interval_seconds)
             else:
@@ -376,6 +397,9 @@ class TaskRunner(object):
     def _try_to_save_monitor_log(self):
         self.logger.debug('Saving worker process monitor log')
         try:
+            if not self.settings.get('LOG_FILE'):
+                self.logger.debug('No log to save for process monitor, because we logged to stdout instead. Use "--log_file" if you want to save the output.')
+                return True
             self._save_monitor_log()
             return True
         except Exception as e:
@@ -383,14 +407,40 @@ class TaskRunner(object):
             return False
 
     def _save_monitor_log(self):
-        self._import_log_file(self.settings['WORKER_LOG_FILE'])
+        self._import_log_file(self.settings['LOG_FILE'])
 
-    # Updates to WorkerProcessMonitor
+    # Updates to TaskRunAttempt
+
+    def _send_heartbeat(self):
+        try:
+            self.last_heartbeat
+        except AttributeError:
+            self.last_heartbeat = datetime.now()
+
+        time_since_heartbeat = datetime.now() - self.last_heartbeat
+        if time_since_heartbeat.seconds > self.HEARTBEAT_INTERVAL_SECONDS:
+            self.connection.update_task_run_attempt(
+                self.settings['TASK_RUN_ATTEMPT_ID'],
+                {}
+            )
+            self.last_heartbeat = datetime.now()
+
+    def _set_container_id(self, container_id):
+        self.connection.update_task_run_attempt(
+            self.settings['TASK_RUN_ATTEMPT_ID'],
+            {'container_id': container_id}
+        )
 
     def _set_monitor_status(self, status, status_message=''):
-        self.connection.update_worker_process_monitor(
-            self.task_run_attempt['worker_process_monitor']['id'],
-            {'status': status, 'status_message': status_message}
+        self.connection.update_task_run_attempt(
+            self.settings['TASK_RUN_ATTEMPT_ID'],
+            {'monitor_status': status, 'monitor_status_message': status_message}
+        )
+
+    def _set_process_status(self, status, status_message=''):
+        self.connection.update_task_run_attempt(
+            self.settings['TASK_RUN_ATTEMPT_ID'],
+            {'process_status': status, 'process_status_message': status_message}
         )
 
     def _set_monitor_status_to_initializing(self):
@@ -418,7 +468,7 @@ class TaskRunner(object):
         self._set_monitor_status('failed_to_get_runtime_environment_image')
 
     def _set_monitor_status_to_creating_runtime_environment(self):
-        self.logger.debug('Creating runtime environment')
+        self.logger.info('Creating runtime environment')
         self._set_monitor_status('creating_runtime_environment')
 
     def _set_monitor_status_to_failed_to_create_runtime_environment(self, error):
@@ -434,69 +484,35 @@ class TaskRunner(object):
         self._set_monitor_status('failed_to_start_run')
 
     def _set_monitor_status_to_waiting_for_run(self):
-        self.logger.debug('Waiting for run')
+        self.logger.info('Waiting for run')
         self._set_monitor_status('waiting_for_run')
 
-    def _set_monitor_status_to_saving_output_files(self):
-        self.logger.debug('Saving output files')
-        self._set_monitor_status('saving_output_files')
-
-    def _set_monitor_status_to_failed_to_save_output_files(self):
-        self.logger.error('Failed to save output files')
-        self._set_monitor_status('failed_to_save_output_files')
+    def _set_monitor_status_to_waiting_for_cleanup(self):
+        self.logger.info('Waiting for cleanup')
+        self._set_monitor_status('waiting_for_cleanup')
 
     def _set_monitor_status_to_finished(self):
         self.logger.debug('Monitor process is finished')
         self._set_monitor_status('finished')
 
-    def _send_heartbeat(self):
-        try:
-            self.last_heartbeat
-        except AttributeError:
-            self.last_heartbeat = datetime.now()
+    def _set_process_status_to_running(self):
+        self.logger.info('Task is running')
+        self._set_process_status('running')
 
-        time_since_heartbeat = datetime.now() - self.last_heartbeat
-        if time_since_heartbeat.seconds > self.HEARTBEAT_INTERVAL_SECONDS:
-            self.connection.update_worker_process_monitor(
-                self.task_run_attempt['worker_process_monitor']['id'],
-                {}
-            )
-            self.last_heartbeat = datetime.now()
+    def _set_process_status_to_failed_without_completing(self, error):
+        self.logger.error('Failed without completing task: "%s"' % str(error))
+        self._set_process_status('failed_without_completing')            
 
-    # Updates to WorkerProcess
-
-    def _set_worker_process_status(self, status, status_message=''):
-        self.connection.update_worker_process(
-            self.task_run_attempt['worker_process']['id'],
-            {'status': status, 'status_message': status_message}
-        )
-
-    def _set_worker_process_status_to_running(self):
-        self.logger.debug('Worker process is running')
-        self._set_worker_process_status('running')
-
-    def _set_worker_process_status_to_failed_without_completing(self, error):
-        self.logger.error('Failed without finishing: "%s"' % str(error))
-        self._set_worker_process_status('failed_without_completing')            
-
-    def _set_worker_process_status_to_finished_with_error(self, returncode):
-        message = 'Finished with error return code "%s". Check stderr log.' % returncode
+    def _set_process_status_to_finished_with_error(self, returncode):
+        message = 'Task finished with return code %s. Check logs for errors.' % returncode
         self.logger.error(message)
-        self._set_worker_process_status(
+        self._set_process_status(
             'finished_with_error',
             status_message=message)
 
-    def _set_worker_process_status_to_failed_without_completing(self):
-        self.logger.debug('Finished successfully')
-        self._set_worker_process_status('finished_successfully')
-
-    # Updates to TaskRunAttempt
-    
-    def _set_container_id(self, container_id):
-        self.connection.update_worker_process(
-            self.task_run_attempt['worker_process']['id'],
-            {'container_id': container_id}
-        )
+    def _set_process_status_to_failed_without_completing(self):
+        self.logger.info('Finished task successfully')
+        self._set_process_status('finished_successfully')
 
     # Parser
 
@@ -531,7 +547,27 @@ class TaskRunner(object):
 
 # pip entrypoint requires a function with no arguments 
 def main():
-    TaskRunner().run()
+
+    run_error = None
+    cleanup_error = None
+
+    try:
+        tr = TaskRunner()
+        tr.run()
+    except Exception as e:
+        run_error = e
+
+    try:
+        tr.cleanup()
+    except Exception as e:
+        cleanup_error = e
+
+    # Errors from initialization or run
+    # take priority over errors from cleanup
+    if run_error:
+        raise run_error
+    elif cleanup_error:
+        raise cleanup_error
 
 if __name__=='__main__':
     main()

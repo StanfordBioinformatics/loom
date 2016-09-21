@@ -175,6 +175,8 @@ class TaskRunAttempt(BasePolymorphicModel):
         related_name='accepted_task_run_attempt',
         on_delete=models.CASCADE,
         null=True)
+    container_id = models.CharField(max_length=255, null=True)
+    last_update = models.DateTimeField(auto_now=True)
     status = models.CharField(
         max_length=255,
         default='not_started',
@@ -195,6 +197,46 @@ class TaskRunAttempt(BasePolymorphicModel):
         )
     )
     status_message = models.TextField(null=True, blank=True)
+    host_status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(('not_started', 'Not started'),
+                 ('provisioning_host', 'Provisioning host'),
+                 ('active', 'Active'),
+                 ('deleted', 'Deleted'),
+        ),
+    )
+    process_status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(('not_started', 'Not started'),
+                 ('running', 'Running'),
+                 ('failed_without_completing', 'Failed without completing'),
+                 ('finished_successfully', 'Finished successfully'),
+                 ('finished_with_error', 'Finished with error'),
+        ),
+    )
+    process_status_message = models.TextField(null=True, blank=True)
+    monitor_status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(('not_started', 'Not started'),
+                 ('initializing', 'Initializing'),
+                 ('failed_to_initialize', 'Failed to initialize'),
+                 ('copying_input_files', 'Gathering input files'),
+                 ('failed_to_copy_input_files', 'Failed to copy input files'),
+                 ('getting_runtime_environment_image', 'Getting runtime environment image'),
+                 ('failed_to_get_runtime_environment_image', 'Failed to get runtime environment image'),
+                 ('creating_runtime_environment', 'Creating runtime environment'),
+                 ('failed_to_create_runtime_environment', 'Failed to create runtime environment'),
+                 ('starting_run', 'Starting run'),
+                 ('failed_to_start_run', 'Failed to start run'),
+                 ('waiting_for_run', 'Waiting for run'),
+                 ('waiting_for_cleanup', 'Waiting for cleanup'),
+                 ('finished', 'Finished'),
+        ),
+    )
+    monitor_status_message = models.TextField(null=True, blank=True)
     
     @property
     def task_definition(self):
@@ -221,22 +263,6 @@ class TaskRunAttempt(BasePolymorphicModel):
         if self.outputs.count() == 0:
             self._initialize_outputs()
 
-        try:
-            self.worker_host
-        except ObjectDoesNotExist:
-            if get_setting('WORKER_TYPE') != 'LOCAL':
-                self._initialize_worker_host()
-
-        try:
-            self.worker_process
-        except ObjectDoesNotExist:
-            self._initialize_worker_process()
-
-        try:
-            self.worker_process_monitor
-        except ObjectDoesNotExist:
-            self._initialize_worker_process_monitor()
-
     def _initialize_inputs(self):
         for input in self.task_run.inputs.all():
             TaskRunAttemptInput.objects.create(
@@ -249,18 +275,6 @@ class TaskRunAttempt(BasePolymorphicModel):
             TaskRunAttemptOutput.objects.create(
                 task_run_attempt=self,
                 task_run_output=output)
-
-    def _initialize_worker_host(self):
-        self.worker_host = WorkerHost.objects.create(
-            task_run_attempt=self)
-
-    def _initialize_worker_process(self):
-        self.worker_process = WorkerProcess.objects.create(
-            task_run_attempt=self)
-
-    def _initialize_worker_process_monitor(self):
-        self.worker_process_monitor = WorkerProcessMonitor.objects.create(
-            task_run_attempt=self)
 
     def get_working_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
@@ -283,6 +297,7 @@ class TaskRunAttempt(BasePolymorphicModel):
     def get_stderr_log_file(self):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
+    """
     def update_status(self):
         status_message = None
 
@@ -347,6 +362,7 @@ class TaskRunAttempt(BasePolymorphicModel):
             status_message = self.get_status_display()
         self.status_message = status_message
         self.save()
+        """
 
     def get_provenance_data(self, files=None, tasks=None, edges=None):
         if files is None:
@@ -456,94 +472,4 @@ class TaskRunAttemptLogFile(BaseModel):
 
 @receiver(models.signals.post_save, sender=TaskRunAttemptLogFile)
 def _post_save_task_run_attempt_log_file_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
-
-
-class WorkerHost(BaseModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    task_run_attempt = models.OneToOneField(
-        'TaskRunAttempt',
-        related_name='worker_host',
-        on_delete=models.CASCADE
-    )
-    status = models.CharField(
-        max_length=255,
-        default='not_started',
-        choices=(('not_started', 'Not started'),
-                 ('provisioning_host', 'Provisioning host'),
-                 ('active', 'Active'),
-                 ('deleted', 'Deleted'),
-        ),
-    )
-
-    def _post_save(self):
-        self.task_run_attempt.update_status()
-
-@receiver(models.signals.post_save, sender=WorkerHost)
-def _post_save_worker_host_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
-
-
-class WorkerProcess(BaseModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    container_id = models.CharField(max_length=255, null=True)
-    task_run_attempt = models.OneToOneField(
-        'TaskRunAttempt',
-        related_name='worker_process',
-        on_delete=models.CASCADE,
-    )
-    status = models.CharField(
-        max_length=255,
-        default='not_started',
-        choices=(('not_started', 'Not started'),
-                 ('running', 'Running'),
-                 ('failed_without_completing', 'Failed without completing'),
-                 ('finished_successfully', 'Finished successfully'),
-                 ('finished_with_error', 'Finished with error'),
-        ),
-    )
-    status_message = models.TextField(null=True, blank=True)
-
-    def _post_save(self):
-        self.task_run_attempt.update_status()
-
-@receiver(models.signals.post_save, sender=WorkerProcess)
-def _post_save_worker_process_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
-
-class WorkerProcessMonitor(BaseModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    task_run_attempt = models.OneToOneField(
-        'TaskRunAttempt',
-        related_name='worker_process_monitor',
-        on_delete=models.CASCADE,
-    )
-    last_update = models.DateTimeField(auto_now=True)
-    status = models.CharField(
-        max_length=255,
-        default='not_started',
-        choices=(('not_started', 'Not started'),
-                 ('initializing', 'Initializing'),
-                 ('failed_to_initialize', 'Failed to initialize'),
-                 ('copying_input_files', 'Gathering input files'),
-                 ('failed_to_copy_input_files', 'Failed to copy input files'),
-                 ('getting_runtime_environment_image', 'Getting runtime environment image'),
-                 ('failed_to_get_runtime_environment_image', 'Failed to get runtime environment image'),
-                 ('creating_runtime_environment', 'Creating runtime environment'),
-                 ('failed_to_create_runtime_environment', 'Failed to create runtime environment'),
-                 ('starting_run', 'Starting run'),
-                 ('failed_to_start_run', 'Failed to start run'),
-                 ('waiting_for_run', 'Waiting for run'),
-                 ('saving_output_files', 'Saving output files'),
-                 ('failed_to_save_output_files', 'Failed to save output files'),
-                 ('finished', 'Finished'),
-        ),
-    )
-    status_message = models.TextField(null=True, blank=True)
-
-    def _post_save(self):
-        self.task_run_attempt.update_status()
-
-@receiver(models.signals.post_save, sender=WorkerProcessMonitor)
-def _post_save_worker_process_monitor_signal_receiver(sender, instance, **kwargs):
     instance._post_save()

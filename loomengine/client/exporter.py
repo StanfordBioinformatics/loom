@@ -6,7 +6,7 @@ import os
 import sys
 import yaml
 from loomengine.client.common import get_server_url
-from loomengine.client.common import is_server_running
+from loomengine.client.common import verify_server_is_running
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
@@ -19,8 +19,8 @@ class AbstractExporter(object):
         """Common init tasks for all Export classes
         """
         self.args = args
-        master_url = get_server_url_for_client()
-        is_server_running(prompt=True)
+        master_url = get_server_url()
+        verify_server_is_running()
         self.connection = Connection(master_url)
         self.filemanager = FileManager(master_url)
 

@@ -17,7 +17,7 @@
     "REMOTE_USERNAME": "loom",
     "SERVER_PATH": "/tmp",
     "SERVER_WSGI_MODULE": "loomengine.master.wsgi",
-    "WEBSERVER_LOGFILE": "/tmp/test_loom_webserver.log",
+    "LOOM_MASTER_LOGFILE": "/tmp/test_loom_master.log",
     "WEBSERVER_PIDFILE": "/tmp/test_loom_webserver.pid",
     "WORKER_TYPE": "LOCAL"
   }

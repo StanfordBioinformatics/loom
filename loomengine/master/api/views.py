@@ -13,7 +13,7 @@ from api import serializers
 from loomengine.utils import version
 
 
-logger = logging.getLogger('loom')
+logger = logging.getLogger(__name__)
 
 class AbstractWorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.AbstractWorkflowSerializer
@@ -98,18 +98,6 @@ class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
 class TaskRunAttemptViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.TaskRunAttempt.objects.all()
     serializer_class = serializers.TaskRunAttemptSerializer
-
-class WorkerHostViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.WorkerHost.objects.all()
-    serializer_class = serializers.WorkerHostSerializer
-
-class WorkerProcessViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.WorkerProcess.objects.all()
-    serializer_class = serializers.WorkerProcessSerializer
-
-class WorkerProcessMonitorViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.WorkerProcessMonitor.objects.all()
-    serializer_class = serializers.WorkerProcessMonitorSerializer
 
 @require_http_methods(["GET"])
 def status(request):

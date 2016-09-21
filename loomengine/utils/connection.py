@@ -117,7 +117,7 @@ class Connection(object):
             'files/')
         
     def update_file_data_object(self, file_id, file_data_update):
-        return self._put_object(
+        return self._patch_object(
             file_data_update,
             'files/%s/' % file_id)
 
@@ -148,7 +148,7 @@ class Connection(object):
             'file-locations/')
 
     def update_file_location(self, file_location_id, file_location_update):
-        return self._put_object(
+        return self._patch_object(
             file_location_update,
             'file-locations/%s/' % file_location_id)
 
@@ -229,7 +229,7 @@ class Connection(object):
         )
 
     def update_task_run_attempt(self, task_run_attempt_id, task_run_attempt_update):
-        return self._put_object(
+        return self._patch_object(
             task_run_attempt_update,
             'task-run-attempts/%s/' % task_run_attempt_id)
 
@@ -239,7 +239,7 @@ class Connection(object):
         )
 
     def update_task_run_attempt_output(self, task_run_attempt_output_id, task_run_attempt_output_update):
-        return self._put_object(
+        return self._patch_object(
             task_run_attempt_output_update,
             'task-run-attempt-outputs/%s/' % task_run_attempt_output_id)
 
@@ -255,24 +255,9 @@ class Connection(object):
             'abstract-file-imports/')
 
     def update_abstract_file_import(self, file_import_id, file_import_update):
-        return self._put_object(
+        return self._patch_object(
             file_import_update,
             'abstract-file-imports/%s/' % file_import_id)
-
-    def update_worker_process(self, worker_process_id, data):
-        return self._patch_object(
-            data,
-            'worker-processes/%s/' % worker_process_id)
-
-    def update_worker_host(self, worker_host_id, data):
-        return self._patch_object(
-            data,
-            'worker-hosts/%s/' % worker_host_id)
-
-    def update_worker_process_monitor(self, worker_process_monitor_id, data):
-        return self._patch_object(
-            data,
-            'worker-process-monitors/%s/' % worker_process_monitor_id)
 
     def get_info(self):
         try:

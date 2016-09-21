@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput,\
     TaskRunAttempt, TaskRunAttemptInput, TaskRunAttemptOutput, \
-    TaskRunAttemptLogFile, WorkerProcess, WorkerProcessMonitor, WorkerHost
+    TaskRunAttemptLogFile
 from api.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
 from api.serializers.task_definitions import TaskDefinitionSerializer
 from api.serializers.workflows import RequestedResourceSetSerializer
@@ -53,57 +53,53 @@ class TaskRunAttemptLogFileSerializer(CreateWithParentModelSerializer):
         fields = ('log_name', 'file_data_object',)
 
 
-class WorkerHostSerializer(CreateWithParentModelSerializer):
-    
-    id = serializers.UUIDField(format='hex', required=False)
-
-    class Meta:
-        model = WorkerHost
-        fields = ('id', 'status',)
-
-
-class WorkerProcessSerializer(CreateWithParentModelSerializer):
-    
-    id = serializers.UUIDField(format='hex', required=False)
-
-    class Meta:
-        model = WorkerProcess
-        fields = ('id', 'status', 'status_message', 'container_id')
-
-
-class WorkerProcessMonitorSerializer(CreateWithParentModelSerializer):
-    
-    id = serializers.UUIDField(format='hex', required=False)
-    
-    class Meta:
-        model = WorkerProcessMonitor
-        fields = ('id', 'status', 'last_update')
-
-
 class TaskRunAttemptSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
-    name = serializers.CharField()
+    name = serializers.CharField(required=False)
     log_files = TaskRunAttemptLogFileSerializer(many=True, allow_null=True, required=False)
     inputs = TaskRunAttemptInputSerializer(many=True, allow_null=True, required=False)
     outputs = TaskRunAttemptOutputSerializer(many=True, allow_null=True, required=False)
-    task_definition = TaskDefinitionSerializer()
-    worker_host = WorkerHostSerializer()
-    worker_process = WorkerProcessSerializer()
-    worker_process_monitor = WorkerProcessMonitorSerializer()
+    task_definition = TaskDefinitionSerializer(required=False)
 
     class Meta:
         model = TaskRunAttempt
-        fields = ('id', 'name', 'log_files', 'inputs', 'outputs', 'status', 'status_message', 'task_definition', 'worker_process', 'worker_process_monitor', 'worker_host')
-        
+        fields = ('id', 'name', 'log_files', 'inputs', 'outputs',
+                  'container_id', 'task_definition',
+                  'status', 'status_message',
+                  'process_status', 'process_status_message',
+                  'monitor_status', 'monitor_status_message',
+                  'host_status')
+
     def update(self, instance, validated_data):
+        # Only updates to status fields are allowed
         status = validated_data.pop('status', None)
+        status_message = validated_data.pop('status_message', None)
+        host_status = validated_data.pop('host_status', None)
+        process_status = validated_data.pop('process_status', None)
+        monitor_status = validated_data.pop('monitor_status', None)
+        process_status_message = validated_data.pop('process_status_message', None)
+        monitor_status_message = validated_data.pop('monitor_status_message', None)
+
         if status is not None:
             instance.status = status
-            instance.save()
+        if status_message is not None:
+            instance.status_message = status_message
+        if host_status is not None:
+            instance.host_status = host_status
+        if process_status is not None:
+            instance.process_status = process_status
+        if monitor_status is not None:
+            instance.monitor_status = monitor_status
+        if process_status_message is not None:
+            instance.process_status_message = process_status_message
+        if monitor_status_message is not None:
+            instance.monitor_status_message = monitor_status_message
+
+        instance.save()
         return instance
 
-        
+
 class TaskRunInputSerializer(CreateWithParentModelSerializer):
 
     data_object = DataObjectSerializer()

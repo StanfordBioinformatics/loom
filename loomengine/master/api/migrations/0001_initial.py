@@ -257,8 +257,15 @@ class Migration(migrations.Migration):
             name='TaskRunAttempt',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('container_id', models.CharField(max_length=255, null=True)),
+                ('last_update', models.DateTimeField(auto_now=True)),
                 ('status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'provisioning_host', b'Provisioning host'), (b'initializing_monitor_process', b'Initializing monitor process'), (b'running_monitor_process', b'Running monitor process'), (b'gathering_input_files', b'Gathering input files'), (b'preparing_runtime_environment', b'Preparing runtime environment'), (b'starting_analysis', b'Starting analysis'), (b'running_analysis', b'Running analysis'), (b'failed_without_completing', b'Failed without completing'), (b'finished_with_error', b'Finished with error'), (b'saving_output_files', b'Saving output files'), (b'finished_successfully', b'Finished successfully'), (b'unknown', b'Unknown')])),
                 ('status_message', models.TextField(null=True, blank=True)),
+                ('host_status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'provisioning_host', b'Provisioning host'), (b'active', b'Active'), (b'deleted', b'Deleted')])),
+                ('process_status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'running', b'Running'), (b'failed_without_completing', b'Failed without completing'), (b'finished_successfully', b'Finished successfully'), (b'finished_with_error', b'Finished with error')])),
+                ('process_status_message', models.TextField(null=True, blank=True)),
+                ('monitor_status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'initializing', b'Initializing'), (b'failed_to_initialize', b'Failed to initialize'), (b'copying_input_files', b'Gathering input files'), (b'failed_to_copy_input_files', b'Failed to copy input files'), (b'getting_runtime_environment_image', b'Getting runtime environment image'), (b'failed_to_get_runtime_environment_image', b'Failed to get runtime environment image'), (b'creating_runtime_environment', b'Creating runtime environment'), (b'failed_to_create_runtime_environment', b'Failed to create runtime environment'), (b'starting_run', b'Starting run'), (b'failed_to_start_run', b'Failed to start run'), (b'waiting_for_run', b'Waiting for run'), (b'saving_output_files', b'Saving output files'), (b'failed_to_save_output_files', b'Failed to save output files'), (b'finished', b'Finished')])),
+                ('monitor_status_message', models.TextField(null=True, blank=True)),
                 ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_api.taskrunattempt_set+', editable=False, to='contenttypes.ContentType', null=True)),
                 ('task_run', models.ForeignKey(related_name='task_run_attempts', to='api.TaskRun')),
                 ('task_run_as_accepted_attempt', models.OneToOneField(related_name='accepted_task_run_attempt', null=True, to='api.TaskRun')),
@@ -341,46 +348,6 @@ class Migration(migrations.Migration):
                 ('hash_value', models.CharField(max_length=255)),
                 ('hash_function', models.CharField(max_length=255)),
             ],
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
-            name='WorkerHost',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'provisioning_host', b'Provisioning host'), (b'active', b'Active'), (b'deleted', b'Deleted')])),
-                ('task_run_attempt', models.OneToOneField(related_name='worker_host', to='api.TaskRunAttempt')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
-            name='WorkerProcess',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('container_id', models.CharField(max_length=255, null=True)),
-                ('status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'running', b'Running'), (b'failed_without_completing', b'Failed without completing'), (b'finished_successfully', b'Finished successfully'), (b'finished_with_error', b'Finished with error')])),
-                ('status_message', models.TextField(null=True, blank=True)),
-                ('task_run_attempt', models.OneToOneField(related_name='worker_process', to='api.TaskRunAttempt')),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
-            name='WorkerProcessMonitor',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('last_update', models.DateTimeField(auto_now=True)),
-                ('status', models.CharField(default=b'not_started', max_length=255, choices=[(b'not_started', b'Not started'), (b'initializing', b'Initializing'), (b'failed_to_initialize', b'Failed to initialize'), (b'copying_input_files', b'Gathering input files'), (b'failed_to_copy_input_files', b'Failed to copy input files'), (b'getting_runtime_environment_image', b'Getting runtime environment image'), (b'failed_to_get_runtime_environment_image', b'Failed to get runtime environment image'), (b'creating_runtime_environment', b'Creating runtime environment'), (b'failed_to_create_runtime_environment', b'Failed to create runtime environment'), (b'starting_run', b'Starting run'), (b'failed_to_start_run', b'Failed to start run'), (b'waiting_for_run', b'Waiting for run'), (b'saving_output_files', b'Saving output files'), (b'failed_to_save_output_files', b'Failed to save output files'), (b'finished', b'Finished')])),
-                ('status_message', models.TextField(null=True, blank=True)),
-                ('task_run_attempt', models.OneToOneField(related_name='worker_process_monitor', to='api.TaskRunAttempt')),
-            ],
-            options={
-                'abstract': False,
-            },
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(

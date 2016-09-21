@@ -1,62 +1,55 @@
 #!/usr/bin/env python
 
-from datetime import datetime
-import json
+import copy
 import os
-import requests
 import shutil
-import subprocess
 import tempfile
-import time
 import unittest
 
-#from loomengine.utils import fixtures
-from loomengine.utils.testserver import TestServer
 from loomengine.worker.task_runner import TaskRunner
+from loomengine.worker.test import mock
+from loomengine.worker.test import fixtures
 
 class TestTaskRunner(unittest.TestCase):
-    pass
 
-    """
     def setUp(self):
-        self.test_server = TestServer()
-        self.test_server.start()
-        self._run_hello_world()
-
-        r = requests.get(self.test_server.server_url+'/api/step-runs/')
-        self.step1_run_id = r.json()['step_runs'][0].get('_id')
-
-        self.file_root = tempfile.mkdtemp()
-
-        parser = StepRunner._get_parser()
-        args = parser.parse_args(['--run_id', self.step1_run_id, '--master_url', self.test_server.server_url])
-        self.step_runner = StepRunner(args=args)
-        self.step_runner.settings['WORKING_DIR'] = self.file_root
-        
-        self.stdout_filename = os.path.join(self.file_root, 'stdout.txt')
-        self.stderr_filename = os.path.join(self.file_root, 'stderr.txt')
+        self.hello_file_pointer = tempfile.NamedTemporaryFile(mode='w')
+        self.hello_file_pointer.write('hello')
+        self.log_file_pointer = tempfile.NamedTemporaryFile(mode='w')
+        self.task_run_attempt = copy.deepcopy(fixtures.task_run_attempt)
+        self.task_run_attempt['inputs'][0]['data_object']['file_location']['url'] \
+            = 'file://' + self.hello_file_pointer.name
+        self.run_dir = tempfile.mkdtemp()
+        args=mock.Args(
+            run_attempt_id=self.task_run_attempt['id'],
+            master_url='http://thistestserver',
+            log_level='DEBUG',
+            log_file=None #self.log_file_pointer.name
+        )
+        worker_settings = {
+            'STDOUT_LOG_FILE': os.path.join(self.run_dir, 'logs', 'stdout.log'),
+            'STDERR_LOG_FILE': os.path.join(self.run_dir, 'logs', 'stderr.log'),
+            'WORKING_DIR': os.path.join(self.run_dir, 'work')
+        }
+        mock_connection = mock.Connection(worker_settings)
+        mock_filemanager = mock.FileManager()
+        self.task_runner = TaskRunner(
+            args=args,
+            mock_connection=mock_connection,
+            mock_filemanager=mock_filemanager
+        )
 
     def tearDown(self):
-        shutil.rmtree(self.file_root)
-        self.test_server.stop()
+        self.hello_file_pointer.close()
+        self.log_file_pointer.close()
+        shutil.rmtree(self.run_dir)
 
-    def _run_hello_world(self):
-        url = self.test_server.server_url+'/api/submitworkflow/'
-        response = requests.post(url, data=json.dumps(fixtures.hello_world_workflow_struct))
-        self.assertEqual(response.status_code, 201, 'Expected 201 but got %d trying to post to %s' % (response.status_code, url))
-        self.test_server.dry_run_job_queues()
-
-    # Given steprun ID, retrieve the steprun
-    def test_get_step_run(self):
-        step_run = self.step_runner.step_run
-        self.assertEqual(step_run.get('_id'), self.step1_run_id)
-
-    def test_execute(self):
-        with open(self.stdout_filename, 'w') as stdoutlog:
-            with open(self.stderr_filename, 'w') as stderrlog:
-                process = self.step_runner._execute(stdoutlog, stderrlog)
-        self.step_runner._wait_for_process(process)
-   """
+    def testRunHelloTask(self):
+        self.task_runner.run()
+        self.assertEqual(self.task_runner.connection.monitor_status, 'finished')
+        self.assertEqual(self.task_runner.connection.process_status, 'finished_successfully')
+        
+            
     
 if __name__=='__main__':
     unittest.main()
