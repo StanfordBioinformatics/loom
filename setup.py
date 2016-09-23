@@ -10,7 +10,7 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
-from loom.common import version
+from loomengine.utils import version
 
 here = path.abspath(path.dirname(__file__))
 
@@ -88,7 +88,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
                         'ansible==2.1.1.0',
-                        'apache-libcloud==1.0.0rc2',
+                        'apache-libcloud==1.2.1',
                         'Django>=1.8,<1.9',
                         'django-cors-headers>=1.1.0',
                         'django-extensions>=1.5.5',
@@ -110,9 +110,9 @@ setup(
                         'MySQL-python>=1.2.5',
                         'oauth2client>=2.0.0',
                         'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
-                        'python-daemon>=2.0.0,<2.1.0',
+                        'python-dateutil',
                         'PyYAML>=3.11',
-                        'requests>=2.6.0',
+                        'requests>=2.6.0,<2.11',            # match docker-py dependency
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
                         'uritemplate>=0.6,<1',              # match google-api-python-client dependency
@@ -148,8 +148,8 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
      entry_points={
          'console_scripts': [
-             'loom=loom.client.main:main',
-             'loom-taskrunner=loom.worker.task_runner:main',
+             'loom=loomengine.client.main:main',
+             'loom-taskrunner=loomengine.worker.task_runner:main',
          ],
      },
 )
