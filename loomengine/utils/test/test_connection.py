@@ -48,13 +48,6 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(self.connection.method, 'POST')
         self.assertEqual(self.connection.data, self.data)
 
-    def test_update_worker_processes(self):
-        worker_process_id = 10
-        self.connection.update_worker_process(worker_process_id, self.data)
-        self.assertEqual(self.connection.url, 'worker-processes/%s/' % worker_process_id)
-        self.assertEqual(self.connection.method, 'PATCH')
-        self.assertEqual(self.connection.data, self.data)
-
 
 if __name__ == '__main__':
     unittest.main()

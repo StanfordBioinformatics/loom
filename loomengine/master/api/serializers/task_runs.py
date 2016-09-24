@@ -67,9 +67,10 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'log_files', 'inputs', 'outputs',
                   'container_id', 'task_definition',
                   'status', 'status_message',
+                  'host_status',
                   'process_status', 'process_status_message',
                   'monitor_status', 'monitor_status_message',
-                  'host_status')
+                  'save_outputs_status', 'save_outputs_status_message')
 
     def update(self, instance, validated_data):
         # Only updates to status fields are allowed
@@ -77,10 +78,12 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
         status_message = validated_data.pop('status_message', None)
         host_status = validated_data.pop('host_status', None)
         process_status = validated_data.pop('process_status', None)
-        monitor_status = validated_data.pop('monitor_status', None)
         process_status_message = validated_data.pop('process_status_message', None)
+        monitor_status = validated_data.pop('monitor_status', None)
         monitor_status_message = validated_data.pop('monitor_status_message', None)
-
+        save_outputs_status = validated_data.pop('save_outputs_status', None)
+        save_outputs_status_message = validated_data.pop('save_outputs_status_message', None)
+        
         if status is not None:
             instance.status = status
         if status_message is not None:
@@ -95,6 +98,10 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
             instance.process_status_message = process_status_message
         if monitor_status_message is not None:
             instance.monitor_status_message = monitor_status_message
+        if save_outputs_status is not None:
+            instance.save_outputs_status = save_outputs_status
+        if save_outputs_status_message is not None:
+            instance.save_outputs_status_message = save_outputs_status_message
 
         instance.save()
         return instance
@@ -144,4 +151,5 @@ class TaskRunSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TaskRun
-        fields = ('id', 'name', 'task_definition', 'resources', 'inputs', 'outputs', 'task_run_attempts',)
+        fields = ('id', 'name', 'task_definition', 'resources', 'inputs', 'outputs', 'task_run_attempts',
+                  'status', 'status_message')

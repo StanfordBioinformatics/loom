@@ -247,20 +247,21 @@ class StepRun(AbstractWorkflowRun):
                     self.get_all_inputs()).get_ready_input_sets():
                 task_run = TaskRun.create_from_input_set(input_set, self)
                 task_run.run()
+        self.update_status()
 
     def update_status(self):
         if self.task_runs.count() == 0:
             status = 'waiting_for_inputs'
             missing_inputs = InputNodeSet(
-                self.get_all_input()).get_missing_inputs()
+                self.get_all_inputs()).get_missing_inputs()
             if len(missing_inputs) == 1:
                 status_message = 'Waiting for input "%s"' % missing_inputs[0].channel
             else:
-                status_message = 'Waiting for inputs "%s"' % '", "'.join(
+                status_message = 'Waiting for inputs %s' % ', '.join(
                     [input.channel for input in missing_inputs])
         else:
             status = self.task_runs.first().status
-            status_message = self.task_runs.first().get_status_display()
+            status_message = self.task_runs.first().status_message
 
         if status != self.status or status_message != self.status_message:
             self.status = status

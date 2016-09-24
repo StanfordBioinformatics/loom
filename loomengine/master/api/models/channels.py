@@ -48,7 +48,7 @@ class InputOutputNode(BasePolymorphicModel):
     def push_items(self, indexed_data_objects):
         for indexed_data_object in indexed_data_objects:
             self.push_to_receivers(indexed_data_object)
-        
+
     def push_to_receivers(self, indexed_data_object):
         for receiver in self.receivers.all():
             receiver.push(indexed_data_object)
@@ -97,8 +97,8 @@ class IndexedDataObject(BaseModel):
         if self.data_object is None:
             return ''
         return self.data_object.get_display_value()
-        
-    
+
+
 """
 class Index(BaseModel):
     indexed_data_object = models.ForeignKey('IndexedDataObject',
@@ -133,7 +133,7 @@ class InputNodeSet(object):
 
 class InputItem(object):
     """A DataObject and its channel name"""
-    
+
     def __init__(self, input_node):
         self.data_object = input_node.indexed_data_objects.first().data_object
         self.channel = input_node.channel

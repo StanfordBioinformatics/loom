@@ -33,7 +33,7 @@ class TaskRun(BaseModel):
                  ('running', 'Running'),
                  ('saving_output_files', 'Saving output files'),
                  ('finished', 'Finished'),
-        ),
+        )
     )
     status_message = models.TextField(null=True, blank=True)
         
@@ -153,7 +153,7 @@ class TaskRunOutput(BaseModel):
             self.data_object=data_object
             self.save()
         self.step_run_output.push(data_object)
-            
+
 
 class TaskRunResourceSet(BaseModel):
     task_run = models.OneToOneField('TaskRun',
@@ -166,6 +166,8 @@ class TaskRunResourceSet(BaseModel):
 
 class TaskRunAttempt(BasePolymorphicModel):
 
+    skip_post_save = False
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task_run = models.ForeignKey('TaskRun',
                                  related_name='task_run_attempts',
@@ -180,21 +182,6 @@ class TaskRunAttempt(BasePolymorphicModel):
     status = models.CharField(
         max_length=255,
         default='not_started',
-        choices=(
-            ('not_started', 'Not started'),
-            ('provisioning_host', 'Provisioning host'),
-            ('initializing_monitor_process', 'Initializing monitor process'),
-            ('running_monitor_process', 'Running monitor process'),
-            ('gathering_input_files', 'Gathering input files'),
-            ('preparing_runtime_environment', 'Preparing runtime environment'),
-            ('starting_analysis', 'Starting analysis'),
-            ('running_analysis', 'Running analysis'),
-            ('failed_without_completing', 'Failed without completing'),
-            ('finished_with_error', 'Finished with error'),
-            ('saving_output_files', 'Saving output files'),
-            ('finished_successfully', 'Finished successfully'),
-            ('unknown', 'Unknown'),
-        )
     )
     status_message = models.TextField(null=True, blank=True)
     host_status = models.CharField(
@@ -204,7 +191,7 @@ class TaskRunAttempt(BasePolymorphicModel):
                  ('provisioning_host', 'Provisioning host'),
                  ('active', 'Active'),
                  ('deleted', 'Deleted'),
-        ),
+        )
     )
     process_status = models.CharField(
         max_length=255,
@@ -214,7 +201,7 @@ class TaskRunAttempt(BasePolymorphicModel):
                  ('failed_without_completing', 'Failed without completing'),
                  ('finished_successfully', 'Finished successfully'),
                  ('finished_with_error', 'Finished with error'),
-        ),
+        )
     )
     process_status_message = models.TextField(null=True, blank=True)
     monitor_status = models.CharField(
@@ -234,10 +221,20 @@ class TaskRunAttempt(BasePolymorphicModel):
                  ('waiting_for_run', 'Waiting for run'),
                  ('waiting_for_cleanup', 'Waiting for cleanup'),
                  ('finished', 'Finished'),
-        ),
+        )
     )
     monitor_status_message = models.TextField(null=True, blank=True)
-    
+    save_outputs_status = models.CharField(
+        max_length=255,
+        default='not_started',
+        choices=(('not_started', 'Not started'),
+                 ('saving_outputs', 'Saving outputs'),
+                 ('failed_to_save_outputs', 'Failed to save outputs'),
+                 ('finished_successfully', 'Finished successfully'),
+        )
+    )
+    save_outputs_status_message = models.TextField(null=True, blank=True)
+
     @property
     def task_definition(self):
         return self.task_run.task_definition
@@ -251,10 +248,13 @@ class TaskRunAttempt(BasePolymorphicModel):
         return cls.objects.create(task_run=task_run)
 
     def _post_save(self):
+        if self.skip_post_save:
+            return
         self._idempotent_initialize()
+        self.update_status()
+        if self.status == 'finished_successfully':
+            self.push_outputs()
         self.task_run.update_status()
-        if self.status == 'finished_success':
-            self._push_outputs()
 
     def _idempotent_initialize(self):
         if self.inputs.count() == 0:
@@ -297,72 +297,44 @@ class TaskRunAttempt(BasePolymorphicModel):
     def get_stderr_log_file(self):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
-    """
     def update_status(self):
-        status_message = None
-
-        try:
-            host_status = self.worker_host.status
-        except ObjectDoesNotExist:
-            host_status = None
-
-        try:
-            monitor_status = self.worker_process_monitor.status
-        except ObjectDoesNotExist:
-            monitor_status = 'not_started'
-
-        try:
-            process_status = self.worker_process.status
-            process_status_message = self.worker_process.status_message
-        except ObjectDoesNotExist:
-            process_status = 'not_started'
-            process_status_message = None
-
-        if monitor_status == 'not_started' \
-           and host_status == 'not_started':
-            self.status = 'not_started'
-        elif monitor_status == 'not_started' \
-             and host_status == 'provisioning_host':
-            self.status = 'provisioning_host'
-        elif monitor_status == 'not_started':
-            self.status = 'initializing_monitor_process'
-        elif monitor_status == 'initialized':
-            self.status = 'running_monitor_process'
-        elif monitor_status == 'gathering_input_files':
-            self.status = 'gathering_input_files'
-        elif monitor_status == 'preparing_runtime_environment':
-            self.status = 'preparing_runtime_environment'
-        elif monitor_status == 'running_process' \
-             and process_status == 'not_started':
-            self.status = 'starting_analysis'
-        elif monitor_status == 'running_process' \
-             and process_status == 'running':
-            self.status = 'running_analysis'
-        elif process_status == 'failed_without_completing':
-            self.status = 'failed_without_completing'
-            status_message = process_status_message
-        elif process_status == 'finished_with_error':
-            self.status = 'finished_with_error'
-            status_message = process_status_message
-        elif process_status == 'finished_success' \
-             and monitor_status == 'saving_output_files':
-            self.status = 'saving_output_files'
-        elif process_status == 'finished_success' \
-             and monitor_status == 'finished':
-            self.status = 'finished_success'
+        if self.monitor_status == 'waiting_for_run':
+            status, status_message = self._get_status_from_process()
+        elif self.monitor_status == 'waiting_for_cleanup':
+            status, status_message = self._get_status_from_cleanup()
+        elif self.monitor_status == 'finished':
+            self._get_terminal_status()
         else:
-            self.status = 'unknown'
-            status_message = 'Something is wrong. process status is "%s". '\
-                             'monitor status is "%s". host status is "%s".' \
-                             % (process_status,
-                                monitor_status,
-                                host_status)
+            status, status_message = self._get_status_from_monitor()
 
-        if status_message is None:
-            status_message = self.get_status_display()
+        self.status = status
         self.status_message = status_message
+        self.skip_post_save = True # To prevent infinite recursion
         self.save()
-        """
+
+    def _get_status_from_monitor(self):
+        if not self.monitor_status_message:
+            self.monitor_status_message = self.get_monitor_status_display()
+        return self.monitor_status, self.monitor_status_message
+        
+    def _get_status_from_process(self):
+        if not self.process_status_message:
+            self.process_status_message = self.get_process_status_display()
+        return self.process_status, self.process_status_message
+
+    def _get_status_from_cleanup(self):
+        if not self.save_outputs_status_message:
+            self.save_outputs_status_message = self.get_save_outputs_status_display()
+        return self.save_outputs_status, self.save_outputs_status_message
+
+    def _get_terminal_status(self):
+        if self.process_status != 'finished_successfully':
+            return self._get_status_from_process()
+        elif self.save_outputs_status != 'finished_successfully':
+            return self._get_status_from_cleanup()
+        else:
+            # Successful process and cleanup. Take success status from process
+            return self._get_status_from_process()
 
     def get_provenance_data(self, files=None, tasks=None, edges=None):
         if files is None:
@@ -450,7 +422,9 @@ class TaskRunAttemptOutput(BaseModel):
         return self.task_run_output.filename
 
     def push(self):
-        self.task_run_output.push(self.data_object)
+        if self.data_object is not None:
+            self.task_run_output.push(self.data_object)
+
 
 class TaskRunAttemptLogFile(BaseModel):
 

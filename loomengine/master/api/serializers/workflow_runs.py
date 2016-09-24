@@ -67,7 +67,8 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = StepRun
         fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs',
-                  'command', 'environment', 'resources', 'name', 'task_runs',)
+                  'command', 'environment', 'resources', 'name', 'task_runs',
+                  'status', 'status_message')
 
 
 class WorkflowRunInputSerializer(CreateWithParentModelSerializer):

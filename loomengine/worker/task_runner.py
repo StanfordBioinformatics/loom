@@ -176,10 +176,28 @@ class TaskRunner(object):
 
     def cleanup(self):
         self._set_monitor_status_to_waiting_for_cleanup()
+        self._set_save_outputs_status_to_saving_outputs()
 
-        self._try_to_save_process_logs()
-        self._try_to_save_outputs()
-        self._try_to_save_monitor_log()
+        errors = []
+        try:
+            self._try_to_save_process_logs()
+        except Exception as e:
+            errors.append(e)
+
+        try:
+            self._try_to_save_outputs()
+        except Exception as e:
+            errors.append(e)
+
+        try:
+            self._try_to_save_monitor_log()
+        except Exception as e:
+            errors.append(e)
+
+        if len(errors) == 0:
+            self._set_save_outputs_status_to_finished_successfully()
+        else:
+            self._set_save_outputs_status_to_failed_to_save_outputs(errors)
 
         self._set_monitor_status_to_finished()
         self.logger.info('Done.')
@@ -327,10 +345,9 @@ class TaskRunner(object):
         self.logger.debug('Saving process logs')
         try:
             self._save_process_logs()
-            return True
         except Exception as e:
             self.logger.error('Failed to save process logs. %s' % str(e))
-            return False
+            raise e
 
     def _save_process_logs(self):
         try:
@@ -371,10 +388,9 @@ class TaskRunner(object):
         self.logger.debug('Saving outputs')
         try:
             self._save_outputs()
-            return True
         except Exception as e:
             self.logger.error('Failed to save outputs. %s' % str(e))
-            return False
+            raise e
 
     def _save_outputs(self):
         for output in self.task_run_attempt['outputs']:
@@ -401,10 +417,9 @@ class TaskRunner(object):
                 self.logger.debug('No log to save for process monitor, because we logged to stdout instead. Use "--log_file" if you want to save the output.')
                 return True
             self._save_monitor_log()
-            return True
         except Exception as e:
             self.logger.error('Failed to save worker process monitor log')
-            return False
+            raise e
 
     def _save_monitor_log(self):
         self._import_log_file(self.settings['LOG_FILE'])
@@ -441,6 +456,12 @@ class TaskRunner(object):
         self.connection.update_task_run_attempt(
             self.settings['TASK_RUN_ATTEMPT_ID'],
             {'process_status': status, 'process_status_message': status_message}
+        )
+
+    def _set_save_outputs_status(self, status, status_message=''):
+        self.connection.update_task_run_attempt(
+            self.settings['TASK_RUN_ATTEMPT_ID'],
+            {'save_outputs_status': status, 'save_outputs_status_message': status_message}
         )
 
     def _set_monitor_status_to_initializing(self):
@@ -513,6 +534,18 @@ class TaskRunner(object):
     def _set_process_status_to_failed_without_completing(self):
         self.logger.info('Finished task successfully')
         self._set_process_status('finished_successfully')
+
+    def _set_save_outputs_status_to_saving_outputs(self):
+        self.logger.info('Saving outputs')
+        self._set_save_outputs_status('saving_outputs')
+
+    def _set_save_outputs_status_to_failed_to_save_outputs(self, errors):
+        self.logger.info('Failed to save outputs: %s' % '; '.join([str(error) for error in errors]))
+        self._set_save_outputs_status('failed_to_save_outputs')
+
+    def _set_save_outputs_status_to_finished_successfully(self):
+        self.logger.info('Finished saving outputs successfully')
+        self._set_save_outputs_status('finished_successfully')
 
     # Parser
 
