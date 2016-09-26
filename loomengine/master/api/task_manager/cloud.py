@@ -191,7 +191,7 @@ class CloudTaskManager:
         # TODO: Delete scratch disk
 
     @classmethod
-    def create_instance_name(cls, hostname, task_run_attempt):
+    def create_worker_name(cls, hostname, task_run_attempt):
         """ Create a name for the worker instance. Since hostname, workflow name, and step name can easily be duplicated,
         we do this in two steps to ensure that at least 4 characters of the location ID are part of the name.
         Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
