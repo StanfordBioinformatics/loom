@@ -21,7 +21,6 @@ import loomengine.utils.cloud
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
 GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
-GCLOUD_CREATE_WORKER_SKIP_INSTALLS_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker_skip_installs.yml')
 GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
 GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
 LOOM_USER_SSH_KEY_FILE = '/home/loom/.ssh/google_compute_engine'
@@ -49,15 +48,16 @@ class CloudTaskManager:
         }
         
         hostname = socket.gethostname()
-        node_name = cls.create_worker_name(hostname, task_run_attempt)
+        worker_name = cls.create_worker_name(hostname, task_run_attempt)
         task_run_attempt_id = task_run_attempt.id.hex
         worker_log_file = task_run_attempt.get_worker_log_file()
         
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_id, requested_resources, environment, node_name, worker_log_file))
+        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file))
         process.start()
 
     @classmethod
-    def _run(cls, task_run_attempt_id, requested_resources, environment, node_name, worker_log_file):
+    def _run(cls, task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file):
+
         logger = loomengine.utils.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_run_attempt: %s" % task_run_attempt_id)
@@ -67,7 +67,7 @@ class CloudTaskManager:
         # TODO: Support other cloud providers. For now, assume GCE.
         instance_type = CloudTaskManager._get_cheapest_instance_type(cores=requested_resources['cores'], memory=requested_resources['memory'])
         
-        scratch_disk_name = node_name+'-disk'
+        scratch_disk_name = worker_name+'-disk'
         scratch_disk_device_path = '/dev/disk/by-id/google-'+scratch_disk_name
         if requested_resources.get('disk_size') is not None:
             scratch_disk_size_gb = requested_resources['disk_size']
@@ -75,34 +75,33 @@ class CloudTaskManager:
             scratch_disk_size_gb = settings.WORKER_SCRATCH_DISK_SIZE
         
         playbook_vars = {
-            'node_name': node_name,
-            'image': settings.WORKER_VM_IMAGE,
+            'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
+            'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
+            'docker_full_name': settings.DOCKER_FULL_NAME,
+            'docker_tag': settings.DOCKER_TAG,
+            'gce_email': settings.GCE_EMAIL,
+            'gce_credential': settings.GCE_PEM_FILE_PATH,
+            'instance_name': worker_name,
+            'instance_image': settings.WORKER_VM_IMAGE,
             'instance_type': instance_type,
+            'log_level': settings.LOG_LEVEL,
+            'master_url': settings.MASTER_URL_FOR_WORKER,
+            'network': settings.WORKER_NETWORK,
             'scratch_disk_name': scratch_disk_name,
             'scratch_disk_device_path': scratch_disk_device_path,
             'scratch_disk_mount_point': settings.WORKER_SCRATCH_DISK_MOUNT_POINT,
             'scratch_disk_type': settings.WORKER_SCRATCH_DISK_TYPE,
             'scratch_disk_size_gb': scratch_disk_size_gb,
-            'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
-            'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
-            'zone': settings.WORKER_LOCATION,
+            'tags': settings.WORKER_TAGS,
             'task_run_attempt_id': task_run_attempt_id,
             'task_run_docker_image': environment['docker_image'],
-            'master_url': settings.MASTER_URL_FOR_WORKER,
-            'version': loomengine.utils.version.version(),
-            'worker_network': settings.WORKER_NETWORK,
-            'worker_tags': settings.WORKER_TAGS,
-            'docker_full_name': settings.DOCKER_FULL_NAME,
-            'docker_tag': settings.DOCKER_TAG,
-            'log_level': settings.LOG_LEVEL,
-            'worker_log_file': worker_log_file
+            'use_internal_ip': settings.WORKER_USES_SERVER_INTERNAL_IP,
+            'worker_log_file': worker_log_file,
+            'zone': settings.WORKER_LOCATION,
         }
         logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
         ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)
-        if settings.WORKER_SKIP_INSTALLS == "True":
-            cls._run_playbook(GCLOUD_CREATE_WORKER_SKIP_INSTALLS_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
-        else:
-            cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         logger.debug("CloudTaskManager process done.")
         ansible_logfile.close()
@@ -164,20 +163,20 @@ class CloudTaskManager:
         return pricelist
 
     @classmethod
-    def delete_node_by_name(cls, node_name):
-        """ Delete the node that ran a task. """
+    def delete_instance_by_name(cls, instance_name):
+        """ Delete the instance that ran a task. """
         # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_node, args=(node_name))
+        process = multiprocessing.Process(target=CloudTaskManager._delete_instance, args=(instance_name))
         process.start()
 
     @classmethod
-    def delete_node_by_task_run(cls, host_name, task_run):
-        """ Delete the node that ran a task. """
-        node_name = cls.create_worker_name(host_name, task_run)
-        cls.delete_node_by_name(node_name)
+    def delete_instance_by_task_run(cls, host_name, task_run):
+        """ Delete the instance that ran a task. """
+        instance_name = cls.create_worker_name(host_name, task_run)
+        cls.delete_instance_by_name(instance_name)
         
     @classmethod
-    def _delete_node(cls, node_name):
+    def _delete_instance(cls, instance_name):
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
         # TODO: Support other cloud providers. For now, assume GCE.
@@ -187,8 +186,8 @@ class CloudTaskManager:
 - hosts: localhost
   connection: local
   tasks:
-  - name: Delete a node.
-    gce: name=$node_name zone=$zone state=deleted
+  - name: Delete an instance.
+    gce: name=$instance_name zone=$zone state=deleted
 """)
         playbook = s.substitute(locals())
         cls._run_playbook_string(playbook)
@@ -209,10 +208,10 @@ class CloudTaskManager:
         sanitized_name_base = cls.sanitize_instance_name_base(name_base)
         sanitized_name_base = sanitized_name_base[:53]      # leave 10 characters at the end for location id and -disk suffix
 
-        node_name = '-'.join([sanitized_name_base, attempt_id])
-        sanitized_node_name = cls.sanitize_instance_name(node_name)
-        sanitized_node_name = sanitized_node_name[:58]      # leave 5 characters for -disk suffix
-        return sanitized_node_name
+        instance_name = '-'.join([sanitized_name_base, attempt_id])
+        sanitized_instance_name = cls.sanitize_instance_name(instance_name)
+        sanitized_instance_name = sanitized_instance_name[:58]      # leave 5 characters for -disk suffix
+        return sanitized_instance_name
 
     @classmethod
     def sanitize_instance_name_base(cls, name):

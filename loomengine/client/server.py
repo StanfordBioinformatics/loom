@@ -21,7 +21,6 @@ GCLOUD_SERVER_DEFAULT_NAME = SettingsManager().get_default_setting('gcloud', 'SE
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
 GCLOUD_CREATE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server.yml')
-GCLOUD_CREATE_SKIP_INSTALLS_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server_skip_installs.yml')
 GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
 GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
 GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
@@ -131,6 +130,7 @@ class BaseServerControls:
         config.set('server', 'type', self.args.type)
         if self.args.type == 'gcloud':
             name = self.args.name
+            validate_gcloud_instance_name(name)
             config.set('server', 'name', name)
         with open(server_location_file, 'w') as configfile:
             print 'Updating %s...' % server_location_file
@@ -338,7 +338,6 @@ class LocalServerControls(BaseServerControls):
 
     def delete(self):
         '''Stops server and deletes deploy settings.'''
-        # TODO: Add -f option to continue without asking
         if not os.path.exists(get_deploy_settings_filename()):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
@@ -352,7 +351,6 @@ class GoogleCloudServerControls(BaseServerControls):
     def __init__(self, args=None):
         BaseServerControls.__init__(self, args)
         self.settings_manager = SettingsManager()
-        setup_gce_ini_and_json()
 
     # Defines what commands this class can handle and maps names to functions.
     def _get_command_map(self):
@@ -378,9 +376,24 @@ class GoogleCloudServerControls(BaseServerControls):
         return env
 
     def create(self):
-        """Create server deploy settings if they don't exist yet, set up SSH
-        keys, create and set up a gcloud instance, copy deploy settings to the
-        instance."""
+        """Create a service account for the server, create gce.ini, create
+        JSON credential, create server deploy settings, set up SSH keys,
+        create and set up a gcloud instance, and copy deploy settings to the
+        instance.
+        """
+        server_name = get_gcloud_server_name()
+        print 'Creating service account for instance %s...' % server_name 
+        try:
+            create_service_account(server_name)
+        except googleapiclient.errors.HttpError as e:
+            print 'Warning: %s' % e._get_reason()
+        email = find_service_account_email(server_name)
+        if email != None:
+            print 'Service account %s is created.' % email
+        grant_editor_role(email)
+
+        setup_gce_ini_and_json()
+
         if hasattr(self.args, 'settings') and self.args.settings != None:
             print 'Creating deploy settings %s using user settings %s...' % (get_deploy_settings_filename(), self.args.settings)
             self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
@@ -392,10 +405,7 @@ class GoogleCloudServerControls(BaseServerControls):
         env = self.get_ansible_env()
 
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
-        if self.settings_manager.settings['SERVER_SKIP_INSTALLS'] == 'True':
-            return self.run_playbook(GCLOUD_CREATE_SKIP_INSTALLS_PLAYBOOK, env)
-        else:
-            return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
+        return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
         if self.settings_manager.settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
@@ -442,28 +452,33 @@ class GoogleCloudServerControls(BaseServerControls):
 
     def delete(self):
         """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
-        env = self.get_ansible_env()
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
+        confirmation_input = raw_input('WARNING! This will delete the server\'s instance, attached disks, and service account. Data will be lost!\n'+ 
+                                       'If you are sure you want to continue, please type the name of the server instance:\n> ')
+        if confirmation_input != get_gcloud_server_name():
+            print 'Input did not match current server name \"%s\".' % instance_name
+            return
+
+        email = find_service_account_email(instance_name)
+        print 'Deleting service account %s...' % email
+        try:
+            delete_service_account(email)
+        except Exception as e:
+            print e
+
         if instance_name not in current_hosts:
             print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
-            if os.path.exists(get_deploy_settings_filename()):
-                print 'Deleting %s...' % get_deploy_settings_filename()
-                os.remove(get_deploy_settings_filename())
-            return
         else:
-            confirmation_input = raw_input('WARNING! This will delete the server instance and attached disks. Data will be lost!\n'+ 
-                                       'If you are sure you want to continue, please type the name of the server instance:\n> ')
-            if confirmation_input != get_gcloud_server_name():
-                print 'Input did not match current server name \"%s\".' % instance_name
-            else:
-                delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
-                if delete_returncode == 0:
-                    print 'Instance successfully deleted.'
-                    if os.path.exists(get_deploy_settings_filename()):
-                        print 'Deleting %s...' % get_deploy_settings_filename()
-                        os.remove(get_deploy_settings_filename())
-                return delete_returncode
+            env = self.get_ansible_env()
+            delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
+            if delete_returncode == 0:
+                print 'Instance successfully deleted.'
+            
+        if os.path.exists(get_deploy_settings_filename()):
+            print 'Deleting %s...' % get_deploy_settings_filename()
+            os.remove(get_deploy_settings_filename())
+
 
 
 class UnhandledCommandError(Exception):
