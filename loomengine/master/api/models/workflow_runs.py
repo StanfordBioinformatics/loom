@@ -171,14 +171,7 @@ class StepRun(AbstractWorkflowRun):
                                  on_delete=models.PROTECT)
     status = models.CharField(
         max_length=255,
-        default='waiting_for_inputs',
-        choices=(('waiting_for_inputs', 'Waiting for inputs'),
-                 ('provisioning_host', 'Provisioning host'),
-                 ('preparing_runtime_environment', 'Preparing runtime environment'),
-                 ('running', 'Running'),
-                 ('saving_output_files', 'Saving output files'),
-                 ('complete', 'Complete'),
-        )
+        default='Not started',
     )
     status_message = models.TextField(null=True, blank=True)
     
@@ -193,6 +186,12 @@ class StepRun(AbstractWorkflowRun):
     @property
     def resources(self):
         return self.template.resources
+
+    @property
+    def errors(self):
+        if self.task_runs.count() == 0:
+            return []
+        return self.task_runs.first().errors
 
     def is_step(self):
         return True
@@ -251,21 +250,18 @@ class StepRun(AbstractWorkflowRun):
 
     def update_status(self):
         if self.task_runs.count() == 0:
-            status = 'waiting_for_inputs'
             missing_inputs = InputNodeSet(
                 self.get_all_inputs()).get_missing_inputs()
             if len(missing_inputs) == 1:
-                status_message = 'Waiting for input "%s"' % missing_inputs[0].channel
+                status = 'Waiting for input "%s"' % missing_inputs[0].channel
             else:
-                status_message = 'Waiting for inputs %s' % ', '.join(
+                status = 'Waiting for inputs %s' % ', '.join(
                     [input.channel for input in missing_inputs])
         else:
             status = self.task_runs.first().status
-            status_message = self.task_runs.first().status_message
 
-        if status != self.status or status_message != self.status_message:
+        if status != self.status:
             self.status = status
-            self.status_message = status_message
             self.save()
 
 

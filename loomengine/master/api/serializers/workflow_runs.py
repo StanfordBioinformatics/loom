@@ -6,7 +6,7 @@ from api.models.workflow_runs import AbstractWorkflowRun, StepRun, \
     FixedWorkflowRunInput, WorkflowRunOutput, WorkflowRun
 from api.serializers.workflows import AbstractWorkflowIdSerializer, \
     RequestedEnvironmentSerializer, RequestedResourceSetSerializer
-from api.serializers.task_runs import TaskRunIdSerializer
+from api.serializers.task_runs import TaskRunIdSerializer, TaskRunAttemptErrorSerializer
 
 
 class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
@@ -63,12 +63,13 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     environment = RequestedEnvironmentSerializer()
     name = serializers.CharField()
     task_runs = TaskRunIdSerializer(many=True)
+    errors = TaskRunAttemptErrorSerializer(many=True, read_only=True)
     
     class Meta:
         model = StepRun
         fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs',
                   'command', 'environment', 'resources', 'name', 'task_runs',
-                  'status', 'status_message')
+                  'status', 'errors')
 
 
 class WorkflowRunInputSerializer(CreateWithParentModelSerializer):

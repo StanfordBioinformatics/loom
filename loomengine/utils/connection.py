@@ -4,6 +4,19 @@ import time
 import datetime
 from loomengine.utils.exceptions import *
 
+class TASK_RUN_ATTEMPT_STATUSES:
+    NOT_STARTED = 'Not started'
+    PROVISIONING_HOST = 'Provisioning host'
+    LAUNCHING_MONITOR = 'Launching monitor process on worker'
+    INITIALIZING_MONITOR = 'Initializing monitor process on worker'
+    COPYING_INPUTS = 'Copying input files to runtime environment'
+    FETCHING_IMAGE = 'Fetching runtime environment image'
+    CREATING_CONTAINER = 'Creating runtime environment container'
+    STARTING_ANALYSIS = 'Starting analysis'
+    RUNNING_ANALYSIS = 'Running analysis'
+    SAVING_OUTPUTS = 'Saving outputs'
+    FINISHED = 'Finished'
+
 def disable_insecure_request_warning():
     """Suppress warning about untrusted SSL certificate."""
     import requests
@@ -247,6 +260,12 @@ class Connection(object):
         return self._post_object(
             task_run_attempt_log_file,
             'task-run-attempts/%s/task-run-attempt-log-files/' % task_run_attempt_id
+        )
+
+    def post_task_run_attempt_error(self, task_run_attempt_id, task_run_attempt_error):
+        return self._post_object(
+            task_run_attempt_error,
+            'task-run-attempts/%s/task-run-attempt-errors/' % task_run_attempt_id
         )
 
     def post_abstract_file_import(self, file_import):
