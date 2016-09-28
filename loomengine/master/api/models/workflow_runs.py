@@ -30,6 +30,11 @@ class AbstractWorkflowRun(BasePolymorphicModel):
                                related_name='step_runs',
                                null=True,
                                on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=255,
+        default='',
+    )
+    
     @property
     def name(self):
         return self.template.name
@@ -54,9 +59,15 @@ class AbstractWorkflowRun(BasePolymorphicModel):
             run = WorkflowRun.objects.create(template=template)
         return run
 
+    def update_parent_status(self):
+        if self.parent:
+            self.parent.update_status()
+
 
 class WorkflowRun(AbstractWorkflowRun):
 
+    skip_post_save = False
+    
     NAME_FIELD = 'workflow__name'
 
     template = models.ForeignKey('Workflow',
@@ -67,6 +78,8 @@ class WorkflowRun(AbstractWorkflowRun):
         return False
 
     def _post_save(self):
+        if self.skip_post_save:
+            return
         self._idempotent_initialize()
 
     def _idempotent_initialize(self):
@@ -157,6 +170,41 @@ class WorkflowRun(AbstractWorkflowRun):
         for step_run in self.step_runs.all():
             step_run.push_fixed_inputs()
 
+    def get_step_status_count(self):
+        count = {
+            'waiting': 0,
+            'running': 0,
+            'error': 0,
+            'finished': 0,
+        }
+        for step in self.step_runs.all():
+            step_counts = step.get_step_status_count()
+            count['waiting'] += step_counts['waiting']
+            count['running'] += step_counts['running']
+            count['error'] += step_counts['error']
+            count['finished'] += step_counts['finished']
+        return count
+
+    def update_status(self):
+        status_list = []
+        count = self.get_step_status_count()
+        if count['waiting']:
+            pluralize = 's' if count['waiting'] > 1 else ''
+            status_list.append('%s step%s waiting.' % (count['waiting'], pluralize))
+        if count['running']:
+            pluralize = 's' if count['running'] > 1 else ''
+            status_list.append('%s step%s running.' % (count['running'], pluralize))
+        if count['error']:
+            pluralize = 's' if count['error'] > 1 else ''
+            status_list.append('%s step%s with errors.' % (count['error'], pluralize))
+        if count['finished']:
+            pluralize = 's' if count['finished'] > 1 else ''
+            status_list.append('%s step%s finished.' % (count['finished'], pluralize))
+        self.status = ' '.join(status_list)
+        self.skip_post_save = True # To prevent infinite recursion
+        self.save()
+        self.update_parent_status()
+
 @receiver(models.signals.post_save, sender=WorkflowRun)
 def _post_save_workflow_run_signal_receiver(sender, instance, **kwargs):
     instance._post_save()
@@ -169,12 +217,6 @@ class StepRun(AbstractWorkflowRun):
     template = models.ForeignKey('Step',
                                  related_name='step_runs',
                                  on_delete=models.PROTECT)
-    status = models.CharField(
-        max_length=255,
-        default='Not started',
-    )
-    status_message = models.TextField(null=True, blank=True)
-    
     @property
     def command(self):
         return self.template.command
@@ -196,6 +238,23 @@ class StepRun(AbstractWorkflowRun):
     def is_step(self):
         return True
 
+    def get_step_status_count(self):
+        count = {
+            'waiting': 0,
+            'running': 0,
+            'error': 0,
+            'finished': 0,
+        }
+        if self.errors:
+            count['error'] = 1
+        elif self.status.startswith('Waiting'):
+            count['waiting'] = 1
+        elif self.status.startswith('Finished'):
+            count['finished'] = 1
+        else:
+            count['running'] = 1
+        return count
+    
     def _post_save(self):
         self._idempotent_initialize()
 
@@ -263,6 +322,7 @@ class StepRun(AbstractWorkflowRun):
         if status != self.status:
             self.status = status
             self.save()
+        self.update_parent_status()
 
 
 class AbstractStepRunInput(InputOutputNode):

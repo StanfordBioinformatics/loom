@@ -23,6 +23,7 @@ class RunRequest(BaseModel):
     template = models.ForeignKey('AbstractWorkflow', on_delete=models.PROTECT)
     run = models.OneToOneField('AbstractWorkflowRun',
                                null=True,
+                               related_name='run_request',
                                on_delete=models.PROTECT)
     is_running = models.BooleanField(default=True)
     is_stopping = models.BooleanField(default=False)
@@ -31,6 +32,10 @@ class RunRequest(BaseModel):
     is_canceled = models.BooleanField(default=False)
     is_completed = models.BooleanField(default=False)
 
+    @property
+    def status(self):
+        return self.run.status
+    
     def name(self):
         return self.template.name
 

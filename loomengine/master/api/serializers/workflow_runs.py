@@ -116,4 +116,4 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = WorkflowRun
         fields = ('id', 'template', 'step_runs', 'inputs', 'fixed_inputs',
-                  'outputs', 'name',)
+                  'outputs', 'name', 'status')

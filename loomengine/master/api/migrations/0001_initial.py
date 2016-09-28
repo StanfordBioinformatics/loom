@@ -31,6 +31,7 @@ class Migration(migrations.Migration):
             name='AbstractWorkflowRun',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('status', models.CharField(default=b'', max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -524,8 +525,6 @@ class Migration(migrations.Migration):
             name='StepRun',
             fields=[
                 ('abstractworkflowrun_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.AbstractWorkflowRun')),
-                ('status', models.CharField(default=b'Not started', max_length=255)),
-                ('status_message', models.TextField(null=True, blank=True)),
                 ('template', models.ForeignKey(related_name='step_runs', on_delete=django.db.models.deletion.PROTECT, to='api.Step')),
             ],
             options={
@@ -720,7 +719,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='runrequest',
             name='run',
-            field=models.OneToOneField(null=True, on_delete=django.db.models.deletion.PROTECT, to='api.AbstractWorkflowRun'),
+            field=models.OneToOneField(related_name='run_request', null=True, on_delete=django.db.models.deletion.PROTECT, to='api.AbstractWorkflowRun'),
         ),
         migrations.AddField(
             model_name='runrequest',
