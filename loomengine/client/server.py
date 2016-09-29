@@ -401,7 +401,6 @@ class GoogleCloudServerControls(BaseServerControls):
             print 'Creating deploy settings %s using default settings...' % get_deploy_settings_filename()
             self.settings_manager.create_deploy_settings_file()
 
-        setup_gcloud_ssh()
         env = self.get_ansible_env()
 
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)

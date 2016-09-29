@@ -154,12 +154,6 @@ def get_gcloud_project():
     except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
         print 'Could not retrieve project id from gcloud. Please run "gcloud init" or "gcloud config set project <project_id>".'
 
-def setup_gcloud_ssh():
-    """Calls gcloud CLI to create SSH keys."""
-    check_for_gcloud()
-    print 'Configuring SSH keys for gcloud...'
-    subprocess.call(['gcloud', 'compute', 'config-ssh', '--quiet'])
-
 def check_for_gcloud():
     """Check if gcloud CLI is installed."""
     if not distutils.spawn.find_executable('gcloud'):
