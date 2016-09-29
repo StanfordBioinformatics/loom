@@ -3,7 +3,7 @@
   - name: Boot up a new instance using the just-created boot disk.
     gce: name={{instance_name}} disks={{instance_name}} zone={{zone}} machine_type={{instance_type}} network={{network}} service_account_email={{gce_email}} credentials_file={{gce_credential}} service_account_permissions=cloud-platform tags={{tags|default(omit)}}
     register: gce_result
-  - name: If required variables defined, create a scratch disk and attach it to the instance.
+  - name: If all required variables defined, create a scratch disk and attach it to the instance.
     gce_pd: instance_name={{instance_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE
     when:
     - scratch_disk_name is defined

@@ -97,9 +97,13 @@ def get_inventory():
     env['GCE_INI_PATH'] = gce_ini_path
     if not os.path.exists(gce_ini_path):
         raise Exception("%s not found. Please configure https://github.com/ansible/ansible/blob/devel/contrib/inventory/gce.ini and place it at this location." % GCE_INI_PATH)
-    inv = subprocess.check_output([sys.executable, gce_py_path], env=env)
-    inv = json.loads(inv)
-    return inv
+
+    try:
+        inv = subprocess.check_output([sys.executable, gce_py_path], env=env)
+        inv = json.loads(inv)
+        return inv
+    except subprocess.CalledProcessError as e:
+        print e
 
 def get_gcloud_hosts():
     inv = get_inventory()
