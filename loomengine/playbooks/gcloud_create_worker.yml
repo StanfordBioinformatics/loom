@@ -3,14 +3,17 @@
   hosts: localhost
   connection: local
   gather_facts: no
+  become: yes
+  become_user: loom
+  become_method: sudo
   tasks:
   - include: tasks/gcloud_create_instance.yml
 
 - name: Set up new instance(s).
   hosts: new_instances
-  remote_user: loom
-  become_method: sudo
   become: yes
+  become_user: loom
+  become_method: sudo
   roles:
   - {role: docker, when: "not {{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
   - {role: docker-py, when: "not {{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
