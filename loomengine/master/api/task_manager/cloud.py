@@ -59,6 +59,7 @@ class CloudTaskManager:
 
     @classmethod
     def _run(cls, task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file):
+        from api.models.task_runs import TaskRunAttempt
 
         logger = loomengine.utils.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
@@ -116,7 +117,7 @@ class CloudTaskManager:
                 'detail': str(e)
             })
             connection.update_task_run_attempt({
-                'status': TaskRunAttempt.STATUSES.ABORTED,
+                'status': TaskRunAttempt.STATUSES.FINISHED,
             })
             raise e
 
@@ -132,7 +133,7 @@ class CloudTaskManager:
                 'detail': str(e)
             })
             connection.update_task_run_attempt({
-                'status': TaskRunAttempt.STATUSES.ABORTED,
+                'status': TaskRunAttempt.STATUSES.FINISHED,
             })
             raise e
 
