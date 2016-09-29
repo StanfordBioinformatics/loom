@@ -34,7 +34,7 @@ class TaskRun(BaseModel):
     @property
     def errors(self):
         if self.task_run_attempts.count() == 0:
-            return []
+            return TaskRunAttemptError.objects.none()
         return self.task_run_attempts.first().errors
 
     @property

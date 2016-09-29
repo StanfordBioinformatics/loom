@@ -9,7 +9,8 @@ from api import get_setting
 from api.models.channels import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
 from api.models.task_definitions import TaskDefinition
-from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput
+from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, \
+    TaskRunAttemptError
 from api.models.workflows import AbstractWorkflow, Workflow, Step, \
     WorkflowInput, WorkflowOutput, StepInput, StepOutput
 
@@ -175,14 +176,14 @@ class WorkflowRun(AbstractWorkflowRun):
             'waiting': 0,
             'running': 0,
             'error': 0,
-            'finished': 0,
+            'success': 0,
         }
         for step in self.step_runs.all():
             step_counts = step.get_step_status_count()
             count['waiting'] += step_counts['waiting']
             count['running'] += step_counts['running']
             count['error'] += step_counts['error']
-            count['finished'] += step_counts['finished']
+            count['success'] += step_counts['success']
         return count
 
     def update_status(self):
@@ -197,9 +198,9 @@ class WorkflowRun(AbstractWorkflowRun):
         if count['error']:
             pluralize = 's' if count['error'] > 1 else ''
             status_list.append('%s step%s with errors.' % (count['error'], pluralize))
-        if count['finished']:
-            pluralize = 's' if count['finished'] > 1 else ''
-            status_list.append('%s step%s finished.' % (count['finished'], pluralize))
+        if count['success']:
+            pluralize = 's' if count['success'] > 1 else ''
+            status_list.append('%s step%s finished successfully.' % (count['success'], pluralize))
         self.status = ' '.join(status_list)
         self.skip_post_save = True # To prevent infinite recursion
         self.save()
@@ -232,7 +233,7 @@ class StepRun(AbstractWorkflowRun):
     @property
     def errors(self):
         if self.task_runs.count() == 0:
-            return []
+            return TaskRunAttemptError.objects.none()
         return self.task_runs.first().errors
 
     def is_step(self):
@@ -243,14 +244,14 @@ class StepRun(AbstractWorkflowRun):
             'waiting': 0,
             'running': 0,
             'error': 0,
-            'finished': 0,
+            'success': 0,
         }
-        if self.errors:
+        if self.errors.count() > 0:
             count['error'] = 1
         elif self.status.startswith('Waiting'):
             count['waiting'] = 1
         elif self.status.startswith('Finished'):
-            count['finished'] = 1
+            count['success'] = 1
         else:
             count['running'] = 1
         return count
