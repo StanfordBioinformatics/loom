@@ -31,5 +31,7 @@ urlpatterns = patterns(
     url(r'^filemanager-settings/$', 'api.views.filemanager_settings'),
     url(r'^task-run-attempts/(?P<id>[a-zA-Z0-9_\-]+)/worker-settings/$', 'api.views.worker_settings'),
     url(r'^task-run-attempts/(?P<id>[a-zA-Z0-9_\-]+)/task-run-attempt-log-files/$',
-        'api.views.create_task_run_attempt_log_file')
+        'api.views.create_task_run_attempt_log_file'),
+    url(r'^task-run-attempts/(?P<id>[a-zA-Z0-9_\-]+)/task-run-attempt-errors/$',
+        'api.views.create_task_run_attempt_error')
 )

@@ -35,4 +35,18 @@ class LocalTaskManager:
             task_run_attempt.get_worker_log_file(),
         ]
         logger.debug(cmd)
-        proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT)
+
+        try:
+            task_run_attempt.status=task_run_attempt.STATUSES.LAUNCHING_MONITOR
+            task_run_attempt.save()
+            proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT)
+        except Exception as e:
+            logger.error('Failed to launch worker monitor process: %s' % str(e))
+            task_run_attempt.add_error(
+                message='Failed to launch worker monitor process',
+                detail=str(e))
+            task_run_attempt.status = task_run_attempt.STATUSES.ABORTED
+            task_run_attempt.save()
+            raise e
+
+        logger.debug('Exiting LocalTaskManager')

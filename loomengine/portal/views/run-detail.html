@@ -10,12 +10,20 @@
 	  {{activeData.run.name}}
 	</td>
       </tr>
-      <tr ng-show="activeData.run.status_message">
+      <tr ng-show="activeData.run.errors.length>0">
+	<th>
+	  Errors
+	</th>
+	<td>
+	  {{activeData.run.errors}}
+	</td>
+      </tr>
+      <tr ng-show="activeData.run.status">
 	<th>
 	  Status
 	</th>
 	<td>
-	  {{activeData.run.status_message}}
+	  {{activeData.run.status}}
 	</td>
       </tr>
       <tr>

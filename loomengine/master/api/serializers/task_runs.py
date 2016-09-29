@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput,\
     TaskRunAttempt, TaskRunAttemptInput, TaskRunAttemptOutput, \
-    TaskRunAttemptLogFile
+    TaskRunAttemptLogFile, TaskRunAttemptError
 from api.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
 from api.serializers.task_definitions import TaskDefinitionSerializer
 from api.serializers.workflows import RequestedResourceSetSerializer
@@ -53,6 +53,13 @@ class TaskRunAttemptLogFileSerializer(CreateWithParentModelSerializer):
         fields = ('log_name', 'file_data_object',)
 
 
+class TaskRunAttemptErrorSerializer(CreateWithParentModelSerializer):
+
+    class Meta:
+        model = TaskRunAttemptError
+        fields = ('message', 'detail')
+
+
 class TaskRunAttemptSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
@@ -61,51 +68,23 @@ class TaskRunAttemptSerializer(serializers.ModelSerializer):
     inputs = TaskRunAttemptInputSerializer(many=True, allow_null=True, required=False)
     outputs = TaskRunAttemptOutputSerializer(many=True, allow_null=True, required=False)
     task_definition = TaskDefinitionSerializer(required=False)
+    errors = TaskRunAttemptErrorSerializer(many=True, allow_null=True, required=False)
 
     class Meta:
         model = TaskRunAttempt
         fields = ('id', 'name', 'log_files', 'inputs', 'outputs',
                   'container_id', 'task_definition',
-                  'status', 'status_message',
-                  'host_status',
-                  'process_status', 'process_status_message',
-                  'monitor_status', 'monitor_status_message',
-                  'save_outputs_status', 'save_outputs_status_message')
+                  'status', 'errors',)
 
     def update(self, instance, validated_data):
-        # Only updates to status fields are allowed
+        # Only updates to status field is allowed
         status = validated_data.pop('status', None)
-        status_message = validated_data.pop('status_message', None)
-        host_status = validated_data.pop('host_status', None)
-        process_status = validated_data.pop('process_status', None)
-        process_status_message = validated_data.pop('process_status_message', None)
-        monitor_status = validated_data.pop('monitor_status', None)
-        monitor_status_message = validated_data.pop('monitor_status_message', None)
-        save_outputs_status = validated_data.pop('save_outputs_status', None)
-        save_outputs_status_message = validated_data.pop('save_outputs_status_message', None)
         
         if status is not None:
             instance.status = status
-        if status_message is not None:
-            instance.status_message = status_message
-        if host_status is not None:
-            instance.host_status = host_status
-        if process_status is not None:
-            instance.process_status = process_status
-        if monitor_status is not None:
-            instance.monitor_status = monitor_status
-        if process_status_message is not None:
-            instance.process_status_message = process_status_message
-        if monitor_status_message is not None:
-            instance.monitor_status_message = monitor_status_message
-        if save_outputs_status is not None:
-            instance.save_outputs_status = save_outputs_status
-        if save_outputs_status_message is not None:
-            instance.save_outputs_status_message = save_outputs_status_message
 
         instance.save()
         return instance
-
 
 class TaskRunInputSerializer(CreateWithParentModelSerializer):
 
@@ -148,8 +127,9 @@ class TaskRunSerializer(serializers.ModelSerializer):
     inputs = TaskRunInputSerializer(many=True, allow_null=True, required=False)
     outputs = TaskRunOutputSerializer(many=True, allow_null=True, required=False)
     task_run_attempts = TaskRunAttemptSerializer(many=True, allow_null=True, required=False)
+    errors = TaskRunAttemptErrorSerializer(many=True, read_only=True)
 
     class Meta:
         model = TaskRun
         fields = ('id', 'name', 'task_definition', 'resources', 'inputs', 'outputs', 'task_run_attempts',
-                  'status', 'status_message')
+                  'status', 'errors')

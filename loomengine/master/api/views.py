@@ -87,6 +87,10 @@ class TaskRunViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.TaskRun.objects.all()
     serializer_class = serializers.TaskRunSerializer
 
+class TaskRunAttemptErrorViewSet(viewsets.ModelViewSet):
+    queryset = models.task_runs.TaskRunAttemptError.objects.all()
+    serializer_class = serializers.TaskRunAttemptErrorSerializer
+
 class TaskRunAttemptOutputViewSet(viewsets.ModelViewSet):
     queryset = models.task_runs.TaskRunAttemptOutput.objects.all()
     serializer_class = serializers.TaskRunAttemptOutputSerializer
@@ -141,6 +145,25 @@ def create_task_run_attempt_log_file(request, id):
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     s = serializers.TaskRunAttemptLogFileSerializer(
+        data=data,
+        context={
+            'parent_field': 'task_run_attempt',
+            'parent_instance': task_run_attempt
+        })
+    s.is_valid(raise_exception=True)
+    model = s.save()
+    return JsonResponse(s.data, status=201)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_task_run_attempt_error(request, id):
+    data_json = request.body
+    data = json.loads(data_json)
+    try:
+        task_run_attempt = models.TaskRunAttempt.objects.get(id=id)
+    except ObjectDoesNotExist:
+        return JsonResponse({"message": "Not Found"}, status=404)
+    s = serializers.TaskRunAttemptErrorSerializer(
         data=data,
         context={
             'parent_field': 'task_run_attempt',

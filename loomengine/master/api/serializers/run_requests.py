@@ -108,7 +108,8 @@ class RunRequestSerializer(serializers.ModelSerializer):
                   'template',
                   'inputs',
                   'datetime_created',
-                  'run',)
+                  'run',
+                  'status')
 
     def create(self, validated_data):
         inputs = self.initial_data.get('inputs', None)

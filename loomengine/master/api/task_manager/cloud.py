@@ -15,6 +15,7 @@ from string import Template
 
 from django.conf import settings
 
+from loomengine.utils.connection import Connection
 import loomengine.utils.logger
 import loomengine.utils.version
 import loomengine.utils.cloud
@@ -35,8 +36,6 @@ class CloudTaskManager:
         
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger.debug("Launching CloudTaskManager as a separate process.")
-        #task_run_attempt_pickle = pickle.dumps(task_run_attempt)
-        #logger.debug("task_run_attempt: %s" % task_run_attempt)
 
         requested_resources = {
             'cores': task_run_attempt.task_run.step_run.resources.cores,
@@ -51,16 +50,23 @@ class CloudTaskManager:
         worker_name = cls.create_worker_name(hostname, task_run_attempt)
         task_run_attempt_id = task_run_attempt.id.hex
         worker_log_file = task_run_attempt.get_worker_log_file()
+
+        task_run_attempt.status = task_run_attempt.STATUSES.PROVISIONING_HOST
+        task_run_attempt.save()
         
         process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file))
         process.start()
 
     @classmethod
     def _run(cls, task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file):
+        from api.models.task_runs import TaskRunAttempt
 
         logger = loomengine.utils.logger.get_logger('TaskManagerLogger')
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_run_attempt: %s" % task_run_attempt_id)
+
+        connection = Connection(settings.MASTER_URL_FOR_SERVER)
+        
         """Create a VM, deploy Docker and Loom, and pass command to task runner."""
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
             raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
@@ -100,9 +106,43 @@ class CloudTaskManager:
             'zone': settings.WORKER_LOCATION,
         }
         logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
-        ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)
-        cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
-        cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+
+        try:
+            ansible_logfile=open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0)
+            cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        except Exception as e:
+            logger.error('Failed to provision host: %s' % str(e))
+            connection.post_task_run_attempt_error({
+                'message': 'Failed to provision host',
+                'detail': str(e)
+            })
+            connection.update_task_run_attempt(
+                task_run_attempt_id,
+                {
+                    'status': TaskRunAttempt.STATUSES.FINISHED,
+                })
+            raise e
+
+        try:
+            connection.update_task_run_attempt(
+                task_run_attempt_id,
+                {
+                    'status': TaskRunAttempt.STATUSES.LAUNCHING_MONITOR,
+                })
+            cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+        except Exception as e:
+            logger.error('Failed to launch monitor process on worker: %s' % str(e))
+            connection.post_task_run_attempt_error({
+                'message': 'Failed to launch monitor process on worker',
+                'detail': str(e)
+            })
+            connection.update_task_run_attempt(
+                task_run_attempt_id,
+                {
+                    'status': TaskRunAttempt.STATUSES.FINISHED,
+                })
+            raise e
+
         logger.debug("CloudTaskManager process done.")
         ansible_logfile.close()
 
