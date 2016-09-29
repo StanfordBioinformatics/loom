@@ -40,7 +40,8 @@ RUN apt-get update && apt-get install -y \
 COPY . /opt/loom/
 RUN virtualenv /opt/loom \
     && . /opt/loom/bin/activate \
-    && pip install -e /opt/loom 
+    && pip install -e /opt/loom \
+    && pip install git+git://github.com/ansible/ansible.git@devel
 
 # Add Loom to the path.
 ENV PATH /opt/loom/bin:$PATH
