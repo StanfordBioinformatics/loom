@@ -116,15 +116,19 @@ class CloudTaskManager:
                 'message': 'Failed to provision host',
                 'detail': str(e)
             })
-            connection.update_task_run_attempt({
-                'status': TaskRunAttempt.STATUSES.FINISHED,
-            })
+            connection.update_task_run_attempt(
+                task_run_attempt_id,
+                {
+                    'status': TaskRunAttempt.STATUSES.FINISHED,
+                })
             raise e
 
         try:
-            connection.update_task_run_attempt({
-                'status': TaskRunAttempt.STATUSES.LAUNCHING_MONITOR,
-            })
+            connection.update_task_run_attempt(
+                task_run_attempt_id,
+                {
+                    'status': TaskRunAttempt.STATUSES.LAUNCHING_MONITOR,
+                })
             cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         except Exception as e:
             logger.error('Failed to launch monitor process on worker: %s' % str(e))
@@ -132,9 +136,11 @@ class CloudTaskManager:
                 'message': 'Failed to launch monitor process on worker',
                 'detail': str(e)
             })
-            connection.update_task_run_attempt({
-                'status': TaskRunAttempt.STATUSES.FINISHED,
-            })
+            connection.update_task_run_attempt(
+                task_run_attempt_id,
+                {
+                    'status': TaskRunAttempt.STATUSES.FINISHED,
+                })
             raise e
 
         logger.debug("CloudTaskManager process done.")
