@@ -2,8 +2,6 @@
 - name: Start the Loom server.
   hosts: "{{lookup('env','SERVER_NAME')}}"
   become: yes
-  become_user: loom
-  become_method: sudo
   vars:
     remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
     local_loom_settings_path: "{{lookup('env','HOME')}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
