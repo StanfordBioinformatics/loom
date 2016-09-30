@@ -6,20 +6,20 @@
   tasks:
   - include: tasks/gcloud_create_instance.yml
 
-- name: Create a new instance for the Loom worker.
+- name: Configure SSH key on Loom worker.
   hosts: localhost
   connection: local
   gather_facts: no
   become: yes
   become_user: loom
-  become_method: sudo
+  become_method: su
   tasks:
   - include: tasks/gcloud_configure_instance_ssh.yml
 
 - name: Set up new instance(s).
   hosts: new_instances
   remote_user: loom
-  become_method: sudo
+  become_method: su
   become: yes
 
   roles:
