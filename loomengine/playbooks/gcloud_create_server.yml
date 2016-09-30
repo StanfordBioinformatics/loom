@@ -17,6 +17,7 @@
   - zone: "{{lookup('env','SERVER_ZONE')}}"
   tasks:
   - include: tasks/gcloud_create_instance.yml
+  - include: tasks/gcloud_configure_instance_ssh.yml
 
 - name: Set up the Loom server on the new instance. 
   hosts: new_instances

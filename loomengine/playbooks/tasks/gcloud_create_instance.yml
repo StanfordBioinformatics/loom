@@ -9,16 +9,6 @@
     - scratch_disk_name is defined
     - scratch_disk_type is defined
     - scratch_disk_size_gb is defined
-  - stat: path=~/.ssh/google_compute_engine.pub
-    register: public_key
-  - name: Create SSH key if it doesn't exist
-    shell: ssh-keygen -q -t rsa -f ~/.ssh/google_compute_engine -P ""
-    when: public_key.stat.exists == False
-  - name: Add SSH key to instance metadata
-    shell: "gcloud compute instances add-metadata {{instance_name}} --metadata ssh-keys=\"{{lookup('env','USER')}}: {{ lookup('file', '~/.ssh/google_compute_engine.pub') }}\""
-  - name: Wait for SSH port to be available.
-    wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
-    with_items: '{{ gce_result.instance_data }}'
   - name: Add host to new_instances.
     add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
