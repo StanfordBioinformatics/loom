@@ -50,3 +50,4 @@ EXPOSE 8000
 
 RUN useradd -ms /bin/bash loom
 USER loom
+RUN mkdir ~/.loom
