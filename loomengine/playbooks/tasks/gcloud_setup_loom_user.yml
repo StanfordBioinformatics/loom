@@ -1,0 +1,4 @@
+- name: Create docker group
+  group: name=docker state=present
+- name: Create a loom user
+  user: name=loom group=docker state=present

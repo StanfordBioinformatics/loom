@@ -19,12 +19,24 @@
   - include: tasks/gcloud_create_instance.yml
   - include: tasks/gcloud_configure_instance_ssh.yml
 
-- name: Set up the Loom server on the new instance. 
+- name: Install docker
   hosts: new_instances
   become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'SERVER_SKIP_INSTALLS')}}"}
   - {role: docker-py, when: "not {{lookup('env', 'SERVER_SKIP_INSTALLS')}}"}
+
+- name: Create loom user on server
+  hosts: new_instances
+  become: yes
+  tasks:
+  - include: tasks/gcloud_setup_loom_user.yml
+
+- name: Set up the Loom server on the new instance. 
+  hosts: new_instances
+  become: yes
+  become_user: loom
+  roles:
   - loom-master
 
 - name: Run the user-provided playbook.
