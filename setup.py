@@ -87,6 +87,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
+                        'ansible==2.2.0.0',
                         'apache-libcloud==1.2.1',
                         'Django>=1.8,<1.9',
                         'django-cors-headers>=1.1.0',
@@ -119,6 +120,7 @@ setup(
                         'setuptools-git>=1.1',
                         'twine',
     ],
+    dependency_links=['https://github.com/ansible/ansible/archive/v2.2.0.0-0.1.rc1.tar.gz#egg=ansible-2.2.0.0'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
