@@ -26,6 +26,14 @@
 	  {{activeData.template.command}}
 	</td>
       </tr>
+      <tr ng-show="activeData.template.interpreter">
+	<th>
+	  Interpreter
+	</th>
+	<td>
+	  {{activeData.template.interpreter}}
+	</td>
+      </tr>
       <tr ng-show="activeData.template.environment.docker_image">
 	<th>Docker Image</th>
 	<td>

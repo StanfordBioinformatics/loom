@@ -42,6 +42,7 @@ class TaskRunner(object):
 
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
     HEARTBEAT_INTERVAL_SECONDS = 60
+    LOOM_RUN_SCRIPT_NAME = 'loom_run_script'
 
     def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
         if args is None:
@@ -167,6 +168,7 @@ class TaskRunner(object):
     def run(self):
         try:
             self._try_to_copy_inputs()
+            self._try_to_create_run_script()
             self._try_to_pull_image()
             self._try_to_create_container()
             self._try_to_run_container()
@@ -217,6 +219,20 @@ class TaskRunner(object):
             file_data_object_ids,
             destination_url=self.settings['WORKING_DIR'])
 
+    def _try_to_create_run_script(self):
+        self.logger.info('Creating run script')
+        self._set_status(STATUS.CREATING_RUN_SCRIPT)
+        try:
+            self._create_run_script()
+        except Exception as e:
+            self._report_error(message-'Failed to create run script', detail=str(e))
+            raise e
+
+    def _create_run_script(self):
+        user_command = self.task_run_attempt['task_definition']['command']
+        with open(os.path.join(self.settings['WORKING_DIR'], self.LOOM_RUN_SCRIPT_NAME), 'w') as f:
+            f.write(user_command + '\n')
+        
     def _try_to_pull_image(self):
         self._set_status(STATUS.FETCHING_IMAGE)
         try:
@@ -251,16 +267,15 @@ class TaskRunner(object):
             self._report_error(message='Failed to create container for runtime environment', detail=str(e))
             raise e
 
-    def  _create_container(self):
+    def _create_container(self):
         docker_image = self._get_docker_image()
-        user_command = self.task_run_attempt['task_definition']['command']
+        interpreter = self.task_run_attempt['task_definition']['interpreter']
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/loom_workspace'
 
         command = [
-            'bash',
-            '-o', 'pipefail',
-            '-c', user_command,
+            interpreter,
+            self.LOOM_RUN_SCRIPT_NAME
         ]
 
         self.container = self.docker_client.create_container(

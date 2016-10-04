@@ -203,6 +203,7 @@ class StepSerializer(CreateWithParentModelSerializer):
         fields = ('id',
                   'name',
                   'command',
+                  'interpreter',
                   'environment',
                   'resources',
                   'inputs',

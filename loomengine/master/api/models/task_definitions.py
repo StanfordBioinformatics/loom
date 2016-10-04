@@ -24,6 +24,7 @@ class TaskDefinition(BaseModel):
     task_run = models.OneToOneField('TaskRun',
                                     related_name='task_definition',
                                     on_delete=models.CASCADE)
+    interpreter = models.TextField()
     command = models.TextField()
 
     @classmethod
@@ -67,8 +68,9 @@ class TaskDefinition(BaseModel):
                      'parent_instance': self})
         s.is_valid(raise_exception=True)
         s.save()
-
+        
     def _initialize_command(self):
+        self.interpreter = self.task_run.get_interpreter()
         self.command = self.task_run.render_command()
         self.save()
         

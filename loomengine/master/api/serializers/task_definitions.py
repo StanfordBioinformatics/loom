@@ -56,4 +56,4 @@ class TaskDefinitionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TaskDefinition
-        fields = ('inputs', 'outputs', 'environment', 'command',)
+        fields = ('inputs', 'outputs', 'environment', 'command', 'interpreter')

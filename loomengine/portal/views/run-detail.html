@@ -52,6 +52,14 @@
 	  {{activeData.run.command}}
 	</td>
       </tr>
+      <tr ng-show="activeData.run.interpretercommand">
+	<th>
+	  Interpreter
+	</th>
+	<td>
+	  {{activeData.run.interpreter}}
+	</td>
+      </tr>
       <tr ng-show="activeData.run.environment.docker_image">
 	<th>Docker Image</th>
 	<td>

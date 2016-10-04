@@ -120,6 +120,7 @@ class Step(AbstractWorkflow):
     """
 
     command = models.TextField()
+    interpreter = models.TextField(default='/bin/bash')
 
     def is_step(self):
         return True

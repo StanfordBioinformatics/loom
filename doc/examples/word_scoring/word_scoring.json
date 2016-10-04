@@ -1,0 +1,108 @@
+{
+    "name": "words_scoring",
+    "inputs": {
+	"channel": "wordfile",
+	"type": "file",
+	"hint": "Input text file to be broken into words and letters"
+    },
+    "outputs": {
+	"channel": "sentence_value",
+	"type": "integer"
+    },
+    "steps": [
+	{
+	    "name": "split_into_words",
+	    "command": "cat {{ wordfile }}",
+	    "inputs": [
+		{
+		    "channel": "wordfile",
+		    "type": "file"
+		}
+	    ],
+	    "outputs": [
+		{
+		    "channel": "word",
+		    "mode": "scatter",
+		    "separator": " ",
+		    "stream": "stdout"
+		}
+	    ]
+	},
+	{
+	    "name": "split_into_letters",
+	    "interpreter": "python",
+	    "command": "print ' '.join([letter for letter in '{{ word }}'])",
+	    "mode": "scatter",
+	    "separator": " ",
+	    "stream": "stdout",
+	    "inputs": [
+		{
+		    "channel": "word",
+		    "type": "string"
+		}
+	    ],
+	    "outputs": [
+		{
+		    "channel": "letter",
+		    "mode": "scatter",
+		    "type": "string"
+		}
+	    ]
+	},
+	{
+	    "name": "letter_to_integer",
+	    "interpreter": "python",
+	    "command": "ord( {{ letter }} )"
+	    "inputs": [
+		{
+		    "channel": "letter",
+		    "type": "string"
+		}
+	    ],
+	    "outputs": [
+		{
+		    "channel": "letter_value",
+		    "type": "integer"
+		}
+	    ]
+	},
+	{
+	    "name": "sum_word",
+	    "mode": "gather",
+	    "interpreter": "python",
+	    "command": "print {{ letter_value|join(' + ') }}",
+	    "inputs": [
+		{
+		    "channel": "letter_value",
+		    "type": "integer"
+		}
+	    ],
+	    "outputs": [
+		{
+		    "channel": "word_value",
+		    "type": "integer",
+		    "source": "stdout"
+		}
+	    ]
+	},
+	{
+	    "name": "multiply_sentence",
+	    "mode": "gather",
+	    "interpreter": "python",
+	    "command": "print {{ word_value|join(' * ') }}",
+	    "inputs": [
+		{
+		    "channel": "word_value",
+		    "type": "integer"
+		}
+	    ],
+	    "outputs": [
+		{
+		    "channel": "sentence_value",
+		    "type": "integer",
+		    "source": "stdout"
+		}
+	    ]
+	},
+    ]
+}

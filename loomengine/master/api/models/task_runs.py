@@ -85,6 +85,9 @@ class TaskRun(BaseModel):
         context.update(self.get_output_context())
         return context
 
+    def get_interpreter(self):
+        return self.step_run.template.interpreter
+    
     def render_command(self):
         return render_from_template(
             self.step_run.template.command,

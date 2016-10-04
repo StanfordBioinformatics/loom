@@ -223,6 +223,10 @@ class StepRun(AbstractWorkflowRun):
         return self.template.command
 
     @property
+    def interpreter(self):
+        return self.template.interpreter
+
+    @property
     def environment(self):
         return self.template.environment
 

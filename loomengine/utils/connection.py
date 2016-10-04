@@ -10,6 +10,7 @@ class TASK_RUN_ATTEMPT_STATUSES:
     LAUNCHING_MONITOR = 'Launching monitor process on worker'
     INITIALIZING_MONITOR = 'Initializing monitor process on worker'
     COPYING_INPUTS = 'Copying input files to runtime environment'
+    CREATING_RUN_SCRIPT = 'Creating run script'
     FETCHING_IMAGE = 'Fetching runtime environment image'
     CREATING_CONTAINER = 'Creating runtime environment container'
     STARTING_ANALYSIS = 'Starting analysis'

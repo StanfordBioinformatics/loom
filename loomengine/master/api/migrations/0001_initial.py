@@ -201,6 +201,7 @@ class Migration(migrations.Migration):
             name='TaskDefinition',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('interpreter', models.TextField()),
                 ('command', models.TextField()),
             ],
             options={
@@ -515,6 +516,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('abstractworkflow_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.AbstractWorkflow')),
                 ('command', models.TextField()),
+                ('interpreter', models.TextField(default=b'/bin/bash')),
             ],
             options={
                 'abstract': False,

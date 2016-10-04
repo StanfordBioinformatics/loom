@@ -59,6 +59,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
                                                allow_null=True)
     outputs = StepRunOutputSerializer(many=True)
     command = serializers.CharField()
+    interpreter = serializers.CharField()
     resources = RequestedResourceSetSerializer()
     environment = RequestedEnvironmentSerializer()
     name = serializers.CharField()
@@ -68,8 +69,8 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = StepRun
         fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs',
-                  'command', 'environment', 'resources', 'name', 'task_runs',
-                  'status', 'errors')
+                  'command', 'interpreter', 'environment', 'resources', 'name',
+                  'task_runs', 'status', 'errors')
 
 
 class WorkflowRunInputSerializer(CreateWithParentModelSerializer):
