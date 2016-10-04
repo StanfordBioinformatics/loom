@@ -120,7 +120,6 @@ setup(
                         'setuptools-git>=1.1',
                         'twine',
     ],
-    dependency_links=['https://github.com/ansible/ansible/archive/v2.2.0.0-0.1.rc1.tar.gz#egg=ansible-2.2.0.0'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
