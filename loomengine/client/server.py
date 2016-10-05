@@ -26,7 +26,6 @@ GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
 GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
 GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
 GCLOUD_SETUP_LOOM_USER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_setup_loom_user.yml')
-NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
 
 def ServerControlsFactory(args):
     """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate class."""
@@ -119,10 +118,9 @@ class BaseServerControls:
         '''Set server for the client to manage (currently local or gcloud) and creates Loom settings directory.'''
         server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
         # Create directory/directories if they don't exist
-        ini_dir = os.path.dirname(server_location_file)
-        if not os.path.exists(ini_dir):
-            print 'Creating Loom settings directory %s...' % ini_dir
-            os.makedirs(ini_dir)
+        if not os.path.exists(LOOM_SETTINGS_PATH):
+            print 'Creating Loom settings directory %s...' % LOOM_SETTINGS_PATH
+            os.makedirs(LOOM_SETTINGS_PATH)
 
         # Write server.ini file
         config = SafeConfigParser()
@@ -135,9 +133,6 @@ class BaseServerControls:
         with open(server_location_file, 'w') as configfile:
             print 'Updating %s...' % server_location_file
             config.write(configfile)
-
-        # Copy NGINX config file to same place
-        shutil.copy(NGINX_CONFIG_FILE, ini_dir)
 
     def status(self):
         if is_server_running():
@@ -172,7 +167,6 @@ class LocalServerControls(BaseServerControls):
 
             if loomengine.utils.cloud.on_gcloud_vm():
                 """We're in gcloud and the client is starting the server on the local instance."""
-                subprocess.call(['ansible-playbook', GCLOUD_SETUP_LOOM_USER_PLAYBOOK])
                 self.settings_manager.add_gcloud_settings_on_server()
 
             env = os.environ.copy()

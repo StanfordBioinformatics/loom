@@ -6,6 +6,8 @@
     copy: src={{gce_pem_file_path}} dest={{remote_loom_settings_path}}
   - name: Copy Ansible dynamic inventory settings file to server.
     copy: src={{gce_ini_path}} dest={{remote_loom_settings_path}}
+  - name: Copy Nginx config file to server.
+    copy: src={{nginx_config_path}} dest={{remote_loom_settings_path}}
   - name: Create directory for SSL certificate and key.
     file: path={{remote_loom_settings_path}}/ssl state=directory mode=0755
   - name: Create self-signed SSL certificate and key.
