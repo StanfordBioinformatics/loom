@@ -20,7 +20,7 @@ from loomengine.client import exceptions
 from loomengine.utils.exceptions import ServerConnectionError
 
 LOOM_HOME_SUBDIR = '.loom'
-LOOM_SETTINGS_PATH = os.path.expanduser(os.path.join('~', LOOM_HOME_SUBDIR))
+LOOM_SETTINGS_PATH = os.path.join('~', LOOM_HOME_SUBDIR)
 SERVER_LOCATION_FILE = os.path.join(LOOM_SETTINGS_PATH, 'server.ini')
 SSL_CERT_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.crt'))
 SSL_KEY_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.key'))

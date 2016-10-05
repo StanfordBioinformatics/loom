@@ -25,7 +25,6 @@ GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
 GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
 GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
 GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
-GCLOUD_SETUP_LOOM_USER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_setup_loom_user.yml')
 
 def ServerControlsFactory(args):
     """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate class."""
@@ -118,9 +117,9 @@ class BaseServerControls:
         '''Set server for the client to manage (currently local or gcloud) and creates Loom settings directory.'''
         server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
         # Create directory/directories if they don't exist
-        if not os.path.exists(LOOM_SETTINGS_PATH):
-            print 'Creating Loom settings directory %s...' % LOOM_SETTINGS_PATH
-            os.makedirs(LOOM_SETTINGS_PATH)
+        if not os.path.exists(os.path.expanduser(LOOM_SETTINGS_PATH)):
+            print 'Creating Loom settings directory %s...' % os.path.expanduser(LOOM_SETTINGS_PATH)
+            os.makedirs(os.path.expanduser(LOOM_SETTINGS_PATH))
 
         # Write server.ini file
         config = SafeConfigParser()
