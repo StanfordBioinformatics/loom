@@ -98,6 +98,7 @@ class CloudTaskManager:
             'scratch_disk_mount_point': settings.WORKER_SCRATCH_DISK_MOUNT_POINT,
             'scratch_disk_type': settings.WORKER_SCRATCH_DISK_TYPE,
             'scratch_disk_size_gb': scratch_disk_size_gb,
+            'subnetwork': settings.WORKER_CUSTOM_SUBNET,
             'tags': settings.WORKER_TAGS,
             'task_run_attempt_id': task_run_attempt_id,
             'task_run_docker_image': environment['docker_image'],

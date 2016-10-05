@@ -71,6 +71,10 @@ class SettingsManager:
             self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
             if self.settings['DOCKER_REGISTRY']:
                 self.settings['DOCKER_FULL_NAME'] = '/'.join([self.settings['DOCKER_REGISTRY'], self.settings['DOCKER_FULL_NAME']])
+            if self.settings['SERVER_CUSTOM_SUBNET']:
+                self.settings['SERVER_NETWORK'] = ''
+            if self.settings['WORKER_CUSTOM_SUBNET']:
+                self.settings['WORKER_NETWORK'] = ''
 
     def create_deploy_settings_file(self, user_settings_file=None):
         self.create_deploy_settings(user_settings_file=user_settings_file)
