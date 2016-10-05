@@ -231,10 +231,18 @@ class WorkflowOutput(AbstractOutput):
 
 class StepOutput(AbstractOutput):
 
-    filename = models.CharField(max_length=255)
     step = models.ForeignKey('Step',
                              related_name='outputs',
                              on_delete=models.CASCADE)
+
+
+class StepOutputSource(BaseModel):
+    step_output = models.OneToOneField(
+        StepOutput,
+        related_name='source',
+        on_delete=models.CASCADE)
+    filename = models.CharField(max_length=1024, null=True)
+    stream = models.CharField(max_length=255, null=True)
 
 
 class WorkflowImport(BaseModel):

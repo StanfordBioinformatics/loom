@@ -21,7 +21,7 @@
     ],
     "outputs": [
 	{
-	    "type": "file",
+	    "type": "string",
 	    "channel": "hello_world"
 	}
     ],
@@ -46,7 +46,9 @@
 		{
 		    "type": "file",
 		    "channel": "hello_cap",
-		    "filename": "hello_cap.txt"
+		    "source": {
+			"filename": "hello_cap.txt"
+		    }
 		}
 	    ]
 	},
@@ -70,7 +72,9 @@
 		{
 		    "type": "file",
 		    "channel": "world_cap",
-		    "filename": "world_cap.txt"
+		    "source": {
+			"filename": "world_cap.txt"
+		    }
 		}
 	    ]
 	},
@@ -100,9 +104,11 @@
             ],
             "outputs": [
 		{
-		    "type": "file",
-                    "filename": "hello_world.txt",
-		    "channel": "hello_world"
+		    "type": "string",
+		    "channel": "hello_world",
+		    "source": {
+			"filename": "hello_world.out"
+		    }
 		}
             ]
         }

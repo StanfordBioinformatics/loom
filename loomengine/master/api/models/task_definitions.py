@@ -45,16 +45,28 @@ class TaskDefinition(BaseModel):
                 type=input.type)
 
     def _initialize_outputs(self):
-        for output in self.task_run.outputs.all():
-            TaskDefinitionOutput.objects.create(
+        for task_run_output in self.task_run.outputs.all():
+            task_definition_output = TaskDefinitionOutput.objects.create(
                 task_definition=self,
-                task_run_output=output,
-                filename=render_from_template(
-                    output.step_run_output.filename,
-                    self.task_run.get_input_context()),
-                type=output.type,
+                task_run_output=task_run_output,
+                type=task_run_output.type,
             )
+            self._initialize_output_source(task_definition_output, task_run_output.step_run_output.source),
 
+    def _initialize_output_source(self, task_definition_output, step_run_output_source):
+        stream=step_run_output_source.stream
+        if step_run_output_source.filename:
+            filename = render_from_template(
+                step_run_output_source.filename,
+                self.task_run.get_input_context())
+        else:
+            filename = None
+
+        return TaskDefinitionOutputSource.objects.create(
+            task_definition_output=task_definition_output,
+            filename=filename,
+            stream=stream)
+            
     def _initialize_environment(self):
         # TODO get specific docker image ID
         from api.serializers import TaskDefinitionEnvironmentSerializer
@@ -117,8 +129,16 @@ class TaskDefinitionOutput(BaseModel):
         'TaskRunOutput',
         related_name='task_definition_output',
         on_delete=models.CASCADE)
-    filename = models.CharField(max_length=255)
     type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES
     )
+
+class TaskDefinitionOutputSource(BaseModel):
+
+    task_definition_output = models.OneToOneField(
+        'TaskDefinitionOutput',
+        related_name = 'source',
+        on_delete=models.CASCADE)
+    filename = models.CharField(max_length=1024, null=True)
+    stream = models.CharField(max_length=255, null=True)

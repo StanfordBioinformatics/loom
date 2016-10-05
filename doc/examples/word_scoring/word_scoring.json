@@ -23,8 +23,11 @@
 		{
 		    "channel": "word",
 		    "mode": "scatter",
-		    "separator": " ",
-		    "stream": "stdout"
+		    "type": "string",
+		    "source": {
+			"stream": "stdout",
+			"separator": " "
+		    }
 		}
 	    ]
 	},
@@ -34,7 +37,6 @@
 	    "command": "print ' '.join([letter for letter in '{{ word }}'])",
 	    "mode": "scatter",
 	    "separator": " ",
-	    "stream": "stdout",
 	    "inputs": [
 		{
 		    "channel": "word",
@@ -44,8 +46,15 @@
 	    "outputs": [
 		{
 		    "channel": "letter",
-		    "mode": "scatter",
 		    "type": "string"
+		    "mode": "scatter",
+		    "source": {
+			"stream": "stdout",
+		    },
+		    "parser": {
+			"type": "delimited",
+			"delimiter": " "
+		    }
 		}
 	    ]
 	},

@@ -84,11 +84,37 @@ class WorkflowOutputSerializer(CreateWithParentModelSerializer):
         fields = ('type', 'channel',)
 
 
+class StepOutputSourceSerializer(CreateWithParentModelSerializer):
+
+    class Meta:
+        model = StepOutputSource
+        fields = ('filename', 'stream')
+
+
 class StepOutputSerializer(CreateWithParentModelSerializer):
+
+    source = StepOutputSourceSerializer()
 
     class Meta:
         model = StepOutput
-        fields = ('type', 'channel', 'filename')
+        fields = ('type', 'channel', 'source')
+
+    def create(self, validated_data):
+        source_data =self.initial_data.get('source', None)
+        validated_data.pop('source', None)
+
+        step_output = super(StepOutputSerializer, self).create(validated_data)
+
+        if source_data:
+            s = StepOutputSourceSerializer(
+                data=source_data,
+                context = {'parent_field': 'step_output',
+                           'parent_instance': step_output})
+            s.is_valid(raise_exception=True)
+            s.save()
+
+        post_save_children.send(sender=self.Meta.model, instance=step_output)
+        return step_output
 
 
 class AbstractWorkflowSerializer(SuperclassModelSerializer):
@@ -253,7 +279,7 @@ class StepSerializer(CreateWithParentModelSerializer):
                          'parent_instance': step})
             s.is_valid(raise_exception=True)
             s.save()
-                
+
         if resources is not None:
             s = RequestedResourceSetSerializer(
                 data=resources,

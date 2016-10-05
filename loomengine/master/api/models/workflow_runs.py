@@ -393,10 +393,10 @@ class StepRunOutput(InputOutputNode):
         return self.step_output.type
 
     @property
-    def filename(self):
+    def source(self):
         if self.step_output is None:
             return ''
-        return self.step_output.filename
+        return self.step_output.source
 
 
 class WorkflowRunInput(InputOutputNode):

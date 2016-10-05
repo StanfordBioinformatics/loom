@@ -37,11 +37,11 @@ class FixedStepRunInputSerializer(CreateWithParentModelSerializer):
         model = FixedStepRunInput
         fields = ('type', 'channel', 'value',)
 
-
+        
 class StepRunOutputSerializer(CreateWithParentModelSerializer):
 
     value = serializers.CharField()
-        
+
     class Meta:
         model = StepRunOutput
         fields = ('type', 'channel', 'value',)

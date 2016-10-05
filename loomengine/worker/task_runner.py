@@ -398,24 +398,54 @@ class TaskRunner(object):
         try:
             self._save_outputs()
         except Exception as e:
-            self._report_error(message='Failed to save process logs', detail=str(e))
+            self._report_error(message='Failed to save outputs', detail=str(e))
             # Don't raise error. Continue cleanup
 
     def _save_outputs(self):
         for output in self.task_run_attempt['outputs']:
             if output['type'] == 'file':
-                filename = output['filename']
+                filename = output['source']['filename']
                 try:
-                    self.filemanager.import_result_file(
+                    data_object = self.filemanager.import_result_file(
                         output,
                         os.path.join(self.settings['WORKING_DIR'], filename)
                     )
+                    self.logger.debug('Saved file output "%s"' % data_object['id'])
                 except IOError as e:
-                    self._report_error(message='Failed to upload output file %s' % filename, detail=str(e))
+                    self._report_error(message='Failed to save output file %s' % filename, detail=str(e))
             else:
-                # TODO handle non-file output types
-                raise Exception("Can't handle outputs of type %s" %
-                                output['type'])
+                if output['source'].get('filename'):
+                    with open(
+                            os.path.join(
+                                self.settings['WORKING_DIR'],
+                                output['source'].get('filename')),
+                            'r') as f:
+                        output_text = f.read()
+
+                elif output['source'].get('stream'):
+                    # Get result from stream
+                    if output['source'].get('stream') == 'stdout':
+                        output_text = self.docker_client.logs(self.container, stderr=False, stdout=True)
+                    elif output['source'].get('stream') == 'stderr':
+                        output_text = self.docker_client.logs(self.container, stderr=True, stdout=False)
+                    else:
+                        raise Exception('Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
+                else:
+                    raise Exception('Could not save output "%s" because did not include a filename or a stream: "%s"' %  (output['channel'], output['source']))
+
+                data_object = self._save_nonfile_output(output, output_text)
+                self.logger.debug('Saved %s output "%s"' % (output['type'], data_object['id']))
+
+    def _save_nonfile_output(self, output, output_text):
+        data_type = output['type']
+        data_object = {
+            'type': data_type,
+            data_type+'_content': {
+                data_type+'_value': output_text
+            }
+        }
+        output.update({'data_object': data_object})
+        return self.connection.update_task_run_attempt_output(output['id'], output)
 
     def _try_to_save_monitor_log(self):
         self.logger.debug('Saving worker process monitor log')

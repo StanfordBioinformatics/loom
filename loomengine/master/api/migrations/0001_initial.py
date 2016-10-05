@@ -189,8 +189,20 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('channel', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
-                ('filename', models.CharField(max_length=255)),
                 ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_api.stepoutput_set+', editable=False, to='contenttypes.ContentType', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepOutputSource',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('filename', models.CharField(max_length=1024, null=True)),
+                ('stream', models.CharField(max_length=255, null=True)),
+                ('step_output', models.OneToOneField(related_name='source', to='api.StepOutput')),
             ],
             options={
                 'abstract': False,
@@ -234,9 +246,21 @@ class Migration(migrations.Migration):
             name='TaskDefinitionOutput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('filename', models.CharField(max_length=255)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
                 ('task_definition', models.ForeignKey(related_name='outputs', to='api.TaskDefinition')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='TaskDefinitionOutputSource',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('filename', models.CharField(max_length=1024, null=True)),
+                ('stream', models.CharField(max_length=255, null=True)),
+                ('task_definition_output', models.OneToOneField(related_name='source', to='api.TaskDefinitionOutput')),
             ],
             options={
                 'abstract': False,

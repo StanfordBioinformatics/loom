@@ -76,8 +76,8 @@ class TaskRun(BaseModel):
             # This returns a value only for Files, where the filename
             # is known beforehand and may be used in the command.
             # For other types, nothing is added to the context.
-            if output.type == 'file':
-                context[output.channel] = output.filename
+            if output.source.filename:
+                context[output.channel] = output.source.filename
         return context
 
     def get_full_context(self):
@@ -130,10 +130,10 @@ class TaskRunOutput(BaseModel):
                                     on_delete=models.PROTECT)
 
     @property
-    def filename(self):
+    def source(self):
         # This will raise ObjectDoesNotExist if task_definition_output
         # is not yet attached.
-        return self.task_definition_output.filename
+        return self.task_definition_output.source
 
     @property
     def channel(self):
@@ -329,8 +329,8 @@ class TaskRunAttemptOutput(BaseModel):
         return self.task_run_output.channel
 
     @property
-    def filename(self):
-        return self.task_run_output.filename
+    def source(self):
+        return self.task_run_output.source
 
     def push(self):
         if self.data_object is not None:
