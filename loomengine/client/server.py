@@ -459,13 +459,6 @@ class GoogleCloudServerControls(BaseServerControls):
             print 'Input did not match current server name \"%s\".' % instance_name
             return
 
-        email = find_service_account_email(instance_name)
-        print 'Deleting service account %s...' % email
-        try:
-            delete_service_account(email)
-        except Exception as e:
-            print e
-
         if instance_name not in current_hosts:
             print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
         else:
@@ -474,6 +467,13 @@ class GoogleCloudServerControls(BaseServerControls):
             if delete_returncode == 0:
                 print 'Instance successfully deleted.'
             
+        email = find_service_account_email(instance_name)
+        print 'Deleting service account %s...' % email
+        try:
+            delete_service_account(email)
+        except Exception as e:
+            print e
+
         if os.path.exists(get_deploy_settings_filename()):
             print 'Deleting %s...' % get_deploy_settings_filename()
             os.remove(get_deploy_settings_filename())

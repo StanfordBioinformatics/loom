@@ -87,7 +87,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-                        'ansible==2.1.1.0',
+                        'ansible==2.2.0.0',
                         'apache-libcloud==1.2.1',
                         'Django>=1.8,<1.9',
                         'django-cors-headers>=1.1.0',
