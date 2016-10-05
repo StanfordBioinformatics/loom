@@ -364,6 +364,14 @@ class StepRunInput(AbstractStepRunInput):
     def type(self):
         return self.step_input.type
 
+    @property
+    def mode(self):
+        return self.step_input.mode
+
+    @property
+    def group(self):
+        return self.step_input.group
+
 
 class FixedStepRunInput(AbstractStepRunInput):
 
@@ -377,6 +385,14 @@ class FixedStepRunInput(AbstractStepRunInput):
     @property
     def type(self):
         return self.step_input.type
+
+    @property
+    def mode(self):
+        return self.step_input.mode
+
+    @property
+    def group(self):
+        return self.step_input.group
 
 
 class StepRunOutput(InputOutputNode):
@@ -393,10 +409,20 @@ class StepRunOutput(InputOutputNode):
         return self.step_output.type
 
     @property
+    def mode(self):
+        return self.step_output.mode
+
+    @property
     def source(self):
         if self.step_output is None:
             return ''
         return self.step_output.source
+
+    @property
+    def parser(self):
+        if self.step_output is None:
+            return ''
+        return self.step_output.parser
 
 
 class WorkflowRunInput(InputOutputNode):

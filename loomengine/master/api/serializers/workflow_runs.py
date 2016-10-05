@@ -23,28 +23,33 @@ class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
 class StepRunInputSerializer(CreateWithParentModelSerializer):
 
     value = serializers.CharField()
-    
+    mode = serializers.CharField()
+    group = serializers.IntegerField()
+
     class Meta:
         model = StepRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'value', 'mode', 'group')
 
 
 class FixedStepRunInputSerializer(CreateWithParentModelSerializer):
 
     value = serializers.CharField()
+    mode = serializers.CharField()
+    group = serializers.IntegerField()
         
     class Meta:
         model = FixedStepRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'value', 'mode', 'group')
 
         
 class StepRunOutputSerializer(CreateWithParentModelSerializer):
 
     value = serializers.CharField()
+    mode = serializers.CharField()
 
     class Meta:
         model = StepRunOutput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'value', 'mode')
 
 
 class StepRunSerializer(CreateWithParentModelSerializer):

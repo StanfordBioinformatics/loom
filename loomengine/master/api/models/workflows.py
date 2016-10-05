@@ -191,6 +191,8 @@ class StepInput(AbstractRuntimeWorkflowInput):
     step = models.ForeignKey('Step',
                              related_name='inputs',
                              on_delete=models.CASCADE)
+    mode = models.CharField(max_length=255, default='no_gather')
+    group = models.IntegerField(default=0)
 
 
 class FixedWorkflowInput(AbstractFixedWorkflowInput):
@@ -200,14 +202,14 @@ class FixedWorkflowInput(AbstractFixedWorkflowInput):
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
 
-
 class FixedStepInput(AbstractFixedWorkflowInput):
 
     step = models.ForeignKey(
         'Step',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
-
+    mode = models.CharField(max_length=255, default='no_gather')
+    group = models.IntegerField(default=0)
 
 class AbstractOutput(BasePolymorphicModel):
 
@@ -234,6 +236,16 @@ class StepOutput(AbstractOutput):
     step = models.ForeignKey('Step',
                              related_name='outputs',
                              on_delete=models.CASCADE)
+    mode = models.CharField(max_length=255, default='no_scatter')
+
+
+class StepOutputParser(BaseModel):
+    step_output = models.OneToOneField(
+        StepOutput,
+        related_name='parser',
+        on_delete=models.CASCADE)
+    type = models.CharField(max_length=255)
+    delimiter = models.CharField(max_length=255, null=True)
 
 
 class StepOutputSource(BaseModel):

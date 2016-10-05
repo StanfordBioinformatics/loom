@@ -34,8 +34,8 @@ class RunRequestInputSerializer(CreateWithParentModelSerializer):
 
         return run_request_input
 
-    '''
-    def parse_string_to_nested_lists(self, value):
+    @classmethod
+    def parse_string_to_nested_lists(cls, value):
         """e.g., convert "[[a,b,c],[d,e],[f,g]]" 
         into [["a","b","c"],["d","e"],["f","g"]]
         """
@@ -62,7 +62,7 @@ class RunRequestInputSerializer(CreateWithParentModelSerializer):
         for i in range(len(value)):
             if value[i] == ',' and depth == 0:
                 terms.append(
-                    self.parse_string_to_nested_lists(value[leftmost:i]))
+                    cls.parse_string_to_nested_lists(value[leftmost:i]))
                 leftmost = i+1
             if value[i] == '[':
                 if first_open_brace is None:
@@ -76,7 +76,7 @@ class RunRequestInputSerializer(CreateWithParentModelSerializer):
         if depth > 0:
             raise Exception('Expected "]"')
         terms.append(
-            self.parse_string_to_nested_lists(value[leftmost:len(value)]))
+            cls.parse_string_to_nested_lists(value[leftmost:len(value)]))
         return terms
 
     def create_data_objects(data_object_values, index_list):

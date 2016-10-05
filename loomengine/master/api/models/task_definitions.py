@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 from .base import BaseModel, BasePolymorphicModel, render_from_template
@@ -52,6 +53,7 @@ class TaskDefinition(BaseModel):
                 type=task_run_output.type,
             )
             self._initialize_output_source(task_definition_output, task_run_output.step_run_output.source),
+            self._initialize_output_parser(task_definition_output, task_run_output.step_run_output),
 
     def _initialize_output_source(self, task_definition_output, step_run_output_source):
         stream=step_run_output_source.stream
@@ -66,7 +68,18 @@ class TaskDefinition(BaseModel):
             task_definition_output=task_definition_output,
             filename=filename,
             stream=stream)
-            
+
+    def _initialize_output_parser(self, task_definition_output, step_run_output):
+        try:
+            step_run_output_parser = step_run_output.parser
+        except ObjectDoesNotExist:
+            return
+
+        return TaskDefinitionOutputParser.objects.create(
+            task_definition_output=task_definition_output,
+            type=step_run_output_parser.type,
+            delimiter=step_run_output_parser.delimiter)
+
     def _initialize_environment(self):
         # TODO get specific docker image ID
         from api.serializers import TaskDefinitionEnvironmentSerializer
@@ -142,3 +155,12 @@ class TaskDefinitionOutputSource(BaseModel):
         on_delete=models.CASCADE)
     filename = models.CharField(max_length=1024, null=True)
     stream = models.CharField(max_length=255, null=True)
+
+class TaskDefinitionOutputParser(BaseModel):
+
+    task_definition_output = models.OneToOneField(
+        'TaskDefinitionOutput',
+        related_name = 'parser',
+        on_delete=models.CASCADE)
+    type = models.CharField(max_length=255)
+    delimiter = models.CharField(max_length=255, null=True)

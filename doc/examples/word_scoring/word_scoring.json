@@ -1,14 +1,18 @@
 {
     "name": "words_scoring",
-    "inputs": {
-	"channel": "wordfile",
-	"type": "file",
-	"hint": "Input text file to be broken into words and letters"
-    },
-    "outputs": {
-	"channel": "sentence_value",
-	"type": "integer"
-    },
+    "inputs": [
+	{
+	    "channel": "wordfile",
+	    "type": "file",
+	    "hint": "Input text file to be broken into words and letters"
+	}
+    ],
+    "outputs": [
+	{
+	    "channel": "sentence_value",
+	    "type": "integer"
+	}
+    ],
     "steps": [
 	{
 	    "name": "split_into_words",
@@ -25,18 +29,26 @@
 		    "mode": "scatter",
 		    "type": "string",
 		    "source": {
-			"stream": "stdout",
-			"separator": " "
+			"stream": "stdout"
+		    },
+		    "parser": {
+			"type": "delimited",
+			"delimiter": " "
 		    }
 		}
-	    ]
+	    ],
+	    "environment": {
+		"docker_image": "ubuntu"
+	    },
+	    "resources": {
+		"cores": "1",
+		"memory": "1"
+	    }
 	},
 	{
 	    "name": "split_into_letters",
 	    "interpreter": "python",
 	    "command": "print ' '.join([letter for letter in '{{ word }}'])",
-	    "mode": "scatter",
-	    "separator": " ",
 	    "inputs": [
 		{
 		    "channel": "word",
@@ -46,22 +58,29 @@
 	    "outputs": [
 		{
 		    "channel": "letter",
-		    "type": "string"
+		    "type": "string",
 		    "mode": "scatter",
 		    "source": {
-			"stream": "stdout",
+			"stream": "stdout"
 		    },
 		    "parser": {
 			"type": "delimited",
 			"delimiter": " "
 		    }
 		}
-	    ]
+	    ],
+	    "environment": {
+		"docker_image": "ubuntu"
+	    },
+	    "resources": {
+		"cores": "1",
+		"memory": "1"
+	    }
 	},
 	{
 	    "name": "letter_to_integer",
 	    "interpreter": "python",
-	    "command": "ord( {{ letter }} )"
+	    "command": "ord( {{ letter }} )",
 	    "inputs": [
 		{
 		    "channel": "letter",
@@ -71,47 +90,75 @@
 	    "outputs": [
 		{
 		    "channel": "letter_value",
-		    "type": "integer"
+		    "type": "integer",
+		    "source": {
+			"stream": "stdout"
+		    }
 		}
-	    ]
+	    ],
+	    "environment": {
+		"docker_image": "ubuntu"
+	    },
+	    "resources": {
+		"cores": "1",
+		"memory": "1"
+	    }
 	},
 	{
 	    "name": "sum_word",
-	    "mode": "gather",
 	    "interpreter": "python",
 	    "command": "print {{ letter_value|join(' + ') }}",
 	    "inputs": [
 		{
 		    "channel": "letter_value",
-		    "type": "integer"
+		    "type": "integer",
+		    "mode": "gather"
 		}
 	    ],
 	    "outputs": [
 		{
 		    "channel": "word_value",
 		    "type": "integer",
-		    "source": "stdout"
+		    "source": {
+			"stream": "stdout"
+		    }
 		}
-	    ]
+	    ],
+	    "environment": {
+		"docker_image": "ubuntu"
+	    },
+	    "resources": {
+		"cores": "1",
+		"memory": "1"
+	    }
 	},
 	{
 	    "name": "multiply_sentence",
-	    "mode": "gather",
 	    "interpreter": "python",
 	    "command": "print {{ word_value|join(' * ') }}",
 	    "inputs": [
 		{
 		    "channel": "word_value",
-		    "type": "integer"
+		    "type": "integer",
+		    "mode": "gather"
 		}
 	    ],
 	    "outputs": [
 		{
 		    "channel": "sentence_value",
 		    "type": "integer",
-		    "source": "stdout"
+		    "source": {
+			"stream": "stdout"
+		    }
 		}
-	    ]
-	},
+	    ],
+	    "environment": {
+		"docker_image": "ubuntu"
+	    },
+	    "resources": {
+		"cores": "1",
+		"memory": "1"
+	    }
+	}
     ]
 }
