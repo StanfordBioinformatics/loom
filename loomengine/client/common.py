@@ -28,7 +28,6 @@ GCE_INI_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce.ini')
 GCE_JSON_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce_key.json')
 GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
 SERVER_PATH = os.path.join(imp.find_module('loomengine')[1], 'master')
-NGINX_CONFIG_PATH = os.path.join(imp.find_module('loomengine')[1], 'client', 'nginx.conf')
 
 def get_server_type():
     """Checks server.ini for server type."""
@@ -200,7 +199,7 @@ def create_service_account_key(project, email, path):
     credential_filestring = response['privateKeyData'].decode('base64')
     with open(os.path.expanduser(path), 'w') as credential_file:
         credential_file.write(credential_filestring)
-    
+
 def is_gce_ini_valid():
     """Makes sure that gce.ini exists, and that its project id matches gcloud CLI's."""
     if not os.path.exists(os.path.expanduser(GCE_INI_PATH)):

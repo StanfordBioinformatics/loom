@@ -61,8 +61,6 @@ class SettingsManager:
         self.settings['GCE_PEM_FILE_PATH'] = gce_config.get('gce', 'gce_service_account_pem_file_path')
         self.settings['CLIENT_VERSION'] = version()
 
-        self.settings['NGINX_CONFIG_PATH'] = NGINX_CONFIG_PATH
-        
         # If bucket not provided, default to project id with '-loom' appended
         if self.settings['GCE_BUCKET'] == 'None':
             self.settings['GCE_BUCKET'] = self.settings['GCE_PROJECT'] + '-loom'
