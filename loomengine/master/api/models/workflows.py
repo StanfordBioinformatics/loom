@@ -170,9 +170,9 @@ class AbstractRuntimeWorkflowInput(AbstractWorkflowInput):
 
 class AbstractFixedWorkflowInput(AbstractWorkflowInput):
 
-    data_object = models.ForeignKey('DataObject') # serialized as 'value'
+    data_object = models.ForeignKey('DataObject') # serialized as 'data'
 
-    def value(self):
+    def data(self):
         return self.data_object.get_display_value()
     
     class Meta:

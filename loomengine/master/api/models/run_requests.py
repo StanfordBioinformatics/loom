@@ -5,7 +5,7 @@ from django.utils import timezone
 import uuid
 
 from .base import BaseModel, BasePolymorphicModel
-from .channels import InputOutputNode
+from .input_output_nodes import InputOutputNode
 from .data_objects import DataObject
 from .signals import post_save_children
 from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
@@ -105,13 +105,6 @@ class RunRequestInput(InputOutputNode):
         'RunRequest',
         related_name='inputs',
         on_delete=models.CASCADE)
-
-    def value(self):
-        # TODO - handle indices
-        if self.indexed_data_objects.count() == 0:
-            return None
-        return self.indexed_data_objects.first()\
-                                        .data_object.get_display_value()
 
     def get_type(self):
         return self.run_request.run.get_input(self.channel).type

@@ -1,5 +1,5 @@
 {
-    "name": "words_scoring",
+    "name": "word_scoring",
     "inputs": [
 	{
 	    "channel": "wordfile",

@@ -1,8 +1,8 @@
+import json
 from rest_framework import serializers
-        
+
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.data_objects import DataObject
-from api.models.channels import IndexedDataObject
 from api.models.run_requests import RunRequest, RunRequestInput
 from api.models.signals import post_save_children
 from api.models.workflows import AbstractWorkflow
@@ -12,86 +12,18 @@ from api.serializers.workflow_runs import AbstractWorkflowRunSerializer
 
 class RunRequestInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField() #converted from IndexedDataObjects
+    data = serializers.CharField() #converted from tree of DataNodes at input.data_root
 
     class Meta:
         model = RunRequestInput
-        fields = ('channel', 'value',)
+        fields = ('channel', 'data',)
 
     def create(self, validated_data):
-        # Convert 'value' into its corresponding data object
-        value = validated_data.pop('value')
-        data_object = DataObject.get_by_value(
-            value,
-            self.context['data_type'])
-
+        # Convert 'data' into its corresponding data object
+        data_json = validated_data.pop('data')
         run_request_input = super(RunRequestInputSerializer, self).create(validated_data)
-
-        # TODO: for each (index, data_object)
-        IndexedDataObject.objects.create(
-            data_object=data_object,
-            input_output_node = run_request_input)
-
+        run_request_input.add_data_objects_from_json(data_json, self.context['data_type'])
         return run_request_input
-
-    @classmethod
-    def parse_string_to_nested_lists(cls, value):
-        """e.g., convert "[[a,b,c],[d,e],[f,g]]" 
-        into [["a","b","c"],["d","e"],["f","g"]]
-        """
-        if not re.match('\[.*\]', value.strip()):
-            if '[' in value or ']' in value or ',' in value:
-                raise Exception('Missing outer brace')
-            elif len(value.strip()) == 0:
-                raise Exception('Missing value')
-            else:
-                terms = value.split(',')
-                if len(terms) == 1:
-                    return terms[0]
-                else:
-                    return terms
-                
-        # remove outer braces
-        value = value[1:-1]
-
-        terms = []
-        depth = 0
-        leftmost = 0
-        first_open_brace = None
-        break_on_commas = False
-        for i in range(len(value)):
-            if value[i] == ',' and depth == 0:
-                terms.append(
-                    cls.parse_string_to_nested_lists(value[leftmost:i]))
-                leftmost = i+1
-            if value[i] == '[':
-                if first_open_brace is None:
-                    first_open_brace = i
-                depth += 1
-            if value[i] == ']':
-                depth -= 1
-                if depth < 0:
-                    raise Exception('Unbalanced close brace')
-            i += i
-        if depth > 0:
-            raise Exception('Expected "]"')
-        terms.append(
-            cls.parse_string_to_nested_lists(value[leftmost:len(value)]))
-        return terms
-
-    def create_data_objects(data_object_values, index_list):
-        index_list = copy.deepcopy(index_list)
-        if not isinstance(data_object_values, list):
-            self.create_data_object(data_object_values, index_list)
-        for i in len(data_object_values):
-            index_list_i = copy.deepcopy(index_list)
-            index_list_i.append(i)
-            self.create_data_objects(data_object_values[i],index_list_i)
-
-    def create_data_object(data_object_value, index_list):
-        # TODO
-        pass
-    '''
 
 class RunRequestSerializer(serializers.ModelSerializer):
 

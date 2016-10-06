@@ -1,4 +1,4 @@
-from .channels import *
+from .input_output_nodes import *
 from .data_objects import *
 from .run_requests import *
 from .task_definitions import *

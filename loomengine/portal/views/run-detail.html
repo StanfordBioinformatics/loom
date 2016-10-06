@@ -106,19 +106,19 @@
 	<thead>
 	  <th>Channel</th>
 	  <th>Type</th>
-	  <th>Value</th>
+	  <th>Data</th>
 	</thead>
 	<tbody>
 	  <tr ng-repeat="input in activeData.run.inputs">
 	    <td>{{input.channel}}</td>
 	    <td>{{input.type}}</td>
 	    <td ng-show="input.type=='file'">
-	      <a ng-href="#/files/{{input.value | parseId:'id'}}" ng-show="input.value">
-		{{input.value | parseId:'name'}}
+	      <a ng-href="#/files/{{input.data | parseId:'id'}}" ng-show="input.data">
+		{{input.data | parseId:'name'}}
 	      </a>
 	    </td>
 	    <td ng-hide="input.type=='file'">
-	      {{input.value}}
+	      {{input.data}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -138,7 +138,7 @@
 	      Type
 	    </th>
 	    <th>
-	      Value
+	      Data
 	    </th>
 	  </tr>
 	</thead>
@@ -151,12 +151,12 @@
 	      {{input.type}}
 	    </td>
 	    <td ng-show="input.type=='file'">
-	      <a ng-href="#/files/{{input.value | parseId:'id'}}" ng-show="input.value">
-		{{input.value | parseId:'name'}}
+	      <a ng-href="#/files/{{input.data | parseId:'id'}}" ng-show="input.data">
+		{{input.data | parseId:'name'}}
 	      </a>
 	    </td>
 	    <td ng-hide="input.type=='file'">
-	      {{input.value}}
+	      {{input.data}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -169,7 +169,7 @@
       <thead>
 	<th>Channel</th>
 	<th>Type</th>
-	<th>Value</th>
+	<th>Data</th>
       </thead>
       <tbody>
 	<tr ng-repeat="output in activeData.run.outputs">
@@ -178,12 +178,12 @@
 	    {{output.type}}
 	  </td>
 	  <td ng-show="output.type=='file'">
-	    <a ng-href="#/files/{{output.value | parseId:'id'}}" ng-show="output.value">
-	      {{output.value | parseId:'name'}}
+	    <a ng-href="#/files/{{output.data | parseId:'id'}}" ng-show="output.data">
+	      {{output.data | parseId:'name'}}
 	    </a>
 	  </td>
 	  <td ng-hide="output.type=='file'">
-	    {{output.value}}
+	    {{output.data}}
 	  </td>
 	</tr>
       </tbody>

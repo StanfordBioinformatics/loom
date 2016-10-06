@@ -22,34 +22,34 @@ class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
 
 class StepRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
     mode = serializers.CharField()
     group = serializers.IntegerField()
 
     class Meta:
         model = StepRunInput
-        fields = ('type', 'channel', 'value', 'mode', 'group')
+        fields = ('type', 'channel', 'data', 'mode', 'group')
 
 
 class FixedStepRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
     mode = serializers.CharField()
     group = serializers.IntegerField()
         
     class Meta:
         model = FixedStepRunInput
-        fields = ('type', 'channel', 'value', 'mode', 'group')
+        fields = ('type', 'channel', 'data', 'mode', 'group')
 
         
 class StepRunOutputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
     mode = serializers.CharField()
 
     class Meta:
         model = StepRunOutput
-        fields = ('type', 'channel', 'value', 'mode')
+        fields = ('type', 'channel', 'data', 'mode')
 
 
 class StepRunSerializer(CreateWithParentModelSerializer):
@@ -80,29 +80,29 @@ class StepRunSerializer(CreateWithParentModelSerializer):
 
 class WorkflowRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
         
     class Meta:
         model = WorkflowRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data',)
 
 
 class FixedWorkflowRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
         
     class Meta:
         model = FixedWorkflowRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data',)
 
 
 class WorkflowRunOutputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
     
     class Meta:
         model = WorkflowRunOutput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data',)
 
 
 class WorkflowRunSerializer(CreateWithParentModelSerializer):

@@ -52,13 +52,13 @@ class StepInputSerializer(CreateWithParentModelSerializer):
 
 class FixedInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField() # converted from DataObject
+    data = serializers.CharField() # converted from DataObject
 
     def create(self, validated_data):
-        # Convert 'value' into its corresponding data object
-        value = validated_data.pop('value')
+        # Convert 'data' into its corresponding data object
+        data = validated_data.pop('data')
         validated_data['data_object'] = DataObject.get_by_value(
-            value,
+            data,
             validated_data['type'])
         return super(FixedInputSerializer, self).create(validated_data)
 
@@ -67,14 +67,14 @@ class FixedWorkflowInputSerializer(FixedInputSerializer):
 
     class Meta:
         model = FixedWorkflowInput
-        fields = ('type', 'channel', 'value')
+        fields = ('type', 'channel', 'data')
 
 
 class FixedStepInputSerializer(FixedInputSerializer):
 
     class Meta:
         model = FixedStepInput
-        fields = ('type', 'channel', 'value', 'mode', 'group')
+        fields = ('type', 'channel', 'data', 'mode', 'group')
 
 
 class WorkflowOutputSerializer(CreateWithParentModelSerializer):

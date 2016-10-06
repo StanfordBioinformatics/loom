@@ -39,6 +39,18 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
+            name='DataNode',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('index', models.IntegerField(null=True)),
+                ('degree', models.IntegerField(null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='DataObject',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
@@ -104,16 +116,6 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
                 ('channel', models.CharField(max_length=255)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
-            name='IndexedDataObject',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
             ],
             options={
                 'abstract': False,
@@ -790,6 +792,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='inputoutputnode',
+            name='data_root',
+            field=models.ForeignKey(related_name='input_output_node', to='api.DataNode', null=True),
+        ),
+        migrations.AddField(
+            model_name='inputoutputnode',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_api.inputoutputnode_set+', editable=False, to='contenttypes.ContentType', null=True),
         ),
@@ -797,16 +804,6 @@ class Migration(migrations.Migration):
             model_name='inputoutputnode',
             name='sender',
             field=models.ForeignKey(related_name='receivers', to='api.InputOutputNode', null=True),
-        ),
-        migrations.AddField(
-            model_name='indexeddataobject',
-            name='data_object',
-            field=models.ForeignKey(related_name='indexed_data_object', on_delete=django.db.models.deletion.PROTECT, to='api.DataObject', null=True),
-        ),
-        migrations.AddField(
-            model_name='indexeddataobject',
-            name='input_output_node',
-            field=models.ForeignKey(related_name='indexed_data_objects', to='api.InputOutputNode'),
         ),
         migrations.AddField(
             model_name='fixedworkflowinput',
@@ -842,6 +839,16 @@ class Migration(migrations.Migration):
             model_name='dataobject',
             name='polymorphic_ctype',
             field=models.ForeignKey(related_name='polymorphic_api.dataobject_set+', editable=False, to='contenttypes.ContentType', null=True),
+        ),
+        migrations.AddField(
+            model_name='datanode',
+            name='data_object',
+            field=models.ForeignKey(related_name='data_nodes', to='api.DataObject', null=True),
+        ),
+        migrations.AddField(
+            model_name='datanode',
+            name='parent',
+            field=models.ForeignKey(related_name='children', to='api.DataNode', null=True),
         ),
         migrations.AddField(
             model_name='abstractworkflowrun',

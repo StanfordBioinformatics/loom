@@ -6,7 +6,7 @@ import uuid
 
 from .base import BaseModel, BasePolymorphicModel
 from api import get_setting
-from api.models.channels import InputOutputNode, InputNodeSet
+from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
 from api.models.task_definitions import TaskDefinition
 from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, \
