@@ -4,7 +4,7 @@
     shell: ssh-keygen -q -t rsa -f "{{lookup('env','GCE_SSH_KEY_FILE')}}" -P "" -C "{{lookup('env','USER')}}"
     when: public_key_file.stat.exists == False
   - name: Read SSH key
-    shell: cat "{{lookup('env','GCE_SSH_KEY_FILE')}}"
+    shell: cat "{{lookup('env','GCE_SSH_KEY_FILE')}}.pub"
     register: public_key_cat
   - name: Add SSH key to instance metadata
     shell: "gcloud compute instances add-metadata {{instance_name}} --metadata ssh-keys=\"{{lookup('env','USER')}}: {{ public_key_cat.stdout }}\""

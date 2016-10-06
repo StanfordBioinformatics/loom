@@ -16,10 +16,7 @@
       image: "{{docker_full_name}}"
       ports: 8000:8000
       volumes:
-      - "{{remote_loom_settings_path}}/gce.ini:{{remote_loom_settings_path}}/gce.ini"
-      - "{{remote_loom_settings_path}}/gce_key.json:{{remote_loom_settings_path}}/gce_key.json"
-      - "{{remote_loom_settings_path}}/local_deploy_settings.ini:{{remote_loom_settings_path}}/local_deploy_settings.ini"
-      - "{{remote_loom_settings_path}}/ssl/:{{remote_loom_settings_path}}/ssl/"
+      - "{{remote_loom_settings_path}}/:{{remote_loom_settings_path}}/"
       hostname: "{{ansible_hostname}}"
       restart_policy: always
       api_version: auto
