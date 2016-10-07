@@ -1,5 +1,5 @@
   - name: Create directory for deploy settings.
-    file: path={{remote_loom_settings_path}} state=directory mode=0755
+    file: path={{remote_loom_settings_path}} state=directory mode=0777
   - name: Copy deploy settings to server.
     copy: src={{deploy_settings_filename}} dest={{remote_loom_settings_path}}/local_deploy_settings.ini
   - name: Copy service account key to server.

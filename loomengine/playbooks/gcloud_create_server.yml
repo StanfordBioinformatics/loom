@@ -12,6 +12,7 @@
   - instance_image: "{{lookup('env','SERVER_VM_IMAGE')}}"
   - instance_type: "{{lookup('env','SERVER_INSTANCE_TYPE')}}"
   - network: "{{lookup('env','SERVER_NETWORK')}}"
+  - remote_user: "{{lookup('env','USER')}}"
   - tags: "{{lookup('env','SERVER_TAGS')}}"
   - use_internal_ip: "{{lookup('env','CLIENT_USES_SERVER_INTERNAL_IP')}}"
   - zone: "{{lookup('env','SERVER_ZONE')}}"

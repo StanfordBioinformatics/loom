@@ -93,6 +93,7 @@ class CloudTaskManager:
             'log_level': settings.LOG_LEVEL,
             'master_url': settings.MASTER_URL_FOR_WORKER,
             'network': settings.WORKER_NETWORK,
+            'remote_user': 'loom',
             'scratch_disk_name': scratch_disk_name,
             'scratch_disk_device_path': scratch_disk_device_path,
             'scratch_disk_mount_point': settings.WORKER_SCRATCH_DISK_MOUNT_POINT,

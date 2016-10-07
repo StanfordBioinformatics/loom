@@ -48,8 +48,3 @@ ENV PATH /opt/loom/bin:$PATH
 
 # Accept connections on port 8000.
 EXPOSE 8000
-
-RUN useradd -ms /bin/bash -u 91357 loom
-USER loom
-ENV USER loom
-RUN mkdir ~/.loom
