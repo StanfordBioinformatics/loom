@@ -10,7 +10,7 @@
 - name: Set up new instance(s).
   hosts: new_instances
   remote_user: loom
-  become_method: su
+  become_method: sudo
   become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
