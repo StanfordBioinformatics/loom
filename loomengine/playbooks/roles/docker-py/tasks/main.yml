@@ -7,7 +7,9 @@
     yum: name=python-pip disable_gpg_check=yes update_cache=yes
     register: pipinstallresult
     retries: 10
-    until: pipinstallresult['rc'] == 0
+    until: pipinstallresult['rc'] is defined and pipinstallresult['rc'] == 0
+  - debug: var=pipinstallresult
+    when: pipinstallresult | failed
   - name: Install docker-py, which is required by Ansible to use Docker modules.
     pip: name=docker-py version=1.9.0
     register: dockerpyinstallresult
