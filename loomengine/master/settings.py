@@ -12,7 +12,6 @@ import warnings
 BASE_DIR = os.path.dirname(__file__)
 WEBPORTAL_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'portal'))
 
-
 # Get settings from the environment and expand paths if needed
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
@@ -26,6 +25,7 @@ LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/
 PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.utils.filemanager.GoogleStorageSource and GoogleStorageDestination
                                             # Retrieved but not used when filemanager is LocalSource and LocalDestination, so need to set a default value
 BUCKET_ID = os.getenv('GCE_BUCKET', '')
+
 DOCKER_FULL_NAME = os.getenv('DOCKER_FULL_NAME')
 DOCKER_TAG = os.getenv('DOCKER_TAG')
 GCE_EMAIL = os.getenv('GCE_EMAIL')
@@ -57,7 +57,6 @@ DISABLE_AUTO_PUSH = False
 
 CORS_ORIGIN_ALLOW_ALL = os.getenv('CORS_ORIGIN_ALLOW_ALL', 'false').upper() == 'TRUE'
 CORS_ORIGIN_WHITELIST = os.getenv('CORS_ORIGIN_WHITELIST', '').split(',')
-
 
 SECRET_KEY = os.getenv('SECRET_KEY',
                        ''.join([random.SystemRandom().choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(50)]))

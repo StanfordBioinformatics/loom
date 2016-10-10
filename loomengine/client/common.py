@@ -76,6 +76,16 @@ def get_server_public_ip():
     else:
         raise Exception("Unknown server type: %s" % server_type)
 
+def get_server_private_ip():
+    server_type = get_server_type()
+    if server_type == 'local':
+        return '127.0.0.1'
+    elif server_type == 'gcloud':
+        server_instance_name = get_gcloud_server_name()
+        return get_gcloud_server_private_ip(server_instance_name)
+    else:
+        raise Exception("Unknown server type: %s" % server_type)
+
 def get_gcloud_server_public_ip(name):
     inv_hosts = get_gcloud_hosts()
     if name not in inv_hosts:
@@ -121,7 +131,10 @@ def get_server_url():
         raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
-    ip = get_server_public_ip()
+    if settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
+        ip = get_server_private_ip()
+    else:
+        ip = get_server_public_ip()
     port = settings['EXTERNAL_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
 

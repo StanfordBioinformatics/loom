@@ -13,6 +13,7 @@
   - instance_type: "{{lookup('env','SERVER_INSTANCE_TYPE')}}"
   - network: "{{lookup('env','SERVER_NETWORK')}}"
   - remote_user: "{{lookup('env','USER')}}"
+  - subnetwork: "{{lookup('env','SERVER_CUSTOM_SUBNET')}}"
   - tags: "{{lookup('env','SERVER_TAGS')}}"
   - use_internal_ip: "{{lookup('env','CLIENT_USES_SERVER_INTERNAL_IP')}}"
   - zone: "{{lookup('env','SERVER_ZONE')}}"

@@ -411,7 +411,10 @@ class GoogleCloudServerControls(BaseServerControls):
         os.chmod(GCE_PY_PATH, 0755)                 # Make sure dynamic inventory is executable
         cmd_list = ['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
         if self.args.verbose:
-            cmd_list.append('-vvv')
+            cmd_list.append('-vvvv')
+            print ' '.join(cmd_list)
+            import pprint
+            pprint.pprint(env)
         return subprocess.call(cmd_list, env=env)
 
     def build_docker_image(self, build_path, docker_name, docker_tag):
@@ -447,34 +450,40 @@ class GoogleCloudServerControls(BaseServerControls):
 
     def delete(self):
         """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
-        instance_name = get_gcloud_server_name()
-        current_hosts = get_gcloud_hosts()
-        confirmation_input = raw_input('WARNING! This will delete the server\'s instance, attached disks, and service account. Data will be lost!\n'+ 
-                                       'If you are sure you want to continue, please type the name of the server instance:\n> ')
-        if confirmation_input != get_gcloud_server_name():
-            print 'Input did not match current server name \"%s\".' % instance_name
-            return
-
-        if instance_name not in current_hosts:
-            print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
-        else:
-            env = self.get_ansible_env()
-            delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
-            if delete_returncode == 0:
-                print 'Instance successfully deleted.'
-            
-        email = find_service_account_email(instance_name)
-        print 'Deleting service account %s...' % email
         try:
-            delete_service_account(email)
+            instance_name = get_gcloud_server_name()
+            current_hosts = get_gcloud_hosts()
+            confirmation_input = raw_input('WARNING! This will delete the server\'s instance, attached disks, and service account. Data will be lost!\n'+ 
+                                           'If you are sure you want to continue, please type the name of the server instance:\n> ')
+            if confirmation_input != get_gcloud_server_name():
+                print 'Input did not match current server name \"%s\".' % instance_name
+                return
+
+            if instance_name not in current_hosts:
+                print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
+            else:
+                env = self.get_ansible_env()
+                delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
+                if delete_returncode == 0:
+                    print 'Instance successfully deleted.'
+            
         except Exception as e:
             print e
 
-        if os.path.exists(get_deploy_settings_filename()):
-            print 'Deleting %s...' % get_deploy_settings_filename()
-            os.remove(get_deploy_settings_filename())
+        try:
+            email = find_service_account_email(instance_name)
+            if email:
+                print 'Deleting service account %s...' % email
+                delete_service_account(email)
+        except Exception as e:
+            print e
 
-
+        cleanup_files = [get_deploy_settings_filename(), GCE_INI_PATH, GCE_JSON_PATH, SERVER_LOCATION_FILE]
+        for path in cleanup_files:
+            path = os.path.expanduser(path)
+            if os.path.exists(path):
+                print 'Deleting %s...' % path
+                os.remove(path)
 
 class UnhandledCommandError(Exception):
     """Raised when a ServerControls class is given a command that's not in its command map."""
