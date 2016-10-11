@@ -155,7 +155,7 @@ class CloudTaskManager:
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
         playbook_vars_json_string = json.dumps(playbook_vars)
-        subprocess.call(['ansible-playbook', '-vvv', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
+        subprocess.call(['ansible-playbook', '-vvv', '--key-file', os.path.expanduser(settings.GCE_SSH_KEY_FILE), '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
