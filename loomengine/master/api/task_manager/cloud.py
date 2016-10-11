@@ -24,7 +24,6 @@ PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
 GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
 GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
 GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
-LOOM_USER_SSH_KEY_FILE = '/home/loom/.ssh/google_compute_engine'
 
 class CloudTaskManager:
 
@@ -87,6 +86,7 @@ class CloudTaskManager:
             'docker_tag': settings.DOCKER_TAG,
             'gce_email': settings.GCE_EMAIL,
             'gce_credential': settings.GCE_PEM_FILE_PATH,
+            'gce_ssh_key_file': settings.GCE_SSH_KEY_FILE,
             'instance_name': worker_name,
             'instance_image': settings.WORKER_VM_IMAGE,
             'instance_type': instance_type,
@@ -155,7 +155,7 @@ class CloudTaskManager:
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
         playbook_vars_json_string = json.dumps(playbook_vars)
-        subprocess.call(['ansible-playbook', '-vvv', '--key-file', LOOM_USER_SSH_KEY_FILE, '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
+        subprocess.call(['ansible-playbook', '-vvv', '--key-file', settings.GCE_SSH_KEY_FILE, '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string], env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):

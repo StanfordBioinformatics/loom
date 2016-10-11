@@ -1,10 +1,10 @@
-  - stat: path="{{lookup('env','GCE_SSH_KEY_FILE')}}"
+  - stat: path="{{gce_ssh_key_file}}"
     register: public_key_file
   - name: Create SSH key if it doesn't exist
-    shell: ssh-keygen -q -t rsa -f "{{lookup('env','GCE_SSH_KEY_FILE')}}" -P "" -C "{{ remote_user }}"
+    shell: ssh-keygen -q -t rsa -f "{{gce_ssh_key_file}}" -P "" -C loom
     when: public_key_file.stat.exists == False
   - name: Read SSH key
-    shell: cat "{{lookup('env','GCE_SSH_KEY_FILE')}}.pub"
+    shell: cat "{{gce_ssh_key_file}}.pub"
     register: public_key_cat
   - name: Add SSH key to instance metadata
     shell: "gcloud compute instances add-metadata {{instance_name}} --zone {{zone}} --metadata ssh-keys=\"{{ remote_user }}: {{ public_key_cat.stdout }}\""

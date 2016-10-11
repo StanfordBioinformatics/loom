@@ -5,6 +5,7 @@
   become_user: loom
   vars:
     remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
+    container_loom_settings_path: "/root/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
     local_loom_settings_path: "{{lookup('env','HOME')}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
     docker_full_name: "{{lookup('env', 'DOCKER_FULL_NAME')}}"
     external_port: "{{lookup('env', 'EXTERNAL_PORT')}}"
@@ -16,7 +17,7 @@
       image: "{{docker_full_name}}"
       ports: 8000:8000
       volumes:
-      - "{{remote_loom_settings_path}}/:{{remote_loom_settings_path}}/"
+      - "{{remote_loom_settings_path}}/:{{container_loom_settings_path}}/"
       hostname: "{{ansible_hostname}}"
       restart_policy: always
       api_version: auto
