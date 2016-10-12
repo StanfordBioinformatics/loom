@@ -9,7 +9,7 @@
 
 - name: Set up new instance(s).
   hosts: new_instances
-  remote_user: {{ remote_user }}
+  remote_user: "{{ remote_user }}"
   become_method: sudo
   become: yes
   roles:

@@ -25,7 +25,7 @@
 - name: Install docker
   hosts: new_instances
   become: yes
-  remote_user: {{ remote_user }}
+  remote_user: "{{ remote_user }}"
   roles:
   - {role: docker, when: "not {{lookup('env', 'SERVER_SKIP_INSTALLS')}}"}
   - {role: docker-py, when: "not {{lookup('env', 'SERVER_SKIP_INSTALLS')}}"}
@@ -36,7 +36,7 @@
   hosts: new_instances
   become: yes
   become_user: loom
-  remote_user: {{ remote_user }}
+  remote_user: "{{ remote_user }}"
   roles:
   - loom-master
 
