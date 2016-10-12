@@ -9,16 +9,12 @@
 
 - name: Set up new instance(s).
   hosts: new_instances
-  remote_user: loom
+  remote_user: {{ remote_user }}
   become_method: sudo
   become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
   - {role: docker-py, when: "not {{lookup('env', 'WORKER_SKIP_INSTALLS')}}"}
-
-- name: Create loom user on server
-  hosts: new_instances
-  become: yes
   tasks:
   - include: tasks/gcloud_setup_loom_user.yml
 
