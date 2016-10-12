@@ -1,7 +1,7 @@
   - stat: path="{{gce_ssh_key_file}}"
     register: public_key_file
   - name: Create SSH key if it doesn't exist
-    shell: ssh-keygen -q -t rsa -f "{{gce_ssh_key_file}}" -P "" -C {{ remote_user }}
+    shell: ssh-keygen -q -t rsa -f "{{gce_ssh_key_file}}" -P "" -C "{{ remote_user }}"
     when: public_key_file.stat.exists == False
   - name: Read SSH key
     shell: cat "{{gce_ssh_key_file}}.pub"
