@@ -25,7 +25,6 @@ GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
 GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
 GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
 GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
-GCLOUD_SETUP_LOOM_USER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_setup_loom_user.yml')
 NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
 
 def ServerControlsFactory(args):
@@ -119,10 +118,9 @@ class BaseServerControls:
         '''Set server for the client to manage (currently local or gcloud) and creates Loom settings directory.'''
         server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
         # Create directory/directories if they don't exist
-        ini_dir = os.path.dirname(server_location_file)
-        if not os.path.exists(ini_dir):
-            print 'Creating Loom settings directory %s...' % ini_dir
-            os.makedirs(ini_dir)
+        if not os.path.exists(os.path.expanduser(LOOM_SETTINGS_PATH)):
+            print 'Creating Loom settings directory %s...' % os.path.expanduser(LOOM_SETTINGS_PATH)
+            os.makedirs(os.path.expanduser(LOOM_SETTINGS_PATH))
 
         # Write server.ini file
         config = SafeConfigParser()
@@ -136,8 +134,7 @@ class BaseServerControls:
             print 'Updating %s...' % server_location_file
             config.write(configfile)
 
-        # Copy NGINX config file to same place
-        shutil.copy(NGINX_CONFIG_FILE, ini_dir)
+        shutil.copy(NGINX_CONFIG_FILE, os.path.expanduser(LOOM_SETTINGS_PATH))
 
     def status(self):
         if is_server_running():
@@ -172,7 +169,6 @@ class LocalServerControls(BaseServerControls):
 
             if loomengine.utils.cloud.on_gcloud_vm():
                 """We're in gcloud and the client is starting the server on the local instance."""
-                subprocess.call(['ansible-playbook', GCLOUD_SETUP_LOOM_USER_PLAYBOOK])
                 self.settings_manager.add_gcloud_settings_on_server()
 
             env = os.environ.copy()
@@ -284,42 +280,29 @@ class LocalServerControls(BaseServerControls):
 
     def _set_database(self, env):
         manage_cmd = [sys.executable, '%s/manage.py' % SERVER_PATH]
-        if self.args.test_database:
-            # If test database requested, set LOOM_TEST_DATABASE to true and reset database
-            env['LOOM_TEST_DATABASE'] = 'true'
-            commands = [
-                manage_cmd + ['flush', '--noinput'],
-                manage_cmd + ['migrate'],
-                ]
-            for command in commands:
-                stdout = subprocess.Popen(
-                    command,
-                    stdout=subprocess.PIPE,
-                    env=env).communicate()
-        else:
+        proc = subprocess.Popen(
+            manage_cmd + ['migrate', '-l'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env)
+        output = proc.communicate()
+        if proc.returncode != 0 or re.search('Error', output[0]):
+            msg = "Loom could not connect to its database. Exiting now. "
+            if self.args.verbose:
+                msg += output[0]
+            raise Exception(msg)
+        elif re.search('\[ \]', output[0]):
+  	    print("Welcome to Loom!\nInitializing database for first use...")
             proc = subprocess.Popen(
-                manage_cmd + ['migrate', '-l'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                env=env)
+		manage_cmd + ['migrate'],
+		stdout=subprocess.PIPE,
+		env=env)
             output = proc.communicate()
             if proc.returncode != 0 or re.search('Error', output[0]):
-                msg = "Loom could not connect to its database. Exiting now. "
+                msg = "Failed to apply database migrations. Exiting now. "
                 if self.args.verbose:
-                    msg += output[0]
+                    msg += stdout[0]
                 raise Exception(msg)
-            elif re.search('\[ \]', output[0]):
-  	        print("Welcome to Loom!\nInitializing database for first use...")
-                proc = subprocess.Popen(
-		    manage_cmd + ['migrate'],
-		    stdout=subprocess.PIPE,
-		    env=env)
-                output = proc.communicate()
-                if proc.returncode != 0 or re.search('Error', output[0]):
-                    msg = "Failed to apply database migrations. Exiting now. "
-                    if self.args.verbose:
-                        msg += stdout[0]
-                    raise Exception(msg)
         return env
 
     def _export_django_settings(self, env):
@@ -401,7 +384,6 @@ class GoogleCloudServerControls(BaseServerControls):
             print 'Creating deploy settings %s using default settings...' % get_deploy_settings_filename()
             self.settings_manager.create_deploy_settings_file()
 
-        setup_gcloud_ssh()
         env = self.get_ansible_env()
 
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)

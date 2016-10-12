@@ -3,10 +3,11 @@ import os
 import requests
 import subprocess
 import sys
+from django.conf import settings
 
 from api import get_setting
 
-logger = logging.getLogger('LoomDaemon')
+logger = logging.getLogger(__name__)
 
 TASK_RUNNER_EXECUTABLE = os.path.abspath(
     os.path.join(
@@ -15,10 +16,12 @@ TASK_RUNNER_EXECUTABLE = os.path.abspath(
         ))
 
 
+
 class LocalTaskManager:
 
     @classmethod
     def run(cls, task_run):
+
         from api.models.task_runs import TaskRunAttempt
         task_run_attempt = TaskRunAttempt.create_from_task_run(task_run)
 
@@ -41,12 +44,11 @@ class LocalTaskManager:
             task_run_attempt.save()
             proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT)
         except Exception as e:
-            logger.error('Failed to launch worker monitor process: %s' % str(e))
+            logger.exception('Failed to launch monitor process on worker: %s')
             task_run_attempt.add_error(
                 message='Failed to launch worker monitor process',
                 detail=str(e))
-            task_run_attempt.status = task_run_attempt.STATUSES.ABORTED
+            task_run_attempt.status = task_run_attempt.STATUSES.FINISHED
             task_run_attempt.save()
-            raise e
 
         logger.debug('Exiting LocalTaskManager')

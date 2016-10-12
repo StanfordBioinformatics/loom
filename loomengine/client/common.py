@@ -131,7 +131,7 @@ def get_server_url():
         raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
-    if settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
+    if settings.get('CLIENT_USES_SERVER_INTERNAL_IP') == 'True':
         ip = get_server_private_ip()
     else:
         ip = get_server_public_ip()
@@ -170,12 +170,6 @@ def get_gcloud_project():
         return project
     except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
         print 'Could not retrieve project id from gcloud. Please run "gcloud init" or "gcloud config set project <project_id>".'
-
-def setup_gcloud_ssh():
-    """Calls gcloud CLI to create SSH keys."""
-    check_for_gcloud()
-    print 'Configuring SSH keys for gcloud...'
-    subprocess.call(['gcloud', 'compute', 'config-ssh', '--quiet'])
 
 def check_for_gcloud():
     """Check if gcloud CLI is installed."""
@@ -218,7 +212,7 @@ def create_service_account_key(project, email, path):
     credential_filestring = response['privateKeyData'].decode('base64')
     with open(os.path.expanduser(path), 'w') as credential_file:
         credential_file.write(credential_filestring)
-    
+
 def is_gce_ini_valid():
     """Makes sure that gce.ini exists, and that its project id matches gcloud CLI's."""
     if not os.path.exists(os.path.expanduser(GCE_INI_PATH)):
