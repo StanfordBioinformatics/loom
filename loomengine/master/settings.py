@@ -25,7 +25,6 @@ LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/
 PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.utils.filemanager.GoogleStorageSource and GoogleStorageDestination
                                             # Retrieved but not used when filemanager is LocalSource and LocalDestination, so need to set a default value
 BUCKET_ID = os.getenv('GCE_BUCKET', '')
-
 DOCKER_FULL_NAME = os.getenv('DOCKER_FULL_NAME')
 DOCKER_TAG = os.getenv('DOCKER_TAG')
 GCE_EMAIL = os.getenv('GCE_EMAIL')
@@ -35,6 +34,7 @@ GCE_SSH_KEY_FILE = os.getenv('GCE_SSH_KEY_FILE')
 SERVER_SKIP_INSTALLS = os.getenv('SERVER_SKIP_INSTALLS')
 WORKER_BOOT_DISK_TYPE = os.getenv('WORKER_BOOT_DISK_TYPE')
 WORKER_BOOT_DISK_SIZE = os.getenv('WORKER_BOOT_DISK_SIZE')
+WORKER_CUSTOM_SUBNET = os.getenv('WORKER_CUSTOM_SUBNET', '')
 WORKER_LOCATION = os.getenv('WORKER_LOCATION')
 WORKER_NETWORK = os.getenv('WORKER_NETWORK')
 WORKER_SCRATCH_DISK_MOUNT_POINT = os.getenv('WORKER_SCRATCH_DISK_MOUNT_POINT')
