@@ -21,7 +21,6 @@
 - name: Set up the Loom worker on the new instance.
   hosts: new_instances
   become: yes
-  become_user: loom
   remote_user: "{{ remote_user }}"
   roles:
   - loom-worker

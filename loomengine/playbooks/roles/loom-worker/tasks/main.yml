@@ -8,11 +8,3 @@
     docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto
   - name: Pull task run Docker image.
     docker_image: name={{task_run_docker_image}} api_version=auto
-
-#- name: Remove worker external IP. 
-#  hosts: localhost
-#  connection: local
-#  gather_facts: no
-#  tasks:
-#  - name: Remove worker external IP.
-#    shell: gcloud compute instances delete-access-config {{node_name}} --access-config-name "External NAT" --zone {{zone}}
