@@ -367,6 +367,43 @@ def grant_editor_role(email=None):
         if binding['role'] == 'roles/editor':
             binding['members'].append('serviceAccount:%s' % email)
     set_project_policy({"policy": policy}, project)
+
+def grant_roles(roles, email=None):
+    """Grants the specified roles to the specified service account in the current 
+    project. If no email provided, defaults to account for the current instance.
+    """
+    if email == None:
+        email = find_service_account_email()
+
+    project = get_gcloud_project()
+
+    # Set policy on service account
+    iam_service = get_iam_service()
+
+    bindings = []
+    for role in roles:
+        bindings.append({"role": role, "members": ["serviceAccount:%s" % email]})
+
+    request_body = {"policy": {"bindings": bindings}}
+    request = iam_service.projects().serviceAccounts().setIamPolicy(resource='projects/%s/serviceAccounts/%s' % (project, email), body=request_body)
+    response = request.execute()
+
+    # Set policy on project
+    policy = get_project_policy(project)
+    jsonfilename = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'policy-%s.json' % time.strftime("%Y%m%d-%H%M%S")))
+    with open(jsonfilename, 'w') as jsonfile:
+        json.dump(policy, jsonfile)
+    print 'Current project policy saved to %s' % jsonfilename
+    added_roles = []
+    for binding in policy['bindings']:
+        if binding['role'] in roles:
+            binding['members'].append('serviceAccount:%s' % email)
+            added_roles.append(binding['role']) # mark as added
+    # if any specified roles not added, create and add new binding
+    for role in roles:
+        if role not in added_roles:
+            policy['bindings'].append({"role":role, "members": ["serviceAccount:%s" % email]})
+    set_project_policy({"policy": policy}, project)
     
 def get_iam_service():
     try:

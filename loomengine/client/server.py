@@ -373,7 +373,7 @@ class GoogleCloudServerControls(BaseServerControls):
         email = find_service_account_email(server_name)
         if email != None:
             print 'Service account %s is created.' % email
-        grant_editor_role(email)
+        grant_roles(self.settings_manager.settings['SERVICE_ACCOUNT_ROLES'], email)
 
         setup_gce_ini_and_json()
 
