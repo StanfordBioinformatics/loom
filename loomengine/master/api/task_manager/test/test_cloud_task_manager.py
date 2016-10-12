@@ -11,8 +11,14 @@ from loomengine.master.api.task_manager.cloud import CloudTaskManagerError
 from loomengine.utils.cloud import on_gcloud_vm
 
 
-@unittest.skipIf(not on_gcloud_vm(), 'not running on Google Compute Engine VM')
 class TestCloudTaskManager(unittest.TestCase):
+
+    def test_get_logger(self):
+        logger = CloudTaskManager._get_logger()
+        
+
+@unittest.skipIf(not on_gcloud_vm(), 'not running on Google Compute Engine VM')
+class TestCloudTaskManagerOnGCE(unittest.TestCase):
 
     class Resources:
         cores=''

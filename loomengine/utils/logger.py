@@ -1,23 +1,15 @@
 import logging
 import os
 import sys
+from .helper import init_directory
 
-def _get_handler(logfile):
-    if logfile is None:
-        return logging.StreamHandler()
-    else:
-        if not os.path.exists(os.path.dirname(logfile)):
-            os.makedirs(os.path.dirname(logfile)) 
-    return logging.FileHandler(logfile)
-
-def get_logger(name, logfile=None, loglevel=logging.DEBUG):
-    logger = logging.getLogger(name)
-    logger.setLevel(loglevel)
-    formatter = logging.Formatter('%(levelname)s [%(asctime)s] %(message)s')
-    handler = _get_handler(logfile)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+LEVELS = {
+    'CRITICAL': logging.CRITICAL,
+    'ERROR': logging.ERROR,
+    'WARNING': logging.WARNING,
+    'INFO': logging.INFO,
+    'DEBUG': logging.DEBUG,
+}
 
 class StreamToLogger(object):
     """
@@ -37,10 +29,32 @@ class StreamToLogger(object):
         for handler in self.logger.handlers:
             handler.flush()
 
-def add_stdout(logger, log_level=logging.INFO):
-    stdout_logger = StreamToLogger(logger, log_level)
-    sys.stdout = stdout_logger
+def _get_file_handler(log_file, log_level):
+    init_directory(os.path.abspath(os.path.dirname(log_file)))
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(
+        logging.Formatter('%(levelname)s [%(asctime)s] %(message)s'))
+    return file_handler
 
-def add_stderr(logger, log_level=logging.ERROR):
-    stderr_logger = StreamToLogger(logger, log_level)
-    sys.stderr = stderr_logger
+def get_file_logger(name, log_level_string, log_file, log_stdout_stderr=False):
+    log_level = LEVELS[log_level_string.upper()]
+    logger = logging.getLogger(name)
+    logger.setLevel(log_level)
+    logger.addHandler(_get_file_handler(log_file, log_level))
+    if log_stdout_stderr:
+        # Route stdout and stderr to logger
+        stdout_logger = StreamToLogger(logger, logging.INFO)
+        sys.stdout = stdout_logger
+        stderr_logger = StreamToLogger(logger, logging.ERROR)
+        sys.stderr = stderr_logger
+    return logger
+
+def get_stdout_logger(name, log_level_string):
+    log_level = LEVELS[log_level_string.upper()]
+    logger = logging.getLogger(name)
+    logger.setLevel(log_level)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(log_level)
+    logger.addHandler(stream_handler)
+    return logger

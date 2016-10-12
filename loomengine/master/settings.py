@@ -191,13 +191,13 @@ def _get_django_handler():
     return handler
 
 def _get_loomengine_handler():
-    LOOM_MASTER_LOGFILE = os.getenv('LOOM_MASTER_LOGFILE', None)
-    if LOOM_MASTER_LOGFILE  is not None:
-        if not os.path.exists(os.path.dirname(LOOM_MASTER_LOGFILE)):
-            os.makedirs(os.path.dirname(LOOM_MASTER_LOGFILE))
+    MASTER_LOGFILE = os.getenv('MASTER_LOGFILE', None)
+    if MASTER_LOGFILE  is not None:
+        if not os.path.exists(os.path.dirname(MASTER_LOGFILE)):
+            os.makedirs(os.path.dirname(MASTER_LOGFILE))
         handler = {
             'class': 'logging.FileHandler',
-            'filename': LOOM_MASTER_LOGFILE,
+            'filename': MASTER_LOGFILE,
             'formatter': 'default',
             }
     else:
@@ -224,7 +224,6 @@ LOGGING = {
         },
     'handlers': {
         'django_handler': _get_django_handler(),
-        'django_request_handler': _get_django_handler(),
         'loomengine_handler': _get_loomengine_handler(),
         },
     'loggers': {
@@ -232,11 +231,11 @@ LOGGING = {
             'handlers': ['django_handler'],
             'level': LOG_LEVEL,
             },
-        'django.request': {
-            'handlers': ['django_request_handler'],
+        'loomengine': {
+            'handlers': ['loomengine_handler'],
             'level': LOG_LEVEL,
             },
-        'loomengine': {
+        'api': { 
             'handlers': ['loomengine_handler'],
             'level': LOG_LEVEL,
             },

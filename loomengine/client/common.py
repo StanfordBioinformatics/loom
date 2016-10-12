@@ -131,7 +131,7 @@ def get_server_url():
         raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
-    if settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
+    if settings.get('CLIENT_USES_SERVER_INTERNAL_IP') == 'True':
         ip = get_server_private_ip()
     else:
         ip = get_server_public_ip()
