@@ -54,9 +54,16 @@ class CloudTaskManager:
         task_run_attempt.status = task_run_attempt.STATUSES.PROVISIONING_HOST
         task_run_attempt.save()
 
-        process = multiprocessing.Process(target=CloudTaskManager._run, args=(task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file))
+        process = multiprocessing.Process(target=CloudTaskManager._try_run, args=(task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file))
         process.start()
 
+    @classmethod
+    def _try_run(cls, task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file):
+        try:
+            cls._run(task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file)
+        except Exception as e:
+            logger.exception('Failed to create task run attempt %s: %s' % (task_run_attempt_id, str(e)))
+            
     @classmethod
     def _run(cls, task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file):
         from api.models.task_runs import TaskRunAttempt
