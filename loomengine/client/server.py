@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime
 import imp
+import json
 import os
 import re
 import shutil
@@ -373,7 +374,6 @@ class GoogleCloudServerControls(BaseServerControls):
         email = find_service_account_email(server_name)
         if email != None:
             print 'Service account %s is created.' % email
-        grant_roles(self.settings_manager.settings['SERVICE_ACCOUNT_ROLES'], email)
 
         setup_gce_ini_and_json()
 
@@ -383,6 +383,10 @@ class GoogleCloudServerControls(BaseServerControls):
         else:
             print 'Creating deploy settings %s using default settings...' % get_deploy_settings_filename()
             self.settings_manager.create_deploy_settings_file()
+
+	roles = json.loads(self.settings_manager.settings['SERVICE_ACCOUNT_ROLES'])
+	print 'Granting "%s" roles to service account %s:' % (roles, email)
+        grant_roles(roles, email)
 
         env = self.get_ansible_env()
 

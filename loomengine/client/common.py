@@ -378,15 +378,16 @@ def grant_roles(roles, email=None):
     project = get_gcloud_project()
 
     # Set policy on service account
-    iam_service = get_iam_service()
 
-    bindings = []
-    for role in roles:
-        bindings.append({"role": role, "members": ["serviceAccount:%s" % email]})
+    # iam_service = get_iam_service()
 
-    request_body = {"policy": {"bindings": bindings}}
-    request = iam_service.projects().serviceAccounts().setIamPolicy(resource='projects/%s/serviceAccounts/%s' % (project, email), body=request_body)
-    response = request.execute()
+    # bindings = []
+    # for role in roles:
+    #     bindings.append({"role": role, "members": ["serviceAccount:%s" % email]})
+
+    # request_body = {"policy": {"bindings": bindings}}
+    # request = iam_service.projects().serviceAccounts().setIamPolicy(resource='projects/%s/serviceAccounts/%s' % (project, email), body=request_body)
+    # response = request.execute()
 
     # Set policy on project
     policy = get_project_policy(project)
