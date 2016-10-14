@@ -176,31 +176,34 @@ def check_for_gcloud():
     if not distutils.spawn.find_executable('gcloud'):
         raise Exception('Google Cloud SDK not found. Please install it from: https://cloud.google.com/sdk/')
 
-def setup_gce_ini_and_json():
-    """Creates gce.ini and a service account JSON credential if needed.
-    This involves REST calls which should be skipped if possible, both to
-    decrease latency and to avoid creating extraneous API keys.
-    """
-    if is_gce_ini_valid() and is_gce_json_valid():
-        return
-
+def create_gce_ini(email=None):
+    if not is_gce_json_valid():
+        raise Exception('Credential %s does not exist or is not valid for the current project. Please run "gcloud init" and ensure that the correct project is selected.' % GCE_JSON_PATH)
     project = get_gcloud_project()
     server_name = get_gcloud_server_name()
-    service_account_email = find_service_account_email(server_name)
+    if email==None:
+        service_account_email = find_service_account_email(server_name)
+    else:
+        service_account_email = email
 
-    if not is_gce_ini_valid():
-        print 'Creating or updating %s...' % GCE_INI_PATH
-        config = ConfigParser.SafeConfigParser()
-        config.add_section('gce')
-        config.set('gce', 'gce_project_id', project)
-        config.set('gce', 'gce_service_account_email_address', service_account_email)
-        config.set('gce', 'gce_service_account_pem_file_path', GCE_JSON_PATH)
-        with open(os.path.expanduser(GCE_INI_PATH), 'w') as configfile:
-            config.write(configfile)
+    print 'Creating %s...' % GCE_INI_PATH
+    config = ConfigParser.SafeConfigParser()
+    config.add_section('gce')
+    config.set('gce', 'gce_project_id', project)
+    config.set('gce', 'gce_service_account_email_address', service_account_email)
+    config.set('gce', 'gce_service_account_pem_file_path', GCE_JSON_PATH)
+    with open(os.path.expanduser(GCE_INI_PATH), 'w') as configfile:
+        config.write(configfile)
 
-    if not is_gce_json_valid():
-        print 'Creating %s...' % GCE_JSON_PATH
-        create_service_account_key(project, service_account_email, GCE_JSON_PATH)
+def create_gce_json(email=None):
+    project = get_gcloud_project()
+    if email==None:
+        service_account_email = find_service_account_email(get_gcloud_server_name())
+    else:
+        service_account_email = email
+
+    print 'Creating %s...' % GCE_JSON_PATH
+    create_service_account_key(project, service_account_email, GCE_JSON_PATH)
 
 def create_service_account_key(project, email, path):
     """Creates a service account key in the provided project, using the provided
@@ -341,32 +344,6 @@ def set_project_policy(policy, project=None):
     request = crm_service.projects().setIamPolicy(resource='%s' % project, body=policy)
     response = request.execute()
     return response
-
-def grant_editor_role(email=None):
-    """Grants the editor role to the specified service account in the current 
-    project. If no email provided, defaults to account for the current instance.
-    """
-    if email == None:
-        email = find_service_account_email()
-
-    project = get_gcloud_project()
-
-    # Set policy on service account
-    iam_service = get_iam_service()
-    request_body = {"policy": {"bindings": [{"role": "roles/editor", "members": ["serviceAccount:%s" % email]}]}}
-    request = iam_service.projects().serviceAccounts().setIamPolicy(resource='projects/%s/serviceAccounts/%s' % (project, email), body=request_body)
-    response = request.execute()
-
-    # Set policy on project
-    policy = get_project_policy(project)
-    jsonfilename = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'policy-%s.json' % time.strftime("%Y%m%d-%H%M%S")))
-    with open(jsonfilename, 'w') as jsonfile:
-        json.dump(policy, jsonfile)
-    print 'Current project policy saved to %s' % jsonfilename
-    for binding in policy['bindings']:
-        if binding['role'] == 'roles/editor':
-            binding['members'].append('serviceAccount:%s' % email)
-    set_project_policy({"policy": policy}, project)
 
 def grant_roles(roles, email=None):
     """Grants the specified roles to the specified service account in the current 

@@ -365,28 +365,32 @@ class GoogleCloudServerControls(BaseServerControls):
         create and set up a gcloud instance, and copy deploy settings to the
         instance.
         """
-        server_name = get_gcloud_server_name()
-        print 'Creating service account for instance %s...' % server_name 
-        try:
-            create_service_account(server_name)
-        except googleapiclient.errors.HttpError as e:
-            print 'Warning: %s' % e._get_reason()
-        email = find_service_account_email(server_name)
-        if email != None:
-            print 'Service account %s is created.' % email
-
-        setup_gce_ini_and_json()
-
         if hasattr(self.args, 'settings') and self.args.settings != None:
             print 'Creating deploy settings %s using user settings %s...' % (get_deploy_settings_filename(), self.args.settings)
             self.settings_manager.create_deploy_settings_file(user_settings_file=self.args.settings)
         else:
             print 'Creating deploy settings %s using default settings...' % get_deploy_settings_filename()
             self.settings_manager.create_deploy_settings_file()
-
-	roles = json.loads(self.settings_manager.settings['SERVICE_ACCOUNT_ROLES'])
-	print 'Granting "%s" roles to service account %s:' % (roles, email)
-        grant_roles(roles, email)
+            
+        if self.settings_manager.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'] == 'None':
+            # Default behavior: create a service account based on server name, grant roles, create JSON credential, write to ini.
+            server_name = get_gcloud_server_name()
+            print 'Creating service account for instance %s...' % server_name 
+            try:
+                create_service_account(server_name)
+            except googleapiclient.errors.HttpError as e:
+                print 'Warning: %s' % e._get_reason()
+            email = find_service_account_email(server_name)
+            if email != None:
+                print 'Service account %s created.' % email
+            roles = json.loads(self.settings_manager.settings['SERVICE_ACCOUNT_ROLES'])
+            print 'Granting "%s" roles to service account %s:' % (roles, email)
+            grant_roles(roles, email)
+            create_gce_json()
+            create_gce_ini()
+        else:
+            # Pre-existing service account specified: validate JSON credential and write to ini.
+            create_gce_ini(self.settings_manager.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'])
 
         env = self.get_ansible_env()
 

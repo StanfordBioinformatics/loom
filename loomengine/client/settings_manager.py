@@ -52,13 +52,14 @@ class SettingsManager:
         self.settings['SERVER_NAME'] = get_gcloud_server_name()
         self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], self.settings['SERVER_NAME'], self.settings['EXTERNAL_PORT'])
 
-        # Add other settings from gce.ini
-        gce_config = SafeConfigParser(allow_no_value=True)
-        gce_config.read(os.path.expanduser(GCE_INI_PATH))
+        # Add other settings 
         self.settings['GCE_INI_PATH'] = GCE_INI_PATH
-        self.settings['GCE_EMAIL'] = gce_config.get('gce', 'gce_service_account_email_address')
-        self.settings['GCE_PROJECT'] = gce_config.get('gce', 'gce_project_id')
-        self.settings['GCE_PEM_FILE_PATH'] = gce_config.get('gce', 'gce_service_account_pem_file_path')
+        if self.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'] != 'None':
+            self.settings['GCE_EMAIL'] = self.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL']
+        else:
+            self.settings['GCE_EMAIL'] = find_service_account_email(get_gcloud_server_name())
+        self.settings['GCE_PROJECT'] = get_gcloud_project()
+        self.settings['GCE_PEM_FILE_PATH'] = GCE_JSON_PATH
         self.settings['CLIENT_VERSION'] = version()
 
         # If bucket not provided, default to project id with '-loom' appended
@@ -69,7 +70,7 @@ class SettingsManager:
         """Write settings that depend on other settings being defined first."""
         if get_server_type() == 'gcloud':
             self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
-            if self.settings['DOCKER_REGISTRY']:
+            if self.settings['DOCKER_REGISTRY'] != 'None':
                 self.settings['DOCKER_FULL_NAME'] = '/'.join([self.settings['DOCKER_REGISTRY'], self.settings['DOCKER_FULL_NAME']])
 
     def create_deploy_settings_file(self, user_settings_file=None):
