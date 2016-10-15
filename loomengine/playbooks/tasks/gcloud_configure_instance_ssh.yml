@@ -8,3 +8,5 @@
   - name: Wait for SSH port to be available.
     wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
     with_items: '{{ gce_result.instance_data }}'
+  - name: Wait while ssh keys propagate to the instance
+    pause: seconds=5
