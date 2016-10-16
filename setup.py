@@ -108,7 +108,7 @@ setup(
                         'lockfile>=0.12.2',
                         'MarkupSafe>=0.23',
                         'MySQL-python>=1.2.5',
-                        'oauth2client>=2.0.0',
+                        'oauth2client>=2.0.0,<4.0',
                         'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
                         'python-dateutil',
                         'PyYAML>=3.11',
