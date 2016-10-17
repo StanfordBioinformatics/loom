@@ -401,6 +401,13 @@ def get_crm_service():
     crm_service = googleapiclient.discovery.build('cloudresourcemanager', 'v1', credentials=credentials)
     return crm_service
 
+def delete_libcloud_cached_credential():
+    project = get_gcloud_project()
+    credential = os.path.expanduser('~/.google_libcloud_auth.%s' % project)
+    if os.path.exists(credential):
+        print 'Deleting %s...' % credential
+        os.remove(credential)
+
 def parse_as_json_or_yaml(text):
     def read_as_json(json_text):
         try:
