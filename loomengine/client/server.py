@@ -388,11 +388,9 @@ class GoogleCloudServerControls(BaseServerControls):
             grant_roles(roles, email)
             create_gce_json()
             create_gce_ini()
-            delete_libcloud_cached_credential() # Clear auth token since we're about to use service account from gce.ini
         else:
             # Pre-existing service account specified: validate JSON credential and write to ini.
             create_gce_ini(self.settings_manager.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'])
-            delete_libcloud_cached_credential() # Clear auth token since we're about to use service account from gce.ini
 
         env = self.get_ansible_env()
 

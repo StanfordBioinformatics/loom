@@ -194,6 +194,7 @@ def create_gce_ini(email=None):
     config.set('gce', 'gce_service_account_pem_file_path', GCE_JSON_PATH)
     with open(os.path.expanduser(GCE_INI_PATH), 'w') as configfile:
         config.write(configfile)
+    delete_libcloud_cached_credential() # Ensures that downstream steps get a new token with updated service account
 
 def create_gce_json(email=None):
     project = get_gcloud_project()
