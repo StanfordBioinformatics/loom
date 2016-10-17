@@ -142,7 +142,7 @@ class SettingsManager:
 
     def add_gcloud_settings_on_server(self):
         """Write settings that can't be defined prior to having a running server instance."""
-        if self.settings['WORKER_USES_SERVER_INTERNAL_IP'] == 'True':
+        if self.settings.get('WORKER_USES_SERVER_INTERNAL_IP') == 'True':
             self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], get_gcloud_server_private_ip(self.settings['SERVER_NAME']), self.settings['EXTERNAL_PORT'])
 
 class SettingsError(Exception):

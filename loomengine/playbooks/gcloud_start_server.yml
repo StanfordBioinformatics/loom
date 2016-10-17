@@ -10,6 +10,7 @@
     docker_full_name: "{{lookup('env', 'DOCKER_FULL_NAME')}}"
     external_port: "{{lookup('env', 'EXTERNAL_PORT')}}"
     protocol: "{{lookup('env', 'PROTOCOL')}}"
+    file_root: "{{lookup('env', 'FILE_ROOT')}}"
   tasks:
   - name: Start the Loom server.
     docker_container:
@@ -18,6 +19,8 @@
       ports: 8000:8000
       volumes:
       - "{{remote_loom_settings_path}}/:{{container_loom_settings_path}}/"
+      - /var/run/docker.sock:/var/run/docker.sock
+      - "{{file_root}}/:{{file_root}}/"
       hostname: "{{ansible_hostname}}"
       restart_policy: always
       api_version: auto
