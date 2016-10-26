@@ -38,6 +38,8 @@ class RootDataAlreadyExistsError(Exception):
     pass
 class UnexpectedLeafNodeError(Exception):
     pass
+class ConnectError(Exception):
+    pass
 
 
 # value to be rendered for missing branches
@@ -88,13 +90,36 @@ class InputOutputNode(BasePolymorphicModel):
             self._initialize_data_root()
         self.data_root.add_data_objects_from_json(data_json, data_type)
 
+    def is_connected(self, connected_node):
+        if self.data_root is None or connected_node.data_root is None:
+            return False
+        return self.data_root.id == connected_node.data_root.id
+
     def connect(self, connected_node):
         # Nodes that share the same data should be connected,
         # e.g. a StepOutput that feeds into the StepInput of a subsequent step.
+
+        if self.is_connected(connected_node):
+            return
+
+        # Both nodes are already initialized
+        if connected_node.data_root is not None and self.data_root is not None:
+            raise ConnectError('Failed to connect because nodes are already '\
+                               'initialized with non-matching data')
+
+        # If neither is initialized, initialize and connect
+        if connected_node.data_root is None and self.data_root is None:
+            connected_node._initialize_data_root()
+            self.data_root = connected_node.data_root
+            self.save()
+
+        # If one is initialized, connect the other
         if self.data_root is None:
-            self._initialize_data_root()
-        connected_node.data_root = self.data_root
-        connected_node.save()
+            self.data_root = connected_node.data_root
+            self.save()
+        elif connected_node.data_root is None:
+            connected_node.data_root = self.data_root
+            connected_node.save()
 
 
 class DataNode(BaseModel):

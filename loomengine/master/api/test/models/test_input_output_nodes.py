@@ -37,6 +37,23 @@ class TestInputOutputNode(TestCase):
         io_node1.connect(io_node2)
         self.assertEqual(io_node1.data_root.id, io_node2.data_root.id)
 
+    def testIsConnected(self):
+        io_node1 = InputOutputNode.objects.create(channel='test')
+        io_node2 = InputOutputNode.objects.create(channel='test')
+        self.assertFalse(io_node1.is_connected(io_node2))
+
+        io_node1.connect(io_node2)
+        self.assertTrue(io_node1.is_connected(io_node2))
+
+    def testConnectError(self):
+        io_node1 = InputOutputNode.objects.create(channel='test')
+        io_node2 = InputOutputNode.objects.create(channel='test')
+
+        io_node1._initialize_data_root()
+
+        with self.assertRaises(ConnectError):
+            io_node1.connect(io_node2)
+
     def testDataPropertyWithNoDataRoot(self):
         io_node = InputOutputNode.objects.create(channel='test')
         self.assertEqual(io_node.data, '""')

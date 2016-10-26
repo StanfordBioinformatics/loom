@@ -40,18 +40,19 @@ class RunRequest(BaseModel):
         return self.template.name
 
     def _post_save_children(self):
-        self._idempotent_initialize()
+        self._initialize()
 
-    def _idempotent_initialize(self):
+    def _initialize(self):
+        # Must be idempotent
         self._initialize_run()
         self._validate()
         self._initialize_outputs()
-        self._initialize_channels()
+        self._connect_channels()
 
     def _initialize_run(self):
-        if not self.run:
-            self.run = AbstractWorkflowRun.create_from_template(self.template)
-            self.save()
+        self.run = AbstractWorkflowRun.create_from_template(self.template)
+        self.run._initialize()
+        self.save()
 
     def _initialize_outputs(self):
         for run_request_output in self.run.outputs.all():
@@ -59,17 +60,14 @@ class RunRequest(BaseModel):
                 run_request=self,
                 channel=run_request_output.channel)
 
-    def _initialize_channels(self):
+    def _connect_channels(self):
         for run_request_input in self.inputs.all():
             run_input = self.run.get_input(run_request_input.channel)
-            if not run_input.sender == run_request_input:
-                run_input.sender = run_request_input
-                run_input.save()
+            run_input.connect(run_request_input)
         for run_request_output in self.outputs.all():
             run_output = self.run.get_output(run_request_output.channel)
-            if not run_request_output.sender == run_output:
-               run_request_output.sender = run_output
-               run_request_output.save()
+            run_output.connect(run_request_output)
+        self.run._connect_channels()
 
     def _validate(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput

@@ -67,8 +67,6 @@ class AbstractWorkflowRun(BasePolymorphicModel):
 
 class WorkflowRun(AbstractWorkflowRun):
 
-    skip_post_save = False
-    
     NAME_FIELD = 'workflow__name'
 
     template = models.ForeignKey('Workflow',
@@ -78,19 +76,9 @@ class WorkflowRun(AbstractWorkflowRun):
     def is_step(self):
         return False
 
-    def _post_save(self):
-        if self.skip_post_save:
-            return
-        self._idempotent_initialize()
-
-    def _idempotent_initialize(self):
-        if self.step_runs.count() == 0:
-            self._initialize_step_runs()
-
-        if self.inputs.count() == 0 \
-           and self.fixed_inputs.count() == 0 \
-           and self.outputs.count() == 0:
-            self._initialize_inputs_outputs()
+    def _initialize(self):
+        self._initialize_step_runs()
+        self._initialize_inputs_outputs()
 
     def _initialize_step_runs(self):
         """Create a run for each step
@@ -102,12 +90,12 @@ class WorkflowRun(AbstractWorkflowRun):
                 ChildRunClass = WorkflowRun
             child_run = ChildRunClass.objects.create(template=step,
                                                      parent=self)
+            child_run._initialize()
 
     def _initialize_inputs_outputs(self):
         self._initialize_inputs()
         self._initialize_fixed_inputs()
         self._initialize_outputs()
-        self._initialize_channels()
 
     def _initialize_inputs(self):
         for input in self.template.inputs.all():
@@ -129,6 +117,15 @@ class WorkflowRun(AbstractWorkflowRun):
                 workflow_run=self,
                 channel=output.channel,
                 workflow_output=output)
+
+    def _connect_channels(self):
+        for destination in self._get_destinations():
+            source = self._get_source(destination.channel)
+            # Make sure matching source and destination nodes are connected
+            source.connect(destination)
+
+        for step in self.step_runs.all():
+            step._connect_channels()
 
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
@@ -180,13 +177,8 @@ class WorkflowRun(AbstractWorkflowRun):
             pluralize = 's' if count['success'] > 1 else ''
             status_list.append('%s step%s finished successfully.' % (count['success'], pluralize))
         self.status = ' '.join(status_list)
-        self.skip_post_save = True # To prevent infinite recursion
         self.save()
         self.update_parent_status()
-
-@receiver(models.signals.post_save, sender=WorkflowRun)
-def _post_save_workflow_run_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
 
 
 class StepRun(AbstractWorkflowRun):
@@ -237,21 +229,15 @@ class StepRun(AbstractWorkflowRun):
         else:
             count['running'] = 1
         return count
-    
-    def _post_save(self):
-        self._idempotent_initialize()
 
-    def _idempotent_initialize(self):
-        if self.inputs.count() == 0 \
-           and self.fixed_inputs.count() == 0 \
-           and self.outputs.count() == 0:
-            self._initialize_inputs_outputs()
+    def _initialize(self):
+        self._initialize_inputs_outputs()
 
     def _initialize_inputs_outputs(self):
         self._initialize_inputs()
         self._initialize_fixed_inputs()
         self._initialize_outputs()
-            
+
     def _initialize_inputs(self):
         for input in self.template.inputs.all():
             StepRunInput.objects.create(
@@ -272,6 +258,9 @@ class StepRun(AbstractWorkflowRun):
                 step_run=self,
                 channel=output.channel,
                 step_output=output)
+
+    def _connect_channels(self):
+        pass # no-op
 
     def get_all_inputs(self):
         inputs = [i for i in self.inputs.all()]
@@ -294,11 +283,6 @@ class StepRun(AbstractWorkflowRun):
             self.status = status
             self.save()
         self.update_parent_status()
-
-
-@receiver(models.signals.post_save, sender=StepRun)
-def _post_save_step_run_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
 
 class AbstractStepRunInput(InputOutputNode):
     # This table is needed because it is referenced by TaskRunInput,
