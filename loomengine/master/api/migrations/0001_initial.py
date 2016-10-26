@@ -801,11 +801,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='polymorphic_api.inputoutputnode_set+', editable=False, to='contenttypes.ContentType', null=True),
         ),
         migrations.AddField(
-            model_name='inputoutputnode',
-            name='sender',
-            field=models.ForeignKey(related_name='receivers', to='api.InputOutputNode', null=True),
-        ),
-        migrations.AddField(
             model_name='fixedworkflowinput',
             name='data_object',
             field=models.ForeignKey(to='api.DataObject'),

@@ -92,8 +92,6 @@ class WorkflowRun(AbstractWorkflowRun):
            and self.outputs.count() == 0:
             self._initialize_inputs_outputs()
 
-        self.push_fixed_inputs()
-
     def _initialize_step_runs(self):
         """Create a run for each step
         """
@@ -132,18 +130,6 @@ class WorkflowRun(AbstractWorkflowRun):
                 channel=output.channel,
                 workflow_output=output)
 
-    def _initialize_channels(self):
-        for destination in self._get_destinations():
-            source = self._get_source(destination.channel)
-
-            # For a matching source and desination, make sure they are
-            # sender/receiver on the same channel 
-            if not destination.sender:
-                destination.sender = source
-                destination.save()
-            else:
-                assert destination.sender == source
-
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
         for step_run in self.step_runs.all():
@@ -162,14 +148,6 @@ class WorkflowRun(AbstractWorkflowRun):
         elif len(sources) > 1:
             raise Exception('Found multiple data sources for channel "%s"' % channel)
         return sources[0]
-
-    def push_fixed_inputs(self):
-        # Runtime inputs will be pushed whenever data is added,
-        # but fixed inputs have to be pushed at least once on creation
-        for input in self.fixed_inputs.all():
-            input.push(input.workflow_input.data_object)
-        for step_run in self.step_runs.all():
-            step_run.push_fixed_inputs()
 
     def get_step_status_count(self):
         count = {
@@ -300,18 +278,6 @@ class StepRun(AbstractWorkflowRun):
         inputs.extend([i for i in self.fixed_inputs.all()])
         return inputs
 
-    def push_fixed_inputs(self):
-        for input in self.fixed_inputs.all():
-            input.push(input.step_input.data_object)
-
-    def push(self):
-        if self.task_runs.count() == 0:
-            for input_set in InputNodeSet(
-                    self.get_all_inputs()).get_ready_input_sets():
-                task_run = TaskRun.create_from_input_set(input_set, self)
-                task_run.run()
-        self.update_status()
-
     def update_status(self):
         if self.task_runs.count() == 0:
             missing_inputs = InputNodeSet(
@@ -330,26 +296,14 @@ class StepRun(AbstractWorkflowRun):
         self.update_parent_status()
 
 
-class AbstractStepRunInput(InputOutputNode):
-
-    # This table is needed because it is referenced by TaskRunInput,
-    # and TaskRuns do not distinguish between fixed and runtime inputs
-
-    def push(self, indexed_data_object):
-        # Save arriving data as on any InputOutputNode
-        super(AbstractStepRunInput, self).push(indexed_data_object)
-        # Also make the step_run check to see if it is ready to kick
-        # off a new TaskRun
-        self.step_run.push()
-
-    def push_to_receivers(self, indexed_data_object):
-        # No receivers, but we need to push to the step_run
-        self.step_run.push()
-
 @receiver(models.signals.post_save, sender=StepRun)
 def _post_save_step_run_signal_receiver(sender, instance, **kwargs):
     instance._post_save()
 
+class AbstractStepRunInput(InputOutputNode):
+    # This table is needed because it is referenced by TaskRunInput,
+    # and TaskRuns do not distinguish between fixed and runtime inputs
+    pass
 
 class StepRunInput(AbstractStepRunInput):
 
@@ -381,7 +335,7 @@ class FixedStepRunInput(AbstractStepRunInput):
     step_input = models.ForeignKey('FixedStepInput',
                                    related_name='step_run_inputs',
                                    on_delete=models.PROTECT)
-    
+
     @property
     def type(self):
         return self.step_input.type

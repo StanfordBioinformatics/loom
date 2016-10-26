@@ -47,7 +47,6 @@ class RunRequest(BaseModel):
         self._validate()
         self._initialize_outputs()
         self._initialize_channels()
-        self.push_inputs()
 
     def _initialize_run(self):
         if not self.run:
@@ -71,11 +70,6 @@ class RunRequest(BaseModel):
             if not run_request_output.sender == run_output:
                run_request_output.sender = run_output
                run_request_output.save()
-
-    def push_inputs(self):
-        for input in self.inputs.all():
-            input.push()
-        self.run.push_fixed_inputs()
 
     def _validate(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput
