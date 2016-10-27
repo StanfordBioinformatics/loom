@@ -3,9 +3,9 @@ from rest_framework import serializers
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput,\
     TaskRunAttempt, TaskRunAttemptInput, TaskRunAttemptOutput, \
-    TaskRunAttemptLogFile, TaskRunAttemptError
+    TaskRunAttemptOutput, TaskRunAttemptLogFile, TaskRunAttemptError
 from api.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
-from api.serializers.task_definitions import TaskDefinitionSerializer
+from api.serializers.task_definitions import TaskDefinitionSerializer, TaskDefinitionOutputSourceSerializer
 from api.serializers.workflows import RequestedResourceSetSerializer
 
 
@@ -14,11 +14,12 @@ class TaskRunAttemptOutputSerializer(CreateWithParentModelSerializer):
     data_object = DataObjectSerializer(allow_null=True, required=False)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
-    filename = serializers.CharField(read_only=True)
+    source = TaskDefinitionOutputSourceSerializer(read_only=True)
+    # parser = TaskDefinitionOutputParserSerializer(read_only=True)
 
     class Meta:
         model = TaskRunAttemptOutput
-        fields = ('id', 'data_object', 'filename', 'type', 'channel',)
+        fields = ('id', 'data_object', 'type', 'channel', 'source')
 
     def update(self, instance, validated_data):
         data_object_data = self.initial_data.get('data_object', None)
@@ -102,11 +103,12 @@ class TaskRunOutputSerializer(CreateWithParentModelSerializer):
     data_object = DataObjectSerializer()
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
-    filename = serializers.CharField(read_only=True)
+    source = TaskDefinitionOutputSourceSerializer(read_only=True)
+    #parser = TaskDefinitionOutputParserSerializer(read_only=True)
 
     class Meta:
         model = TaskRunOutput
-        fields = ('data_object', 'filename', 'type', 'channel',)
+        fields = ('data_object', 'source', 'type', 'channel')
 
 
 class TaskRunIdSerializer(serializers.ModelSerializer):

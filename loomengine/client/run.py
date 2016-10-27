@@ -66,7 +66,7 @@ class WorkflowRunner(object):
         if self.args.inputs:
             for kv_pair in self.args.inputs:
                 (channel, input_id) = kv_pair.split('=')
-                inputs.append({'channel': channel, 'value': input_id})
+                inputs.append({'channel': channel, 'data': input_id})
         return inputs
 
 

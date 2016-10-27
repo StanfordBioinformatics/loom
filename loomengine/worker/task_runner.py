@@ -42,6 +42,7 @@ class TaskRunner(object):
 
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
     HEARTBEAT_INTERVAL_SECONDS = 60
+    LOOM_RUN_SCRIPT_NAME = 'loom_run_script'
 
     def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
         if args is None:
@@ -127,6 +128,7 @@ class TaskRunner(object):
     def run(self):
         try:
             self._try_to_copy_inputs()
+            self._try_to_create_run_script()
             self._try_to_pull_image()
             self._try_to_create_container()
             self._try_to_run_container()
@@ -177,6 +179,20 @@ class TaskRunner(object):
             file_data_object_ids,
             destination_url=self.settings['WORKING_DIR'])
 
+    def _try_to_create_run_script(self):
+        self.logger.info('Creating run script')
+        self._set_status(STATUS.CREATING_RUN_SCRIPT)
+        try:
+            self._create_run_script()
+        except Exception as e:
+            self._report_error(message-'Failed to create run script', detail=str(e))
+            raise e
+
+    def _create_run_script(self):
+        user_command = self.task_run_attempt['task_definition']['command']
+        with open(os.path.join(self.settings['WORKING_DIR'], self.LOOM_RUN_SCRIPT_NAME), 'w') as f:
+            f.write(user_command + '\n')
+        
     def _try_to_pull_image(self):
         self._set_status(STATUS.FETCHING_IMAGE)
         try:
@@ -211,16 +227,15 @@ class TaskRunner(object):
             self._report_error(message='Failed to create container for runtime environment', detail=str(e))
             raise e
 
-    def  _create_container(self):
+    def _create_container(self):
         docker_image = self._get_docker_image()
-        user_command = self.task_run_attempt['task_definition']['command']
+        interpreter = self.task_run_attempt['task_definition']['interpreter']
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/loom_workspace'
 
         command = [
-            'bash',
-            '-o', 'pipefail',
-            '-c', user_command,
+            interpreter,
+            self.LOOM_RUN_SCRIPT_NAME
         ]
 
         self.container = self.docker_client.create_container(
@@ -343,24 +358,54 @@ class TaskRunner(object):
         try:
             self._save_outputs()
         except Exception as e:
-            self._report_error(message='Failed to save process logs', detail=str(e))
+            self._report_error(message='Failed to save outputs', detail=str(e))
             # Don't raise error. Continue cleanup
 
     def _save_outputs(self):
         for output in self.task_run_attempt['outputs']:
             if output['type'] == 'file':
-                filename = output['filename']
+                filename = output['source']['filename']
                 try:
-                    self.filemanager.import_result_file(
+                    data_object = self.filemanager.import_result_file(
                         output,
                         os.path.join(self.settings['WORKING_DIR'], filename)
                     )
+                    self.logger.debug('Saved file output "%s"' % data_object['id'])
                 except IOError as e:
-                    self._report_error(message='Failed to upload output file %s' % filename, detail=str(e))
+                    self._report_error(message='Failed to save output file %s' % filename, detail=str(e))
             else:
-                # TODO handle non-file output types
-                raise Exception("Can't handle outputs of type %s" %
-                                output['type'])
+                if output['source'].get('filename'):
+                    with open(
+                            os.path.join(
+                                self.settings['WORKING_DIR'],
+                                output['source'].get('filename')),
+                            'r') as f:
+                        output_text = f.read()
+
+                elif output['source'].get('stream'):
+                    # Get result from stream
+                    if output['source'].get('stream') == 'stdout':
+                        output_text = self.docker_client.logs(self.container, stderr=False, stdout=True)
+                    elif output['source'].get('stream') == 'stderr':
+                        output_text = self.docker_client.logs(self.container, stderr=True, stdout=False)
+                    else:
+                        raise Exception('Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
+                else:
+                    raise Exception('Could not save output "%s" because did not include a filename or a stream: "%s"' %  (output['channel'], output['source']))
+
+                data_object = self._save_nonfile_output(output, output_text)
+                self.logger.debug('Saved %s output "%s"' % (output['type'], data_object['id']))
+
+    def _save_nonfile_output(self, output, output_text):
+        data_type = output['type']
+        data_object = {
+            'type': data_type,
+            data_type+'_content': {
+                data_type+'_value': output_text
+            }
+        }
+        output.update({'data_object': data_object})
+        return self.connection.update_task_run_attempt_output(output['id'], output)
 
     def _try_to_save_monitor_log(self):
         self.logger.debug('Saving worker process monitor log')

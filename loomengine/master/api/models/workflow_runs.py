@@ -6,7 +6,7 @@ import uuid
 
 from .base import BaseModel, BasePolymorphicModel
 from api import get_setting
-from api.models.channels import InputOutputNode, InputNodeSet
+from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
 from api.models.task_definitions import TaskDefinition
 from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, \
@@ -64,11 +64,16 @@ class AbstractWorkflowRun(BasePolymorphicModel):
         if self.parent:
             self.parent.update_status()
 
+    def get_run_request(self):
+        try:
+            return self.run_request
+        except ObjectDoesNotExist:
+            pass
+        return self.parent.get_run_request()
+        
 
 class WorkflowRun(AbstractWorkflowRun):
 
-    skip_post_save = False
-    
     NAME_FIELD = 'workflow__name'
 
     template = models.ForeignKey('Workflow',
@@ -78,21 +83,9 @@ class WorkflowRun(AbstractWorkflowRun):
     def is_step(self):
         return False
 
-    def _post_save(self):
-        if self.skip_post_save:
-            return
-        self._idempotent_initialize()
-
-    def _idempotent_initialize(self):
-        if self.step_runs.count() == 0:
-            self._initialize_step_runs()
-
-        if self.inputs.count() == 0 \
-           and self.fixed_inputs.count() == 0 \
-           and self.outputs.count() == 0:
-            self._initialize_inputs_outputs()
-
-        self.push_fixed_inputs()
+    def initialize(self):
+        self._initialize_step_runs()
+        self._initialize_inputs_outputs()
 
     def _initialize_step_runs(self):
         """Create a run for each step
@@ -104,12 +97,12 @@ class WorkflowRun(AbstractWorkflowRun):
                 ChildRunClass = WorkflowRun
             child_run = ChildRunClass.objects.create(template=step,
                                                      parent=self)
+            child_run.initialize()
 
     def _initialize_inputs_outputs(self):
         self._initialize_inputs()
         self._initialize_fixed_inputs()
         self._initialize_outputs()
-        self._initialize_channels()
 
     def _initialize_inputs(self):
         for input in self.template.inputs.all():
@@ -124,6 +117,7 @@ class WorkflowRun(AbstractWorkflowRun):
                 workflow_run=self,
                 channel=fixed_input.channel,
                 workflow_input=fixed_input)
+            fixed_workflow_run_input._add_scalar_data_from_template()
 
     def _initialize_outputs(self):
         for output in self.template.outputs.all():
@@ -132,17 +126,14 @@ class WorkflowRun(AbstractWorkflowRun):
                 channel=output.channel,
                 workflow_output=output)
 
-    def _initialize_channels(self):
+    def connect_channels(self):
         for destination in self._get_destinations():
             source = self._get_source(destination.channel)
+            # Make sure matching source and destination nodes are connected
+            source.connect(destination)
 
-            # For a matching source and desination, make sure they are
-            # sender/receiver on the same channel 
-            if not destination.sender:
-                destination.sender = source
-                destination.save()
-            else:
-                assert destination.sender == source
+        for step in self.step_runs.all():
+            step.connect_channels()
 
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
@@ -162,14 +153,6 @@ class WorkflowRun(AbstractWorkflowRun):
         elif len(sources) > 1:
             raise Exception('Found multiple data sources for channel "%s"' % channel)
         return sources[0]
-
-    def push_fixed_inputs(self):
-        # Runtime inputs will be pushed whenever data is added,
-        # but fixed inputs have to be pushed at least once on creation
-        for input in self.fixed_inputs.all():
-            input.push(input.workflow_input.data_object)
-        for step_run in self.step_runs.all():
-            step_run.push_fixed_inputs()
 
     def get_step_status_count(self):
         count = {
@@ -202,13 +185,12 @@ class WorkflowRun(AbstractWorkflowRun):
             pluralize = 's' if count['success'] > 1 else ''
             status_list.append('%s step%s finished successfully.' % (count['success'], pluralize))
         self.status = ' '.join(status_list)
-        self.skip_post_save = True # To prevent infinite recursion
         self.save()
         self.update_parent_status()
 
-@receiver(models.signals.post_save, sender=WorkflowRun)
-def _post_save_workflow_run_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
+    def create_ready_tasks(self, do_start):
+        for step_run in self.step_runs.all():
+            step_run.create_ready_tasks(do_start)
 
 
 class StepRun(AbstractWorkflowRun):
@@ -221,6 +203,10 @@ class StepRun(AbstractWorkflowRun):
     @property
     def command(self):
         return self.template.command
+
+    @property
+    def interpreter(self):
+        return self.template.interpreter
 
     @property
     def environment(self):
@@ -255,21 +241,15 @@ class StepRun(AbstractWorkflowRun):
         else:
             count['running'] = 1
         return count
-    
-    def _post_save(self):
-        self._idempotent_initialize()
 
-    def _idempotent_initialize(self):
-        if self.inputs.count() == 0 \
-           and self.fixed_inputs.count() == 0 \
-           and self.outputs.count() == 0:
-            self._initialize_inputs_outputs()
+    def initialize(self):
+        self._initialize_inputs_outputs()
 
     def _initialize_inputs_outputs(self):
         self._initialize_inputs()
         self._initialize_fixed_inputs()
         self._initialize_outputs()
-            
+
     def _initialize_inputs(self):
         for input in self.template.inputs.all():
             StepRunInput.objects.create(
@@ -279,10 +259,11 @@ class StepRun(AbstractWorkflowRun):
 
     def _initialize_fixed_inputs(self):
         for fixed_input in self.template.fixed_inputs.all():
-            FixedStepRunInput.objects.create(
+            fixed_step_run_input = FixedStepRunInput.objects.create(
                 step_run=self,
                 channel=fixed_input.channel,
                 step_input=fixed_input)
+            fixed_step_run_input._add_scalar_data_from_template()
 
     def _initialize_outputs(self):
         for output in self.template.outputs.all():
@@ -291,22 +272,24 @@ class StepRun(AbstractWorkflowRun):
                 channel=output.channel,
                 step_output=output)
 
+    def connect_channels(self):
+        pass # no-op
+
     def get_all_inputs(self):
         inputs = [i for i in self.inputs.all()]
         inputs.extend([i for i in self.fixed_inputs.all()])
         return inputs
 
-    def push_fixed_inputs(self):
-        for input in self.fixed_inputs.all():
-            input.push(input.step_input.data_object)
-
-    def push(self):
+    def create_ready_tasks(self, do_start=True):
+        # This is a temporary limit. It assumes no parallel workflows, and no
+        # failure recovery, so each step has only one TaskRun.
         if self.task_runs.count() == 0:
             for input_set in InputNodeSet(
                     self.get_all_inputs()).get_ready_input_sets():
                 task_run = TaskRun.create_from_input_set(input_set, self)
-                task_run.run()
-        self.update_status()
+                if do_start:
+                    task_run.run()
+            self.update_status()
 
     def update_status(self):
         if self.task_runs.count() == 0:
@@ -325,26 +308,16 @@ class StepRun(AbstractWorkflowRun):
             self.save()
         self.update_parent_status()
 
-
+    
 class AbstractStepRunInput(InputOutputNode):
-
     # This table is needed because it is referenced by TaskRunInput,
     # and TaskRuns do not distinguish between fixed and runtime inputs
+    pass
 
-    def push(self, indexed_data_object):
-        # Save arriving data as on any InputOutputNode
-        super(AbstractStepRunInput, self).push(indexed_data_object)
-        # Also make the step_run check to see if it is ready to kick
-        # off a new TaskRun
-        self.step_run.push()
-
-    def push_to_receivers(self, indexed_data_object):
-        # No receivers, but we need to push to the step_run
-        self.step_run.push()
-
-@receiver(models.signals.post_save, sender=StepRun)
-def _post_save_step_run_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
+    def is_ready(self):
+        if self.get_data_as_scalar() is None:
+            return False
+        return self.get_data_as_scalar().is_ready()
 
 
 class StepRunInput(AbstractStepRunInput):
@@ -360,6 +333,13 @@ class StepRunInput(AbstractStepRunInput):
     def type(self):
         return self.step_input.type
 
+    @property
+    def mode(self):
+        return self.step_input.mode
+
+    @property
+    def group(self):
+        return self.step_input.group
 
 class FixedStepRunInput(AbstractStepRunInput):
 
@@ -369,10 +349,22 @@ class FixedStepRunInput(AbstractStepRunInput):
     step_input = models.ForeignKey('FixedStepInput',
                                    related_name='step_run_inputs',
                                    on_delete=models.PROTECT)
-    
+
     @property
     def type(self):
         return self.step_input.type
+
+    @property
+    def mode(self):
+        return self.step_input.mode
+
+    @property
+    def group(self):
+        return self.step_input.group
+
+    def _add_scalar_data_from_template(self):
+        path = [] # Add at root node since we are not handling parallel
+        self.add_data_object(path, self.step_input.data_object)
 
 
 class StepRunOutput(InputOutputNode):
@@ -389,10 +381,20 @@ class StepRunOutput(InputOutputNode):
         return self.step_output.type
 
     @property
-    def filename(self):
+    def mode(self):
+        return self.step_output.mode
+
+    @property
+    def source(self):
         if self.step_output is None:
             return ''
-        return self.step_output.filename
+        return self.step_output.source
+
+#    @property
+#    def parser(self):
+#        if self.step_output is None:
+#            return ''
+#        return self.step_output.parser
 
 
 class WorkflowRunInput(InputOutputNode):
@@ -420,6 +422,10 @@ class FixedWorkflowRunInput(InputOutputNode):
     @property
     def type(self):
         return self.workflow_input.type
+
+    def _add_scalar_data_from_template(self):
+        path = [] # Add at root node since we are not handling parallel
+        self.add_data_object(path, self.workflow_input.data_object)
 
 
 class WorkflowRunOutput(InputOutputNode):

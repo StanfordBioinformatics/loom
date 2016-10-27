@@ -120,6 +120,7 @@ class Step(AbstractWorkflow):
     """
 
     command = models.TextField()
+    interpreter = models.TextField(default='/bin/bash')
 
     def is_step(self):
         return True
@@ -169,9 +170,9 @@ class AbstractRuntimeWorkflowInput(AbstractWorkflowInput):
 
 class AbstractFixedWorkflowInput(AbstractWorkflowInput):
 
-    data_object = models.ForeignKey('DataObject') # serialized as 'value'
+    data_object = models.ForeignKey('DataObject') # serialized as 'data'
 
-    def value(self):
+    def data(self):
         return self.data_object.get_display_value()
     
     class Meta:
@@ -190,6 +191,8 @@ class StepInput(AbstractRuntimeWorkflowInput):
     step = models.ForeignKey('Step',
                              related_name='inputs',
                              on_delete=models.CASCADE)
+    mode = models.CharField(max_length=255, default='no_gather')
+    group = models.IntegerField(default=0)
 
 
 class FixedWorkflowInput(AbstractFixedWorkflowInput):
@@ -199,14 +202,14 @@ class FixedWorkflowInput(AbstractFixedWorkflowInput):
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
 
-
 class FixedStepInput(AbstractFixedWorkflowInput):
 
     step = models.ForeignKey(
         'Step',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
-
+    mode = models.CharField(max_length=255, default='no_gather')
+    group = models.IntegerField(default=0)
 
 class AbstractOutput(BasePolymorphicModel):
 
@@ -230,10 +233,27 @@ class WorkflowOutput(AbstractOutput):
 
 class StepOutput(AbstractOutput):
 
-    filename = models.CharField(max_length=255)
     step = models.ForeignKey('Step',
                              related_name='outputs',
                              on_delete=models.CASCADE)
+    mode = models.CharField(max_length=255, default='no_scatter')
+
+
+#class StepOutputParser(BaseModel):
+#    step_output = models.OneToOneField(
+#        StepOutput,
+#        related_name='parser',
+#        on_delete=models.CASCADE)
+#    delimiter = models.CharField(max_length=255, null=True)
+
+
+class StepOutputSource(BaseModel):
+    step_output = models.OneToOneField(
+        StepOutput,
+        related_name='source',
+        on_delete=models.CASCADE)
+    filename = models.CharField(max_length=1024, null=True)
+    stream = models.CharField(max_length=255, null=True)
 
 
 class WorkflowImport(BaseModel):

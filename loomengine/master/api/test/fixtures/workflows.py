@@ -3,7 +3,7 @@
 fixed_step_input = {
     'type': 'string',
     'channel': 'test',
-    'value': 'teststring',
+    'data': 'teststring',
 }
 
 step_a = {
@@ -27,13 +27,15 @@ step_a = {
     'fixed_inputs': [
         {
             'type': 'string',
-            'value': 'a word or two',
+            'data': 'a word or two',
             'channel': 'a2'
         }
     ],
     'outputs': [
 	{
-            'filename': 'two.txt',
+            'source': {
+                'filename': 'two.txt'
+            },
             'type': 'file',
 	    'channel': 'b1'
 	}
@@ -66,12 +68,14 @@ step_b = {
     ],
     'fixed_inputs': [{
         'type': 'string',
-        'value': 'more text',
+        'data': 'more text',
         'channel': 'b3'
     }],
     'outputs': [
 	{
-            'filename': 'c1.txt',
+            'source': {
+                'filename': 'c1.txt'
+            },
             'type': 'file',
 	    'channel': 'c1'
 	}
@@ -98,7 +102,9 @@ step_c = {
     ],
     'outputs': [
 	{
-            'filename': 'result.txt',
+            'source': {
+                'filename': 'result.txt'
+            },
 	    'channel': 'result',
             'type': 'file'
 	}
@@ -118,7 +124,7 @@ flat_workflow = {
     'fixed_inputs': [
 	{
             'type': 'string',
-	    'value': 'two',
+	    'data': 'two',
 	    'channel': 'b2'
 	}
     ],
@@ -140,7 +146,7 @@ nested_workflow = {
         {
             'type': 'string',
             'channel': 'a1',
-            'value': 'a1 text'
+            'data': 'a1 text'
         }
     ],
     'outputs': [

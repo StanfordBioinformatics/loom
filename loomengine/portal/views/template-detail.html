@@ -26,6 +26,14 @@
 	  {{activeData.template.command}}
 	</td>
       </tr>
+      <tr ng-show="activeData.template.interpreter">
+	<th>
+	  Interpreter
+	</th>
+	<td>
+	  {{activeData.template.interpreter}}
+	</td>
+      </tr>
       <tr ng-show="activeData.template.environment.docker_image">
 	<th>Docker Image</th>
 	<td>
@@ -115,12 +123,12 @@
 	      {{input.type}}
 	    </td>
 	    <td ng-show="input.type=='file'">
-	      <a ng-href="#/files/{{input.value | parseId:'id'}}" ng-show="input.value">
-		{{input.value | parseId:'name'}}
+	      <a ng-href="#/files/{{input.data | parseId:'id'}}" ng-show="input.data">
+		{{input.data | parseId:'name'}}
 	      </a>
 	    </td>
 	    <td ng-hide="input.type=='file'">
-	      {{input.value}}
+	      {{input.data}}
 	    </td>
 	  </tr>
 	</tbody>

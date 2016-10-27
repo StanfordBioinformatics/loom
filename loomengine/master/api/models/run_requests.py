@@ -5,9 +5,8 @@ from django.utils import timezone
 import uuid
 
 from .base import BaseModel, BasePolymorphicModel
-from .channels import InputOutputNode
+from .input_output_nodes import InputOutputNode
 from .data_objects import DataObject
-from .signals import post_save_children
 from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
 from .workflows import Workflow
 from api import get_setting
@@ -39,20 +38,16 @@ class RunRequest(BaseModel):
     def name(self):
         return self.template.name
 
-    def _post_save_children(self):
-        self._idempotent_initialize()
-
-    def _idempotent_initialize(self):
+    def initialize(self):
         self._initialize_run()
         self._validate()
         self._initialize_outputs()
-        self._initialize_channels()
-        self.push_inputs()
+        self.connect_channels()
 
     def _initialize_run(self):
-        if not self.run:
-            self.run = AbstractWorkflowRun.create_from_template(self.template)
-            self.save()
+        self.run = AbstractWorkflowRun.create_from_template(self.template)
+        self.run.initialize()
+        self.save()
 
     def _initialize_outputs(self):
         for run_request_output in self.run.outputs.all():
@@ -60,22 +55,17 @@ class RunRequest(BaseModel):
                 run_request=self,
                 channel=run_request_output.channel)
 
-    def _initialize_channels(self):
+    def connect_channels(self):
+        # This step is separate from self.run.initialize because
+        # channels have to be connected from the outside in, since data is applied
+        # to run_request inputs first.
         for run_request_input in self.inputs.all():
             run_input = self.run.get_input(run_request_input.channel)
-            if not run_input.sender == run_request_input:
-                run_input.sender = run_request_input
-                run_input.save()
+            run_input.connect(run_request_input)
         for run_request_output in self.outputs.all():
             run_output = self.run.get_output(run_request_output.channel)
-            if not run_request_output.sender == run_output:
-               run_request_output.sender = run_output
-               run_request_output.save()
-
-    def push_inputs(self):
-        for input in self.inputs.all():
-            input.push()
-        self.run.push_fixed_inputs()
+            run_output.connect(run_request_output)
+        self.run.connect_channels()
 
     def _validate(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput
@@ -94,9 +84,8 @@ class RunRequest(BaseModel):
                 'Missing input for channel(s) "%s"' %
                 ', '.join([channel for channel in workflow_inputs]))
 
-@receiver(post_save_children, sender=RunRequest)
-def _post_save_children_run_request_signal_receiver(sender, instance, **kwargs):
-    instance._post_save_children()
+    def create_ready_tasks(self, do_start=True):
+        self.run.create_ready_tasks(do_start=do_start)
 
 
 class RunRequestInput(InputOutputNode):
@@ -105,13 +94,6 @@ class RunRequestInput(InputOutputNode):
         'RunRequest',
         related_name='inputs',
         on_delete=models.CASCADE)
-
-    def value(self):
-        # TODO - handle indices
-        if self.indexed_data_objects.count() == 0:
-            return None
-        return self.indexed_data_objects.first()\
-                                        .data_object.get_display_value()
 
     def get_type(self):
         return self.run_request.run.get_input(self.channel).type
