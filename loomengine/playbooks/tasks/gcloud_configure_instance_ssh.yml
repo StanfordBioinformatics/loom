@@ -1,13 +1,12 @@
-  - stat: path="{{lookup('env','GCE_SSH_KEY_FILE')}}"
-    register: public_key_file
   - name: Create SSH key if it doesn't exist
-    shell: ssh-keygen -q -t rsa -f "{{lookup('env','GCE_SSH_KEY_FILE')}}" -P "" -C "{{lookup('env','USER')}}"
-    when: public_key_file.stat.exists == False
+    user: name={{ remote_user }} generate_ssh_key=yes ssh_key_bits=2048 ssh_key_file={{ gce_ssh_key_file }} ssh_key_type=rsa
   - name: Read SSH key
-    shell: cat "{{lookup('env','GCE_SSH_KEY_FILE')}}"
-    register: public_key_cat
+    shell: cat "{{gce_ssh_key_file}}.pub"
+    register: public_key
   - name: Add SSH key to instance metadata
-    shell: "gcloud compute instances add-metadata {{instance_name}} --metadata ssh-keys=\"{{lookup('env','USER')}}: {{ public_key_cat.stdout }}\""
+    shell: "gcloud compute instances add-metadata {{instance_name}} --zone {{zone}} --metadata ssh-keys=\"{{ remote_user }}: {{ public_key.stdout }}\""
   - name: Wait for SSH port to be available.
     wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
     with_items: '{{ gce_result.instance_data }}'
+  - name: Wait while ssh keys propagate to the instance
+    pause: seconds=5

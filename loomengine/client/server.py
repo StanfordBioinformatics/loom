@@ -25,7 +25,6 @@ GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
 GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
 GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
 GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
-GCLOUD_SETUP_LOOM_USER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_setup_loom_user.yml')
 NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
 
 def ServerControlsFactory(args):
@@ -119,10 +118,9 @@ class BaseServerControls:
         '''Set server for the client to manage (currently local or gcloud) and creates Loom settings directory.'''
         server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
         # Create directory/directories if they don't exist
-        ini_dir = os.path.dirname(server_location_file)
-        if not os.path.exists(ini_dir):
-            print 'Creating Loom settings directory %s...' % ini_dir
-            os.makedirs(ini_dir)
+        if not os.path.exists(os.path.expanduser(LOOM_SETTINGS_PATH)):
+            print 'Creating Loom settings directory %s...' % os.path.expanduser(LOOM_SETTINGS_PATH)
+            os.makedirs(os.path.expanduser(LOOM_SETTINGS_PATH))
 
         # Write server.ini file
         config = SafeConfigParser()
@@ -136,8 +134,7 @@ class BaseServerControls:
             print 'Updating %s...' % server_location_file
             config.write(configfile)
 
-        # Copy NGINX config file to same place
-        shutil.copy(NGINX_CONFIG_FILE, ini_dir)
+        shutil.copy(NGINX_CONFIG_FILE, os.path.expanduser(LOOM_SETTINGS_PATH))
 
     def status(self):
         if is_server_running():
@@ -172,7 +169,6 @@ class LocalServerControls(BaseServerControls):
 
             if loomengine.utils.cloud.on_gcloud_vm():
                 """We're in gcloud and the client is starting the server on the local instance."""
-                subprocess.call(['ansible-playbook', GCLOUD_SETUP_LOOM_USER_PLAYBOOK])
                 self.settings_manager.add_gcloud_settings_on_server()
 
             env = os.environ.copy()
@@ -284,42 +280,29 @@ class LocalServerControls(BaseServerControls):
 
     def _set_database(self, env):
         manage_cmd = [sys.executable, '%s/manage.py' % SERVER_PATH]
-        if self.args.test_database:
-            # If test database requested, set LOOM_TEST_DATABASE to true and reset database
-            env['LOOM_TEST_DATABASE'] = 'true'
-            commands = [
-                manage_cmd + ['flush', '--noinput'],
-                manage_cmd + ['migrate'],
-                ]
-            for command in commands:
-                stdout = subprocess.Popen(
-                    command,
-                    stdout=subprocess.PIPE,
-                    env=env).communicate()
-        else:
+        proc = subprocess.Popen(
+            manage_cmd + ['migrate', '-l'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env)
+        output = proc.communicate()
+        if proc.returncode != 0 or re.search('Error', output[0]):
+            msg = "Loom could not connect to its database. Exiting now. "
+            if self.args.verbose:
+                msg += output[0]
+            raise Exception(msg)
+        elif re.search('\[ \]', output[0]):
+  	    print("Welcome to Loom!\nInitializing database for first use...")
             proc = subprocess.Popen(
-                manage_cmd + ['migrate', '-l'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                env=env)
+		manage_cmd + ['migrate'],
+		stdout=subprocess.PIPE,
+		env=env)
             output = proc.communicate()
             if proc.returncode != 0 or re.search('Error', output[0]):
-                msg = "Loom could not connect to its database. Exiting now. "
+                msg = "Failed to apply database migrations. Exiting now. "
                 if self.args.verbose:
-                    msg += output[0]
+                    msg += stdout[0]
                 raise Exception(msg)
-            elif re.search('\[ \]', output[0]):
-  	        print("Welcome to Loom!\nInitializing database for first use...")
-                proc = subprocess.Popen(
-		    manage_cmd + ['migrate'],
-		    stdout=subprocess.PIPE,
-		    env=env)
-                output = proc.communicate()
-                if proc.returncode != 0 or re.search('Error', output[0]):
-                    msg = "Failed to apply database migrations. Exiting now. "
-                    if self.args.verbose:
-                        msg += stdout[0]
-                    raise Exception(msg)
         return env
 
     def _export_django_settings(self, env):
@@ -415,7 +398,10 @@ class GoogleCloudServerControls(BaseServerControls):
         os.chmod(GCE_PY_PATH, 0755)                 # Make sure dynamic inventory is executable
         cmd_list = ['ansible-playbook', '--key-file', self.settings_manager.settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
         if self.args.verbose:
-            cmd_list.append('-vvv')
+            cmd_list.append('-vvvv')
+            print ' '.join(cmd_list)
+            import pprint
+            pprint.pprint(env)
         return subprocess.call(cmd_list, env=env)
 
     def build_docker_image(self, build_path, docker_name, docker_tag):
@@ -451,34 +437,40 @@ class GoogleCloudServerControls(BaseServerControls):
 
     def delete(self):
         """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
-        instance_name = get_gcloud_server_name()
-        current_hosts = get_gcloud_hosts()
-        confirmation_input = raw_input('WARNING! This will delete the server\'s instance, attached disks, and service account. Data will be lost!\n'+ 
-                                       'If you are sure you want to continue, please type the name of the server instance:\n> ')
-        if confirmation_input != get_gcloud_server_name():
-            print 'Input did not match current server name \"%s\".' % instance_name
-            return
-
-        email = find_service_account_email(instance_name)
-        print 'Deleting service account %s...' % email
         try:
-            delete_service_account(email)
+            instance_name = get_gcloud_server_name()
+            current_hosts = get_gcloud_hosts()
+            confirmation_input = raw_input('WARNING! This will delete the server\'s instance, attached disks, and service account. Data will be lost!\n'+ 
+                                           'If you are sure you want to continue, please type the name of the server instance:\n> ')
+            if confirmation_input != get_gcloud_server_name():
+                print 'Input did not match current server name \"%s\".' % instance_name
+                return
+
+            if instance_name not in current_hosts:
+                print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
+            else:
+                env = self.get_ansible_env()
+                delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
+                if delete_returncode == 0:
+                    print 'Instance successfully deleted.'
+            
         except Exception as e:
             print e
 
-        if instance_name not in current_hosts:
-            print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
-        else:
-            env = self.get_ansible_env()
-            delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
-            if delete_returncode == 0:
-                print 'Instance successfully deleted.'
-            
-        if os.path.exists(get_deploy_settings_filename()):
-            print 'Deleting %s...' % get_deploy_settings_filename()
-            os.remove(get_deploy_settings_filename())
+        try:
+            email = find_service_account_email(instance_name)
+            if email:
+                print 'Deleting service account %s...' % email
+                delete_service_account(email)
+        except Exception as e:
+            print e
 
-
+        cleanup_files = [get_deploy_settings_filename(), GCE_INI_PATH, GCE_JSON_PATH, SERVER_LOCATION_FILE]
+        for path in cleanup_files:
+            path = os.path.expanduser(path)
+            if os.path.exists(path):
+                print 'Deleting %s...' % path
+                os.remove(path)
 
 class UnhandledCommandError(Exception):
     """Raised when a ServerControls class is given a command that's not in its command map."""

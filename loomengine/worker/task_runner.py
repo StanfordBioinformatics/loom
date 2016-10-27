@@ -6,7 +6,6 @@ from datetime import datetime
 import docker
 import errno
 import json
-import logging
 import os
 import requests
 import string
@@ -19,7 +18,8 @@ import loomengine.utils
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 from loomengine.utils.connection import TASK_RUN_ATTEMPT_STATUSES as STATUS
-from loomengine.utils.logger import StreamToLogger
+from loomengine.utils.logger import get_file_logger, get_stdout_logger
+from loomengine.utils.helper import init_directory
 
 
 class ContainerStartError(Exception):
@@ -54,11 +54,13 @@ class TaskRunner(object):
             'LOG_FILE': args.log_file,
         }
 
-        # Errors here can't be report since there is no server connection
+        # Errors here can't be reported since there is no server connection
         # or logger
+
         self._init_loggers()
 
         # Errors here can be logged but not reported to server
+
         if mock_connection is not None:
             self.connection = mock_connection
         else:
@@ -69,6 +71,7 @@ class TaskRunner(object):
                 raise e
 
         # Errors here can be both logged and reported to server
+
         try:
             self._set_status(STATUS.INITIALIZING_MONITOR)
             self._init_task_run_attempt()
@@ -89,56 +92,13 @@ class TaskRunner(object):
             raise e
 
     def _init_loggers(self):
-        self.logger = logging.getLogger(__name__)
-        self.utils_logger = logging.getLogger(loomengine.utils.__name__)
-
-        LEVELS = {
-            'CRITICAL': logging.CRITICAL,
-            'ERROR': logging.ERROR,
-            'WARNING': logging.WARNING,
-            'INFO': logging.INFO,
-            'DEBUG': logging.DEBUG,
-        }
-        log_level = LEVELS[self.settings['LOG_LEVEL']]
-        self.logger.setLevel(log_level)
-        self.utils_logger.setLevel(log_level)
-        if log_level != 'DEBUG':
-            self.logger.raiseExceptions = False
-            self.utils_logger.raiseExceptions = False
-
+        log_level = self.settings['LOG_LEVEL']
         if self.settings['LOG_FILE'] is None:
-            self._init_logger_stdout_handler()
+            self.logger = get_stdout_logger(__name__, log_level)
+            utils_logger = get_stdout_logger(loomengine.utils.__name__, log_level)
         else:
-            self._init_logger_file_handler()
-
-    def _init_logger_stdout_handler(self):
-        self.logger.addHandler(logging.StreamHandler(sys.stdout))
-        self.utils_logger.addHandler(logging.StreamHandler(sys.stdout))
-
-    def _init_logger_file_handler(self):
-        self._init_directory(os.path.dirname(self.settings['LOG_FILE']))
-        file_handler = logging.FileHandler(self.settings['LOG_FILE'])
-        file_handler.setFormatter(
-            logging.Formatter('%(levelname)s [%(asctime)s] %(message)s'))
-        self.logger.addHandler(file_handler)
-        self.utils_logger.addHandler(file_handler)
-
-        # Route stdout and stderr to logger
-        stdout_logger = StreamToLogger(self.logger, logging.INFO)
-        sys.stdout = stdout_logger
-        stderr_logger = StreamToLogger(self.logger, logging.ERROR)
-        sys.stderr = stderr_logger
-
-    def _init_directory(self, directory, new=False):
-        if new and os.path.exists(directory):
-            raise Exception('Directory %s already exists' % directory)
-        if os.path.exists(directory) and not os.path.isdir(directory):
-            raise Exception('Cannot initialize directory %s since a file exists with that name' % directory)
-        try:
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-        except OSError as e:
-            raise Exception('Failed to create directory %s. %s' % (directory, e.strerror))
+            self.logger = get_file_logger(__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
+            utils_logger = get_file_logger(loomengine.utils.__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
 
     def _init_task_run_attempt(self):
         self.task_run_attempt = self.connection.get_task_run_attempt(self.settings['TASK_RUN_ATTEMPT_ID'])
@@ -163,7 +123,7 @@ class TaskRunner(object):
 
     def _init_working_dir(self):
         self.logger.info('Initializing working directory %s' % self.settings['WORKING_DIR'])
-        self._init_directory(self.settings['WORKING_DIR'], new=True)
+        init_directory(self.settings['WORKING_DIR'], new=True)
 
     def run(self):
         try:
@@ -363,12 +323,12 @@ class TaskRunner(object):
             self.logger.debug('No container, so no process logs to save.')
             return
 
-        self._init_directory(os.path.dirname(self.settings['STDOUT_LOG_FILE']))
+        init_directory(os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
         with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
             stdoutlog.write(
                 self.docker_client.logs(self.container, stderr=False, stdout=True)
             )
-        self._init_directory(os.path.dirname(self.settings['STDERR_LOG_FILE']))
+        init_directory(os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
         with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
             stderrlog.write(
                 self.docker_client.logs(self.container, stderr=True, stdout=False)

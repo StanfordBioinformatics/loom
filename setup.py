@@ -87,7 +87,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-                        'ansible==2.1.1.0',
+                        'ansible==2.2.0.0',
                         'apache-libcloud==1.2.1',
                         'Django>=1.8,<1.9',
                         'django-cors-headers>=1.1.0',
@@ -108,14 +108,14 @@ setup(
                         'lockfile>=0.12.2',
                         'MarkupSafe>=0.23',
                         'MySQL-python>=1.2.5',
-                        'oauth2client>=2.0.0',
+                        'oauth2client>=2.0.0,<4.0',
                         'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
                         'python-dateutil',
                         'PyYAML>=3.11',
                         'requests>=2.6.0,<2.11',            # match docker-py dependency
                         'simplejson>=3.8.1',
                         'six>=1.10.0',
-                        'uritemplate>=0.6,<1',              # match google-api-python-client dependency
+                        'uritemplate>=0.6',
                         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git>=1.1',
                         'twine',

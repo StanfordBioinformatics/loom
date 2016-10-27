@@ -12,7 +12,6 @@ import warnings
 BASE_DIR = os.path.dirname(__file__)
 WEBPORTAL_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'portal'))
 
-
 # Get settings from the environment and expand paths if needed
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
@@ -36,6 +35,7 @@ GCE_SSH_KEY_FILE = os.getenv('GCE_SSH_KEY_FILE')
 SERVER_SKIP_INSTALLS = os.getenv('SERVER_SKIP_INSTALLS')
 WORKER_BOOT_DISK_TYPE = os.getenv('WORKER_BOOT_DISK_TYPE')
 WORKER_BOOT_DISK_SIZE = os.getenv('WORKER_BOOT_DISK_SIZE')
+WORKER_CUSTOM_SUBNET = os.getenv('WORKER_CUSTOM_SUBNET', '')
 WORKER_LOCATION = os.getenv('WORKER_LOCATION')
 WORKER_NETWORK = os.getenv('WORKER_NETWORK')
 WORKER_SCRATCH_DISK_MOUNT_POINT = os.getenv('WORKER_SCRATCH_DISK_MOUNT_POINT')
@@ -58,7 +58,6 @@ DISABLE_AUTO_PUSH = False
 
 CORS_ORIGIN_ALLOW_ALL = os.getenv('CORS_ORIGIN_ALLOW_ALL', 'false').upper() == 'TRUE'
 CORS_ORIGIN_WHITELIST = os.getenv('CORS_ORIGIN_WHITELIST', '').split(',')
-
 
 SECRET_KEY = os.getenv('SECRET_KEY',
                        ''.join([random.SystemRandom().choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(50)]))
@@ -193,13 +192,13 @@ def _get_django_handler():
     return handler
 
 def _get_loomengine_handler():
-    LOOM_MASTER_LOGFILE = os.getenv('LOOM_MASTER_LOGFILE', None)
-    if LOOM_MASTER_LOGFILE  is not None:
-        if not os.path.exists(os.path.dirname(LOOM_MASTER_LOGFILE)):
-            os.makedirs(os.path.dirname(LOOM_MASTER_LOGFILE))
+    MASTER_LOGFILE = os.getenv('MASTER_LOGFILE', None)
+    if MASTER_LOGFILE  is not None:
+        if not os.path.exists(os.path.dirname(MASTER_LOGFILE)):
+            os.makedirs(os.path.dirname(MASTER_LOGFILE))
         handler = {
             'class': 'logging.FileHandler',
-            'filename': LOOM_MASTER_LOGFILE,
+            'filename': MASTER_LOGFILE,
             'formatter': 'default',
             }
     else:
@@ -226,7 +225,6 @@ LOGGING = {
         },
     'handlers': {
         'django_handler': _get_django_handler(),
-        'django_request_handler': _get_django_handler(),
         'loomengine_handler': _get_loomengine_handler(),
         },
     'loggers': {
@@ -234,11 +232,11 @@ LOGGING = {
             'handlers': ['django_handler'],
             'level': LOG_LEVEL,
             },
-        'django.request': {
-            'handlers': ['django_request_handler'],
+        'loomengine': {
+            'handlers': ['loomengine_handler'],
             'level': LOG_LEVEL,
             },
-        'loomengine': {
+        'api': { 
             'handlers': ['loomengine_handler'],
             'level': LOG_LEVEL,
             },

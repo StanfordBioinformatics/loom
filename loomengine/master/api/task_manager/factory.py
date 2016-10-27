@@ -8,7 +8,7 @@ from api.task_manager.local import LocalTaskManager
 from api.task_manager.cloud import CloudTaskManager
 from api.task_manager.mock import MockTaskManager
 
-logger = logging.getLogger('LoomDaemon')
+logger = logging.getLogger(__name__)
 
 class TaskManagerFactory:
     

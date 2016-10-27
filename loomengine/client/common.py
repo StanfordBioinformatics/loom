@@ -76,6 +76,16 @@ def get_server_public_ip():
     else:
         raise Exception("Unknown server type: %s" % server_type)
 
+def get_server_private_ip():
+    server_type = get_server_type()
+    if server_type == 'local':
+        return '127.0.0.1'
+    elif server_type == 'gcloud':
+        server_instance_name = get_gcloud_server_name()
+        return get_gcloud_server_private_ip(server_instance_name)
+    else:
+        raise Exception("Unknown server type: %s" % server_type)
+
 def get_gcloud_server_public_ip(name):
     inv_hosts = get_gcloud_hosts()
     if name not in inv_hosts:
@@ -97,9 +107,13 @@ def get_inventory():
     env['GCE_INI_PATH'] = gce_ini_path
     if not os.path.exists(gce_ini_path):
         raise Exception("%s not found. Please configure https://github.com/ansible/ansible/blob/devel/contrib/inventory/gce.ini and place it at this location." % GCE_INI_PATH)
-    inv = subprocess.check_output([sys.executable, gce_py_path], env=env)
-    inv = json.loads(inv)
-    return inv
+
+    try:
+        inv = subprocess.check_output([sys.executable, gce_py_path], env=env)
+        inv = json.loads(inv)
+        return inv
+    except subprocess.CalledProcessError as e:
+        print e
 
 def get_gcloud_hosts():
     inv = get_inventory()
@@ -117,7 +131,10 @@ def get_server_url():
         raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
     settings = settings_manager.settings
     protocol = settings['PROTOCOL']
-    ip = get_server_public_ip()
+    if settings.get('CLIENT_USES_SERVER_INTERNAL_IP') == 'True':
+        ip = get_server_private_ip()
+    else:
+        ip = get_server_public_ip()
     port = settings['EXTERNAL_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
 
@@ -195,7 +212,7 @@ def create_service_account_key(project, email, path):
     credential_filestring = response['privateKeyData'].decode('base64')
     with open(os.path.expanduser(path), 'w') as credential_file:
         credential_file.write(credential_filestring)
-    
+
 def is_gce_ini_valid():
     """Makes sure that gce.ini exists, and that its project id matches gcloud CLI's."""
     if not os.path.exists(os.path.expanduser(GCE_INI_PATH)):
