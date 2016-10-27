@@ -49,7 +49,7 @@ PLACEHOLDER_VALUE = ''
 class InputOutputNode(BasePolymorphicModel):
     channel = models.CharField(max_length=255)
     data_root = models.ForeignKey('DataNode',
-                                  related_name='input_output_node',
+                                  related_name='input_output_nodes',
                                   null=True)
 
     @property
@@ -60,6 +60,13 @@ class InputOutputNode(BasePolymorphicModel):
         else:
             return json.dumps(self.data_root.render())
 
+    def get_data_as_scalar(self):
+        # This function is a temporary patch to run without parallel
+        # workflows enabled.
+        if not self.data_root:
+            return None
+        return self.data_root.data_object
+        
     #def get_data_object(self, path):
         # Get the data object at the given path.
     #    return self.data_root.get_data_object(path)
@@ -319,7 +326,7 @@ class InputItem(object):
     """A DataObject and its channel name"""
 
     def __init__(self, input_node):
-        self.data_object = input_node.indexed_data_objects.first().data_object
+        self.data_object = input_node.get_data_as_scalar()
         self.channel = input_node.channel
 
 

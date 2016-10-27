@@ -71,5 +71,7 @@ class RunRequestSerializer(serializers.ModelSerializer):
                 s.is_valid(raise_exception=True)
                 s.save()
 
-        post_save_children.send(sender=self.Meta.model, instance=run_request)
+        run_request.initialize()
+        run_request.start_ready_tasks()
+
         return run_request

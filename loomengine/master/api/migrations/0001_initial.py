@@ -207,7 +207,6 @@ class Migration(migrations.Migration):
             name='StepOutputParser',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('type', models.CharField(max_length=255)),
                 ('delimiter', models.CharField(max_length=255, null=True)),
                 ('step_output', models.OneToOneField(related_name='parser', to='api.StepOutput')),
             ],
@@ -793,7 +792,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='inputoutputnode',
             name='data_root',
-            field=models.ForeignKey(related_name='input_output_node', to='api.DataNode', null=True),
+            field=models.ForeignKey(related_name='input_output_nodes', to='api.DataNode', null=True),
         ),
         migrations.AddField(
             model_name='inputoutputnode',

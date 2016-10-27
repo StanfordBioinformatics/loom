@@ -34,21 +34,32 @@ class TestRunRequest(TestCase):
             step=step_two, channel='four', type='string')
         return workflow
 
-    def _get_uninitialized_run_request(self):
+    def _get_run_request(self):
         template = self._get_template()
         run_request = RunRequest.objects.create(template=template)
         input_one = RunRequestInput.objects.create(
             run_request=run_request, channel='one')
         input_one.add_data_objects_from_json("one", 'string')
+        run_request.initialize()
         return run_request
 
     def testInitialize(self):
-        # After creating a skeleton request with just a template and inputs,
-        # idempotent_initialize should create the run
-        run_request = self._get_uninitialized_run_request()
-        run_request._initialize()
-        run_request._connect_channels()
+        run_request = self._get_run_request()
 
         # Verify that input data to run_request is shared with input node for step
-        data = StepRun.objects.get(template__name='step_one').inputs.first().data
+        step_one = run_request.run.step_runs.all().get(
+            steprun__template__name='step_one')
+        data = step_one.inputs.first().data
         self.assertEqual(data, '"one"')
+
+    def testStartReadyTasks(self):
+        run_request = self._get_run_request()
+        run_request.initialize()
+
+        # This should create a task run for the first step
+        run_request.create_ready_tasks(do_start=False)
+
+        step_one = run_request.run.step_runs.all().get(
+            steprun__template__name='step_one')
+
+        self.assertEqual(step_one.task_runs.count(), 1)

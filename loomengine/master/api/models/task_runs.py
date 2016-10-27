@@ -58,7 +58,7 @@ class TaskRun(BaseModel):
                 task_run=task_run)
         TaskDefinition.create_from_task_run(task_run)
         return task_run
-        
+
     def run(self):
         task_manager = TaskManagerFactory.get_task_manager()
         task_manager.run(self)
@@ -181,7 +181,8 @@ class TaskRunAttempt(BasePolymorphicModel):
     )
 
     def add_error(self, message, detail):
-        error = TaskRunAttemptError.objects.create(message=message, detail=detail, task_run_attempt=self)
+        error = TaskRunAttemptError.objects.create(
+            message=message, detail=detail, task_run_attempt=self)
         error.save()
 
     def abort(self):
@@ -200,13 +201,7 @@ class TaskRunAttempt(BasePolymorphicModel):
     def create_from_task_run(cls, task_run):
         return cls.objects.create(task_run=task_run)
 
-    def _post_save(self):
-        self._idempotent_initialize()
-        if self.status == 'Finished':
-            self.push_outputs()
-        self.task_run.update_status()
-
-    def _idempotent_initialize(self):
+    def initialize(self):
         if self.inputs.count() == 0:
             self._initialize_inputs()
 
@@ -272,10 +267,6 @@ class TaskRunAttempt(BasePolymorphicModel):
     def push_outputs(self):
         for output in self.outputs.all():
             output.push()
-
-@receiver(models.signals.post_save, sender=TaskRunAttempt)
-def _post_save_task_run_attempt_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
 
 
 class TaskRunAttemptInput(BaseModel):
@@ -351,6 +342,8 @@ class TaskRunAttemptLogFile(BaseModel):
         on_delete=models.PROTECT)
 
     def _post_save(self):
+        # Create a blank file_data_object on save.
+        # The client will upload the file to this object.
         if self.file_data_object is None:
             self.file_data_object = FileDataObject.objects.create(source_type='log')
             self.save()

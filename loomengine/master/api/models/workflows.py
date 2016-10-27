@@ -244,7 +244,6 @@ class StepOutputParser(BaseModel):
         StepOutput,
         related_name='parser',
         on_delete=models.CASCADE)
-    type = models.CharField(max_length=255)
     delimiter = models.CharField(max_length=255, null=True)
 
 

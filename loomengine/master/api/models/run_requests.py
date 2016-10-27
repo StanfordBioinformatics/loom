@@ -7,7 +7,6 @@ import uuid
 from .base import BaseModel, BasePolymorphicModel
 from .input_output_nodes import InputOutputNode
 from .data_objects import DataObject
-from .signals import post_save_children
 from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
 from .workflows import Workflow
 from api import get_setting
@@ -39,19 +38,15 @@ class RunRequest(BaseModel):
     def name(self):
         return self.template.name
 
-    def _post_save_children(self):
-        self._initialize()
-
-    def _initialize(self):
-        # Must be idempotent
+    def initialize(self):
         self._initialize_run()
         self._validate()
         self._initialize_outputs()
-        self._connect_channels()
+        self.connect_channels()
 
     def _initialize_run(self):
         self.run = AbstractWorkflowRun.create_from_template(self.template)
-        self.run._initialize()
+        self.run.initialize()
         self.save()
 
     def _initialize_outputs(self):
@@ -60,14 +55,17 @@ class RunRequest(BaseModel):
                 run_request=self,
                 channel=run_request_output.channel)
 
-    def _connect_channels(self):
+    def connect_channels(self):
+        # This step is separate from self.run.initialize because
+        # channels have to be connected from the outside in, since data is applied
+        # to run_request inputs first.
         for run_request_input in self.inputs.all():
             run_input = self.run.get_input(run_request_input.channel)
             run_input.connect(run_request_input)
         for run_request_output in self.outputs.all():
             run_output = self.run.get_output(run_request_output.channel)
             run_output.connect(run_request_output)
-        self.run._connect_channels()
+        self.run.connect_channels()
 
     def _validate(self):
         # Verify that there is 1 WorkflowInput for each RunRequestInput
@@ -86,9 +84,8 @@ class RunRequest(BaseModel):
                 'Missing input for channel(s) "%s"' %
                 ', '.join([channel for channel in workflow_inputs]))
 
-@receiver(post_save_children, sender=RunRequest)
-def _post_save_children_run_request_signal_receiver(sender, instance, **kwargs):
-    instance._post_save_children()
+    def create_ready_tasks(self, do_start=True):
+        self.run.create_ready_tasks(do_start=do_start)
 
 
 class RunRequestInput(InputOutputNode):

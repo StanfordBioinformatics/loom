@@ -88,7 +88,7 @@ class StepOutputSourceSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = StepOutputSource
-        fields = ('filename', 'stream')
+        fields = ('filename', 'stream',)
 
 
 class StepOutputParserSerializer(CreateWithParentModelSerializer):
@@ -97,7 +97,7 @@ class StepOutputParserSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = StepOutputParser
-        fields = ('type', 'delimiter')
+        fields = ('delimiter',)
 
 
 class StepOutputSerializer(CreateWithParentModelSerializer):

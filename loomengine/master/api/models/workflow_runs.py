@@ -76,7 +76,7 @@ class WorkflowRun(AbstractWorkflowRun):
     def is_step(self):
         return False
 
-    def _initialize(self):
+    def initialize(self):
         self._initialize_step_runs()
         self._initialize_inputs_outputs()
 
@@ -90,7 +90,7 @@ class WorkflowRun(AbstractWorkflowRun):
                 ChildRunClass = WorkflowRun
             child_run = ChildRunClass.objects.create(template=step,
                                                      parent=self)
-            child_run._initialize()
+            child_run.initialize()
 
     def _initialize_inputs_outputs(self):
         self._initialize_inputs()
@@ -110,6 +110,7 @@ class WorkflowRun(AbstractWorkflowRun):
                 workflow_run=self,
                 channel=fixed_input.channel,
                 workflow_input=fixed_input)
+            fixed_workflow_run_input._add_scalar_data_from_template()
 
     def _initialize_outputs(self):
         for output in self.template.outputs.all():
@@ -118,14 +119,14 @@ class WorkflowRun(AbstractWorkflowRun):
                 channel=output.channel,
                 workflow_output=output)
 
-    def _connect_channels(self):
+    def connect_channels(self):
         for destination in self._get_destinations():
             source = self._get_source(destination.channel)
             # Make sure matching source and destination nodes are connected
             source.connect(destination)
 
         for step in self.step_runs.all():
-            step._connect_channels()
+            step.connect_channels()
 
     def _get_destinations(self):
         destinations = [dest for dest in self.outputs.all()]
@@ -180,6 +181,10 @@ class WorkflowRun(AbstractWorkflowRun):
         self.save()
         self.update_parent_status()
 
+    def create_ready_tasks(self, do_start):
+        for step_run in self.step_runs.all():
+            step_run.create_ready_tasks(do_start)
+
 
 class StepRun(AbstractWorkflowRun):
 
@@ -230,7 +235,7 @@ class StepRun(AbstractWorkflowRun):
             count['running'] = 1
         return count
 
-    def _initialize(self):
+    def initialize(self):
         self._initialize_inputs_outputs()
 
     def _initialize_inputs_outputs(self):
@@ -247,10 +252,11 @@ class StepRun(AbstractWorkflowRun):
 
     def _initialize_fixed_inputs(self):
         for fixed_input in self.template.fixed_inputs.all():
-            FixedStepRunInput.objects.create(
+            fixed_step_run_input = FixedStepRunInput.objects.create(
                 step_run=self,
                 channel=fixed_input.channel,
                 step_input=fixed_input)
+            fixed_step_run_input._add_scalar_data_from_template()
 
     def _initialize_outputs(self):
         for output in self.template.outputs.all():
@@ -259,13 +265,24 @@ class StepRun(AbstractWorkflowRun):
                 channel=output.channel,
                 step_output=output)
 
-    def _connect_channels(self):
+    def connect_channels(self):
         pass # no-op
 
     def get_all_inputs(self):
         inputs = [i for i in self.inputs.all()]
         inputs.extend([i for i in self.fixed_inputs.all()])
         return inputs
+
+    def create_ready_tasks(self, do_start=True):
+        import pdb; pdb.set_trace()
+        # This is a temporary limit. It assumes no parallel workflows, and no
+        # failure recovery, so each step has only one TaskRun.
+        if self.task_runs.count() == 0:
+            for input_set in InputNodeSet(
+                    self.get_all_inputs()).get_ready_input_sets():
+                task_run = TaskRun.create_from_input_set(input_set, self)
+                task_run.run()
+                self.update_status()
 
     def update_status(self):
         if self.task_runs.count() == 0:
@@ -284,10 +301,17 @@ class StepRun(AbstractWorkflowRun):
             self.save()
         self.update_parent_status()
 
+    
 class AbstractStepRunInput(InputOutputNode):
     # This table is needed because it is referenced by TaskRunInput,
     # and TaskRuns do not distinguish between fixed and runtime inputs
     pass
+
+    def is_ready(self):
+        if self.get_data_as_scalar() is None:
+            return False
+        return self.get_data_as_scalar().is_ready()
+
 
 class StepRunInput(AbstractStepRunInput):
 
@@ -310,7 +334,6 @@ class StepRunInput(AbstractStepRunInput):
     def group(self):
         return self.step_input.group
 
-
 class FixedStepRunInput(AbstractStepRunInput):
 
     step_run = models.ForeignKey('StepRun',
@@ -331,6 +354,10 @@ class FixedStepRunInput(AbstractStepRunInput):
     @property
     def group(self):
         return self.step_input.group
+
+    def _add_scalar_data_from_template(self):
+        path = [] # Add at root node since we are not handling parallel
+        self.add_data_object(path, self.step_input.data_object)
 
 
 class StepRunOutput(InputOutputNode):
@@ -388,6 +415,10 @@ class FixedWorkflowRunInput(InputOutputNode):
     @property
     def type(self):
         return self.workflow_input.type
+
+    def _add_scalar_data_from_template(self):
+        path = [] # Add at root node since we are not handling parallel
+        self.add_data_object(path, self.workflow_input.data_object)
 
 
 class WorkflowRunOutput(InputOutputNode):
