@@ -72,6 +72,6 @@ class RunRequestSerializer(serializers.ModelSerializer):
                 s.save()
 
         run_request.initialize()
-        run_request.start_ready_tasks()
+        run_request.create_ready_tasks()
 
         return run_request

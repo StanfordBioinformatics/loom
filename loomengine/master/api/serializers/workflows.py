@@ -91,29 +91,29 @@ class StepOutputSourceSerializer(CreateWithParentModelSerializer):
         fields = ('filename', 'stream',)
 
 
-class StepOutputParserSerializer(CreateWithParentModelSerializer):
-
-    delimiter = serializers.CharField(required=False, allow_blank=True)
-
-    class Meta:
-        model = StepOutputParser
-        fields = ('delimiter',)
+#class StepOutputParserSerializer(CreateWithParentModelSerializer):
+#
+#    delimiter = serializers.CharField(required=False, allow_blank=True)
+#
+#    class Meta:
+#        model = StepOutputParser
+#        fields = ('delimiter',)
 
 
 class StepOutputSerializer(CreateWithParentModelSerializer):
 
     source = StepOutputSourceSerializer()
-    parser = StepOutputParserSerializer(required=False)
+    # parser = StepOutputParserSerializer(required=False)
     
     class Meta:
         model = StepOutput
-        fields = ('type', 'channel', 'source', 'parser', 'mode')
+        fields = ('type', 'channel', 'source', 'mode')
 
     def create(self, validated_data):
         source_data =self.initial_data.get('source', None)
-        parser_data =self.initial_data.get('parser', None)
+        # parser_data =self.initial_data.get('parser', None)
         validated_data.pop('source', None)
-        validated_data.pop('parser', None)
+        # validated_data.pop('parser', None)
 
         step_output = super(StepOutputSerializer, self).create(validated_data)
 
@@ -125,13 +125,13 @@ class StepOutputSerializer(CreateWithParentModelSerializer):
             s.is_valid(raise_exception=True)
             s.save()
 
-        if parser_data:
-            s = StepOutputParserSerializer(
-                data=parser_data,
-                context = {'parent_field': 'step_output',
-                           'parent_instance': step_output})
-            s.is_valid(raise_exception=True)
-            s.save()
+        #if parser_data:
+        #    s = StepOutputParserSerializer(
+        #        data=parser_data,
+        #        context = {'parent_field': 'step_output',
+        #                   'parent_instance': step_output})
+        #    s.is_valid(raise_exception=True)
+        #    s.save()
 
         post_save_children.send(sender=self.Meta.model, instance=step_output)
         return step_output

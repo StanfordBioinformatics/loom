@@ -13,6 +13,8 @@ class TestRunRequest(TestCase):
         step_one = Step.objects.create(name='step_one',
                                        command='echo {{one}} {{two}} > {{three}})',
                                        parent_workflow=workflow)
+        RequestedDockerEnvironment.objects.create(step=step_one, docker_image='ubuntu')
+        RequestedResourceSet.objects.create(step=step_one, memory=6, cores=1)
         input_one = StepInput.objects.create(
             step=step_one, channel='one', type='string')
         data_object = StringDataObject.objects.create(
@@ -24,14 +26,19 @@ class TestRunRequest(TestCase):
             step=step_one, channel='two', type='string', data_object=data_object)
         output_three = StepOutput.objects.create(
             step=step_one, channel='three', type='string')
-
+        source = StepOutputSource.objects.create(stream='stdout', step_output=output_three)
+        
         step_two = Step.objects.create(name='step_two',
                                        command='echo {{three}} "!" > {{four}})',
                                        parent_workflow=workflow)
+        RequestedDockerEnvironment.objects.create(step=step_two, docker_image='ubuntu')
+        RequestedResourceSet.objects.create(step=step_two, memory=6, cores=1)
+
         input_three = StepInput.objects.create(
             step=step_two, channel='three', type='string')
         output_four = StepOutput.objects.create(
             step=step_two, channel='four', type='string')
+        source = StepOutputSource.objects.create(stream='stdout', step_output=output_four)
         return workflow
 
     def _get_run_request(self):

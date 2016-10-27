@@ -239,12 +239,12 @@ class StepOutput(AbstractOutput):
     mode = models.CharField(max_length=255, default='no_scatter')
 
 
-class StepOutputParser(BaseModel):
-    step_output = models.OneToOneField(
-        StepOutput,
-        related_name='parser',
-        on_delete=models.CASCADE)
-    delimiter = models.CharField(max_length=255, null=True)
+#class StepOutputParser(BaseModel):
+#    step_output = models.OneToOneField(
+#        StepOutput,
+#        related_name='parser',
+#        on_delete=models.CASCADE)
+#    delimiter = models.CharField(max_length=255, null=True)
 
 
 class StepOutputSource(BaseModel):

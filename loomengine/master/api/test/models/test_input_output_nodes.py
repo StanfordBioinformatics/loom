@@ -50,6 +50,7 @@ class TestInputOutputNode(TestCase):
         io_node2 = InputOutputNode.objects.create(channel='test')
 
         io_node1._initialize_data_root()
+        io_node2._initialize_data_root()
 
         with self.assertRaises(ConnectError):
             io_node1.connect(io_node2)

@@ -274,7 +274,6 @@ class StepRun(AbstractWorkflowRun):
         return inputs
 
     def create_ready_tasks(self, do_start=True):
-        import pdb; pdb.set_trace()
         # This is a temporary limit. It assumes no parallel workflows, and no
         # failure recovery, so each step has only one TaskRun.
         if self.task_runs.count() == 0:
@@ -383,11 +382,11 @@ class StepRunOutput(InputOutputNode):
             return ''
         return self.step_output.source
 
-    @property
-    def parser(self):
-        if self.step_output is None:
-            return ''
-        return self.step_output.parser
+#    @property
+#    def parser(self):
+#        if self.step_output is None:
+#            return ''
+#        return self.step_output.parser
 
 
 class WorkflowRunInput(InputOutputNode):

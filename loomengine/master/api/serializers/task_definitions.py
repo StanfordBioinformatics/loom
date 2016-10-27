@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from .data_objects import DataObjectContentSerializer
 from api.models.task_definitions import TaskDefinition, TaskDefinitionInput, \
-    TaskDefinitionOutput, TaskDefinitionOutputSource, TaskDefinitionOutputParser, \
+    TaskDefinitionOutput, TaskDefinitionOutputSource, \
     TaskDefinitionDockerEnvironment, TaskDefinitionEnvironment
 
 
@@ -30,21 +30,21 @@ class TaskDefinitionOutputSourceSerializer(CreateWithParentModelSerializer):
         fields = ('filename', 'stream')
 
 
-class TaskDefinitionOutputParserSerializer(CreateWithParentModelSerializer):
+#class TaskDefinitionOutputParserSerializer(CreateWithParentModelSerializer):
 
-    class Meta:
-        model = TaskDefinitionOutputParser
-        fields = ('type', 'delimiter')
+#    class Meta:
+#        model = TaskDefinitionOutputParser
+#        fields = ('type', 'delimiter')
 
 
 class TaskDefinitionOutputSerializer(CreateWithParentModelSerializer):
 
     source = TaskDefinitionOutputSourceSerializer(read_only=True)
-    parser = TaskDefinitionOutputParserSerializer(read_only=True)
+    #parser = TaskDefinitionOutputParserSerializer(read_only=True)
     
     class Meta:
         model = TaskDefinitionOutput
-        fields = ('source', 'type', 'parser',)
+        fields = ('source', 'type')
 
 
 class TaskDefinitionDockerEnvironmentSerializer(CreateWithParentModelSerializer):

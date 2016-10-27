@@ -5,8 +5,7 @@ from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput,\
     TaskRunAttempt, TaskRunAttemptInput, TaskRunAttemptOutput, \
     TaskRunAttemptOutput, TaskRunAttemptLogFile, TaskRunAttemptError
 from api.serializers.data_objects import FileImportSerializer, DataObjectSerializer, FileDataObjectSerializer
-from api.serializers.task_definitions import TaskDefinitionSerializer, TaskDefinitionOutputSourceSerializer, \
-    TaskDefinitionOutputParserSerializer
+from api.serializers.task_definitions import TaskDefinitionSerializer, TaskDefinitionOutputSourceSerializer
 from api.serializers.workflows import RequestedResourceSetSerializer
 
 
@@ -16,11 +15,11 @@ class TaskRunAttemptOutputSerializer(CreateWithParentModelSerializer):
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = TaskDefinitionOutputSourceSerializer(read_only=True)
-    parser = TaskDefinitionOutputParserSerializer(read_only=True)
+    # parser = TaskDefinitionOutputParserSerializer(read_only=True)
 
     class Meta:
         model = TaskRunAttemptOutput
-        fields = ('id', 'data_object', 'type', 'channel', 'source', 'parser')
+        fields = ('id', 'data_object', 'type', 'channel', 'source')
 
     def update(self, instance, validated_data):
         data_object_data = self.initial_data.get('data_object', None)
@@ -105,11 +104,11 @@ class TaskRunOutputSerializer(CreateWithParentModelSerializer):
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = TaskDefinitionOutputSourceSerializer(read_only=True)
-    parser = TaskDefinitionOutputParserSerializer(read_only=True)
+    #parser = TaskDefinitionOutputParserSerializer(read_only=True)
 
     class Meta:
         model = TaskRunOutput
-        fields = ('data_object', 'source', 'type', 'channel', 'parser')
+        fields = ('data_object', 'source', 'type', 'channel')
 
 
 class TaskRunIdSerializer(serializers.ModelSerializer):
