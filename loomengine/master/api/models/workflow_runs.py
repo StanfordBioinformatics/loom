@@ -64,6 +64,13 @@ class AbstractWorkflowRun(BasePolymorphicModel):
         if self.parent:
             self.parent.update_status()
 
+    def get_run_request(self):
+        try:
+            return self.run_request
+        except ObjectDoesNotExist:
+            pass
+        return self.parent.get_run_request()
+        
 
 class WorkflowRun(AbstractWorkflowRun):
 
@@ -280,8 +287,9 @@ class StepRun(AbstractWorkflowRun):
             for input_set in InputNodeSet(
                     self.get_all_inputs()).get_ready_input_sets():
                 task_run = TaskRun.create_from_input_set(input_set, self)
-                task_run.run()
-                self.update_status()
+                if do_start:
+                    task_run.run()
+            self.update_status()
 
     def update_status(self):
         if self.task_runs.count() == 0:

@@ -57,7 +57,7 @@ class TestRunRequest(TestCase):
         step_one = run_request.run.step_runs.all().get(
             steprun__template__name='step_one')
         data = step_one.inputs.first().data
-        self.assertEqual(data, '"one"')
+        self.assertEqual(data, 'one')
 
     def testStartReadyTasks(self):
         run_request = self._get_run_request()

@@ -1,4 +1,5 @@
 from django.test import TestCase
+import json
 import jsonschema
 
 from api.models.data_objects import *
@@ -21,14 +22,14 @@ class TestInputOutputNode(TestCase):
         data_json = '[["i"], ["a", "m"], ["r", "o", "b", "o", "t"]]'
         io_node = InputOutputNode.objects.create(channel='test')
         io_node.add_data_objects_from_json(data_json, 'string')
-        self.assertEqual(io_node.data, data_json)
+        self.assertEqual(io_node.data, json.loads(data_json))
         
     def testAddDataObject(self):
         io_node = InputOutputNode.objects.create(channel='test')
         path = [(1,2), (0,1)]
         data_object = _get_string_data_object('text')
         io_node.add_data_object(path, data_object)
-        self.assertEqual(io_node.data,'["", ["text"]]')
+        self.assertEqual(io_node.data,["", ["text"]])
 
     def testConnect(self):
         io_node1 = InputOutputNode.objects.create(channel='test')
@@ -57,7 +58,7 @@ class TestInputOutputNode(TestCase):
 
     def testDataPropertyWithNoDataRoot(self):
         io_node = InputOutputNode.objects.create(channel='test')
-        self.assertEqual(io_node.data, '""')
+        self.assertEqual(io_node.data, '')
         
 class TestDataNode(TestCase):
 

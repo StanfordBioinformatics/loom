@@ -147,7 +147,7 @@ class TaskRunOutput(BaseModel):
         if self.data_object is None:
             self.data_object=data_object
             self.save()
-        self.step_run_output.push(data_object)
+        self.step_run_output.add_data_object([], data_object)
 
 
 class TaskRunResourceSet(BaseModel):
@@ -199,7 +199,9 @@ class TaskRunAttempt(BasePolymorphicModel):
 
     @classmethod
     def create_from_task_run(cls, task_run):
-        return cls.objects.create(task_run=task_run)
+        task_run_attempt = cls.objects.create(task_run=task_run)
+        task_run_attempt.initialize()
+        return task_run_attempt
 
     def initialize(self):
         if self.inputs.count() == 0:
@@ -267,6 +269,16 @@ class TaskRunAttempt(BasePolymorphicModel):
     def push_outputs(self):
         for output in self.outputs.all():
             output.push()
+        self.task_run.step_run.get_run_request().create_ready_tasks()
+
+    def _post_save(self):
+        if self.status == 'Finished':
+            self.push_outputs()
+        self.task_run.update_status()
+
+@receiver(models.signals.post_save, sender=TaskRunAttempt)
+def _post_save_task_run_attempt_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
 
 
 class TaskRunAttemptInput(BaseModel):

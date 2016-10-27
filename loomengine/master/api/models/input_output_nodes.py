@@ -56,9 +56,9 @@ class InputOutputNode(BasePolymorphicModel):
     def data(self):
         # Return a string representation of the data tree
         if self.data_root is None:
-            return json.dumps(PLACEHOLDER_VALUE)
+            return PLACEHOLDER_VALUE
         else:
-            return json.dumps(self.data_root.render())
+            return self.data_root.render()
 
     def get_data_as_scalar(self):
         # This function is a temporary patch to run without parallel

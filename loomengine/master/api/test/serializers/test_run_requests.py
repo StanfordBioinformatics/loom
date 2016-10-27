@@ -34,7 +34,7 @@ class TestRunRequestSerializer(TestCase):
 
         self.assertEqual(
             RunRequestSerializer(rr).data['inputs'][0]['data'],
-            '"' + fixtures.run_requests.run_request_input['data'] + '"')
+            fixtures.run_requests.run_request_input['data'])
 
         self.assertEqual(
             RunRequestSerializer(rr).data['template'],
