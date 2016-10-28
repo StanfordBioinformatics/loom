@@ -86,16 +86,16 @@ class InputOutputNode(BasePolymorphicModel):
             self._initialize_data_root()
         self.data_root.add_data_object(path, data_object)
 
-    def add_data_objects_from_json(self, data_json, data_type):
-        # data_json can be a string representation of a single value,
+    def add_data_objects(self, data, data_type):
+        # data can be a string representation of a single value,
         # a list of strings, or a list of (lists of)^n strings. This
         # function will add each leaf data object at its corresponding path.
-        # e.g. if data_json is "['10', '20']", for data_type 'integer',
+        # e.g. if data is ["10", "20"], for data_type 'integer',
         # we will add two data objects, with value 10 at path (0,2),
         # and value 20 at path (1,2)
         if self.data_root is None:
             self._initialize_data_root()
-        self.data_root.add_data_objects_from_json(data_json, data_type)
+        self.data_root.add_data_objects(data, data_type)
 
     def is_connected(self, connected_node):
         if self.data_root is None or connected_node.data_root is None:
@@ -223,14 +223,12 @@ class DataNode(BaseModel):
     def _is_leaf(self):
         return self.degree is None and self.data_object is not None
 
-    def add_data_objects_from_json(self, data_json, data_type):
-        data = self._deserialize_data_json(data_json)
+    def add_data_objects(self, data, data_type):
+        self._validate_data(data)
         path = []
         self._extend_all_paths_and_add_data_at_leaves(data, path, data_type)
 
-    def _deserialize_data_json(self, data_json):
-        # Convert '[["one","two"],"three"]' to [['one','two'],'three'].
-
+    def _validate_data(self, data):
         nested_lists_of_strings_schema = {
             # schema used to verify that data contains only a string,
             # a list of strings, or a list of (lists of)^n strings.
@@ -246,17 +244,12 @@ class DataNode(BaseModel):
             ]
         }
         try:
-            data = json.loads(data_json)
-        except ValueError:
-            # assume data_json is a string representing a single value
-            data = data_json
-        try:
             jsonschema.validate(data, nested_lists_of_strings_schema)
         except jsonschema.exceptions.ValidationError:
             raise jsonschema.exceptions.ValidationError(
                 "Data must be a string, list of strings, "\
                 "or nested lists of strings with uniform depth. "\
-                "Invalid data: '%s'" % data_json)
+                "Invalid data: '%s'" % data)
         return data
 
     def _extend_all_paths_and_add_data_at_leaves(self, data, path, data_type):

@@ -46,7 +46,7 @@ class TestRunRequest(TestCase):
         run_request = RunRequest.objects.create(template=template)
         input_one = RunRequestInput.objects.create(
             run_request=run_request, channel='one')
-        input_one.add_data_objects_from_json("one", 'string')
+        input_one.add_data_objects("one", 'string')
         run_request.initialize()
         return run_request
 

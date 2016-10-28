@@ -18,11 +18,11 @@ def _get_string_data_object(text):
 
 class TestInputOutputNode(TestCase):
 
-    def testAddDataObjectsFromJson(self):
-        data_json = '[["i"], ["a", "m"], ["r", "o", "b", "o", "t"]]'
+    def testAddDataObjects(self):
+        data = [["i"], ["a", "m"], ["r", "o", "b", "o", "t"]]
         io_node = InputOutputNode.objects.create(channel='test')
-        io_node.add_data_objects_from_json(data_json, 'string')
-        self.assertEqual(io_node.data, json.loads(data_json))
+        io_node.add_data_objects(data, 'string')
+        self.assertEqual(io_node.data, data)
         
     def testAddDataObject(self):
         io_node = InputOutputNode.objects.create(channel='test')
@@ -160,10 +160,10 @@ class TestDataNode(TestCase):
         with self.assertRaises(LeafDataAlreadyExistsError):
             root.add_leaf(0, data_object)
 
-    def testAddDataObjectsFromJson(self):
-        data_json = '[["i"],["a","m"],["r","o","b","o","t"]]'
+    def testAddDataObjects(self):
+        data = [["i"],["a","m"],["r","o","b","o","t"]]
         root = DataNode.objects.create()
-        root.add_data_objects_from_json(data_json, 'string')
+        root.add_data_objects(data, 'string')
         # spot check [['i'],['a','m'],['r','o','b','o','t']]
         output_data = root.render()
         self.assertEqual(output_data[0][0], 'i')
@@ -171,10 +171,10 @@ class TestDataNode(TestCase):
         self.assertEqual(output_data[1][1], 'm')
         self.assertEqual(output_data[2][4], 't')
 
-    def testAddDataObjectsFromJsonWithString(self):
+    def testAddDataObjectsWithString(self):
         root = DataNode.objects.create()
         input_string = 'just a string'
-        root.add_data_objects_from_json(input_string, 'string')
+        root.add_data_objects(input_string, 'string')
         self.assertEqual(root.render(), input_string)
 
     def testIndexOutOfRangeError(self):
@@ -207,7 +207,6 @@ class TestDataNode(TestCase):
 
     def testValidationError(self):
         root = DataNode.objects.create()
-        data_json = '[[["string"],[{"not": "string"}]]]'
+        data = [[["string"],[{"not": "string"}]]]
         with self.assertRaises(jsonschema.exceptions.ValidationError):
-            root.add_data_objects_from_json(data_json, 'string')
-
+            root.add_data_objects(data, 'string')

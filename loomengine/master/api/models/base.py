@@ -1,5 +1,5 @@
 from django.db import models
-from jinja2 import DictLoader, Environment
+import jinja2
 from polymorphic.models import PolymorphicModel, PolymorphicManager
 import re
 
@@ -7,8 +7,8 @@ from api.exceptions import *
 
 
 def render_from_template(raw_text, context):
-    loader = DictLoader({'template': raw_text})
-    env = Environment(loader=loader)
+    loader = jinja2.DictLoader({'template': raw_text})
+    env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)
     template = env.get_template('template')
     return template.render(**context)
 

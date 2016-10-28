@@ -20,9 +20,9 @@ class RunRequestInputSerializer(CreateWithParentModelSerializer):
 
     def create(self, validated_data):
         # Convert 'data' into its corresponding data object
-        data_json = validated_data.pop('data')
+        data_value = validated_data.pop('data')
         run_request_input = super(RunRequestInputSerializer, self).create(validated_data)
-        run_request_input.add_data_objects_from_json(data_json, self.context['data_type'])
+        run_request_input.add_data_objects(data_value, self.context['data_type'])
         return run_request_input
 
 class RunRequestSerializer(serializers.ModelSerializer):
