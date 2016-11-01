@@ -88,37 +88,26 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
                         'ansible==2.2.0.0',
-                        'apache-libcloud==1.2.1',
-                        'Django>=1.8,<1.9',
-                        'django-cors-headers>=1.1.0',
-                        'django-extensions>=1.5.5',
-                        'django-polymorphic>=0.9.2',
-                        'djangorestframework>=3.3.3',
-                        'docutils>=0.12',
-                        'docker-py==1.9.0',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
-                        'gcloud>=0.8.0,<0.10.0',
-                        'google-api-python-client>=1.5.0',   # 1.5.0 requires oath2client>=2.0.0
-                        'google-apitools>=0.4.13',
-                        #'google_compute_engine',            # needed for gsutil
+                        'apache-libcloud==1.3.0',
+                        'Django==1.10.3',
+                        'django-cors-headers==1.2.2',
+                        'django-extensions==1.7.4',
+                        'django-polymorphic==1.0.2',
+                        'djangorestframework==3.5.1',
+                        'docker-py==1.10.5',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
+                        'gcloud==0.18.3',
+                        'google-api-python-client==1.5.4',
+                        'google-apitools>=0.5.5',
                         'gunicorn>=19.6.0',
-                        'httplib2>=0.9.2',
-                        'Jinja2>=2.8',
-                        'jsonfield>=1.0.3',
-                        'jsonschema>=2.4.0',
-                        'lockfile>=0.12.2',
-                        'MarkupSafe>=0.23',
-                        'MySQL-python>=1.2.5',
-                        'oauth2client>=2.0.0,<4.0',
-                        'pycrypto>=2.6.1',                  # required by GCP Ansible Dynamic Inventory (gce.py)
-                        'python-dateutil',
-                        'PyYAML>=3.11',
-                        'requests>=2.6.0,<2.11',            # match docker-py dependency
-                        'simplejson>=3.8.1',
-                        'six>=1.10.0',
-                        'uritemplate>=0.6',
+                        'Jinja2==2.8',
+                        'jsonschema==2.5.1',
+                        'MySQL-python==1.2.5',
+                        'oauth2client==3.0.0',
+                        'python-dateutil==2.5.3',
+                        'PyYAML==3.12',
+                        'requests==2.11.1',            # match docker-py dependency
                         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
-                        'setuptools-git>=1.1',
-                        'twine',
+                        'setuptools-git==1.1',
     ],
 
     # List additional groups of dependencies here (e.g. development

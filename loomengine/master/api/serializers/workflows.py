@@ -146,7 +146,7 @@ class AbstractWorkflowSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = AbstractWorkflow
-
+        fields = '__all__'
 
 class WorkflowSerializer(CreateWithParentModelSerializer):
 
