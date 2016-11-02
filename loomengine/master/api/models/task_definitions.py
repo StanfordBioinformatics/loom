@@ -123,9 +123,9 @@ class TaskDefinitionInput(BaseModel):
         'TaskRunInput',
         related_name='task_definition_input',
         on_delete=models.CASCADE)
-    data_object_content = models.ForeignKey(
-        'DataObjectContent',
-        on_delete=models.PROTECT)
+#    data_object_content = models.ForeignKey(
+#        'DataContent',
+#        on_delete=models.PROTECT)
     type = models.CharField(
         max_length=255,
         choices=DataObject.TYPE_CHOICES

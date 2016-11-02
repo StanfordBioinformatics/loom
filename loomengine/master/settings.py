@@ -16,7 +16,7 @@ WEBPORTAL_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'portal'))
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
-FILE_ROOT = os.getenv('FILE_ROOT', tempfile.mkdtemp())
+FILE_ROOT = os.getenv('FILE_ROOT', '~/loomdata')
 FILE_ROOT_FOR_WORKER = os.path.expanduser(
     os.getenv('FILE_ROOT_FOR_WORKER', '~/loomdata'))
 FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')

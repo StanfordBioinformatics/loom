@@ -1,6 +1,6 @@
 import hashlib
 
-from api.models import FileDataObject
+from api.models import DataObject
 
 
 class MockTaskManager(object):

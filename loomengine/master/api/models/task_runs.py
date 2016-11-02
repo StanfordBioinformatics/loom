@@ -7,7 +7,7 @@ import uuid
 
 from .base import BaseModel, BasePolymorphicModel, render_from_template
 from api.models.task_definitions import *
-from api.models.data_objects import DataObject, FileDataObject
+from api.models.data_objects import DataObject
 from api.models.workflows import Step, RequestedResourceSet
 from api import get_setting
 from api.task_manager.factory import TaskManagerFactory
@@ -347,8 +347,8 @@ class TaskRunAttemptLogFile(BaseModel):
         related_name='log_files',
         on_delete=models.CASCADE)
     log_name = models.CharField(max_length=255)
-    file_data_object = models.OneToOneField(
-        'FileDataObject',
+    file = models.OneToOneField(
+        'DataObject',
         null=True,
         related_name='task_run_attempt_log_file',
         on_delete=models.PROTECT)
@@ -356,8 +356,8 @@ class TaskRunAttemptLogFile(BaseModel):
     def _post_save(self):
         # Create a blank file_data_object on save.
         # The client will upload the file to this object.
-        if self.file_data_object is None:
-            self.file_data_object = FileDataObject.objects.create(source_type='log')
+        if self.file is None:
+            self.file = DataObject.objects.create(source_type='log')
             self.save()
 
 @receiver(models.signals.post_save, sender=TaskRunAttemptLogFile)

@@ -39,6 +39,17 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
+            name='ArrayMembership',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('order', models.IntegerField()),
+            ],
+            options={
+                'ordering': ['order'],
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='DataNode',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -54,6 +65,8 @@ class Migration(migrations.Migration):
             name='DataObject',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('is_array', models.BooleanField(default=False)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
             ],
             options={
@@ -62,21 +75,11 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
-            name='DataObjectContent',
+            name='FileHash',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
-            name='FileImport',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('note', models.TextField(max_length=10000, null=True)),
-                ('source_url', models.TextField(max_length=1000)),
+                ('value', models.CharField(max_length=255, null=True)),
+                ('function', models.CharField(max_length=255, null=True)),
             ],
             options={
                 'abstract': False,
@@ -86,10 +89,23 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='FileLocation',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('url', models.CharField(max_length=1000)),
-                ('status', models.CharField(default=b'incomplete', max_length=255, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
+                ('file_url', models.CharField(max_length=1000)),
+                ('upload_status', models.CharField(default=b'incomplete', max_length=255, choices=[(b'incomplete', b'Incomplete'), (b'complete', b'Complete'), (b'failed', b'Failed')])),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='FileLocationHash',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('value', models.CharField(max_length=255, null=True)),
+                ('function', models.CharField(max_length=255, null=True)),
+                ('file_location', models.ForeignKey(related_name='hashes', to='api.FileLocation', null=True)),
             ],
             options={
                 'abstract': False,
@@ -100,7 +116,7 @@ class Migration(migrations.Migration):
             name='FixedStepInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
                 ('channel', models.CharField(max_length=255)),
                 ('mode', models.CharField(default=b'no_gather', max_length=255)),
                 ('group', models.IntegerField(default=0)),
@@ -114,7 +130,7 @@ class Migration(migrations.Migration):
             name='FixedWorkflowInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
                 ('channel', models.CharField(max_length=255)),
             ],
             options={
@@ -177,7 +193,7 @@ class Migration(migrations.Migration):
             name='StepInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
                 ('channel', models.CharField(max_length=255)),
                 ('hint', models.CharField(max_length=255, null=True)),
                 ('mode', models.CharField(default=b'no_gather', max_length=255)),
@@ -194,7 +210,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
                 ('mode', models.CharField(default=b'no_scatter', max_length=255)),
                 ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_api.stepoutput_set+', editable=False, to='contenttypes.ContentType', null=True)),
             ],
@@ -242,7 +258,8 @@ class Migration(migrations.Migration):
             name='TaskDefinitionInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('task_definition', models.ForeignKey(related_name='inputs', to='api.TaskDefinition')),
             ],
             options={
                 'abstract': False,
@@ -253,7 +270,7 @@ class Migration(migrations.Migration):
             name='TaskDefinitionOutput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
                 ('task_definition', models.ForeignKey(related_name='outputs', to='api.TaskDefinition')),
             ],
             options={
@@ -328,7 +345,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('log_name', models.CharField(max_length=255)),
-                ('task_run_attempt', models.ForeignKey(related_name='log_files', to='api.TaskRunAttempt')),
             ],
             options={
                 'abstract': False,
@@ -380,15 +396,6 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
-            name='UnnamedFileContent',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('hash_value', models.CharField(max_length=255)),
-                ('hash_function', models.CharField(max_length=255)),
-            ],
-            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
-        ),
-        migrations.CreateModel(
             name='WorkflowImport',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -404,7 +411,7 @@ class Migration(migrations.Migration):
             name='WorkflowInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
                 ('channel', models.CharField(max_length=255)),
                 ('hint', models.CharField(max_length=255, null=True)),
                 ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_api.workflowinput_set+', editable=False, to='contenttypes.ContentType', null=True)),
@@ -419,7 +426,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('channel', models.CharField(max_length=255)),
-                ('type', models.CharField(max_length=255, choices=[(b'file', b'File'), (b'boolean', b'Boolean'), (b'string', b'String'), (b'integer', b'Integer')])),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
                 ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_api.workflowoutput_set+', editable=False, to='contenttypes.ContentType', null=True)),
             ],
             options={
@@ -438,21 +445,10 @@ class Migration(migrations.Migration):
             bases=('api.inputoutputnode',),
         ),
         migrations.CreateModel(
-            name='BooleanContent',
-            fields=[
-                ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObjectContent')),
-                ('boolean_value', models.BooleanField()),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('api.dataobjectcontent',),
-        ),
-        migrations.CreateModel(
             name='BooleanDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObject')),
-                ('boolean_content', models.OneToOneField(related_name='data_object', on_delete=django.db.models.deletion.PROTECT, to='api.BooleanContent')),
+                ('value', models.NullBooleanField()),
             ],
             options={
                 'abstract': False,
@@ -460,19 +456,14 @@ class Migration(migrations.Migration):
             bases=('api.dataobject',),
         ),
         migrations.CreateModel(
-            name='FileContent',
-            fields=[
-                ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObjectContent')),
-                ('filename', models.CharField(max_length=255)),
-            ],
-            bases=('api.dataobjectcontent',),
-        ),
-        migrations.CreateModel(
             name='FileDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObject')),
+                ('filename', models.CharField(max_length=1024)),
+                ('note', models.TextField(max_length=10000, null=True)),
+                ('source_url', models.TextField(max_length=1000, null=True)),
                 ('source_type', models.CharField(default=b'imported', max_length=255, choices=[(b'imported', b'Imported'), (b'result', b'Result'), (b'log', b'Log')])),
-                ('file_content', models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='api.FileContent', null=True)),
+                ('file_location', models.ForeignKey(to='api.FileLocation', null=True)),
             ],
             options={
                 'abstract': False,
@@ -490,21 +481,21 @@ class Migration(migrations.Migration):
             bases=('api.inputoutputnode',),
         ),
         migrations.CreateModel(
-            name='IntegerContent',
+            name='FloatDataObject',
             fields=[
-                ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObjectContent')),
-                ('integer_value', models.IntegerField()),
+                ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObject')),
+                ('value', models.FloatField(null=True)),
             ],
             options={
                 'abstract': False,
             },
-            bases=('api.dataobjectcontent',),
+            bases=('api.dataobject',),
         ),
         migrations.CreateModel(
             name='IntegerDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObject')),
-                ('integer_content', models.OneToOneField(related_name='data_object', on_delete=django.db.models.deletion.PROTECT, to='api.IntegerContent')),
+                ('value', models.IntegerField(null=True)),
             ],
             options={
                 'abstract': False,
@@ -578,21 +569,10 @@ class Migration(migrations.Migration):
             bases=('api.inputoutputnode',),
         ),
         migrations.CreateModel(
-            name='StringContent',
-            fields=[
-                ('dataobjectcontent_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObjectContent')),
-                ('string_value', models.TextField()),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('api.dataobjectcontent',),
-        ),
-        migrations.CreateModel(
             name='StringDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObject')),
-                ('string_content', models.OneToOneField(related_name='data_object', on_delete=django.db.models.deletion.PROTECT, to='api.StringContent')),
+                ('value', models.TextField(max_length=10000, null=True)),
             ],
             options={
                 'abstract': False,
@@ -660,10 +640,6 @@ class Migration(migrations.Migration):
             name='workflow',
             field=models.OneToOneField(related_name='workflow_import', to='api.AbstractWorkflow'),
         ),
-        migrations.AlterUniqueTogether(
-            name='unnamedfilecontent',
-            unique_together=set([('hash_value', 'hash_function')]),
-        ),
         migrations.AddField(
             model_name='taskrunoutput',
             name='data_object',
@@ -700,6 +676,16 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='task_run_attempt_outputs', on_delete=django.db.models.deletion.PROTECT, to='api.TaskRunOutput'),
         ),
         migrations.AddField(
+            model_name='taskrunattemptlogfile',
+            name='file',
+            field=models.OneToOneField(related_name='task_run_attempt_log_file', null=True, on_delete=django.db.models.deletion.PROTECT, to='api.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='taskrunattemptlogfile',
+            name='task_run_attempt',
+            field=models.ForeignKey(related_name='log_files', to='api.TaskRunAttempt'),
+        ),
+        migrations.AddField(
             model_name='taskrunattemptinput',
             name='data_object',
             field=models.ForeignKey(related_name='task_run_attempt_inputs', on_delete=django.db.models.deletion.PROTECT, to='api.DataObject', null=True),
@@ -718,16 +704,6 @@ class Migration(migrations.Migration):
             model_name='taskdefinitionoutput',
             name='task_run_output',
             field=models.OneToOneField(related_name='task_definition_output', to='api.TaskRunOutput'),
-        ),
-        migrations.AddField(
-            model_name='taskdefinitioninput',
-            name='data_object_content',
-            field=models.ForeignKey(to='api.DataObjectContent', on_delete=django.db.models.deletion.PROTECT),
-        ),
-        migrations.AddField(
-            model_name='taskdefinitioninput',
-            name='task_definition',
-            field=models.ForeignKey(related_name='inputs', to='api.TaskDefinition'),
         ),
         migrations.AddField(
             model_name='taskdefinitioninput',
@@ -795,21 +771,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='polymorphic_api.fixedstepinput_set+', editable=False, to='contenttypes.ContentType', null=True),
         ),
         migrations.AddField(
-            model_name='filelocation',
-            name='unnamed_file_content',
-            field=models.ForeignKey(related_name='file_locations', on_delete=django.db.models.deletion.PROTECT, to='api.UnnamedFileContent', null=True),
-        ),
-        migrations.AddField(
-            model_name='dataobjectcontent',
-            name='polymorphic_ctype',
-            field=models.ForeignKey(related_name='polymorphic_api.dataobjectcontent_set+', editable=False, to='contenttypes.ContentType', null=True),
-        ),
-        migrations.AddField(
-            model_name='dataobject',
-            name='polymorphic_ctype',
-            field=models.ForeignKey(related_name='polymorphic_api.dataobject_set+', editable=False, to='contenttypes.ContentType', null=True),
-        ),
-        migrations.AddField(
             model_name='datanode',
             name='data_object',
             field=models.ForeignKey(related_name='data_nodes', to='api.DataObject', null=True),
@@ -818,6 +779,16 @@ class Migration(migrations.Migration):
             model_name='datanode',
             name='parent',
             field=models.ForeignKey(related_name='children', to='api.DataNode', null=True),
+        ),
+        migrations.AddField(
+            model_name='arraymembership',
+            name='array',
+            field=models.ForeignKey(related_name='array_members', to='api.DataObject'),
+        ),
+        migrations.AddField(
+            model_name='arraymembership',
+            name='item',
+            field=models.ForeignKey(related_name='in_arrays', to='api.DataObject'),
         ),
         migrations.AddField(
             model_name='abstractworkflowrun',
@@ -868,11 +839,6 @@ class Migration(migrations.Migration):
             model_name='taskruninput',
             name='step_run_input',
             field=models.ForeignKey(related_name='task_run_inputs', on_delete=django.db.models.deletion.PROTECT, to='api.AbstractStepRunInput', null=True),
-        ),
-        migrations.AddField(
-            model_name='taskrunattemptlogfile',
-            name='file_data_object',
-            field=models.OneToOneField(related_name='task_run_attempt_log_file', null=True, on_delete=django.db.models.deletion.PROTECT, to='api.FileDataObject'),
         ),
         migrations.AddField(
             model_name='taskrun',
@@ -930,19 +896,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='fixed_inputs', to='api.Step'),
         ),
         migrations.AddField(
-            model_name='fileimport',
+            model_name='filehash',
             name='file_data_object',
-            field=models.OneToOneField(related_name='file_import', to='api.FileDataObject'),
-        ),
-        migrations.AddField(
-            model_name='filedataobject',
-            name='file_location',
-            field=models.ForeignKey(related_name='file_data_object', on_delete=django.db.models.deletion.PROTECT, to='api.FileLocation', null=True),
-        ),
-        migrations.AddField(
-            model_name='filecontent',
-            name='unnamed_file_content',
-            field=models.ForeignKey(related_name='file_contents', on_delete=django.db.models.deletion.PROTECT, to='api.UnnamedFileContent'),
+            field=models.ForeignKey(related_name='hashes', to='api.FileDataObject', null=True),
         ),
         migrations.AddField(
             model_name='abstractworkflowrun',
@@ -973,9 +929,5 @@ class Migration(migrations.Migration):
             model_name='fixedstepruninput',
             name='step_run',
             field=models.ForeignKey(related_name='fixed_inputs', to='api.StepRun'),
-        ),
-        migrations.AlterUniqueTogether(
-            name='filecontent',
-            unique_together=set([('filename', 'unnamed_file_content')]),
         ),
     ]
