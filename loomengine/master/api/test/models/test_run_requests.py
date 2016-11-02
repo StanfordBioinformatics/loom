@@ -11,7 +11,7 @@ class TestRunRequest(TestCase):
             workflow=workflow, channel='four', type='string')
 
         step_one = Step.objects.create(name='step_one',
-                                       command='echo {{one}} {{two}} > {{three}})',
+                                       command='echo {{one}} {{two}} > three)',
                                        parent_workflow=workflow)
         RequestedDockerEnvironment.objects.create(step=step_one, docker_image='ubuntu')
         RequestedResourceSet.objects.create(step=step_one, memory=6, cores=1)

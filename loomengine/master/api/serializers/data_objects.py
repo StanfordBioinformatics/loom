@@ -226,6 +226,7 @@ class DataObjectSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = DataObject
+        fields = '__all__'
 
 
 class DataObjectContentSerializer(SuperclassModelSerializer):
@@ -239,3 +240,4 @@ class DataObjectContentSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = DataObjectContent
+        fields = '__all__'

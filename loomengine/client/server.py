@@ -281,7 +281,7 @@ class LocalServerControls(BaseServerControls):
     def _set_database(self, env):
         manage_cmd = [sys.executable, '%s/manage.py' % SERVER_PATH]
         proc = subprocess.Popen(
-            manage_cmd + ['migrate', '-l'],
+            manage_cmd + ['showmigrations', '-l'],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=env)

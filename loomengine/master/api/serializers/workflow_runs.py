@@ -18,6 +18,7 @@ class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = AbstractWorkflowRun
+        fields = '__all__'
 
 
 class StepRunInputSerializer(CreateWithParentModelSerializer):
