@@ -42,9 +42,7 @@ class TestTaskRunner(unittest.TestCase):
     def testRunHelloTask(self):
         self.task_runner.run()
         self.task_runner.cleanup()
-        self.assertEqual(self.task_runner.connection.task_run_attempt['monitor_status'], 'finished')
-        self.assertEqual(self.task_runner.connection.task_run_attempt['process_status'], 'finished_successfully')
-        self.assertEqual(self.task_runner.connection.task_run_attempt['save_outputs_status'], 'finished_successfully')
+        self.assertEqual(self.task_runner.connection.task_run_attempt['status'], 'Finished')
 
     
 if __name__=='__main__':
