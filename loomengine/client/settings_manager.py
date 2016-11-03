@@ -25,24 +25,19 @@ class SettingsManager:
     """
     DEFAULT_SETTINGS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'default_settings.ini'))
 
-    def __init__(self, require_default_settings=False, verbose=False):
+    def __init__(self, user_settings_file=None, verbose=False):
+        """Load default settings and override with user-provided settings file, if any."""
         self.settings = {}
         self.verbose = verbose
-        self.require_default_settings = require_default_settings
+        self.server_type = get_server_type()
+        self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section=self.server_type)
 
-    def create_deploy_settings(self, server_type=None, user_settings_file=None):
-        """Create deploy settings by loading defaults and overriding with user-provided settings."""
-        if server_type == None:
-            server_type = get_server_type()
-        self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section=server_type)
-
-        if not self.require_default_settings:
-            # Add Google Cloud-specific settings
-            if server_type == 'gcloud': 
-                self.load_gcloud_settings()
-            # Override defaults with user-provided settings file
-            if user_settings_file:
-                self.load_settings_from_file(settings_file=user_settings_file, section=server_type)
+        # Add Google Cloud-specific settings
+        if server_type == 'gcloud': 
+            self.load_gcloud_settings()
+        # Override defaults with user-provided settings file
+        if user_settings_file:
+            self.load_settings_from_file(settings_file=user_settings_file, section=self.server_type)
 
         self.postprocess_settings()
 
@@ -52,12 +47,20 @@ class SettingsManager:
         self.settings['SERVER_NAME'] = get_gcloud_server_name()
         self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], self.settings['SERVER_NAME'], self.settings['EXTERNAL_PORT'])
 
-        # Add other settings 
-        self.settings['GCE_INI_PATH'] = GCE_INI_PATH
+        # Add service account email
+        print self.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL']
         if self.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'] != 'None':
             self.settings['GCE_EMAIL'] = self.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL']
+            print 'top'
         else:
             self.settings['GCE_EMAIL'] = find_service_account_email(get_gcloud_server_name())
+            print 'bottom'
+            print get_gcloud_server_name()
+        if not self.settings['GCE_EMAIL']:
+            raise Exception('Invalid service account email: %s' % self.settings['GCE_EMAIL'])
+
+        # Add other settings 
+        self.settings['GCE_INI_PATH'] = GCE_INI_PATH
         self.settings['GCE_PROJECT'] = get_gcloud_project()
         self.settings['GCE_PEM_FILE_PATH'] = GCE_JSON_PATH
         self.settings['CLIENT_VERSION'] = version()
@@ -68,13 +71,12 @@ class SettingsManager:
 
     def postprocess_settings(self):
         """Write settings that depend on other settings being defined first."""
-        if get_server_type() == 'gcloud':
+        if self.server_type == 'gcloud':
             self.settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (self.settings['DOCKER_REPO'], self.settings['DOCKER_IMAGE'], self.settings['DOCKER_TAG'])
             if self.settings['DOCKER_REGISTRY'] != 'None':
                 self.settings['DOCKER_FULL_NAME'] = '/'.join([self.settings['DOCKER_REGISTRY'], self.settings['DOCKER_FULL_NAME']])
 
-    def create_deploy_settings_file(self, user_settings_file=None):
-        self.create_deploy_settings(user_settings_file=user_settings_file)
+    def write_deploy_settings_file(self):
         self.save_settings_to_file(get_deploy_settings_filename(), section='deploy')
 
     def load_deploy_settings_file(self):
@@ -136,6 +138,18 @@ class SettingsManager:
                 export_settings[key] = value
         return export_settings
 
+    def get_ansible_env(self):
+        """Load settings needed for Ansible into environment variables, where
+        they will be read by the Ansible playbook. Start with everything in
+        the deploy settings file, then add other variables that shouldn't be
+        in the file (such as absolute paths containing the user home dir).
+        """
+        env = os.environ.copy()
+        env['DEPLOY_SETTINGS_FILENAME'] = get_deploy_settings_filename()
+        env['LOOM_HOME_SUBDIR'] = LOOM_HOME_SUBDIR
+        env.update(self.get_env_settings())
+        return env
+
     def get_default_setting(self, section, option):
         self.load_settings_from_file(SettingsManager.DEFAULT_SETTINGS_FILE, section)
         return self.settings[option]
@@ -144,6 +158,7 @@ class SettingsManager:
         """Write settings that can't be defined prior to having a running server instance."""
         if self.settings.get('WORKER_USES_SERVER_INTERNAL_IP') == 'True':
             self.settings['MASTER_URL_FOR_WORKER'] = '%s://%s:%s' % (self.settings['PROTOCOL'], get_gcloud_server_private_ip(self.settings['SERVER_NAME']), self.settings['EXTERNAL_PORT'])
+
 
 class SettingsError(Exception):
     pass
