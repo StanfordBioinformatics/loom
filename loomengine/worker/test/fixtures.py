@@ -36,6 +36,7 @@ task_run_attempt = {
         "environment": {
             "docker_image": "ubuntu"
         },
+        "interpreter": "/bin/bash",
         "command": "echo hello > hello.txt"
     },
     "worker_process": {

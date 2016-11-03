@@ -13,6 +13,10 @@ class Connection:
     def update_task_run_attempt(self, id, data):
         self.task_run_attempt.update(data)
 
+    def post_task_run_attempt_error(self, id, error):
+        pass
+        
+        
 class FileManager:
 
     def export_files(self, file_ids, destination_url):

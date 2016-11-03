@@ -29,13 +29,12 @@ class TestRunRequestSerializer(TestCase):
             rr = s.save()
 
         self.assertEqual(
-            rr.inputs.first().indexed_data_objects.first()\
-            .data_object.string_content.string_value,
-            fixtures.run_requests.run_request_input['value'])
+            rr.inputs.first().get_data_as_scalar().string_content.string_value,
+            fixtures.run_requests.run_request_input['data'])
 
         self.assertEqual(
-            RunRequestSerializer(rr).data['inputs'][0]['value'],
-            fixtures.run_requests.run_request_input['value'])
+            RunRequestSerializer(rr).data['inputs'][0]['data'],
+            fixtures.run_requests.run_request_input['data'])
 
         self.assertEqual(
             RunRequestSerializer(rr).data['template'],

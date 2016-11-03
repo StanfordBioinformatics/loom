@@ -18,33 +18,39 @@ class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = AbstractWorkflowRun
+        fields = '__all__'
 
 
 class StepRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
-    
+    data = serializers.CharField()
+    mode = serializers.CharField()
+    group = serializers.IntegerField()
+
     class Meta:
         model = StepRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data', 'mode', 'group')
 
 
 class FixedStepRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
+    mode = serializers.CharField()
+    group = serializers.IntegerField()
         
     class Meta:
         model = FixedStepRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data', 'mode', 'group')
 
-
+        
 class StepRunOutputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
-        
+    data = serializers.CharField()
+    mode = serializers.CharField()
+
     class Meta:
         model = StepRunOutput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data', 'mode')
 
 
 class StepRunSerializer(CreateWithParentModelSerializer):
@@ -59,6 +65,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
                                                allow_null=True)
     outputs = StepRunOutputSerializer(many=True)
     command = serializers.CharField()
+    interpreter = serializers.CharField()
     resources = RequestedResourceSetSerializer()
     environment = RequestedEnvironmentSerializer()
     name = serializers.CharField()
@@ -68,35 +75,35 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = StepRun
         fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs',
-                  'command', 'environment', 'resources', 'name', 'task_runs',
-                  'status', 'errors')
+                  'command', 'interpreter', 'environment', 'resources', 'name',
+                  'task_runs', 'status', 'errors')
 
 
 class WorkflowRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
         
     class Meta:
         model = WorkflowRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data',)
 
 
 class FixedWorkflowRunInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
         
     class Meta:
         model = FixedWorkflowRunInput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data',)
 
 
 class WorkflowRunOutputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField()
+    data = serializers.CharField()
     
     class Meta:
         model = WorkflowRunOutput
-        fields = ('type', 'channel', 'value',)
+        fields = ('type', 'channel', 'data',)
 
 
 class WorkflowRunSerializer(CreateWithParentModelSerializer):

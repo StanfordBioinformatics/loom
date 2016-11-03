@@ -18,7 +18,7 @@ class TestFixedStepInputSerializer(TestCase):
         
         self.assertEqual(
             fixed_input.data_object.string_content.string_value,
-            fixtures.workflows.fixed_step_input['value'])
+            fixtures.workflows.fixed_step_input['data'])
 
 
 class TestStepSerializer(TestCase):
@@ -31,7 +31,7 @@ class TestStepSerializer(TestCase):
         self.assertEqual(m.command, fixtures.workflows.step_a['command'])
         self.assertEqual(
             m.fixed_inputs.first().data_object.string_content.string_value,
-            fixtures.workflows.step_a['fixed_inputs'][0]['value'])
+            fixtures.workflows.step_a['fixed_inputs'][0]['data'])
 
 
 class TestWorkflowSerializer(TestCase):
@@ -43,7 +43,7 @@ class TestWorkflowSerializer(TestCase):
 
         self.assertEqual(
             m.fixed_inputs.first().data_object.string_content.string_value,
-            fixtures.workflows.flat_workflow['fixed_inputs'][0]['value'])
+            fixtures.workflows.flat_workflow['fixed_inputs'][0]['data'])
 
     def testCreateNestedWorkflow(self):
         s = WorkflowSerializer(data=fixtures.workflows.nested_workflow)
@@ -52,7 +52,7 @@ class TestWorkflowSerializer(TestCase):
 
         self.assertEqual(
             m.fixed_inputs.first().data_object.string_content.string_value,
-            fixtures.workflows.nested_workflow['fixed_inputs'][0]['value'])
+            fixtures.workflows.nested_workflow['fixed_inputs'][0]['data'])
         self.assertEqual(
             m.steps.first().name,
             fixtures.workflows.nested_workflow['steps'][0]['name'])
@@ -64,5 +64,5 @@ class TestWorkflowSerializer(TestCase):
 
         data = WorkflowSerializer(m).data
         self.assertEqual(
-            data['fixed_inputs'][0]['value'],
+            data['fixed_inputs'][0]['data'],
             m.fixed_inputs.first().data_object.string_content.string_value)

@@ -58,7 +58,7 @@ class TaskRun(BaseModel):
                 task_run=task_run)
         TaskDefinition.create_from_task_run(task_run)
         return task_run
-        
+
     def run(self):
         task_manager = TaskManagerFactory.get_task_manager()
         task_manager.run(self)
@@ -76,8 +76,8 @@ class TaskRun(BaseModel):
             # This returns a value only for Files, where the filename
             # is known beforehand and may be used in the command.
             # For other types, nothing is added to the context.
-            if output.type == 'file':
-                context[output.channel] = output.filename
+            if output.source.filename:
+                context[output.channel] = output.source.filename
         return context
 
     def get_full_context(self):
@@ -85,6 +85,9 @@ class TaskRun(BaseModel):
         context.update(self.get_output_context())
         return context
 
+    def get_interpreter(self):
+        return self.step_run.template.interpreter
+    
     def render_command(self):
         return render_from_template(
             self.step_run.template.command,
@@ -127,10 +130,10 @@ class TaskRunOutput(BaseModel):
                                     on_delete=models.PROTECT)
 
     @property
-    def filename(self):
+    def source(self):
         # This will raise ObjectDoesNotExist if task_definition_output
         # is not yet attached.
-        return self.task_definition_output.filename
+        return self.task_definition_output.source
 
     @property
     def channel(self):
@@ -144,7 +147,7 @@ class TaskRunOutput(BaseModel):
         if self.data_object is None:
             self.data_object=data_object
             self.save()
-        self.step_run_output.push(data_object)
+        self.step_run_output.add_data_object([], data_object)
 
 
 class TaskRunResourceSet(BaseModel):
@@ -178,7 +181,8 @@ class TaskRunAttempt(BasePolymorphicModel):
     )
 
     def add_error(self, message, detail):
-        error = TaskRunAttemptError.objects.create(message=message, detail=detail, task_run_attempt=self)
+        error = TaskRunAttemptError.objects.create(
+            message=message, detail=detail, task_run_attempt=self)
         error.save()
 
     def abort(self):
@@ -195,15 +199,11 @@ class TaskRunAttempt(BasePolymorphicModel):
 
     @classmethod
     def create_from_task_run(cls, task_run):
-        return cls.objects.create(task_run=task_run)
+        task_run_attempt = cls.objects.create(task_run=task_run)
+        task_run_attempt.initialize()
+        return task_run_attempt
 
-    def _post_save(self):
-        self._idempotent_initialize()
-        if self.status == 'Finished':
-            self.push_outputs()
-        self.task_run.update_status()
-
-    def _idempotent_initialize(self):
+    def initialize(self):
         if self.inputs.count() == 0:
             self._initialize_inputs()
 
@@ -269,6 +269,12 @@ class TaskRunAttempt(BasePolymorphicModel):
     def push_outputs(self):
         for output in self.outputs.all():
             output.push()
+        self.task_run.step_run.get_run_request().create_ready_tasks()
+
+    def _post_save(self):
+        if self.status == 'Finished':
+            self.push_outputs()
+        self.task_run.update_status()
 
 @receiver(models.signals.post_save, sender=TaskRunAttempt)
 def _post_save_task_run_attempt_signal_receiver(sender, instance, **kwargs):
@@ -326,8 +332,8 @@ class TaskRunAttemptOutput(BaseModel):
         return self.task_run_output.channel
 
     @property
-    def filename(self):
-        return self.task_run_output.filename
+    def source(self):
+        return self.task_run_output.source
 
     def push(self):
         if self.data_object is not None:
@@ -348,6 +354,8 @@ class TaskRunAttemptLogFile(BaseModel):
         on_delete=models.PROTECT)
 
     def _post_save(self):
+        # Create a blank file_data_object on save.
+        # The client will upload the file to this object.
         if self.file_data_object is None:
             self.file_data_object = FileDataObject.objects.create(source_type='log')
             self.save()

@@ -47,18 +47,18 @@ class StepInputSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = StepInput
-        fields = ('type', 'channel', 'hint',)
+        fields = ('type', 'channel', 'hint', 'mode', 'group')
 
 
 class FixedInputSerializer(CreateWithParentModelSerializer):
 
-    value = serializers.CharField() # converted from DataObject
+    data = serializers.CharField() # converted from DataObject
 
     def create(self, validated_data):
-        # Convert 'value' into its corresponding data object
-        value = validated_data.pop('value')
+        # Convert 'data' into its corresponding data object
+        data = validated_data.pop('data')
         validated_data['data_object'] = DataObject.get_by_value(
-            value,
+            data,
             validated_data['type'])
         return super(FixedInputSerializer, self).create(validated_data)
 
@@ -67,14 +67,14 @@ class FixedWorkflowInputSerializer(FixedInputSerializer):
 
     class Meta:
         model = FixedWorkflowInput
-        fields = ('type', 'channel', 'value')
+        fields = ('type', 'channel', 'data')
 
 
 class FixedStepInputSerializer(FixedInputSerializer):
 
     class Meta:
         model = FixedStepInput
-        fields = ('type', 'channel', 'value')
+        fields = ('type', 'channel', 'data', 'mode', 'group')
 
 
 class WorkflowOutputSerializer(CreateWithParentModelSerializer):
@@ -84,11 +84,57 @@ class WorkflowOutputSerializer(CreateWithParentModelSerializer):
         fields = ('type', 'channel',)
 
 
-class StepOutputSerializer(CreateWithParentModelSerializer):
+class StepOutputSourceSerializer(CreateWithParentModelSerializer):
 
     class Meta:
+        model = StepOutputSource
+        fields = ('filename', 'stream',)
+
+
+#class StepOutputParserSerializer(CreateWithParentModelSerializer):
+#
+#    delimiter = serializers.CharField(required=False, allow_blank=True)
+#
+#    class Meta:
+#        model = StepOutputParser
+#        fields = ('delimiter',)
+
+
+class StepOutputSerializer(CreateWithParentModelSerializer):
+
+    source = StepOutputSourceSerializer()
+    # parser = StepOutputParserSerializer(required=False)
+    
+    class Meta:
         model = StepOutput
-        fields = ('type', 'channel', 'filename')
+        fields = ('type', 'channel', 'source', 'mode')
+
+    def create(self, validated_data):
+        source_data =self.initial_data.get('source', None)
+        # parser_data =self.initial_data.get('parser', None)
+        validated_data.pop('source', None)
+        # validated_data.pop('parser', None)
+
+        step_output = super(StepOutputSerializer, self).create(validated_data)
+
+        if source_data:
+            s = StepOutputSourceSerializer(
+                data=source_data,
+                context = {'parent_field': 'step_output',
+                           'parent_instance': step_output})
+            s.is_valid(raise_exception=True)
+            s.save()
+
+        #if parser_data:
+        #    s = StepOutputParserSerializer(
+        #        data=parser_data,
+        #        context = {'parent_field': 'step_output',
+        #                   'parent_instance': step_output})
+        #    s.is_valid(raise_exception=True)
+        #    s.save()
+
+        post_save_children.send(sender=self.Meta.model, instance=step_output)
+        return step_output
 
 
 class AbstractWorkflowSerializer(SuperclassModelSerializer):
@@ -100,7 +146,7 @@ class AbstractWorkflowSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = AbstractWorkflow
-
+        fields = '__all__'
 
 class WorkflowSerializer(CreateWithParentModelSerializer):
 
@@ -203,6 +249,7 @@ class StepSerializer(CreateWithParentModelSerializer):
         fields = ('id',
                   'name',
                   'command',
+                  'interpreter',
                   'environment',
                   'resources',
                   'inputs',
@@ -252,7 +299,7 @@ class StepSerializer(CreateWithParentModelSerializer):
                          'parent_instance': step})
             s.is_valid(raise_exception=True)
             s.save()
-                
+
         if resources is not None:
             s = RequestedResourceSetSerializer(
                 data=resources,

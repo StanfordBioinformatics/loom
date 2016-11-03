@@ -17,7 +17,8 @@ WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
 FILE_ROOT = os.getenv('FILE_ROOT', tempfile.mkdtemp())
-FILE_ROOT_FOR_WORKER = os.getenv('FILE_ROOT_FOR_WORKER')
+FILE_ROOT_FOR_WORKER = os.path.expanduser(
+    os.getenv('FILE_ROOT_FOR_WORKER', '~/loomdata'))
 FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')
 LOGS_DIR = os.getenv('LOGS_DIR')
 LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))
@@ -66,7 +67,7 @@ SECRET_KEY = os.getenv('SECRET_KEY',
 DEBUG = True
 TEMPLATE_DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', [])
 
 INSTALLED_APPS = (
     'django.contrib.auth',

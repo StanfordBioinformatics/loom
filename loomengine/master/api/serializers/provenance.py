@@ -11,6 +11,7 @@ class FileProvenanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FileDataObject
+        fields = '__all__'
 
     def to_representation(self, obj):
         fileset, taskset, edgeset = obj.get_provenance_data()
