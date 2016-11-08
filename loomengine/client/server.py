@@ -59,8 +59,9 @@ def get_parser(parser=None):
     status_parser = subparsers.add_parser('status')
 
     create_parser = subparsers.add_parser('create')
-    create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None,
-        help="A custom settings file that overrides default settings.")
+    create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None)
+    create_parser.add_argument('--key', '-k', metavar='GCE_KEY', default=None,
+        help="A premade JSON credential for the custom service account. Ignored when using default settings.")
     create_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
 
     start_parser = subparsers.add_parser('start')
@@ -354,8 +355,10 @@ class GoogleCloudServerControls(BaseServerControls):
         server deploy settings, set up SSH keys, create and set up a gcloud
         instance, and copy deploy settings to the instance.
         """
-        settings = settings_manager.write_deploy_settings_file(self.args.settings)
-        if not settings_manager.has_custom_service_account(settings):
+        default_settings = settings_manager.get_default_settings()
+        default_plus_user_settings = settings_manager.add_user_settings(default_settings, self.args.settings)
+
+        if not settings_manager.has_custom_service_account(default_plus_user_settings):
             # Default behavior: create a service account based on server name, grant roles, create JSON credential, write to ini.
             server_name = get_gcloud_server_name()
             print 'Creating service account for instance %s...' % server_name 
@@ -366,14 +369,19 @@ class GoogleCloudServerControls(BaseServerControls):
             email = find_service_account_email(server_name)
             if email != None:
                 print 'Service account %s created.' % email
-            roles = json.loads(settings['SERVICE_ACCOUNT_ROLES'])
+            roles = json.loads(default_plus_user_settings['SERVICE_ACCOUNT_ROLES'])
             print 'Granting "%s" roles to service account %s:' % (roles, email)
             grant_roles(roles, email)
             create_gce_json()
             create_gce_ini()
         else:
-            # Pre-existing service account specified: validate JSON credential and write to ini.
-            create_gce_ini(settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'])
+            # Pre-existing service account specified: copy and validate JSON credential, and write to ini.
+            if self.args.key:
+                print 'Copying %s to %s...' % (self.args.key, GCE_JSON_PATH)
+                shutil.copyfile(self.args.key, os.path.expanduser(GCE_JSON_PATH))
+            create_gce_ini(default_plus_user_settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'])
+
+        settings_manager.write_deploy_settings_file(self.args.settings)
 
         env = settings_manager.get_ansible_env()
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
@@ -429,7 +437,7 @@ class GoogleCloudServerControls(BaseServerControls):
 
     def delete(self):
         """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
-        settings = settings_manager.read_deploy_settings()
+        settings = settings_manager.read_deploy_settings_file()
         try:
             instance_name = get_gcloud_server_name()
             current_hosts = get_gcloud_hosts()
@@ -471,10 +479,15 @@ class GoogleCloudServerControls(BaseServerControls):
 
         delete_libcloud_cached_credential()
 
+
 class UnhandledCommandError(Exception):
     """Raised when a ServerControls class is given a command that's not in its command map."""
     pass
 
+
+class MissingCredentialError(Exception):
+    """Raised when a required credential file does not exist."""
+    pass
 
 if __name__=='__main__':
     ServerControls().run()

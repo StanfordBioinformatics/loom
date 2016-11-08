@@ -17,17 +17,25 @@ Settings are loaded in the following order, with later ones taking precedence:
 """
 
 DEFAULT_SETTINGS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'default_settings.ini'))
+DEPLOY_SETTINGS_FILE_SUFFIX = '_deploy_settings.ini'
 
 def get_default_settings():
     """Return a dict of default settings for the current server type."""
     return read_settings_from_file(settings_file=DEFAULT_SETTINGS_FILE, section=get_server_type())
 
 def get_user_settings(user_settings_file):
-    """Load settings from the provided file for the current server type and return the resulting dict."""
+    """Load settings from the provided file for the current server type and return the resulting dict. If user_settings_file is None, return an empty dict."""
+    if user_settings_file == None:
+        return {}
     return read_settings_from_file(settings_file=user_settings_file, section=get_server_type())
 
+def add_user_settings(settings, user_settings_file):
+    user_settings = get_user_settings(user_settings_file)
+    settings.update(user_settings)
+    return settings
+    
 def get_deploy_settings_filename():
-    return os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, get_server_type() + '_deploy_settings.ini'))
+    return os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, get_server_type() + DEPLOY_SETTINGS_FILE_SUFFIX))
 
 def create_deploy_settings(user_settings_file=None):
     """Load default settings, override with user-provided settings file, if any, and postprocess settings."""
@@ -95,7 +103,7 @@ def delete_deploy_settings_file():
     os.remove(get_deploy_settings_filename())
 
 def read_settings_from_file(settings_file, section):
-    """Read settings from a file and section and return them."""
+    """Read settings from a file and section and return them. If settings_file is unspecified or doesn't exist, returns an error."""
     if not os.path.exists(settings_file):
         raise Exception('Cannot find settings file "%s"' % settings_file)
     try:
@@ -110,7 +118,9 @@ def read_settings_from_file(settings_file, section):
     return items
 
 def add_settings_from_file(settings, settings_file, section):
-    """Add settings from a file and section to a provided dict and return the result."""
+    """Add settings from a file and section to a provided dict and return the result. If no settings_file provided, just return the original settings."""
+    if settings_file == None:
+        return settings
     settings_to_add = read_settings_from_file(settings_file, section)
     settings.update(settings_to_add)
     return settings
