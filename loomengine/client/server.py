@@ -13,12 +13,12 @@ import time
 import warnings
 
 from ConfigParser import SafeConfigParser
-from loomengine.client.settings_manager import SettingsManager
 from loomengine.client.common import *
+from loomengine.client import settings_manager
 from loomengine.utils.version import version
 import loomengine.utils.cloud
 
-GCLOUD_SERVER_DEFAULT_NAME = SettingsManager().get_default_setting('gcloud', 'SERVER_NAME')
+GCLOUD_SERVER_DEFAULT_NAME = settings_manager.get_default_setting('gcloud', 'SERVER_NAME')
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
 GCLOUD_CREATE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server.yml')
@@ -148,7 +148,6 @@ class LocalServerControls(BaseServerControls):
 
     def __init__(self, args=None):
         BaseServerControls.__init__(self, args)
-        self.settings_manager = SettingsManager()
 
     # Defines what commands this class can handle and maps names to functions.
     def _get_command_map(self):
@@ -163,13 +162,13 @@ class LocalServerControls(BaseServerControls):
 
     def start(self):
         if not is_server_running():
-            if not os.path.exists(get_deploy_settings_filename()):
+            if not os.path.exists(settings_manager.get_deploy_settings_filename()):
                 self.create()
-            self.settings_manager.load_deploy_settings_file()
+            settings = settings_manager.read_deploy_settings_file()
 
             if loomengine.utils.cloud.on_gcloud_vm():
                 """We're in gcloud and the client is starting the server on the local instance."""
-                self.settings_manager.add_gcloud_settings_on_server()
+                settings = settings_manager.add_gcloud_settings_on_server(settings)
 
             env = os.environ.copy()
             env = self._add_server_to_python_path(env)
@@ -184,9 +183,9 @@ class LocalServerControls(BaseServerControls):
     def stop(self):
         # Settings needed to get pidfile names.
         if is_server_running():
-            if not os.path.exists(get_deploy_settings_filename()):
+            if not os.path.exists(settings_manager.get_deploy_settings_filename()):
                 raise Exception('No server deploy settings found. Create them with "loom server create" first.')
-            self.settings_manager.load_deploy_settings_file()
+            settings = settings_manager.read_deploy_settings_file()
             print "Stopping Loom server..."
             self._stop_webserver()
             self._wait_for_server(target_running_state=False)
@@ -211,22 +210,24 @@ class LocalServerControls(BaseServerControls):
             time.sleep(poll_interval_seconds)
 
     def _create_logdirs(self):
-        for logfile in (self.settings_manager.settings['ACCESS_LOGFILE'],
-                        self.settings_manager.settings['ERROR_LOGFILE'],
+        settings = settings_manager.read_deploy_settings_file()
+        for logfile in (settings['ACCESS_LOGFILE'],
+                        settings['ERROR_LOGFILE'],
                         ):
             logdir = os.path.dirname(os.path.expanduser(logfile))
             if not os.path.exists(logdir):
                 os.makedirs(logdir)
         
     def _start_webserver(self, env):
+        settings = settings_manager.read_deploy_settings_file()
         cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --capture-output" % (
-                self.settings_manager.settings['SERVER_WSGI_MODULE'],
-                self.settings_manager.settings['BIND_IP'],
-                self.settings_manager.settings['BIND_PORT'],
-                self.settings_manager.settings['WEBSERVER_PIDFILE'],
-                self.settings_manager.settings['ACCESS_LOGFILE'],
-                self.settings_manager.settings['ERROR_LOGFILE'],
-                self.settings_manager.settings['LOG_LEVEL'],
+                settings['SERVER_WSGI_MODULE'],
+                settings['BIND_IP'],
+                settings['BIND_PORT'],
+                settings['WEBSERVER_PIDFILE'],
+                settings['ACCESS_LOGFILE'],
+                settings['ERROR_LOGFILE'],
+                settings['LOG_LEVEL'],
                 )
         if not self.args.foreground:
             cmd = cmd + " --daemon"
@@ -243,13 +244,14 @@ class LocalServerControls(BaseServerControls):
             raise Exception('Loom webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
 
     def _stop_webserver(self):
-        pid = self._get_pid(self.settings_manager.settings['WEBSERVER_PIDFILE'])
+        settings = settings_manager.read_deploy_settings_file()
+        pid = self._get_pid(settings['WEBSERVER_PIDFILE'])
         if pid is not None:
             subprocess.call(
                 "kill %s" % pid,
                 shell=True,
                 )
-        self._cleanup_pidfile(self.settings_manager.settings['WEBSERVER_PIDFILE'])
+        self._cleanup_pidfile(settings['WEBSERVER_PIDFILE'])
 
     def _get_pid(self, pidfile):
         if not os.path.exists(pidfile):
@@ -311,18 +313,19 @@ class LocalServerControls(BaseServerControls):
         available to Django. Passing settings this way only works in local mode
         (the server is on the same machine as the client launching it).
         """
-        env.update(SettingsManager(self.args.settings).get_env_settings())
+        deploy_settings = settings_manager.read_deploy_settings()
+        expanded_deploy_settings = settings_manager.expand_user_dirs(deploy_settings)
+        env.update(expanded_deploy_settings)
         return env
 
     def create(self):
         '''Create server deploy settings. Overwrite existing ones.'''
-        settings_manager = SettingsManager(self.args.settings)
-        settings_manager.write_deploy_settings_file()
-        print 'Created deploy settings at %s.' % get_deploy_settings_filename()
+        settings_manager.write_deploy_settings_file(self.args.settings)
+        print 'Created deploy settings at %s.' % settings_manager.get_deploy_settings_filename()
 
     def delete(self):
         '''Stops server and deletes deploy settings.'''
-        if not os.path.exists(get_deploy_settings_filename()):
+        if not os.path.exists(settings_manager.get_deploy_settings_filename()):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
         settings_manager.delete_deploy_settings_file()
@@ -346,15 +349,13 @@ class GoogleCloudServerControls(BaseServerControls):
         return command_to_method_map
 
     def create(self):
-        """Create a service account for the server (by default, can use custom
+        """Create a service account for the server (can use custom
         service account instead), create gce.ini, create JSON credential, create
         server deploy settings, set up SSH keys, create and set up a gcloud
         instance, and copy deploy settings to the instance.
         """
-        print 'Creating deploy settings %s using user settings %s...' % (get_deploy_settings_filename(), self.args.settings)
-        settings_manager = SettingsManager(self.args.settings)
-            
-        if settings_manager.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'] == 'None':
+        settings = settings_manager.write_deploy_settings_file(self.args.settings)
+        if not settings_manager.has_custom_service_account(settings):
             # Default behavior: create a service account based on server name, grant roles, create JSON credential, write to ini.
             server_name = get_gcloud_server_name()
             print 'Creating service account for instance %s...' % server_name 
@@ -365,33 +366,29 @@ class GoogleCloudServerControls(BaseServerControls):
             email = find_service_account_email(server_name)
             if email != None:
                 print 'Service account %s created.' % email
-            roles = json.loads(settings_manager.settings['SERVICE_ACCOUNT_ROLES'])
+            roles = json.loads(settings['SERVICE_ACCOUNT_ROLES'])
             print 'Granting "%s" roles to service account %s:' % (roles, email)
             grant_roles(roles, email)
             create_gce_json()
             create_gce_ini()
         else:
             # Pre-existing service account specified: validate JSON credential and write to ini.
-            create_gce_ini(settings_manager.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'])
-
-        settings_manager.write_deploy_settings_file()
+            create_gce_ini(settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'])
 
         env = settings_manager.get_ansible_env()
-
         self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
         return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
         
     def run_playbook(self, playbook, env):
-        settings_manager = SettingsManager()
-        settings_manager.load_deploy_settings_file()
+        settings = settings_manager.read_deploy_settings_file()
 
-        if settings_manager.settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
+        if settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
             env['INVENTORY_IP_TYPE'] = 'internal'   # Tell gce.py to use internal IP for ansible_ssh_host
         else:
             env['INVENTORY_IP_TYPE'] = 'external'   
         env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
         os.chmod(GCE_PY_PATH, 0755)                 # Make sure dynamic inventory is executable
-        cmd_list = ['ansible-playbook', '--key-file', settings_manager.settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
+        cmd_list = ['ansible-playbook', '--key-file', settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
         if self.args.verbose:
             cmd_list.append('-vvvv')
             print ' '.join(cmd_list)
@@ -412,30 +409,27 @@ class GoogleCloudServerControls(BaseServerControls):
         # TODO: Start the gcloud server instance once supported by Ansible
         instance_name = get_gcloud_server_name()
         current_hosts = get_gcloud_hosts()
-        if not os.path.exists(get_deploy_settings_filename()):
-            print 'Server deploy settings %s not found. Creating it using default settings.' % get_deploy_settings_filename()
+        if not os.path.exists(settings_manager.get_deploy_settings_filename()):
+            print 'Server deploy settings %s not found. Creating it using default settings.' % settings_manager.get_deploy_settings_filename()
         if instance_name not in current_hosts:
             print 'No instance named \"%s\" found in project \"%s\". Creating it using default settings.' % (instance_name, get_gcloud_project())
-        if instance_name not in current_hosts or not os.path.exists(get_deploy_settings_filename()):
+        if instance_name not in current_hosts or not os.path.exists(settings_manager.get_deploy_settings_filename()):
             returncode = self.create()
             if returncode != 0:
                 raise Exception('Error deploying Google Cloud server instance.')
 
-        settings_manager = SettingsManager()
-        settings_manager.load_deploy_settings_file()
         env = settings_manager.get_ansible_env()
         return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
 
     def stop(self):
         """Stop the Loom server, then stop the gcloud server instance."""
-        settings_manager = SettingsManager()
-        settings_manager.load_deploy_settings_file()
         env = settings_manager.get_ansible_env()
         return self.run_playbook(GCLOUD_STOP_PLAYBOOK, env)
         # TODO: Stop the gcloud server instance once supported by Ansible
 
     def delete(self):
         """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
+        settings = settings_manager.read_deploy_settings()
         try:
             instance_name = get_gcloud_server_name()
             current_hosts = get_gcloud_hosts()
@@ -457,7 +451,7 @@ class GoogleCloudServerControls(BaseServerControls):
 
         try:
             email = find_service_account_email(instance_name)
-            custom_email = settings_manager.settings['CUSTOM_SERVICE_ACCOUNT_EMAIL']
+            custom_email = settings['CUSTOM_SERVICE_ACCOUNT_EMAIL']
             if email and custom_email == 'None':
                 print 'Deleting service account %s...' % email
                 delete_service_account(email)
@@ -468,7 +462,7 @@ class GoogleCloudServerControls(BaseServerControls):
         except Exception as e:
             print e
 
-        cleanup_files = [get_deploy_settings_filename(), GCE_INI_PATH, SERVER_LOCATION_FILE]
+        cleanup_files = [settings_manager.get_deploy_settings_filename(), GCE_INI_PATH, SERVER_LOCATION_FILE]
         for path in cleanup_files:
             path = os.path.expanduser(path)
             if os.path.exists(path):

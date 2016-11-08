@@ -123,13 +123,11 @@ def get_gcloud_hosts():
 def get_server_url():
     # TODO: add PROTOCOL and EXTERNAL PORT to server.ini since they are required to construct a URL to reach the server
     # Consider how to keep in sync with user-provided settings, default_settings.ini, and _deploy_settings.ini
-    # Would remove dependency on SettingsManger from other components
-    settings_manager = loomengine.client.settings_manager.SettingsManager()
+    # Would remove dependency on settings_manager from other components
     try:
-        settings_manager.load_deploy_settings_file()
+        settings = loomengine.client.settings_manager.read_deploy_settings_file()
     except:
         raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
-    settings = settings_manager.settings
     protocol = settings['PROTOCOL']
     if settings.get('CLIENT_USES_SERVER_INTERNAL_IP') == 'True':
         ip = get_server_private_ip()
@@ -137,9 +135,6 @@ def get_server_url():
         ip = get_server_public_ip()
     port = settings['EXTERNAL_PORT']
     return '%s://%s:%s' % (protocol, ip, port)
-
-def get_deploy_settings_filename():
-    return os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, get_server_type() + '_deploy_settings.ini'))
 
 def is_server_running():
     try:
