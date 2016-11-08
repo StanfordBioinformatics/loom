@@ -13,8 +13,8 @@ import time
 import warnings
 
 from ConfigParser import SafeConfigParser
-from loomengine.client.common import *
 from loomengine.client import settings_manager
+from loomengine.client.common import *
 from loomengine.utils.version import version
 import loomengine.utils.cloud
 
