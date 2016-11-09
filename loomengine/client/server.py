@@ -330,7 +330,7 @@ class LocalServerControls(BaseServerControls):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
         settings_manager.delete_deploy_settings_file()
-        print 'Deleted deploy settings at %s.' % get_deploy_settings_filename()
+        print 'Deleted deploy settings at %s.' % settings_manager.get_deploy_settings_filename()
 
 
 class GoogleCloudServerControls(BaseServerControls):
