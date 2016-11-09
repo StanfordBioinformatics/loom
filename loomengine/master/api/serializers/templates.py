@@ -1,13 +1,13 @@
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
-from api.models.workflows import *
+from api.models.templates import *
 from api.models.signals import post_save_children
 
-class WorkflowImportSerializer(CreateWithParentModelSerializer):
+class TemplateImportSerializer(CreateWithParentModelSerializer):
 
     class Meta:
-        model = WorkflowImport
+        model = TemplateImport
         fields = ('note', 'source_url',)
 
 
@@ -145,7 +145,7 @@ class AbstractWorkflowSerializer(SuperclassModelSerializer):
     }
 
     class Meta:
-        model = AbstractWorkflow
+        model = Template
         fields = '__all__'
 
 class WorkflowSerializer(CreateWithParentModelSerializer):
@@ -161,7 +161,7 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
         allow_null=True)
     outputs = WorkflowOutputSerializer(many=True)
     steps = AbstractWorkflowSerializer(many=True)
-    workflow_import = WorkflowImportSerializer(allow_null=True, required=False)
+    workflow_import = TemplateImportSerializer(allow_null=True, required=False)
     
     class Meta:
         model = Workflow
@@ -223,7 +223,7 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
             s.save()
 
         if workflow_import is not None:
-            s = WorkflowImportSerializer(
+            s = TemplateImportSerializer(
                 data=workflow_import,
                 context={'parent_field': 'workflow',
                          'parent_instance': workflow})
@@ -242,7 +242,7 @@ class StepSerializer(CreateWithParentModelSerializer):
     inputs = StepInputSerializer(many=True, required=False)
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
     outputs = StepOutputSerializer(many=True)
-    workflow_import = WorkflowImportSerializer(allow_null=True, required=False)
+    workflow_import = TemplateImportSerializer(allow_null=True, required=False)
 
     class Meta:
         model = Step
@@ -317,7 +317,7 @@ class StepSerializer(CreateWithParentModelSerializer):
             s.save()
 
         if workflow_import is not None:
-            s = WorkflowImportSerializer(
+            s = TemplateImportSerializer(
                 data=workflow_import,
                 context={'parent_field': 'workflow',
                          'parent_instance': step})

@@ -11,26 +11,24 @@ class TestRunRequest(TestCase):
             workflow=workflow, channel='four', type='string')
 
         step_one = Step.objects.create(name='step_one',
-                                       command='echo {{one}} {{two}} > three)',
-                                       parent_workflow=workflow)
+                                       command='echo {{one}} {{two}} > three)')
         RequestedDockerEnvironment.objects.create(step=step_one, docker_image='ubuntu')
         RequestedResourceSet.objects.create(step=step_one, memory=6, cores=1)
         input_one = StepInput.objects.create(
             step=step_one, channel='one', type='string')
         data_object = StringDataObject.objects.create(
-            string_content=StringContent.objects.create(
-                string_value='two'
-            )
+            type='string',
+            value='two'
         )
         input_two = FixedStepInput.objects.create(
             step=step_one, channel='two', type='string', data_object=data_object)
         output_three = StepOutput.objects.create(
             step=step_one, channel='three', type='string')
-        source = StepOutputSource.objects.create(stream='stdout', step_output=output_three)
+        source = StepOutputSource.objects.create(
+            stream='stdout', output=output_three)
         
         step_two = Step.objects.create(name='step_two',
-                                       command='echo {{three}} "!" > {{four}})',
-                                       parent_workflow=workflow)
+                                       command='echo {{three}} "!" > {{four}})')
         RequestedDockerEnvironment.objects.create(step=step_two, docker_image='ubuntu')
         RequestedResourceSet.objects.create(step=step_two, memory=6, cores=1)
 
@@ -38,7 +36,10 @@ class TestRunRequest(TestCase):
             step=step_two, channel='three', type='string')
         output_four = StepOutput.objects.create(
             step=step_two, channel='four', type='string')
-        source = StepOutputSource.objects.create(stream='stdout', step_output=output_four)
+        source = StepOutputSource.objects.create(
+            stream='stdout', output=output_four)
+
+        workflow.add_steps([step_one, step_two])
         return workflow
 
     def _get_run_request(self):
@@ -69,4 +70,4 @@ class TestRunRequest(TestCase):
         step_one = run_request.run.step_runs.all().get(
             steprun__template__name='step_one')
 
-        self.assertEqual(step_one.task_runs.count(), 1)
+        self.assertEqual(step_one.tasks.count(), 1)

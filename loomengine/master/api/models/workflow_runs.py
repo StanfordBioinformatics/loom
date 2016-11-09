@@ -8,10 +8,8 @@ from .base import BaseModel, BasePolymorphicModel
 from api import get_setting
 from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
-from api.models.task_definitions import TaskDefinition
-from api.models.task_runs import TaskRun, TaskRunInput, TaskRunOutput, \
-    TaskRunAttemptError
-from api.models.workflows import AbstractWorkflow, Workflow, Step, \
+from api.models.tasks import Task, TaskInput, TaskOutput, TaskAttemptError
+from api.models.templates import Workflow, Step, \
     WorkflowInput, WorkflowOutput, StepInput, StepOutput
 
 
@@ -76,7 +74,7 @@ class WorkflowRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'workflow__name'
 
-    template = models.ForeignKey('Workflow',
+    template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT)
 
@@ -197,7 +195,7 @@ class StepRun(AbstractWorkflowRun):
 
     NAME_FIELD = 'step__name'
 
-    template = models.ForeignKey('Step',
+    template = models.ForeignKey('StepTemplate',
                                  related_name='step_runs',
                                  on_delete=models.PROTECT)
     @property
@@ -218,9 +216,9 @@ class StepRun(AbstractWorkflowRun):
 
     @property
     def errors(self):
-        if self.task_runs.count() == 0:
-            return TaskRunAttemptError.objects.none()
-        return self.task_runs.first().errors
+        if self.tasks.count() == 0:
+            return TaskAttemptError.objects.none()
+        return self.tasks.first().errors
 
     def is_step(self):
         return True
@@ -282,17 +280,17 @@ class StepRun(AbstractWorkflowRun):
 
     def create_ready_tasks(self, do_start=True):
         # This is a temporary limit. It assumes no parallel workflows, and no
-        # failure recovery, so each step has only one TaskRun.
-        if self.task_runs.count() == 0:
+        # failure recovery, so each step has only one Task.
+        if self.tasks.count() == 0:
             for input_set in InputNodeSet(
                     self.get_all_inputs()).get_ready_input_sets():
-                task_run = TaskRun.create_from_input_set(input_set, self)
+                task = Task.create_from_input_set(input_set, self)
                 if do_start:
-                    task_run.run()
+                    task.run()
             self.update_status()
 
     def update_status(self):
-        if self.task_runs.count() == 0:
+        if self.tasks.count() == 0:
             missing_inputs = InputNodeSet(
                 self.get_all_inputs()).get_missing_inputs()
             if len(missing_inputs) == 1:
@@ -301,7 +299,7 @@ class StepRun(AbstractWorkflowRun):
                 status = 'Waiting for inputs %s' % ', '.join(
                     [input.channel for input in missing_inputs])
         else:
-            status = self.task_runs.first().status
+            status = self.tasks.first().status
 
         if status != self.status:
             self.status = status
@@ -310,8 +308,8 @@ class StepRun(AbstractWorkflowRun):
 
     
 class AbstractStepRunInput(InputOutputNode):
-    # This table is needed because it is referenced by TaskRunInput,
-    # and TaskRuns do not distinguish between fixed and runtime inputs
+    # This table is needed because it is referenced by TaskInput,
+    # and Tasks do not distinguish between fixed and runtime inputs
     pass
 
     def is_ready(self):

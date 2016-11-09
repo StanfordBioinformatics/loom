@@ -1,243 +1,145 @@
 from django.db import IntegrityError
 from rest_framework import serializers
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
-from api.models.data_objects import StringContent, StringDataObject, \
-    BooleanContent, BooleanDataObject, IntegerContent, IntegerDataObject, \
-    UnnamedFileContent, FileContent, FileImport, FileLocation, \
-    FileDataObject, DataObject, DataObjectContent
-from api.models.signals import post_save_children
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, \
+    RecursiveField
+from api.models.data_objects import StringDataObject, BooleanDataObject, \
+    IntegerDataObject, FloatDataObject, FileDataObject, DataObject, \
+    FileResource
 
 
-class StringContentSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = StringContent
-        fields = ('string_value',)
+class UpdateNotAllowedError(Exception):
+    pass
 
 
-class StringDataObjectSerializer(serializers.ModelSerializer):
+class AbstractDataObjectArraySerializer(serializers.ModelSerializer):
+    """This class handles the nested 'array_members' that may be present on
+    any DataObject type when is_array=True.
+
+    When is_array=True and array_member data is present,
+    array members will be created. Otherwise, the serializer will create a
+    non-array instance.
+    """
 
     id = serializers.UUIDField(format='hex', required=False)
-    string_content = StringContentSerializer()
-
-    class Meta:
-        model = StringDataObject
-        fields = ('id', 'string_content', 'datetime_created', 'type',)
+    array_members = RecursiveField(many=True, required=False)
 
     def create(self, validated_data):
-        s = StringContentSerializer(data=validated_data['string_content'])
-        s.is_valid(raise_exception=True)
-        validated_data['string_content'] = s.save()
-        return StringDataObject.objects.create(**validated_data)
+        member_instances = self._create_member_instances()
+        validated_data.pop('array_members', None)
+        instance = self.Meta.model.objects.create(**validated_data)
+        if member_instances:
+            instance.add_members(member_instances)
+        return instance
+
+    def update(self, instance, validated_data):
+        raise UpdateNotAllowedError('Update of DataObjects is not allowed')
+
+    def _create_member_instances(self):
+        member_instances = []
+        for array_member in self.initial_data.get('array_members', []):
+            s = self.__class__(data=array_member)
+            s.is_valid()
+            member_instances.append(s.save())
+        return member_instances
+
+        
+    def validate_type(self, value):
+        if value != self.type:
+            raise serializers.ValidationError(
+                'Invalid "type" value:" %s". '\
+                'Field "type" must have value "%s" for %s.' % (
+                    value, self.type, self.__class__.__name__))
+        return value
+
+    def validate(self, data):
+        is_array = data.get('is_array', True)
+        array_members = data.get('array_members', None)
+        if not is_array and array_members is not None:
+            raise serializers.ValidationError(
+                'Incompatible values is_array="%s" and array_members="%s"' % (
+                    is_array, array_members))
+        return data
 
 
-class BooleanContentSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = BooleanContent
-        fields = ('boolean_value',)
-
-
-class BooleanDataObjectSerializer(serializers.ModelSerializer):
-
-    id = serializers.UUIDField(format='hex', required=False)
-    boolean_content = BooleanContentSerializer()
-
+class BooleanDataObjectSerializer(AbstractDataObjectArraySerializer):
+    type='boolean'
     class Meta:
         model = BooleanDataObject
-        fields = ('id', 'boolean_content', 'datetime_created', 'type',)
-
-    def create(self, validated_data):
-        s = BooleanContentSerializer(data=validated_data['boolean_content'])
-        s.is_valid(raise_exception=True)
-        validated_data['boolean_content'] = s.save()
-        return BooleanDataObject.objects.create(**validated_data)
+        fields = ('__all__')
 
 
-class IntegerContentSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = IntegerContent
-        fields = ('integer_value',)
-
-
-class IntegerDataObjectSerializer(serializers.ModelSerializer):
-
-    id = serializers.UUIDField(format='hex', required=False)
-    integer_content = IntegerContentSerializer()
-
+class IntegerDataObjectSerializer(AbstractDataObjectArraySerializer):
+    type='integer'
     class Meta:
         model = IntegerDataObject
-        fields = ('id', 'integer_content', 'datetime_created', 'type',)
-
-    def create(self, validated_data):
-        s = IntegerContentSerializer(data=validated_data['integer_content'])
-        s.is_valid(raise_exception=True)
-        validated_data['integer_content'] = s.save()
-        return IntegerDataObject.objects.create(**validated_data)
+        fields = ('__all__')
 
 
-class UnnamedFileContentSerializer(serializers.ModelSerializer):
-
+class FloatDataObjectSerializer(AbstractDataObjectArraySerializer):
+    type='float'
     class Meta:
-        model = UnnamedFileContent
-        fields = ('hash_value', 'hash_function',)
-        # Remove UniqueTogether validator, since the exception
-        # should be handled by the create method
-        validators = []
+        model = FloatDataObject
+        fields = ('__all__')
 
-    def create(self, validated_data):
-        # If the object already exists, return return the existing object.
-        try:
-            return UnnamedFileContent.objects.create(**validated_data)
-        except IntegrityError:
-            # (hash_function, hash_value) are unique_together.
-            # IntegrityError implies object already exists.
-            return UnnamedFileContent.objects.get(**validated_data)
 
-class FileContentSerializer(serializers.ModelSerializer):
-
-    unnamed_file_content = UnnamedFileContentSerializer()
-
+class StringDataObjectSerializer(AbstractDataObjectArraySerializer):
+    type='string'
     class Meta:
-        model = FileContent
-        fields = ('unnamed_file_content', 'filename',)
+        model = StringDataObject
+        fields = ('__all__')
 
-    def create(self, validated_data):
-        s = UnnamedFileContentSerializer(
-            data=validated_data['unnamed_file_content'])
-        s.is_valid(raise_exception=True)
-        validated_data['unnamed_file_content'] = s.save()
-        # Same pattern as for UnnamedFileContent.
-        # Here (filename, unnamed_file_content) are unique_together
-        try:
-            return FileContent.objects.create(**validated_data)
-        except IntegrityError:
-            return FileContent.objects.get(**validated_data)
 
-class FileLocationSerializer(serializers.ModelSerializer):
+class FileResourceSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
-        model = FileLocation
-        fields = ('id', 'url', 'status', 'datetime_created')
+        model = FileResource
+        fields = ('__all__')
 
 
-class FileImportSerializer(CreateWithParentModelSerializer):
+class FileDataObjectSerializer(AbstractDataObjectArraySerializer):
 
-    # FileImportSerializer is read-only.
-    # create is allowed through FileDataObjectSerializer
+    type = 'file'
 
-    class Meta:
-        model = FileImport
-        fields = ('note', 'source_url',)
-
-
-class FileDataObjectSerializer(serializers.ModelSerializer):
-
-    id = serializers.UUIDField(format='hex', required=False)
-    file_content = FileContentSerializer(allow_null=True, required=False)
-    file_import = FileImportSerializer(allow_null=True, required=False)
-    file_location = FileLocationSerializer(allow_null=True, required=False)
+    file_resource = FileResourceSerializer(allow_null=True, required=False)
+    source_type = serializers.CharField(required=False)
 
     class Meta:
         model = FileDataObject
-        fields = ('id',
-                  'file_content',
-                  'file_import',
-                  'file_location',
-                  'datetime_created',
-                  'source_type',
-                  'type',)
+        fields = ('__all__')
 
     def create(self, validated_data):
-        file_import_data = validated_data.pop('file_import', None)
-        file_content_data = validated_data.pop('file_content', None)
-        file_location_data = validated_data.pop('file_location', None)
+        member_instances = self._create_member_instances()
+        validated_data.pop('array_members', None)
 
-        if file_content_data:
-            s = FileContentSerializer(data=file_content_data)
-            s.is_valid(raise_exception=True)
-            validated_data['file_content'] = s.save()
+        validated_data['file_resource'] = self._create_file_resource(
+            self.initial_data.get('file_resource', None))
 
-        if file_location_data:
-                # Since location is OneToMany,
-                # we may be connecting to an existing object
-                file_location = None
-                if file_location_data.get('id'):
-                    try:
-                        file_location = FileLocation.objects.get(
-                            id=file_location_data['id'])
-                    except FileLocation.DoesNotExist:
-                        pass
-                if file_location is None:
-                    s = FileLocationSerializer(
-                        data=file_location_data)
-                    s.is_valid(raise_exception=True)
-                    file_location = s.save()
-
-                validated_data['file_location'] = file_location
-
-        model = FileDataObject.objects.create(**validated_data)
-
-        # FileImport can only be created after FileDataObject exists
-        if file_import_data is not None:
-            s = FileImportSerializer(
-                data=file_import_data,
-                context={'parent_field': 'file_data_object',
-                         'parent_instance': model,})
-            s.is_valid()
-            s.save()
-
-        post_save_children.send(sender=self.Meta.model, instance=model)
-        return model
-
-    def update(self, instance, validated_data):
-        file_content_data = validated_data.pop('file_content', None)
-        file_location_data = validated_data.pop('file_location', None)
-
-        if file_content_data and not instance.file_content:
-            s = FileContentSerializer(
-                data=file_content_data)
-            s.is_valid(raise_exception=True)
-            instance.file_content = s.save()
-
-        if file_location_data:
-            s = FileLocationSerializer(
-                data=file_location_data)
-            s.is_valid(raise_exception=True)
-            instance.file_location = s.save()
-
-        instance.save()
-        post_save_children.send(sender=self.Meta.model, instance=instance)
+        instance = self.Meta.model.objects.create(**validated_data)
+        if member_instances:
+            instance.add_members(member_instances)
         return instance
+
+    def _create_file_resource(self, resource_data):
+        if not resource_data:
+            return None
+        s = FileResourceSerializer(data=resource_data)
+        s.is_valid()
+        return s.save()
 
 
 class DataObjectSerializer(SuperclassModelSerializer):
 
     subclass_serializers = {
-        'stringdataobject': StringDataObjectSerializer,
-        'integerdataobject': IntegerDataObjectSerializer,
-        'booleandataobject': BooleanDataObjectSerializer,
-        'filedataobject': FileDataObjectSerializer,
+        'string': StringDataObjectSerializer,
+        'integer': IntegerDataObjectSerializer,
+        'boolean': BooleanDataObjectSerializer,
+        'float': FloatDataObjectSerializer,
+        'file': FileDataObjectSerializer,
     }
 
     class Meta:
         model = DataObject
-        fields = '__all__'
-
-
-class DataObjectContentSerializer(SuperclassModelSerializer):
-
-    subclass_serializers = {
-        'filecontent': FileContentSerializer,
-        'booleancontent': BooleanContentSerializer,
-        'stringcontent': StringContentSerializer,
-        'integercontent': IntegerContentSerializer,
-    }
-
-    class Meta:
-        model = DataObjectContent
         fields = '__all__'

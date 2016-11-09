@@ -284,7 +284,7 @@ class DataNode(BaseModel):
         if self._is_uninitialized():
             return PLACEHOLDER_VALUE
         if self._is_leaf():
-            return self.data_object.get_display_value()
+            return self.data_object.display_value
         else:
             data = [PLACEHOLDER_VALUE] * self.degree
             for child in self.children.all():
@@ -320,6 +320,7 @@ class InputItem(object):
 
     def __init__(self, input_node):
         self.data_object = input_node.get_data_as_scalar()
+        self.type = self.data_object.type
         self.channel = input_node.channel
 
 

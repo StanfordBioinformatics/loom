@@ -17,7 +17,7 @@ import uuid
 import loomengine.utils
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-from loomengine.utils.connection import TASK_RUN_ATTEMPT_STATUSES as STATUS
+from loomengine.utils.connection import TASK_ATTEMPT_STATUSES as STATUS
 from loomengine.utils.logger import get_file_logger, get_stdout_logger
 from loomengine.utils.helper import init_directory
 
@@ -28,7 +28,7 @@ class ContainerStartError(Exception):
 class ContainerPullError(Exception):
     pass
 
-class TaskRunAttemptNotFoundError(Exception):
+class TaskAttemptNotFoundError(Exception):
     pass
 
 class DockerDaemonNotFoundError(Exception):
@@ -48,7 +48,7 @@ class TaskRunner(object):
         if args is None:
             args = self._get_args()
         self.settings = {
-            'TASK_RUN_ATTEMPT_ID': args.run_attempt_id,
+            'TASK_ATTEMPT_ID': args.attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
             'LOG_FILE': args.log_file,
@@ -74,7 +74,7 @@ class TaskRunner(object):
 
         try:
             self._set_status(STATUS.INITIALIZING_MONITOR)
-            self._init_task_run_attempt()
+            self._init_task_attempt()
             if mock_filemanager is not None:
                 self.filemanager = mock_filemanager
             else:
@@ -100,13 +100,13 @@ class TaskRunner(object):
             self.logger = get_file_logger(__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
             utils_logger = get_file_logger(loomengine.utils.__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
 
-    def _init_task_run_attempt(self):
-        self.task_run_attempt = self.connection.get_task_run_attempt(self.settings['TASK_RUN_ATTEMPT_ID'])
-        if self.task_run_attempt is None:
-            raise TaskRunAttemptNotFoundError('TaskRunAttempt ID "%s" not found' % self.settings['TASK_RUN_ATTEMPT_ID'])
+    def _init_task_attempt(self):
+        self.task_attempt = self.connection.get_task_attempt(self.settings['TASK_ATTEMPT_ID'])
+        if self.task_attempt is None:
+            raise TaskAttemptNotFoundError('TaskAttempt ID "%s" not found' % self.settings['TASK_ATTEMPT_ID'])
 
     def _get_worker_settings(self):
-        settings = self.connection.get_worker_settings(self.settings['TASK_RUN_ATTEMPT_ID'])
+        settings = self.connection.get_worker_settings(self.settings['TASK_ATTEMPT_ID'])
         if settings is None:
             raise WorkerSettingsError('Worker settings not found')
         return settings
@@ -167,11 +167,11 @@ class TaskRunner(object):
             raise e
 
     def _copy_inputs(self):
-        if self.task_run_attempt.get('inputs') is None:
+        if self.task_attempt.get('inputs') is None:
             self.logger.info('No inputs.')
             return
         file_data_object_ids = []
-        for input in self.task_run_attempt['inputs']:
+        for input in self.task_attempt['inputs']:
             if input['data_object']['type'] == 'file':
                 file_data_object_ids.append('@'+input['data_object']['id'])
         self.logger.debug('Copying inputs %s to %s.' % ( file_data_object_ids, self.settings['WORKING_DIR']))
@@ -189,7 +189,7 @@ class TaskRunner(object):
             raise e
 
     def _create_run_script(self):
-        user_command = self.task_run_attempt['task_definition']['command']
+        user_command = self.task_attempt['task_definition']['command']
         with open(os.path.join(self.settings['WORKING_DIR'], self.LOOM_RUN_SCRIPT_NAME), 'w') as f:
             f.write(user_command + '\n')
         
@@ -210,7 +210,7 @@ class TaskRunner(object):
 
     def _get_docker_image(self):
         # Tag is required. Otherwise docker-py pull will download all tags.
-        docker_image = self.task_run_attempt['task_definition']['environment']['docker_image']
+        docker_image = self.task_attempt['task_definition']['environment']['docker_image']
         if not ':' in docker_image:
             docker_image = docker_image + ':latest'
         return docker_image
@@ -229,7 +229,7 @@ class TaskRunner(object):
 
     def _create_container(self):
         docker_image = self._get_docker_image()
-        interpreter = self.task_run_attempt['task_definition']['interpreter']
+        interpreter = self.task_attempt['task_definition']['interpreter']
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/loom_workspace'
 
@@ -339,7 +339,7 @@ class TaskRunner(object):
     def _import_log_file(self, filepath):
         try:
             self.filemanager.import_log_file(
-                self.task_run_attempt,
+                self.task_attempt,
                 filepath,
             )
         except IOError:
@@ -362,7 +362,7 @@ class TaskRunner(object):
             # Don't raise error. Continue cleanup
 
     def _save_outputs(self):
-        for output in self.task_run_attempt['outputs']:
+        for output in self.task_attempt['outputs']:
             if output['type'] == 'file':
                 filename = output['source']['filename']
                 try:
@@ -400,12 +400,10 @@ class TaskRunner(object):
         data_type = output['type']
         data_object = {
             'type': data_type,
-            data_type+'_content': {
-                data_type+'_value': output_text
-            }
+            'value': output_text
         }
         output.update({'data_object': data_object})
-        return self.connection.update_task_run_attempt_output(output['id'], output)
+        return self.connection.update_task_attempt_output(output['id'], output)
 
     def _try_to_save_monitor_log(self):
         self.logger.debug('Saving worker process monitor log')
@@ -415,13 +413,14 @@ class TaskRunner(object):
                 return True
             self._save_monitor_log()
         except Exception as e:
-            self._report_error(message='Failed to save worker process monitor log', detail=str(e))
+            self._report_error(message='Failed to save worker process monitor log',
+                               detail=str(e))
             # Don't raise error. Continue cleanup
 
     def _save_monitor_log(self):
         self._import_log_file(self.settings['LOG_FILE'])
 
-    # Updates to TaskRunAttempt
+    # Updates to TaskAttempt
 
     def _send_heartbeat(self):
         try:
@@ -431,29 +430,29 @@ class TaskRunner(object):
 
         time_since_heartbeat = datetime.now() - self.last_heartbeat
         if time_since_heartbeat.seconds > self.HEARTBEAT_INTERVAL_SECONDS:
-            self.connection.update_task_run_attempt(
-                self.settings['TASK_RUN_ATTEMPT_ID'],
+            self.connection.update_task_attempt(
+                self.settings['TASK_ATTEMPT_ID'],
                 {}
             )
             self.last_heartbeat = datetime.now()
 
     def _set_container_id(self, container_id):
-        self.connection.update_task_run_attempt(
-            self.settings['TASK_RUN_ATTEMPT_ID'],
+        self.connection.update_task_attempt(
+            self.settings['TASK_ATTEMPT_ID'],
             {'container_id': container_id}
         )
 
     def _set_status(self, status):
         self.logger.debug('Setting status to "%s"' % status)
-        self.connection.update_task_run_attempt(
-            self.settings['TASK_RUN_ATTEMPT_ID'],
+        self.connection.update_task_attempt(
+            self.settings['TASK_ATTEMPT_ID'],
             {'status': status}
         )
 
     def _report_error(self, message, detail):
         self.logger.error(message + ': ' + detail)
-        self.connection.post_task_run_attempt_error(
-            self.settings['TASK_RUN_ATTEMPT_ID'],
+        self.connection.post_task_attempt_error(
+            self.settings['TASK_ATTEMPT_ID'],
             {
                 'message': message,
                 'detail': detail
@@ -471,7 +470,7 @@ class TaskRunner(object):
         parser.add_argument('--run_attempt_id',
                             '-i',
                             required=True,
-                            help='ID of TaskRunAttempt to be processed')
+                            help='ID of TaskAttempt to be processed')
         parser.add_argument('--master_url',
                             '-u',
                             required=True,

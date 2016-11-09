@@ -15,6 +15,25 @@ from loomengine.utils import version
 
 logger = logging.getLogger(__name__)
 
+class DataObjectViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.DataObjectSerializer
+    queryset = models.DataObject.objects.all()
+
+class TemplateViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.TemplateSerializer
+    queryset = models.Template.objects.all()
+
+"""    
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        if query_string:
+            queryset = models.FileDataObject.query(query_string)
+        else:
+            queryset = models.FileDataObject.objects.all()
+        return queryset
+"""
+
+"""
 class AbstractWorkflowViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.AbstractWorkflowSerializer
 
@@ -83,25 +102,26 @@ class RunRequestViewSet(viewsets.ModelViewSet):
             queryset = models.RunRequest.objects.all()
         return queryset.order_by('-datetime_created')
 
-class TaskRunViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.TaskRun.objects.all()
-    serializer_class = serializers.TaskRunSerializer
+class TaskViewSet(viewsets.ModelViewSet):
+    queryset = models.tasks.Task.objects.all()
+    serializer_class = serializers.TaskSerializer
 
-class TaskRunAttemptErrorViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.TaskRunAttemptError.objects.all()
-    serializer_class = serializers.TaskRunAttemptErrorSerializer
+class TaskAttemptErrorViewSet(viewsets.ModelViewSet):
+    queryset = models.tasks.TaskAttemptError.objects.all()
+    serializer_class = serializers.TaskAttemptErrorSerializer
 
-class TaskRunAttemptOutputViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.TaskRunAttemptOutput.objects.all()
-    serializer_class = serializers.TaskRunAttemptOutputSerializer
+class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
+    queryset = models.tasks.TaskAttemptOutput.objects.all()
+    serializer_class = serializers.TaskAttemptOutputSerializer
 
 class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
     queryset = models.AbstractWorkflowRun.objects.all()
     serializer_class = serializers.AbstractWorkflowRunSerializer
 
-class TaskRunAttemptViewSet(viewsets.ModelViewSet):
-    queryset = models.task_runs.TaskRunAttempt.objects.all()
-    serializer_class = serializers.TaskRunAttemptSerializer
+class TaskAttemptViewSet(viewsets.ModelViewSet):
+    queryset = models.tasks.TaskAttempt.objects.all()
+    serializer_class = serializers.TaskAttemptSerializer
+"""
 
 @require_http_methods(["GET"])
 def status(request):
@@ -110,11 +130,11 @@ def status(request):
 @require_http_methods(["GET"])
 def worker_settings(request, id):
     try:
-        task_run_attempt = models.TaskRunAttempt.objects.get(id=id)
+        task_attempt = models.TaskAttempt.objects.get(id=id)
         return JsonResponse({
-            'WORKING_DIR': task_run_attempt.get_working_dir(),
-            'STDOUT_LOG_FILE': task_run_attempt.get_stdout_log_file(),
-            'STDERR_LOG_FILE': task_run_attempt.get_stderr_log_file(),
+            'WORKING_DIR': task_attempt.get_working_dir(),
+            'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
+            'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
         }, status=200)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
@@ -124,7 +144,6 @@ def worker_settings(request, id):
 @require_http_methods(["GET"])
 def filemanager_settings(request):
     return JsonResponse({
-        'HASH_FUNCTION': get_setting('HASH_FUNCTION'),
         'PROJECT_ID': get_setting('PROJECT_ID'),
     })
 
@@ -137,18 +156,18 @@ def info(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def create_task_run_attempt_log_file(request, id):
+def create_task_attempt_log_file(request, id):
     data_json = request.body
     data = json.loads(data_json)
     try:
-        task_run_attempt = models.TaskRunAttempt.objects.get(id=id)
+        task_attempt = models.TaskAttempt.objects.get(id=id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
-    s = serializers.TaskRunAttemptLogFileSerializer(
+    s = serializers.TaskAttemptLogFileSerializer(
         data=data,
         context={
-            'parent_field': 'task_run_attempt',
-            'parent_instance': task_run_attempt
+            'parent_field': 'task_attempt',
+            'parent_instance': task_attempt
         })
     s.is_valid(raise_exception=True)
     model = s.save()
@@ -156,19 +175,20 @@ def create_task_run_attempt_log_file(request, id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def create_task_run_attempt_error(request, id):
+def create_task_attempt_error(request, id):
     data_json = request.body
     data = json.loads(data_json)
     try:
-        task_run_attempt = models.TaskRunAttempt.objects.get(id=id)
+        task_attempt = models.TaskAttempt.objects.get(id=id)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
-    s = serializers.TaskRunAttemptErrorSerializer(
+    s = serializers.TaskAttemptErrorSerializer(
         data=data,
         context={
-            'parent_field': 'task_run_attempt',
-            'parent_instance': task_run_attempt
+            'parent_field': 'task_attempt',
+            'parent_instance': task_attempt
         })
     s.is_valid(raise_exception=True)
     model = s.save()
     return JsonResponse(s.data, status=201)
+

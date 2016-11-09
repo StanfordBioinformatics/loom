@@ -11,9 +11,8 @@ PLACEHOLDER_VALUE = ''
 
 def _get_string_data_object(text):
     return StringDataObject.objects.create(
-        string_content=StringContent.objects.create(
-            string_value=text
-        )
+        type='string',
+        value=text
     )
 
 class TestInputOutputNode(TestCase):

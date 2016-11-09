@@ -12,8 +12,6 @@ class TypeMismatchError(Exception):
     pass
 class NestedArraysError(Exception):
     pass
-class HashNotFoundError(Exception):
-    pass
 class InvalidFileServerTypeError(Exception):
     pass
 class RelativePathError(Exception):
@@ -21,6 +19,10 @@ class RelativePathError(Exception):
 class RelativeFileRootError(Exception):
     pass
 class InvalidSourceTypeError(Exception):
+    pass
+class NoMatchError(Exception):
+    pass
+class MultipleMatchesError(Exception):
     pass
 
 
@@ -39,17 +41,35 @@ class BooleanDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.booleandataobject.value
 
+    def get_display_value(self):
+        return self.model.booleandataobject.value
+
+    def is_ready(self):
+        return True
 
 class FileDataObjectManager(DataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
-        # TODO
-        pass
+        matches = FileDataObject.filter_by_name_or_id_or_hash(value)
+        if matches.count() == 0:
+            raise NoMatchError(
+                'No matching file found for value "%s"' % value)
+        elif matches.count() > 1:
+            raise MultipleMatchesError(
+                'Found multiple (%s) files matching value "%s"' % (
+                    matches.count(), value))
+        return matches.first()
 
     def get_substitution_value(self):
         return self.model.filename
 
+    def get_display_value(self):
+        return '%s@%s' % (self.model.id, self.model.filename)
+
+    def is_ready(self):
+        resource = self.model.filedataobject.file_resource
+        return resource is not None and resource.is_ready()
 
 class FloatDataObjectManager(DataObjectManager):
 
@@ -59,6 +79,12 @@ class FloatDataObjectManager(DataObjectManager):
 
     def get_substitution_value(self):
         return self.model.floatdataobject.value
+
+    def get_display_value(self):
+        return self.model.floatdataobject.value
+
+    def is_ready(self):
+        return True
 
 
 class IntegerDataObjectManager(DataObjectManager):
@@ -70,6 +96,12 @@ class IntegerDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.integerdataobject.value
 
+    def get_display_value(self):
+        return self.model.integerdataobject.value
+
+    def is_ready(self):
+        return True
+
 
 class StringDataObjectManager(DataObjectManager):
 
@@ -80,12 +112,26 @@ class StringDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.stringdataobject.value
 
+    def get_display_value(self):
+        return self.model.stringdataobject.value
+
+    def is_ready(self):
+        return True
+
 
 class DataObjectArrayManager(DataObjectManager):
 
     def get_substitution_value(self):
         return [member.item.substitution_value
                 for member in self.model.array_members.all()]
+
+    def get_display_value(self):
+        return [member.item.display_value
+                for member in self.model.array_members.all()]
+
+    def is_ready(self):
+        return all([member.item.is_ready()
+                    for member in self.model.array_members.all()])
 
 
 class DataObject(BaseModel):
@@ -135,10 +181,22 @@ class DataObject(BaseModel):
     def substitution_value(self):
         return self._get_manager().get_substitution_value()
 
+    @property
+    def display_value(self):
+        return self._get_manager().get_display_value()
+
+    def add_members(self, members):
+        if not self.is_array:
+            raise Exception('Cannot add members when is_array=False')
+        for member in members:
+            member.add_to_array(self)
+    
     def add_to_array(self, array):
         ArrayMembership.objects.create(
             array=array, item=self, order=array.array_members.count())
 
+    def is_ready(self):
+        return self._get_manager().is_ready()
 
 class BooleanDataObject(DataObject):
 
@@ -148,10 +206,11 @@ class BooleanDataObject(DataObject):
 class FileDataObject(DataObject):
 
     NAME_FIELD = 'filename'
-    HASH_FIELD = 'hashes__value'
+    HASH_FIELD = 'md5'
     
     filename = models.CharField(max_length=1024)
-    file_location = models.ForeignKey('FileLocation', null=True)
+    file_resource = models.ForeignKey('FileResource', null=True)
+    md5 = models.CharField(max_length=255)
     note = models.TextField(max_length=10000, null=True)
     source_url = models.TextField(max_length=1000, null=True)
     source_type = models.CharField(
@@ -161,36 +220,26 @@ class FileDataObject(DataObject):
                  ('log', 'Log'))
     )
 
-    def get_hash(self):
-        hash = self.hashes.filter(function=get_setting('HASH_FUNCTION')).first()
-        if hash is None:
-            raise HashNotFoundError(
-                'File "%s" does not have a hash of type "%s" defined' % (
-                    self.id.hex, get_setting('HASH_FUNCTION')))
-        return hash
-
-    def create_location_for_import(self):
-        if not self.file_location:
+    def create_incomplete_resource_for_import(self):
+        if not self.file_resource:
             # Based on settings, choose the path where the
-            # file should be stored and create a FileLocation
+            # file should be stored and create a FileResource
             # with upload_status=incomplete.
             #
             # If a file with identical content has already been uploaded,
             # re-use it if permitted by settings. Search until we find
             # one match, then continue.
             if not get_setting('KEEP_DUPLICATE_FILES'):
-                for hash in self.hashes.all():
-                    matching_file_locations = FileLocation.objects.filter(
-                        hashes__value=hash.value,
-                        hashes__function=hash.function,
-                        upload_status='complete')
-                    if matching_file_locations.count() > 0:
-                        self.file_location = matching_file_locations.first()
-                        self.save()
-                        return
-            # No existing file to use. Create a new location for upload.
-            self.file_location \
-                = FileLocation.create_location_for_import(self)
+                matching_file_resources = FileResource.objects.filter(
+                    md5=self.md5,
+                    upload_status='complete')
+                if matching_file_resources.count() > 0:
+                    self.file_resource = matching_file_resources.first()
+                    self.save()
+                    return
+            # No existing file to use. Create a new resource for upload.
+            self.file_resource \
+                = FileResource.create_incomplete_resource_for_import(self)
             self.save()
 
 
@@ -233,14 +282,6 @@ class DataObjectArray(DataObject):
         abstract=True
 
 
-class FileHash(BaseModel):
-
-    value = models.CharField(max_length=255, null=True)
-    function = models.CharField(max_length=255, null=True)
-    file_data_object = models.ForeignKey(
-        'FileDataObject', null=True, related_name='hashes')
-
-
 class ArrayMembership(BaseModel):
 
     # ManyToMany relationship between arrays and their items
@@ -252,11 +293,13 @@ class ArrayMembership(BaseModel):
         ordering = ['order',]
 
 
-class FileLocation(BaseModel):
+class FileResource(BaseModel):
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     datetime_created = models.DateTimeField(
         default=timezone.now, editable=False)
     file_url = models.CharField(max_length=1000)
+    md5 = models.CharField(max_length=255)
     upload_status = models.CharField(
         max_length=255,
         default='incomplete',
@@ -264,8 +307,11 @@ class FileLocation(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed')))
 
+    def is_ready(self):
+        return self.upload_status == 'complete'
+    
     @classmethod
-    def create_location_for_import(cls, file_data_object):
+    def create_incomplete_resource_for_import(cls, file_data_object):
 
         # Get path from root
         path = cls._get_path_for_import(file_data_object)
@@ -273,18 +319,10 @@ class FileLocation(BaseModel):
         # Add url prefix
         file_url = cls._add_url_prefix(path)
 
-        location = cls(file_url=file_url,
-                       upload_status='incomplete')
-        location.save()
-
-        # FileLocation shares any hashes attached to file
-        for hash in file_data_object.hashes.all():
-            FileLocationHash.objects.create(
-                file_location=location,
-                value = hash.value,
-                function = hash.function
-        )
-        return location
+        resource = cls.objects.create(file_url=file_url,
+                                      upload_status='incomplete',
+                                      md5=file_data_object.md5)
+        return resource
 
     @classmethod
     def _get_file_root(cls):
@@ -331,10 +369,7 @@ class FileLocation(BaseModel):
             # reflect content
             return os.path.join(
                 file_root,
-                '%s-%s' % (
-                    file_data_object.get_hash().function,
-                    file_data_object.get_hash().value
-                )
+                '%s' % file_data_object.md5
             )
 
     @classmethod
@@ -404,13 +439,3 @@ class FileLocation(BaseModel):
                 'Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"'\
                 % FILE_SERVER_TYPE)
 
-
-class FileLocationHash(BaseModel):
-
-    # Same as FileHash, but associated with the FileLocation instead
-    # of the FileDataObject
-
-    value = models.CharField(max_length=255, null=True)
-    function = models.CharField(max_length=255, null=True)
-    file_location = models.ForeignKey(
-        'FileLocation', null=True, related_name='hashes')

@@ -4,7 +4,7 @@ import time
 import datetime
 from loomengine.utils.exceptions import *
 
-class TASK_RUN_ATTEMPT_STATUSES:
+class TASK_ATTEMPT_STATUSES:
     NOT_STARTED = 'Not started'
     PROVISIONING_HOST = 'Provisioning host'
     LAUNCHING_MONITOR = 'Launching monitor process on worker'
@@ -232,42 +232,42 @@ class Connection(object):
             raise Error('Found %s run requests, expected at most %s' %(len(run_requests), max))
         return run_requests
 
-    def post_task_run(self, task_run):
+    def post_task(self, task):
         return self._post_object(
-            task_run,
-            'task-runs/')
+            task,
+            'tasks/')
 
-    def get_task_run_attempt(self, task_run_attempt_id):
+    def get_task_attempt(self, task_attempt_id):
         return self._get_object(
-            'task-run-attempts/%s/' % task_run_attempt_id
+            'task-attempts/%s/' % task_attempt_id
         )
 
-    def update_task_run_attempt(self, task_run_attempt_id, task_run_attempt_update):
+    def update_task_attempt(self, task_attempt_id, task_attempt_update):
         return self._patch_object(
-            task_run_attempt_update,
-            'task-run-attempts/%s/' % task_run_attempt_id)
+            task_attempt_update,
+            'task-attempts/%s/' % task_attempt_id)
 
-    def get_task_run_attempt_output(self, task_run_attempt_output_id):
+    def get_task_attempt_output(self, task_attempt_output_id):
         return self._get_object(
-            'task-run-attempt-outputs/%s/' % task_run_attempt_output_id
+            'task-attempt-outputs/%s/' % task_attempt_output_id
         )
 
-    def update_task_run_attempt_output(self, task_run_attempt_output_id, task_run_attempt_output_update):
-        print task_run_attempt_output_update
+    def update_task_attempt_output(self, task_attempt_output_id, task_attempt_output_update):
+        print task_attempt_output_update
         return self._patch_object(
-            task_run_attempt_output_update,
-            'task-run-attempt-outputs/%s/' % task_run_attempt_output_id)
+            task_attempt_output_update,
+            'task-attempt-outputs/%s/' % task_attempt_output_id)
 
-    def post_task_run_attempt_log_file(self, task_run_attempt_id, task_run_attempt_log_file):
+    def post_task_attempt_log_file(self, task_attempt_id, task_attempt_log_file):
         return self._post_object(
-            task_run_attempt_log_file,
-            'task-run-attempts/%s/task-run-attempt-log-files/' % task_run_attempt_id
+            task_attempt_log_file,
+            'task-attempts/%s/task-attempt-log-files/' % task_attempt_id
         )
 
-    def post_task_run_attempt_error(self, task_run_attempt_id, task_run_attempt_error):
+    def post_task_attempt_error(self, task_attempt_id, task_attempt_error):
         return self._post_object(
-            task_run_attempt_error,
-            'task-run-attempts/%s/task-run-attempt-errors/' % task_run_attempt_id
+            task_attempt_error,
+            'task-attempts/%s/task-attempt-errors/' % task_attempt_id
         )
 
     def post_abstract_file_import(self, file_import):
@@ -299,7 +299,7 @@ class Connection(object):
 
     def get_worker_settings(self, attempt_id):
         return self._get_object(
-            'task-run-attempts/%s/worker-settings/' % attempt_id
+            'task-attempts/%s/worker-settings/' % attempt_id
         )
 
     def get_filemanager_settings(self):

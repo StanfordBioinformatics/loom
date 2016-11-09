@@ -1,520 +1,319 @@
-import copy
+import os
 from django.test import TestCase
-from django.db import IntegrityError
-from django.db.models import ProtectedError
-
 from api.models.data_objects import *
-from api.serializers.data_objects import *
-from api.test import fixtures
-
-
-class TestDataObject(TestCase):
-
-    def testCreateAsSubclass(self):
-        content = BooleanContent(**fixtures.data_objects.boolean_content)
-        content.save()
-        boolean_data_object = copy.deepcopy(
-            fixtures.data_objects.boolean_data_object)
-        boolean_data_object['boolean_content'] = content
-        do = BooleanDataObject(**boolean_data_object)
-        do.save()
-        self.assertEqual(DataObject.objects.count(), 1)
-
-
-class TestDataObjectContent(TestCase):
-
-    def testCreateAsSubclass(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        self.assertEqual(DataObjectContent.objects.count(), 1)
-        self.assertEqual(StringContent.objects.count(), 1)
-
-    def testDeleteAsSubclass(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        content.delete()
-        self.assertEqual(DataObjectContent.objects.count(), 0)
-        self.assertEqual(StringContent.objects.count(), 0)
-
-    def testDeleteAsSuperclass(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        DataObjectContent.objects.first().delete()
-        self.assertEqual(DataObjectContent.objects.count(), 0)
-        self.assertEqual(StringContent.objects.count(), 0)
 
 
 class TestFileDataObject(TestCase):
 
-    def testCreate(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        do = FileDataObject(file_content=content, file_location=location)
-        do.save()
-        self.assertEqual(FileDataObject.objects.count(), 1)
-
-    def testDelete(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        do = FileDataObject(file_content=content, file_location=location)
-        do.save()
-        self.assertEqual(FileDataObject.objects.count(), 1)
-
-        do.delete()
-        self.assertEqual(FileDataObject.objects.count(), 0)
-        # Location should not be removed until disk space is freed.
-        self.assertEqual(FileLocation.objects.count(), 1) 
-        self.assertEqual(FileContent.objects.count(), 0)
-
-    def testAutoCreateLocation(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object_without_location)
-        s.is_valid()
-        file_data_object = s.save()
-        self.assertIsNotNone(file_data_object.file_location.url)
-
-    def testAddImplicitLinks(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object_without_location)
-        s.is_valid()
-        file_data_object = s.save()
-        self.assertEqual(
-            file_data_object.file_location.unnamed_file_content.id,
-            file_data_object.file_content.unnamed_file_content.id
+    def setUp(self):
+        self.filename = 'myfile.dat'
+        self.filename_copy = 'myfile.dat_copy'
+        self.filename2 = 'myfile2.dat'
+        
+        self.file = FileDataObject.objects.create(
+            type='file',
+            filename=self.filename,
+            source_type='imported',
+            note='Test data',
+            source_url='file:///data/'+self.filename,
+            md5='abcde'
+        )
+        self.file_copy = FileDataObject.objects.create(
+            type='file',
+            filename=self.filename_copy,
+            source_type='imported',
+            note='Test data',
+            source_url='file:///data/'+self.filename,
+            md5='abcde'
+        )
+        self.file2 = FileDataObject.objects.create(
+            type='file',
+            filename=self.filename2,
+            source_type='imported',
+            note='Test data',
+            source_url='file:///data/'+self.filename2,
+            md5='fghij'
         )
 
-    def testGetDisplayValue(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid()
-        file_data_object = s.save()
-
-        self.assertEqual(file_data_object.get_display_value(),
-                         '%s@%s' % (file_data_object.file_content.filename,
-                                    file_data_object.id.hex))
-
-    def testGetByDisplayValueNameAndId(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid()
-        file_data_object = s.save()
-
-        value = '%s@%s' % (file_data_object.file_content.filename,
-                           file_data_object.id.hex)
-        match = DataObject.get_by_value(value, 'file')
-        self.assertEqual(match.id, file_data_object.id)
-
-    def testGetByDisplayValueNameAndPartialId(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid()
-        file_data_object = s.save()
-
-        value = '%s@%s' % (file_data_object.file_content.filename,
-                           file_data_object.id.hex[0:5])
-        match = DataObject.get_by_value(value, 'file')
-        self.assertEqual(match.id, file_data_object.id)
-
-    def testGetByDisplayValueNameOnly(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid()
-        file_data_object = s.save()
-
-        value = '%s' % file_data_object.file_content.filename
-        match = DataObject.get_by_value(value, 'file')
-        self.assertEqual(match.id, file_data_object.id)
-
-    def testGetByDisplayValueIdOnly(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid()
-        file_data_object = s.save()
-
-        value = '%s' % file_data_object.file_content.filename
-        match = DataObject.get_by_value(value, 'file')
-        self.assertEqual(match.id, file_data_object.id)
-
-
-class TestFileContent(TestCase):
-    
-    def testCreate(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        self.assertEqual(FileContent.objects.count(), 1)
-
-    def testDelete(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        self.assertEqual(FileContent.objects.count(), 1)
-        self.assertEqual(UnnamedFileContent.objects.count(), 1)
-        content.delete()
-        self.assertEqual(FileContent.objects.count(), 0)
-        self.assertEqual(UnnamedFileContent.objects.count(), 0)
-
-
-class TestUnnamedFileContent(TestCase):
-    
-    def testCreate(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        self.assertEqual(UnnamedFileContent.objects.count(), 1)
-
-    def testDelete(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        self.assertEqual(UnnamedFileContent.objects.count(), 1)
-        u.delete()
-        self.assertEqual(UnnamedFileContent.objects.count(), 0)
-
-    def testDeleteProtected(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        with self.assertRaises(ProtectedError):
-            u.delete()
-        
-    def testUniqueConstraint(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-
-        # Cannot add another second identical object
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        with self.assertRaises(IntegrityError):
-            u.save()
-
-
-class TestFileLocation(TestCase):
-
-    def testCreate(self):
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        self.assertEqual(FileLocation.objects.count(), 1)
-
-    def testDelete(self):
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        self.assertEqual(FileLocation.objects.count(), 1)
-        location.delete()
-        self.assertEqual(FileLocation.objects.count(), 0)
-
-    def testDeleteProtected(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        do = FileDataObject(file_content=content, file_location=location)
-        do.save()
-        self.assertEqual(FileDataObject.objects.count(), 1)
-
-        with self.assertRaises(ProtectedError):
-            location.delete()
-
-    def testCreateLocationForImport(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid()
-        file_data_object = s.save()
-
-        with self.settings(KEEP_DUPLICATE_FILES=True, FORCE_RERUN=True):
-            location = FileLocation.create_location_for_import(
-                file_data_object)
-
-        self.assertTrue('imported' in location.url)
-        self.assertTrue(file_data_object.id.hex in location.url)
-
-        with self.settings(KEEP_DUPLICATE_FILES=True, FORCE_RERUN=False):
-            location = FileLocation.create_location_for_import(
-                file_data_object)
-
-        self.assertTrue('imported' not in location.url)
-        self.assertTrue(file_data_object.id.hex in location.url)
-
-        with self.settings(KEEP_DUPLICATE_FILES=False, FORCE_RERUN=True):
-            location = FileLocation.create_location_for_import(
-                file_data_object)
-
-        self.assertTrue('imported' not in location.url)
-        self.assertTrue(
-            file_data_object.file_content.unnamed_file_content.hash_value \
-            in location.url)
-
-        with self.settings(KEEP_DUPLICATE_FILES=False, FORCE_RERUN=False):
-            location = FileLocation.create_location_for_import(
-                file_data_object)
-
-        self.assertTrue('imported' not in location.url)
-        self.assertTrue(
-            file_data_object.file_content.unnamed_file_content.hash_value \
-            in location.url)
-
-    def testGetBrowsablePathForResult(self):
-        #TODO
-        pass
-
-    def testGetBrowsablePathForLog(self):
-        #TODO
-        pass
-
-
-class TestFileImport(TestCase):
-    
-    def testCreate(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        do = FileDataObject(file_content=content, file_location=location)
-        do.save()
-        self.assertEqual(FileDataObject.objects.count(), 1)
-
-        fi = FileImport(file_data_object=do,
-                        note='hey',
-                        source_url='file:///my/stuff')
-        fi.save()
-        self.assertEqual(FileImport.objects.count(), 1)
-
-    def testDeleteCascade(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        do = FileDataObject(file_content=content, file_location=location)
-        do.save()
-        self.assertEqual(FileDataObject.objects.count(), 1)
-
-        fi = FileImport(
-            file_data_object=do,
-            note='hey',
-            source_url='file:///my/stuff')
-        fi.save()
-
-        # Deleting data object cascades to delete import
-        do.delete()
-        self.assertEqual(FileImport.objects.count(), 0)
-
-    def testDelete(self):
-        u = UnnamedFileContent(**fixtures.data_objects.unnamed_file_content)
-        u.save()
-        content = FileContent(unnamed_file_content=u, filename='x')
-        content.save()
-        location = FileLocation(**fixtures.data_objects.file_location)
-        location.save()
-        do = FileDataObject(file_content=content, file_location=location)
-        do.save()
-        self.assertEqual(FileDataObject.objects.count(), 1)
-
-        fi = FileImport(file_data_object=do,
-                        note='hey',
-                        source_url='file:///my/stuff')
-        fi.save()
-
-        # Deleting import leaves data object untouched
-        fi.delete()
-        self.assertEqual(FileImport.objects.count(), 0)
-        self.assertEqual(FileDataObject.objects.count(), 1)
-
-
-class TestStringDataObject(TestCase):
-
-    def testCreate(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        string_data_object = copy.deepcopy(
-            fixtures.data_objects.string_data_object)
-        string_data_object['string_content'] = content
-        do = StringDataObject(**string_data_object)
-        do.save()
-
-        self.assertEqual(StringDataObject.objects.count(), 1)
-        
-    def testDelete(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        string_data_object = copy.deepcopy(
-            fixtures.data_objects.string_data_object)
-        string_data_object['string_content'] = content
-        do = StringDataObject(**string_data_object)
-        do.save()
-
-        do.delete()
-        self.assertEqual(StringDataObject.objects.count(), 0)
-        self.assertEqual(StringContent.objects.count(), 0)
-
-    def testGetDisplayValue(self):
-        s = DataObjectSerializer(
-            data=fixtures.data_objects.string_data_object)
-        s.is_valid()
-        data_object = s.save()
-
-        self.assertEqual(data_object.get_display_value(),
-                         data_object.string_content.string_value)
 
     def testGetByValue(self):
-        value = 3
-        do = DataObject.get_by_value(value, 'string')
-        self.assertEqual(str(do.get_display_value()),
-                        str(value))
+        file = DataObject.get_by_value(self.filename, 'file')
+        self.assertEqual(file.filename, self.filename)
 
-class TestStringContent(TestCase):
+    def testGetByValue_Name(self):
+        matches = FileDataObject.filter_by_name_or_id_or_hash(self.filename)
+        self.assertEqual(len(matches),1) 
+        self.assertTrue(matches[0].filename, self.filename)
 
-    def testCreate(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        self.assertEqual(content.string_value,
-                         fixtures.data_objects.string_content['string_value'])
+    def testGetByValue_ID(self):
+        matches = FileDataObject.filter_by_name_or_id_or_hash(
+            "@%s" % self.file.id.hex)
+        self.assertEqual(len(matches),1) 
+        self.assertTrue(matches[0].filename, self.filename)
 
-    def testDelete(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        self.assertEqual(StringContent.objects.count(), 1)
-        content.delete()
-        self.assertEqual(StringContent.objects.count(), 0)
-        
-    def testDeleteProtected(self):
-        content = StringContent(**fixtures.data_objects.string_content)
-        content.save()
-        string_data_object = copy.deepcopy(
-            fixtures.data_objects.string_data_object)
-        string_data_object['string_content'] = content
-        do = StringDataObject(**string_data_object)
-        do.save()
-        
-        self.assertEqual(StringContent.objects.count(), 1)
-        with self.assertRaises(ProtectedError):
-            content.delete()
-        self.assertEqual(StringContent.objects.count(), 1)
+    def testGetByValue_Hash(self):
+        matches = FileDataObject.filter_by_name_or_id_or_hash(
+            "$%s" % self.file.md5)
+        self.assertEqual(len(matches),2) 
+        self.assertTrue(matches[0].filename, self.filename)
+
+    def testGetByValue_NameHash(self):
+        matches = FileDataObject.filter_by_name_or_id_or_hash(
+            "%s$%s" % (self.filename, self.file.md5))
+        self.assertEqual(len(matches),1) 
+        self.assertTrue(matches[0].filename, self.filename)
+
+    def testGetByValue_NameId(self):
+        matches = FileDataObject.filter_by_name_or_id_or_hash(
+            "%s@%s" % (self.filename, self.file.id.hex))
+        self.assertEqual(len(matches),1) 
+        self.assertTrue(matches[0].filename, self.filename)
+
+    def testGetByValue_HashId(self):
+        matches = FileDataObject.filter_by_name_or_id_or_hash(
+            "@%s$%s" % (self.file.id.hex, self.file.md5))
+        self.assertEqual(len(matches),1) 
+        self.assertTrue(matches[0].filename, self.filename)
+
+    def testGetByValue_NameHashId(self):
+        query = "%s$%s@%s" % (self.filename, self.file.md5, self.file.id.hex)
+        matches = FileDataObject.filter_by_name_or_id_or_hash(
+            "%s$%s@%s" % (self.filename, self.file.md5, self.file.id.hex))
+        self.assertEqual(len(matches),1) 
+        self.assertTrue(matches[0].filename, self.filename)
+
+    def testSubstitutionValue(self):
+        self.assertEqual(self.file.substitution_value,
+                         self.filename)
+
+    def testCreateIncompleteResourceForImportKeepDuplicateTrue(self):
+        with self.settings(
+                KEEP_DUPLICATE_FILES=True):
+            self.file.create_incomplete_resource_for_import()
+            self.file_copy.create_incomplete_resource_for_import()
+
+        # Files should have separate resources, even if contents match
+        self.assertNotEqual(self.file.file_resource.id,
+                            self.file_copy.file_resource.id)
+
+    def testCreateIncompleteResourceForImportKeepDuplicateFalseUploadIncomplete(self):
+        with self.settings(
+                KEEP_DUPLICATE_FILES=False):
+            self.file.create_incomplete_resource_for_import()
+            self.file_copy.create_incomplete_resource_for_import()
+
+        # Files with matching content should not share a resource
+        # unless upload is complete
+        self.assertNotEqual(self.file.file_resource.id,
+                            self.file_copy.file_resource.id)
+
+    def testCreateIncompleteResourceForImportKeepDuplicateFalseUploadComplete(self):
+        with self.settings(
+                KEEP_DUPLICATE_FILES=False):
+            self.file.create_incomplete_resource_for_import()
+            self.file.file_resource.upload_status = 'complete'
+            self.file.file_resource.save()
+            self.file_copy.create_incomplete_resource_for_import()
+
+        # Files with matching content should share a resource
+        # provided upload on first resource was complete
+        self.assertEqual(self.file.file_resource.id,
+                         self.file_copy.file_resource.id)
+
+    def testAddUrlPrefixLocal(self):
+        path = '/my/path'
+        with self.settings(
+                FILE_SERVER_TYPE='LOCAL'):
+            url = FileResource._add_url_prefix(path)
+        self.assertEqual(url, 'file://'+path)
+
+    def testAddUrlPrefixGoogleStorage(self):
+        path = '/my/path'
+        bucket_id = 'mybucket'
+        with self.settings(
+                FILE_SERVER_TYPE='GOOGLE_CLOUD',
+                BUCKET_ID=bucket_id):
+            url = FileResource._add_url_prefix(path)
+        self.assertEqual(url, 'gs://'+bucket_id+path)
+
+    def testAddUrlPrefixRelativePathError(self):
+        path = 'relative/path'
+        with self.settings(
+                FILE_SERVER_TYPE='LOCAL'):
+            with self.assertRaises(RelativePathError):
+                FileResource._add_url_prefix(path)
+
+    def testAddUrlPrefixInvalidServerTypeError(self):
+        path = '/my/path'
+        with self.settings(
+                FILE_SERVER_TYPE='WRONG_VALUE'):
+            with self.assertRaises(InvalidFileServerTypeError):
+                FileResource._add_url_prefix(path)
+
+    def testGetBrowseablePathForImportedFile(self):
+        self.assertEqual(
+            FileResource._get_browsable_path(self.file),
+            'imported')
+
+    def testGetFileRoot(self):
+        file_root = '/mydata'
+        with self.settings(
+                FILE_ROOT=file_root):
+            self.assertEqual(FileResource._get_file_root(),
+                             file_root)
+
+    def testGetFileRootExpandUser(self):
+        file_root = '~/mydata'
+        with self.settings(
+                FILE_ROOT=file_root,
+                FILE_SERVER_TYPE='LOCAL'):
+            self.assertEqual(FileResource._get_file_root(),
+                             os.path.expanduser(file_root))
+
+    def testGetFileRootRelativeFileRootError(self):
+        file_root = 'mydata'
+        with self.settings(
+                FILE_ROOT=file_root):
+            with self.assertRaises(RelativeFileRootError):
+                FileResource._get_file_root()
+
+    def testGetPathForImportDuplicatesAndReruns(self):
+        file_root = '/mydata'
+        with self.settings(
+                KEEP_DUPLICATE_FILES=True,
+                FORCE_RERUN=True,
+                FILE_ROOT = file_root
+        ):
+            
+            path = FileResource._get_path_for_import(self.file)
+            self.assertTrue(
+                path.startswith(os.path.join(file_root, 'imported')))
+            self.assertTrue(
+                path.endswith('-%s-%s' % (self.file.id.hex,
+                                          self.file.filename)))
+
+    def testGetPathForImportDuplicatesNoReruns(self):
+        file_root = '/mydata'
+        with self.settings(
+                KEEP_DUPLICATE_FILES=True,
+                FORCE_RERUN=False,
+                FILE_ROOT = file_root
+        ):
+            
+            path = FileResource._get_path_for_import(self.file)
+            self.assertTrue(
+                path.startswith(os.path.join(file_root, 'imported')))
+            self.assertTrue(
+                path.endswith('-%s-%s' % (self.file.id.hex,
+                                          self.file.filename)))
+
+    def testGetPathForImportNoDuplicates(self):
+        file_root = '/mydata'
+        with self.settings(
+                KEEP_DUPLICATE_FILES=False,
+                FILE_ROOT = file_root,
+        ):
+            path = FileResource._get_path_for_import(self.file)
+            self.assertEqual(
+                path,
+                os.path.join(file_root,
+                             self.file.md5))
 
 
 class TestBooleanDataObject(TestCase):
 
-    def testCreate(self):
-        content = BooleanContent(**fixtures.data_objects.boolean_content)
-        content.save()
-        boolean_data_object = copy.deepcopy(
-            fixtures.data_objects.boolean_data_object)
-        boolean_data_object['boolean_content'] = content
-        do = BooleanDataObject(**boolean_data_object)
-        do.save()
+    value = True
+    
+    def testGetByValue(self):
+        data_object = DataObject.get_by_value(self.value, 'boolean')
+        self.assertEqual(data_object.value, self.value)
 
-        self.assertEqual(BooleanDataObject.objects.count(), 1)
-
-    def testDelete(self):
-        content = BooleanContent(**fixtures.data_objects.boolean_content)
-        content.save()
-        boolean_data_object = copy.deepcopy(
-            fixtures.data_objects.boolean_data_object)
-        boolean_data_object['boolean_content'] = content
-        do = BooleanDataObject(**boolean_data_object)
-        do.save()
-
-        do.delete()
-        self.assertEqual(BooleanDataObject.objects.count(), 0)
-        self.assertEqual(BooleanContent.objects.count(), 0)
+    def testSubstitutionValue(self):
+        boolean_data_object = BooleanDataObject.objects.create(
+            type='boolean', value=self.value)
+        data_object = DataObject.objects.get(id=boolean_data_object.id)
+        self.assertEqual(data_object.substitution_value, self.value)
 
 
-class TestBooleanContent(TestCase):
+class TestFloatDataObject(TestCase):
 
-    def testCreate(self):
-        content = BooleanContent(**fixtures.data_objects.boolean_content)
-        content.save()
-        self.assertEqual(
-            content.boolean_value,
-            fixtures.data_objects.boolean_content['boolean_value'])
+    value = 9.1
 
-    def testDelete(self):
-        content = BooleanContent(**fixtures.data_objects.boolean_content)
-        content.save()
-        self.assertEqual(BooleanContent.objects.count(), 1)
-        content.delete()
-        self.assertEqual(BooleanContent.objects.count(), 0)
-        
-    def testDeleteProtected(self):
-        content = BooleanContent(**fixtures.data_objects.boolean_content)
-        content.save()
-        boolean_data_object = copy.deepcopy(
-            fixtures.data_objects.boolean_data_object)
-        boolean_data_object['boolean_content'] = content
-        do = BooleanDataObject(**boolean_data_object)
-        do.save()
-        
-        self.assertEqual(BooleanContent.objects.count(), 1)
-        with self.assertRaises(ProtectedError):
-            content.delete()
-        self.assertEqual(BooleanContent.objects.count(), 1)
+    def testGetByValue(self):
+        data_object = DataObject.get_by_value(self.value, 'float')
+        self.assertEqual(data_object.value, self.value)
+
+    def testSubstitutionValue(self):
+        float_data_object = FloatDataObject.objects.create(
+            type='float', value=self.value)
+        data_object = DataObject.objects.get(id=float_data_object.id)
+        self.assertEqual(data_object.substitution_value, self.value)
 
 
 class TestIntegerDataObject(TestCase):
 
-    def testCreate(self):
-        content = IntegerContent(**fixtures.data_objects.integer_content)
-        content.save()
-        integer_data_object = copy.deepcopy(
-            fixtures.data_objects.integer_data_object)
-        integer_data_object['integer_content'] = content
-        do = IntegerDataObject(**integer_data_object)
-        do.save()
-        self.assertEqual(IntegerDataObject.objects.count(), 1)
+    value = 1000
 
-    def testDelete(self):
-        content = IntegerContent(**fixtures.data_objects.integer_content)
-        content.save()
-        integer_data_object = copy.deepcopy(
-            fixtures.data_objects.integer_data_object)
-        integer_data_object['integer_content'] = content
-        do = IntegerDataObject(**integer_data_object)
-        do.save()
+    def testGetByValue(self):
+        data_object = DataObject.get_by_value(self.value, 'integer')
+        self.assertEqual(data_object.value, self.value)
 
-        do.delete()
-        self.assertEqual(IntegerDataObject.objects.count(), 0)
-        self.assertEqual(IntegerContent.objects.count(), 0)
+    def testSubstitutionValue(self):
+        integer_data_object = IntegerDataObject.objects.create(
+            type='integer', value=self.value)
+        data_object = DataObject.objects.get(id=integer_data_object.id)
+        self.assertEqual(data_object.substitution_value, self.value)
 
 
-class TestIntegerContent(TestCase):
+class TestStringDataObject(TestCase):
 
-    def testCreate(self):
-        content = IntegerContent(**fixtures.data_objects.integer_content)
-        content.save()
-        self.assertEqual(
-            content.integer_value,
-            fixtures.data_objects.integer_content['integer_value'])
+    value = 'sprocket'
 
-    def testDelete(self):
-        content = IntegerContent(**fixtures.data_objects.integer_content)
-        content.save()
-        self.assertEqual(IntegerContent.objects.count(), 1)
-        content.delete()
-        self.assertEqual(IntegerContent.objects.count(), 0)
-        
-    def testDeleteProtected(self):
-        content = IntegerContent(**fixtures.data_objects.integer_content)
-        content.save()
-        integer_data_object = copy.deepcopy(
-            fixtures.data_objects.integer_data_object)
-        integer_data_object['integer_content'] = content
-        do = IntegerDataObject(**integer_data_object)
-        do.save()
-        
-        self.assertEqual(IntegerContent.objects.count(), 1)
-        with self.assertRaises(ProtectedError):
-            content.delete()
-        self.assertEqual(IntegerContent.objects.count(), 1)
+    def testGetByValue(self):
+        data_object = DataObject.get_by_value(self.value, 'string')
+        self.assertEqual(data_object.value, self.value)
+
+    def testSubstitutionValue(self):
+        string_data_object = StringDataObject.objects.create(
+            type='string', value=self.value)
+        data_object = DataObject.objects.get(id=string_data_object.id)
+        self.assertEqual(data_object.substitution_value, self.value)
+
+
+class TestArrayDataObject(TestCase):
+
+    def testSubstitutionValue(self):
+        values = [1,2,3]
+        data_object_list = [
+            DataObject.get_by_value(i, 'integer')
+            for i in values
+        ]
+        data_object_array = DataObjectArray.create_from_list(
+            data_object_list, 'integer')
+
+        self.assertEqual(data_object_array.substitution_value, values)
+
+    def testTypeMismatchError(self):
+        data_object_list = [
+            DataObject.get_by_value(3, 'integer'),
+            DataObject.get_by_value(False, 'boolean')
+        ]
+        with self.assertRaises(TypeMismatchError):
+            data_object_array = DataObjectArray.create_from_list(
+                data_object_list, 'integer')
+
+    def testNestedArraysError(self):
+        list1 = [
+            DataObject.get_by_value(3, 'integer'),
+            DataObject.get_by_value(5, 'integer')
+        ]
+        array1 = DataObjectArray.create_from_list(
+            list1, 'integer')
+
+        list2=[
+            DataObject.get_by_value(7, 'integer'),
+            array1
+        ]
+        with self.assertRaises(NestedArraysError):
+            array2 = DataObjectArray.create_from_list(
+                list2, 'integer')

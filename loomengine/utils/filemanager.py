@@ -159,9 +159,7 @@ class LocalSource(AbstractSource):
     def __init__(self, url, settings):
         self.url = _urlparse(url)
 
-    def calculate_hash_value(self, hash_function):
-        if not hash_function == 'md5':
-            raise Exception('Unsupported hash function %s' % hash_function)
+    def calculate_md5(self):
         return md5calc.calculate_md5sum(self.get_path())
 
     def get_url(self):
@@ -209,20 +207,11 @@ class GoogleStorageSource(AbstractSource):
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
 
 
-    def calculate_hash_value(self, hash_function):
-        if hash_function == 'md5':
-            return self._get_md5_hash_value()
-        elif hash_function == 'crcmod32c':
-            return self._get_crc32c_hash_value()
-        
-    def _get_md5_hash_value(self):
+    def calculate_md5(self):
         md5_base64 = self.blob.md5_hash
         md5_hex = md5_base64.decode('base64').encode('hex').strip()
         return md5_hex
 
-    def _get_crc32c_hash_value(self):
-        return self.blob.crc32c
-        
     def get_url(self):
         return self.url.geturl()
 
@@ -512,7 +501,7 @@ class FileManager:
 
         hash_function = self.settings['HASH_FUNCTION']
         self.logger.info('   calculating %s hash...' % hash_function)
-        hash_value = source.calculate_hash_value(hash_function)
+        md5 = source.calculate_md5()
 
         # Adding file_content will cause a file_location with status=incomplete
         # to be added to file_data_object
@@ -523,8 +512,7 @@ class FileManager:
         file_data_object = self._add_file_content_to_data_object(
             file_data_object,
             source.get_filename(),
-            hash_value,
-            hash_function
+            md5
         )
 
         if file_data_object['file_location']['status'] == 'complete':

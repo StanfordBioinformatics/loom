@@ -1,7 +1,7 @@
 from django.test import TestCase
 
-from api.test import fixtures
-from api.serializers.workflows import *
+from . import fixtures
+from api.serializers.templates import *
 
 class TestFixedStepInputSerializer(TestCase):
 
@@ -17,7 +17,7 @@ class TestFixedStepInputSerializer(TestCase):
         fixed_input = s.save()
         
         self.assertEqual(
-            fixed_input.data_object.string_content.string_value,
+            fixed_input.data_object.value,
             fixtures.workflows.fixed_step_input['data'])
 
 

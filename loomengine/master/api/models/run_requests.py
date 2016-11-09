@@ -8,7 +8,7 @@ from .base import BaseModel, BasePolymorphicModel
 from .input_output_nodes import InputOutputNode
 from .data_objects import DataObject
 from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
-from .workflows import Workflow
+from .workflows import Template
 from api import get_setting
 
 
@@ -19,17 +19,18 @@ class RunRequest(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    template = models.ForeignKey('AbstractWorkflow', on_delete=models.PROTECT)
+    datetime_finished = models.DateTimeField(null=True)
+    template = models.ForeignKey('Template', on_delete=models.PROTECT)
     run = models.OneToOneField('AbstractWorkflowRun',
                                null=True,
                                related_name='run_request',
                                on_delete=models.PROTECT)
-    is_running = models.BooleanField(default=True)
-    is_stopping = models.BooleanField(default=False)
-    is_hard_stop = models.BooleanField(default=False)
-    is_failed = models.BooleanField(default=False)
-    is_canceled = models.BooleanField(default=False)
-    is_completed = models.BooleanField(default=False)
+#    is_running = models.BooleanField(default=True)
+#    is_stopping = models.BooleanField(default=False)
+#    is_hard_stop = models.BooleanField(default=False)
+#    is_failed = models.BooleanField(default=False)
+#    is_canceled = models.BooleanField(default=False)
+#    is_completed = models.BooleanField(default=False)
 
     @property
     def status(self):
@@ -100,7 +101,7 @@ class RunRequestInput(InputOutputNode):
 
 
 class RunRequestOutput(InputOutputNode):
-    
+
     run_request = models.ForeignKey(
         'RunRequest',
         related_name='outputs',
