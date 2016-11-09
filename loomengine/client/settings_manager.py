@@ -113,7 +113,7 @@ def read_settings_from_file(settings_file, section):
     except Exception as e: 
         raise SettingsError("Failed to open settings file %s: %s" % (settings_file, e))
 
-    print "Loaded settings from %s." % settings_file
+    #print "Loaded settings from %s." % settings_file
     items = dict(config.items(section))
     return items
 
