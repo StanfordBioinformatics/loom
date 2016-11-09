@@ -314,7 +314,7 @@ class LocalServerControls(BaseServerControls):
         available to Django. Passing settings this way only works in local mode
         (the server is on the same machine as the client launching it).
         """
-        deploy_settings = settings_manager.read_deploy_settings()
+        deploy_settings = settings_manager.read_deploy_settings_file()
         expanded_deploy_settings = settings_manager.expand_user_dirs(deploy_settings)
         env.update(expanded_deploy_settings)
         return env
@@ -450,7 +450,7 @@ class GoogleCloudServerControls(BaseServerControls):
             if instance_name not in current_hosts:
                 print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
             else:
-                env = self.get_ansible_env()
+                env = settings_manager.get_ansible_env()
                 delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
                 if delete_returncode == 0:
                     print 'Instance successfully deleted.'
