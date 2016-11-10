@@ -7,7 +7,7 @@ from api.models.input_output_nodes import *
 
 
 # Value used to represent missing values in rendered data
-PLACEHOLDER_VALUE = ''
+PLACEHOLDER_VALUE = {}
 
 def _get_string_data_object(text):
     return StringDataObject.objects.create(
@@ -21,14 +21,17 @@ class TestInputOutputNode(TestCase):
         data = [["i"], ["a", "m"], ["r", "o", "b", "o", "t"]]
         io_node = InputOutputNode.objects.create(channel='test')
         io_node.add_data_objects(data, 'string')
-        self.assertEqual(io_node.data, data)
+        # Spot check
+        self.assertEqual(io_node.to_data_struct()[0][0]['value'], data[0][0])
+        self.assertEqual(io_node.to_data_struct()[2][3]['value'], data[2][3])
         
     def testAddDataObject(self):
         io_node = InputOutputNode.objects.create(channel='test')
         path = [(1,2), (0,1)]
         data_object = _get_string_data_object('text')
         io_node.add_data_object(path, data_object)
-        self.assertEqual(io_node.data,["", ["text"]])
+        self.assertEqual(io_node.to_data_struct()[0], PLACEHOLDER_VALUE)
+        self.assertEqual(io_node.to_data_struct()[1][0]['value'], 'text')
 
     def testConnect(self):
         io_node1 = InputOutputNode.objects.create(channel='test')
@@ -57,7 +60,7 @@ class TestInputOutputNode(TestCase):
 
     def testDataPropertyWithNoDataRoot(self):
         io_node = InputOutputNode.objects.create(channel='test')
-        self.assertEqual(io_node.data, '')
+        self.assertEqual(io_node.to_data_struct(), PLACEHOLDER_VALUE)
         
 class TestDataNode(TestCase):
 
@@ -80,11 +83,11 @@ class TestDataNode(TestCase):
             root.add_data_object(path, data_object)
 
         # spot check [['i'],['a','m'],['r','o','b','o','t']]
-        output_data = root.render()
-        self.assertEqual(output_data[0][0], 'i')
-        self.assertEqual(output_data[1][0], 'a')
-        self.assertEqual(output_data[1][1], 'm')
-        self.assertEqual(output_data[2][4], 't')
+        output_data = root.to_data_struct()
+        self.assertEqual(output_data[0][0]['value'], 'i')
+        self.assertEqual(output_data[1][0]['value'], 'a')
+        self.assertEqual(output_data[1][1]['value'], 'm')
+        self.assertEqual(output_data[2][4]['value'], 't')
 
     def testRenderWithMissingData(self):
         input_data=(
@@ -105,15 +108,15 @@ class TestDataNode(TestCase):
             root.add_data_object(path, data_object)
 
         # spot check [['i'],['a','m'],['r','o','b','o','t']]
-        output_data = root.render()
-        self.assertEqual(output_data[0][0], 'i')
+        output_data = root.to_data_struct()
+        self.assertEqual(output_data[0][0]['value'], 'i')
         self.assertEqual(output_data[1], PLACEHOLDER_VALUE)
         self.assertEqual(output_data[2][1], PLACEHOLDER_VALUE)
-        self.assertEqual(output_data[2][4], 't')
+        self.assertEqual(output_data[2][4]['value'], 't')
 
     def testRenderUninitialized(self):
         root = DataNode.objects.create()
-        self.assertEqual(root.render(), PLACEHOLDER_VALUE)
+        self.assertEqual(root.to_data_struct(), PLACEHOLDER_VALUE)
         
     def testAddScalarDataObject(self):
         root = DataNode.objects.create()
@@ -121,7 +124,7 @@ class TestDataNode(TestCase):
         data_object = _get_string_data_object(text)
         path = []
         root.add_data_object(path, data_object)
-        self.assertEqual(root.render(), text)
+        self.assertEqual(root.to_data_struct()['value'], text)
         
     def testAddScalarDataObjectTwice(self):
         root = DataNode.objects.create()
@@ -164,17 +167,17 @@ class TestDataNode(TestCase):
         root = DataNode.objects.create()
         root.add_data_objects(data, 'string')
         # spot check [['i'],['a','m'],['r','o','b','o','t']]
-        output_data = root.render()
-        self.assertEqual(output_data[0][0], 'i')
-        self.assertEqual(output_data[1][0], 'a')
-        self.assertEqual(output_data[1][1], 'm')
-        self.assertEqual(output_data[2][4], 't')
+        output_data = root.to_data_struct()
+        self.assertEqual(output_data[0][0]['value'], 'i')
+        self.assertEqual(output_data[1][0]['value'], 'a')
+        self.assertEqual(output_data[1][1]['value'], 'm')
+        self.assertEqual(output_data[2][4]['value'], 't')
 
     def testAddDataObjectsWithString(self):
         root = DataNode.objects.create()
         input_string = 'just a string'
         root.add_data_objects(input_string, 'string')
-        self.assertEqual(root.render(), input_string)
+        self.assertEqual(root.to_data_struct()['value'], input_string)
 
     def testIndexOutOfRangeError(self):
         degree = 2

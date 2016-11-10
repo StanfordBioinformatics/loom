@@ -92,7 +92,6 @@ setup(
                         'Django==1.10.3',
                         'django-cors-headers==1.2.2',
                         'django-extensions==1.7.4',
-                        'django-polymorphic==1.0.2',
                         'djangorestframework==3.5.1',
                         'docker-py==1.10.5',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
                         'gcloud==0.18.3',

@@ -18,8 +18,56 @@ environment, while Workflows are collections of other Steps
 or Workflows.
 """
 
+class WorkflowManager(object):
+
+    def __init__(self, template):
+        assert template.type == 'workflow'
+        self.template = template
+
+    def get_inputs(self):
+        return self.template.workflow.inputs
+
+    def get_fixed_inputs(self):
+        return self.template.workflow.fixed_inputs
+
+    def get_outputs(self):
+        return self.template.workflow.outputs
+
+    def get_resources(self):
+        raise Exception('No resources on template of type "workflow"')
+
+    def get_environment(self):
+        raise Exception('No environment on template of type "workflow"')
+
+
+class StepManager(object):
+
+    def __init__(self, template):
+        assert template.type == 'step'
+        self.template = template
+
+    def get_inputs(self):
+        return self.template.step.inputs
+
+    def get_fixed_inputs(self):
+        return self.template.step.fixed_inputs
+
+    def get_outputs(self):
+        return self.template.step.outputs
+
+    def get_resources(self):
+        return self.template.step.resources
+
+    def get_environment(self):
+        return self.template.step.environment
+
 
 class Template(BaseModel):
+
+    _MANAGER_CLASSES = {
+        'step': StepManager,
+        'workflow': WorkflowManager
+    }
 
     NAME_FIELD = 'name'
 
@@ -31,6 +79,33 @@ class Template(BaseModel):
                                             editable=False)
     name = models.CharField(max_length=255)
 
+    @classmethod
+    def _get_manager_class(cls, type):
+        return cls._MANAGER_CLASSES[type]
+
+    def _get_manager(self):
+        return self._get_manager_class(self.type)(self)
+    
+    @property
+    def inputs(self):
+        return self._get_manager().get_inputs()
+
+    @property
+    def fixed_inputs(self):
+        return self._get_manager().get_fixed_inputs()
+
+    @property
+    def outputs(self):
+        return self._get_manager().get_outputs()
+
+    @property
+    def resources(self):
+        return self._get_manager().get_resources()
+
+    @property
+    def environment(self):
+        return self._get_manager().get_environment()
+
     def get_name_and_id(self):
         return "%s@%s" % (self.name, self.id.hex)
 
@@ -40,9 +115,11 @@ class Template(BaseModel):
         return inputs.first()
 
     def get_input(self, channel):
-        inputs = self.inputs.filter(channel=channel)
-        assert inputs.count()
-        return inputs.first()
+        inputs = [i for i in self.inputs.filter(channel=channel)]
+        inputs.extend([i for i in self.fixed_inputs.filter(
+            channel=channel)])
+        assert len(inputs) == 1
+        return inputs[0]
 
     def get_output(self, channel):
         outputs = self.outputs.filter(channel=channel)
@@ -59,6 +136,9 @@ class Workflow(Template):
 
     def add_steps(self, step_list):
         WorkflowMembership.add_steps_to_workflow(step_list, self)
+
+    def get_steps(self):
+        return [member.child_template for member in self.children.all()]
 
     def validate(self):
         pass
@@ -85,7 +165,7 @@ class WorkflowInput(models.Model):
                                  related_name='inputs',
                                  on_delete=models.CASCADE)
     hint = models.CharField(max_length=255, null=True)
-
+    
     class Meta:
         app_label='api'
 
@@ -102,9 +182,6 @@ class FixedWorkflowInput(models.Model):
         'Workflow',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
-
-    def data(self):
-        return self.data_object.get_display_value()
 
     class Meta:
         app_label='api'
@@ -140,19 +217,15 @@ class Step(Template):
         pass
 
 
-class RequestedEnvironment(BaseModel):
+class StepEnvironment(BaseModel):
 
     step = models.OneToOneField('Step',
                                 on_delete=models.CASCADE,
                                 related_name='environment')
-
-
-class RequestedDockerEnvironment(RequestedEnvironment):
-
     docker_image = models.CharField(max_length=255)
 
 
-class RequestedResourceSet(BaseModel):
+class StepResourceSet(BaseModel):
 
     step = models.OneToOneField('Step',
                                 on_delete=models.CASCADE,
@@ -194,9 +267,6 @@ class FixedStepInput(models.Model):
         on_delete=models.CASCADE)
     mode = models.CharField(max_length=255, default='no_gather')
     group = models.IntegerField(default=0)
-
-    def data(self):
-        return self.data_object.get_display_value()
 
     class Meta:
         app_label='api'

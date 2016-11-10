@@ -11,7 +11,6 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contenttypes', '0002_remove_content_type_name'),
     ]
 
     operations = [
@@ -76,6 +75,21 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
+            name='FixedStepRunInput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('mode', models.CharField(max_length=255)),
+                ('group', models.IntegerField()),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='FixedWorkflowInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -84,12 +98,12 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name='InputOutputNode',
+            name='FixedWorkflowRunInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('channel', models.CharField(max_length=255)),
-                ('data_root', models.ForeignKey(related_name='input_output_nodes', to='api.DataNode', null=True)),
-                ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_api.inputoutputnode_set+', editable=False, to='contenttypes.ContentType', null=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
             ],
             options={
                 'abstract': False,
@@ -97,9 +111,14 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
-            name='RequestedEnvironment',
+            name='Run',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('type', models.CharField(max_length=255, choices=[(b'step', b'Step'), (b'workflow', b'Workflow')])),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
+                ('datetime_finished', models.DateTimeField(null=True)),
+                ('status', models.CharField(default=b'', max_length=255)),
+                ('name', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -107,12 +126,50 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
-            name='RequestedResourceSet',
+            name='RunRequest',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('datetime_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
+                ('datetime_finished', models.DateTimeField(null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='RunRequestInput',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('memory', models.CharField(max_length=255, null=True)),
-                ('disk_size', models.CharField(max_length=255, null=True)),
-                ('cores', models.CharField(max_length=255, null=True)),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
+                ('run_request', models.ForeignKey(related_name='inputs', to='api.RunRequest')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='RunRequestOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
+                ('run_request', models.ForeignKey(related_name='outputs', to='api.RunRequest')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepEnvironment',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('docker_image', models.CharField(max_length=255)),
             ],
             options={
                 'abstract': False,
@@ -146,6 +203,85 @@ class Migration(migrations.Migration):
                 ('filename', models.CharField(max_length=1024, null=True)),
                 ('stream', models.CharField(max_length=255, null=True)),
                 ('output', models.OneToOneField(related_name='source', to='api.StepOutput')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepResourceSet',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('memory', models.CharField(max_length=255, null=True)),
+                ('disk_size', models.CharField(max_length=255, null=True)),
+                ('cores', models.CharField(max_length=255, null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepRunEnvironment',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('docker_image', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepRunInput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('mode', models.CharField(max_length=255)),
+                ('group', models.IntegerField()),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepRunOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('mode', models.CharField(max_length=255)),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepRunOutputSource',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('filename', models.CharField(max_length=1024, null=True)),
+                ('stream', models.CharField(max_length=255, null=True)),
+                ('output', models.OneToOneField(related_name='source', to='api.StepRunOutput')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='StepRunResourceSet',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('memory', models.CharField(max_length=255, null=True)),
+                ('disk_size', models.CharField(max_length=255, null=True)),
+                ('cores', models.CharField(max_length=255, null=True)),
             ],
             options={
                 'abstract': False,
@@ -333,6 +469,32 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
         ),
         migrations.CreateModel(
+            name='WorkflowRunInput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
+            name='WorkflowRunOutput',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('channel', models.CharField(max_length=255)),
+                ('type', models.CharField(max_length=255, choices=[(b'boolean', b'Boolean'), (b'file', b'File'), (b'float', b'Float'), (b'integer', b'Integer'), (b'string', b'String')])),
+                ('data_root', models.ForeignKey(to='api.DataNode', null=True)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._ModelNameMixin, api.models.base._FilterMixin),
+        ),
+        migrations.CreateModel(
             name='BooleanDataObject',
             fields=[
                 ('dataobject_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.DataObject')),
@@ -382,17 +544,6 @@ class Migration(migrations.Migration):
             bases=('api.dataobject',),
         ),
         migrations.CreateModel(
-            name='RequestedDockerEnvironment',
-            fields=[
-                ('requestedenvironment_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.RequestedEnvironment')),
-                ('docker_image', models.CharField(max_length=255)),
-            ],
-            options={
-                'abstract': False,
-            },
-            bases=('api.requestedenvironment',),
-        ),
-        migrations.CreateModel(
             name='Step',
             fields=[
                 ('template_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.Template')),
@@ -403,6 +554,18 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('api.template',),
+        ),
+        migrations.CreateModel(
+            name='StepRun',
+            fields=[
+                ('run_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.Run')),
+                ('command', models.TextField()),
+                ('interpreter', models.CharField(max_length=255)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('api.run',),
         ),
         migrations.CreateModel(
             name='StringDataObject',
@@ -435,6 +598,16 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('api.template',),
+        ),
+        migrations.CreateModel(
+            name='WorkflowRun',
+            fields=[
+                ('run_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='api.Run')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('api.run',),
         ),
         migrations.AddField(
             model_name='workflowmembership',
@@ -497,6 +670,21 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='log_files', to='api.TaskAttempt'),
         ),
         migrations.AddField(
+            model_name='runrequest',
+            name='run',
+            field=models.OneToOneField(related_name='run_request', null=True, on_delete=django.db.models.deletion.PROTECT, to='api.Run'),
+        ),
+        migrations.AddField(
+            model_name='runrequest',
+            name='template',
+            field=models.ForeignKey(to='api.Template', on_delete=django.db.models.deletion.PROTECT),
+        ),
+        migrations.AddField(
+            model_name='run',
+            name='template',
+            field=models.ForeignKey(related_name='runs', on_delete=django.db.models.deletion.PROTECT, to='api.Template', null=True),
+        ),
+        migrations.AddField(
             model_name='fixedworkflowinput',
             name='data_object',
             field=models.ForeignKey(to='api.DataObject'),
@@ -527,6 +715,16 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='in_arrays', to='api.DataObject'),
         ),
         migrations.AddField(
+            model_name='workflowrunoutput',
+            name='workflow_run',
+            field=models.ForeignKey(related_name='outputs', to='api.WorkflowRun'),
+        ),
+        migrations.AddField(
+            model_name='workflowruninput',
+            name='workflow_run',
+            field=models.ForeignKey(related_name='inputs', to='api.WorkflowRun'),
+        ),
+        migrations.AddField(
             model_name='workflowoutput',
             name='workflow',
             field=models.ForeignKey(related_name='outputs', to='api.Workflow'),
@@ -542,6 +740,36 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='inputs', to='api.Workflow'),
         ),
         migrations.AddField(
+            model_name='task',
+            name='step_run',
+            field=models.ForeignKey(related_name='tasks', to='api.StepRun', null=True),
+        ),
+        migrations.AddField(
+            model_name='steprunresourceset',
+            name='step_run',
+            field=models.OneToOneField(related_name='resources', to='api.StepRun'),
+        ),
+        migrations.AddField(
+            model_name='steprunoutput',
+            name='step_run',
+            field=models.ForeignKey(related_name='outputs', to='api.StepRun'),
+        ),
+        migrations.AddField(
+            model_name='stepruninput',
+            name='step_run',
+            field=models.ForeignKey(related_name='inputs', to='api.StepRun'),
+        ),
+        migrations.AddField(
+            model_name='steprunenvironment',
+            name='step_run',
+            field=models.OneToOneField(related_name='environment', to='api.StepRun'),
+        ),
+        migrations.AddField(
+            model_name='stepresourceset',
+            name='step',
+            field=models.OneToOneField(related_name='resources', to='api.Step'),
+        ),
+        migrations.AddField(
             model_name='stepoutput',
             name='step',
             field=models.ForeignKey(related_name='outputs', to='api.Step'),
@@ -552,19 +780,29 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='inputs', to='api.Step'),
         ),
         migrations.AddField(
-            model_name='requestedresourceset',
-            name='step',
-            field=models.OneToOneField(related_name='resources', to='api.Step'),
-        ),
-        migrations.AddField(
-            model_name='requestedenvironment',
+            model_name='stepenvironment',
             name='step',
             field=models.OneToOneField(related_name='environment', to='api.Step'),
+        ),
+        migrations.AddField(
+            model_name='run',
+            name='parent',
+            field=models.ForeignKey(related_name='steps', to='api.WorkflowRun', null=True),
+        ),
+        migrations.AddField(
+            model_name='fixedworkflowruninput',
+            name='workflow_run',
+            field=models.ForeignKey(related_name='fixed_inputs', to='api.WorkflowRun'),
         ),
         migrations.AddField(
             model_name='fixedworkflowinput',
             name='workflow',
             field=models.ForeignKey(related_name='fixed_inputs', to='api.Workflow'),
+        ),
+        migrations.AddField(
+            model_name='fixedstepruninput',
+            name='step_run',
+            field=models.ForeignKey(related_name='fixed_inputs', to='api.StepRun'),
         ),
         migrations.AddField(
             model_name='fixedstepinput',

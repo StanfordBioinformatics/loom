@@ -49,13 +49,13 @@ hash_2 = {
 
 file_resource = {
     'upload_status': 'complete',
-    'url': 'file:///absolute/path/to/my/file.txt',
+    'file_url': 'file:///absolute/path/to/my/file.txt',
     'md5': 'xqrtv',
 }
 
 file_resource_2 = {
     'upload_status': 'incomplete',
-    'url': 'file:///absolute/path/to/my/file2.txt',
+    'file_url': 'file:///absolute/path/to/my/file2.txt',
     'md5': 'jklmno'
 }
 

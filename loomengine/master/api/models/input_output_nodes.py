@@ -2,7 +2,7 @@ import copy
 import json
 import jsonschema
 
-from .base import BaseModel, BasePolymorphicModel
+from .base import BaseModel
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -43,22 +43,23 @@ class ConnectError(Exception):
 
 
 # value to be rendered for missing branches
-PLACEHOLDER_VALUE = ''
+PLACEHOLDER_VALUE = {}
 
 
-class InputOutputNode(BasePolymorphicModel):
+class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
     data_root = models.ForeignKey('DataNode',
-                                  related_name='input_output_nodes',
                                   null=True)
+    type = models.CharField(
+        max_length=255,
+        choices=DataObject.TYPE_CHOICES)
 
-    @property
-    def data(self):
-        # Return a string representation of the data tree
+    def to_data_struct(self):
+        # Return a JSON representation of the data tree
         if self.data_root is None:
             return PLACEHOLDER_VALUE
         else:
-            return self.data_root.render()
+            return self.data_root.to_data_struct()
 
     def get_data_as_scalar(self):
         # This function is a temporary patch to run without parallel
@@ -127,6 +128,9 @@ class InputOutputNode(BasePolymorphicModel):
         elif connected_node.data_root is None:
             connected_node.data_root = self.data_root
             connected_node.save()
+
+    class Meta:
+        abstract = True
 
 
 class DataNode(BaseModel):
@@ -280,15 +284,15 @@ class DataNode(BaseModel):
                 self._extend_all_paths_and_add_data_at_leaves(
                     data[i], path_i, data_type)
 
-    def render(self):
+    def to_data_struct(self):
         if self._is_uninitialized():
             return PLACEHOLDER_VALUE
         if self._is_leaf():
-            return self.data_object.display_value
+            return self.data_object.to_data_struct()
         else:
             data = [PLACEHOLDER_VALUE] * self.degree
             for child in self.children.all():
-                data[child.index] = child.render()
+                data[child.index] = child.to_data_struct()
             return data
 
 class InputNodeSet(object):

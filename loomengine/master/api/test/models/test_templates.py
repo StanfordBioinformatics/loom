@@ -7,9 +7,9 @@ class TestTemplate(TestCase):
     def _get_step_one(self):
         step_one = Step.objects.create(name='step_one',
                                        command='echo {{one}} {{two}} > three)')
-        RequestedDockerEnvironment.objects.create(step=step_one,
+        StepEnvironment.objects.create(step=step_one,
                                                   docker_image='ubuntu')
-        RequestedResourceSet.objects.create(step=step_one, memory=6, cores=1)
+        StepResourceSet.objects.create(step=step_one, memory=6, cores=1)
         input_one = StepInput.objects.create(
             step=step_one, channel='one', type='string')
         data_object = StringDataObject.objects.create(
@@ -28,9 +28,9 @@ class TestTemplate(TestCase):
     def _get_step_two(self):
         step_two = Step.objects.create(name='step_two',
                                        command='echo {{three}} "!" > {{four}})')
-        RequestedDockerEnvironment.objects.create(step=step_two,
+        StepEnvironment.objects.create(step=step_two,
                                                   docker_image='ubuntu')
-        RequestedResourceSet.objects.create(step=step_two, memory=6, cores=1)
+        StepResourceSet.objects.create(step=step_two, memory=6, cores=1)
 
         input_three = StepInput.objects.create(
             step=step_two, channel='three', type='string')
@@ -59,9 +59,3 @@ class TestTemplate(TestCase):
 
         self.assertEqual(workflow.children.all()[0].child_template.name, 'step_one')
         self.assertEqual(workflow.children.all()[1].child_template.name, 'step_two')
-
-        # Verify that input data to run_request is shared with input node for step
-#        step_one = run_request.run.step_runs.all().get(
-#            steprun__template__name='step_one')
-#        data = step_one.inputs.first().data
-#        self.assertEqual(data, 'one')

@@ -151,8 +151,8 @@ class TestFileResourceSerializer(TestCase):
         s.is_valid()
         m = s.save()
 
-        self.assertEqual(m.url,
-                         fixtures.data_objects.file_resource['url'])
+        self.assertEqual(m.file_url,
+                         fixtures.data_objects.file_resource['file_url'])
 
 
 class TestFileDataObjectSerializer(TestCase):

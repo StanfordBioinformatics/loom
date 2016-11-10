@@ -1,6 +1,5 @@
 from django.db import models
 import jinja2
-from polymorphic.models import PolymorphicModel, PolymorphicManager
 import re
 
 from api.exceptions import *
@@ -124,10 +123,6 @@ class FilterHelper(object):
 
 class _FilterMixin(object):
 
-    # This functionality logically belongs in a Manager class,
-    # instead of on the Model, but custom managers conflict with
-    # django-polymorphic
-
     NAME_FIELD = None
 
     @classmethod
@@ -146,13 +141,6 @@ class _FilterMixin(object):
 
 
 class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):
-
-    class Meta:
-        abstract = True
-        app_label = 'api'
-
-
-class BasePolymorphicModel(PolymorphicModel, _ModelNameMixin, _FilterMixin):
 
     class Meta:
         abstract = True

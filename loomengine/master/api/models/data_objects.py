@@ -12,6 +12,8 @@ class TypeMismatchError(Exception):
     pass
 class NestedArraysError(Exception):
     pass
+class NonArrayError(Exception):
+    pass
 class InvalidFileServerTypeError(Exception):
     pass
 class RelativePathError(Exception):
@@ -41,8 +43,12 @@ class BooleanDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.booleandataobject.value
 
-    def get_display_value(self):
-        return self.model.booleandataobject.value
+    def to_data_struct(self):
+        return {
+            'id': self.model.id.hex,
+            'type': self.model.type,
+            'value': self.model.booleandataobject.value,
+        }
 
     def is_ready(self):
         return True
@@ -62,10 +68,14 @@ class FileDataObjectManager(DataObjectManager):
         return matches.first()
 
     def get_substitution_value(self):
-        return self.model.filename
+        return self.model.filedataobject.filename
 
-    def get_display_value(self):
-        return '%s@%s' % (self.model.id, self.model.filename)
+    def to_data_struct(self):
+        return {
+            'id': self.model.id.hex,
+            'type': self.model.type,
+            'value': '%s@%s' % (self.model.filedataobject.filename, self.model.id.hex)
+        }
 
     def is_ready(self):
         resource = self.model.filedataobject.file_resource
@@ -80,8 +90,12 @@ class FloatDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.floatdataobject.value
 
-    def get_display_value(self):
-        return self.model.floatdataobject.value
+    def to_data_struct(self):
+        return {
+            'id': self.model.id.hex,
+            'type': self.model.type,
+            'value': self.model.floatdataobject.value,
+        }
 
     def is_ready(self):
         return True
@@ -96,8 +110,12 @@ class IntegerDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.integerdataobject.value
 
-    def get_display_value(self):
-        return self.model.integerdataobject.value
+    def to_data_struct(self):
+        return {
+            'id': self.model.id.hex,
+            'type': self.model.type,
+            'value': self.model.integerdataobject.value,
+        }
 
     def is_ready(self):
         return True
@@ -112,8 +130,12 @@ class StringDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.stringdataobject.value
 
-    def get_display_value(self):
-        return self.model.stringdataobject.value
+    def to_data_struct(self):
+        return {
+            'id': self.model.id.hex,
+            'type': self.model.type,
+            'value': self.model.stringdataobject.value,
+        }
 
     def is_ready(self):
         return True
@@ -125,9 +147,8 @@ class DataObjectArrayManager(DataObjectManager):
         return [member.item.substitution_value
                 for member in self.model.array_members.all()]
 
-    def get_display_value(self):
-        return [member.item.display_value
-                for member in self.model.array_members.all()]
+    def to_data_struct(self):
+        raise Exception('Not supported for arrays')
 
     def is_ready(self):
         return all([member.item.is_ready()
@@ -181,17 +202,14 @@ class DataObject(BaseModel):
     def substitution_value(self):
         return self._get_manager().get_substitution_value()
 
-    @property
-    def display_value(self):
-        return self._get_manager().get_display_value()
-
-    def add_members(self, members):
-        if not self.is_array:
-            raise Exception('Cannot add members when is_array=False')
-        for member in members:
-            member.add_to_array(self)
+    def to_data_struct(self):
+        return self._get_manager().to_data_struct()
     
     def add_to_array(self, array):
+        if not array.is_array:
+            raise NonArrayError('Cannot add members when is_array=False')
+        if self.is_array:
+            raise NestedArraysError('Cannot nest DataObjectArrays')
         ArrayMembership.objects.create(
             array=array, item=self, order=array.array_members.count())
 
@@ -236,11 +254,12 @@ class FileDataObject(DataObject):
                 if matching_file_resources.count() > 0:
                     self.file_resource = matching_file_resources.first()
                     self.save()
-                    return
+                    return self.file_resource
             # No existing file to use. Create a new resource for upload.
             self.file_resource \
                 = FileResource.create_incomplete_resource_for_import(self)
             self.save()
+            return self.file_resource
 
 
 class FloatDataObject(DataObject):

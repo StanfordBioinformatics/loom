@@ -4,11 +4,11 @@ from django.dispatch import receiver
 from django.utils import timezone
 import uuid
 
-from .base import BaseModel, BasePolymorphicModel
+from .base import BaseModel
 from .input_output_nodes import InputOutputNode
 from .data_objects import DataObject
-from .workflow_runs import AbstractWorkflowRun, StepRun, WorkflowRun
-from .workflows import Template
+from .runs import Run
+from .templates import Template
 from api import get_setting
 
 
@@ -21,7 +21,7 @@ class RunRequest(BaseModel):
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True)
     template = models.ForeignKey('Template', on_delete=models.PROTECT)
-    run = models.OneToOneField('AbstractWorkflowRun',
+    run = models.OneToOneField('Run',
                                null=True,
                                related_name='run_request',
                                on_delete=models.PROTECT)
@@ -35,7 +35,8 @@ class RunRequest(BaseModel):
     @property
     def status(self):
         return self.run.status
-    
+
+    @property
     def name(self):
         return self.template.name
 
@@ -46,8 +47,7 @@ class RunRequest(BaseModel):
         self.connect_channels()
 
     def _initialize_run(self):
-        self.run = AbstractWorkflowRun.create_from_template(self.template)
-        self.run.initialize()
+        self.run = Run.create_from_template(self.template)
         self.save()
 
     def _initialize_outputs(self):
@@ -95,9 +95,6 @@ class RunRequestInput(InputOutputNode):
         'RunRequest',
         related_name='inputs',
         on_delete=models.CASCADE)
-
-    def get_type(self):
-        return self.run_request.run.get_input(self.channel).type
 
 
 class RunRequestOutput(InputOutputNode):

@@ -9,7 +9,7 @@ class TestFileDataObject(TestCase):
         self.filename = 'myfile.dat'
         self.filename_copy = 'myfile.dat_copy'
         self.filename2 = 'myfile2.dat'
-        
+
         self.file = FileDataObject.objects.create(
             type='file',
             filename=self.filename,
@@ -18,6 +18,7 @@ class TestFileDataObject(TestCase):
             source_url='file:///data/'+self.filename,
             md5='abcde'
         )
+        # Same content, different name
         self.file_copy = FileDataObject.objects.create(
             type='file',
             filename=self.filename_copy,
@@ -34,11 +35,27 @@ class TestFileDataObject(TestCase):
             source_url='file:///data/'+self.filename2,
             md5='fghij'
         )
-
+        # Same content, same name
+        self.file2_duplicate = FileDataObject.objects.create(
+            type='file',
+            filename=self.filename2,
+            source_type='imported',
+            note='Test data',
+            source_url='file:///data/'+self.filename2,
+            md5='fghij'
+        )
 
     def testGetByValue(self):
         file = DataObject.get_by_value(self.filename, 'file')
         self.assertEqual(file.filename, self.filename)
+
+    def testGetByValueNoMatchError(self):
+        with self.assertRaises(NoMatchError):
+            file = DataObject.get_by_value('nonexistent_filename', 'file')
+
+    def testGetByValueMultipleMatchesError(self):
+        with self.assertRaises(MultipleMatchesError):
+            file = DataObject.get_by_value(self.filename2, 'file')
 
     def testGetByValue_Name(self):
         matches = FileDataObject.filter_by_name_or_id_or_hash(self.filename)
@@ -85,6 +102,17 @@ class TestFileDataObject(TestCase):
     def testSubstitutionValue(self):
         self.assertEqual(self.file.substitution_value,
                          self.filename)
+
+    def testIsReady(self):
+        with self.settings(
+                KEEP_DUPLICATE_FILES=True):
+            file_resource = self.file.create_incomplete_resource_for_import()
+
+        self.assertFalse(self.file.is_ready())
+        file_resource.upload_status = 'complete'
+        file_resource.save()
+        file = DataObject.objects.get(id=self.file.id)
+        self.assertTrue(file.is_ready())
 
     def testCreateIncompleteResourceForImportKeepDuplicateTrue(self):
         with self.settings(
@@ -234,6 +262,12 @@ class TestBooleanDataObject(TestCase):
         data_object = DataObject.objects.get(id=boolean_data_object.id)
         self.assertEqual(data_object.substitution_value, self.value)
 
+    def testIsReady(self):
+        boolean_data_object = BooleanDataObject.objects.create(
+            type='boolean', value=self.value)
+        data_object = DataObject.objects.get(id=boolean_data_object.id)
+        self.assertTrue(data_object.is_ready())
+        
 
 class TestFloatDataObject(TestCase):
 
@@ -248,6 +282,12 @@ class TestFloatDataObject(TestCase):
             type='float', value=self.value)
         data_object = DataObject.objects.get(id=float_data_object.id)
         self.assertEqual(data_object.substitution_value, self.value)
+
+    def testIsReady(self):
+        float_data_object = FloatDataObject.objects.create(
+            type='float', value=self.value)
+        data_object = DataObject.objects.get(id=float_data_object.id)
+        self.assertTrue(data_object.is_ready())
 
 
 class TestIntegerDataObject(TestCase):
@@ -264,6 +304,12 @@ class TestIntegerDataObject(TestCase):
         data_object = DataObject.objects.get(id=integer_data_object.id)
         self.assertEqual(data_object.substitution_value, self.value)
 
+    def testIsReady(self):
+        integer_data_object = IntegerDataObject.objects.create(
+            type='integer', value=self.value)
+        data_object = DataObject.objects.get(id=integer_data_object.id)
+        self.assertTrue(data_object.is_ready())
+
 
 class TestStringDataObject(TestCase):
 
@@ -279,6 +325,12 @@ class TestStringDataObject(TestCase):
         data_object = DataObject.objects.get(id=string_data_object.id)
         self.assertEqual(data_object.substitution_value, self.value)
 
+    def testIsReady(self):
+        string_data_object = StringDataObject.objects.create(
+            type='string', value=self.value)
+        data_object = DataObject.objects.get(id=string_data_object.id)
+        self.assertTrue(data_object.is_ready())
+
 
 class TestArrayDataObject(TestCase):
 
@@ -293,6 +345,16 @@ class TestArrayDataObject(TestCase):
 
         self.assertEqual(data_object_array.substitution_value, values)
 
+    def testIsReady(self):
+        values = [1,2,3]
+        data_object_list = [
+            DataObject.get_by_value(i, 'integer')
+            for i in values
+        ]
+        data_object_array = DataObjectArray.create_from_list(
+            data_object_list, 'integer')
+        self.assertTrue(data_object_array.is_ready())
+
     def testTypeMismatchError(self):
         data_object_list = [
             DataObject.get_by_value(3, 'integer'),
@@ -302,7 +364,25 @@ class TestArrayDataObject(TestCase):
             data_object_array = DataObjectArray.create_from_list(
                 data_object_list, 'integer')
 
-    def testNestedArraysError(self):
+    def testAddToArrayNonArrayError(self):
+        member = DataObject.get_by_value(3, 'integer')
+        non_array = DataObject.get_by_value(4, 'integer')
+        with self.assertRaises(NonArrayError):
+            member.add_to_array(non_array)
+        
+    def testAddToArrayNestedArraysError(self):
+        array1 = DataObject.objects.create(
+            type='integer',
+            is_array=True
+        )
+        array2 = DataObject.objects.create(
+            type='integer',
+            is_array=True
+        )
+        with self.assertRaises(NestedArraysError):
+            array1.add_to_array(array2)
+
+    def testCreateFromListNestedArraysError(self):
         list1 = [
             DataObject.get_by_value(3, 'integer'),
             DataObject.get_by_value(5, 'integer')

@@ -26,10 +26,10 @@ class Task(BaseModel):
     command = models.TextField()
     rendered_command = models.TextField()
 
-#    step_run = models.ForeignKey('StepRun',
-#                                 related_name='tasks',
-#                                 on_delete=models.CASCADE,
-#                                 null=True) # null for testing only
+    step_run = models.ForeignKey('StepRun',
+                                 related_name='tasks',
+                                 on_delete=models.CASCADE,
+                                 null=True) # null for testing only
 
     @property
     def errors(self):
