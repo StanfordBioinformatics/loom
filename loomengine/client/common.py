@@ -171,35 +171,26 @@ def check_for_gcloud():
     if not distutils.spawn.find_executable('gcloud'):
         raise Exception('Google Cloud SDK not found. Please install it from: https://cloud.google.com/sdk/')
 
-def create_gce_ini(email=None):
+def create_gce_ini(email):
     if not is_gce_json_valid():
         raise Exception('Credential %s does not exist or is not valid for the current project. Please run "gcloud init" and ensure that the correct project is selected.' % GCE_JSON_PATH)
     project = get_gcloud_project()
     server_name = get_gcloud_server_name()
-    if email==None:
-        service_account_email = find_service_account_email(server_name)
-    else:
-        service_account_email = email
-
     print 'Creating %s...' % GCE_INI_PATH
     config = ConfigParser.SafeConfigParser()
     config.add_section('gce')
     config.set('gce', 'gce_project_id', project)
-    config.set('gce', 'gce_service_account_email_address', service_account_email)
+    config.set('gce', 'gce_service_account_email_address', email)
     config.set('gce', 'gce_service_account_pem_file_path', GCE_JSON_PATH)
     with open(os.path.expanduser(GCE_INI_PATH), 'w') as configfile:
         config.write(configfile)
     delete_libcloud_cached_credential() # Ensures that downstream steps get a new token with updated service account
 
-def create_gce_json(email=None):
+def create_gce_json(email):
     project = get_gcloud_project()
-    if email==None:
-        service_account_email = find_service_account_email(get_gcloud_server_name())
-    else:
-        service_account_email = email
 
     print 'Creating %s...' % GCE_JSON_PATH
-    create_service_account_key(project, service_account_email, GCE_JSON_PATH)
+    create_service_account_key(project, email, GCE_JSON_PATH)
 
 def create_service_account_key(project, email, path):
     """Creates a service account key in the provided project, using the provided

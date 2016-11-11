@@ -42,15 +42,17 @@ def create_deploy_settings(user_settings_file=None):
     server_type = get_server_type()
     settings = get_default_settings()
 
-    # Add Google Cloud-specific settings
-    if server_type == 'gcloud': 
-        settings = add_gcloud_settings(settings)
-
     # Override defaults with user-provided settings file
     if user_settings_file:
         add_settings_from_file(settings, settings_file=user_settings_file, section=server_type)
 
     settings = postprocess_settings(settings)
+    return settings
+
+def postprocess_settings(settings):
+    """Write settings that depend on other settings being defined first."""
+    if get_server_type() == 'gcloud':
+        settings = add_gcloud_settings(settings)
     return settings
 
 def add_gcloud_settings(settings):
@@ -77,14 +79,10 @@ def add_gcloud_settings(settings):
     if settings['GCE_BUCKET'] == 'None':
         settings['GCE_BUCKET'] = settings['GCE_PROJECT'] + '-loom'
 
-    return settings
-
-def postprocess_settings(settings):
-    """Write settings that depend on other settings being defined first."""
-    if get_server_type() == 'gcloud':
-        settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (settings['DOCKER_REPO'], settings['DOCKER_IMAGE'], settings['DOCKER_TAG'])
-        if settings['DOCKER_REGISTRY'] != 'None':
-            settings['DOCKER_FULL_NAME'] = '/'.join([settings['DOCKER_REGISTRY'], settings['DOCKER_FULL_NAME']])
+    # Construct full Docker name from other settings
+    settings['DOCKER_FULL_NAME'] = '%s/%s:%s' % (settings['DOCKER_REPO'], settings['DOCKER_IMAGE'], settings['DOCKER_TAG'])
+    if settings['DOCKER_REGISTRY'] != 'None':
+        settings['DOCKER_FULL_NAME'] = '/'.join([settings['DOCKER_REGISTRY'], settings['DOCKER_FULL_NAME']])
     return settings
 
 def write_deploy_settings_file(user_settings_file=None):

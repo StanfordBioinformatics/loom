@@ -372,8 +372,8 @@ class GoogleCloudServerControls(BaseServerControls):
             roles = json.loads(default_plus_user_settings['SERVICE_ACCOUNT_ROLES'])
             print 'Granting "%s" roles to service account %s:' % (roles, email)
             grant_roles(roles, email)
-            create_gce_json()
-            create_gce_ini()
+            create_gce_json(email)
+            create_gce_ini(email)
         else:
             # Pre-existing service account specified: copy and validate JSON credential, and write to ini.
             if self.args.key:
