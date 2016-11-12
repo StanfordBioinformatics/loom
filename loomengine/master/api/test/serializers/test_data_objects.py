@@ -28,8 +28,8 @@ class TestStringDataObjectSerializer(TestCase):
         new_value = 'new value'
         s2 = StringDataObjectSerializer(m, data={'value': new_value}, partial=True)
         s2.is_valid()
-        with self.assertRaises(UpdateNotAllowedError):
-            m2 = s2.save()
+        m2 = s2.save()
+        self.assertEqual(m2.value, new_value)
 
     def testNegCreateWithDuplicateID(self):
         data = copy.deepcopy(fixtures.data_objects.string_data_object)
@@ -44,16 +44,14 @@ class TestStringDataObjectSerializer(TestCase):
         with self.assertRaises(IntegrityError):
             m2 = s2.save()
 
-    def testCreateArray(self):
-        s = StringDataObjectSerializer(
-            data=fixtures.data_objects.string_data_object_array)
-        s.is_valid()
-        m = s.save()
+    def testNegCreateWithBadData(self):
+        for baddata in [
+            {'value': 'x'}, # missing type
+            {'type': 'string'} # missing value
+            ]:
+            s = StringDataObjectSerializer(data=baddata)
+            self.assertFalse(s.is_valid())
 
-        self.assertEqual(
-            m.array_members.count(),
-            len(fixtures.data_objects.string_data_object_array['array_members'])
-        )
 
 class TestBooleanDataObjectSerializer(TestCase):
 
@@ -93,6 +91,26 @@ class TestFloatDataObjectSerializer(TestCase):
             m.value,
             fixtures.data_objects.float_data_object['value'])
 
+class TestDataObjectArraySerializer(TestCase):
+
+    def testCreateArray(self):
+        s = DataObjectArraySerializer(
+            data=fixtures.data_objects.string_data_object_array)
+        s.is_valid()
+        m = s.save()
+
+        self.assertEqual(
+            m.members.count(),
+            len(fixtures.data_objects.string_data_object_array['members'])
+            )
+
+    def testUpdate(self):
+        pass
+
+    def testValidate(self):
+        pass
+
+
 class TestDataObjectSerializer(TestCase):
 
     def testCreateStringDataObject(self):
@@ -105,22 +123,24 @@ class TestDataObjectSerializer(TestCase):
             m.value,
             fixtures.data_objects.string_data_object['value'])
 
-    def testCreateArray(self):
-        s = DataObjectSerializer(
-            data=fixtures.data_objects.string_data_object_array)
-        s.is_valid()
-        m = s.save()
+    def testNegCreateWithBadData(self):
+        for baddata in [
+            {'value': 'x'}, # missing type
+            {'type': 'string'} # missing value
+            ]:
+            s = DataObjectSerializer(data=baddata)
+            self.assertFalse(s.is_valid())
 
-        self.assertEqual(
-            m.array_members.count(),
-            len(fixtures.data_objects.string_data_object_array['array_members'])
-        )
+#    def testCreateArray(self):
+#        s = DataObjectSerializer(
+#            data=fixtures.data_objects.string_data_object_array)
+#        s.is_valid()
+#        m = s.save()
 
-    def testNegInvalidCreate(self):
-        baddata={'bad': 'data'}
-        s = DataObjectSerializer(data=baddata)
-        with self.assertRaises(serializers.ValidationError):
-            s.is_valid(raise_exception=True)
+#        self.assertEqual(
+#            m.members.count(),
+#            len(fixtures.data_objects.string_data_object_array['members'])
+#        )
 
     def testGetDataFromModel(self):
         s1 = FileDataObjectSerializer(

@@ -11,28 +11,17 @@ class TemplateImportSerializer(CreateWithParentModelSerializer):
         fields = ('note', 'source_url',)
 
 
-class RequestedDockerEnvironmentSerializer(CreateWithParentModelSerializer):
+class StepEnvironmentSerializer(CreateWithParentModelSerializer):
 
     class Meta:
-        model = RequestedDockerEnvironment
+        model = StepEnvironment
         fields = ('docker_image',)
 
 
-class RequestedEnvironmentSerializer(SuperclassModelSerializer):
-
-    subclass_serializers = {
-        'requesteddockerenvironment': RequestedDockerEnvironmentSerializer,
-    }
+class StepResourceSetSerializer(CreateWithParentModelSerializer):
 
     class Meta:
-        model = RequestedEnvironment
-        fields = ()
-
-
-class RequestedResourceSetSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = RequestedResourceSet
+        model = StepResourceSet
         fields = ('memory', 'disk_size', 'cores',)
 
 
@@ -237,8 +226,8 @@ class WorkflowSerializer(CreateWithParentModelSerializer):
 class StepSerializer(CreateWithParentModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
-    environment = RequestedEnvironmentSerializer()
-    resources = RequestedResourceSetSerializer()
+    environment = StepEnvironmentSerializer()
+    resources = StepResourceSetSerializer()
     inputs = StepInputSerializer(many=True, required=False)
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
     outputs = StepOutputSerializer(many=True)
@@ -301,7 +290,7 @@ class StepSerializer(CreateWithParentModelSerializer):
             s.save()
 
         if resources is not None:
-            s = RequestedResourceSetSerializer(
+            s = StepResourceSetSerializer(
                 data=resources,
                 context={'parent_field': 'step',
                          'parent_instance': step})
@@ -309,7 +298,7 @@ class StepSerializer(CreateWithParentModelSerializer):
             s.save()
 
         if environment is not None:
-            s = RequestedEnvironmentSerializer(
+            s = StepEnvironmentSerializer(
                 data=environment,
                 context={'parent_field': 'step',
                          'parent_instance': step})

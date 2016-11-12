@@ -144,15 +144,15 @@ class StringDataObjectManager(DataObjectManager):
 class DataObjectArrayManager(DataObjectManager):
 
     def get_substitution_value(self):
-        return [member.item.substitution_value
-                for member in self.model.array_members.all()]
+        return [member.substitution_value
+                for member in self.model.members.all()]
 
     def to_data_struct(self):
         raise Exception('Not supported for arrays')
 
     def is_ready(self):
-        return all([member.item.is_ready()
-                    for member in self.model.array_members.all()])
+        return all([member.is_ready()
+                    for member in self.model.members.all()])
 
 
 class DataObject(BaseModel):
@@ -211,14 +211,14 @@ class DataObject(BaseModel):
         if self.is_array:
             raise NestedArraysError('Cannot nest DataObjectArrays')
         ArrayMembership.objects.create(
-            array=array, item=self, order=array.array_members.count())
+            array=array, member=self, order=array.members.count())
 
     def is_ready(self):
         return self._get_manager().is_ready()
 
 class BooleanDataObject(DataObject):
 
-    value = models.NullBooleanField()
+    value = models.BooleanField()
 
 
 class FileDataObject(DataObject):
@@ -264,20 +264,29 @@ class FileDataObject(DataObject):
 
 class FloatDataObject(DataObject):
 
-    value = models.FloatField(null=True)
+    value = models.FloatField()
 
 
 class IntegerDataObject(DataObject):
 
-    value = models.IntegerField(null=True)
+    value = models.IntegerField()
 
 
 class StringDataObject(DataObject):
 
-    value = models.TextField(max_length=10000, null=True)
+    value = models.TextField(max_length=10000)
 
 
 class DataObjectArray(DataObject):
+
+    members = models.ManyToManyField('DataObject',
+                                     through='ArrayMembership',
+                                     through_fields=('array', 'member'),
+                                     related_name='arrays')
+
+    def add_members(self, data_object_list):
+        for data_object in data_object_list:
+            data_object.add_to_array(self)
 
     @classmethod
     def create_from_list(cls, data_object_list, type):
@@ -297,15 +306,12 @@ class DataObjectArray(DataObject):
             if data_object.is_array:
                 raise NestedArraysError('Cannot nest DataObjectArrays')
 
-    class Meta:
-        abstract=True
-
 
 class ArrayMembership(BaseModel):
 
     # ManyToMany relationship between arrays and their items
-    array = models.ForeignKey('DataObject', related_name='array_members')
-    item = models.ForeignKey('DataObject', related_name='in_arrays')
+    array = models.ForeignKey('DataObjectArray', related_name='has_array_members_membership')
+    member = models.ForeignKey('DataObject', related_name='in_array_membership')
     order = models.IntegerField()
 
     class Meta:

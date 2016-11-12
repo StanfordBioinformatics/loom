@@ -24,7 +24,7 @@ string_data_object = {
 string_data_object_array = {
     'type': 'string',
     'is_array': True,
-    'array_members': [
+    'members': [
         {
             'type': 'string',
             'value': 'text here'
@@ -65,7 +65,8 @@ file_data_object = {
     'source_url': 'file:///data/data/data/data.dat',
     'filename': 'file1.txt',
     'md5': 'xqrtv',
-    'file_resource': file_resource
+    'file_resource': file_resource,
+    'source_type': 'imported'
 }
 
 file_data_object_without_resource = {
@@ -74,6 +75,7 @@ file_data_object_without_resource = {
     'source_url': 'file:///data/data/data/data.dat',
     'filename': 'file1.txt',
     'md5': 'xqrtv',
+    'source_type': 'imported'
 }
 
 file_data_object_2 = {
@@ -82,5 +84,6 @@ file_data_object_2 = {
     'source_url': 'file:///data/data2.dat',
     'filename': 'file2.txt',
     'file_resource': file_resource_2,
-    'md5': 'jklmno'
+    'md5': 'jklmno',
+    'source_type': 'imported'
 }

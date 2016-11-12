@@ -19,11 +19,11 @@ class DataObjectViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.DataObjectSerializer
     queryset = models.DataObject.objects.all()
 
+"""
 class TemplateViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TemplateSerializer
     queryset = models.Template.objects.all()
 
-"""    
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
         if query_string:

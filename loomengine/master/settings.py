@@ -69,13 +69,12 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', [])
 
 INSTALLED_APPS = (
     'django.contrib.auth',
-    'django.contrib.contenttypes', #required by polymorphic
+    'django.contrib.contenttypes',
     'django_extensions',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-    'polymorphic',
     'rest_framework',
     'api',
 )
@@ -116,8 +115,6 @@ LOOM_MYSQL_PORT = os.getenv('LOOM_MYSQL_PORT')
 LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
-
-
 
 if LOOM_MYSQL_HOST:
     if not LOOM_MYSQL_USER:
