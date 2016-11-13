@@ -6,6 +6,9 @@ import api.views
 router = routers.DefaultRouter()
 
 router.register('data-objects', api.views.DataObjectViewSet, base_name='DataObject')
+router.register('tasks', api.views.TaskViewSet, base_name='Task')
+router.register('task-attempts', api.views.TaskAttemptViewSet, base_name='TaskAttempt')
+
 """
 router.register('abstract-workflows', api.views.AbstractWorkflowViewSet, base_name='Workflow')
 router.register('imported-workflows', api.views.ImportedWorkflowViewSet, base_name='ImportedWorkflow')
@@ -16,8 +19,6 @@ router.register('result-files', api.views.ResultFileDataObjectViewSet, base_name
 router.register('log-files', api.views.LogFileDataObjectViewSet, base_name='LogFile')
 router.register('run-requests', api.views.RunRequestViewSet, base_name='RunRequest')
 router.register('abstract-workflow-runs', api.views.AbstractWorkflowRunViewSet)
-router.register('tasks', api.views.TaskRunViewSet)
-router.register('task-attempts', api.views.TaskRunAttemptViewSet)
 router.register('task-attempt-outputs', api.views.TaskRunAttemptOutputViewSet)
 router.register('file-imports', api.views.FileImportViewSet)
 router.register('file-locations', api.views.FileLocationViewSet)

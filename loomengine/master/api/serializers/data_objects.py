@@ -192,6 +192,23 @@ class DataObjectSerializer(serializers.ModelSerializer):
             return super(serializer.__class__, serializer).to_representation(
                 instance)
 
+
+class DataObjectIdSerializer(DataObjectSerializer):
+    # Renders only data object "id" for deferred lookup
+
+    def to_representation(self, instance):
+        if not isinstance(instance, models.Model):
+            # If the Serializer was instantiated with data instead of a model,
+            # "instance" is an OrderedDict. It may be missing data in fields
+            # that are on the subclass but not on the superclass, so we go
+            # back to initial_data.
+            return { 'id': instance.get('id') }
+        else:
+            assert isinstance(instance, self.Meta.model)
+            # Execute "to_representation" on the correct subclass serializer
+            return { 'id': instance.id.hex }
+
+
 class DataObjectArraySerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)

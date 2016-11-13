@@ -15,9 +15,10 @@ from loomengine.utils import version
 
 logger = logging.getLogger(__name__)
 
+
 class DataObjectViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.DataObjectSerializer
- 
+
     def get_queryset(self):
         queryset = models.DataObject.objects.all()
         queryset = queryset.select_related('filedataobject__file_resource')\
@@ -36,11 +37,40 @@ class DataObjectViewSet(viewsets.ModelViewSet):
                            .prefetch_related(
                                'dataobjectarray__members__floatdataobject')\
                            .prefetch_related(
-                               'dataobjectarray__members__filedataobject')\
-                           .prefetch_related(
                                'dataobjectarray__members__filedataobject__file_resource')
-#                           .prefetch_related(
-#                               'dataobjectarray__members__filedataobject')\
+        return queryset
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.TaskSerializer
+
+    def get_queryset(self):
+        queryset = models.tasks.Task.objects.all()
+        queryset = queryset.select_related('resources')\
+                           .select_related('accepted_task_attempt')\
+                           .prefetch_related('task_attempts')\
+                           .prefetch_related('inputs__data_object')\
+                           .prefetch_related('outputs__data_object')\
+                           .prefetch_related('outputs__source')
+        return queryset
+
+
+
+
+class TaskAttemptViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.TaskAttemptSerializer
+
+    def get_queryset(self):
+        queryset = models.tasks.TaskAttempt.objects.all()
+        queryset = queryset.select_related('task')\
+                           .select_related('task__step_run')\
+                           .prefetch_related('task__resources')\
+                           .prefetch_related('task__environment')\
+                           .prefetch_related('task__inputs__data_object')\
+                           .prefetch_related('outputs__data_object')\
+                           .prefetch_related('outputs__task_output__source')\
+                           .prefetch_related('log_files__file')\
+                           .prefetch_related('errors')
         return queryset
 
 """
@@ -126,10 +156,6 @@ class RunRequestViewSet(viewsets.ModelViewSet):
             queryset = models.RunRequest.objects.all()
         return queryset.order_by('-datetime_created')
 
-class TaskViewSet(viewsets.ModelViewSet):
-    queryset = models.tasks.Task.objects.all()
-    serializer_class = serializers.TaskSerializer
-
 class TaskAttemptErrorViewSet(viewsets.ModelViewSet):
     queryset = models.tasks.TaskAttemptError.objects.all()
     serializer_class = serializers.TaskAttemptErrorSerializer
@@ -142,9 +168,6 @@ class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
     queryset = models.AbstractWorkflowRun.objects.all()
     serializer_class = serializers.AbstractWorkflowRunSerializer
 
-class TaskAttemptViewSet(viewsets.ModelViewSet):
-    queryset = models.tasks.TaskAttempt.objects.all()
-    serializer_class = serializers.TaskAttemptSerializer
 """
 
 @require_http_methods(["GET"])

@@ -31,17 +31,17 @@ class Task(BaseModel):
                                  on_delete=models.CASCADE,
                                  null=True) # null for testing only
 
-    @property
-    def errors(self):
-        if self.task_attempts.count() == 0:
-            return TaskAttemptError.objects.none()
-        return self.task_attempts.first().errors
+#    @property
+#    def errors(self):
+#        if self.task_attempts.count() == 0:
+#            return TaskAttemptError.objects.none()
+#        return self.task_attempts.first().errors
 
-    @property
-    def status(self):
-        if self.task_attempts.count() == 0:
-            return ''
-        return self.task_attempts.first().status
+#    @property
+#    def status(self):
+#        if self.task_attempts.count() == 0:
+#            return ''
+#        return self.task_attempts.first().status
 
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
@@ -69,9 +69,8 @@ class Task(BaseModel):
             disk_size=step_run.resources.disk_size,
             cores=step_run.resources.cores
         )
-        TaskDockerEnvironment.objects.create(
+        TaskEnvironment.objects.create(
             task=task,
-            type='docker',
             docker_image = step_run.environment.docker_image,
         )
         return task
@@ -169,17 +168,10 @@ class TaskResourceSet(BaseModel):
 
 class TaskEnvironment(BaseModel):
 
-    type = models.CharField(
-        max_length=255,
-        choices = (('docker', 'Docker'),))
     task = models.OneToOneField(
         'Task',
         on_delete=models.CASCADE,
         related_name='environment')
-
-
-class TaskDockerEnvironment(TaskEnvironment):
-
     docker_image = models.CharField(max_length=255)
 
 
@@ -206,6 +198,10 @@ class TaskAttempt(BaseModel):
         max_length=255,
         default=STATUSES.NOT_STARTED
     )
+
+    @property
+    def name(self):
+        return self.task.interpreter
 
     @property
     def interpreter(self):
