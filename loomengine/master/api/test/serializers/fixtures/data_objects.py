@@ -87,3 +87,28 @@ file_data_object_2 = {
     'md5': 'jklmno',
     'source_type': 'imported'
 }
+
+file_data_object_array = {
+    'type': 'file',
+    'is_array': True,
+    'members': [
+        {
+            'type': 'file',
+            'note': 'Here is where I got this',
+            'source_url': 'file:///data/data/data/data.dat',
+            'filename': 'file.txt',
+            'md5': 'xqrtv',
+            'file_resource': file_resource,
+            'source_type': 'imported'
+        },
+        {
+            'type': 'file',
+            'note': 'Here is where I got this',
+            'source_url': 'file:///data/data/data/data1.dat',
+            'filename': 'file1.txt',
+            'md5': 'xqrtv',
+            'file_resource': file_resource,
+            'source_type': 'imported'
+        },
+    ]
+}

@@ -117,7 +117,7 @@ class DataObjectSerializer(serializers.ModelSerializer):
 
     def _get_subclass_field(self, type, is_array):
         if is_array:
-            return self.data_object_array_field
+            return self.subclass_fields['array']
         else:
             return self.subclass_fields[type]
 
@@ -127,6 +127,10 @@ class DataObjectSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         # This is critical to validating data against the SubclassSerializer
+        if not hasattr(self, 'initial_data'):
+            # No further validation possible if called in a mode without
+            # initial data, because required fields may be lost
+            return data
         type = data.get('type')
         is_array = data.get('is_array')
         SubclassSerializer \
@@ -166,8 +170,9 @@ class DataObjectSerializer(serializers.ModelSerializer):
             # that are on the subclass but not on the superclass, so we go
             # back to initial_data.
             type = instance.get('type')
-            SubclassSerializer \
-                = self.subclass_serializers[type]
+            is_array = instance.get('is_array')
+            SubclassSerializer = self._get_subclass_serializer_class(
+                type, is_array)
             serializer = SubclassSerializer(data=self.initial_data)
             return super(serializer.__class__, serializer).to_representation(
                 self.initial_data)
@@ -175,8 +180,14 @@ class DataObjectSerializer(serializers.ModelSerializer):
             assert isinstance(instance, self.Meta.model)
             # Execute "to_representation" on the correct subclass serializer
             type = instance.type
-            SubclassSerializer \
-                = self.subclass_serializers[type]
+            is_array = instance.is_array
+            SubclassSerializer = self._get_subclass_serializer_class(
+                type, is_array)
+            subclass_field = self._get_subclass_field(type, is_array)
+            try:
+                instance = getattr(instance, subclass_field)
+            except ObjectDoesNotExist:
+                pass
             serializer = SubclassSerializer(instance, context=self.context)
             return super(serializer.__class__, serializer).to_representation(
                 instance)
@@ -213,10 +224,10 @@ class DataObjectArraySerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        members = data.get('members', [])
+        members = self.initial_data.get('members', [])
         for member in members:
             serializer = DataObjectSerializer(
-                data=self.initial_data,
+                data=member,
                 context=self.context)
             serializer.is_valid(raise_exception=True)
         return data

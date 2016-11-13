@@ -17,7 +17,31 @@ logger = logging.getLogger(__name__)
 
 class DataObjectViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.DataObjectSerializer
-    queryset = models.DataObject.objects.all()
+ 
+    def get_queryset(self):
+        queryset = models.DataObject.objects.all()
+        queryset = queryset.select_related('filedataobject__file_resource')\
+                           .select_related('stringdataobject')\
+                           .select_related('filedataobject')\
+                           .select_related('booleandataobject')\
+                           .select_related('integerdataobject')\
+                           .select_related('floatdataobject')\
+                           .select_related('dataobjectarray')\
+                           .prefetch_related(
+                               'dataobjectarray__members__stringdataobject')\
+                           .prefetch_related(
+                               'dataobjectarray__members__booleandataobject')\
+                           .prefetch_related(
+                               'dataobjectarray__members__integerdataobject')\
+                           .prefetch_related(
+                               'dataobjectarray__members__floatdataobject')\
+                           .prefetch_related(
+                               'dataobjectarray__members__filedataobject')\
+                           .prefetch_related(
+                               'dataobjectarray__members__filedataobject__file_resource')
+#                           .prefetch_related(
+#                               'dataobjectarray__members__filedataobject')\
+        return queryset
 
 """
 class TemplateViewSet(viewsets.ModelViewSet):

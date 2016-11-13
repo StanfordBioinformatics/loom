@@ -26,7 +26,8 @@ class TestStringDataObjectSerializer(TestCase):
         m = s.save()
 
         new_value = 'new value'
-        s2 = StringDataObjectSerializer(m, data={'value': new_value}, partial=True)
+        s2 = StringDataObjectSerializer(
+            m, data={'value': new_value}, partial=True)
         s2.is_valid()
         m2 = s2.save()
         self.assertEqual(m2.value, new_value)
@@ -131,16 +132,16 @@ class TestDataObjectSerializer(TestCase):
             s = DataObjectSerializer(data=baddata)
             self.assertFalse(s.is_valid())
 
-#    def testCreateArray(self):
-#        s = DataObjectSerializer(
-#            data=fixtures.data_objects.string_data_object_array)
-#        s.is_valid()
-#        m = s.save()
+    def testCreateArray(self):
+        s = DataObjectSerializer(
+            data=fixtures.data_objects.string_data_object_array)
+        s.is_valid()
+        m = s.save()
 
-#        self.assertEqual(
-#            m.members.count(),
-#            len(fixtures.data_objects.string_data_object_array['members'])
-#        )
+        self.assertEqual(
+            m.members.count(),
+            len(fixtures.data_objects.string_data_object_array['members'])
+        )
 
     def testGetDataFromModel(self):
         s1 = FileDataObjectSerializer(
@@ -186,3 +187,14 @@ class TestFileDataObjectSerializer(TestCase):
         self.assertEqual(
             m.filename,
             fixtures.data_objects.file_data_object['filename'])
+
+    def testRender(self):
+        s = FileDataObjectSerializer(
+            data=fixtures.data_objects.file_data_object)
+        s.is_valid()
+        m = s.save()
+
+        do = DataObject.objects.get(id=m.id)
+        s2 = DataObjectSerializer(do)
+        self.assertEqual(s2.data['filename'],
+                         fixtures.data_objects.file_data_object['filename'])
