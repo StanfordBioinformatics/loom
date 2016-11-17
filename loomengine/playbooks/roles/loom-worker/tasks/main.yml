@@ -4,6 +4,8 @@
     file: path={{scratch_disk_mount_point}} state=directory
   - name: Mount the scratch disk at the mount point.
     mount: name={{scratch_disk_mount_point}} fstype=ext4 src={{scratch_disk_device_path}} state=mounted
+  - name: Symlink /var/lib/docker to the scratch disk
+    file: src={{scratch_disk_mount_point}}/docker/ dest=/var/lib/docker/ state=link
   - name: Pull Loom Docker image.
     docker_image: name={{docker_full_name}} tag={{docker_tag}} api_version=auto
   - name: Pull task run Docker image.
