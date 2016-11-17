@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 # Workflow and related objects
 
 fixed_step_input = {

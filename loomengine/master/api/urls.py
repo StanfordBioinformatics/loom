@@ -8,9 +8,10 @@ router = routers.DefaultRouter()
 router.register('data-objects', api.views.DataObjectViewSet, base_name='DataObject')
 router.register('tasks', api.views.TaskViewSet, base_name='Task')
 router.register('task-attempts', api.views.TaskAttemptViewSet, base_name='TaskAttempt')
+router.register('templates', api.views.TemplateViewSet, base_name='Template')
 
 """
-router.register('abstract-workflows', api.views.AbstractWorkflowViewSet, base_name='Workflow')
+
 router.register('imported-workflows', api.views.ImportedWorkflowViewSet, base_name='ImportedWorkflow')
 
 router.register('files', api.views.FileDataObjectViewSet, base_name='FileDataObject')

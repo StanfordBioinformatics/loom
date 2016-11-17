@@ -180,7 +180,7 @@ class WorkflowRun(Run):
     def initialize_step_runs(self):
         """Create a run for each step
         """
-        for step in self.template.get_steps():
+        for step in self.template.steps:
             self.create_from_template(step, parent=self)
 
     def initialize_inputs_outputs(self):
@@ -271,7 +271,7 @@ class WorkflowRun(Run):
         if count['success']:
             pluralize = 's' if count['success'] > 1 else ''
             status_list.append('%s step%s finished successfully.' % (count['success'], pluralize))
-        self.status = ' '.join(status_list)
+#        self.status = ' '.join(status_list)
         self.save()
 #        self.update_parent_status()
 
@@ -369,20 +369,21 @@ class StepRun(Run):
             self.update_status()
 
     def update_status(self):
-        if self.tasks.count() == 0:
-            missing_inputs = InputNodeSet(
-                self.get_all_inputs()).get_missing_inputs()
-            if len(missing_inputs) == 1:
-                status = 'Waiting for input "%s"' % missing_inputs[0].channel
-            else:
-                status = 'Waiting for inputs %s' % ', '.join(
-                    [input.channel for input in missing_inputs])
-        else:
-            status = self.tasks.first().status
+        pass
+#        if self.tasks.count() == 0:
+#            missing_inputs = InputNodeSet(
+#                self.get_all_inputs()).get_missing_inputs()
+#            if len(missing_inputs) == 1:
+#                status = 'Waiting for input "%s"' % missing_inputs[0].channel
+#            else:
+#                status = 'Waiting for inputs %s' % ', '.join(
+#                    [input.channel for input in missing_inputs])
+#        else:
+#            status = self.tasks.first().status
 
-        if status != self.status:
-            self.status = status
-            self.save()
+#        if status != self.status:
+#            self.status = status
+#            self.save()
         #self.update_parent_status()
 
 
@@ -424,7 +425,8 @@ class StepRunOutput(InputOutputNode):
 
     step_run = models.ForeignKey('StepRun',
                                  related_name='outputs',
-                                 on_delete=models.CASCADE)
+                                 on_delete=models.CASCADE,
+                                 null=True) # for testing only
     mode = models.CharField(max_length=255)
 
 #    @property

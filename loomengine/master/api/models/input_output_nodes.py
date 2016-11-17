@@ -43,7 +43,8 @@ class ConnectError(Exception):
 
 
 # value to be rendered for missing branches
-PLACEHOLDER_VALUE = {}
+EMPTY_BRANCH_VALUE = []
+MISSING_BRANCH_VALUE = None
 
 
 class InputOutputNode(BaseModel):
@@ -54,23 +55,16 @@ class InputOutputNode(BaseModel):
         max_length=255,
         choices=DataObject.TYPE_CHOICES)
 
-    def to_data_struct(self):
-        # Return a JSON representation of the data tree
-        if self.data_root is None:
-            return PLACEHOLDER_VALUE
-        else:
-            return self.data_root.to_data_struct()
-
     def get_data_as_scalar(self):
         # This function is a temporary patch to run without parallel
         # workflows enabled.
         if not self.data_root:
             return None
         return self.data_root.data_object
-        
-    #def get_data_object(self, path):
+
+#    def get_data_object(self, path):
         # Get the data object at the given path.
-    #    return self.data_root.get_data_object(path)
+#        return self.data_root.get_data_object(path)
 
     def _initialize_data_root(self):
         self.data_root = DataNode.objects.create()
@@ -131,6 +125,7 @@ class InputOutputNode(BaseModel):
 
     class Meta:
         abstract = True
+        app_label = 'api'
 
 
 class DataNode(BaseModel):
@@ -139,10 +134,14 @@ class DataNode(BaseModel):
         null=True,
         related_name = 'children')
     index = models.IntegerField(null=True) # 0 <= index < self.parent.degree; null if no parent
-    degree = models.IntegerField(null=True) # expected number of children; null if leaf
+    degree = models.IntegerField(null=True) # expected number of children; null if leaf, 0 if empty
     data_object = models.ForeignKey('DataObject',
                                     related_name = 'data_nodes',
                                     null=True) # null except on leaves
+
+#    @property
+#    def data(self):
+#        return self.to_data_struct()
 
     def add_leaf(self, index, data_object):
         self._check_index(index)
@@ -191,17 +190,19 @@ class DataNode(BaseModel):
             self._extend_path_and_add_data_at_leaf(path, data_object)
 
     def _add_scalar_data_object(self, data_object):
-        if not self._is_uninitialized():
+        if not self._is_missing_branch():
             raise RootDataAlreadyExistsError(
                 "Failed to add scalar data since the root DataNode is "\
                 "already initialized")
         self.data_object = data_object
         self.save()
 
-    def _is_uninitialized(self):
+    def _is_missing_branch(self):
         return (self.degree is None
-                and self.index is None
                 and self.data_object is None)
+
+    def _is_empty_branch(self):
+        return self.degree==0
 
     def _extend_path_and_add_data_at_leaf(self, path, data_object):
         index, degree = path.pop(0)
@@ -227,73 +228,7 @@ class DataNode(BaseModel):
     def _is_leaf(self):
         return self.degree is None and self.data_object is not None
 
-    def add_data_objects(self, data, data_type):
-        self._validate_data(data)
-        path = []
-        self._extend_all_paths_and_add_data_at_leaves(data, path, data_type)
 
-    def _validate_data(self, data):
-        nested_lists_of_strings_schema = {
-            # schema used to verify that data contains only a string,
-            # a list of strings, or a list of (lists of)^n strings.
-            # These are the only valid structures for user-provided data values,
-            # e.g. 'file.txt@id',
-            # '["file1.txt@id1", "file2.txt@id2"]', or
-            # '[["file1.txt@id1", "file2.txt@id2"], ["file3.txt@id3"]]'.
-            'oneOf': [
-                { 'type': [ 'string' ] },
-                { 'type': 'array', 'items': {'type': 'string'}},
-                { 'type': 'array', 'items': {
-                    'type': 'array', 'items': {'$ref': '#'}}},
-            ]
-        }
-        try:
-            jsonschema.validate(data, nested_lists_of_strings_schema)
-        except jsonschema.exceptions.ValidationError:
-            raise jsonschema.exceptions.ValidationError(
-                "Data must be a string, list of strings, "\
-                "or nested lists of strings with uniform depth. "\
-                "Invalid data: '%s'" % data)
-        return data
-
-    def _extend_all_paths_and_add_data_at_leaves(self, data, path, data_type):
-        # Recursive function that extends 'path' until reaching a leaf node,
-        # where data is finally added.
-        # 'path' is the partial path to some intermediate
-        # node, while 'data' is the representation of all branches and leaves
-        # beyond that path.
-        # For example, given path (0,2) and data [['10','20']['30','40']],
-        # the function places all data under (0,2) and ignores the other
-        # root-level branch (1,2).
-        # The function adds these four data objects at
-        # their corresponding paths:
-        # 10 at [(0,2), (0,2), (0,2)]
-        # 20 at [(0,2), (0,2), (1,2)]
-        # 30 at [(0,2), (1,2), (0,2)]
-        # 40 at [(0,2), (1,2), (1,2)]
-        if not isinstance(data, list):
-            data_object = DataObject.get_by_value(
-                data,
-                data_type)
-            self.add_data_object(path, data_object)
-            return
-        else:
-            for i in range(len(data)):
-                path_i = copy.deepcopy(path)
-                path_i.append((i, len(data)))
-                self._extend_all_paths_and_add_data_at_leaves(
-                    data[i], path_i, data_type)
-
-    def to_data_struct(self):
-        if self._is_uninitialized():
-            return PLACEHOLDER_VALUE
-        if self._is_leaf():
-            return self.data_object.to_data_struct()
-        else:
-            data = [PLACEHOLDER_VALUE] * self.degree
-            for child in self.children.all():
-                data[child.index] = child.to_data_struct()
-            return data
 
 class InputNodeSet(object):
     """Set of nodes acting as inputs for one step.

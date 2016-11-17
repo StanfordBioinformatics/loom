@@ -188,7 +188,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ('id', 'resources', 'inputs', 'outputs', 'task_attempts',
-                  'accepted_task_attempt', 'status', 'errors', 'command',
-                  'rendered_command', 'interpreter', 'datetime_finished',
-                  'datetime_created')
+        fields = ('id', 'resources', 'environment', 'inputs', 'outputs', 
+                  'task_attempts', 'accepted_task_attempt', 'status', 
+                  'command', 'rendered_command', 'interpreter', 
+                  'datetime_finished', 'datetime_created')

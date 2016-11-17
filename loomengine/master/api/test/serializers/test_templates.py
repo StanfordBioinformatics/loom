@@ -3,23 +3,24 @@ from django.test import TestCase
 from . import fixtures
 from api.serializers.templates import *
 
+
 class TestFixedStepInputSerializer(TestCase):
 
     def testCreate(self):
         step = Step(command='test command')
         step.save()
-        
+
         s = FixedStepInputSerializer(
             data=fixtures.workflows.fixed_step_input,
             context={'parent_field': 'step',
                      'parent_instance': step})
         s.is_valid()
         fixed_input = s.save()
-        
-        self.assertEqual(
-            fixed_input.data_object.value,
-            fixtures.workflows.fixed_step_input['data'])
 
+        self.assertEqual(
+            fixed_input.data_object.substitution_value,
+            fixtures.workflows.fixed_step_input['data'])
+        
 
 class TestStepSerializer(TestCase):
 
@@ -30,10 +31,83 @@ class TestStepSerializer(TestCase):
 
         self.assertEqual(m.command, fixtures.workflows.step_a['command'])
         self.assertEqual(
-            m.fixed_inputs.first().data_object.string_content.string_value,
+            m.fixed_inputs.first().data_object.substitution_value,
             fixtures.workflows.step_a['fixed_inputs'][0]['data'])
 
+    def testRender(self):
+        s = StepSerializer(data=fixtures.workflows.step_a)
+        s.is_valid()
+        m = s.save()
 
+        self.assertEqual(m.command, s.data['command'])
+
+
+class TestWorkflowSerializer(TestCase):
+
+    def testCreateFlatWorkflow(self):
+        s = WorkflowSerializer(data=fixtures.workflows.flat_workflow)
+        s.is_valid()
+        m = s.save()
+
+        self.assertEqual(
+            m.steps[0].step.command,
+            fixtures.workflows.flat_workflow['steps'][0]['command'])
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.substitution_value,
+            fixtures.workflows.flat_workflow['fixed_inputs'][0]['data'])
+
+    def testCreateNestedWorkflow(self):
+        s = WorkflowSerializer(data=fixtures.workflows.nested_workflow)
+        s.is_valid()
+        m = s.save()
+
+        self.assertEqual(
+            m.steps[0].workflow.steps[0].step.command,
+            fixtures.workflows.nested_workflow[
+                'steps'][0]['steps'][0]['command'])
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.substitution_value,
+            fixtures.workflows.nested_workflow['fixed_inputs'][0]['data'])
+
+
+class TestTemplateSerializer(TestCase):
+
+    def testCreateStep(self):
+        s = TemplateSerializer(data=fixtures.workflows.step_a)
+        s.is_valid()
+        m = s.save()
+
+        self.assertEqual(m.step.command, fixtures.workflows.step_a['command'])
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.substitution_value,
+            fixtures.workflows.step_a['fixed_inputs'][0]['data'])
+
+    def testCreateFlatWorkflow(self):
+        s = TemplateSerializer(data=fixtures.workflows.flat_workflow)
+        s.is_valid()
+        m = s.save()
+
+        self.assertEqual(
+            m.steps[0].step.command, 
+            fixtures.workflows.flat_workflow['steps'][0]['command'])
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.substitution_value,
+            fixtures.workflows.flat_workflow['fixed_inputs'][0]['data'])
+
+    def testCreateNestedWorkflow(self):
+        s = TemplateSerializer(data=fixtures.workflows.nested_workflow)
+        s.is_valid()
+        m = s.save()
+
+        self.assertEqual(
+            m.steps[0].workflow.steps[0].step.command,
+            fixtures.workflows.nested_workflow[
+                'steps'][0]['steps'][0]['command'])
+        self.assertEqual(
+            m.fixed_inputs.first().data_object.substitution_value,
+            fixtures.workflows.nested_workflow['fixed_inputs'][0]['data'])
+
+"""
 class TestWorkflowSerializer(TestCase):
 
     def testCreate(self):
@@ -66,3 +140,4 @@ class TestWorkflowSerializer(TestCase):
         self.assertEqual(
             data['fixed_inputs'][0]['data'],
             m.fixed_inputs.first().data_object.string_content.string_value)
+"""

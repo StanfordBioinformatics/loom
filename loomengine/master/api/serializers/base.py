@@ -49,27 +49,55 @@ class CreateWithParentModelSerializer(serializers.ModelSerializer):
         return self.Meta.model.objects.create(**validated_data)
 
 
+class IdSerializer(object):
+
+    """Renders only data object "id" for deferred lookup
+    """
+
+    def to_representation(self, instance):
+        if not isinstance(instance, models.Model):
+            # If the Serializer was instantiated with data instead of a model,
+            # "instance" is an OrderedDict. It may be missing data in fields
+            # that are on the subclass but not on the superclass, so we go
+            # back to initial_data.
+            return { 'id': instance.get('id') }
+        else:
+            assert isinstance(instance, self.Meta.model)
+            # Execute "to_representation" on the correct subclass serializer
+            return { 'id': instance.id.hex }
+
+
 class SuperclassModelSerializer(serializers.ModelSerializer):
     """This class helps to ser/deserialize a base model with
     several subclasses. It selects the correct subclass serializer
     and delegates critical functions to it.
     """
 
-    # Override with {'subclassfieldname': Serializer}, for example:
-    #
-    # subclass_serializers = {'childone': ChildOneSerializer,
-    #                         'childtwo': ChildTwoSerializer}
-    #
-    subclass_serializers = {}
+    def _get_subclass_serializer_class(self, type):
+        raise Exception('override needed')
+
+    def _get_subclass_field(self, type):
+        raise Exception('override needed')
+
+    def validate(self, data):
+        # This is critical to validating data against the SubclassSerializer
+        if not hasattr(self, 'initial_data'):
+            # No further validation possible if called in a mode without
+            # initial data, because required fields may be lost
+            return data
+        type = self._get_type(data=data)
+        SubclassSerializer \
+            = self._get_subclass_serializer_class(type)
+        serializer = SubclassSerializer(
+            data=self.initial_data,
+            context=self.context)
+        serializer.is_valid(raise_exception=True)
+        return data
 
     def create(self, validated_data):
-        """ This is a standard method called indirectly by calling
-        'save' on the serializer
-        """
-        type = validated_data['type']
+        type = self._get_type(data=validated_data)
         SubclassSerializer \
-            = self.subclass_serializers[type]
-
+            = self._get_subclass_serializer_class(type)
         serializer = SubclassSerializer(
             data=self.initial_data,
             context=self.context)
@@ -77,11 +105,10 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
         return serializer.save()
 
     def update(self, instance, validated_data):
-        type = instance.type
+        type = self._get_type(instance=instance)
         SubclassSerializer \
-            = self.subclass_serializers[type]
+            = self._get_subclass_serializer_class(type)
         serializer = SubclassSerializer(
-            instance,
             data=self.initial_data,
             context=self.context)
         serializer.is_valid(raise_exception=True)
@@ -93,18 +120,23 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             # "instance" is an OrderedDict. It may be missing data in fields
             # that are on the subclass but not on the superclass, so we go
             # back to initial_data.
-            type = instance.get('type')
-            SubclassSerializer \
-                = self.subclass_serializers[type]
+            type = self._get_type(data=instance)
+            SubclassSerializer = self._get_subclass_serializer_class(
+                type)
             serializer = SubclassSerializer(data=self.initial_data)
             return super(serializer.__class__, serializer).to_representation(
                 self.initial_data)
         else:
             assert isinstance(instance, self.Meta.model)
             # Execute "to_representation" on the correct subclass serializer
-            type = instance.type
-            SubclassSerializer \
-                = self.subclass_serializers[type]
+            type = self._get_type(instance=instance)
+            SubclassSerializer = self._get_subclass_serializer_class(
+                type)
+            subclass_field = self._get_subclass_field(type)
+            try:
+                instance = getattr(instance, subclass_field)
+            except ObjectDoesNotExist:
+                pass
             serializer = SubclassSerializer(instance, context=self.context)
             return super(serializer.__class__, serializer).to_representation(
                 instance)

@@ -31,8 +31,7 @@ def get_task():
         memory='1',
         disk_size='1',
         cores='1')
-    environment = TaskDockerEnvironment.objects.create(
-        type='docker',
+    environment = TaskEnvironment.objects.create(
         task=task,
         docker_image='ubuntu'
     )

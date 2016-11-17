@@ -6,6 +6,7 @@ import uuid
 
 from .base import BaseModel
 from .data_objects import DataObject
+from .input_output_nodes import InputOutputNode
 from .signals import post_save_children
 from api.exceptions import *
 
@@ -85,7 +86,7 @@ class Template(BaseModel):
 
     def _get_manager(self):
         return self._get_manager_class(self.type)(self)
-    
+
     @property
     def inputs(self):
         return self._get_manager().get_inputs()
@@ -134,11 +135,21 @@ class Workflow(Template):
     # provide a ForeingKey for WorkflowImport, WorkflowInput, etc.
     # to point to Workflows but not to Steps.
 
+#    steps = models.ManyToManyField(
+#        'Template',
+#        through='WorkflowMembership',
+#        through_fields=('parent_template', 'child_template'),
+#        related_name='arrays')
+
+    @property
+    def steps(self):
+        # No straightforward way to return a queryset with ordering
+        # through a many to many relation. Return a list instead.
+        return [m.child_template for m in 
+                self.children.all().select_related('child_template')]
+
     def add_steps(self, step_list):
         WorkflowMembership.add_steps_to_workflow(step_list, self)
-
-    def get_steps(self):
-        return [member.child_template for member in self.children.all()]
 
     def validate(self):
         pass
@@ -165,26 +176,17 @@ class WorkflowInput(models.Model):
                                  related_name='inputs',
                                  on_delete=models.CASCADE)
     hint = models.CharField(max_length=255, null=True)
-    
+
     class Meta:
         app_label='api'
 
 
-class FixedWorkflowInput(models.Model):
+class FixedWorkflowInput(InputOutputNode):
 
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
-    channel = models.CharField(max_length=255)
-    data_object = models.ForeignKey('DataObject') # serialized as 'data'
     workflow = models.ForeignKey(
         'Workflow',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
-
-    class Meta:
-        app_label='api'
 
 
 class WorkflowOutput(BaseModel):
@@ -243,8 +245,8 @@ class StepInput(models.Model):
     )
     channel = models.CharField(max_length=255)
     step = models.ForeignKey('Step',
-                                 related_name='inputs',
-                                 on_delete=models.CASCADE)
+                             related_name='inputs',
+                             on_delete=models.CASCADE)
     mode = models.CharField(max_length=255, default='no_gather')
     group = models.IntegerField(default=0)
     hint = models.CharField(max_length=255, null=True)
@@ -253,23 +255,14 @@ class StepInput(models.Model):
         app_label='api'
 
 
-class FixedStepInput(models.Model):
+class FixedStepInput(InputOutputNode):
 
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
-    channel = models.CharField(max_length=255)
-    data_object = models.ForeignKey('DataObject') # serialized as 'data'
     step = models.ForeignKey(
         'Step',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
     mode = models.CharField(max_length=255, default='no_gather')
     group = models.IntegerField(default=0)
-
-    class Meta:
-        app_label='api'
 
 
 class StepOutput(models.Model):
@@ -290,6 +283,7 @@ class StepOutput(models.Model):
 
 
 class StepOutputSource(BaseModel):
+
     output = models.OneToOneField(
         StepOutput,
         related_name='source',
@@ -309,7 +303,8 @@ class StepOutputSource(BaseModel):
 class WorkflowMembership(models.Model):
 
     parent_template = models.ForeignKey('Workflow', related_name='children')
-    child_template = models.ForeignKey('Template', related_name='parents', null=True)
+    child_template = models.ForeignKey('Template', related_name='parents', 
+                                       null=True)
     order = models.IntegerField()
 
     @classmethod

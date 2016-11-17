@@ -27,7 +27,7 @@ def get_step_run():
         type = 'file',
         mode = 'no_scatter',
     )
-    StepRunDockerEnvironment.objects.create(
+    StepRunEnvironment.objects.create(
         step_run = step_run,
         docker_image = 'ubuntu'
     )

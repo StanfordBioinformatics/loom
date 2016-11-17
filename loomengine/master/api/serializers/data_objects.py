@@ -2,7 +2,7 @@ from django.db import models
 from rest_framework import serializers
 
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, \
-    RecursiveField
+    IdSerializer
 from api.models.data_objects import StringDataObject, BooleanDataObject, \
     IntegerDataObject, FloatDataObject, FileDataObject, DataObject, \
     FileResource, DataObjectArray
@@ -80,12 +80,17 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         return s.save()
 
 
-class DataObjectSerializer(serializers.ModelSerializer):
+class DataObjectSerializer(SuperclassModelSerializer):
 
     id = serializers.UUIDField(format='hex', required=False)
 
+    class Meta:
+        model = DataObject
+        fields = '__all__'
+
     subclass_serializers = {
         # array type excluded to avoid circular dependency
+        #'array': DataObjectArraySerializer,
         'string': StringDataObjectSerializer,
         'integer': IntegerDataObjectSerializer,
         'boolean': BooleanDataObjectSerializer,
@@ -105,108 +110,34 @@ class DataObjectSerializer(serializers.ModelSerializer):
         'file': 'filedataobject',
         }
 
-    def _get_subclass_serializer_class(self, type, is_array):
+    def _get_subclass_serializer_class(self, type):
         # This has to be defined in a function due to circular dependency
         # DataObjectArraySerializer.members uses DataObjectSerializer.
-        array_serializer = DataObjectArraySerializer
-
-        if is_array:
-            return array_serializer
+        if type == 'array':
+            return DataObjectArraySerializer
         else:
             return self.subclass_serializers[type]
 
-    def _get_subclass_field(self, type, is_array):
-        if is_array:
-            return self.subclass_fields['array']
+    def _get_subclass_field(self, type):
+        return self.subclass_fields[type]
+
+    def _get_type(self, data=None, instance=None):
+        if instance:
+            if instance.is_array:
+                return 'array'
+            else:
+                return instance.type
         else:
-            return self.subclass_fields[type]
-
-    class Meta:
-        model = DataObject
-        fields = '__all__'
-
-    def validate(self, data):
-        # This is critical to validating data against the SubclassSerializer
-        if not hasattr(self, 'initial_data'):
-            # No further validation possible if called in a mode without
-            # initial data, because required fields may be lost
-            return data
-        type = data.get('type')
-        is_array = data.get('is_array')
-        SubclassSerializer \
-            = self._get_subclass_serializer_class(type, is_array)
-        serializer = SubclassSerializer(
-            data=self.initial_data,
-            context=self.context)
-        serializer.is_valid(raise_exception=True)
-        return data
-
-    def create(self, validated_data):
-        type = validated_data.get('type')
-        is_array = validated_data.get('is_array')
-        SubclassSerializer \
-            = self._get_subclass_serializer_class(type, is_array)
-        serializer = SubclassSerializer(
-            data=self.initial_data,
-            context=self.context)
-        serializer.is_valid(raise_exception=True)
-        return serializer.save()
-
-    def update(self, instance, validated_data):
-        type = instance.type
-        is_array = instance.is_array
-        SubclassSerializer \
-            = self._get_subclass_serializer_class(type, is_array)
-        serializer = SubclassSerializer(
-            data=self.initial_data,
-            context=self.context)
-        serializer.is_valid(raise_exception=True)
-        return serializer.save()
-
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            # If the Serializer was instantiated with data instead of a model,
-            # "instance" is an OrderedDict. It may be missing data in fields
-            # that are on the subclass but not on the superclass, so we go
-            # back to initial_data.
-            type = instance.get('type')
-            is_array = instance.get('is_array')
-            SubclassSerializer = self._get_subclass_serializer_class(
-                type, is_array)
-            serializer = SubclassSerializer(data=self.initial_data)
-            return super(serializer.__class__, serializer).to_representation(
-                self.initial_data)
-        else:
-            assert isinstance(instance, self.Meta.model)
-            # Execute "to_representation" on the correct subclass serializer
-            type = instance.type
-            is_array = instance.is_array
-            SubclassSerializer = self._get_subclass_serializer_class(
-                type, is_array)
-            subclass_field = self._get_subclass_field(type, is_array)
-            try:
-                instance = getattr(instance, subclass_field)
-            except ObjectDoesNotExist:
-                pass
-            serializer = SubclassSerializer(instance, context=self.context)
-            return super(serializer.__class__, serializer).to_representation(
-                instance)
+            assert data, 'either instance or data is required'
+            if data.get('is_array'):
+                return 'array'
+            else:
+                return data.get('type')
 
 
-class DataObjectIdSerializer(DataObjectSerializer):
-    # Renders only data object "id" for deferred lookup
+class DataObjectIdSerializer(IdSerializer, DataObjectSerializer):
 
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            # If the Serializer was instantiated with data instead of a model,
-            # "instance" is an OrderedDict. It may be missing data in fields
-            # that are on the subclass but not on the superclass, so we go
-            # back to initial_data.
-            return { 'id': instance.get('id') }
-        else:
-            assert isinstance(instance, self.Meta.model)
-            # Execute "to_representation" on the correct subclass serializer
-            return { 'id': instance.id.hex }
+    pass
 
 
 class DataObjectArraySerializer(serializers.ModelSerializer):

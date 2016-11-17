@@ -55,8 +55,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-
-
 class TaskAttemptViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptSerializer
 
@@ -73,19 +71,14 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
                            .prefetch_related('errors')
         return queryset
 
-"""
+
 class TemplateViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TemplateSerializer
-    queryset = models.Template.objects.all()
 
     def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        if query_string:
-            queryset = models.FileDataObject.query(query_string)
-        else:
-            queryset = models.FileDataObject.objects.all()
+        queryset = models.Template.objects.all()
+        queryset = queryset
         return queryset
-"""
 
 """
 class AbstractWorkflowViewSet(viewsets.ModelViewSet):

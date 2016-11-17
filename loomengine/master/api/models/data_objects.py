@@ -43,12 +43,12 @@ class BooleanDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.booleandataobject.value
 
-    def to_data_struct(self):
-        return {
-            'id': self.model.id.hex,
-            'type': self.model.type,
-            'value': self.model.booleandataobject.value,
-        }
+#    def to_data_struct(self):
+#        return {
+#            'id': self.model.id.hex,
+#            'type': self.model.type,
+#            'value': self.model.booleandataobject.value,
+#        }
 
     def is_ready(self):
         return True
@@ -70,12 +70,12 @@ class FileDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.filedataobject.filename
 
-    def to_data_struct(self):
-        return {
-            'id': self.model.id.hex,
-            'type': self.model.type,
-            'value': '%s@%s' % (self.model.filedataobject.filename, self.model.id.hex)
-        }
+#    def to_data_struct(self):
+#        return {
+#            'id': self.model.id.hex,
+#            'type': self.model.type,
+#            'value': '%s@%s' % (self.model.filedataobject.filename, self.model.id.hex)
+#        }
 
     def is_ready(self):
         resource = self.model.filedataobject.file_resource
@@ -90,12 +90,12 @@ class FloatDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.floatdataobject.value
 
-    def to_data_struct(self):
-        return {
-            'id': self.model.id.hex,
-            'type': self.model.type,
-            'value': self.model.floatdataobject.value,
-        }
+#    def to_data_struct(self):
+#        return {
+#            'id': self.model.id.hex,
+#            'type': self.model.type,
+#            'value': self.model.floatdataobject.value,
+#        }
 
     def is_ready(self):
         return True
@@ -110,12 +110,12 @@ class IntegerDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.integerdataobject.value
 
-    def to_data_struct(self):
-        return {
-            'id': self.model.id.hex,
-            'type': self.model.type,
-            'value': self.model.integerdataobject.value,
-        }
+#    def to_data_struct(self):
+#        return {
+#            'id': self.model.id.hex,
+#            'type': self.model.type,
+#            'value': self.model.integerdataobject.value,
+#        }
 
     def is_ready(self):
         return True
@@ -130,12 +130,12 @@ class StringDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.stringdataobject.value
 
-    def to_data_struct(self):
-        return {
-            'id': self.model.id.hex,
-            'type': self.model.type,
-            'value': self.model.stringdataobject.value,
-        }
+#    def to_data_struct(self):
+#        return {
+#            'id': self.model.id.hex,
+#            'type': self.model.type,
+#            'value': self.model.stringdataobject.value,
+#        }
 
     def is_ready(self):
         return True
@@ -147,8 +147,8 @@ class DataObjectArrayManager(DataObjectManager):
         return [member.substitution_value
                 for member in self.model.members.all()]
 
-    def to_data_struct(self):
-        raise Exception('Not supported for arrays')
+#    def to_data_struct(self):
+#        raise Exception('Not supported for arrays')
 
     def is_ready(self):
         return all([member.is_ready()
@@ -202,8 +202,8 @@ class DataObject(BaseModel):
     def substitution_value(self):
         return self._get_manager().get_substitution_value()
 
-    def to_data_struct(self):
-        return self._get_manager().to_data_struct()
+#    def to_data_struct(self):
+#        return self._get_manager().to_data_struct()
     
     def add_to_array(self, array):
         if not array.is_array:
