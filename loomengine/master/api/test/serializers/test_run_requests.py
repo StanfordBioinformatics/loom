@@ -9,7 +9,7 @@ from api.serializers.templates import TemplateSerializer
 class TestRunRequestSerializer(TestCase):
 
     def testCreate(self):
-        s = TemplateSerializer(data=fixtures.workflows.flat_workflow)
+        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
         s.is_valid()
         workflow = s.save()
         workflow_id = '%s@%s' % (workflow.name, workflow.id.hex)
@@ -43,7 +43,7 @@ class TestRunRequestSerializer(TestCase):
         self.assertEqual(rr.run.template.id, rr.template.id)
 
     def testCreateNested(self):
-        s = TemplateSerializer(data=fixtures.workflows.nested_workflow)
+        s = TemplateSerializer(data=fixtures.templates.nested_workflow)
         s.is_valid()
         workflow = s.save()
         workflow_id = '%s@%s' % (workflow.name, workflow.id.hex)

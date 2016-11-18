@@ -8,8 +8,9 @@ from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
 from .data_objects import DataObjectSerializer
 from api.models.input_output_nodes import *
 
+from api.models.data_objects import DataObject
 
-class DataTreeSerializer(serializers.ModelSerializer):
+class InputOutputNodeDataFieldSerializer(serializers.ModelSerializer):
 
     # Serializes/deserializers a tree of DataObjects.
     # Input is a string, integer, float, boolean, or dict representation 
@@ -19,27 +20,29 @@ class DataTreeSerializer(serializers.ModelSerializer):
     data = serializers.JSONField()
 
     class Meta:
-        model = DataNode
-        fields = ('data',)
+        model = DataNode # OK to override this
+        fields = ('data',) # OK to override this, if data is included
 
-    def create(self, validated_data):
+    def create(self, validated_data): # OK to override this with extra logic
+        # Override this method with a class that handles all model fields 
+        # on the InputOutputNode
         type = self.context.get('type')
         if not type:
             raise Exception('data type must be set in serializer context')
         data = self.initial_data.get('data')
         if data is not None:
-            return self.create_from_data_objects(data, type)
+            return self._create_data_tree_from_data_objects(data, type)
 
     def to_representation(self, instance):
         if not isinstance(instance, models.Model):
             # If the Serializer was instantiated with data instead of a model,
             # "instance" is an OrderedDict.
-            return super(DataTreeSerializer, self).to_representation(
+            return super(self.__class__, self).to_representation(
                 self.initial_data)
         else:
-            assert isinstance(instance, self.Meta.model)
+            assert isinstance(instance, DataNode)
             # Execute "to_representation" on the correct subclass serializer
-            return {'data': self.to_data_struct(instance)}
+            return {'data': self._data_tree_to_data_struct(instance)}
 
     def validate_data(self, value):
         try:
@@ -93,17 +96,17 @@ class DataTreeSerializer(serializers.ModelSerializer):
         # Add 1 for the current level
         return minheight + 1
 
-    def create_from_data_objects(self, data, data_type):
+    def _create_data_tree_from_data_objects(self, data, data_type):
         data_node = DataNode.objects.create()
-        self.add_data_objects(data_node, data, data_type)
+        self._add_data_objects(data_node, data, data_type)
         return data_node
 
-    def add_data_objects(self, data_node, data, data_type):
+    def _add_data_objects(self, data_node, data, data_type):
         path = []
         self._extend_all_paths_and_add_data_at_leaves(
             data_node, data, path, data_type)
 
-    def to_data_struct(self, data_node):
+    def _data_tree_to_data_struct(self, data_node):
         if data_node._is_missing_branch():
             return MISSING_BRANCH_VALUE
         elif data_node._is_empty_branch():
@@ -114,7 +117,7 @@ class DataTreeSerializer(serializers.ModelSerializer):
         else:
             data = [MISSING_BRANCH_VALUE] * data_node.degree
             for child in data_node.children.all():
-                data[child.index] = self.to_data_struct(child)
+                data[child.index] = self._data_tree_to_data_struct(child)
             return data
 
     def _extend_all_paths_and_add_data_at_leaves(

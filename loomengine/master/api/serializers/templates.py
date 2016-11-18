@@ -4,7 +4,7 @@ from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
     IdSerializer
 from api.models.templates import *
 from api.models.signals import post_save_children
-from .input_output_nodes import DataTreeSerializer
+from .input_output_nodes import InputOutputNodeDataFieldSerializer
 
 
 class TemplateImportSerializer(CreateWithParentModelSerializer):
@@ -42,17 +42,41 @@ class StepInputSerializer(CreateWithParentModelSerializer):
         fields = ('type', 'channel', 'hint', 'mode', 'group')
 
 
-class FixedInputSerializer(CreateWithParentModelSerializer):
-
-    data = serializers.CharField() # converted from DataObject
+class FixedInputSerializer(InputOutputNodeDataFieldSerializer):
 
     def create(self, validated_data):
-        # Convert 'data' into its corresponding data object
         data = validated_data.pop('data')
-        validated_data['data_object'] = DataObject.get_by_value(
-            data,
-            validated_data['type'])
-        return super(FixedInputSerializer, self).create(validated_data)
+
+        if self.context.get('parent_field') \
+           and self.context.get('parent_instance'):
+            validated_data.update({
+                self.context.get('parent_field'):
+                self.context.get('parent_instance')})
+        io_node =  self.Meta.model.objects.create(**validated_data)
+
+        if data is not None:
+            type = validated_data.get('type')
+            if not type:
+                raise Exception('data type is required')
+
+            io_node.data_root = self._create_data_tree_from_data_objects(
+                data, type)
+            io_node.save()
+
+        return io_node
+
+    def to_representation(self, instance):
+        if not isinstance(instance, models.Model):
+            # If the Serializer was instantiated with data instead of a model,
+            # "instance" is an OrderedDict.
+
+            return super(self.__class__, self).to_representation(
+                self.initial_data)
+        else:
+            assert isinstance(instance, InputOutputNode)
+            # Execute "to_representation" on the correct subclass serializer
+            #return {'data': self._data_tree_to_data_struct(instance.data_root)}
+            return {}
 
 
 class FixedWorkflowInputSerializer(FixedInputSerializer):
@@ -63,8 +87,6 @@ class FixedWorkflowInputSerializer(FixedInputSerializer):
 
 
 class FixedStepInputSerializer(FixedInputSerializer):
-
-    data = DataTreeSerializer()
 
     class Meta:
         model = FixedStepInput
@@ -142,17 +164,19 @@ class TemplateSerializer(SuperclassModelSerializer):
     def _get_subclass_serializer_class(self, type):
         if type=='workflow':
             return WorkflowSerializer
-        else:
-            assert type=='step', 'Invalid type "%s"' % type
+        elif type == 'step':
             return StepSerializer
+        else:
+            # No valid type. Serialize with the base class
+            return TemplateSerializer
 
     def _get_subclass_field(self, type):
         if type == 'step':
-            return step
+            return 'step'
+        elif type == 'workflow':
+            return 'workflow'
         else:
-            assert type == 'workflow'
-            return workflow
-
+            return None
     def _get_type(self, data=None, instance=None):
         if instance:
             return instance.type
@@ -212,6 +236,7 @@ class StepSerializer(serializers.ModelSerializer):
         resources = self.initial_data.get('resources', None)
         environment = self.initial_data.get('environment', None)
         template_import = self.initial_data.get('workflow_import', None)
+        validated_data['type'] = 'step'
         validated_data.pop('inputs', None)
         validated_data.pop('fixed_inputs', None)
         validated_data.pop('outputs', None)
@@ -316,7 +341,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
         outputs = self.initial_data.get('outputs', [])
         steps = self.initial_data.get('steps', [])
         template_import = self.initial_data.get('template_import', None)
-
+        validated_data['type'] = 'workflow'
         validated_data.pop('inputs', None)
         validated_data.pop('fixed_inputs', None)
         validated_data.pop('outputs', None)

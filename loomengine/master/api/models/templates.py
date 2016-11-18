@@ -135,11 +135,11 @@ class Workflow(Template):
     # provide a ForeingKey for WorkflowImport, WorkflowInput, etc.
     # to point to Workflows but not to Steps.
 
-#    steps = models.ManyToManyField(
-#        'Template',
-#        through='WorkflowMembership',
-#        through_fields=('parent_template', 'child_template'),
-#        related_name='arrays')
+    prefetch_steps = models.ManyToManyField(
+        'Template',
+        through='WorkflowMembership',
+        through_fields=('parent_template', 'child_template'),
+        related_name='arrays')
 
     @property
     def steps(self):
@@ -263,6 +263,9 @@ class FixedStepInput(InputOutputNode):
         on_delete=models.CASCADE)
     mode = models.CharField(max_length=255, default='no_gather')
     group = models.IntegerField(default=0)
+
+    class Meta:
+        app_label = 'api'
 
 
 class StepOutput(models.Model):

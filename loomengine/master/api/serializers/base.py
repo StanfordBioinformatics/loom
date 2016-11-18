@@ -124,7 +124,7 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             SubclassSerializer = self._get_subclass_serializer_class(
                 type)
             serializer = SubclassSerializer(data=self.initial_data)
-            return super(serializer.__class__, serializer).to_representation(
+            return super(self.__class__, serializer).to_representation(
                 self.initial_data)
         else:
             assert isinstance(instance, self.Meta.model)
@@ -133,10 +133,15 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             SubclassSerializer = self._get_subclass_serializer_class(
                 type)
             subclass_field = self._get_subclass_field(type)
-            try:
-                instance = getattr(instance, subclass_field)
-            except ObjectDoesNotExist:
-                pass
+            if subclass_field:
+                try:
+                    instance = getattr(instance, subclass_field)
+                except ObjectDoesNotExist:
+                    pass
             serializer = SubclassSerializer(instance, context=self.context)
-            return super(serializer.__class__, serializer).to_representation(
-                instance)
+            if isinstance(serializer, self.__class__):
+                return super(SuperclassModelSerializer, serializer)\
+                    .to_representation(instance)
+            else:
+                return super(serializer.__class__, serializer)\
+                    .to_representation(instance)
