@@ -121,10 +121,12 @@ class CloudTaskManager:
                 cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to provision host.')
-            connection.post_task_run_attempt_error({
-                'message': 'Failed to provision host',
-                'detail': str(e)
-            })
+            connection.post_task_run_attempt_error(
+                task_run_attempt_id,
+                {
+                    'message': 'Failed to provision host',
+                    'detail': str(e)
+                })
             connection.update_task_run_attempt(
                 task_run_attempt_id,
                 {
@@ -142,10 +144,12 @@ class CloudTaskManager:
                 cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to launch monitor process on worker: %s')
-            connection.post_task_run_attempt_error({
-                'message': 'Failed to launch monitor process on worker',
-                'detail': str(e)
-            })
+            connection.post_task_run_attempt_error(
+                task_run_attempt_id,
+                {
+                    'message': 'Failed to launch monitor process on worker',
+                    'detail': str(e)
+                })
             connection.update_task_run_attempt(
                 task_run_attempt_id,
                 {
