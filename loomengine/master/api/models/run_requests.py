@@ -16,7 +16,7 @@ class RunRequest(BaseModel):
 
     NAME_FIELD = 'template__name'
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True)
@@ -31,14 +31,6 @@ class RunRequest(BaseModel):
 #    is_failed = models.BooleanField(default=False)
 #    is_canceled = models.BooleanField(default=False)
 #    is_completed = models.BooleanField(default=False)
-
-    @property
-    def status(self):
-        return self.run.status
-
-    @property
-    def name(self):
-        return self.template.name
 
     def initialize(self):
         self._initialize_run()

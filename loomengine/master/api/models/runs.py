@@ -77,7 +77,7 @@ class Run(BaseModel):
         'step': StepRunManager,
         'workflow': WorkflowRunManager
     }
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     type = models.CharField(max_length=255,
                             choices = (('step', 'Step'),
                                        ('workflow', 'Workflow')))
@@ -145,10 +145,6 @@ class Run(BaseModel):
             run = StepRun.objects.create(template=template,
                                          type=template.type,
                                          parent=parent)
-            StepRunResourceSet.create_from_step_resource_set(
-                template.resources, run)
-            StepRunEnvironment.create_from_step_environment(
-                template.environment, run)
         else:
             assert template.type == 'workflow', \
                 'Invalid template type "%s"' % template.type
@@ -180,7 +176,7 @@ class WorkflowRun(Run):
     def initialize_step_runs(self):
         """Create a run for each step
         """
-        for step in self.template.steps:
+        for step in self.template.workflow.steps.all():
             self.create_from_template(step, parent=self)
 
     def initialize_inputs_outputs(self):
@@ -201,9 +197,9 @@ class WorkflowRun(Run):
             fixed_workflow_run_input = FixedWorkflowRunInput.objects.create(
                 workflow_run=self,
                 channel=fixed_input.channel,
-                type=input.type
+                type=fixed_input.type
             )
-            fixed_workflow_run_input._add_scalar_data_from_template()
+            fixed_workflow_run_input.connect(fixed_input)
 
     def _initialize_outputs(self):
         for output in self.template.outputs.all():
@@ -338,7 +334,7 @@ class StepRun(Run):
                 mode=fixed_input.mode,
                 group=fixed_input.group
             )
-            fixed_step_run_input._add_scalar_data_from_template()
+            fixed_step_run_input.connect(fixed_input)
 
     def _initialize_outputs(self):
         for output in self.template.outputs.all():
@@ -395,7 +391,7 @@ class AbstractStepRunInput(InputOutputNode):
         return self.get_data_as_scalar().is_ready()
 
     class Meta:
-        abstract = True
+        abstract=True
 
 class StepRunInput(AbstractStepRunInput):
 
@@ -404,6 +400,7 @@ class StepRunInput(AbstractStepRunInput):
                                  on_delete=models.CASCADE)
     mode = models.CharField(max_length=255)
     group = models.IntegerField()
+
 
 class FixedStepRunInput(AbstractStepRunInput):
 
@@ -415,10 +412,6 @@ class FixedStepRunInput(AbstractStepRunInput):
 
     def get_step_input(self):
         return self.step_run.template.get_input(self.channel)
-
-    def _add_scalar_data_from_template(self):
-        path = [] # Add at root node since we are not handling parallel
-        self.add_data_object(path, self.get_step_input().data_object)
 
 
 class StepRunOutput(InputOutputNode):
@@ -452,10 +445,6 @@ class FixedWorkflowRunInput(InputOutputNode):
     def get_workflow_input(self):
         return self.workflow_run.template.get_input(self.channel)
 
-    def _add_scalar_data_from_template(self):
-        path = [] # Add at root node since we are not handling parallel
-        self.add_data_object(path, self.get_workflow_input().data_object)
-
 
 class WorkflowRunOutput(InputOutputNode):
 
@@ -464,45 +453,12 @@ class WorkflowRunOutput(InputOutputNode):
                                      on_delete=models.CASCADE)
 
 
-class StepRunEnvironment(BaseModel):
-
-    @classmethod
-    def create_from_step_environment(cls, step_environment, step_run):
-        cls.objects.create(
-            step_run=step_run,
-            docker_image=step_environment.docker_image
-        )
-    
-    step_run = models.OneToOneField(
-        'StepRun',
-        on_delete=models.CASCADE,
-        related_name='environment')
-    docker_image = models.CharField(max_length=255)
-
-
-class StepRunResourceSet(BaseModel):
-
-    @classmethod
-    def create_from_step_resource_set(cls, step_resources, step_run):
-        cls.objects.create(
-            step_run=step_run,
-            memory=step_resources.memory,
-            disk_size=step_resources.disk_size,
-            cores=step_resources.disk_size
-        )
-
-    step_run = models.OneToOneField('StepRun',
-                                on_delete=models.CASCADE,
-                                related_name='resources')
-    memory = models.CharField(max_length=255, null=True)
-    disk_size = models.CharField(max_length=255, null=True)
-    cores = models.CharField(max_length=255, null=True)
-
 class StepRunOutputSource(BaseModel):
 
     output = models.OneToOneField(
         StepRunOutput,
 	related_name='source',
         on_delete=models.CASCADE)
+
     filename = models.CharField(max_length=1024, null=True)
     stream = models.CharField(max_length=255, null=True)

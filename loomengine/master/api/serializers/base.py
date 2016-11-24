@@ -64,7 +64,8 @@ class IdSerializer(object):
         else:
             assert isinstance(instance, self.Meta.model)
             # Execute "to_representation" on the correct subclass serializer
-            return { 'id': instance.id.hex }
+            return { 'id': instance.id }
+
 
 
 class SuperclassModelSerializer(serializers.ModelSerializer):
@@ -143,5 +144,4 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
                 return super(SuperclassModelSerializer, serializer)\
                     .to_representation(instance)
             else:
-                return super(serializer.__class__, serializer)\
-                    .to_representation(instance)
+                return serializer.to_representation(instance)

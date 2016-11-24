@@ -6,24 +6,17 @@ import api.views
 router = routers.DefaultRouter()
 
 router.register('data-objects', api.views.DataObjectViewSet, base_name='DataObject')
+router.register('data-trees', api.views.DataTreeViewSet, base_name='DataTree')
 router.register('tasks', api.views.TaskViewSet, base_name='Task')
 router.register('task-attempts', api.views.TaskAttemptViewSet, base_name='TaskAttempt')
 router.register('templates', api.views.TemplateViewSet, base_name='Template')
+router.register('runs', api.views.RunViewSet, base_name='Run')
+router.register('run-requests', api.views.RunRequestViewSet, base_name='RunRequest')
 
 """
-
-router.register('imported-workflows', api.views.ImportedWorkflowViewSet, base_name='ImportedWorkflow')
-
-router.register('files', api.views.FileDataObjectViewSet, base_name='FileDataObject')
-router.register('imported-files', api.views.ImportedFileDataObjectViewSet, base_name='ImportedFile')
-router.register('result-files', api.views.ResultFileDataObjectViewSet, base_name='ResultFile')
-router.register('log-files', api.views.LogFileDataObjectViewSet, base_name='LogFile')
-router.register('run-requests', api.views.RunRequestViewSet, base_name='RunRequest')
-router.register('abstract-workflow-runs', api.views.AbstractWorkflowRunViewSet)
-router.register('task-attempt-outputs', api.views.TaskRunAttemptOutputViewSet)
+router.register('task-attempt-outputs', api.views.TaskAttemptOutputViewSet)
 router.register('file-imports', api.views.FileImportViewSet)
 router.register('file-locations', api.views.FileLocationViewSet)
-
 file_provenance_detail = api.views.FileProvenanceViewSet.as_view({'get':'retrieve'})
 """
 urlpatterns = [

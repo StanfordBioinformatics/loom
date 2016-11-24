@@ -1,15 +1,42 @@
 from rest_framework import serializers
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
-from api.models.workflow_runs import AbstractWorkflowRun, StepRun, \
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, IdSerializer
+from api.models.runs import Run, StepRun, \
     StepRunInput, FixedStepRunInput, StepRunOutput, WorkflowRunInput, \
     FixedWorkflowRunInput, WorkflowRunOutput, WorkflowRun
-from api.serializers.workflows import AbstractWorkflowIdSerializer, \
-    RequestedEnvironmentSerializer, RequestedResourceSetSerializer
+from api.serializers.templates import TemplateIdSerializer
 from api.serializers.tasks import TaskIdSerializer, TaskAttemptErrorSerializer
+from api.serializers.input_output_nodes import InputOutputNodeSerializer
 
 
-class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
+class RunSerializer(SuperclassModelSerializer):
+
+    def _get_subclass_serializer_class(self, type):
+        if type=='workflow':
+            return WorkflowRunSerializer
+        if type=='step':
+            return StepRunSerializer
+        else:
+            # No valid type. Serializer with the base class
+            return RunSerializer
+
+    def _get_subclass_field(self, type):
+        if type == 'step':
+            return 'steprun'
+        elif type == 'workflow':
+            return 'workflowrun'
+        else:
+            return None
+
+    def _get_type(self, data=None, instance=None):
+        if instance:
+            type = instance.type
+        else:
+            assert data, 'must provide either data or instance'
+            type = data.get('type')
+        if not type:
+            raise Exception('Unable to identify run type')
+        return type
 
     subclass_serializers = {
         'workflowrun': 'api.serializers.WorkflowRunSerializer',
@@ -17,13 +44,15 @@ class AbstractWorkflowRunSerializer(SuperclassModelSerializer):
     }
 
     class Meta:
-        model = AbstractWorkflowRun
+        model = Run
         fields = '__all__'
 
+class RunIdSerializer(IdSerializer, RunSerializer):
+    pass
 
-class StepRunInputSerializer(CreateWithParentModelSerializer):
 
-    data = serializers.CharField()
+class StepRunInputSerializer(InputOutputNodeSerializer):
+
     mode = serializers.CharField()
     group = serializers.IntegerField()
 
@@ -32,9 +61,8 @@ class StepRunInputSerializer(CreateWithParentModelSerializer):
         fields = ('type', 'channel', 'data', 'mode', 'group')
 
 
-class FixedStepRunInputSerializer(CreateWithParentModelSerializer):
+class FixedStepRunInputSerializer(InputOutputNodeSerializer):
 
-    data = serializers.CharField()
     mode = serializers.CharField()
     group = serializers.IntegerField()
         
@@ -43,9 +71,8 @@ class FixedStepRunInputSerializer(CreateWithParentModelSerializer):
         fields = ('type', 'channel', 'data', 'mode', 'group')
 
         
-class StepRunOutputSerializer(CreateWithParentModelSerializer):
+class StepRunOutputSerializer(InputOutputNodeSerializer):
 
-    data = serializers.CharField()
     mode = serializers.CharField()
 
     class Meta:
@@ -54,9 +81,9 @@ class StepRunOutputSerializer(CreateWithParentModelSerializer):
 
 
 class StepRunSerializer(CreateWithParentModelSerializer):
-
-    id = serializers.UUIDField(format='hex', required=False)
-    template = AbstractWorkflowIdSerializer()
+    
+    uuid = serializers.UUIDField(format='hex', required=False)
+    template = TemplateIdSerializer()
     inputs = StepRunInputSerializer(many=True,
                                     required=False,
                                     allow_null=True)
@@ -66,41 +93,32 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     outputs = StepRunOutputSerializer(many=True)
     command = serializers.CharField()
     interpreter = serializers.CharField()
-    resources = RequestedResourceSetSerializer()
-    environment = RequestedEnvironmentSerializer()
     name = serializers.CharField()
     tasks = TaskIdSerializer(many=True)
-    errors = TaskAttemptErrorSerializer(many=True, read_only=True)
+#    errors = TaskAttemptErrorSerializer(many=True, read_only=True)
     
     class Meta:
         model = StepRun
-        fields = ('id', 'template', 'inputs', 'fixed_inputs', 'outputs',
-                  'command', 'interpreter', 'environment', 'resources', 'name',
-                  'tasks', 'status', 'errors')
+        fields = ('id', 'uuid', 'template', 'inputs', 'fixed_inputs', 
+                  'outputs', 'command', 'interpreter', 'name', 'tasks')
 
 
-class WorkflowRunInputSerializer(CreateWithParentModelSerializer):
-
-    data = serializers.CharField()
+class WorkflowRunInputSerializer(InputOutputNodeSerializer):
         
     class Meta:
         model = WorkflowRunInput
         fields = ('type', 'channel', 'data',)
 
 
-class FixedWorkflowRunInputSerializer(CreateWithParentModelSerializer):
+class FixedWorkflowRunInputSerializer(InputOutputNodeSerializer):
 
-    data = serializers.CharField()
-        
     class Meta:
         model = FixedWorkflowRunInput
         fields = ('type', 'channel', 'data',)
 
 
-class WorkflowRunOutputSerializer(CreateWithParentModelSerializer):
+class WorkflowRunOutputSerializer(InputOutputNodeSerializer):
 
-    data = serializers.CharField()
-    
     class Meta:
         model = WorkflowRunOutput
         fields = ('type', 'channel', 'data',)
@@ -108,9 +126,9 @@ class WorkflowRunOutputSerializer(CreateWithParentModelSerializer):
 
 class WorkflowRunSerializer(CreateWithParentModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
-    template = AbstractWorkflowIdSerializer()
-    step_runs = AbstractWorkflowRunSerializer(many=True)
+    uuid = serializers.UUIDField(format='hex', required=False)
+    template = TemplateIdSerializer()
+    steps = RunIdSerializer(many=True)
     inputs = WorkflowRunInputSerializer(many=True,
                                         required=False,
                                         allow_null=True)
@@ -122,5 +140,5 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     
     class Meta:
         model = WorkflowRun
-        fields = ('id', 'template', 'step_runs', 'inputs', 'fixed_inputs',
-                  'outputs', 'name', 'status')
+        fields = ('id', 'uuid', 'template', 'steps', 'inputs', 'fixed_inputs',
+                  'outputs', 'name')

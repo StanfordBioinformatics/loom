@@ -3,9 +3,10 @@ from rest_framework import serializers
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
     IdSerializer
 from api.models.templates import *
+from api.models.input_output_nodes import InputOutputNode
 from api.models.signals import post_save_children
-from .input_output_nodes import InputOutputNodeDataFieldSerializer
-
+from .data_trees import DataNodeSerializer, DataNodeIdSerializer
+from .input_output_nodes import InputOutputNodeSerializer
 
 class TemplateImportSerializer(CreateWithParentModelSerializer):
 
@@ -42,51 +43,14 @@ class StepInputSerializer(CreateWithParentModelSerializer):
         fields = ('type', 'channel', 'hint', 'mode', 'group')
 
 
-class FixedInputSerializer(InputOutputNodeDataFieldSerializer):
-
-    def create(self, validated_data):
-        data = validated_data.pop('data')
-
-        if self.context.get('parent_field') \
-           and self.context.get('parent_instance'):
-            validated_data.update({
-                self.context.get('parent_field'):
-                self.context.get('parent_instance')})
-        io_node =  self.Meta.model.objects.create(**validated_data)
-
-        if data is not None:
-            type = validated_data.get('type')
-            if not type:
-                raise Exception('data type is required')
-
-            io_node.data_root = self._create_data_tree_from_data_objects(
-                data, type)
-            io_node.save()
-
-        return io_node
-
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            # If the Serializer was instantiated with data instead of a model,
-            # "instance" is an OrderedDict.
-
-            return super(self.__class__, self).to_representation(
-                self.initial_data)
-        else:
-            assert isinstance(instance, InputOutputNode)
-            # Execute "to_representation" on the correct subclass serializer
-            #return {'data': self._data_tree_to_data_struct(instance.data_root)}
-            return {}
-
-
-class FixedWorkflowInputSerializer(FixedInputSerializer):
+class FixedWorkflowInputSerializer(InputOutputNodeSerializer):
 
     class Meta:
         model = FixedWorkflowInput
         fields = ('type', 'channel', 'data')
 
 
-class FixedStepInputSerializer(FixedInputSerializer):
+class FixedStepInputSerializer(InputOutputNodeSerializer):
 
     class Meta:
         model = FixedStepInput
@@ -164,11 +128,11 @@ class TemplateSerializer(SuperclassModelSerializer):
     def _get_subclass_serializer_class(self, type):
         if type=='workflow':
             return WorkflowSerializer
-        elif type == 'step':
+        elif type=='step':
             return StepSerializer
-        else:
+        elif type=='lookup':
             # No valid type. Serialize with the base class
-            return TemplateSerializer
+            return TemplateLookupSerializer
 
     def _get_subclass_field(self, type):
         if type == 'step':
@@ -177,6 +141,7 @@ class TemplateSerializer(SuperclassModelSerializer):
             return 'workflow'
         else:
             return None
+
     def _get_type(self, data=None, instance=None):
         if instance:
             return instance.type
@@ -192,8 +157,16 @@ class TemplateSerializer(SuperclassModelSerializer):
                 return 'workflow'
             elif command and not steps:
                 return 'step'
+            elif data.get('_template_id'):
+                return 'lookup'
             else:
-                raise Exception('Unable to idenify workflow type.')
+                raise Exception('Unable to determine template type')
+
+    def to_internal_value(self, data):
+        if not isinstance(data, dict):
+            return {'_template_id': data}
+        else:
+            return data
 
 
 class TemplateIdSerializer(IdSerializer, TemplateSerializer):
@@ -203,7 +176,7 @@ class TemplateIdSerializer(IdSerializer, TemplateSerializer):
 
 class StepSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
     environment = StepEnvironmentSerializer()
     resources = StepResourceSetSerializer()
@@ -215,6 +188,7 @@ class StepSerializer(serializers.ModelSerializer):
     class Meta:
         model = Step
         fields = ('id',
+                  'uuid',
                   'type',
                   'name',
                   'command',
@@ -230,6 +204,7 @@ class StepSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Can't create inputs, outputs, environment, or resources until
         # step exists.
+
         inputs = self.initial_data.get('inputs', [])
         fixed_inputs = self.initial_data.get('fixed_inputs', [])
         outputs = self.initial_data.get('outputs', [])
@@ -258,7 +233,8 @@ class StepSerializer(serializers.ModelSerializer):
             s = FixedStepInputSerializer(
                 data=fixed_input_data,
                 context={'parent_field': 'step',
-                         'parent_instance': step})
+                         'parent_instance': step,
+                     })
             s.is_valid(raise_exception=True)
             s.save()
 
@@ -296,10 +272,26 @@ class StepSerializer(serializers.ModelSerializer):
 
         return step
 
+class TemplateLookupSerializer(serializers.Serializer):
+
+    _template_id = serializers.CharField(required=True)
+
+    def create(self, validated_data):
+        # If template_id is present, just look it up
+        template_id = validated_data.get('_template_id')
+        matches = Template.filter_by_name_or_id(template_id)
+        if matches.count() < 1:
+            raise Exception(
+                'No match found for id %s' % template_id)
+        elif matches.count() > 1:
+            raise Exception(
+                'Multiple workflows match id %s' % template_id)
+        return  matches.first()
+
 
 class WorkflowSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
     inputs = WorkflowInputSerializer(
         many=True,
@@ -316,6 +308,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workflow
         fields = ('id',
+                  'uuid',
                   'type',
                   'name',
                   'steps',
@@ -392,32 +385,3 @@ class WorkflowSerializer(serializers.ModelSerializer):
             s.save()
 
         return workflow
-
-
-"""
-
-class AbstractWorkflowIdSerializer(serializers.Serializer):
-
-    def to_representation(self, obj):
-        return obj.get_name_and_id()
-
-    def to_internal_value(self, data):
-        if not isinstance(data, dict):
-            return {'template_id': data}
-        else:
-            return data
-
-    def create(self, validated_data):
-        # We don't create a new object, but look up one that
-        # matches the given ID if it exists.
-        matches = AbstractWorkflow.filter_by_name_or_id(
-            validated_data['template_id'])
-        if matches.count() < 1:
-            raise Exception(
-                'No match found for id %s' % validated_data['template_id'])
-        elif matches.count() > 1:
-            raise Exception(
-                'Multiple workflows match id %s' % validated_data[
-                    'template_id'])
-        return  matches.first()
-"""

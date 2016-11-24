@@ -6,7 +6,7 @@ class TestTemplate(TestCase):
 
     def _get_step_one(self):
         step_one = Step.objects.create(name='step_one',
-                                       command='echo {{one}} {{two}} > three)')
+                                       command='echo {{one}} > {{two})')
         StepEnvironment.objects.create(step=step_one,
                                                   docker_image='ubuntu')
         StepResourceSet.objects.create(step=step_one, memory=6, cores=1)
@@ -16,26 +16,24 @@ class TestTemplate(TestCase):
             type='string',
             value='two'
         )
-        input_two = FixedStepInput.objects.create(
-            step=step_one, channel='two', type='string', data_object=data_object)
-        output_three = StepOutput.objects.create(
-            step=step_one, channel='three', type='string')
+        output_two = StepOutput.objects.create(
+            step=step_one, channel='two', type='string')
         source = StepOutputSource.objects.create(
-            stream='stdout', output=output_three)
+            stream='stdout', output=output_two)
         step_one.validate()
         return step_one
 
     def _get_step_two(self):
         step_two = Step.objects.create(name='step_two',
-                                       command='echo {{three}} "!" > {{four}})')
+                                       command='echo {{two}} "!" > {{three}})')
         StepEnvironment.objects.create(step=step_two,
-                                                  docker_image='ubuntu')
+                                       docker_image='ubuntu')
         StepResourceSet.objects.create(step=step_two, memory=6, cores=1)
 
-        input_three = StepInput.objects.create(
-            step=step_two, channel='three', type='string')
+        input_two = StepInput.objects.create(
+            step=step_two, channel='two', type='string')
         output_four = StepOutput.objects.create(
-            step=step_two, channel='four', type='string')
+            step=step_two, channel='three', type='string')
         source = StepOutputSource.objects.create(stream='stdout',
                                                  output=output_four)
         step_two.validate()
@@ -46,8 +44,8 @@ class TestTemplate(TestCase):
                                            name='one_two')
         wf_input_one = WorkflowInput.objects.create(
             workflow=workflow, channel='one', type='string')
-        wf_output_four = WorkflowOutput.objects.create(
-            workflow=workflow, channel='four', type='string')
+        wf_output_three = WorkflowOutput.objects.create(
+            workflow=workflow, channel='three', type='string')
         workflow.add_steps([self._get_step_one(),
                             self._get_step_two()])
         workflow.validate()

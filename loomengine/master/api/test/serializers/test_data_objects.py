@@ -101,7 +101,7 @@ class TestDataObjectArraySerializer(TestCase):
         m = s.save()
 
         self.assertEqual(
-            m.members.count(),
+            m.prefetch_members.count(),
             len(fixtures.data_objects.string_data_object_array['members'])
             )
 
@@ -139,7 +139,7 @@ class TestDataObjectSerializer(TestCase):
         m = s.save()
 
         self.assertEqual(
-            m.members.count(),
+            m.prefetch_members.count(),
             len(fixtures.data_objects.string_data_object_array['members'])
         )
 

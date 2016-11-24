@@ -1,8 +1,8 @@
 from .data_objects import *
-from .workflows import *
+from .templates import *
 
 run_request_input = {
-    'data': 'some text',
+    'data': {'contents': 'some text'},
     'type': 'string',
     'channel': flat_workflow['inputs'][0]['channel']
 }

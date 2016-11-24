@@ -72,7 +72,7 @@ class Template(BaseModel):
 
     NAME_FIELD = 'name'
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     type = models.CharField(max_length=255,
                             choices=(('workflow', 'Workflow'),
                                      ('step', 'Step')))
@@ -108,7 +108,7 @@ class Template(BaseModel):
         return self._get_manager().get_environment()
 
     def get_name_and_id(self):
-        return "%s@%s" % (self.name, self.id.hex)
+        return "%s@%s" % (self.name, self.id)
 
     def get_fixed_input(self, channel):
         inputs = self.fixed_inputs.filter(channel=channel)
@@ -135,18 +135,11 @@ class Workflow(Template):
     # provide a ForeingKey for WorkflowImport, WorkflowInput, etc.
     # to point to Workflows but not to Steps.
 
-    prefetch_steps = models.ManyToManyField(
+    steps = models.ManyToManyField(
         'Template',
         through='WorkflowMembership',
         through_fields=('parent_template', 'child_template'),
         related_name='arrays')
-
-    @property
-    def steps(self):
-        # No straightforward way to return a queryset with ordering
-        # through a many to many relation. Return a list instead.
-        return [m.child_template for m in 
-                self.children.all().select_related('child_template')]
 
     def add_steps(self, step_list):
         WorkflowMembership.add_steps_to_workflow(step_list, self)
@@ -156,13 +149,16 @@ class Workflow(Template):
 
 
 class TemplateImport(BaseModel):
-
-    note = models.TextField(max_length=10000, null=True)
-    source_url = models.TextField(max_length=1000)
+    
     template = models.OneToOneField(
         'Template',
         related_name='template_import',
         on_delete=models.CASCADE)
+
+
+
+    note = models.TextField(max_length=10000, null=True)
+    source_url = models.TextField(max_length=1000)
 
 
 class WorkflowInput(models.Model):
@@ -267,6 +263,10 @@ class FixedStepInput(InputOutputNode):
     class Meta:
         app_label = 'api'
 
+    @property
+    def data(self):
+        # Dummy attribute required by serializer
+        return
 
 class StepOutput(models.Model):
 
@@ -308,19 +308,16 @@ class WorkflowMembership(models.Model):
     parent_template = models.ForeignKey('Workflow', related_name='children')
     child_template = models.ForeignKey('Template', related_name='parents', 
                                        null=True)
-    order = models.IntegerField()
 
     @classmethod
     def add_steps_to_workflow(cls, step_list, parent):
         for step in step_list:
             WorkflowMembership.objects.create(
                 parent_template=parent,
-                child_template=step,
-                order=parent.children.count())
+                child_template=step)
 
     class Meta:
         app_label = 'api'
-        ordering = ['order',]
 
 
 '''

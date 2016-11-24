@@ -11,9 +11,9 @@ class MockTaskManager(object):
     mock_data_counter = 0
 
     @classmethod
-    def run(cls, task_run):
-        from api.models.task_runs import TaskRunAttempt
-        attempt = TaskRunAttempt.create_from_task_run(task_run)
+    def run(cls, task):
+        from api.models.tasks import TaskAttempt
+        attempt = TaskAttempt.create_from_task(task)
 
         for output in attempt.outputs.all():
             cls._add_mock_data(output)
@@ -35,17 +35,10 @@ class MockTaskManager(object):
         mock_md5 = hashlib.md5(mock_text).hexdigest()
 
         file_data = {
-            'file_content': {
-                'filename': 'mock_file_%s' % self.mock_data_counter,
-                'unnamed_file_content': {
-                    'hash_value': mock_md5,
-                    'hash_function': 'md5'
-                }
-            },
-            'file_location': {
-                'url': 'file:///mock/location/%s' % self.mock_data_counter,
-                'status': 'complete'
-            }}
+            'type': 'file',
+            'filename': 'mock_file_%s' % self.mock_data_counter,
+            'md5': mock_md5,
+            'source_type': 'result'}
 
         s = FileDataObjectSerializer(data=file_data)
         s.is_valid(raise_exception=True)

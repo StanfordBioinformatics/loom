@@ -20,11 +20,10 @@ class TestRunRequest(TestCase):
         input_one = StepInput.objects.create(
             step=step_one, channel='one', type='string')
         data_object = StringDataObject.objects.create(
-            type='string',
-            value='two'
-        )
+            type='string', value='two')
+        data_tree = DataNode.create_from_scalar(data_object)
         input_two = FixedStepInput.objects.create(
-            step=step_one, channel='two', type='string', data_object=data_object)
+            step=step_one, channel='two', type='string', data_root=data_tree)
         output_three = StepOutput.objects.create(
             step=step_one, channel='three', type='string')
         source = StepOutputSource.objects.create(
@@ -51,7 +50,9 @@ class TestRunRequest(TestCase):
         run_request = RunRequest.objects.create(template=template)
         input_one = RunRequestInput.objects.create(
             run_request=run_request, channel='one')
-        input_one.add_data_objects("one", 'string')
+        data_object = StringDataObject.objects.create(
+            type='string', value='one')
+        input_one.add_data_as_scalar(data_object)
         run_request.initialize()
         return run_request
 
@@ -61,8 +62,8 @@ class TestRunRequest(TestCase):
         # Verify that input data to run_request is shared with input node for step
         step_one = run_request.run.steps.all().get(
             steprun__template__name='step_one')
-        data = step_one.inputs.first().to_data_struct()
-        self.assertEqual(data['value'], 'one')
+        data = step_one.inputs.first().data_root.data_object
+        self.assertEqual(data.substitution_value, 'one')
 
     def testStartReadyTasks(self):
         run_request = self._get_run_request()

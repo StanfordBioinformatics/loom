@@ -5,50 +5,41 @@ from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.data_objects import DataObject
 from api.models.run_requests import RunRequest, RunRequestInput
 from api.models.signals import post_save_children
-from api.models.workflows import AbstractWorkflow
-from api.serializers.workflows import AbstractWorkflowIdSerializer
-from api.serializers.workflow_runs import AbstractWorkflowRunSerializer
+from api.serializers.input_output_nodes import InputOutputNodeSerializer
+from api.serializers.templates import TemplateIdSerializer
+from api.serializers.runs import RunIdSerializer
 
 
-class RunRequestInputSerializer(CreateWithParentModelSerializer):
-
-    data = serializers.CharField() #converted from tree of DataNodes at input.data_root
+class RunRequestInputSerializer(InputOutputNodeSerializer):
 
     class Meta:
         model = RunRequestInput
-        fields = ('channel', 'data',)
-
-    def create(self, validated_data):
-        # Convert 'data' into its corresponding data object
-        data_value = validated_data.pop('data')
-        run_request_input = super(RunRequestInputSerializer, self).create(validated_data)
-        run_request_input.add_data_objects(data_value, self.context['data_type'])
-        return run_request_input
+        fields = ('type', 'channel', 'data',)
 
 class RunRequestSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
     name = serializers.CharField(required=False, read_only=True)
     inputs = RunRequestInputSerializer(many=True, required=False)
-    template = AbstractWorkflowIdSerializer()
-    run = AbstractWorkflowRunSerializer(required=False)
+    template = TemplateIdSerializer()
+    run = RunIdSerializer(required=False)
 
     class Meta:
         model = RunRequest
         fields = ('id',
+                  'uuid',
                   'name',
                   'template',
                   'inputs',
                   'datetime_created',
-                  'run',
-                  'status')
+                  'run')
 
     def create(self, validated_data):
         inputs = self.initial_data.get('inputs', None)
         validated_data.pop('inputs', None)
 
         # Look up workflow or step 'template' using identifier string
-        s = AbstractWorkflowIdSerializer(data=validated_data.pop('template'))
+        s = TemplateIdSerializer(data=validated_data.pop('template'))
         s.is_valid()
         workflow = s.save()
         validated_data['template'] = workflow

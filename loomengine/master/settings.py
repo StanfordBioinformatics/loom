@@ -208,7 +208,7 @@ def _get_log_level():
     LOG_LEVEL = os.getenv('LOG_LEVEL', DEFAULT_LOG_LEVEL)
     return LOG_LEVEL.upper()
 
-LOG_LEVEL = 'DEBUG' #_get_log_level()
+LOG_LEVEL = _get_log_level()
 
 LOGGING = {
     'version': 1,

@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 fixed_step_input = {
     'type': 'string',
     'channel': 'test',
-    'data': 'teststring',
+    'data': {'contents': 'teststring'},
 }
 
 step_a = {
@@ -29,7 +29,7 @@ step_a = {
     'fixed_inputs': [
         {
             'type': 'string',
-            'data': 'a word or two',
+            'data': {'contents': 'a word or two'},
             'channel': 'a2'
         }
     ],
@@ -70,7 +70,7 @@ step_b = {
     ],
     'fixed_inputs': [{
         'type': 'string',
-        'data': 'more text',
+        'data': {'contents': 'more text'},
         'channel': 'b3'
     }],
     'outputs': [
@@ -126,7 +126,7 @@ flat_workflow = {
     'fixed_inputs': [
 	{
             'type': 'string',
-	    'data': 'two',
+	    'data': {'contents': 'two'},
 	    'channel': 'b2'
 	}
     ],
@@ -148,7 +148,7 @@ nested_workflow = {
         {
             'type': 'string',
             'channel': 'a1',
-            'data': 'a1 text'
+            'data': {'contents': 'a1 text'}
         }
     ],
     'outputs': [

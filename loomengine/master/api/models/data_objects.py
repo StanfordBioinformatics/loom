@@ -43,13 +43,6 @@ class BooleanDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.booleandataobject.value
 
-#    def to_data_struct(self):
-#        return {
-#            'id': self.model.id.hex,
-#            'type': self.model.type,
-#            'value': self.model.booleandataobject.value,
-#        }
-
     def is_ready(self):
         return True
 
@@ -70,13 +63,6 @@ class FileDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.filedataobject.filename
 
-#    def to_data_struct(self):
-#        return {
-#            'id': self.model.id.hex,
-#            'type': self.model.type,
-#            'value': '%s@%s' % (self.model.filedataobject.filename, self.model.id.hex)
-#        }
-
     def is_ready(self):
         resource = self.model.filedataobject.file_resource
         return resource is not None and resource.is_ready()
@@ -89,13 +75,6 @@ class FloatDataObjectManager(DataObjectManager):
 
     def get_substitution_value(self):
         return self.model.floatdataobject.value
-
-#    def to_data_struct(self):
-#        return {
-#            'id': self.model.id.hex,
-#            'type': self.model.type,
-#            'value': self.model.floatdataobject.value,
-#        }
 
     def is_ready(self):
         return True
@@ -110,13 +89,6 @@ class IntegerDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.integerdataobject.value
 
-#    def to_data_struct(self):
-#        return {
-#            'id': self.model.id.hex,
-#            'type': self.model.type,
-#            'value': self.model.integerdataobject.value,
-#        }
-
     def is_ready(self):
         return True
 
@@ -130,13 +102,6 @@ class StringDataObjectManager(DataObjectManager):
     def get_substitution_value(self):
         return self.model.stringdataobject.value
 
-#    def to_data_struct(self):
-#        return {
-#            'id': self.model.id.hex,
-#            'type': self.model.type,
-#            'value': self.model.stringdataobject.value,
-#        }
-
     def is_ready(self):
         return True
 
@@ -145,14 +110,11 @@ class DataObjectArrayManager(DataObjectManager):
 
     def get_substitution_value(self):
         return [member.substitution_value
-                for member in self.model.members.all()]
-
-#    def to_data_struct(self):
-#        raise Exception('Not supported for arrays')
+                for member in self.model.members]
 
     def is_ready(self):
         return all([member.is_ready()
-                    for member in self.model.members.all()])
+                    for member in self.model.members])
 
 
 class DataObject(BaseModel):
@@ -175,7 +137,7 @@ class DataObject(BaseModel):
         ('string', 'String'),
     )
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     type = models.CharField(
         max_length=255,
         choices=TYPE_CHOICES)
@@ -202,16 +164,13 @@ class DataObject(BaseModel):
     def substitution_value(self):
         return self._get_manager().get_substitution_value()
 
-#    def to_data_struct(self):
-#        return self._get_manager().to_data_struct()
-    
     def add_to_array(self, array):
         if not array.is_array:
             raise NonArrayError('Cannot add members when is_array=False')
         if self.is_array:
             raise NestedArraysError('Cannot nest DataObjectArrays')
         ArrayMembership.objects.create(
-            array=array, member=self, order=array.members.count())
+            array=array, member=self, order=array.prefetch_members.count())
 
     def is_ready(self):
         return self._get_manager().is_ready()
@@ -279,7 +238,12 @@ class StringDataObject(DataObject):
 
 class DataObjectArray(DataObject):
 
-    members = models.ManyToManyField('DataObject',
+    @property
+    def members(self):
+        return [m.member for m in 
+                self.has_array_members_membership.all().select_related('member')]
+
+    prefetch_members = models.ManyToManyField('DataObject',
                                      through='ArrayMembership',
                                      through_fields=('array', 'member'),
                                      related_name='arrays')
@@ -302,7 +266,7 @@ class DataObjectArray(DataObject):
             if not data_object.type == type:
                 raise TypeMismatchError(
                     'Expected type "%s", but DataObject %s is type %s' \
-                    % (type, data_object.id.hex, data_object.type))
+                    % (type, data_object.id, data_object.type))
             if data_object.is_array:
                 raise NestedArraysError('Cannot nest DataObjectArrays')
 
@@ -320,7 +284,7 @@ class ArrayMembership(BaseModel):
 
 class FileResource(BaseModel):
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     datetime_created = models.DateTimeField(
         default=timezone.now, editable=False)
     file_url = models.CharField(max_length=1000)
@@ -372,7 +336,7 @@ class FileResource(BaseModel):
                 cls._get_browsable_path(file_data_object),
                 "%s-%s-%s" % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data_object.id.hex,
+                    file_data_object.id,
                     file_data_object.filename
                 )
             )
@@ -385,7 +349,7 @@ class FileResource(BaseModel):
                 cls._get_path_by_source_type(file_data_object),
                 '%s-%s-%s' % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data_object.id.hex,
+                    file_data_object.id,
                     file_data_object.filename
                 )
             )
@@ -424,17 +388,17 @@ class FileResource(BaseModel):
         path = os.path.join(
             "%s-%s" % (
                 step_run.template.name,
-                step_run.id.hex,
+                step_run.id,
             ),
-            "task-%s" % task_run.id.hex,
-            "attempt-%s" % task_run_attempt.id.hex,
+            "task-%s" % task_run.id,
+            "attempt-%s" % task_run_attempt.id,
         )
         while step_run.parent is not None:
             step_run = step_run.parent
             path = os.path.join(
                 "%s-%s" % (
                     step_run.template.name,
-                    step_run.id.hex,
+                    step_run.id,
                 ),
                 path
             )

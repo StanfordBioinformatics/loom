@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
+from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, \
+    IdSerializer
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskOutputSource, \
     TaskResourceSet, TaskEnvironment, TaskAttempt, TaskAttemptOutput, \
     TaskAttemptLogFile, TaskAttemptError
@@ -91,7 +92,7 @@ class TaskAttemptErrorSerializer(CreateWithParentModelSerializer):
 
 class TaskAttemptSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
     name = serializers.CharField(required=False)
     log_files = TaskAttemptLogFileSerializer(
         many=True, allow_null=True, required=False)
@@ -105,7 +106,7 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TaskAttempt
-        fields = ('id', 'datetime_created', 'datetime_finished', 
+        fields = ('id', 'uuid', 'datetime_created', 'datetime_finished', 
                   'last_heartbeat', 'status', 'errors', 'log_files', 
                   'inputs', 'outputs', 'name', 'interpreter', 
                   'rendered_command', 'environment', 'resources')
@@ -121,20 +122,8 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
         return instance
 
 
-class TaskAttemptIdSerializer(TaskAttemptSerializer):
-    # Renders only the "id" field for deferred lookup
-
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            # If the Serializer was instantiated with data instead of a model,
-            # "instance" is an OrderedDict. It may be missing data in fields
-            # that are on the subclass but not on the superclass, so we go
-            # back to initial_data.
-            return { 'id': instance.get('id') }
-        else:
-            assert isinstance(instance, self.Meta.model)
-            # Execute "to_representation" on the correct subclass serializer
-            return { 'id': instance.id.hex }
+class TaskAttemptIdSerializer(IdSerializer, TaskAttemptSerializer):
+    pass
 
 
 class TaskInputSerializer(CreateWithParentModelSerializer):
@@ -160,25 +149,16 @@ class TaskOutputSerializer(CreateWithParentModelSerializer):
         fields = ('data_object', 'source', 'type', 'channel')
 
 
-class TaskIdSerializer(serializers.ModelSerializer):
-
-    id = serializers.UUIDField(format='hex', required=False)
-
-    class Meta:
-        model = Task
-        fields = ('id',)
-
-
 class TaskSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', read_only=True)
+    uuid = serializers.UUIDField(format='hex', read_only=True)
     resources = TaskResourceSetSerializer(read_only=True)
     environment = TaskEnvironmentSerializer(read_only=True)
     inputs = TaskInputSerializer(many=True, read_only=True)
     outputs = TaskOutputSerializer(many=True, read_only=True)
     task_attempts = TaskAttemptSerializer(many=True, read_only=True)
     accepted_task_attempt = TaskAttemptSerializer(read_only=True)
-    status = serializers.CharField(read_only=True)
+#    status = serializers.CharField(read_only=True)
 #    errors = TaskAttemptErrorSerializer(many=True, read_only=True)
     command = serializers.CharField(read_only=True)
     rendered_command = serializers.CharField(read_only=True)
@@ -188,7 +168,11 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ('id', 'resources', 'environment', 'inputs', 'outputs', 
-                  'task_attempts', 'accepted_task_attempt', 'status', 
+        fields = ('id', 'uuid', 'resources', 'environment', 'inputs', 
+                  'outputs', 'task_attempts', 'accepted_task_attempt', 
                   'command', 'rendered_command', 'interpreter', 
                   'datetime_finished', 'datetime_created')
+
+class TaskIdSerializer(IdSerializer, TaskSerializer):
+    pass
+

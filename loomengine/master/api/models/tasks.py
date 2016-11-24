@@ -18,7 +18,7 @@ class Task(BaseModel):
     each StepRun will have one task for each set of inputs.
     """
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True)
@@ -65,13 +65,13 @@ class Task(BaseModel):
                 task=task)
         TaskResourceSet.objects.create(
             task=task,
-            memory=step_run.resources.memory,
-            disk_size=step_run.resources.disk_size,
-            cores=step_run.resources.cores
+            memory=step_run.template.resources.memory,
+            disk_size=step_run.template.resources.disk_size,
+            cores=step_run.template.resources.cores
         )
         TaskEnvironment.objects.create(
             task=task,
-            docker_image = step_run.environment.docker_image,
+            docker_image = step_run.template.environment.docker_image,
         )
         return task
 
@@ -179,7 +179,7 @@ class TaskAttempt(BaseModel):
 
     STATUSES = TASK_ATTEMPT_STATUSES
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True)
@@ -254,13 +254,13 @@ class TaskAttempt(BaseModel):
     def get_working_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
                             'runtime_volumes',
-                            self.id.hex,
+                            self.id,
                             'work')
 
     def get_log_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
                             'runtime_volumes',
-                            self.id.hex,
+                            self.id,
                             'logs')
 
     def get_worker_log_file(self):

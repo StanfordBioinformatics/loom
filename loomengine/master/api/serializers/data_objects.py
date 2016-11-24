@@ -15,7 +15,7 @@ class UpdateNotAllowedError(Exception):
 
 class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = BooleanDataObject
@@ -24,7 +24,7 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
 class IntegerDataObjectSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = IntegerDataObject
@@ -33,7 +33,7 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
 
 class FloatDataObjectSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = FloatDataObject
@@ -42,7 +42,7 @@ class FloatDataObjectSerializer(serializers.ModelSerializer):
 
 class StringDataObjectSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = StringDataObject
@@ -51,7 +51,7 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
 
 class FileResourceSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = FileResource
@@ -60,7 +60,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
     file_resource = FileResourceSerializer(allow_null=True, required=False)
 
     class Meta:
@@ -82,7 +82,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
 
 class DataObjectSerializer(SuperclassModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = DataObject
@@ -142,7 +142,7 @@ class DataObjectIdSerializer(IdSerializer, DataObjectSerializer):
 
 class DataObjectArraySerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.UUIDField(format='hex', required=False)
     members = DataObjectSerializer(many=True, required=False)
 
     class Meta:

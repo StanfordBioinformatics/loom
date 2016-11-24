@@ -17,31 +17,43 @@ logger = logging.getLogger(__name__)
 
 
 class DataObjectViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.DataObjectSerializer
 
     def get_queryset(self):
         queryset = models.DataObject.objects.all()
-        queryset = queryset.select_related('filedataobject__file_resource')\
-                           .select_related('stringdataobject')\
+        queryset = queryset.select_related('stringdataobject')\
                            .select_related('filedataobject')\
+                           .select_related('filedataobject__file_resource')\
                            .select_related('booleandataobject')\
                            .select_related('integerdataobject')\
                            .select_related('floatdataobject')\
                            .select_related('dataobjectarray')\
                            .prefetch_related(
-                               'dataobjectarray__members__stringdataobject')\
+                               'dataobjectarray__prefetch_members__stringdataobject')\
                            .prefetch_related(
-                               'dataobjectarray__members__booleandataobject')\
+                               'dataobjectarray__prefetch_members__booleandataobject')\
                            .prefetch_related(
-                               'dataobjectarray__members__integerdataobject')\
+                               'dataobjectarray__prefetch_members__integerdataobject')\
                            .prefetch_related(
-                               'dataobjectarray__members__floatdataobject')\
+                               'dataobjectarray__prefetch_members__floatdataobject')\
                            .prefetch_related(
-                               'dataobjectarray__members__filedataobject__file_resource')
+                               'dataobjectarray__prefetch_members__filedataobject__file_resource')
         return queryset
 
 
+class DataTreeViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.DataNodeSerializer
+
+    def get_queryset(self):
+        queryset = models.DataNode.objects.filter(parent__isnull=True)
+        queryset = queryset.select_related('data_object')\
+                .prefetch_related('descendants__data_object')
+        return queryset
+
+        
 class TaskViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.TaskSerializer
 
     def get_queryset(self):
@@ -56,6 +68,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 
 class TaskAttemptViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.TaskAttemptSerializer
 
     def get_queryset(self):
@@ -73,22 +86,59 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
 
 
 class TemplateViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.TemplateSerializer
 
     def get_queryset(self):
         queryset = models.Template.objects.all()
-        queryset = queryset.select_related('template_import')\
-                           .prefetch_related(
-                               'workflow__prefetch_steps')
-                           .prefetch_related('workflow__inputs')\
-                           .prefetch_related('workflow__fixed_inputs')\
-                           .prefetch_related('workflow__outputs')\
-                           .prefetch_related('step__inputs')\
-                           .prefetch_related('step__fixed_inputs')\
-                           .prefetch_related('step__outputs__source')\
-                           .prefetch_related('step__resources')\
-                           .prefetch_related('step__environment')
+        queryset = queryset\
+            .select_related('template_import')\
+            .prefetch_related('workflow__inputs')\
+            .prefetch_related('workflow__outputs')\
+            .prefetch_related(
+                'workflow__fixed_inputs__data_root')\
+            .prefetch_related('step__inputs')\
+            .prefetch_related(
+                'step__fixed_inputs__data_root')\
+            .prefetch_related('step__outputs__source')\
+            .prefetch_related('step__resources')\
+            .prefetch_related('step__environment')\
+            .prefetch_related(
+                'workflow__steps')
         return queryset
+
+class RunViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
+    serializer_class = serializers.RunSerializer
+
+    def get_queryset(self):
+        queryset = models.Run.objects.all()
+        queryset = queryset.select_related('template__template_import')\
+                           .prefetch_related('workflowrun__inputs__data_root')\
+                           .prefetch_related(
+                               'workflowrun__fixed_inputs__data_root')\
+                           .prefetch_related('workflowrun__outputs__data_root')\
+                           .prefetch_related('workflowrun__steps')\
+                           .prefetch_related('steprun__inputs__data_root')\
+                           .prefetch_related(
+                               'steprun__fixed_inputs__data_root')\
+                           .prefetch_related('steprun__outputs__data_root')\
+                           .prefetch_related('steprun__outputs__source')\
+                           .prefetch_related('steprun__tasks')
+        return queryset
+
+class RunRequestViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
+    serializer_class = serializers.RunRequestSerializer
+
+    def get_queryset(self):
+        queryset = models.RunRequest.objects.all()
+        queryset = queryset.select_related('run')\
+                           .select_related('template')\
+                           .prefetch_related('inputs__data_root')\
+                           .prefetch_related('outputs__data_root')
+        return queryset.order_by('-datetime_created')
+
 
 """
 class AbstractWorkflowViewSet(viewsets.ModelViewSet):
@@ -147,17 +197,6 @@ class ResultFileDataObjectViewSet(viewsets.ModelViewSet):
 class LogFileDataObjectViewSet(viewsets.ModelViewSet):
     queryset = models.FileDataObject.objects.filter(source_type='log').order_by('-datetime_created')
     serializer_class = serializers.FileDataObjectSerializer
-
-class RunRequestViewSet(viewsets.ModelViewSet):
-    serializer_class = serializers.RunRequestSerializer
-
-    def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        if query_string:
-            queryset = models.RunRequest.query(query_string)
-        else:
-            queryset = models.RunRequest.objects.all()
-        return queryset.order_by('-datetime_created')
 
 class TaskAttemptErrorViewSet(viewsets.ModelViewSet):
     queryset = models.tasks.TaskAttemptError.objects.all()

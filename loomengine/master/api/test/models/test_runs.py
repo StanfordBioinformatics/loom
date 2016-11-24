@@ -27,16 +27,6 @@ def get_step_run():
         type = 'file',
         mode = 'no_scatter',
     )
-    StepRunEnvironment.objects.create(
-        step_run = step_run,
-        docker_image = 'ubuntu'
-    )
-    StepRunResourceSet.objects.create(
-        step_run = step_run,
-        memory = 1,
-        disk_size = 1,
-        cores = 1
-    )
     return step_run
 
 def get_workflow_run():
