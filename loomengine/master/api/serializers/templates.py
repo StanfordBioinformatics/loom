@@ -8,40 +8,6 @@ from api.models.signals import post_save_children
 from .data_trees import DataNodeSerializer, DataNodeIdSerializer
 from .input_output_nodes import InputOutputNodeSerializer
 
-class TemplateImportSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = TemplateImport
-        fields = ('note', 'source_url',)
-
-
-class StepEnvironmentSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = StepEnvironment
-        fields = ('docker_image',)
-
-
-class StepResourceSetSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = StepResourceSet
-        fields = ('memory', 'disk_size', 'cores',)
-
-
-class WorkflowInputSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = WorkflowInput
-        fields = ('type', 'channel', 'hint',)
-
-
-class StepInputSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = StepInput
-        fields = ('type', 'channel', 'hint', 'mode', 'group')
-
 
 class FixedWorkflowInputSerializer(InputOutputNodeSerializer):
 
@@ -55,66 +21,6 @@ class FixedStepInputSerializer(InputOutputNodeSerializer):
     class Meta:
         model = FixedStepInput
         fields = ('type', 'channel', 'data', 'mode', 'group')
-
-
-class WorkflowOutputSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = WorkflowOutput
-        fields = ('type', 'channel',)
-
-
-class StepOutputSourceSerializer(CreateWithParentModelSerializer):
-
-    class Meta:
-        model = StepOutputSource
-        fields = ('filename', 'stream',)
-
-
-#class StepOutputParserSerializer(CreateWithParentModelSerializer):
-#
-#    delimiter = serializers.CharField(required=False, allow_blank=True)
-#
-#    class Meta:
-#        model = StepOutputParser
-#        fields = ('delimiter',)
-
-
-class StepOutputSerializer(CreateWithParentModelSerializer):
-
-    source = StepOutputSourceSerializer()
-    # parser = StepOutputParserSerializer(required=False)
-    
-    class Meta:
-        model = StepOutput
-        fields = ('type', 'channel', 'source', 'mode')
-
-    def create(self, validated_data):
-        source_data =self.initial_data.get('source', None)
-        # parser_data =self.initial_data.get('parser', None)
-        validated_data.pop('source', None)
-        # validated_data.pop('parser', None)
-
-        step_output = super(StepOutputSerializer, self).create(validated_data)
-
-        if source_data:
-            s = StepOutputSourceSerializer(
-                data=source_data,
-                context = {'parent_field': 'output',
-                           'parent_instance': step_output})
-            s.is_valid(raise_exception=True)
-            s.save()
-
-        #if parser_data:
-        #    s = StepOutputParserSerializer(
-        #        data=parser_data,
-        #        context = {'parent_field': 'step_output',
-        #                   'parent_instance': step_output})
-        #    s.is_valid(raise_exception=True)
-        #    s.save()
-
-        post_save_children.send(sender=self.Meta.model, instance=step_output)
-        return step_output
 
 
 class TemplateSerializer(SuperclassModelSerializer):
@@ -178,12 +84,12 @@ class StepSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
-    environment = StepEnvironmentSerializer()
-    resources = StepResourceSetSerializer()
-    inputs = StepInputSerializer(many=True, required=False)
+    environment = serializers.JSONField(required=False)
+    resources = serializers.JSONField(required=False)
+    inputs = serializers.JSONField(required=False)
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
-    outputs = StepOutputSerializer(many=True)
-    template_import = TemplateImportSerializer(allow_null=True, required=False)
+    outputs = serializers.JSONField(required=False)
+    template_import =  serializers.JSONField(required=False)
 
     class Meta:
         model = Step
@@ -202,33 +108,29 @@ class StepSerializer(serializers.ModelSerializer):
                   'template_import',)
 
     def create(self, validated_data):
-        # Can't create inputs, outputs, environment, or resources until
-        # step exists.
+        import datetime        
+        tic = datetime.datetime.now()
+        def toc(tic):
+            toc = datetime.datetime.now() - tic
+            return toc.total_seconds()
 
-        inputs = self.initial_data.get('inputs', [])
-        fixed_inputs = self.initial_data.get('fixed_inputs', [])
-        outputs = self.initial_data.get('outputs', [])
-        resources = self.initial_data.get('resources', None)
-        environment = self.initial_data.get('environment', None)
-        template_import = self.initial_data.get('workflow_import', None)
-        validated_data['type'] = 'step'
-        validated_data.pop('inputs', None)
+        print 'creating step %s: %s' % (validated_data.get('name'), toc(tic))
+
+        # Saved fixed inputs for postprocessing
+        validated_data['raw_data'] = self.initial_data
         validated_data.pop('fixed_inputs', None)
-        validated_data.pop('outputs', None)
-        validated_data.pop('resources', None)
-        validated_data.pop('environment', None)
-        validated_data.pop('template_import', None)
+
+        # Type might not be explicitly declared
+        validated_data['type'] = 'step'
 
         step = super(StepSerializer, self).create(validated_data)
 
-        for input_data in inputs:
-            s = StepInputSerializer(
-                data=input_data,
-                context={'parent_field': 'step',
-                         'parent_instance': step})
-            s.is_valid(raise_exception=True)
-            s.save()
+        print 'postprocessing step %s: %s' % (validated_data.get('name'), toc(tic))
+        self.postprocess(step)
+        return step
 
+    def postprocess(self, step):
+        fixed_inputs = step.raw_data.get('fixed_inputs', [])
         for fixed_input_data in fixed_inputs:
             s = FixedStepInputSerializer(
                 data=fixed_input_data,
@@ -238,39 +140,6 @@ class StepSerializer(serializers.ModelSerializer):
             s.is_valid(raise_exception=True)
             s.save()
 
-        for output_data in outputs:
-            s = StepOutputSerializer(
-                data=output_data,
-                context={'parent_field': 'step',
-                         'parent_instance': step})
-            s.is_valid(raise_exception=True)
-            s.save()
-
-        if resources is not None:
-            s = StepResourceSetSerializer(
-                data=resources,
-                context={'parent_field': 'step',
-                         'parent_instance': step})
-            s.is_valid(raise_exception=True)
-            s.save()
-
-        if environment is not None:
-            s = StepEnvironmentSerializer(
-                data=environment,
-                context={'parent_field': 'step',
-                         'parent_instance': step})
-            s.is_valid(raise_exception=True)
-            s.save()
-
-        if template_import is not None:
-            s = TemplateImportSerializer(
-                data=template_import,
-                context={'parent_field': 'workflow',
-                         'parent_instance': step})
-            s.is_valid(raise_exception=True)
-            s.save()
-
-        return step
 
 class TemplateLookupSerializer(serializers.Serializer):
 
@@ -293,17 +162,14 @@ class WorkflowSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
-    inputs = WorkflowInputSerializer(
-        many=True,
-        required=False,
-        allow_null=True)
+    inputs = serializers.JSONField(required=False)
     fixed_inputs = FixedWorkflowInputSerializer(
         many=True,
         required=False,
         allow_null=True)
-    outputs = WorkflowOutputSerializer(many=True)
+    outputs = serializers.JSONField(required=False)
     steps = TemplateIdSerializer(many=True)
-    template_import = TemplateImportSerializer(allow_null=True, required=False)
+    template_import = serializers.JSONField(required=False)
 
     class Meta:
         model = Workflow
@@ -328,37 +194,42 @@ class WorkflowSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        # Can't create inputs or outputs until workflow exists
-        inputs = self.initial_data.get('inputs', [])
-        fixed_inputs = self.initial_data.get('fixed_inputs', [])
-        outputs = self.initial_data.get('outputs', [])
-        steps = self.initial_data.get('steps', [])
-        template_import = self.initial_data.get('template_import', None)
-        validated_data['type'] = 'workflow'
-        validated_data.pop('inputs', None)
+
+        import datetime        
+        tic = datetime.datetime.now()
+        def toc(tic):
+            toc = datetime.datetime.now() - tic
+            return toc.total_seconds()
+
+        print 'creating workflow: %s' % toc(tic)
+
+        # Ignore fixed_inputs and steps until postprocessing
+        validated_data['raw_data'] = self.initial_data
         validated_data.pop('fixed_inputs', None)
-        validated_data.pop('outputs', None)
         validated_data.pop('steps', None)
-        validated_data.pop('template_import', None)
+
+        # Type may not be explicitly set
+        validated_data['type'] = 'workflow'
 
         workflow = super(WorkflowSerializer, self).create(validated_data)
 
-        new_steps = []
+        print 'postprocessing workflow: %s' % toc(tic)
+        self.postprocess(workflow)
+
+        print "DONE: %s" % toc(tic)
+        return workflow
+
+    def postprocess(self, workflow):
+        fixed_inputs = workflow.raw_data.get('fixed_inputs', [])
+        steps = workflow.raw_data.get('steps', [])
+
         for step_data in steps:
             s = TemplateSerializer(
                 data=step_data,
                 context=self.context)
             s.is_valid(raise_exception=True)
-            new_steps.append(s.save())
-        workflow.add_steps(new_steps)
-
-        for input_data in inputs:
-            s = WorkflowInputSerializer(
-                data=input_data,
-                context={'parent_field': 'workflow',
-                         'parent_instance': workflow})
-            s.is_valid(raise_exception=True)
-            s.save()
+            step = s.save()
+            workflow.add_step(step)
 
         for fixed_input_data in fixed_inputs:
             s = FixedWorkflowInputSerializer(
@@ -367,21 +238,3 @@ class WorkflowSerializer(serializers.ModelSerializer):
                          'parent_instance': workflow})
             s.is_valid(raise_exception=True)
             s.save()
-
-        for output_data in outputs:
-            s = WorkflowOutputSerializer(
-                data=output_data,
-                context={'parent_field': 'workflow',
-                         'parent_instance': workflow})
-            s.is_valid(raise_exception=True)
-            s.save()
-
-        if template_import is not None:
-            s = TemplateImportSerializer(
-                data=template_import,
-                context={'parent_field': 'workflow',
-                         'parent_instance': workflow})
-            s.is_valid(raise_exception=True)
-            s.save()
-
-        return workflow

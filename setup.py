@@ -99,6 +99,7 @@ setup(
                         'google-apitools>=0.5.5',
                         'gunicorn>=19.6.0',
                         'Jinja2==2.8',
+                        'jsonfield==1.0.1',
                         'jsonschema==2.5.1',
                         'MySQL-python==1.2.5',
                         'oauth2client==3.0.0',

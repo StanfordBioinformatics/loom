@@ -9,6 +9,7 @@ from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
 from .signals import post_save_children
 from api.exceptions import *
+import jsonfield
 
 
 """
@@ -130,22 +131,21 @@ class Template(BaseModel):
 
 class Workflow(Template):
 
-    # Workflow extends Template with a separate database table
-    # but adds no new properties. Its sole purpose is to
-    # provide a ForeingKey for WorkflowImport, WorkflowInput, etc.
-    # to point to Workflows but not to Steps.
-
     steps = models.ManyToManyField(
         'Template',
         through='WorkflowMembership',
         through_fields=('parent_template', 'child_template'),
-        related_name='arrays')
+        related_name='workflows')
+    outputs = jsonfield.JSONField(null=True)
+    inputs = jsonfield.JSONField(null=True)
+    raw_data = jsonfield.JSONField(null=True)
+
+    def add_step(self, step):
+        WorkflowMembership.add_step_to_workflow(step, self)
 
     def add_steps(self, step_list):
-        WorkflowMembership.add_steps_to_workflow(step_list, self)
-
-    def validate(self):
-        pass
+        for step in step_list:
+            self.add_step(step)
 
 
 class TemplateImport(BaseModel):
@@ -161,44 +161,12 @@ class TemplateImport(BaseModel):
     source_url = models.TextField(max_length=1000)
 
 
-class WorkflowInput(models.Model):
-
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
-    channel = models.CharField(max_length=255)
-    workflow = models.ForeignKey('Workflow',
-                                 related_name='inputs',
-                                 on_delete=models.CASCADE)
-    hint = models.CharField(max_length=255, null=True)
-
-    class Meta:
-        app_label='api'
-
-
 class FixedWorkflowInput(InputOutputNode):
 
     workflow = models.ForeignKey(
         'Workflow',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
-
-
-class WorkflowOutput(BaseModel):
-
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES,
-        blank=False
-    )
-    channel = models.CharField(max_length=255)
-    workflow = models.ForeignKey('Workflow',
-                                 related_name='outputs',
-                                 on_delete=models.CASCADE)
-
-    class Meta:
-        app_label='api'
 
 
 class Step(Template):
@@ -210,45 +178,11 @@ class Step(Template):
 
     command = models.TextField()
     interpreter = models.CharField(max_length=255, default='/bin/bash')
-
-    def validate(self):
-        pass
-
-
-class StepEnvironment(BaseModel):
-
-    step = models.OneToOneField('Step',
-                                on_delete=models.CASCADE,
-                                related_name='environment')
-    docker_image = models.CharField(max_length=255)
-
-
-class StepResourceSet(BaseModel):
-
-    step = models.OneToOneField('Step',
-                                on_delete=models.CASCADE,
-                                related_name='resources')
-    memory = models.CharField(max_length=255, null=True)
-    disk_size = models.CharField(max_length=255, null=True)
-    cores = models.CharField(max_length=255, null=True)
-
-
-class StepInput(models.Model):
-
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES
-    )
-    channel = models.CharField(max_length=255)
-    step = models.ForeignKey('Step',
-                             related_name='inputs',
-                             on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, default='no_gather')
-    group = models.IntegerField(default=0)
-    hint = models.CharField(max_length=255, null=True)
-
-    class Meta:
-        app_label='api'
+    environment = jsonfield.JSONField(null=True)
+    outputs = jsonfield.JSONField(null=True)
+    inputs = jsonfield.JSONField(null=True)
+    resources = jsonfield.JSONField(null=True)
+    raw_data = jsonfield.JSONField(null=True)
 
 
 class FixedStepInput(InputOutputNode):
@@ -268,40 +202,6 @@ class FixedStepInput(InputOutputNode):
         # Dummy attribute required by serializer
         return
 
-class StepOutput(models.Model):
-
-    channel = models.CharField(max_length=255)
-    type = models.CharField(
-        max_length=255,
-        choices=DataObject.TYPE_CHOICES,
-        blank=False
-    )
-    step = models.ForeignKey('Step',
-                                 related_name='outputs',
-                                 on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, default='no_scatter')
-
-    class Meta:
-        app_label='api'
-
-
-class StepOutputSource(BaseModel):
-
-    output = models.OneToOneField(
-        StepOutput,
-        related_name='source',
-        on_delete=models.CASCADE)
-    filename = models.CharField(max_length=1024, null=True)
-    stream = models.CharField(max_length=255, null=True)
-
-
-#class StepOutputParser(BaseModel):
-#    step_output = models.OneToOneField(
-#        StepOutput,
-#        related_name='parser',
-#        on_delete=models.CASCADE)
-#    delimiter = models.CharField(max_length=255, null=True)
-
 
 class WorkflowMembership(models.Model):
 
@@ -310,73 +210,10 @@ class WorkflowMembership(models.Model):
                                        null=True)
 
     @classmethod
-    def add_steps_to_workflow(cls, step_list, parent):
-        for step in step_list:
+    def add_step_to_workflow(cls, step, parent):
             WorkflowMembership.objects.create(
                 parent_template=parent,
                 child_template=step)
 
     class Meta:
         app_label = 'api'
-
-
-'''
-class Workflow(Template):
-    """A collection of steps and/or workflows
-    """
-
-
-    def _post_save_children(self):
-        self._validate()
-
-    def _validate(self):
-        """Make sure all channel destinations have exactly one source
-        """
-
-        source_counts = {}
-
-        def increment_sources_count(sources, channel):
-            sources.setdefault(channel, 0)
-            sources[channel] += 1
-
-        for input in self.inputs.all():
-            increment_sources_count(source_counts, input.channel)
-        for fixed_input in self.fixed_inputs.all():
-            increment_sources_count(source_counts, fixed_input.channel)
-        for step in self.steps.all():
-            for output in step.outputs.all():
-                increment_sources_count(source_counts, output.channel)
-
-        for channel, count in source_counts.iteritems():
-            if count > 1:
-                raise ValidationError(
-                    'The workflow %s@%s is invalid. It has more than one '\
-                    'source for channel "%s". Check workflow inputs and step '\
-                    'outputs.' % (
-                        self.name,
-                        self.id,
-                        channel
-                    ))
-
-        destinations = []
-        for output in self.outputs.all():
-            destinations.append(output.channel)
-        for step in self.steps.all():
-            for input in step.inputs.all():
-                destinations.append(input.channel)
-
-        sources = source_counts.keys()
-        for destination in destinations:
-            if not destination in sources:
-                raise ValidationError('The workflow %s@%s is invalid. '\
-                                      'The channel "%s" has no source.' % (
-                                          self.name,
-                                          self.id,
-                                          destination
-                                      ))
-        
-@receiver(post_save_children, sender=AbstractWorkflow)
-def _post_save_children_workflow_signal_receiver(sender, instance, **kwargs):
-    instance._post_save_children()
-'''
-

@@ -9,8 +9,6 @@ from api import get_setting
 from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAttemptError
-from api.models.templates import Workflow, Step, \
-    WorkflowInput, WorkflowOutput, StepInput, StepOutput
 
 
 """

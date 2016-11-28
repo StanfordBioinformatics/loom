@@ -162,3 +162,47 @@ nested_workflow = {
         step_c
     ]
 }
+
+big_workflow_steps = []
+for i in range(50):
+    big_workflow_steps.append(
+        {
+            'name': 'step_%s' % i,
+            'command': 'cat {{ a }} > {{ b%s }}' % i,
+            'environment': {
+                'docker_image': 'ubuntu'
+            },
+            'resources': {
+                'cores': '1',
+                'memory': '1',
+                'disk_size': '1024' 
+            },
+            'fixed_inputs': [
+                {
+                    'type': 'string',
+                    'data': {'contents': 'a word or two'},
+                    'channel': 'a'
+                }
+            ],
+            'outputs': [
+                {
+                    'source': {
+                        'filename': 'two.txt'
+                    },
+                    'type': 'file',
+                    'channel': 'b%s' %i
+                }
+            ]
+        }
+    )
+
+big_workflow = {
+    'name': 'big',
+    'outputs': [
+        {
+            'channel': 'b0',
+            'type': 'file'
+        }
+    ],
+    'steps': big_workflow_steps
+}

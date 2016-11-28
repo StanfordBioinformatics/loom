@@ -6,6 +6,7 @@ cryptography==1.5.2
 Django==1.10.3
 django-cors-headers==1.2.2
 django-extensions==1.7.4
+django-jsonfield==1.0.1
 djangorestframework==3.5.1
 docker-py==1.10.5
 docker-pycreds==0.2.1
