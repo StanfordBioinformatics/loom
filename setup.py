@@ -89,7 +89,9 @@ setup(
     install_requires=[
                         'ansible==2.2.0.0',
                         'apache-libcloud==1.3.0',
+                        'celery==4.0.0',
                         'Django==1.10.3',
+                        'django-celery-results==1.0.1',
                         'django-cors-headers==1.2.2',
                         'django-extensions==1.7.4',
                         'djangorestframework==3.5.1',

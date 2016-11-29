@@ -9,7 +9,8 @@ import sys
 import tempfile
 import warnings
 
-BASE_DIR = os.path.dirname(__file__)
+PROJECT_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.abspath(os.path.join(PROJECT_DIR, '..'))
 WEBPORTAL_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'portal'))
 
 # Get settings from the environment and expand paths if needed
@@ -75,6 +76,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
+    'django_celery_results',
     'rest_framework',
     'api',
 )
@@ -90,9 +92,9 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'loomengine.master.urls'
+ROOT_URLCONF = 'loomengine.master.master.urls'
 
-WSGI_APPLICATION = 'loomengine.master.wsgi.application'
+WSGI_APPLICATION = 'loomengine.master.master.wsgi.application'
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -247,3 +249,18 @@ STATIC_URL = '/home/'
 STATICFILES_DIRS = [
     WEBPORTAL_ROOT,
 ]
+
+RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD')
+RABBITMQ_USER = os.getenv('RABBITMQ_USER')
+RABBITMQ_VHOST = os.getenv('RABBITMQ_VHOST')
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+RABBITMQ_PORT = os.getenv('RABBIGMQ_PORT', '5672')
+
+CELERY_RESULT_BACKEND = 'database'
+CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
+                    % (RABBITMQ_USER, RABBITMQ_PASSWORD,
+                       RABBITMQ_HOST, RABBITMQ_PORT,
+                       RABBITMQ_VHOST)
+
+CELERY_DATABASE_URL = os.getenv('DATABASE_URL')
+

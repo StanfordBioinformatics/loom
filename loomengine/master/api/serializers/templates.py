@@ -5,6 +5,7 @@ from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
 from api.models.templates import *
 from api.models.input_output_nodes import InputOutputNode
 from api.models.signals import post_save_children
+from api import tasks
 from .data_trees import DataNodeSerializer, DataNodeIdSerializer
 from .input_output_nodes import InputOutputNodeSerializer
 
@@ -108,14 +109,6 @@ class StepSerializer(serializers.ModelSerializer):
                   'template_import',)
 
     def create(self, validated_data):
-        import datetime        
-        tic = datetime.datetime.now()
-        def toc(tic):
-            toc = datetime.datetime.now() - tic
-            return toc.total_seconds()
-
-        print 'creating step %s: %s' % (validated_data.get('name'), toc(tic))
-
         # Saved fixed inputs for postprocessing
         validated_data['raw_data'] = self.initial_data
         validated_data.pop('fixed_inputs', None)
@@ -125,11 +118,13 @@ class StepSerializer(serializers.ModelSerializer):
 
         step = super(StepSerializer, self).create(validated_data)
 
-        print 'postprocessing step %s: %s' % (validated_data.get('name'), toc(tic))
-        self.postprocess(step)
+        tasks.postprocess_step.delay(step.id)
+
         return step
 
-    def postprocess(self, step):
+    @classmethod
+    def postprocess(cls, step_id):
+        step = Step.objects.get(id=step_id)
         fixed_inputs = step.raw_data.get('fixed_inputs', [])
         for fixed_input_data in fixed_inputs:
             s = FixedStepInputSerializer(
@@ -187,9 +182,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
     def validate(self, data):
         steps = self.initial_data.get('steps', [])
         for step in steps:
-            serializer = TemplateSerializer(
-                data=step,
-                context=self.context)
+            serializer = TemplateSerializer(data=step)
             serializer.is_valid(raise_exception=True)
         return data
 
@@ -201,8 +194,6 @@ class WorkflowSerializer(serializers.ModelSerializer):
             toc = datetime.datetime.now() - tic
             return toc.total_seconds()
 
-        print 'creating workflow: %s' % toc(tic)
-
         # Ignore fixed_inputs and steps until postprocessing
         validated_data['raw_data'] = self.initial_data
         validated_data.pop('fixed_inputs', None)
@@ -213,20 +204,19 @@ class WorkflowSerializer(serializers.ModelSerializer):
 
         workflow = super(WorkflowSerializer, self).create(validated_data)
 
-        print 'postprocessing workflow: %s' % toc(tic)
-        self.postprocess(workflow)
-
-        print "DONE: %s" % toc(tic)
+        x = tasks.postprocess_workflow.delay(workflow.id)
+        import pdb; pdb.set_trace()
         return workflow
 
-    def postprocess(self, workflow):
+    @classmethod
+    def postprocess(cls, workflow_id):
+        workflow = Workflow.objects.get(id=workflow_id)
         fixed_inputs = workflow.raw_data.get('fixed_inputs', [])
         steps = workflow.raw_data.get('steps', [])
 
         for step_data in steps:
             s = TemplateSerializer(
-                data=step_data,
-                context=self.context)
+                data=step_data)
             s.is_valid(raise_exception=True)
             step = s.save()
             workflow.add_step(step)

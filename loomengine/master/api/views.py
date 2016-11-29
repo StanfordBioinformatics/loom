@@ -92,19 +92,10 @@ class TemplateViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = models.Template.objects.all()
         queryset = queryset\
-            .select_related('template_import')\
-            .prefetch_related('workflow__inputs')\
-            .prefetch_related('workflow__outputs')\
             .prefetch_related(
                 'workflow__fixed_inputs__data_root')\
-            .prefetch_related('step__inputs')\
             .prefetch_related(
-                'step__fixed_inputs__data_root')\
-            .prefetch_related('step__outputs__source')\
-            .prefetch_related('step__resources')\
-            .prefetch_related('step__environment')\
-            .prefetch_related(
-                'workflow__steps')
+                'step__fixed_inputs__data_root')
         return queryset
 
 class RunViewSet(viewsets.ModelViewSet):

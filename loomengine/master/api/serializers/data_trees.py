@@ -7,7 +7,7 @@ from .base import IdSerializer
 from .data_objects import DataObjectSerializer
 from api.models.data_trees import *
 from api.models.data_objects import DataObject
-
+from api.validation_schemas.data_trees import data_tree_schema
 
 class DataNodeSerializer(serializers.ModelSerializer):
 
@@ -46,7 +46,7 @@ class DataNodeSerializer(serializers.ModelSerializer):
 
     def validate_contents(self, value):
         try:
-            jsonschema.validate(value, self.data_validation_schema)
+            jsonschema.validate(value, data_tree_schema)
         except jsonschema.exceptions.ValidationError:
             raise serializers.ValidationError(
                 "Data must be a string, number, boolean, or object, a list "\
@@ -160,76 +160,6 @@ class DataNodeSerializer(serializers.ModelSerializer):
                 self._extend_all_paths_and_add_data_at_leaves(
                     data_node, contents[i], path_i, data_type)
 
-    data_validation_schema = {
-        # schema used to verify that data contains only a X,
-        # a list of X, or a list of (lists of)^n X,
-        # where X is string, integer, float, boolean, or object.
-        # These are the only valid structures for user-provided 
-        # data values, e.g. 'file.txt@id',
-        # '["file1.txt@id1", "file2.txt@id2"]', or
-        # '[["file1.txt@id1", "file2.txt@id2"], ["file3.txt@id3"]]'.
-        # A DataObject may be used rather than the primitive type.
-        'definitions': {
-            'stringschema': {
-                'oneOf': [
-                    { 'type': [ 'string' ] },
-                    { 'type': [ 'object' ],
-                      'properties': {
-                          'type': {'enum': ['string']}
-                      },
-                      'required': ['type']},
-                    { 'type': ['array'], 
-                      'items': {
-                          '$ref': '#/definitions/stringschema'}}
-                ]
-            },
-            'integerschema': {
-                'oneOf': [
-                    { 'type': [ 'integer' ] },
-                    { 'type': [ 'object' ],
-                      'properties': {
-                          'type': {'enum': ['integer']}
-                      },
-                      'required': ['type']},
-                    { 'type': ['array'], 
-                      'items': {
-                          '$ref': '#/definitions/integerschema'}}
-                ]
-            },
-            'floatschema': {
-                'oneOf': [
-                    { 'type': [ 'number' ] },
-                    { 'type': [ 'object' ],
-                      'properties': {
-                          'type': {'enum': ['float']}
-                      },
-                      'required': ['type']},
-                    { 'type': ['array'], 
-                      'items': {
-                          '$ref': '#/definitions/floatschema'}}
-                ]
-            },
-            'booleanschema': {
-                'oneOf': [
-                    { 'type': [ 'boolean' ] },
-                    { 'type': [ 'object' ],
-                      'properties': {
-                          'type': {'enum': ['boolean']}
-                      },
-                      'required': ['type']},
-                    { 'type': ['array'], 
-                      'items': {
-                          '$ref': '#/definitions/booleanschema'}}
-                ]
-            }
-        },
-        'anyOf': [
-            {'$ref': '#/definitions/stringschema'},
-            {'$ref': '#/definitions/integerschema'},
-            {'$ref': '#/definitions/floatschema'},
-            {'$ref': '#/definitions/booleanschema'},
-        ]
-    }
 
 class DataNodeIdSerializer(IdSerializer, DataNodeSerializer):
     pass
