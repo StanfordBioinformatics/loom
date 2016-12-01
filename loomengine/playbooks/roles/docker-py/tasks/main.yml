@@ -10,6 +10,13 @@
     until: pipinstallresult['rc'] is defined and pipinstallresult['rc'] == 0
   - debug: var=pipinstallresult
     when: pipinstallresult | failed
+
+  - name: Install requests
+    pip: name=requests version=2.12.1
+    register: requestsinstallresult
+    retries: 10
+    until: requestsinstallresult['state'] == 'present'
+
   - name: Install docker-py, which is required by Ansible to use Docker modules.
     pip: name=docker-py version=1.9.0
     register: dockerpyinstallresult

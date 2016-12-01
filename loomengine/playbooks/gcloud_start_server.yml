@@ -24,7 +24,7 @@
       hostname: "{{ansible_hostname}}"
       restart_policy: always
       api_version: auto
-      command: /bin/bash -c 'source /opt/loom/bin/activate && loom server set local && loom server start --foreground --verbose'
+      command: /bin/bash -c 'source /opt/loom-env/bin/activate && loom server set local && loom server start --foreground --verbose'
   - name: Start NGINX.
     docker_container:
       name: nginx

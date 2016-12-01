@@ -2,6 +2,7 @@
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
 
 import datetime
+import json
 import os
 import random
 import socket
@@ -66,7 +67,11 @@ SECRET_KEY = os.getenv('SECRET_KEY',
 DEBUG = True
 TEMPLATE_DEBUG = True
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', [])
+def str2list(string):
+    list = string.lstrip('[').rstrip(']').split(',')
+    return [item.strip(' "\'') for item in list]
+    
+ALLOWED_HOSTS = str2list(os.getenv('ALLOWED_HOSTS', '[]'))
 
 INSTALLED_APPS = (
     'django.contrib.auth',
