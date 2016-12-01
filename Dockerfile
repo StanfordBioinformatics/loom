@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y \
 COPY . /opt/loom/
 RUN virtualenv /opt/loom-env \
     && . /opt/loom-env/bin/activate \
-    && cd /opt/loom
+    && cd /opt/loom \
     && pip install -r requirements.txt
 
 # Add Loom to the path.
