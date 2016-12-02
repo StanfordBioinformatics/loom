@@ -83,56 +83,56 @@ class ShowFile(AbstractShow):
         return text
 
 
-class ShowWorkflow(AbstractShow):
+class ShowTemplate(AbstractShow):
 
     @classmethod
     def get_parser(cls, parser):
         parser.add_argument(
-            'workflow_id',
+            'template_id',
             nargs='?',
-            metavar='WORKFLOW_IDENTIFIER',
-            help='Name or ID of workflow(s) to show.')
+            metavar='TEMPLATE_IDENTIFIER',
+            help='Name or ID of template(s) to show.')
         parser.add_argument(
             '--detail',
             action='store_true',
-            help='Show detailed view of workflows')
-        parser = super(ShowWorkflow, cls).get_parser(parser)
+            help='Show detailed view of templates')
+        parser = super(ShowTemplate, cls).get_parser(parser)
         return parser
 
     def run(self):
-        self._get_workflows()
-        self._show_workflows()
+        self._get_templates()
+        self._show_templates()
 
-    def _get_workflows(self):
-        self.workflows = self.connection.get_abstract_workflow_index(self.args.workflow_id)
+    def _get_templates(self):
+        self.templates = self.connection.get_abstract_template_index(self.args.template_id)
 
-    def _show_workflows(self):
-        for workflow in self.workflows:
-            print self._render_workflow(workflow)
+    def _show_templates(self):
+        for template in self.templates:
+            print self._render_template(template)
 
-    def _render_workflow(self, workflow):
-        workflow_identifier = '%s@%s' % (workflow['name'], workflow['id'])
+    def _render_template(self, template):
+        template_identifier = '%s@%s' % (template['name'], template['id'])
         if self.args.detail:
             text = '---------------------------------------\n'
-            text += 'Workflow: %s\n' % workflow_identifier
-            text += '  - Imported: %s\n' % format(dateutil.parser.parse(workflow['datetime_created']), DATETIME_FORMAT)
-            if workflow.get('inputs'):
+            text += 'Template: %s\n' % template_identifier
+            text += '  - Imported: %s\n' % format(dateutil.parser.parse(template['datetime_created']), DATETIME_FORMAT)
+            if template.get('inputs'):
                 text += '  - Inputs\n'
-                for input in workflow['inputs']:
+                for input in template['inputs']:
                     text += '    - %s\n' % input['channel']
-            if workflow.get('outputs'):
+            if template.get('outputs'):
                 text += '  - Outputs\n'
-                for output in workflow['outputs']:
+                for output in template['outputs']:
                     text += '    - %s\n' % output['channel']
-            if workflow.get('steps'):
+            if template.get('steps'):
                 text += '  - Steps\n'
-                for step in workflow['steps']:
+                for step in template['steps']:
                     text += '    - %s@%s\n' % (step['name'], step['id'])
-            if workflow.get('command'):
-                text += '  - Command: %s\n' % workflow['command']
+            if template.get('command'):
+                text += '  - Command: %s\n' % template['command']
 
         else:
-            text = 'Workflow: %s' % workflow_identifier
+            text = 'Template: %s' % template_identifier
         return text
 
 
@@ -198,7 +198,7 @@ class Show:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select the type of object to  show', metavar='{file,workflow,run}')
+        subparsers = parser.add_subparsers(help='select the type of object to  show', metavar='{file,template,run}')
 
         file_subparser = subparsers.add_parser('file', help='show files')
         ShowFile.get_parser(file_subparser)
@@ -208,13 +208,13 @@ class Show:
         ShowFile.get_parser(hidden_file_subparser)
         hidden_file_subparser.set_defaults(SubSubcommandClass=ShowFile)
 
-        workflow_subparser = subparsers.add_parser('workflow', help='show workflows')
-        ShowWorkflow.get_parser(workflow_subparser)
-        workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflow)
+        template_subparser = subparsers.add_parser('template', help='show templates')
+        ShowTemplate.get_parser(template_subparser)
+        template_subparser.set_defaults(SubSubcommandClass=ShowTemplate)
 
-        hidden_workflow_subparser = subparsers.add_parser('workflows')
-        ShowWorkflow.get_parser(hidden_workflow_subparser)
-        hidden_workflow_subparser.set_defaults(SubSubcommandClass=ShowWorkflow)
+        hidden_template_subparser = subparsers.add_parser('templates')
+        ShowTemplate.get_parser(hidden_template_subparser)
+        hidden_template_subparser.set_defaults(SubSubcommandClass=ShowTemplate)
 
         run_subparser = subparsers.add_parser('run', help='show runs')
         ShowRun.get_parser(run_subparser)

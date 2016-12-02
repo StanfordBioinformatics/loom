@@ -125,95 +125,94 @@ class Connection(object):
 
     # ---- Post/Put/Get [object_type] methods ----
 
-    def post_file_data_object(self, file_data):
+    def post_data_object(self, data):
         return self._post_object(
-            file_data,
-            'files/')
+            data,
+            'data-objects/')
         
-    def update_file_data_object(self, file_id, file_data_update):
-        return self._patch_object(
-            file_data_update,
-            'files/%s/' % file_id)
-
-    def get_file_data_object(self, file_id):
+    def get_data_object(self, file_id):
         return self._get_object(
-            'files/%s/' % file_id)
+            'data-objects/%s/' % file_id)
 
-    def get_file_data_object_index(self, query_string='', min=0, max=float('inf')):
+    def get_data_object_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'files/?q='+query_string
+            url = 'data-objects/?q='+query_string
         else:
-            url = 'files/'
-        file_data_objects =  self._get_object_index(url)
-        if len(file_data_objects) < min:
-            raise IdMatchedTooFewFileDataObjectsError('Found %s FileDataObjects, expected at least %s' %(len(file_data_objects), min))
-        if len(file_data_objects) > max:
-            raise IdMatchedTooManyFileDataObjectsError('Found %s FileDataObjects, expected at most %s' %(len(file_data_objects), max))
-        return file_data_objects
+            url = 'data-objects/'
+        data_objects =  self._get_object_index(url)
+        if len(data_objects) < min:
+            raise IdMatchedTooFewFileDataObjectsError(
+                'Found %s DataObjects, expected at least %s' \
+                % (len(data_objects), min))
+        if len(data_objects) > max:
+            raise IdMatchedTooManyFileDataObjectsError(
+                'Found %s DataObjects, expected at most %s' \
+                % (len(data_objects), max))
+        return data_objects
 
-    def get_file_locations_by_file(self, file_id):
-        return self._get_object(
-            'files/'+file_id+'/file-locations/'
-        )
+#    def get_file_resources_by_file(self, file_id):
+#        return self._get_object(
+#            'files/'+file_id+'/file-resources/'
+#        )
 
-    def post_file_location(self, file_location):
-        return self._post_object(
-            file_location,
-            'file-locations/')
+#    def post_file_resource(self, file_resource):
+#        return self._post_object(
+#            file_resource,
+#            'file-resources/')
 
-    def update_file_location(self, file_location_id, file_location_update):
+    def update_file_resource(self, file_resource_id, file_resource_update):
         return self._patch_object(
-            file_location_update,
-            'file-locations/%s/' % file_location_id)
+            file_resource_update,
+            'file-resources/%s/' % file_resource_id)
 
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
             'files/' + file_id + '/file-imports/'
         )
     
-    def get_abstract_workflow(self, workflow_id):
+    def get_template(self, template_id):
         return self._get_object(
-            'abstract-workflows/%s/' % workflow_id
+            'templates/%s/' % template_id
         )
 
-    def get_abstract_workflow_index(self, query_string='', min=0, max=float('inf')):
+    def get_template_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'abstract-workflows/?q='+query_string
+            url = 'templates/?q='+query_string
         else:
-            url = 'abstract-workflows/'
-        workflows = self._get_object_index(url)
-        if len(workflows) < min:
-            raise Error('Found %s workflows, expected at least %s' %(len(workflows), min))
-        if len(workflows) > max:
-            raise Error('Found %s workflows, expected at most %s' %(len(workflows), max))
-        return workflows
+            url = 'templates/'
+        templates = self._get_object_index(url)
+        if len(templates) < min:
+            raise Error('Found %s templates, expected at least %s' %(len(templates), min))
+        if len(templates) > max:
+            raise Error('Found %s templates, expected at most %s' %(len(templates), max))
+        return templates
 
-    def post_abstract_workflow(self, workflow):
+    def post_template(self, template):
         return self._post_object(
-            workflow,
-            'abstract-workflows/')
+            template,
+            'templates/')
 
-    def get_workflow_run(self, workflow_run_id):
+    def get_template_run(self, template_run_id):
         return self._get_object(
-            'workflow-runs/%s/' % workflow_run_id
+            'runs/%s/' % template_run_id
         )
 
-    def get_workflow_run_index(self, query_string='', min=0, max=float('inf')):
+    def get_template_run_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'workflow-runs/?q='+query_string
+            url = 'runs/?q='+query_string
         else:
-            url = 'workflow-runs/'
-        workflow_runs = self._get_object_index(url)
-        if len(workflow_runs) < min:
-            raise Error('Found %s workflow runs, expected at least %s' %(len(workflow_runs), min))
-        if len(workflow_runs) > max:
-            raise Error('Found %s workflow runs, expected at most %s' %(len(workflow_runs), max))
-        return workflow_runs
+            url = 'runs/'
+        template_runs = self._get_object_index(url)
+        if len(template_runs) < min:
+            raise Error('Found %s template runs, expected at least %s' %(len(template_runs), min))
+        if len(template_runs) > max:
+            raise Error('Found %s template runs, expected at most %s' %(len(template_runs), max))
+        return template_runs
 
-    def post_workflow_run(self, workflow_run):
+    def post_template_run(self, template_run):
         return self._post_object(
-            workflow_run,
-            'workflow-runs/')
+            template_run,
+            'runs/')
 
     def post_run_request(self, run_request):
         return self._post_object(

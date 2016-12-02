@@ -49,43 +49,44 @@ class FileImporter(AbstractImporter):
             raise Exception('No files found')
 
 
-class WorkflowImporter(AbstractImporter):
+class TemplateImporter(AbstractImporter):
 
     @classmethod
     def get_parser(cls, parser):
         parser.add_argument(
-            'workflow',
-            metavar='WORKFLOW_FILE', help='Workflow to be imported, in YAML or JSON format.')
+            'template',
+            metavar='TEMPLATE_FILE', help='Template to be imported, in YAML or JSON format.')
         parser.add_argument(
             '--note',
             metavar='SOURCE_NOTE',
-            help='Description of the workflow source. '\
+            help='Description of the template source. '\
             'Give enough detail for traceability.')
         return parser
 
     def run(self):
-        return self.import_workflow(self.args.workflow, self.args.note, self.filemanager, self.connection)
+        return self.import_template(self.args.template, self.args.note, self.filemanager, self.connection)
 
     @classmethod
-    def import_workflow(cls, workflow_file, note, filemanager, connection):
-        print 'Importing workflow from %s...' % filemanager.normalize_url(workflow_file)
-        (workflow, source_url) = cls._get_workflow(workflow_file, filemanager)
-        workflow.update({
-            'workflow_import': {
+    def import_template(cls, template_file, note, filemanager, connection):
+        print 'Importing template from %s...' % filemanager.normalize_url(
+            template_file)
+        (template, source_url) = cls._get_template(template_file, filemanager)
+        template.update({
+            'template_import': {
                 'note': note,
                 'source_url': source_url,
             }})
-        workflow_from_server = connection.post_abstract_workflow(workflow)
-        print '   imported workflow %s@%s' % (
-            workflow_from_server['name'],
-            workflow_from_server['id'])
-        return workflow_from_server
+        template_from_server = connection.post_template(template)
+        print '   imported template %s@%s' % (
+            template_from_server['name'],
+            template_from_server['id'])
+        return template_from_server
 
     @classmethod
-    def _get_workflow(cls, workflow_file, filemanager):
-        (workflow_text, source_url) = filemanager.read_file(workflow_file)
-        workflow = parse_as_json_or_yaml(workflow_text)
-        return workflow, source_url
+    def _get_template(cls, template_file, filemanager):
+        (template_text, source_url) = filemanager.read_file(template_file)
+        template = parse_as_json_or_yaml(template_text)
+        return template, source_url
 
 
 class Importer:
@@ -112,7 +113,7 @@ class Importer:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select a data type to import', metavar='{file,workflow}')
+        subparsers = parser.add_subparsers(help='select a data type to import', metavar='{file,template}')
 
         file_subparser = subparsers.add_parser('file', help='import a file or list files')
         FileImporter.get_parser(file_subparser)
@@ -122,13 +123,13 @@ class Importer:
         FileImporter.get_parser(hidden_file_subparser)
         hidden_file_subparser.set_defaults(SubSubcommandClass=FileImporter)
 
-        workflow_subparser = subparsers.add_parser('workflow', help='import a workflow')
-        WorkflowImporter.get_parser(workflow_subparser)
-        workflow_subparser.set_defaults(SubSubcommandClass=WorkflowImporter)
+        template_subparser = subparsers.add_parser('template', help='import a template')
+        TemplateImporter.get_parser(template_subparser)
+        template_subparser.set_defaults(SubSubcommandClass=TemplateImporter)
 
-        hidden_workflow_subparser = subparsers.add_parser('workflows')
-        WorkflowImporter.get_parser(hidden_workflow_subparser)
-        hidden_workflow_subparser.set_defaults(SubSubcommandClass=WorkflowImporter)
+        hidden_template_subparser = subparsers.add_parser('templates')
+        TemplateImporter.get_parser(hidden_template_subparser)
+        hidden_template_subparser.set_defaults(SubSubcommandClass=TemplateImporter)
 
         return parser
 

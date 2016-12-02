@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
-    IdSerializer
+    IdSerializer, JSONField
 from api.models.templates import *
 from api.models.input_output_nodes import InputOutputNode
 from api.models.signals import post_save_children
@@ -85,12 +85,12 @@ class StepSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
-    environment = serializers.JSONField(required=False)
-    resources = serializers.JSONField(required=False)
-    inputs = serializers.JSONField(required=False)
+    environment = JSONField(required=False)
+    resources = JSONField(required=False)
+    inputs = JSONField(required=False)
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
-    outputs = serializers.JSONField(required=False)
-    template_import =  serializers.JSONField(required=False)
+    outputs = JSONField(required=False)
+    template_import =  JSONField(required=False)
 
     class Meta:
         model = Step
@@ -157,14 +157,14 @@ class WorkflowSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
-    inputs = serializers.JSONField(required=False)
+    inputs = JSONField(required=False)
     fixed_inputs = FixedWorkflowInputSerializer(
         many=True,
         required=False,
         allow_null=True)
-    outputs = serializers.JSONField(required=False)
+    outputs = JSONField(required=False)
     steps = TemplateIdSerializer(many=True)
-    template_import = serializers.JSONField(required=False)
+    template_import = JSONField(required=False)
 
     class Meta:
         model = Workflow

@@ -3,14 +3,14 @@
 import argparse
 import os
 
-from loomengine.client.importer import WorkflowImporter
+from loomengine.client.importer import TemplateImporter
 from loomengine.client.common import get_server_url, read_as_json_or_yaml
 from loomengine.client.exceptions import *
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
 
-class WorkflowRunner(object):
+class TemplateRunner(object):
     """Run a workflow on the server.
     """
 
@@ -33,7 +33,7 @@ class WorkflowRunner(object):
     def get_parser(cls, parser=None):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('workflow', metavar='WORKFLOW', help='ID of workflow to run')
+        parser.add_argument('template', metavar='TEMPLATE', help='ID of template to run')
         parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*', help='ID of data inputs')
         return parser
 
@@ -49,7 +49,7 @@ class WorkflowRunner(object):
     def run(self):
         run_request = self.connection.post_run_request(
             {
-                'template': self.args.workflow,
+                'template': self.args.template,
                 'inputs': self._get_inputs()
             }
         )
@@ -60,7 +60,7 @@ class WorkflowRunner(object):
         return run_request
 
     def _get_inputs(self):
-        """Converts command line args into a list of workflow inputs
+        """Converts command line args into a list of template inputs
         """
         inputs = []
         if self.args.inputs:
@@ -71,4 +71,4 @@ class WorkflowRunner(object):
 
 
 if __name__=='__main__':
-    WorkflowRunner().run()
+    TemplateRunner().run()

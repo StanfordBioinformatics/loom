@@ -197,28 +197,31 @@ class FileDataObject(DataObject):
                  ('log', 'Log'))
     )
 
-    def create_incomplete_resource_for_import(self):
+    def initialize(self):
         if not self.file_resource:
-            # Based on settings, choose the path where the
-            # file should be stored and create a FileResource
-            # with upload_status=incomplete.
-            #
-            # If a file with identical content has already been uploaded,
-            # re-use it if permitted by settings. Search until we find
-            # one match, then continue.
-            if not get_setting('KEEP_DUPLICATE_FILES'):
-                matching_file_resources = FileResource.objects.filter(
-                    md5=self.md5,
-                    upload_status='complete')
-                if matching_file_resources.count() > 0:
-                    self.file_resource = matching_file_resources.first()
-                    self.save()
-                    return self.file_resource
-            # No existing file to use. Create a new resource for upload.
-            self.file_resource \
-                = FileResource.create_incomplete_resource_for_import(self)
-            self.save()
-            return self.file_resource
+            self._initialize_file_resource()
+
+    def _initialize_file_resource(self):
+        # Based on settings, choose the path where the
+        # file should be stored and create a FileResource
+        # with upload_status=incomplete.
+        #
+        # If a file with identical content has already been uploaded,
+        # re-use it if permitted by settings. 
+        if not get_setting('KEEP_DUPLICATE_FILES'):
+            matching_file_resources = FileResource.objects.filter(
+                md5=self.md5,
+                upload_status='complete')
+            if matching_file_resources.count() > 0:
+                # First match is as good as any
+                self.file_resource = matching_file_resources.first()
+                self.save()
+                return self.file_resource
+        # No existing file to use. Create a new resource for upload.
+        self.file_resource \
+            = FileResource.create_incomplete_resource_for_import(self)
+        self.save()
+        return self.file_resource
 
 
 class FloatDataObject(DataObject):

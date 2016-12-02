@@ -138,7 +138,7 @@ class AbstractSource:
         copier.move()
 
     @abc.abstractmethod
-    def calculate_hash_value(self, hash_function):
+    def calculate_md5(self):
         pass
 
     @abc.abstractmethod
@@ -458,12 +458,19 @@ class FileManager:
         )
 
     def _create_file_data_object_for_import(self, source_url, note):
-        return self.connection.post_file_data_object({
+        source = Source(source_url, self.settings)
+        filename = source.get_filename()
+
+        self.logger.info('Calculating md5 for file %s ...' % source_url)
+        md5 = source.calculate_md5()
+
+        return self.connection.post_data_object({
+            'type': 'file',
+            'filename': filename,
+            'md5': md5,
+            'source_url': source.get_url(),
+            'note': note,
             'source_type': 'imported',
-            'file_import': {
-                'note': note,
-                'source_url': Source(source_url, self.settings).get_url(),
-                }
         })
 
     def import_result_file(self, task_run_attempt_output, source_url):
@@ -491,70 +498,50 @@ class FileManager:
         )
 
     def _execute_file_import(self, file_data_object, source_url):
-        # Prior to import, file_data_object should have no content and no
-        # location
-        assert file_data_object.get('file_location') is None
-        assert file_data_object.get('file_content') is None
+        # A new file_data_object will typically have a file_resource with 
+        # status=incomplete
+        # If the server is configured not to save multiple files with
+        # identical content, the data_object.file_resource may have
+        # status=complete, indicating that no re-upload is needed.
+        #
+        assert file_data_object.get('file_resource') is not None
 
         source = Source(source_url, self.settings)
         self.logger.info('Importing file from %s...' % source.get_url())
 
-        hash_function = self.settings['HASH_FUNCTION']
-        self.logger.info('   calculating %s hash...' % hash_function)
-        md5 = source.calculate_md5()
-
-        # Adding file_content will cause a file_location with status=incomplete
-        # to be added to file_data_object
-        # If the server is configured not to save multiple files with
-        # identical content, the data_object.file_location may have
-        # status=complete, indicating that no re-upload is needed.
-        #
-        file_data_object = self._add_file_content_to_data_object(
-            file_data_object,
-            source.get_filename(),
-            md5
-        )
-
-        if file_data_object['file_location']['status'] == 'complete':
-            self.logger.info('   server already has the file. Skipping upload.')
+        if file_data_object['file_resource']['upload_status'] == 'complete':
+            self.logger.info(
+                '   server already has the file. Skipping upload.')
         else:
-            destination = Destination(
-                file_data_object['file_location']['url'],
-                self.settings)
-            self.logger.info('   copying to destination %s...' % destination.get_url())
-            source.copy_to(destination)
+            try:
+                destination = Destination(
+                    file_data_object['file_resource']['file_url'],
+                    self.settings)
+                self.logger.info(
+                    '   copying to destination %s ...' % destination.get_url())
+                source.copy_to(destination)
+            except Exception as e:
+                self._set_upload_status(file_data_object, 'failed')
+                raise e
 
         # Signal that the upload completed successfully
-        file_data_object = self._flag_upload_as_complete(file_data_object)
+        file_data_object = self._set_upload_status(
+            file_data_object, 'complete')
         self.logger.info('   imported file %s@%s' % (
-            file_data_object['file_content']['filename'],
+            file_data_object['filename'],
             file_data_object['id']))
         return file_data_object
 
-    def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
-        return self.connection.update_file_data_object(
-            file_data_object['id'],
-            {
-                'file_content': {
-                    'filename': filename,
-                    'unnamed_file_content': {
-                        'hash_function': hash_function,
-                        'hash_value': hash_value
-                    }
-                }
-            }
-        )
-
-    def _flag_upload_as_complete(self, file_data_object):
-        """ Mark upload location as "complete".
+    def _set_upload_status(self, file_data_object, upload_status):
+        """ Set file_data_object.file_resource.upload_status
         """
-        file_location = file_data_object['file_location']
-        file_location['status'] = 'complete'
-        file_location = self.connection.update_file_location(
-            file_location['id'],
-            file_location
+        file_resource = file_data_object['file_resource']
+        file_resource['upload_status'] = upload_status
+        file_resource = self.connection.update_file_resource(
+            file_resource['id'],
+            file_resource
         )
-        file_data_object['file_location'] = file_location
+        file_data_object['file_resource'] = file_resource
         return file_data_object
 
     def export_files(self, file_ids, destination_url=None):

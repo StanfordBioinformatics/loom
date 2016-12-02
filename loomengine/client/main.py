@@ -30,9 +30,9 @@ class Main(object):
         parser = argparse.ArgumentParser('loom')
         subparsers = parser.add_subparsers(help='select a subcommand')
 
-        run_subparser = subparsers.add_parser('run', help='run a workflow')
-        run.WorkflowRunner.get_parser(run_subparser)
-        run_subparser.set_defaults(SubcommandClass=run.WorkflowRunner)
+        run_subparser = subparsers.add_parser('run', help='run a template')
+        run.TemplateRunner.get_parser(run_subparser)
+        run_subparser.set_defaults(SubcommandClass=run.TemplateRunner)
 
         server_subparser = subparsers.add_parser('server', help='manage the Loom server')
         server.get_parser(server_subparser)

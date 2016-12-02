@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class DataObjectViewSet(viewsets.ModelViewSet):
-    lookup_field = 'uuid'
     serializer_class = serializers.DataObjectSerializer
 
     def get_queryset(self):
@@ -51,9 +50,15 @@ class DataTreeViewSet(viewsets.ModelViewSet):
                 .prefetch_related('descendants__data_object')
         return queryset
 
+
+class FileResourceViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.FileResourceSerializer
+
+    def get_queryset(self):
+        return models.FileResource.objects.all()
+
         
 class TaskViewSet(viewsets.ModelViewSet):
-    lookup_field = 'uuid'
     serializer_class = serializers.TaskSerializer
 
     def get_queryset(self):
@@ -68,7 +73,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 
 class TaskAttemptViewSet(viewsets.ModelViewSet):
-    lookup_field = 'uuid'
     serializer_class = serializers.TaskAttemptSerializer
 
     def get_queryset(self):
@@ -86,7 +90,6 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
 
 
 class TemplateViewSet(viewsets.ModelViewSet):
-    lookup_field = 'uuid'
     serializer_class = serializers.TemplateSerializer
 
     def get_queryset(self):
@@ -99,7 +102,6 @@ class TemplateViewSet(viewsets.ModelViewSet):
         return queryset
 
 class RunViewSet(viewsets.ModelViewSet):
-    lookup_field = 'uuid'
     serializer_class = serializers.RunSerializer
 
     def get_queryset(self):
@@ -119,7 +121,6 @@ class RunViewSet(viewsets.ModelViewSet):
         return queryset
 
 class RunRequestViewSet(viewsets.ModelViewSet):
-    lookup_field = 'uuid'
     serializer_class = serializers.RunRequestSerializer
 
     def get_queryset(self):

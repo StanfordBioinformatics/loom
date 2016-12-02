@@ -145,3 +145,14 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
                     .to_representation(instance)
             else:
                 return serializer.to_representation(instance)
+
+class JSONField(serializers.JSONField):
+
+    def get_value(self, dictionary):
+        return dictionary.get(self.field_name, serializers.empty)
+
+    def to_internal_value(self, data):
+        return data
+
+    def to_representation(self, value):
+        return value

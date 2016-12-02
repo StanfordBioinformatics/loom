@@ -70,7 +70,9 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['file_resource'] = self._create_file_resource(
             self.initial_data.get('file_resource', None))
-        return self.Meta.model.objects.create(**validated_data)
+        file_data_object = self.Meta.model.objects.create(**validated_data)
+        file_data_object.initialize()
+        return file_data_object
 
     def _create_file_resource(self, resource_data):
         if not resource_data:

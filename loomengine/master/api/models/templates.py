@@ -80,6 +80,7 @@ class Template(BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     name = models.CharField(max_length=255)
+    template_import = jsonfield.JSONField(null=True)
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -146,19 +147,6 @@ class Workflow(Template):
     def add_steps(self, step_list):
         for step in step_list:
             self.add_step(step)
-
-
-class TemplateImport(BaseModel):
-    
-    template = models.OneToOneField(
-        'Template',
-        related_name='template_import',
-        on_delete=models.CASCADE)
-
-
-
-    note = models.TextField(max_length=10000, null=True)
-    source_url = models.TextField(max_length=1000)
 
 
 class FixedWorkflowInput(InputOutputNode):
