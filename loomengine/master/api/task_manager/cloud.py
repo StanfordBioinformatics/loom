@@ -21,6 +21,7 @@ import loomengine.utils.cloud
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
 GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
+GCLOUD_DELETE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_worker.yml')
 GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
 GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
 
@@ -162,7 +163,7 @@ class CloudTaskManager:
 
     @classmethod
     def _run_playbook(cls, playbook, playbook_vars, logfile=None):
-        """ Runs a playbook by passing it a dict of vars on the command line."""
+        """Runs a playbook by passing it a dict of vars on the command line."""
         ansible_env = os.environ.copy()
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
@@ -174,7 +175,7 @@ class CloudTaskManager:
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
-        """ Determine the cheapest instance type given a minimum number of cores and minimum amount of RAM (in GB). """
+        """Determine the cheapest instance type given a minimum number of cores and minimum amount of RAM (in GB)."""
 
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD': #TODO: support other cloud providers
             raise CloudTaskManagerError('Not a recognized cloud provider: ' + settings.WORKER_TYPE)
@@ -205,7 +206,7 @@ class CloudTaskManager:
         
     @classmethod
     def _get_gcloud_pricelist(cls):
-        """ Retrieve latest pricelist from Google Cloud, or use cached copy if not reachable. """
+        """Retrieve latest pricelist from Google Cloud, or use cached copy if not reachable."""
         try:
             r = requests.get('http://cloudpricingcalculator.appspot.com/static/data/pricelist.json')
             content = json.loads(r.content)
@@ -219,42 +220,36 @@ class CloudTaskManager:
         return pricelist
 
     @classmethod
-    def delete_instance_by_name(cls, instance_name):
-        """ Delete the instance that ran a task. """
+    def delete_worker_by_task_run_attempt(cls, task_run_attempt):
+        """Delete the worker that ran the specified task run attempt from this server."""
+        hostname = socket.gethostname()
+        worker_name = cls.create_worker_name(hostname, task_run_attempt)
+        cls.delete_worker_by_name(worker_name)
+        
+    @classmethod
+    def delete_worker_by_name(cls, worker_name):
+        """Delete instance with the specified name."""
         # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_instance, args=(instance_name))
+        process = multiprocessing.Process(target=CloudTaskManager._delete_worker_by_name, args=(worker_name))
         process.start()
 
     @classmethod
-    def delete_instance_by_task_run(cls, host_name, task_run):
-        """ Delete the instance that ran a task. """
-        instance_name = cls.create_worker_name(host_name, task_run)
-        cls.delete_instance_by_name(instance_name)
-        
-    @classmethod
-    def _delete_instance(cls, instance_name):
-        if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
-        # TODO: Support other cloud providers. For now, assume GCE.
-        zone = settings.WORKER_LOCATION
-        s = Template(
-"""---
-- hosts: localhost
-  connection: local
-  tasks:
-  - name: Delete an instance.
-    gce: name=$instance_name zone=$zone state=deleted
-""")
-        playbook = s.substitute(locals())
-        cls._run_playbook_string(playbook)
-        # TODO: Delete scratch disk
+    def _delete_worker_by_name(cls, worker_name):
+        playbook_vars = {}
+        playbook_vars['WORKER_LOCATION'] = settings.WORKER_LOCATION
+        playbook_vars['WORKER_NAME'] = worker_name
+        cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, playbook_vars)
 
     @classmethod
     def create_worker_name(cls, hostname, task_run_attempt):
-        """ Create a name for the worker instance. Since hostname, workflow name, and step name can easily be duplicated,
-        we do this in two steps to ensure that at least 4 characters of the location ID are part of the name.
-        Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
-        so leave 5 characters for the '-disk' suffix.
+        """Create a name for the worker instance that will run the specified task run attempt, from this server.
+
+        Since hostname, workflow name, and step name can easily be duplicated,
+        we do this in two steps to ensure that at least 4 characters of the
+        location ID are part of the name. Also, since worker scratch disks are
+        named by appending '-disk' to the instance name, and disk names are max
+        63 characters, leave 5 characters for the '-disk' suffix.
+
         """
         task_run = task_run_attempt.task_run
         #workflow_name = task_run.workflow_name

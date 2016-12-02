@@ -9,6 +9,12 @@
     - scratch_disk_name is defined
     - scratch_disk_type is defined
     - scratch_disk_size_gb is defined
+  - name: Set scratch disk to be deleted with the instance.
+    shell: gcloud compute instances set-disk-auto-delete {{instance_name}} --auto-delete --disk {{scratch_disk_name}}
+    when:
+    - scratch_disk_name is defined
+    - scratch_disk_type is defined
+    - scratch_disk_size_gb is defined
   - name: Add host to new_instances.
     add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
