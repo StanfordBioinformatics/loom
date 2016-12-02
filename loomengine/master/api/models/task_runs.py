@@ -270,7 +270,8 @@ class TaskRunAttempt(BasePolymorphicModel):
         for output in self.outputs.all():
             output.push()
         self.task_run.step_run.get_run_request().create_ready_tasks()
-        self.delete_worker()
+        if self.status == 'Finished':
+            self.delete_worker()
 
     def delete_worker(self):
         task_manager = TaskManagerFactory.get_task_manager()
