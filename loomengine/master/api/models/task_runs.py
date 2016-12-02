@@ -270,16 +270,16 @@ class TaskRunAttempt(BasePolymorphicModel):
         for output in self.outputs.all():
             output.push()
         self.task_run.step_run.get_run_request().create_ready_tasks()
-        if self.status == 'Finished':
-            self.delete_worker()
 
     def delete_worker(self):
         task_manager = TaskManagerFactory.get_task_manager()
         task_manager.delete_worker_by_task_run_attempt(self)
 
     def _post_save(self):
+	print "post save status: %s" % self.status
         if self.status == 'Finished':
             self.push_outputs()
+            self.delete_worker()
         self.task_run.update_status()
 
 @receiver(models.signals.post_save, sender=TaskRunAttempt)
