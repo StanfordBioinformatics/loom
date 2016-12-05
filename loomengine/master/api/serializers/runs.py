@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, IdSerializer
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, UuidSerializer
 from api.models.runs import Run, StepRun, \
     StepRunInput, FixedStepRunInput, StepRunOutput, WorkflowRunInput, \
     FixedWorkflowRunInput, WorkflowRunOutput, WorkflowRun
-from api.serializers.templates import TemplateIdSerializer
-from api.serializers.tasks import TaskIdSerializer, TaskAttemptErrorSerializer
+from api.serializers.templates import TemplateNameAndUuidSerializer
+from api.serializers.tasks import TaskUuidSerializer, TaskAttemptErrorSerializer
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 
 
@@ -47,7 +47,7 @@ class RunSerializer(SuperclassModelSerializer):
         model = Run
         fields = '__all__'
 
-class RunIdSerializer(IdSerializer, RunSerializer):
+class RunUuidSerializer(UuidSerializer, RunSerializer):
     pass
 
 
@@ -83,7 +83,7 @@ class StepRunOutputSerializer(InputOutputNodeSerializer):
 class StepRunSerializer(CreateWithParentModelSerializer):
     
     uuid = serializers.UUIDField(format='hex', required=False)
-    template = TemplateIdSerializer()
+    template = TemplateNameAndUuidSerializer()
     inputs = StepRunInputSerializer(many=True,
                                     required=False,
                                     allow_null=True)
@@ -94,7 +94,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     command = serializers.CharField()
     interpreter = serializers.CharField()
     name = serializers.CharField()
-    tasks = TaskIdSerializer(many=True)
+    tasks = TaskUuidSerializer(many=True)
 #    errors = TaskAttemptErrorSerializer(many=True, read_only=True)
     
     class Meta:
@@ -127,8 +127,8 @@ class WorkflowRunOutputSerializer(InputOutputNodeSerializer):
 class WorkflowRunSerializer(CreateWithParentModelSerializer):
 
     uuid = serializers.UUIDField(format='hex', required=False)
-    template = TemplateIdSerializer()
-    steps = RunIdSerializer(many=True)
+    template = TemplateNameAndUuidSerializer()
+    steps = RunUuidSerializer(many=True)
     inputs = WorkflowRunInputSerializer(many=True,
                                         required=False,
                                         allow_null=True)

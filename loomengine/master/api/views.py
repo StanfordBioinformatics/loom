@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class DataObjectViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.DataObjectSerializer
 
     def get_queryset(self):
@@ -41,7 +42,19 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         return queryset
 
 
+class ImportedFileDataObjectViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
+    serializer_class = serializers.FileDataObjectSerializer
+
+    def get_queryset(self):
+        queryset = models.FileDataObject.objects.filter(
+            type='file', source_type='imported')
+        queryset = queryset.select_related('file_resource')
+        return queryset
+
+
 class DataTreeViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.DataNodeSerializer
 
     def get_queryset(self):
@@ -52,6 +65,7 @@ class DataTreeViewSet(viewsets.ModelViewSet):
 
 
 class FileResourceViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.FileResourceSerializer
 
     def get_queryset(self):
@@ -90,6 +104,7 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
 
 
 class TemplateViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.TemplateSerializer
 
     def get_queryset(self):

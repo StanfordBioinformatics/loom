@@ -2,7 +2,7 @@ from django.db import models
 from rest_framework import serializers
 
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, \
-    IdSerializer
+    UuidSerializer
 from api.models.data_objects import StringDataObject, BooleanDataObject, \
     IntegerDataObject, FloatDataObject, FileDataObject, DataObject, \
     FileResource, DataObjectArray
@@ -15,57 +15,46 @@ class UpdateNotAllowedError(Exception):
 
 class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
-
     class Meta:
         model = BooleanDataObject
-        fields = ('__all__')
+        exclude = ('id',)
 
 
 class IntegerDataObjectSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
-
     class Meta:
         model = IntegerDataObject
-        fields = ('__all__')
+        exclude = ('id',)
 
 
 class FloatDataObjectSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
-
     class Meta:
         model = FloatDataObject
-        fields = ('__all__')
+        exclude = ('id',)
 
 
 class StringDataObjectSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
-
     class Meta:
         model = StringDataObject
-        fields = ('__all__')
+        exclude = ('id',)
 
 
 class FileResourceSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
-
     class Meta:
         model = FileResource
-        fields = ('__all__')
+        exclude = ('id',)
 
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
     file_resource = FileResourceSerializer(allow_null=True, required=False)
 
     class Meta:
         model = FileDataObject
-        fields = ('__all__')
+        exclude = ('id',)
 
     def create(self, validated_data):
         validated_data['file_resource'] = self._create_file_resource(
@@ -83,8 +72,6 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
 
 
 class DataObjectSerializer(SuperclassModelSerializer):
-
-    uuid = serializers.UUIDField(format='hex', required=False)
 
     class Meta:
         model = DataObject
@@ -137,19 +124,18 @@ class DataObjectSerializer(SuperclassModelSerializer):
                 return data.get('type')
 
 
-class DataObjectIdSerializer(IdSerializer, DataObjectSerializer):
+class DataObjectUuidSerializer(UuidSerializer, DataObjectSerializer):
 
     pass
 
 
 class DataObjectArraySerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
     members = DataObjectSerializer(many=True, required=False)
 
     class Meta:
         model = DataObjectArray
-        fields = ('__all__')
+        exclude = ('id',)
 
     def create(self, validated_data):
         member_instances = self._create_member_instances()
@@ -181,20 +167,3 @@ class DataObjectArraySerializer(serializers.ModelSerializer):
                 context=self.context)
             serializer.is_valid(raise_exception=True)
         return data
-
-#    def update(self, instance, validated_data):
-#        raise UpdateNotAllowedError('Update of DataObjects is not allowed')
-
-'''
-class DataObjectArraySerializer(serializers.ModelSerializer):
-    """This class handles the nested 'array_members' that may be present on
-    any DataObject type when is_array=True.
-
-    When is_array=True and array_member data is present,
-    array members will be created. Otherwise, the serializer will create a
-    non-array instance.
-    """
-
-
-
-'''

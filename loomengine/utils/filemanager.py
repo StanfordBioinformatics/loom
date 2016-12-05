@@ -491,7 +491,7 @@ class FileManager:
 
     def import_log_file(self, task_run_attempt, source_url):
         log_name = os.path.basename(source_url)
-        log_file = self.connection.post_task_run_attempt_log_file(task_run_attempt['id'], {'log_name': log_name})
+        log_file = self.connection.post_task_run_attempt_log_file(task_run_attempt['uuid'], {'log_name': log_name})
         return self._execute_file_import(
             log_file['file_data_object'],
             source_url
@@ -529,7 +529,7 @@ class FileManager:
             file_data_object, 'complete')
         self.logger.info('   imported file %s@%s' % (
             file_data_object['filename'],
-            file_data_object['id']))
+            file_data_object['uuid']))
         return file_data_object
 
     def _set_upload_status(self, file_data_object, upload_status):
@@ -538,7 +538,7 @@ class FileManager:
         file_resource = file_data_object['file_resource']
         file_resource['upload_status'] = upload_status
         file_resource = self.connection.update_file_resource(
-            file_resource['id'],
+            file_resource['uuid'],
             file_resource
         )
         file_data_object['file_resource'] = file_resource
@@ -564,7 +564,7 @@ class FileManager:
         destination_url = self.get_destination_file_url(destination_url, default_name)
         destination = Destination(destination_url, self.settings)
 
-        self.logger.info('Exporting file %s@%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['id'], destination.get_url()))
+        self.logger.info('Exporting file %s@%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['uuid'], destination.get_url()))
 
         # Copy from the first file location
         source_url = file_data_object['file_location']['url']

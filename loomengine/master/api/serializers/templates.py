@@ -1,12 +1,11 @@
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
-    IdSerializer, JSONField
+    NameAndUuidSerializer
 from api.models.templates import *
 from api.models.input_output_nodes import InputOutputNode
 from api.models.signals import post_save_children
 from api import tasks
-from .data_trees import DataNodeSerializer, DataNodeIdSerializer
 from .input_output_nodes import InputOutputNodeSerializer
 
 
@@ -76,7 +75,7 @@ class TemplateSerializer(SuperclassModelSerializer):
             return data
 
 
-class TemplateIdSerializer(IdSerializer, TemplateSerializer):
+class TemplateNameAndUuidSerializer(NameAndUuidSerializer, TemplateSerializer):
 
     pass
 
@@ -85,17 +84,16 @@ class StepSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
-    environment = JSONField(required=False)
-    resources = JSONField(required=False)
-    inputs = JSONField(required=False)
+    environment = serializers.JSONField(required=False)
+    resources = serializers.JSONField(required=False)
+    inputs = serializers.JSONField(required=False)
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
-    outputs = JSONField(required=False)
-    template_import =  JSONField(required=False)
+    outputs = serializers.JSONField(required=False)
+    template_import =  serializers.JSONField(required=False)
 
     class Meta:
         model = Step
-        fields = ('id',
-                  'uuid',
+        fields = ('uuid',
                   'type',
                   'name',
                   'command',
@@ -157,19 +155,18 @@ class WorkflowSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(required=False)
     type = serializers.CharField(required=False)
-    inputs = JSONField(required=False)
+    inputs = serializers.JSONField(required=False)
     fixed_inputs = FixedWorkflowInputSerializer(
         many=True,
         required=False,
         allow_null=True)
-    outputs = JSONField(required=False)
-    steps = TemplateIdSerializer(many=True)
-    template_import = JSONField(required=False)
+    outputs = serializers.JSONField(required=False)
+    steps = TemplateNameAndUuidSerializer(many=True)
+    template_import = serializers.JSONField(required=False)
 
     class Meta:
         model = Workflow
-        fields = ('id',
-                  'uuid',
+        fields = ('uuid',
                   'type',
                   'name',
                   'steps',

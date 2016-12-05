@@ -79,7 +79,7 @@ class TemplateImporter(AbstractImporter):
         template_from_server = connection.post_template(template)
         print '   imported template %s@%s' % (
             template_from_server['name'],
-            template_from_server['id'])
+            template_from_server['uuid'])
         return template_from_server
 
     @classmethod

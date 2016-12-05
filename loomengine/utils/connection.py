@@ -141,14 +141,31 @@ class Connection(object):
             url = 'data-objects/'
         data_objects =  self._get_object_index(url)
         if len(data_objects) < min:
-            raise IdMatchedTooFewFileDataObjectsError(
+            raise IdMatchedTooFewDataObjectsError(
                 'Found %s DataObjects, expected at least %s' \
                 % (len(data_objects), min))
         if len(data_objects) > max:
-            raise IdMatchedTooManyFileDataObjectsError(
+            raise IdMatchedTooManyDataObjectsError(
                 'Found %s DataObjects, expected at most %s' \
                 % (len(data_objects), max))
         return data_objects
+
+    def get_imported_file_data_object_index(
+            self, query_string='', min=0, max=float('inf')):
+        if query_string:
+            url = 'imported-files/?q='+query_string
+        else:
+            url = 'imported-files/'
+        file_data_objects =  self._get_object_index(url)
+        if len(file_data_objects) < min:
+            raise IdMatchedTooFewDataObjectsError(
+                'Found %s FileDataObjects, expected at least %s' \
+                % (len(file_data_objects), min))
+        if len(file_data_objects) > max:
+            raise IdMatchedTooManyDataObjectsError(
+                'Found %s FilDataObjects, expected at most %s' \
+                % (len(data_objects), max))
+        return file_data_objects
 
 #    def get_file_resources_by_file(self, file_id):
 #        return self._get_object(

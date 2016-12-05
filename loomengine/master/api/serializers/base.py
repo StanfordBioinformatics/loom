@@ -49,9 +49,9 @@ class CreateWithParentModelSerializer(serializers.ModelSerializer):
         return self.Meta.model.objects.create(**validated_data)
 
 
-class IdSerializer(object):
+class UuidSerializer(object):
 
-    """Renders only data object "id" for deferred lookup
+    """Renders only data object "uuid" for deferred lookup
     """
 
     def to_representation(self, instance):
@@ -60,12 +60,31 @@ class IdSerializer(object):
             # "instance" is an OrderedDict. It may be missing data in fields
             # that are on the subclass but not on the superclass, so we go
             # back to initial_data.
-            return { 'id': instance.get('id') }
+            return { 'uuid': instance.get('uuid') }
         else:
             assert isinstance(instance, self.Meta.model)
             # Execute "to_representation" on the correct subclass serializer
-            return { 'id': instance.id }
+            return { 'uuid': instance.uuid }
 
+
+class NameAndUuidSerializer(object):
+
+    """Renders only data object "name" and "uuid" for deferred lookup
+    """
+
+    def to_representation(self, instance):
+        if not isinstance(instance, models.Model):
+            # If the Serializer was instantiated with data instead of a model,
+            # "instance" is an OrderedDict. It may be missing data in fields
+            # that are on the subclass but not on the superclass, so we go
+            # back to initial_data.
+            return { 'uuid': instance.get('uuid'),
+                     'name': instance.get('name') }
+        else:
+            assert isinstance(instance, self.Meta.model)
+            # Execute "to_representation" on the correct subclass serializer
+            return { 'uuid': instance.uuid,
+                     'name': instance.name }
 
 
 class SuperclassModelSerializer(serializers.ModelSerializer):
@@ -145,14 +164,3 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
                     .to_representation(instance)
             else:
                 return serializer.to_representation(instance)
-
-class JSONField(serializers.JSONField):
-
-    def get_value(self, dictionary):
-        return dictionary.get(self.field_name, serializers.empty)
-
-    def to_internal_value(self, data):
-        return data
-
-    def to_representation(self, value):
-        return value

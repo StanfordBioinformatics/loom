@@ -3,7 +3,7 @@ from django.db import models
 
 from .base import CreateWithParentModelSerializer
 from api.models.input_output_nodes import InputOutputNode
-from .data_trees import DataNodeSerializer, DataNodeIdSerializer
+from .data_trees import DataNodeSerializer, DataNodeUuidSerializer
 
 
 class InputOutputNodeSerializer(CreateWithParentModelSerializer):
@@ -47,7 +47,7 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
             representation = super(InputOutputNodeSerializer, self)\
                 .to_representation(instance)
             if instance.data_root is not None:
-                data_node_serializer = DataNodeIdSerializer(instance.data_root)
+                data_node_serializer = DataNodeUuidSerializer(instance.data_root)
                 try:
                     representation['data'] = data_node_serializer.data
                 except:

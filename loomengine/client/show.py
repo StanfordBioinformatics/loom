@@ -52,7 +52,8 @@ class ShowFile(AbstractShow):
         self._show_files()
 
     def _get_files(self):
-        self.files = self.connection.get_file_data_object_index(self.args.file_id)
+        self.files = self.connection.get_imported_file_data_object_index(
+            self.args.file_id)
 
     def _show_files(self):
         for file_data_object in self.files:
@@ -62,20 +63,24 @@ class ShowFile(AbstractShow):
 
     def _render_file(self, file_data_object):
         try:
-            file_identifier = '%s@%s' % (file_data_object['file_content']['filename'], file_data_object['id'])
+            file_identifier = '%s@%s' % (
+                file_data_object['filename'], file_data_object['uuid'])
         except TypeError:
-            file_identifier = '@%s' % file_data_object['id']
+            file_identifier = '@%s' % file_data_object['uuid']
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
             try:
-                text += '  - Imported: %s\n' % format(dateutil.parser.parse(file_data_object['datetime_created']), DATETIME_FORMAT)
-                text += '  - %s: %s\n' % (file_data_object['file_content']['unnamed_file_content'].get('hash_function'),
-                                          file_data_object['file_content']['unnamed_file_content']['hash_value'])
-                if file_data_object.get('file_import'):
-                    text += '  - Source URL: %s\n' % file_data_object['file_import']['source_url']
-                    if file_data_object['file_import'].get('note'):
-                        text += '  - Import note: %s\n' % file_data_object['file_import']['note']
+                text += '  - Imported: %s\n' % format(
+                    dateutil.parser.parse(
+                        file_data_object['datetime_created']), DATETIME_FORMAT)
+                text += '  - md5: %s\n' % file_data_object['md5']
+                if file_data_object.get('source_url'):
+                    text += '  - Source URL: %s\n' % \
+                            file_data_object['source_url']
+                if file_data_object.get('note'):
+                    text += '  - Import note: %s\n' % \
+                            file_data_object['note']
             except TypeError:
                 pass
         else:
@@ -104,14 +109,14 @@ class ShowTemplate(AbstractShow):
         self._show_templates()
 
     def _get_templates(self):
-        self.templates = self.connection.get_abstract_template_index(self.args.template_id)
+        self.templates = self.connection.get_template_index(self.args.template_id)
 
     def _show_templates(self):
         for template in self.templates:
             print self._render_template(template)
 
     def _render_template(self, template):
-        template_identifier = '%s@%s' % (template['name'], template['id'])
+        template_identifier = '%s@%s' % (template['name'], template['uuid'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Template: %s\n' % template_identifier
@@ -127,7 +132,7 @@ class ShowTemplate(AbstractShow):
             if template.get('steps'):
                 text += '  - Steps\n'
                 for step in template['steps']:
-                    text += '    - %s@%s\n' % (step['name'], step['id'])
+                    text += '    - %s@%s\n' % (step['name'], step['uuid'])
             if template.get('command'):
                 text += '  - Command: %s\n' % template['command']
 
@@ -164,7 +169,7 @@ class ShowRun(AbstractShow):
             print self._render_run(run)
 
     def _render_run(self, run):
-        run_identifier = '%s@%s' % (run['name'], run['id'])
+        run_identifier = '%s@%s' % (run['name'], run['uuid'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier

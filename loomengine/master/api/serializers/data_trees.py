@@ -3,7 +3,7 @@ import jsonschema
 
 from rest_framework import serializers
 
-from .base import IdSerializer
+from .base import UuidSerializer
 from .data_objects import DataObjectSerializer
 from api.models.data_trees import *
 from api.models.data_objects import DataObject
@@ -161,5 +161,5 @@ class DataNodeSerializer(serializers.ModelSerializer):
                     data_node, contents[i], path_i, data_type)
 
 
-class DataNodeIdSerializer(IdSerializer, DataNodeSerializer):
+class DataNodeUuidSerializer(UuidSerializer, DataNodeSerializer):
     pass

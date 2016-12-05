@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, \
-    IdSerializer
+    UuidSerializer
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskOutputSource, \
     TaskResourceSet, TaskEnvironment, TaskAttempt, TaskAttemptOutput, \
     TaskAttemptLogFile, TaskAttemptError
-from api.serializers.data_objects import DataObjectSerializer, DataObjectIdSerializer, FileDataObjectSerializer
+from api.serializers.data_objects import DataObjectSerializer, DataObjectUuidSerializer, FileDataObjectSerializer
 
 
 class TaskResourceSetSerializer(CreateWithParentModelSerializer):
@@ -35,7 +35,7 @@ class TaskOutputSourceSerializer(CreateWithParentModelSerializer):
 class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
     # Used for both TaskOutput and TaskAttemptOutput
 
-    data_object = DataObjectIdSerializer(allow_null=True, required=False)
+    data_object = DataObjectUuidSerializer(allow_null=True, required=False)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = TaskOutputSourceSerializer(read_only=True)
@@ -60,7 +60,7 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
 
 class TaskInputSerializer(CreateWithParentModelSerializer):
 
-    data_object = DataObjectIdSerializer(allow_null=True, required=False)
+    data_object = DataObjectUuidSerializer(allow_null=True, required=False)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
 
@@ -76,7 +76,7 @@ class FullTaskInputSerializer(TaskInputSerializer):
 
 class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
 
-    file = DataObjectIdSerializer(allow_null=True, required=False)
+    file = DataObjectUuidSerializer(allow_null=True, required=False)
 
     class Meta:
         model = TaskAttemptLogFile
@@ -122,13 +122,13 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
         return instance
 
 
-class TaskAttemptIdSerializer(IdSerializer, TaskAttemptSerializer):
+class TaskAttemptUuidSerializer(UuidSerializer, TaskAttemptSerializer):
     pass
 
 
 class TaskInputSerializer(CreateWithParentModelSerializer):
 
-    data_object = DataObjectIdSerializer(read_only=True)
+    data_object = DataObjectUuidSerializer(read_only=True)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
 
@@ -139,7 +139,7 @@ class TaskInputSerializer(CreateWithParentModelSerializer):
 
 class TaskOutputSerializer(CreateWithParentModelSerializer):
 
-    data_object = DataObjectIdSerializer(read_only=True)
+    data_object = DataObjectUuidSerializer(read_only=True)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = TaskOutputSourceSerializer(read_only=True)
@@ -173,6 +173,6 @@ class TaskSerializer(serializers.ModelSerializer):
                   'command', 'rendered_command', 'interpreter', 
                   'datetime_finished', 'datetime_created')
 
-class TaskIdSerializer(IdSerializer, TaskSerializer):
+class TaskUuidSerializer(UuidSerializer, TaskSerializer):
     pass
 
