@@ -230,7 +230,7 @@ class CloudTaskManager:
     def delete_worker_by_name(cls, worker_name):
         """Delete instance with the specified name."""
         # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_worker_by_name, args=(worker_name))
+        process = multiprocessing.Process(target=CloudTaskManager._delete_worker_by_name, args=(worker_name,))
         process.start()
 
     @classmethod
