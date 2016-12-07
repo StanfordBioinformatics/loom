@@ -117,11 +117,12 @@ class TemplateViewSet(viewsets.ModelViewSet):
         return queryset
 
 class RunViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.RunSerializer
 
     def get_queryset(self):
         queryset = models.Run.objects.all()
-        queryset = queryset.select_related('template__template_import')\
+        queryset = queryset.select_related('template')\
                            .prefetch_related('workflowrun__inputs__data_root')\
                            .prefetch_related(
                                'workflowrun__fixed_inputs__data_root')\
@@ -135,6 +136,7 @@ class RunViewSet(viewsets.ModelViewSet):
                            .prefetch_related('steprun__tasks')
         return queryset
 
+
 class RunRequestViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.RunRequestSerializer
 
@@ -142,8 +144,7 @@ class RunRequestViewSet(viewsets.ModelViewSet):
         queryset = models.RunRequest.objects.all()
         queryset = queryset.select_related('run')\
                            .select_related('template')\
-                           .prefetch_related('inputs__data_root')\
-                           .prefetch_related('outputs__data_root')
+                           .prefetch_related('inputs__data_root')
         return queryset.order_by('-datetime_created')
 
 

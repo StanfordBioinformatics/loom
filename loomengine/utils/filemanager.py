@@ -468,8 +468,9 @@ class FileManager:
             'type': 'file',
             'filename': filename,
             'md5': md5,
-            'source_url': source.get_url(),
-            'note': note,
+            'file_import': {
+                'source_url': source.get_url(),
+                'note': note },
             'source_type': 'imported',
         })
 

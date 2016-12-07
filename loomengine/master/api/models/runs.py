@@ -149,8 +149,8 @@ class Run(BaseModel):
             run = WorkflowRun.objects.create(template=template,
                                              type=template.type,
                                              parent=parent)
-        run.initialize_step_runs() # Only has effect if type==workflow
-        run.initialize_inputs_outputs()
+#        run.initialize_step_runs() # Only has effect if type==workflow
+#        run.initialize_inputs_outputs()
         return run
 
 #    def update_parent_status(self):

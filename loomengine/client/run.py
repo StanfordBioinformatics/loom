@@ -47,16 +47,14 @@ class TemplateRunner(object):
                 raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
 
     def run(self):
-        run_request = self.connection.post_run_request(
-            {
-                'template': self.args.template,
-                'inputs': self._get_inputs()
-            }
-        )
+        run_request_data = {
+            'template': self.args.template,
+            'inputs': self._get_inputs()}
+        run_request = self.connection.post_run_request(run_request_data)
 
-        print 'Created run request %s@%s' % (
-            run_request['name'],
-            run_request['id'])
+        print 'Created run %s@%s' % (
+            run_request['template']['name'],
+            run_request['run']['uuid'])
         return run_request
 
     def _get_inputs(self):
@@ -66,7 +64,9 @@ class TemplateRunner(object):
         if self.args.inputs:
             for kv_pair in self.args.inputs:
                 (channel, input_id) = kv_pair.split('=')
-                inputs.append({'channel': channel, 'data': input_id})
+                inputs.append({'channel': channel, 'data': 
+                               {'contents': input_id}
+                           })
         return inputs
 
 

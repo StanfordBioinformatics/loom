@@ -125,14 +125,19 @@ class Template(BaseModel):
         return inputs.first()
 
     def get_input(self, channel):
-        inputs = [i for i in self.inputs.filter(channel=channel)]
-        inputs.extend([i for i in self.fixed_inputs.filter(
-            channel=channel)])
+        inputs = filter(lambda i: i.get('channel')==channel,
+                        self.inputs)
         assert len(inputs) == 1
         return inputs[0]
 
+    def get_fixed_input(self, channel):
+        inputs = self.fixed_inputs.filter(channel=channel)
+        assert inputs.count() == 1
+        return inputs.first()
+
     def get_output(self, channel):
-        outputs = self.outputs.filter(channel=channel)
+        outputs = filter(lambda o: o.get('channel')==channel,
+                         self.outputs)
         assert outputs.count() == 1
         return outputs.first()
 

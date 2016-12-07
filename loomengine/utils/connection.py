@@ -209,26 +209,26 @@ class Connection(object):
             template,
             'templates/')
 
-    def get_template_run(self, template_run_id):
+    def get_run(self, run_id):
         return self._get_object(
-            'runs/%s/' % template_run_id
+            'runs/%s/' % run_id
         )
 
-    def get_template_run_index(self, query_string='', min=0, max=float('inf')):
+    def get_run_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
             url = 'runs/?q='+query_string
         else:
             url = 'runs/'
-        template_runs = self._get_object_index(url)
-        if len(template_runs) < min:
-            raise Error('Found %s template runs, expected at least %s' %(len(template_runs), min))
-        if len(template_runs) > max:
-            raise Error('Found %s template runs, expected at most %s' %(len(template_runs), max))
-        return template_runs
+        runs = self._get_object_index(url)
+        if len(runs) < min:
+            raise Error('Found %s template runs, expected at least %s' %(len(runs), min))
+        if len(runs) > max:
+            raise Error('Found %s template runs, expected at most %s' %(len(runs), max))
+        return runs
 
-    def post_template_run(self, template_run):
+    def post_run(self, run):
         return self._post_object(
-            template_run,
+            run,
             'runs/')
 
     def post_run_request(self, run_request):

@@ -51,6 +51,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
 class FileDataObjectSerializer(serializers.ModelSerializer):
 
     file_resource = FileResourceSerializer(allow_null=True, required=False)
+    file_import = serializers.JSONField(required=False)
 
     class Meta:
         model = FileDataObject

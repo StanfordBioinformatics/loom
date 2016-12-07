@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.dispatch import receiver
+import jsonfield
 import os
 import uuid
 
@@ -188,14 +189,13 @@ class FileDataObject(DataObject):
     filename = models.CharField(max_length=1024)
     file_resource = models.ForeignKey('FileResource', null=True)
     md5 = models.CharField(max_length=255)
-    note = models.TextField(max_length=10000, null=True)
-    source_url = models.TextField(max_length=1000, null=True)
     source_type = models.CharField(
         max_length=255,
         choices=(('imported', 'Imported'),
                  ('result', 'Result'),
                  ('log', 'Log'))
     )
+    file_import = jsonfield.JSONField(null=True)
 
     def initialize(self):
         if not self.file_resource:

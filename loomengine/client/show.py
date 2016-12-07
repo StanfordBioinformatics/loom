@@ -75,12 +75,13 @@ class ShowFile(AbstractShow):
                     dateutil.parser.parse(
                         file_data_object['datetime_created']), DATETIME_FORMAT)
                 text += '  - md5: %s\n' % file_data_object['md5']
-                if file_data_object.get('source_url'):
-                    text += '  - Source URL: %s\n' % \
-                            file_data_object['source_url']
-                if file_data_object.get('note'):
-                    text += '  - Import note: %s\n' % \
-                            file_data_object['note']
+                if file_data_object.get('file_import'):
+                    if file_data_object['file_import'].get('source_url'):
+                        text += '  - Source URL: %s\n' % \
+                                file_data_object['file_import']['source_url']
+                        if file_data_object['file_import'].get('note'):
+                            text += '  - Import note: %s\n' % \
+                                    file_data_object['file_import']['note']
             except TypeError:
                 pass
         else:

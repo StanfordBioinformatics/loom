@@ -1,6 +1,7 @@
 from .base import BaseModel
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
+import uuid
 
 from api.models.data_objects import DataObject
 
@@ -29,6 +30,7 @@ class MissingBranchError(Exception):
     pass
 
 class DataNode(BaseModel):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     root_node = models.ForeignKey('DataNode',
                                   null=True, 
                                   related_name='descendants')
