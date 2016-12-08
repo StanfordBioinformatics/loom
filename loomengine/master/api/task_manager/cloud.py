@@ -87,39 +87,24 @@ class CloudTaskManager:
         else:   
             scratch_disk_size_gb = settings.WORKER_SCRATCH_DISK_SIZE
 
-        playbook_vars = {
-            'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
-            'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
-            'docker_full_name': settings.DOCKER_FULL_NAME,
-            'docker_tag': settings.DOCKER_TAG,
-            'gce_email': settings.GCE_EMAIL,
-            'gce_credential': settings.GCE_PEM_FILE_PATH,
-            'gce_ssh_key_file': settings.GCE_SSH_KEY_FILE,
-            'instance_name': worker_name,
-            'instance_image': settings.WORKER_VM_IMAGE,
-            'instance_type': instance_type,
-            'log_level': settings.LOG_LEVEL,
-            'master_url': settings.MASTER_URL_FOR_WORKER,
-            'network': settings.WORKER_NETWORK,
-            'remote_user': 'loom',
-            'scratch_disk_name': scratch_disk_name,
-            'scratch_disk_device_path': scratch_disk_device_path,
-            'scratch_disk_mount_point': settings.WORKER_SCRATCH_DISK_MOUNT_POINT,
-            'scratch_disk_type': settings.WORKER_SCRATCH_DISK_TYPE,
-            'scratch_disk_size_gb': scratch_disk_size_gb,
-            'subnetwork': settings.WORKER_CUSTOM_SUBNET,
-            'tags': settings.WORKER_TAGS,
-            'task_run_attempt_id': task_run_attempt_id,
-            'task_run_docker_image': environment['docker_image'],
-            'use_internal_ip': settings.WORKER_USES_SERVER_INTERNAL_IP,
-            'worker_log_file': worker_log_file,
-            'zone': settings.WORKER_LOCATION,
+        ansible_env = os.environ.copy()
+        extra_env_vars = {
+            'WORKER_INSTANCE_NAME': worker_name,
+            'WORKER_INSTANCE_TYPE': instance_type,
+            'WORKER_REMOTE_USER': 'loom',
+            'WORKER_SCRATCH_DISK_DEVICE_PATH': scratch_disk_device_path,
+            'WORKER_SCRATCH_DISK_NAME': scratch_disk_name,
+            'WORKER_SCRATCH_DISK_SIZE': scratch_disk_size_gb,
+            'TASK_RUN_ATTEMPT_ID': task_run_attempt_id,
+            'TASK_RUN_DOCKER_IMAGE': environment['docker_image'],
+            'WORKER_LOG_FILE': worker_log_file,
         }
-        logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
+        ansible_env.update(extra_env_vars)
+        logger.debug('Starting worker VM using environment: %s' % ansible_env)
 
         try:
             with open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
-                cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+                cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, ansible_env, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to provision host.')
             connection.post_task_run_attempt_error(
@@ -142,7 +127,7 @@ class CloudTaskManager:
                     {
                         'status': TaskRunAttempt.STATUSES.LAUNCHING_MONITOR,
                     })
-                cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+                cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, ansible_env, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to launch monitor process on worker: %s')
             connection.post_task_run_attempt_error(
@@ -162,13 +147,11 @@ class CloudTaskManager:
         ansible_logfile.close()
 
     @classmethod
-    def _run_playbook(cls, playbook, playbook_vars, logfile=None):
-        """Runs a playbook by passing it a dict of vars on the command line."""
-        ansible_env = os.environ.copy()
+    def _run_playbook(cls, playbook, ansible_env, logfile=None):
+        """Runs a playbook. Vars are passed as env variables."""
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
-        playbook_vars_json_string = json.dumps(playbook_vars)
-        cmd = ['ansible-playbook', '-vvv', '--key-file', os.path.expanduser(settings.GCE_SSH_KEY_FILE), '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string]
+        cmd = ['ansible-playbook', '-vvv', '--key-file', os.path.expanduser(settings.GCE_SSH_KEY_FILE), '-i', GCE_PY_PATH, playbook]
         returncode = subprocess.call(cmd, env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
         if not returncode == 0:
             raise Exception('Nonzero returncode %s for command: %s' % (returncode, ' '.join(cmd)))
@@ -235,10 +218,9 @@ class CloudTaskManager:
 
     @classmethod
     def _delete_worker_by_name(cls, worker_name):
-        playbook_vars = {}
-        playbook_vars['WORKER_LOCATION'] = settings.WORKER_LOCATION
-        playbook_vars['WORKER_NAME'] = worker_name
-        cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, playbook_vars)
+        ansible_env = {}
+        ansible_env['WORKER_NAME'] = worker_name
+        cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, ansible_env)
 
     @classmethod
     def create_worker_name(cls, hostname, task_run_attempt):
