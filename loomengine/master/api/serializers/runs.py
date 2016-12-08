@@ -35,7 +35,7 @@ class RunSerializer(SuperclassModelSerializer):
             assert data, 'must provide either data or instance'
             type = data.get('type')
         if not type:
-            raise Exception('Unable to identify run type')
+            return None
         return type
 
     subclass_serializers = {

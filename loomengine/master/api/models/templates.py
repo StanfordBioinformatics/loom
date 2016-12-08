@@ -86,6 +86,14 @@ class Template(BaseModel):
                                             editable=False)
     name = models.CharField(max_length=255)
 
+    loading_status = models.CharField(
+        max_length=255,
+        default='loading',
+        choices=(('loading', 'Loading'),
+                 ('ready', 'Ready'),
+                 ('error', 'Error'))
+    )
+
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]

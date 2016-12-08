@@ -23,7 +23,7 @@ class DataNodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataNode
-        fields = ('id', 'contents',)
+        fields = ('uuid', 'contents',)
 
     def create(self, validated_data):
         type = self.context.get('type')
@@ -41,7 +41,7 @@ class DataNodeSerializer(serializers.ModelSerializer):
                 self.initial_data)
         else:
             assert isinstance(instance, DataNode)
-            return {'id': instance.id, 
+            return {'uuid': instance.uuid, 
                     'contents': self._data_tree_to_data_struct(instance)}
 
     def validate_contents(self, value):

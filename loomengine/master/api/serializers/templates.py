@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
     NameAndUuidSerializer
@@ -90,6 +91,7 @@ class StepSerializer(serializers.ModelSerializer):
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
     outputs = serializers.JSONField(required=False)
     template_import =  serializers.JSONField(required=False)
+    loading_status = serializers.CharField(required=False)
 
     class Meta:
         model = Step
@@ -104,7 +106,9 @@ class StepSerializer(serializers.ModelSerializer):
                   'fixed_inputs',
                   'outputs',
                   'datetime_created',
-                  'template_import',)
+                  'template_import',
+                  'loading_status',
+        )
 
     def create(self, validated_data):
         # Saved fixed inputs for postprocessing
@@ -114,7 +118,8 @@ class StepSerializer(serializers.ModelSerializer):
         # Type might not be explicitly declared
         validated_data['type'] = 'step'
 
-        step = super(StepSerializer, self).create(validated_data)
+        with transaction.atomic():
+            step = super(StepSerializer, self).create(validated_data)
 
         tasks.postprocess_step(step.id)
 
@@ -123,15 +128,22 @@ class StepSerializer(serializers.ModelSerializer):
     @classmethod
     def postprocess(cls, step_id):
         step = Step.objects.get(id=step_id)
-        fixed_inputs = step.raw_data.get('fixed_inputs', [])
-        for fixed_input_data in fixed_inputs:
-            s = FixedStepInputSerializer(
-                data=fixed_input_data,
-                context={'parent_field': 'step',
-                         'parent_instance': step,
-                     })
-            s.is_valid(raise_exception=True)
-            s.save()
+        try:
+            fixed_inputs = step.raw_data.get('fixed_inputs', [])
+            for fixed_input_data in fixed_inputs:
+                s = FixedStepInputSerializer(
+                    data=fixed_input_data,
+                    context={'parent_field': 'step',
+                             'parent_instance': step,
+                         })
+                s.is_valid(raise_exception=True)
+                s.save()
+            step.loading_status='ready'
+            step.save()
+        except Exception as e:
+            step.loading_status='error'
+            step.save
+            raise e
 
 
 class TemplateLookupSerializer(serializers.Serializer):
@@ -163,6 +175,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
     outputs = serializers.JSONField(required=False)
     steps = TemplateNameAndUuidSerializer(many=True)
     template_import = serializers.JSONField(required=False)
+    loading_status = serializers.CharField(required=False)
 
     class Meta:
         model = Workflow
@@ -174,7 +187,8 @@ class WorkflowSerializer(serializers.ModelSerializer):
                   'fixed_inputs',
                   'outputs',
                   'datetime_created',
-                  'template_import')
+                  'template_import',
+                  'loading_status',)
 
     def validate(self, data):
         steps = self.initial_data.get('steps', [])
@@ -193,7 +207,8 @@ class WorkflowSerializer(serializers.ModelSerializer):
         # Type may not be explicitly set
         validated_data['type'] = 'workflow'
 
-        workflow = super(WorkflowSerializer, self).create(validated_data)
+        with transaction.atomic():
+            workflow = super(WorkflowSerializer, self).create(validated_data)
 
         tasks.postprocess_workflow(workflow.id)
 
@@ -202,19 +217,27 @@ class WorkflowSerializer(serializers.ModelSerializer):
     @classmethod
     def postprocess(cls, workflow_id):
         workflow = Workflow.objects.get(id=workflow_id)
-        fixed_inputs = workflow.raw_data.get('fixed_inputs', [])
-        steps = workflow.raw_data.get('steps', [])
+        try:
+            fixed_inputs = workflow.raw_data.get('fixed_inputs', [])
+            steps = workflow.raw_data.get('steps', [])
 
-        for step_data in steps:
-            s = TemplateSerializer(data=step_data)
-            s.is_valid(raise_exception=True)
-            step = s.save()
-            workflow.add_step(step,)
+            for step_data in steps:
+                s = TemplateSerializer(data=step_data)
+                s.is_valid(raise_exception=True)
+                step = s.save()
+                workflow.add_step(step,)
 
-        for fixed_input_data in fixed_inputs:
-            s = FixedWorkflowInputSerializer(
-                data=fixed_input_data,
-                context={'parent_field': 'workflow',
-                         'parent_instance': workflow})
-            s.is_valid(raise_exception=True)
-            s.save()
+            for fixed_input_data in fixed_inputs:
+                s = FixedWorkflowInputSerializer(
+                    data=fixed_input_data,
+                    context={'parent_field': 'workflow',
+                             'parent_instance': workflow})
+                s.is_valid(raise_exception=True)
+                s.save()
+            workflow.loading_status='ready'
+            workflow.save()
+
+        except Exception as e:
+            workflow.loading_status='error'
+            workflow.save()
+            raise e

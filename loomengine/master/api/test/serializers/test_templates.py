@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from . import fixtures
 from api.serializers.templates import *
@@ -35,10 +35,10 @@ class TestFixedStepInputSerializer(TestCase):
 
         s2 = FixedStepInputSerializer(fixed_input)
         self.assertEqual(s2.data['data'].keys(),
-                         ['id'])
+                         ['uuid'])
         
 
-class TestStepSerializer(TestCase):
+class TestStepSerializer(TransactionTestCase):
 
     def testCreate(self):
         s = StepSerializer(data=fixtures.templates.step_a)

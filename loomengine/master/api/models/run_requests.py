@@ -21,6 +21,13 @@ class RunRequest(BaseModel):
                                related_name='run_request',
                                on_delete=models.PROTECT)
 
+    @property
+    def uuid(self):
+        if not self.run:
+            return None
+        else:
+            return self.run.uuid
+
     def initialize_request(self):
         # TODO
         self._connect_channels()

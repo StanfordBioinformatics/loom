@@ -23,7 +23,7 @@ class RunRequestSerializer(serializers.ModelSerializer):
 
     inputs = RunRequestInputSerializer(many=True, required=False)
     template = TemplateNameAndUuidSerializer()
-    run = RunUuidSerializer(required=False)
+    uuid = serializers.UUIDField(required=False)
 
     class Meta:
         model = RunRequest
@@ -40,7 +40,7 @@ class RunRequestSerializer(serializers.ModelSerializer):
         s = TemplateNameAndUuidSerializer(data=validated_data.pop('template'))
         s.is_valid()
         template = s.save()
-        run = Run.objects.create(template=template)
+        run = Run.objects.create(template=template, type=template.type)
 
         validated_data['template'] = template
         validated_data['run'] = run
