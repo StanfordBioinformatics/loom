@@ -152,6 +152,7 @@ class CloudTaskManager:
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
         cmd = ['ansible-playbook', '-vvv', '--key-file', os.path.expanduser(settings.GCE_SSH_KEY_FILE), '-i', GCE_PY_PATH, playbook]
+        print cmd
         returncode = subprocess.call(cmd, env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
         if not returncode == 0:
             raise Exception('Nonzero returncode %s for command: %s' % (returncode, ' '.join(cmd)))
@@ -218,7 +219,7 @@ class CloudTaskManager:
 
     @classmethod
     def _delete_worker_by_name(cls, worker_name):
-        ansible_env = {}
+        ansible_env = os.environ.copy() 
         ansible_env['WORKER_NAME'] = worker_name
         cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, ansible_env)
 
