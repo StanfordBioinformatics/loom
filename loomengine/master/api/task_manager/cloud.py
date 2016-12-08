@@ -221,7 +221,8 @@ class CloudTaskManager:
     def _delete_worker_by_name(cls, worker_name):
         ansible_env = os.environ.copy() 
         ansible_env['WORKER_NAME'] = worker_name
-        cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, ansible_env)
+        with open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
+            cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, ansible_env, logfile=ansible_logfile)
 
     @classmethod
     def create_worker_name(cls, hostname, task_run_attempt):
