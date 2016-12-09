@@ -4,13 +4,13 @@
   connection: local
   gather_facts: no
   vars:
-  - boot_disk_type: "{{lookup('env','SERVER_DISK_TYPE')}}"
   - boot_disk_size_gb: "{{lookup('env','SERVER_DISK_SIZE')}}"
-  - gce_email: "{{lookup('env','GCE_EMAIL')}}"
+  - boot_disk_type: "{{lookup('env','SERVER_DISK_TYPE')}}"
   - gce_credential: "{{lookup('env','GCE_PEM_FILE_PATH')}}"
+  - gce_email: "{{lookup('env','GCE_EMAIL')}}"
   - gce_ssh_key_file: "{{lookup('env', 'GCE_SSH_KEY_FILE')}}"
-  - instance_name: "{{lookup('env','SERVER_NAME')}}"
   - instance_image: "{{lookup('env','SERVER_VM_IMAGE')}}"
+  - instance_name: "{{lookup('env','SERVER_NAME')}}"
   - instance_type: "{{lookup('env','SERVER_INSTANCE_TYPE')}}"
   - network: "{{lookup('env','SERVER_NETWORK')}}"
   - remote_user: "{{lookup('env','USER')}}"

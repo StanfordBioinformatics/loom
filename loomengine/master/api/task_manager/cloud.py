@@ -21,6 +21,7 @@ import loomengine.utils.cloud
 
 PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
 GCLOUD_CREATE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_worker.yml')
+GCLOUD_DELETE_WORKER_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_worker.yml')
 GCLOUD_RUN_TASK_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_run_task.yml')
 GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
 
@@ -86,39 +87,24 @@ class CloudTaskManager:
         else:   
             scratch_disk_size_gb = settings.WORKER_SCRATCH_DISK_SIZE
 
-        playbook_vars = {
-            'boot_disk_type': settings.WORKER_BOOT_DISK_TYPE,
-            'boot_disk_size_gb': settings.WORKER_BOOT_DISK_SIZE,
-            'docker_full_name': settings.DOCKER_FULL_NAME,
-            'docker_tag': settings.DOCKER_TAG,
-            'gce_email': settings.GCE_EMAIL,
-            'gce_credential': settings.GCE_PEM_FILE_PATH,
-            'gce_ssh_key_file': settings.GCE_SSH_KEY_FILE,
-            'instance_name': worker_name,
-            'instance_image': settings.WORKER_VM_IMAGE,
-            'instance_type': instance_type,
-            'log_level': settings.LOG_LEVEL,
-            'master_url': settings.MASTER_URL_FOR_WORKER,
-            'network': settings.WORKER_NETWORK,
-            'remote_user': 'loom',
-            'scratch_disk_name': scratch_disk_name,
-            'scratch_disk_device_path': scratch_disk_device_path,
-            'scratch_disk_mount_point': settings.WORKER_SCRATCH_DISK_MOUNT_POINT,
-            'scratch_disk_type': settings.WORKER_SCRATCH_DISK_TYPE,
-            'scratch_disk_size_gb': scratch_disk_size_gb,
-            'subnetwork': settings.WORKER_CUSTOM_SUBNET,
-            'tags': settings.WORKER_TAGS,
-            'task_run_attempt_id': task_run_attempt_id,
-            'task_run_docker_image': environment['docker_image'],
-            'use_internal_ip': settings.WORKER_USES_SERVER_INTERNAL_IP,
-            'worker_log_file': worker_log_file,
-            'zone': settings.WORKER_LOCATION,
+        ansible_env = os.environ.copy()
+        extra_env_vars = {
+            'WORKER_INSTANCE_NAME': worker_name,
+            'WORKER_INSTANCE_TYPE': instance_type,
+            'WORKER_REMOTE_USER': 'loom',
+            'WORKER_SCRATCH_DISK_DEVICE_PATH': scratch_disk_device_path,
+            'WORKER_SCRATCH_DISK_NAME': scratch_disk_name,
+            'WORKER_SCRATCH_DISK_SIZE': scratch_disk_size_gb,
+            'TASK_RUN_ATTEMPT_ID': task_run_attempt_id,
+            'TASK_RUN_DOCKER_IMAGE': environment['docker_image'],
+            'WORKER_LOG_FILE': worker_log_file,
         }
-        logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
+        ansible_env.update(extra_env_vars)
+        logger.debug('Starting worker VM using environment: %s' % ansible_env)
 
         try:
             with open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
-                cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+                cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, ansible_env, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to provision host.')
             connection.post_task_run_attempt_error(
@@ -141,7 +127,7 @@ class CloudTaskManager:
                     {
                         'status': TaskRunAttempt.STATUSES.LAUNCHING_MONITOR,
                     })
-                cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
+                cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, ansible_env, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to launch monitor process on worker: %s')
             connection.post_task_run_attempt_error(
@@ -161,20 +147,18 @@ class CloudTaskManager:
         ansible_logfile.close()
 
     @classmethod
-    def _run_playbook(cls, playbook, playbook_vars, logfile=None):
-        """ Runs a playbook by passing it a dict of vars on the command line."""
-        ansible_env = os.environ.copy()
+    def _run_playbook(cls, playbook, ansible_env, logfile=None):
+        """Runs a playbook. Vars are passed as env variables."""
         ansible_env['ANSIBLE_HOST_KEY_CHECKING'] = 'False'
         ansible_env['INVENTORY_IP_TYPE'] = 'internal'       # Tell gce.py to use internal IP for ansible_ssh_host
-        playbook_vars_json_string = json.dumps(playbook_vars)
-        cmd = ['ansible-playbook', '-vvv', '--key-file', os.path.expanduser(settings.GCE_SSH_KEY_FILE), '-i', GCE_PY_PATH, playbook, '--extra-vars', playbook_vars_json_string]
+        cmd = ['ansible-playbook', '-vvv', '--key-file', os.path.expanduser(settings.GCE_SSH_KEY_FILE), '-i', GCE_PY_PATH, playbook]
         returncode = subprocess.call(cmd, env=ansible_env, stderr=subprocess.STDOUT, stdout=logfile)
         if not returncode == 0:
             raise Exception('Nonzero returncode %s for command: %s' % (returncode, ' '.join(cmd)))
 
     @classmethod
     def _get_cheapest_instance_type(cls, cores, memory):
-        """ Determine the cheapest instance type given a minimum number of cores and minimum amount of RAM (in GB). """
+        """Determine the cheapest instance type given a minimum number of cores and minimum amount of RAM (in GB)."""
 
         if settings.WORKER_TYPE != 'GOOGLE_CLOUD': #TODO: support other cloud providers
             raise CloudTaskManagerError('Not a recognized cloud provider: ' + settings.WORKER_TYPE)
@@ -205,7 +189,7 @@ class CloudTaskManager:
         
     @classmethod
     def _get_gcloud_pricelist(cls):
-        """ Retrieve latest pricelist from Google Cloud, or use cached copy if not reachable. """
+        """Retrieve latest pricelist from Google Cloud, or use cached copy if not reachable."""
         try:
             r = requests.get('http://cloudpricingcalculator.appspot.com/static/data/pricelist.json')
             content = json.loads(r.content)
@@ -219,42 +203,36 @@ class CloudTaskManager:
         return pricelist
 
     @classmethod
-    def delete_instance_by_name(cls, instance_name):
-        """ Delete the instance that ran a task. """
+    def delete_worker_by_task_run_attempt(cls, task_run_attempt):
+        """Delete the worker that ran the specified task run attempt from this server."""
+        hostname = socket.gethostname()
+        worker_name = cls.create_worker_name(hostname, task_run_attempt)
+        cls.delete_worker_by_name(worker_name)
+        
+    @classmethod
+    def delete_worker_by_name(cls, worker_name):
+        """Delete instance with the specified name."""
         # Don't want to block while waiting for VM to be deleted, so start another process to finish the rest of the steps.
-        process = multiprocessing.Process(target=CloudTaskManager._delete_instance, args=(instance_name))
+        process = multiprocessing.Process(target=CloudTaskManager._delete_worker_by_name, args=(worker_name,))
         process.start()
 
     @classmethod
-    def delete_instance_by_task_run(cls, host_name, task_run):
-        """ Delete the instance that ran a task. """
-        instance_name = cls.create_worker_name(host_name, task_run)
-        cls.delete_instance_by_name(instance_name)
-        
-    @classmethod
-    def _delete_instance(cls, instance_name):
-        if settings.WORKER_TYPE != 'GOOGLE_CLOUD':
-            raise CloudTaskManagerError('Unsupported cloud type: ' + settings.WORKER_TYPE)
-        # TODO: Support other cloud providers. For now, assume GCE.
-        zone = settings.WORKER_LOCATION
-        s = Template(
-"""---
-- hosts: localhost
-  connection: local
-  tasks:
-  - name: Delete an instance.
-    gce: name=$instance_name zone=$zone state=deleted
-""")
-        playbook = s.substitute(locals())
-        cls._run_playbook_string(playbook)
-        # TODO: Delete scratch disk
+    def _delete_worker_by_name(cls, worker_name):
+        ansible_env = os.environ.copy() 
+        ansible_env['WORKER_NAME'] = worker_name
+        with open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
+            cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, ansible_env, logfile=ansible_logfile)
 
     @classmethod
     def create_worker_name(cls, hostname, task_run_attempt):
-        """ Create a name for the worker instance. Since hostname, workflow name, and step name can easily be duplicated,
-        we do this in two steps to ensure that at least 4 characters of the location ID are part of the name.
-        Also, worker scratch disks are named by appending '-disk' to the instance name, and disk names are max 63 characters,
-        so leave 5 characters for the '-disk' suffix.
+        """Create a name for the worker instance that will run the specified task run attempt, from this server.
+
+        Since hostname, workflow name, and step name can easily be duplicated,
+        we do this in two steps to ensure that at least 4 characters of the
+        location ID are part of the name. Also, since worker scratch disks are
+        named by appending '-disk' to the instance name, and disk names are max
+        63 characters, leave 5 characters for the '-disk' suffix.
+
         """
         task_run = task_run_attempt.task_run
         #workflow_name = task_run.workflow_name
