@@ -29,3 +29,28 @@ def postprocess_step(*args, **kwargs):
         kwargs=kwargs)
     process.start()
 
+def _postprocess_step_run(run_id):
+    from api.serializers.runs import StepRunSerializer
+    StepRunSerializer.postprocess(run_id)
+
+def postprocess_step_run(*args, **kwargs):
+    # Kill connections so new process will create its own
+    db.connections.close_all()
+    process = multiprocessing.Process(
+        target=_postprocess_step_run,
+        args=args, 
+        kwargs=kwargs)
+    process.start()
+
+def _postprocess_workflow_run(run_id):
+    from api.serializers.runs import WorkflowRunSerializer
+    WorkflowRunSerializer.postprocess(run_id)
+
+def postprocess_workflow_run(*args, **kwargs):
+    # Kill connections so new process will create its own
+    db.connections.close_all()
+    process = multiprocessing.Process(
+        target=_postprocess_workflow_run,
+        args=args, 
+        kwargs=kwargs)
+    process.start()

@@ -1,5 +1,5 @@
 import copy
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from . import fixtures
 from api.serializers.run_requests import *
@@ -7,7 +7,7 @@ from api.serializers.templates import TemplateSerializer
 from api.models.data_trees import DataNode
 
 
-class TestRunRequestSerializer(TestCase):
+class TestRunRequestSerializer(TransactionTestCase):
 
     def testCreate(self):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)

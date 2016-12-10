@@ -1,4 +1,5 @@
 from django.test import TestCase, TransactionTestCase
+import loomengine.utils.helper
 
 from . import fixtures
 from api.serializers.templates import *
@@ -40,11 +41,20 @@ class TestFixedStepInputSerializer(TestCase):
 
 class TestStepSerializer(TransactionTestCase):
 
+    @classmethod
+    def isStepReady(cls, step_id):
+        return Step.objects.get(id=step_id).saving_status == 'ready'
+    
     def testCreate(self):
         s = StepSerializer(data=fixtures.templates.step_a)
         s.is_valid()
         m = s.save()
 
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isStepReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
+        
         self.assertEqual(m.command, fixtures.templates.step_a['command'])
         self.assertEqual(
             m.fixed_inputs.first().data_root.data_object.substitution_value,
@@ -58,12 +68,21 @@ class TestStepSerializer(TransactionTestCase):
         self.assertEqual(m.command, s.data['command'])
 
 
-class TestWorkflowSerializer(TestCase):
+class TestWorkflowSerializer(TransactionTestCase):
+
+    @classmethod
+    def isWorkflowReady(cls, workflow_id):
+        return Workflow.objects.get(id=workflow_id).saving_status == 'ready'
 
     def testCreateFlatWorkflow(self):
         s = WorkflowSerializer(data=fixtures.templates.flat_workflow)
         s.is_valid()
         m = s.save()
+
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isWorkflowReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
 
         self.assertEqual(
             m.steps.first().step.command,
@@ -77,6 +96,11 @@ class TestWorkflowSerializer(TestCase):
         s.is_valid()
         m = s.save()
 
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isWorkflowReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
+
         self.assertEqual(
             m.steps.first().workflow.steps.first().step.command,
             fixtures.templates.nested_workflow[
@@ -90,14 +114,28 @@ class TestWorkflowSerializer(TestCase):
         s.is_valid()
         m = s.save()
 
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isWorkflowReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
+
         self.assertEqual(s.data['name'], 'nested')
 
-class TestTemplateSerializer(TestCase):
+class TestTemplateSerializer(TransactionTestCase):
+
+    @classmethod
+    def isTemplateReady(cls, template_id):
+        return Template.objects.get(id=template_id).saving_status == 'ready'
 
     def testCreateStep(self):
         s = TemplateSerializer(data=fixtures.templates.step_a)
         s.is_valid()
         m = s.save()
+
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isTemplateReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
 
         self.assertEqual(m.step.command, fixtures.templates.step_a['command'])
         self.assertEqual(
@@ -108,6 +146,11 @@ class TestTemplateSerializer(TestCase):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)
         s.is_valid()
         m = s.save()
+
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isTemplateReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
 
         self.assertEqual(
             m.steps.first().step.command, 
@@ -121,6 +164,11 @@ class TestTemplateSerializer(TestCase):
         s.is_valid()
         m = s.save()
 
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isTemplateReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
+
         self.assertEqual(
             m.steps.first().workflow.steps.first().step.command,
             fixtures.templates.nested_workflow[
@@ -133,6 +181,11 @@ class TestTemplateSerializer(TestCase):
         s = TemplateSerializer(data=fixtures.templates.nested_workflow)
         s.is_valid()
         m = s.save()
+
+        loomengine.utils.helper.wait_for_true(
+            lambda: self.isTemplateReady(m.id),
+            timeout_seconds=10,
+            sleep_interval=1)
 
         s2 = TemplateSerializer(m)
         self.assertEqual(s2.data['name'], 'nested')

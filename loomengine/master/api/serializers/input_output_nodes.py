@@ -13,14 +13,7 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
     def create(self, validated_data):
         data = validated_data.pop('data')
 
-        if self.context.get('parent_field') \
-           and self.context.get('parent_instance'):
-            validated_data.update({
-                self.context.get('parent_field'):
-                self.context.get('parent_instance')})
-
-        # Class of io_node depends on subclass.Meta.model
-        io_node =  self.Meta.model.objects.create(**validated_data)
+        io_node = super(InputOutputNodeSerializer, self).create(validated_data)
 
         if data is not None:
             type = validated_data.get('type')

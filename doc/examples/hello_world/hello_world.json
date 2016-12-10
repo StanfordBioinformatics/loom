@@ -16,7 +16,7 @@
 	{
 	    "type": "string",
 	    "channel": "final_punc",
-	    "data": "!!"
+	    "data": {"contents": "!!"}
 	}
     ],
     "outputs": [

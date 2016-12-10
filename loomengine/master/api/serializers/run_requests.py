@@ -8,8 +8,8 @@ from api.models.run_requests import RunRequest, RunRequestInput
 from api.models.signals import post_save_children
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 from api.serializers.templates import TemplateNameAndUuidSerializer
-from api.serializers.runs import RunUuidSerializer
-
+from api.serializers.base import UuidSerializer
+from api import tasks
 
 class RunRequestInputSerializer(InputOutputNodeSerializer):
 
@@ -27,10 +27,10 @@ class RunRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RunRequest
-        fields = ('template',
+        fields = ('uuid',
+                  'template',
                   'inputs',
-                  'datetime_created',
-                  'run')
+                  'datetime_created')
 
     def create(self, validated_data):
         inputs = self.initial_data.get('inputs', None)
@@ -40,8 +40,9 @@ class RunRequestSerializer(serializers.ModelSerializer):
         s = TemplateNameAndUuidSerializer(data=validated_data.pop('template'))
         s.is_valid()
         template = s.save()
-        run = Run.objects.create(template=template, type=template.type)
-
+        from api.serializers.runs import RunSerializer
+        run = RunSerializer.create_from_template(template, no_delay=False)
+            
         validated_data['template'] = template
         validated_data['run'] = run
 
@@ -61,7 +62,9 @@ class RunRequestSerializer(serializers.ModelSerializer):
                          })
                 s.is_valid(raise_exception=True)
                 s.save()
-
-        #run_request.create_ready_tasks()
                 
         return run_request
+
+class RunRequestUuidSerializer(UuidSerializer, RunRequestSerializer):
+
+    pass

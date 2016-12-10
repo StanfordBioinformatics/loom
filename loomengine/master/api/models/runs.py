@@ -25,9 +25,6 @@ class WorkflowRunManager(object):
     def get_inputs(self):
         return self.run.workflowrun.inputs
 
-    def get_fixed_inputs(self):
-        return self.run.workflowrun.fixed_inputs
-
     def get_outputs(self):
         return self.run.workflowrun.outputs
 
@@ -40,6 +37,7 @@ class WorkflowRunManager(object):
     def get_tasks(self):
         raise Exception('No tasks on run of type "workflow"')
 
+
 class StepRunManager(object):
 
     def __init__(self, run):
@@ -48,9 +46,6 @@ class StepRunManager(object):
 
     def get_inputs(self):
         return self.run.steprun.inputs
-
-    def get_fixed_inputs(self):
-        return self.run.steprun.fixed_inputs
 
     def get_outputs(self):
         return self.run.steprun.outputs
@@ -76,6 +71,7 @@ class Run(BaseModel):
         'workflow': WorkflowRunManager
     }
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    name = models.CharField(max_length=255)
     type = models.CharField(max_length=255,
                             choices = (('step', 'Step'),
                                        ('workflow', 'Workflow')))
@@ -90,11 +86,17 @@ class Run(BaseModel):
         max_length=255,
         default='',
     )
-    name = models.CharField(max_length=255)
     template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT,
                                  null=True) # For testing only
+    saving_status = models.CharField(
+        max_length=255,
+        default='saving',
+        choices=(('saving', 'Saving'),
+                 ('ready', 'Ready'),
+                 ('error', 'Error'))
+    )
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -107,10 +109,6 @@ class Run(BaseModel):
     def inputs(self):
         return self._get_manager().get_inputs()
     
-    @property
-    def fixed_inputs(self):
-        return self._get_manager().get_fixed_inputs()
-
     @property
     def outputs(self):
         return self._get_manager().get_outputs()
@@ -127,8 +125,6 @@ class Run(BaseModel):
     
     def get_input(self, channel):
         inputs = [i for i in self.inputs.filter(channel=channel)]
-        inputs.extend([i for i in self.fixed_inputs.filter(
-            channel=channel)])
         assert len(inputs) == 1
         return inputs[0]
 
@@ -136,22 +132,6 @@ class Run(BaseModel):
         outputs = [o for o in self.outputs.filter(channel=channel)]
         assert len(outputs) == 1
         return outputs[0]
-
-    @classmethod
-    def create_from_template(cls, template, parent=None):
-        if template.type == 'step':
-            run = StepRun.objects.create(template=template,
-                                         type=template.type,
-                                         parent=parent)
-        else:
-            assert template.type == 'workflow', \
-                'Invalid template type "%s"' % template.type
-            run = WorkflowRun.objects.create(template=template,
-                                             type=template.type,
-                                             parent=parent)
-#        run.initialize_step_runs() # Only has effect if type==workflow
-#        run.initialize_inputs_outputs()
-        return run
 
 #    def update_parent_status(self):
 #        if self.parent:
@@ -170,70 +150,6 @@ class WorkflowRun(Run):
     def add_step(self, step_run):
         step_run.parent = self
         step_run.save()
-
-    def initialize_step_runs(self):
-        """Create a run for each step
-        """
-        for step in self.template.workflow.steps.all():
-            self.create_from_template(step, parent=self)
-
-    def initialize_inputs_outputs(self):
-        self._initialize_inputs()
-        self._initialize_fixed_inputs()
-        self._initialize_outputs()
-
-    def _initialize_inputs(self):
-        for input in self.template.inputs.all():
-            WorkflowRunInput.objects.create(
-                workflow_run=self,
-                channel=input.channel,
-                type=input.type
-            )
-
-    def _initialize_fixed_inputs(self):
-        for fixed_input in self.template.fixed_inputs.all():
-            fixed_workflow_run_input = FixedWorkflowRunInput.objects.create(
-                workflow_run=self,
-                channel=fixed_input.channel,
-                type=fixed_input.type
-            )
-            fixed_workflow_run_input.connect(fixed_input)
-
-    def _initialize_outputs(self):
-        for output in self.template.outputs.all():
-            WorkflowRunOutput.objects.create(
-                workflow_run=self,
-                type=output.type,
-                channel=output.channel
-            )
-
-    def connect_channels(self):
-        for destination in self._get_destinations():
-            source = self._get_source(destination.channel)
-            # Make sure matching source and destination nodes are connected
-            source.connect(destination)
-
-        for step in self.steps.all():
-            step.connect_channels()
-
-    def _get_destinations(self):
-        destinations = [dest for dest in self.outputs.all()]
-        for step_run in self.steps.all():
-            destinations.extend([dest for dest in step_run.inputs.all()])
-        return destinations
-
-    def _get_source(self, channel):
-        sources = [source for source in self.inputs.filter(channel=channel)]
-        sources.extend([source for source in
-                        self.fixed_inputs.filter(channel=channel)])
-        for step_run in self.steps.all():
-            sources.extend([source for source in
-                            step_run.outputs.filter(channel=channel)])
-        if len(sources) < 1:
-            raise Exception('Could not find data source for channel "%s"' % channel)
-        elif len(sources) > 1:
-            raise Exception('Found multiple data sources for channel "%s"' % channel)
-        return sources[0]
 
     def get_step_status_count(self):
         count = {
@@ -304,48 +220,6 @@ class StepRun(Run):
             count['running'] = 1
         return count
 
-    def initialize_step_runs(self):
-        # No-op. No steps.
-        pass
-
-    def initialize_inputs_outputs(self):
-        self._initialize_inputs()
-        self._initialize_fixed_inputs()
-        self._initialize_outputs()
-
-    def _initialize_inputs(self):
-        for input in self.template.inputs.all():
-            StepRunInput.objects.create(
-                step_run=self,
-                channel=input.channel,
-                type=input.channel,
-                mode=input.mode,
-                group=input.group
-                )
-
-    def _initialize_fixed_inputs(self):
-        for fixed_input in self.template.fixed_inputs.all():
-            fixed_step_run_input = FixedStepRunInput.objects.create(
-                step_run=self,
-                channel=fixed_input.channel,
-                type=fixed_input.type,
-                mode=fixed_input.mode,
-                group=fixed_input.group
-            )
-            fixed_step_run_input.connect(fixed_input)
-
-    def _initialize_outputs(self):
-        for output in self.template.outputs.all():
-            StepRunOutput.objects.create(
-                step_run=self,
-                channel=output.channel,
-                type=output.type,
-                mode=output.mode
-            )
-
-    def connect_channels(self):
-        pass # no-op
-
     def get_all_inputs(self):
         inputs = [i for i in self.inputs.all()]
         inputs.extend([i for i in self.fixed_inputs.all()])
@@ -400,18 +274,6 @@ class StepRunInput(AbstractStepRunInput):
     group = models.IntegerField()
 
 
-class FixedStepRunInput(AbstractStepRunInput):
-
-    step_run = models.ForeignKey('StepRun',
-                                 related_name='fixed_inputs',
-                                 on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255)
-    group = models.IntegerField()
-
-    def get_step_input(self):
-        return self.step_run.template.get_input(self.channel)
-
-
 class StepRunOutput(InputOutputNode):
 
     step_run = models.ForeignKey('StepRun',
@@ -432,16 +294,6 @@ class WorkflowRunInput(InputOutputNode):
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='inputs',
                                      on_delete=models.CASCADE)
-
-
-class FixedWorkflowRunInput(InputOutputNode):
-
-    workflow_run = models.ForeignKey('WorkflowRun',
-                                     related_name='fixed_inputs',
-                                     on_delete=models.CASCADE)
-
-    def get_workflow_input(self):
-        return self.workflow_run.template.get_input(self.channel)
 
 
 class WorkflowRunOutput(InputOutputNode):

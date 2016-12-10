@@ -124,13 +124,9 @@ class RunViewSet(viewsets.ModelViewSet):
         queryset = models.Run.objects.all()
         queryset = queryset.select_related('template')\
                            .prefetch_related('workflowrun__inputs__data_root')\
-                           .prefetch_related(
-                               'workflowrun__fixed_inputs__data_root')\
                            .prefetch_related('workflowrun__outputs__data_root')\
                            .prefetch_related('workflowrun__steps')\
                            .prefetch_related('steprun__inputs__data_root')\
-                           .prefetch_related(
-                               'steprun__fixed_inputs__data_root')\
                            .prefetch_related('steprun__outputs__data_root')\
                            .prefetch_related('steprun__outputs__source')\
                            .prefetch_related('steprun__tasks')

@@ -1,11 +1,11 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from . import fixtures
 from api.serializers.templates import *
 from api.serializers.runs import *
 
 
-class TestStepRunSerializer(TestCase):
+class TestStepRunSerializer(TransactionTestCase):
 
     def testRender(self):
         s = TemplateSerializer(data=fixtures.templates.step_a)
@@ -14,23 +14,10 @@ class TestStepRunSerializer(TestCase):
         run = Run.create_from_template(m)
 
         self.assertEqual(
-            m.id,
-            StepRunSerializer(run).data['template']['id'])
+            m.uuid,
+            StepRunSerializer(run).data['template']['uuid'])
 
-class TestWorkflowRunSerializer(TestCase):
-
-    def testRenderFlat(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
-        m = s.save()
-        run = Run.create_from_template(m)
-
-        self.assertEqual(
-            m.id,
-            WorkflowRunSerializer(run).data['template']['id'])
-
-
-class TestWorkflowRunSerializer(TestCase):
+class TestWorkflowRunSerializer(TransactionTestCase):
 
     def testRenderFlat(self):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)
@@ -39,11 +26,24 @@ class TestWorkflowRunSerializer(TestCase):
         run = Run.create_from_template(m)
 
         self.assertEqual(
-            m.id,
+            m.uuid,
             WorkflowRunSerializer(run).data['template']['id'])
 
 
-class TestRunSerializer(TestCase):
+class TestWorkflowRunSerializer(TransactionTestCase):
+
+    def testRenderFlat(self):
+        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
+        s.is_valid()
+        m = s.save()
+        run = Run.create_from_template(m)
+
+        self.assertEqual(
+            m.uuid,
+            WorkflowRunSerializer(run).data['template']['uuid'])
+
+
+class TestRunSerializer(TransactionTestCase):
 
     def testRender(self):
         s = TemplateSerializer(data=fixtures.templates.step_a)
@@ -52,8 +52,8 @@ class TestRunSerializer(TestCase):
         run = Run.create_from_template(m)
 
         self.assertEqual(
-            m.id,
-            RunSerializer(run).data['template']['id'])
+            m.uuid,
+            RunSerializer(run).data['template']['uuid'])
 
     def testRenderFlat(self):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)
@@ -62,8 +62,8 @@ class TestRunSerializer(TestCase):
         run = Run.create_from_template(m)
 
         self.assertEqual(
-            m.id,
-            RunSerializer(run).data['template']['id'])
+            m.uuid,
+            RunSerializer(run).data['template']['uuid'])
 
     def testRenderFlat(self):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)
@@ -72,5 +72,5 @@ class TestRunSerializer(TestCase):
         run = Run.create_from_template(m)
 
         self.assertEqual(
-            m.id,
-            RunSerializer(run).data['template']['id'])
+            m.uuid,
+            RunSerializer(run).data['template']['uuid'])

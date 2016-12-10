@@ -20,6 +20,10 @@ environment, while Workflows are collections of other Steps
 or Workflows.
 """
 
+DEFAULT_INPUT_GROUP = 0
+DEFAULT_INPUT_MODE = 'no_gather'
+DEFAULT_OUTPUT_MODE = 'no_scatter'
+
 class WorkflowManager(object):
 
     def __init__(self, template):
@@ -86,10 +90,10 @@ class Template(BaseModel):
                                             editable=False)
     name = models.CharField(max_length=255)
 
-    loading_status = models.CharField(
+    saving_status = models.CharField(
         max_length=255,
-        default='loading',
-        choices=(('loading', 'Loading'),
+        default='saving',
+        choices=(('saving', 'Saving'),
                  ('ready', 'Ready'),
                  ('error', 'Error'))
     )
@@ -201,8 +205,8 @@ class FixedStepInput(InputOutputNode):
         'Step',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, default='no_gather')
-    group = models.IntegerField(default=0)
+    mode = models.CharField(max_length=255, default=DEFAULT_INPUT_MODE)
+    group = models.IntegerField(default=DEFAULT_INPUT_GROUP)
 
     class Meta:
         app_label = 'api'

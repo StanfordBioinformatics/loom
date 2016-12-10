@@ -91,7 +91,7 @@ class StepSerializer(serializers.ModelSerializer):
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
     outputs = serializers.JSONField(required=False)
     template_import =  serializers.JSONField(required=False)
-    loading_status = serializers.CharField(required=False)
+    saving_status = serializers.CharField(required=False)
 
     class Meta:
         model = Step
@@ -107,7 +107,7 @@ class StepSerializer(serializers.ModelSerializer):
                   'outputs',
                   'datetime_created',
                   'template_import',
-                  'loading_status',
+                  'saving_status',
         )
 
     def create(self, validated_data):
@@ -115,15 +115,35 @@ class StepSerializer(serializers.ModelSerializer):
         validated_data['raw_data'] = self.initial_data
         validated_data.pop('fixed_inputs', None)
 
+        inputs = validated_data.get('inputs')
+        if inputs:
+            for input in inputs:
+                self._set_input_defaults(input)
+
+        outputs = validated_data.get('outputs')
+        if outputs:
+            for output in outputs:
+                self._set_output_defaults(input)
+                
         # Type might not be explicitly declared
         validated_data['type'] = 'step'
 
         with transaction.atomic():
             step = super(StepSerializer, self).create(validated_data)
 
-        tasks.postprocess_step(step.id)
+        if self.context.get('no_delay'):
+            tasks._postprocess_step(step.id)
+        else:
+            tasks.postprocess_step(step.id)
 
         return step
+
+    def _set_input_defaults(self, input):
+        input.setdefault('group', DEFAULT_INPUT_GROUP)
+        input.setdefault('mode', DEFAULT_INPUT_MODE)
+
+    def _set_output_defaults(self, output):
+        output.setdefault('group', DEFAULT_OUTPUT_MODE)
 
     @classmethod
     def postprocess(cls, step_id):
@@ -138,10 +158,10 @@ class StepSerializer(serializers.ModelSerializer):
                          })
                 s.is_valid(raise_exception=True)
                 s.save()
-            step.loading_status='ready'
+            step.saving_status='ready'
             step.save()
         except Exception as e:
-            step.loading_status='error'
+            step.saving_status='error'
             step.save
             raise e
 
@@ -175,7 +195,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
     outputs = serializers.JSONField(required=False)
     steps = TemplateNameAndUuidSerializer(many=True)
     template_import = serializers.JSONField(required=False)
-    loading_status = serializers.CharField(required=False)
+    saving_status = serializers.CharField(required=False)
 
     class Meta:
         model = Workflow
@@ -188,7 +208,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
                   'outputs',
                   'datetime_created',
                   'template_import',
-                  'loading_status',)
+                  'saving_status',)
 
     def validate(self, data):
         steps = self.initial_data.get('steps', [])
@@ -210,7 +230,10 @@ class WorkflowSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             workflow = super(WorkflowSerializer, self).create(validated_data)
 
-        tasks.postprocess_workflow(workflow.id)
+        if self.context.get('no_delay'):
+            tasks._postprocess_workflow(workflow.id)
+        else:
+            tasks.postprocess_workflow(workflow.id)
 
         return workflow
 
@@ -222,7 +245,8 @@ class WorkflowSerializer(serializers.ModelSerializer):
             steps = workflow.raw_data.get('steps', [])
 
             for step_data in steps:
-                s = TemplateSerializer(data=step_data)
+                s = TemplateSerializer(data=step_data,
+                                       context={'no_delay': True})
                 s.is_valid(raise_exception=True)
                 step = s.save()
                 workflow.add_step(step,)
@@ -234,10 +258,11 @@ class WorkflowSerializer(serializers.ModelSerializer):
                              'parent_instance': workflow})
                 s.is_valid(raise_exception=True)
                 s.save()
-            workflow.loading_status='ready'
+
+            workflow.saving_status = 'ready'
             workflow.save()
 
         except Exception as e:
-            workflow.loading_status='error'
+            workflow.saving_status = 'error'
             workflow.save()
             raise e
