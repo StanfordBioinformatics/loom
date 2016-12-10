@@ -197,6 +197,9 @@ class TaskRunner(object):
         self._set_status(STATUS.FETCHING_IMAGE)
         try:
             self._pull_image()
+            image_id = self.docker_client.inspect(self._get_docker_image())['Id']
+            self._set_image_id(image_id)
+            self.logger.info('Pulled image %s and received image id %s' % (self._get_docker_image(), image_id))
         except Exception as e:
             self._report_error(message='Failed to fetch image for runtime environment', detail=str(e))
             raise e
@@ -441,6 +444,12 @@ class TaskRunner(object):
         self.connection.update_task_run_attempt(
             self.settings['TASK_RUN_ATTEMPT_ID'],
             {'container_id': container_id}
+        )
+
+    def _set_image_id(self, image_id):
+        self.connection.update_task_run_attempt(
+            self.settings['TASK_RUN_ATTEMPT_ID'],
+            {'image_id': image_id}
         )
 
     def _set_status(self, status):
