@@ -197,7 +197,7 @@ class TaskRunner(object):
         self._set_status(STATUS.FETCHING_IMAGE)
         try:
             self._pull_image()
-            image_id = self.docker_client.inspect(self._get_docker_image())['Id']
+            image_id = self.docker_client.inspect_image(self._get_docker_image())['Id']
             self._set_image_id(image_id)
             self.logger.info('Pulled image %s and received image id %s' % (self._get_docker_image(), image_id))
         except Exception as e:
