@@ -29,7 +29,7 @@
   - task_run_docker_image: "{{lookup('env','TASK_RUN_DOCKER_IMAGE')}}"
   - use_internal_ip: "{{lookup('env','WORKER_USES_SERVER_INTERNAL_IP')}}"
   - worker_log_file: "{{lookup('env','WORKER_LOG_FILE')}}"
-  - zone: "{{lookup('env','WORKER_LOCATION')}}"
+  - zone: "{{lookup('env','WORKER_ZONE')}}"
   tasks:
   - include: tasks/gcloud_create_instance.yml
   - include: tasks/gcloud_configure_instance_ssh.yml

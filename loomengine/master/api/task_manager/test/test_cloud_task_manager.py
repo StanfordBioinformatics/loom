@@ -41,7 +41,7 @@ class TestCloudTaskManagerOnGCE(unittest.TestCase):
         settings.GCE_KEY_FILE = '~/.ssh/google_compute_engine'
         settings.WORKER_TYPE = 'GOOGLE_CLOUD'
         settings.WORKER_VM_IMAGE = 'container-vm'
-        settings.WORKER_LOCATION = 'us-central1-a'
+        settings.WORKER_ZONE = 'us-central1-a'
         settings.WORKER_DISK_TYPE = 'pd-ssd'
         settings.WORKER_DISK_SIZE = '100'
         settings.WORKER_DISK_MOUNT_POINT = '/mnt/loom_working_dir'
