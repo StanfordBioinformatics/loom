@@ -171,6 +171,7 @@ class TaskRunAttempt(BasePolymorphicModel):
         on_delete=models.CASCADE,
         null=True)
     container_id = models.CharField(max_length=255, null=True)
+    image_id = models.CharField(max_length=255, null=True)
     last_update = models.DateTimeField(auto_now=True)
 
     STATUSES = TASK_RUN_ATTEMPT_STATUSES
