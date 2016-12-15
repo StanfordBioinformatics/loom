@@ -1,8 +1,14 @@
+  - name: Get release version from yum
+    shell: "yum -q version nogroups 2>/dev/null | grep Installed | sed 's|Installed: ||' | sed 's|/.*$||'"
+    register: release_version
+  - name: Resolve release version URL, which could be a link, to a Fedora Project EPEL mirror.
+    uri: url=http://download.fedoraproject.org/pub/epel/{{release_version.stdout}}
+    register: resolved_mirror
   - name: Add epel repository to yum.
     yum_repository:
       name: epel
       description: EPEL YUM repo
-      baseurl: http://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+      baseurl: "{{resolved_mirror.url}}$basearch/"
   - name: Install pip, which is needed to install docker-py.
     yum: name=python-pip disable_gpg_check=yes update_cache=yes
     register: pipinstallresult
