@@ -86,10 +86,10 @@ class TestTaskSerializerIdOnly(TestCase):
 
     def testRender(self):
         task = get_task()
-        s = TaskIdSerializer(task)
+        s = TaskUuidSerializer(task)
         task_data = s.data
-        self.assertEqual(task_data['id'],
-                         task.id.hex)
+        self.assertEqual(task_data['uuid'],
+                         task.uuid)
 
     
     

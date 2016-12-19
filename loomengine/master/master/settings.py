@@ -55,6 +55,8 @@ HARD_STOP_ON_CANCEL = True
 HARD_STOP_ON_FAIL = True
 
 DISABLE_AUTO_PUSH = False
+DEBUG_DISABLE_TASK_DELAY = os.getenv(
+    'DEBUG_DISABLE_TASK_DELAY', False)
 
 CORS_ORIGIN_ALLOW_ALL = os.getenv('CORS_ORIGIN_ALLOW_ALL', 'false').upper() == 'TRUE'
 CORS_ORIGIN_WHITELIST = os.getenv('CORS_ORIGIN_WHITELIST', '').split(',')
@@ -139,6 +141,9 @@ if LOOM_MYSQL_HOST:
             'NAME': LOOM_MYSQL_DB_NAME,
             'USER': LOOM_MYSQL_USER,
             'PASSWORD': LOOM_MYSQL_PASSWORD,
+            'OPTIONS' : {
+                'init_command': 'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED'
+            }
         }
     }
     if LOOM_MYSQL_PORT:

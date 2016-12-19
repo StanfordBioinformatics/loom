@@ -7,11 +7,11 @@ from api.models.data_objects import FileDataObject
 
 class FileProvenanceSerializer(serializers.ModelSerializer):
 
-    id = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.CharField(required=False)
 
     class Meta:
         model = FileDataObject
-        fields = '__all__'
+        exclude = ('id',)
 
     def to_representation(self, obj):
         fileset, taskset, edgeset = obj.get_provenance_data()

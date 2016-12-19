@@ -1,5 +1,6 @@
 from django import db
 import multiprocessing
+from api import get_setting
 # TODO convert to asynchronous tasks with celery
 
 
@@ -8,6 +9,10 @@ def _postprocess_workflow(workflow_id):
     WorkflowSerializer.postprocess(workflow_id)
 
 def postprocess_workflow(*args, **kwargs):
+    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+        _postprocess_workflow(*args, **kwargs)
+        return
+
     # Kill connections so new process will create its own
     db.connections.close_all()
     process = multiprocessing.Process(
@@ -21,6 +26,10 @@ def _postprocess_step(step_id):
     StepSerializer.postprocess(step_id)
 
 def postprocess_step(*args, **kwargs):
+    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+        _postprocess_step(*args, **kwargs)
+        return
+
     # Kill connections so new process will create its own
     db.connections.close_all()
     process = multiprocessing.Process(
@@ -30,10 +39,14 @@ def postprocess_step(*args, **kwargs):
     process.start()
 
 def _postprocess_step_run(run_id):
-    from api.serializers.runs import StepRunSerializer
-    StepRunSerializer.postprocess(run_id)
+    from api.serializers.runs import StepRun
+    StepRun.postprocess(run_id)
 
 def postprocess_step_run(*args, **kwargs):
+    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+        _postprocess_step_run(*args, **kwargs)
+        return
+
     # Kill connections so new process will create its own
     db.connections.close_all()
     process = multiprocessing.Process(
@@ -43,10 +56,14 @@ def postprocess_step_run(*args, **kwargs):
     process.start()
 
 def _postprocess_workflow_run(run_id):
-    from api.serializers.runs import WorkflowRunSerializer
-    WorkflowRunSerializer.postprocess(run_id)
+    from api.serializers.runs import WorkflowRun
+    WorkflowRun.postprocess(run_id)
 
 def postprocess_workflow_run(*args, **kwargs):
+    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+        _postprocess_workflow_run(*args, **kwargs)
+        return
+
     # Kill connections so new process will create its own
     db.connections.close_all()
     process = multiprocessing.Process(

@@ -14,8 +14,8 @@ class TestFileDataObject(TestCase):
             type='file',
             filename=self.filename,
             source_type='imported',
-            note='Test data',
-            source_url='file:///data/'+self.filename,
+            file_import={'source_url': 'file:///data/'+self.filename,
+                         'note': 'Test data'},
             md5='abcde'
         )
         # Same content, different name
@@ -23,16 +23,20 @@ class TestFileDataObject(TestCase):
             type='file',
             filename=self.filename_copy,
             source_type='imported',
-            note='Test data',
-            source_url='file:///data/'+self.filename,
+            file_import={
+                'note': 'Test data',
+                'source_url': 'file:///data/'+self.filename,
+            },
             md5='abcde'
         )
         self.file2 = FileDataObject.objects.create(
             type='file',
             filename=self.filename2,
             source_type='imported',
-            note='Test data',
-            source_url='file:///data/'+self.filename2,
+            file_import={
+                'note': 'Test data',
+                'source_url': 'file:///data/'+self.filename2,
+            },
             md5='fghij'
         )
         # Same content, same name
@@ -40,8 +44,10 @@ class TestFileDataObject(TestCase):
             type='file',
             filename=self.filename2,
             source_type='imported',
-            note='Test data',
-            source_url='file:///data/'+self.filename2,
+            file_import={
+                'note': 'Test data',
+                'source_url': 'file:///data/'+self.filename2,
+            },
             md5='fghij'
         )
 
@@ -64,7 +70,7 @@ class TestFileDataObject(TestCase):
 
     def testGetByValue_ID(self):
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "@%s" % self.file.id.hex)
+            "@%s" % self.file.uuid)
         self.assertEqual(len(matches),1) 
         self.assertTrue(matches[0].filename, self.filename)
 
@@ -82,20 +88,20 @@ class TestFileDataObject(TestCase):
 
     def testGetByValue_NameId(self):
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "%s@%s" % (self.filename, self.file.id.hex))
+            "%s@%s" % (self.filename, self.file.uuid))
         self.assertEqual(len(matches),1) 
         self.assertTrue(matches[0].filename, self.filename)
 
     def testGetByValue_HashId(self):
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "@%s$%s" % (self.file.id.hex, self.file.md5))
+            "@%s$%s" % (self.file.uuid, self.file.md5))
         self.assertEqual(len(matches),1) 
         self.assertTrue(matches[0].filename, self.filename)
 
     def testGetByValue_NameHashId(self):
-        query = "%s$%s@%s" % (self.filename, self.file.md5, self.file.id.hex)
+        query = "%s$%s@%s" % (self.filename, self.file.md5, self.file.uuid)
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "%s$%s@%s" % (self.filename, self.file.md5, self.file.id.hex))
+            "%s$%s@%s" % (self.filename, self.file.md5, self.file.uuid))
         self.assertEqual(len(matches),1) 
         self.assertTrue(matches[0].filename, self.filename)
 
@@ -106,29 +112,29 @@ class TestFileDataObject(TestCase):
     def testIsReady(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=True):
-            file_resource = self.file.create_incomplete_resource_for_import()
+            self.file.initialize()
 
         self.assertFalse(self.file.is_ready())
-        file_resource.upload_status = 'complete'
-        file_resource.save()
-        file = DataObject.objects.get(id=self.file.id)
+        self.file.file_resource.upload_status = 'complete'
+        self.file.file_resource.save()
+        file = DataObject.objects.get(uuid=self.file.uuid)
         self.assertTrue(file.is_ready())
 
     def testCreateIncompleteResourceForImportKeepDuplicateTrue(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=True):
-            self.file.create_incomplete_resource_for_import()
-            self.file_copy.create_incomplete_resource_for_import()
+            self.file.initialize()
+            self.file_copy.initialize()
 
         # Files should have separate resources, even if contents match
-        self.assertNotEqual(self.file.file_resource.id,
-                            self.file_copy.file_resource.id)
+        self.assertNotEqual(self.file.file_resource.uuid,
+                            self.file_copy.file_resource.uuid)
 
     def testCreateIncompleteResourceForImportKeepDuplicateFalseUploadIncomplete(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=False):
-            self.file.create_incomplete_resource_for_import()
-            self.file_copy.create_incomplete_resource_for_import()
+            self.file.initialize()
+            self.file_copy.initialize()
 
         # Files with matching content should not share a resource
         # unless upload is complete
@@ -138,15 +144,15 @@ class TestFileDataObject(TestCase):
     def testCreateIncompleteResourceForImportKeepDuplicateFalseUploadComplete(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=False):
-            self.file.create_incomplete_resource_for_import()
+            self.file.initialize()
             self.file.file_resource.upload_status = 'complete'
             self.file.file_resource.save()
-            self.file_copy.create_incomplete_resource_for_import()
+            self.file_copy.initialize()
 
         # Files with matching content should share a resource
         # provided upload on first resource was complete
-        self.assertEqual(self.file.file_resource.id,
-                         self.file_copy.file_resource.id)
+        self.assertEqual(self.file.file_resource.uuid,
+                         self.file_copy.file_resource.uuid)
 
     def testAddUrlPrefixLocal(self):
         path = '/my/path'
@@ -217,7 +223,7 @@ class TestFileDataObject(TestCase):
             self.assertTrue(
                 path.startswith(os.path.join(file_root, 'imported')))
             self.assertTrue(
-                path.endswith('-%s-%s' % (self.file.id.hex,
+                path.endswith('_%s_%s' % (self.file.uuid,
                                           self.file.filename)))
 
     def testGetPathForImportDuplicatesNoReruns(self):
@@ -232,7 +238,7 @@ class TestFileDataObject(TestCase):
             self.assertTrue(
                 path.startswith(os.path.join(file_root, 'imported')))
             self.assertTrue(
-                path.endswith('-%s-%s' % (self.file.id.hex,
+                path.endswith('_%s_%s' % (self.file.uuid,
                                           self.file.filename)))
 
     def testGetPathForImportNoDuplicates(self):

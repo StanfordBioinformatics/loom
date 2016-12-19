@@ -1,10 +1,11 @@
 from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 import jsonfield
-import uuid
 
+from api.models import uuidstr
 from .base import BaseModel
 from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
@@ -82,7 +83,8 @@ class Template(BaseModel):
 
     NAME_FIELD = 'name'
 
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     type = models.CharField(max_length=255,
                             choices=(('workflow', 'Workflow'),
                                      ('step', 'Step')))

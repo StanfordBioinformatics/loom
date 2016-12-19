@@ -39,7 +39,7 @@ class TestStringDataObjectSerializer(TestCase):
         s1.is_valid()
         m1 = s1.save()
 
-        data.update({'id': m1.id})
+        data.update({'uuid': m1.uuid})
         s2 = StringDataObjectSerializer(data=data)
         s2.is_valid()
         with self.assertRaises(IntegrityError):

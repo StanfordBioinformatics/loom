@@ -49,8 +49,7 @@ class TestRunSerializer(TransactionTestCase):
         s = TemplateSerializer(data=fixtures.templates.step_a)
         s.is_valid()
         m = s.save()
-        run = Run.create_from_template(m)
-
+        run = Run.create_from_template(m, no_delay=True)
         self.assertEqual(
             m.uuid,
             RunSerializer(run).data['template']['uuid'])

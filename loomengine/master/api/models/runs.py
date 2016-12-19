@@ -2,14 +2,14 @@ from django.db import models
 from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-import uuid
 
 from .base import BaseModel
 from api import get_setting
 from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAttemptError
-
+from api.models import uuidstr
+from api import tasks
 
 """
 This module defines WorkflowRun and other classes related to
@@ -27,9 +27,6 @@ class WorkflowRunManager(object):
 
     def get_outputs(self):
         return self.run.workflowrun.outputs
-
-    def connect_channels(self):
-        return self.run.workflowrun.connect_channels()
 
     def create_ready_tasks(self, do_start):
         return self.run.workflowrun.create_ready_tasks(do_start=do_start)
@@ -50,9 +47,6 @@ class StepRunManager(object):
     def get_outputs(self):
         return self.run.steprun.outputs
 
-    def connect_channels(self):
-        return self.run.steprun.connect_channels()
-
     def create_ready_tasks(self, do_start):
         return self.run.steprun.create_ready_tasks(do_start=do_start)
 
@@ -70,7 +64,8 @@ class Run(BaseModel):
         'step': StepRunManager,
         'workflow': WorkflowRunManager
     }
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255,
                             choices = (('step', 'Step'),
@@ -117,9 +112,6 @@ class Run(BaseModel):
     def tasks(self):
         return self._get_manager().get_tasks()
 
-    def connect_channels(self):
-        return self._get_manager().connect_channels()
-
     def create_ready_tasks(self, do_start=True):
         return self._get_manager().create_ready_tasks(do_start=do_start)
     
@@ -143,6 +135,88 @@ class Run(BaseModel):
         except ObjectDoesNotExist:
             pass
         return self.parent.get_run_request()
+
+    @classmethod
+    def create_from_template(cls, template, parent=None, no_delay=True):
+        if template.type == 'step':
+            run = StepRun.objects.create(template=template,
+                                         name=template.name,
+                                         type=template.type,
+                                         command=template.step.command,
+                                         interpreter=template.step.interpreter,
+                                         parent=parent).run_ptr
+            if no_delay:
+                tasks._postprocess_step_run(run.id)
+            else:
+                tasks.postprocess_step_run(run.id)
+        else:
+            assert template.type == 'workflow', \
+                'Invalid template type "%s"' % template.type
+            run = WorkflowRun.objects.create(template=template,
+                                             name=template.name,
+                                             type=template.type,
+                                             parent=parent).run_ptr
+            if no_delay:
+                tasks._postprocess_workflow_run(run.id)
+            else:
+                tasks.postprocess_workflow_run(run.id)
+
+        return run.downcast()
+
+    def downcast(self):
+        if self.type == 'step':
+            try:
+                return self.steprun
+            except AttributeError:
+                return self
+        else:
+            assert self.type == 'workflow'
+            try:
+                return self.workflowrun
+            except AttributeError:
+                return self
+
+    def _get_destinations(self):
+        run = self.downcast()
+        return [dest for dest in run.inputs.all()]
+
+    def _get_source(self, channel):
+        run = self.downcast()
+        # Four possible sources for this step's inputs:
+        # 1. inputs from parent
+        # 2. outputs from siblings
+        # 3. user-provided inputs in run_request
+        # 4. fixed_inputs on template
+        sources = []
+        if run.parent:
+            sources.extend(run.parent.inputs.filter(channel=channel))
+            siblings = run.parent.workflowrun.steps.exclude(id=run.id)
+            for sibling in siblings:
+                sources.extend(sibling.outputs.filter(channel=channel))
+        try:
+            run_request = run.run_request
+            sources.extend(run_request.inputs.filter(channel=channel))
+        except ObjectDoesNotExist:
+            pass
+        sources.extend(run.template.fixed_inputs.filter(channel=channel))
+        assert len(sources) == 1
+        return sources[0]
+
+    def connect_channels(self):
+        run = self.downcast()
+        # Channels must be connected in order from the outside in,
+        # so this function connects the current run outward
+        # but does not connect to its steps.
+        for destination in run._get_destinations():
+            source = run._get_source(destination.channel)
+            # Make sure matching source and destination nodes are connected
+            source.connect(destination)
+        try:
+            for step in run.workflowrun.steps.all():
+                step.connect_channels()
+        except ObjectDoesNotExist:
+            # run.workflowrun does not exist for a StepRun
+            pass
 
 
 class WorkflowRun(Run):
@@ -188,6 +262,68 @@ class WorkflowRun(Run):
     def create_ready_tasks(self, do_start=True):
         for step_run in self.steps.all():
             step_run.create_ready_tasks(do_start=do_start)
+
+    @classmethod
+    def postprocess(cls, run_id):
+        run = WorkflowRun.objects.get(id=run_id)
+        #        try:
+        run._initialize_inputs()
+        run._initialize_outputs()
+        run._initialize_steps()
+
+        # connect_channels must be triggered on the topmost parent.
+        # This will connect channels on children as well.
+        try:
+            run.run_request
+            run.connect_channels()
+        except ObjectDoesNotExist:
+            pass
+
+        run.saving_status = 'ready'
+        run.save()
+#        except Exception as e:
+#            run.saving_status = 'error'
+#            run.save()
+#            raise e
+
+    def _initialize_inputs(self):
+        run = self.downcast()
+        all_channels = set()
+        if run.template.inputs:
+            for input in run.template.inputs:
+                assert input.get('channel') not in all_channels
+                all_channels.add(input.get('channel'))
+
+                WorkflowRunInput.objects.create(
+                    workflow_run=run,
+                    channel=input.get('channel'),
+                    type=input.get('type'))
+
+        for fixed_input in run.template.fixed_inputs.all():
+            assert fixed_input.channel not in all_channels
+            all_channels.add(fixed_input.channel)
+
+            WorkflowRunInput.objects.create(
+                workflow_run=run,
+                channel=fixed_input.channel,
+                type=fixed_input.type)
+
+    def _initialize_outputs(self):
+        run = self.downcast()
+        all_channels = set()
+        for output in run.template.outputs:
+            assert output.get('channel') not in all_channels
+            all_channels.add(output.get('channel'))
+
+            WorkflowRunOutput.objects.create(
+                workflow_run=run,
+                type=output.get('type'),
+                channel=output.get('channel'))
+
+    def _initialize_steps(self):
+        run = self.downcast()
+        for step in run.template.workflow.steps.all():
+            self.create_from_template(step, parent=run, no_delay=True)
 
 
 class StepRun(Run):
@@ -253,6 +389,63 @@ class StepRun(Run):
 #            self.status = status
 #            self.save()
         #self.update_parent_status()
+
+    @classmethod
+    def postprocess(cls, run_id):
+        run = StepRun.objects.get(id=run_id)
+        try:
+            run._initialize_inputs()
+            run._initialize_outputs()
+
+            # connect_channels must be triggered on the topmost parent.
+            # This will connect channels on children as well.
+            try:
+                run.run_request
+                run.connect_channels()
+            except ObjectDoesNotExist:
+                pass
+                
+            run.saving_status = 'ready'
+            run.save()
+        except Exception as e:
+            run.saving_status = 'error'
+            run.save()
+            raise e
+
+    def _initialize_inputs(self):
+        all_channels = set()
+        for input in self.template.inputs:
+            assert input.get('channel') not in all_channels
+            all_channels.add(input.get('channel'))
+
+            StepRunInput.objects.create(
+                step_run=self,
+                channel=input.get('channel'),
+                type=input.get('type'),
+                group=input.get('group'),
+                mode=input.get('mode'))
+
+        for fixed_input in self.template.fixed_inputs.all():
+            assert fixed_input.channel not in all_channels
+            all_channels.add(fixed_input.channel)
+
+            StepRunInput.objects.create(
+                step_run=self,
+                channel=fixed_input.channel,
+                type=fixed_input.type,
+                group=fixed_input.group,
+                mode=fixed_input.mode)
+
+    def _initialize_outputs(self):
+        all_channels = set()
+        for output in self.template.outputs:
+            assert output.get('channel') not in all_channels
+            all_channels.add(output.get('channel'))
+
+            StepRunOutput.objects.create(
+                step_run=self,
+                type=output.get('type'),
+                channel=output.get('channel'))
 
 
 class AbstractStepRunInput(InputOutputNode):

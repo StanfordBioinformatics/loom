@@ -14,7 +14,7 @@ def get_step_run():
         mode = 'no_gather',
         group = 0
     )
-    FixedStepRunInput.objects.create(
+    StepRunInput.objects.create(
         step_run = step_run,
         channel = 'input2',
         type = 'file',

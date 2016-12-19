@@ -78,7 +78,7 @@ class FilterHelper(object):
         if hash_value is not None:
             filter_args[self.Model.HASH_FIELD+'__startswith'] = hash_value
         if id is not None:
-            filter_args['id__startswith'] = id
+            filter_args['uuid__startswith'] = id
         return self.Model.objects.filter(**filter_args)
 
     def filter_by_name_or_id(self, query_string):
@@ -93,7 +93,7 @@ class FilterHelper(object):
         if name:
             kwargs[self.Model.NAME_FIELD] = name
         if id:
-            kwargs['id__startswith'] = id
+            kwargs['uuid__startswith'] = id
         return self.Model.objects.filter(**kwargs)
 
     def _parse_as_name_or_id_or_hash(self, query_string):

@@ -249,7 +249,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
                                        context={'no_delay': True})
                 s.is_valid(raise_exception=True)
                 step = s.save()
-                workflow.add_step(step,)
+                workflow.add_step(step)
 
             for fixed_input_data in fixed_inputs:
                 s = FixedWorkflowInputSerializer(

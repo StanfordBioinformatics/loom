@@ -1,69 +1,70 @@
-from django.test import TestCase
+from django.test import TransactionTestCase
 import json
 import os
 from api.serializers import FileDataObjectSerializer, \
-    RunRequestSerializer, WorkflowSerializer
+    RunRequestSerializer, TemplateSerializer
 
 from loomengine.utils import md5calc
 
 
 class AbstractRunTest(object):
 
-    def run_workflow(self, workflow_path, **kwargs):
+    def run_template(self, template_path, **kwargs):
         run_request = {}
-        
-        with open(workflow_path) as f:
-            workflow_data = json.load(f)
-        s = WorkflowSerializer(data=workflow_data)
-        s.is_valid(raise_exception=True)
-        wf = s.save()
 
-        run_request['template'] = wf.id.hex
+        with open(template_path) as f:
+            template_data = json.load(f)
+        s = TemplateSerializer(data=template_data)
+        s.is_valid(raise_exception=True)
+        template = s.save()
+
+        run_request['template'] = '@%s' % str(template.uuid)
         run_request['inputs'] = []
-        
+
         for (channel, value) in kwargs.iteritems():
-            input = wf.get_input(channel)
-            if input.type == 'file':
+            input = template.get_input(channel)
+            if input.get('type') == 'file':
+                # Files have to be pre-imported.
+                # Other data types can be 
                 file_path = value
                 hash_value = md5calc.calculate_md5sum(file_path)
                 file_data = {
-                    'file_content': {
-                        'filename': os.path.basename(file_path),
-                        'unnamed_file_content': {
-                            'hash_value': hash_value,
-                            'hash_function': 'md5'
-                        }
-                    },
-                    'file_location':{
-                        'status': 'complete',
-                        'url': 'file://' + os.path.abspath(file_path)
+                    'type': 'file',
+                    'filename': os.path.basename(file_path),
+                    'md5': hash_value,
+                    'source_type': 'imported',
+                    'file_resourcelocation':{
+                        'upload_status': 'complete',
+                        'file_url': 'file://' + os.path.abspath(file_path),
+                        'md5': hash_value,
                     }
                 }
                 s = FileDataObjectSerializer(data=file_data)
                 s.is_valid(raise_exception=True)
                 fdo = s.save()
-                value = fdo.id.hex
+                value = '@%s' % fdo.uuid
             run_request['inputs'].append({
                 'channel': channel,
-                'value': value
+                'data': {'contents': value,},
             })
 
         s = RunRequestSerializer(data=run_request)
         s.is_valid(raise_exception=True)
         with self.settings(WORKER_TYPE='MOCK'):
             return s.save()
-            
 
-class TestHelloWorld(TestCase, AbstractRunTest):
+
+class TestHelloWorld(TransactionTestCase, AbstractRunTest):
 
     def setUp(self):
         workflow_dir = os.path.join(
-            os.path.dirname(__file__),'..','fixtures','runs','hello_world')
+            os.path.dirname(__file__),'..','serializers','fixtures',
+            'runs','hello_world')
         workflow_file = os.path.join(workflow_dir, 'hello_world.json')
         hello_file = os.path.join(workflow_dir, 'hello.txt')
         world_file = os.path.join(workflow_dir, 'world.txt')
 
-        self.run_request = self.run_workflow(workflow_file,
+        self.run_request = self.run_template(workflow_file,
                                              hello=hello_file,
                                              world=world_file)
 

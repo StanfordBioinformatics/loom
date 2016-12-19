@@ -15,6 +15,8 @@ class UpdateNotAllowedError(Exception):
 
 class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
+    uuid = serializers.CharField(required=False)
+    
     class Meta:
         model = BooleanDataObject
         exclude = ('id',)
@@ -22,6 +24,8 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
 
 class IntegerDataObjectSerializer(serializers.ModelSerializer):
 
+    uuid = serializers.CharField(required=False)
+    
     class Meta:
         model = IntegerDataObject
         exclude = ('id',)
@@ -29,6 +33,8 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
 
 class FloatDataObjectSerializer(serializers.ModelSerializer):
 
+    uuid = serializers.CharField(required=False)
+    
     class Meta:
         model = FloatDataObject
         exclude = ('id',)
@@ -36,6 +42,8 @@ class FloatDataObjectSerializer(serializers.ModelSerializer):
 
 class StringDataObjectSerializer(serializers.ModelSerializer):
 
+    uuid = serializers.CharField(required=False)
+    
     class Meta:
         model = StringDataObject
         exclude = ('id',)
@@ -43,6 +51,8 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
 
 class FileResourceSerializer(serializers.ModelSerializer):
 
+    uuid = serializers.CharField(required=False)
+    
     class Meta:
         model = FileResource
         exclude = ('id',)
@@ -50,6 +60,8 @@ class FileResourceSerializer(serializers.ModelSerializer):
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
 
+    uuid = serializers.CharField(required=False)
+    
     file_resource = FileResourceSerializer(allow_null=True, required=False)
     file_import = serializers.JSONField(required=False)
 
@@ -132,6 +144,7 @@ class DataObjectUuidSerializer(UuidSerializer, DataObjectSerializer):
 
 class DataObjectArraySerializer(serializers.ModelSerializer):
 
+    uuid = serializers.CharField(required=False)
     members = DataObjectSerializer(many=True, required=False)
 
     class Meta:

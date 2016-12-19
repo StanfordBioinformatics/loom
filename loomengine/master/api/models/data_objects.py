@@ -1,13 +1,13 @@
+
 from django.db import models
 from django.utils import timezone
 from django.dispatch import receiver
 import jsonfield
 import os
-import uuid
 
 from .base import BaseModel
 from api import get_setting
-
+from api.models import uuidstr
 
 class TypeMismatchError(Exception):
     pass
@@ -32,7 +32,7 @@ class MultipleMatchesError(Exception):
 class DataObjectManager():
 
     def __init__(self, model):
-        self.model = model    
+        self.model = model
 
 
 class BooleanDataObjectManager(DataObjectManager):
@@ -138,7 +138,8 @@ class DataObject(BaseModel):
         ('string', 'String'),
     )
 
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     type = models.CharField(
         max_length=255,
         choices=TYPE_CHOICES)
@@ -218,9 +219,10 @@ class FileDataObject(DataObject):
                 self.save()
                 return self.file_resource
         # No existing file to use. Create a new resource for upload.
-        self.file_resource \
-            = FileResource.create_incomplete_resource_for_import(self)
+        self.file_resource  = FileResource\
+            .create_incomplete_resource_for_import(self)
         self.save()
+
         return self.file_resource
 
 
@@ -269,7 +271,7 @@ class DataObjectArray(DataObject):
             if not data_object.type == type:
                 raise TypeMismatchError(
                     'Expected type "%s", but DataObject %s is type %s' \
-                    % (type, data_object.id, data_object.type))
+                    % (type, data_object.uuid, data_object.type))
             if data_object.is_array:
                 raise NestedArraysError('Cannot nest DataObjectArrays')
 
@@ -287,7 +289,8 @@ class ArrayMembership(BaseModel):
 
 class FileResource(BaseModel):
 
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     datetime_created = models.DateTimeField(
         default=timezone.now, editable=False)
     file_url = models.CharField(max_length=1000)
@@ -314,6 +317,7 @@ class FileResource(BaseModel):
         resource = cls.objects.create(file_url=file_url,
                                       upload_status='incomplete',
                                       md5=file_data_object.md5)
+        
         return resource
 
     @classmethod
@@ -337,9 +341,9 @@ class FileResource(BaseModel):
             return os.path.join(
                 file_root,
                 cls._get_browsable_path(file_data_object),
-                "%s-%s-%s" % (
+                "%s_%s_%s" % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data_object.id,
+                    file_data_object.uuid,
                     file_data_object.filename
                 )
             )
@@ -350,9 +354,9 @@ class FileResource(BaseModel):
             return os.path.join(
                 file_root,
                 cls._get_path_by_source_type(file_data_object),
-                '%s-%s-%s' % (
+                '%s_%s_%s' % (
                     timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data_object.id,
+                    file_data_object.uuid,
                     file_data_object.filename
                 )
             )
@@ -391,17 +395,17 @@ class FileResource(BaseModel):
         path = os.path.join(
             "%s-%s" % (
                 step_run.template.name,
-                step_run.id,
+                step_run.uuid,
             ),
-            "task-%s" % task_run.id,
-            "attempt-%s" % task_run_attempt.id,
+            "task-%s" % task_run.uuid,
+            "attempt-%s" % task_run_attempt.uuid,
         )
         while step_run.parent is not None:
             step_run = step_run.parent
             path = os.path.join(
                 "%s-%s" % (
                     step_run.template.name,
-                    step_run.id,
+                    step_run.uuid,
                 ),
                 path
             )

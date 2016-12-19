@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from .base import BaseModel
 from .input_output_nodes import InputOutputNode
-
+from .runs import Run
 
 class RunRequest(BaseModel):
 
@@ -28,8 +28,9 @@ class RunRequest(BaseModel):
         else:
             return self.run.uuid
 
-    def initialize_request(self):
-        # TODO
+    def initialize(self):
+        self.run = Run.create_from_template(self.template)
+        self.save()
         self._connect_channels()
 
     def _connect_channels(self):

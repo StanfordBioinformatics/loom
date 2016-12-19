@@ -2,8 +2,8 @@ from django.db import models
 # from django.dispatch import receiver
 from django.utils import timezone
 import os
-import uuid
 
+from api.models import uuidstr
 from .base import BaseModel, render_from_template
 from api.models.data_objects import DataObject
 # from api.models.workflows import Step, RequestedResourceSet
@@ -18,7 +18,8 @@ class Task(BaseModel):
     each StepRun will have one task for each set of inputs.
     """
 
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True)
@@ -179,7 +180,8 @@ class TaskAttempt(BaseModel):
 
     STATUSES = TASK_ATTEMPT_STATUSES
 
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True)

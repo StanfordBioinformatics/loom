@@ -92,7 +92,7 @@ class TaskAttemptErrorSerializer(CreateWithParentModelSerializer):
 
 class TaskAttemptSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', required=False)
+    uuid = serializers.CharField(required=False)
     name = serializers.CharField(required=False)
     log_files = TaskAttemptLogFileSerializer(
         many=True, allow_null=True, required=False)
@@ -151,7 +151,7 @@ class TaskOutputSerializer(CreateWithParentModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
 
-    uuid = serializers.UUIDField(format='hex', read_only=True)
+    uuid = serializers.CharField(required=False)
     resources = TaskResourceSetSerializer(read_only=True)
     environment = TaskEnvironmentSerializer(read_only=True)
     inputs = TaskInputSerializer(many=True, read_only=True)

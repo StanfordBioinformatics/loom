@@ -41,8 +41,8 @@ class RunRequestSerializer(serializers.ModelSerializer):
         s.is_valid()
         template = s.save()
         from api.serializers.runs import RunSerializer
-        run = RunSerializer.create_from_template(template, no_delay=False)
-            
+        run = Run.create_from_template(template, no_delay=False)
+
         validated_data['template'] = template
         validated_data['run'] = run
 

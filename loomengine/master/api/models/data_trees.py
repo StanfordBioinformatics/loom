@@ -1,9 +1,9 @@
 from .base import BaseModel
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
-import uuid
 
 from api.models.data_objects import DataObject
+from api.models import uuidstr
 
 """
 Data under each InputOutputNode is represented as a tree of DataNodes. This
@@ -30,7 +30,8 @@ class MissingBranchError(Exception):
     pass
 
 class DataNode(BaseModel):
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     root_node = models.ForeignKey('DataNode',
                                   null=True, 
                                   related_name='descendants')
