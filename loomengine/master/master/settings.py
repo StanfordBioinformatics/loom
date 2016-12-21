@@ -141,9 +141,6 @@ if LOOM_MYSQL_HOST:
             'NAME': LOOM_MYSQL_DB_NAME,
             'USER': LOOM_MYSQL_USER,
             'PASSWORD': LOOM_MYSQL_PASSWORD,
-            'OPTIONS' : {
-                'init_command': 'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED'
-            }
         }
     }
     if LOOM_MYSQL_PORT:

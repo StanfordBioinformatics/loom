@@ -41,29 +41,24 @@ class TestFixedStepInputSerializer(TestCase):
 
 class TestStepSerializer(TransactionTestCase):
 
-    @classmethod
-    def isStepReady(cls, step_id):
-        return Step.objects.get(id=step_id).saving_status == 'ready'
-    
     def testCreate(self):
-        s = StepSerializer(data=fixtures.templates.step_a)
-        s.is_valid()
-        m = s.save()
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = StepSerializer(data=fixtures.templates.step_a)
+            s.is_valid()
+            m = s.save()
 
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isStepReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
-        
         self.assertEqual(m.command, fixtures.templates.step_a['command'])
         self.assertEqual(
             m.fixed_inputs.first().data_root.data_object.substitution_value,
             fixtures.templates.step_a['fixed_inputs'][0]['data']['contents'])
 
     def testRender(self):
-        s = StepSerializer(data=fixtures.templates.step_a)
-        s.is_valid()
-        m = s.save()
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = StepSerializer(data=fixtures.templates.step_a)
+            s.is_valid()
+            m = s.save()
 
         self.assertEqual(m.command, s.data['command'])
 
@@ -75,14 +70,11 @@ class TestWorkflowSerializer(TransactionTestCase):
         return Workflow.objects.get(id=workflow_id).saving_status == 'ready'
 
     def testCreateFlatWorkflow(self):
-        s = WorkflowSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
-        m = s.save()
-
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isWorkflowReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = WorkflowSerializer(data=fixtures.templates.flat_workflow)
+            s.is_valid()
+            m = s.save()
 
         self.assertEqual(
             m.steps.first().step.command,
@@ -92,14 +84,12 @@ class TestWorkflowSerializer(TransactionTestCase):
             fixtures.templates.flat_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testCreateNestedWorkflow(self):
-        s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid()
-        m = s.save()
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
 
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isWorkflowReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
+            s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
+            s.is_valid()
+            m = s.save()
 
         self.assertEqual(
             m.steps.first().workflow.steps.first().step.command,
@@ -110,32 +100,22 @@ class TestWorkflowSerializer(TransactionTestCase):
             fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testRender(self):
-        s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid()
-        m = s.save()
-
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isWorkflowReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
+            s.is_valid()
+            m = s.save()
 
         self.assertEqual(s.data['name'], 'nested')
 
 class TestTemplateSerializer(TransactionTestCase):
 
-    @classmethod
-    def isTemplateReady(cls, template_id):
-        return Template.objects.get(id=template_id).saving_status == 'ready'
-
     def testCreateStep(self):
-        s = TemplateSerializer(data=fixtures.templates.step_a)
-        s.is_valid()
-        m = s.save()
-
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isTemplateReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.step_a)
+            s.is_valid()
+            m = s.save()
 
         self.assertEqual(m.step.command, fixtures.templates.step_a['command'])
         self.assertEqual(
@@ -143,14 +123,11 @@ class TestTemplateSerializer(TransactionTestCase):
             fixtures.templates.step_a['fixed_inputs'][0]['data']['contents'])
 
     def testCreateFlatWorkflow(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
-        m = s.save()
-
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isTemplateReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.flat_workflow)
+            s.is_valid()
+            m = s.save()
 
         self.assertEqual(
             m.steps.first().step.command, 
@@ -160,14 +137,11 @@ class TestTemplateSerializer(TransactionTestCase):
             fixtures.templates.flat_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testCreateNestedWorkflow(self):
-        s = TemplateSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid()
-        m = s.save()
-
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isTemplateReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.nested_workflow)
+            s.is_valid()
+            m = s.save()
 
         self.assertEqual(
             m.steps.first().workflow.steps.first().step.command,
@@ -178,14 +152,11 @@ class TestTemplateSerializer(TransactionTestCase):
             fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testRender(self):
-        s = TemplateSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid()
-        m = s.save()
-
-        loomengine.utils.helper.wait_for_true(
-            lambda: self.isTemplateReady(m.id),
-            timeout_seconds=10,
-            sleep_interval=1)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.nested_workflow)
+            s.is_valid()
+            m = s.save()
 
         s2 = TemplateSerializer(m)
         self.assertEqual(s2.data['name'], 'nested')

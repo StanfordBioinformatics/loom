@@ -8,10 +8,12 @@ from api.serializers.runs import *
 class TestStepRunSerializer(TransactionTestCase):
 
     def testRender(self):
-        s = TemplateSerializer(data=fixtures.templates.step_a)
-        s.is_valid()
-        m = s.save()
-        run = Run.create_from_template(m)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.step_a)
+            s.is_valid()
+            m = s.save()
+            run = Run.create_from_template(m)
 
         self.assertEqual(
             m.uuid,
@@ -20,23 +22,12 @@ class TestStepRunSerializer(TransactionTestCase):
 class TestWorkflowRunSerializer(TransactionTestCase):
 
     def testRenderFlat(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
-        m = s.save()
-        run = Run.create_from_template(m)
-
-        self.assertEqual(
-            m.uuid,
-            WorkflowRunSerializer(run).data['template']['id'])
-
-
-class TestWorkflowRunSerializer(TransactionTestCase):
-
-    def testRenderFlat(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
-        m = s.save()
-        run = Run.create_from_template(m)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.flat_workflow)
+            s.is_valid()
+            m = s.save()
+            run = Run.create_from_template(m)
 
         self.assertEqual(
             m.uuid,
@@ -46,29 +37,35 @@ class TestWorkflowRunSerializer(TransactionTestCase):
 class TestRunSerializer(TransactionTestCase):
 
     def testRender(self):
-        s = TemplateSerializer(data=fixtures.templates.step_a)
-        s.is_valid()
-        m = s.save()
-        run = Run.create_from_template(m, no_delay=True)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.step_a)
+            s.is_valid()
+            m = s.save()
+            run = Run.create_from_template(m)
         self.assertEqual(
             m.uuid,
             RunSerializer(run).data['template']['uuid'])
 
     def testRenderFlat(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
-        m = s.save()
-        run = Run.create_from_template(m)
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.flat_workflow)
+            s.is_valid()
+            m = s.save()
+            run = Run.create_from_template(m)
 
         self.assertEqual(
             m.uuid,
             RunSerializer(run).data['template']['uuid'])
 
-    def testRenderFlat(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
-        m = s.save()
-        run = Run.create_from_template(m)
+    def testRenderNested(self):
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.nested_workflow)
+            s.is_valid()
+            m = s.save()
+            run = Run.create_from_template(m)
 
         self.assertEqual(
             m.uuid,

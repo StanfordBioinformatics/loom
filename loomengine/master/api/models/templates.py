@@ -28,7 +28,7 @@ DEFAULT_OUTPUT_MODE = 'no_scatter'
 class WorkflowManager(object):
 
     def __init__(self, template):
-        assert template.type == 'workflow'
+        assert template.type == 'workflow', 'expected template type "workflow"'
         self.template = template
 
     def get_inputs(self):
@@ -52,7 +52,7 @@ class WorkflowManager(object):
 class StepManager(object):
 
     def __init__(self, template):
-        assert template.type == 'step'
+        assert template.type == 'step', 'Expected template type "step"'
         self.template = template
 
     def get_inputs(self):
@@ -100,6 +100,11 @@ class Template(BaseModel):
                  ('error', 'Error'))
     )
 
+    def is_saving_status_ready(self):
+        # Refresh object
+        template = Template.objects.get(id=self.id)
+        return template.saving_status=='ready'
+    
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]
@@ -135,24 +140,22 @@ class Template(BaseModel):
 
     def get_fixed_input(self, channel):
         inputs = self.fixed_inputs.filter(channel=channel)
-        assert inputs.count() == 1
+        assert inputs.count() == 1, \
+            'Found %s fixed inputs for channel %s' %(inputs.count(), channel)
         return inputs.first()
 
     def get_input(self, channel):
         inputs = filter(lambda i: i.get('channel')==channel,
                         self.inputs)
-        assert len(inputs) == 1
+        assert len(inputs) == 1, \
+            'Found %s inputs for channel %s' %(inputs.count(), channel)
         return inputs[0]
-
-    def get_fixed_input(self, channel):
-        inputs = self.fixed_inputs.filter(channel=channel)
-        assert inputs.count() == 1
-        return inputs.first()
 
     def get_output(self, channel):
         outputs = filter(lambda o: o.get('channel')==channel,
                          self.outputs)
-        assert outputs.count() == 1
+        assert outputs.count() == 1, \
+            'Found %s outputs for channel %s' %(outputs.count(), channel)
         return outputs.first()
 
 

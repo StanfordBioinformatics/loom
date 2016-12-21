@@ -71,3 +71,21 @@ def postprocess_workflow_run(*args, **kwargs):
         args=args, 
         kwargs=kwargs)
     process.start()
+
+def _run_step_if_ready(step_run_id):
+    print "RUNNING STEP IF READY %s" % step_run_id
+    from api.models import StepRun
+    StepRun.run_if_ready(step_run_id)
+
+def run_step_if_ready(*args, **kwargs):
+    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+        _run_step_if_ready(*args, **kwargs)
+        return
+
+    # Kill connections so new process will create its own
+    db.connections.close_all()
+    process = multiprocessing.Process(
+        target=_run_step_if_ready,
+        args=args, 
+        kwargs=kwargs)
+    process.start()

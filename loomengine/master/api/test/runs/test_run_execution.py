@@ -1,11 +1,12 @@
 from django.test import TransactionTestCase
 import json
 import os
+from api.models import RunRequest
 from api.serializers import FileDataObjectSerializer, \
     RunRequestSerializer, TemplateSerializer
 
-from loomengine.utils import md5calc
-
+import loomengine.utils.md5calc
+import loomengine.utils.helper
 
 class AbstractRunTest(object):
 
@@ -27,7 +28,8 @@ class AbstractRunTest(object):
                 # Files have to be pre-imported.
                 # Other data types can be 
                 file_path = value
-                hash_value = md5calc.calculate_md5sum(file_path)
+                hash_value = loomengine.utils.md5calc\
+                                             .calculate_md5sum(file_path)
                 file_data = {
                     'type': 'file',
                     'filename': os.path.basename(file_path),
@@ -51,7 +53,18 @@ class AbstractRunTest(object):
         s = RunRequestSerializer(data=run_request)
         s.is_valid(raise_exception=True)
         with self.settings(WORKER_TYPE='MOCK'):
-            return s.save()
+            run_request = s.save()
+        loomengine.utils.helper.wait_for_true(
+            lambda: RunRequest.objects.get(id=run_request.id).run.saving_status == 'ready', timeout_seconds=120, sleep_interval=1)
+        loomengine.utils.helper.wait_for_true(
+            lambda: all([step.saving_status=='ready'
+                         for step
+                         in RunRequest.objects.get(
+                             id=run_request.id).run.workflowrun.steps.all()]),
+            timeout_seconds=120,
+            sleep_interval=1)
+
+        return run_request
 
 
 class TestHelloWorld(TransactionTestCase, AbstractRunTest):
@@ -59,7 +72,7 @@ class TestHelloWorld(TransactionTestCase, AbstractRunTest):
     def setUp(self):
         workflow_dir = os.path.join(
             os.path.dirname(__file__),'..','serializers','fixtures',
-            'runs','hello_world')
+            'run_fixtures','hello_world')
         workflow_file = os.path.join(workflow_dir, 'hello_world.json')
         hello_file = os.path.join(workflow_dir, 'hello.txt')
         world_file = os.path.join(workflow_dir, 'world.txt')
@@ -69,10 +82,31 @@ class TestHelloWorld(TransactionTestCase, AbstractRunTest):
                                              world=world_file)
 
     def testRun(self):
-        # Verify that output data objects have been created
-        self.assertIsNotNone(self.run_request.run.step_runs.first().task_runs\
-                             .first().task_run_attempts.first()\
-                             .outputs.first().data_object)
+
+        # Verify that all StepRuns have been created
         self.assertIsNotNone(
-            self.run_request.outputs.first()\
-            .indexed_data_objects.first().data_object)
+            self.run_request.run.steps.filter(name='hello_step'))
+        self.assertIsNotNone(
+            self.run_request.run.steps.filter(name='world_step'))
+
+        
+        # Verify that output data objects have been created
+        #self.assertIsNotNone(self.run_request.run.steps.first().task_runs\
+        #                     .first().task_run_attempts.first()\
+        #                     .outputs.first().data_object)
+        #self.assertIsNotNone(
+        #    self.run_request.outputs.first()\
+        #    .indexed_data_objects.first().data_object)
+
+class TestManySteps(TransactionTestCase, AbstractRunTest):
+
+    def setUp(self):
+        workflow_dir = os.path.join(
+            os.path.dirname(__file__),'..','serializers','fixtures',
+            'run_fixtures','many_steps')
+        workflow_file = os.path.join(workflow_dir, 'many_steps.json')
+
+        self.run_request = self.run_template(workflow_file)
+
+    def testRun(self):
+        pass

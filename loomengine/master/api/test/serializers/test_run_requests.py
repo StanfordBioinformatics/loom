@@ -10,24 +10,23 @@ from api.models.data_trees import DataNode
 class TestRunRequestSerializer(TransactionTestCase):
 
     def testCreate(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid(raise_exception=True)
-        workflow = s.save()
-        workflow_id = '%s@%s' % (workflow.name, workflow.uuid)
-
-        run_request_data = {
-            'template': workflow_id,
-            'inputs': [
-                fixtures.run_requests.run_request_input,
-            ]
-        }
-
-        s = RunRequestSerializer(
-            data=run_request_data)
-        s.is_valid(raise_exception=True)
-        
         with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.flat_workflow)
+            s.is_valid(raise_exception=True)
+            workflow = s.save()
+            workflow_id = '%s@%s' % (workflow.name, workflow.uuid)
+
+            run_request_data = {
+                'template': workflow_id,
+                'inputs': [
+                    fixtures.run_requests.run_request_input,
+                ]
+            }
+
+            s = RunRequestSerializer(
+                data=run_request_data)
+            s.is_valid(raise_exception=True)
             rr = s.save()
 
         self.assertEqual(
@@ -46,21 +45,20 @@ class TestRunRequestSerializer(TransactionTestCase):
         self.assertEqual(rr.run.template.uuid, rr.template.uuid)
 
     def testCreateNested(self):
-        s = TemplateSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid(raise_exception=True)
-        with self.settings(DEBUG_DISABLE_TASK_DELAY=True):
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+                           WORKER_TYPE='MOCK'):
+            s = TemplateSerializer(data=fixtures.templates.nested_workflow)
+            s.is_valid(raise_exception=True)
             workflow = s.save()
 
-        workflow_id = '%s@%s' % (workflow.name, workflow.uuid)
+            workflow_id = '%s@%s' % (workflow.name, workflow.uuid)
 
-        run_request_data = {'template': workflow_id}
+            run_request_data = {'template': workflow_id}
 
-        s = RunRequestSerializer(
-            data=run_request_data)
-        s.is_valid(raise_exception=True)
+            s = RunRequestSerializer(
+                data=run_request_data)
+            s.is_valid(raise_exception=True)
 
-        with self.settings(WORKER_TYPE='MOCK',
-                           DEBUG_DISABLE_TASK_DELAY=True):
             rr = s.save()
 
         self.assertEqual(rr.run.template.name, workflow.name)

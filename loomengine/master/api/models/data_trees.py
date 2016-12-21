@@ -150,7 +150,7 @@ class DataNode(BaseModel):
 
     def _extend_path_and_add_data_at_leaf(self, path, data_object):
         index, degree = path.pop(0)
-        assert self.degree == degree
+        assert self.degree == degree, 'degree mismatch'
         if len(path) == 0:
             self.add_leaf(index, data_object)
             return

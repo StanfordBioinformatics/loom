@@ -13,7 +13,8 @@ class TestRunRequest(TransactionTestCase):
         data_object = StringDataObject.objects.create(
             type='string', value='one')
         input_one.add_data_as_scalar(data_object)
-        run_request.initialize()
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True):
+            run_request.initialize()
         return run_request
 
     def testInitialize(self):
@@ -21,7 +22,7 @@ class TestRunRequest(TransactionTestCase):
 
         # Verify that input data to run_request is shared with input
         # node for step
-        step_one = run_request.run.steps.all().get(
+        step_one = run_request.run.workflowrun.steps.all().get(
             steprun__template__name='step_one')
         data = step_one.inputs.first().data_root.data_object
         self.assertEqual(data.substitution_value, 'one')

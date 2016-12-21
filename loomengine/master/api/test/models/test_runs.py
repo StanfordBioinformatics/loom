@@ -1,49 +1,21 @@
 from django.test import TestCase
 from api.models.data_objects import *
 from api.models.runs import *
-
-def get_step_run():
-    step_run = StepRun.objects.create(
-        command='echo hey',
-        interpreter='/bin/bash',
-    )
-    StepRunInput.objects.create(
-        step_run = step_run,
-        channel = 'input1',
-        type = 'file',
-        mode = 'no_gather',
-        group = 0
-    )
-    StepRunInput.objects.create(
-        step_run = step_run,
-        channel = 'input2',
-        type = 'file',
-        mode = 'no_gather',
-        group = 0
-    )
-    StepRunOutput.objects.create(
-        step_run = step_run,
-        channel = 'output1',
-        type = 'file',
-        mode = 'no_scatter',
-    )
-    return step_run
+from api.test.models.test_templates import get_workflow
 
 def get_workflow_run():
-    workflow_run = WorkflowRun.objects.create(
-        name = 'workflow1',
-        type = 'workflow')
-    workflow_run.add_step(get_step_run())
-    return workflow_run
-
-class TestStepRun(TestCase):
-
-    def testCreate(self):
-        step_run = get_step_run()
-        self.assertTrue(step_run.command.startswith('echo'))
+    wf = get_workflow()
+    return Run.create_from_template(wf)
 
 class TestWorkflowRun(TestCase):
 
     def testCreate(self):
-        workflow_run = get_workflow_run()
-        self.assertTrue(workflow_run.name == 'workflow1')
+        with self.settings(DEBUG_DISABLE_TASK_DELAY=True):
+            workflow_run = get_workflow_run()
+        self.assertTrue(workflow_run.name == 'one_two')
+        self.assertTrue(
+            workflow_run.steps.get(name='step_one')\
+            .inputs.get(channel='one')\
+            .is_connected(
+                workflow_run.inputs.get(channel='one')))
+        

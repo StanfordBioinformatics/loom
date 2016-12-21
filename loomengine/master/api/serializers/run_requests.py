@@ -40,8 +40,9 @@ class RunRequestSerializer(serializers.ModelSerializer):
         s = TemplateNameAndUuidSerializer(data=validated_data.pop('template'))
         s.is_valid()
         template = s.save()
+
         from api.serializers.runs import RunSerializer
-        run = Run.create_from_template(template, no_delay=False)
+        run = Run.create_from_template(template)
 
         validated_data['template'] = template
         validated_data['run'] = run

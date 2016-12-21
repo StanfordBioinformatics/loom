@@ -13,7 +13,8 @@ def get_step_one():
                  'mode': 'no_scatter', 'group': 0}],
         outputs=[{'channel': 'two', 'type': 'string',
                   'source': {'stream': 'stdout'}}],
-        type='step')
+        type='step',
+        saving_status='ready')
     return step_one
 
 def get_step_two():
@@ -26,7 +27,8 @@ def get_step_two():
                  'mode': 'no_scatter', 'group': 0}],
         outputs=[{'channel': 'three', 'type': 'string',
                   'source': {'stream': 'stdout'}}],
-        type='step')
+        type='step',
+        saving_status='ready')
     return step_two
         
 def get_workflow():
@@ -34,8 +36,8 @@ def get_workflow():
         type='workflow',
         name='one_two',
         inputs = [{'channel': 'one', 'type': 'string'}],
-        outputs = [{'channel': 'three', 'type': 'string'}]
-    )
+        outputs = [{'channel': 'three', 'type': 'string'}],
+        saving_status='ready')
     workflow.add_steps([get_step_one(),
                         get_step_two()])
     return workflow

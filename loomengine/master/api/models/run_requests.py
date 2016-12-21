@@ -29,18 +29,18 @@ class RunRequest(BaseModel):
             return self.run.uuid
 
     def initialize(self):
-        self.run = Run.create_from_template(self.template)
-        self.save()
-        self._connect_channels()
+        Run.create_from_template(self.template, run_request=self)
+#        self.save()
+#        self._connect_channels()
 
-    def _connect_channels(self):
+#    def _connect_channels(self):
         # This step is separate from self.run.initialize because
         # channels have to be connected from the outside in, since data 
         # is applied to run_request inputs first.
-        for run_request_input in self.inputs.all():
-            run_input = self.run.get_input(run_request_input.channel)
-            run_input.connect(run_request_input)
-        self.run.connect_channels()
+#        for run_request_input in self.inputs.all():
+#            run_input = self.run.get_input(run_request_input.channel)
+#            run_input.connect(run_request_input)
+#        self.run.connect_channels()
 
 
 class RunRequestInput(InputOutputNode):
