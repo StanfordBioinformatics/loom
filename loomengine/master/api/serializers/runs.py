@@ -75,7 +75,7 @@ class StepRunOutputSerializer(InputOutputNodeSerializer):
 class StepRunSerializer(CreateWithParentModelSerializer):
     
     uuid = serializers.CharField(required=False)
-    #template = TemplateNameAndUuidSerializer()
+    template = TemplateNameAndUuidSerializer()
     inputs = StepRunInputSerializer(many=True,
                                     required=False,
                                     allow_null=True)

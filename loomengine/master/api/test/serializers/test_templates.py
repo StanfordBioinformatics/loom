@@ -8,6 +8,18 @@ import fixtures.run_fixtures.many_steps.generator
 from api.serializers.templates import *
 
 
+def wait_for_template_postprocessing(template):
+    loomengine.utils.helper.wait_for_true(
+        lambda: Template.objects.get(id=template.id).saving_status=='ready',
+        timeout_seconds=120,
+        sleep_interval=1)
+    loomengine.utils.helper.wait_for_true(
+        lambda: all([step.saving_status=='ready' for step in Template.objects.get(id=template.id).workflow.steps.all()]),
+        timeout_seconds=120,
+        sleep_interval=1)
+    return Template.objects.get(id=template.id)
+
+
 class TestFixedStepInputSerializer(TestCase):
 
     def testCreate(self):
@@ -193,7 +205,7 @@ class TestTemplateSerializer(TransactionTestCase):
         tic100 = datetime.datetime.now()
         s.is_valid(raise_exception=True)
         m = s.save()
-        self._wait_for_postprocessing(m)
+        wait_for_template_postprocessing(m)
         time100 = datetime.datetime.now() - tic100
 
         # Create template with 1000 steps in under 500 ms
@@ -207,7 +219,7 @@ class TestTemplateSerializer(TransactionTestCase):
         s.is_valid(raise_exception=True)
         m100 = s.save()
 
-        self._wait_for_postprocessing(m100)
+        wait_for_template_postprocessing(m100)
 
         client = RequestsClient()
 
@@ -221,12 +233,3 @@ class TestTemplateSerializer(TransactionTestCase):
 
         
         
-    def _wait_for_postprocessing(self, template):
-        loomengine.utils.helper.wait_for_true(
-            lambda: Template.objects.get(id=template.id).saving_status=='ready',
-            timeout_seconds=120,
-            sleep_interval=1)
-        loomengine.utils.helper.wait_for_true(
-            lambda: all([step.saving_status=='ready' for step in Template.objects.get(id=template.id).workflow.steps.all()]),
-            timeout_seconds=120,
-            sleep_interval=1)

@@ -85,7 +85,6 @@ def postprocess_workflow_run(*args, **kwargs):
     process.start()
 
 def _run_step_if_ready(step_run_id):
-    print "TODO: RUN STEP IF READY %s" % step_run_id
     from api.models import StepRun
     StepRun.run_if_ready(step_run_id)
 
