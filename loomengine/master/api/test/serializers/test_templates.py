@@ -9,14 +9,16 @@ from api.serializers.templates import *
 
 
 def wait_for_template_postprocessing(template):
+    TIMEOUT = 20 # seconds
+    INTERVAL = 1 # seconds
     loomengine.utils.helper.wait_for_true(
         lambda: Template.objects.get(id=template.id).saving_status=='ready',
-        timeout_seconds=120,
-        sleep_interval=1)
+        timeout_seconds=TIMEOUT,
+        sleep_interval=INTERVAL)
     loomengine.utils.helper.wait_for_true(
         lambda: all([step.saving_status=='ready' for step in Template.objects.get(id=template.id).workflow.steps.all()]),
-        timeout_seconds=120,
-        sleep_interval=1)
+        timeout_seconds=TIMEOUT,
+        sleep_interval=INTERVAL)
     return Template.objects.get(id=template.id)
 
 
@@ -190,7 +192,7 @@ class TestTemplateSerializer(TransactionTestCase):
             m = s.save()
             time1000 = datetime.datetime.now() - tic1000
 
-            # Create template with 1000 steps in under 500 ms
+            # Check that creation time is reasonable
             self.assertTrue(time1000.total_seconds() < 0.5)
 
     def testCreationPostprocessingTime(self):
@@ -198,18 +200,20 @@ class TestTemplateSerializer(TransactionTestCase):
         # which includes postprocessing after the response to
         # the initial request.
 
-        data100 = fixtures.run_fixtures.many_steps\
-                                           .generator.make_many_steps(100)
+        STEP_COUNT=50
+        
+        data = fixtures.run_fixtures.many_steps\
+                                    .generator.make_many_steps(STEP_COUNT)
 
-        s = TemplateSerializer(data=data100)
-        tic100 = datetime.datetime.now()
+        s = TemplateSerializer(data=data)
+        tic = datetime.datetime.now()
         s.is_valid(raise_exception=True)
         m = s.save()
         wait_for_template_postprocessing(m)
-        time100 = datetime.datetime.now() - tic100
+        time = datetime.datetime.now() - tic
 
-        # Create template with 1000 steps in under 500 ms
-        self.assertTrue(time100.total_seconds() < 10)
+        # Check that postprocessing time is reasonable
+        self.assertTrue(time.total_seconds() < 10)
 
     def testRenderTime(self):
         data100 = fixtures.run_fixtures.many_steps\
@@ -228,8 +232,6 @@ class TestTemplateSerializer(TransactionTestCase):
             'http://testserver/api/templates/%s/' % m100.uuid)
         time100 = datetime.datetime.now() - tic100
 
-        # Render template with 100 steps in under 500 ms
+        # Check that rendering time is reasonable
         self.assertTrue(time100.total_seconds() < 0.5)
-
-        
         

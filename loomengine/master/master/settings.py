@@ -127,60 +127,55 @@ LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
 
-if LOOM_MYSQL_HOST:
-    if not LOOM_MYSQL_USER:
-        raise Exception(
-            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_USER")
-    if not LOOM_MYSQL_PASSWORD:
-        raise Exception(
-            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_PASSWORD")
-    if not LOOM_MYSQL_DB_NAME:
-        raise Exception(
-            "LOOM_MYSQL_HOST is set, but couldn't find LOOM_MYSQL_DB_NAME")
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'HOST': LOOM_MYSQL_HOST,
-            'NAME': LOOM_MYSQL_DB_NAME,
-            'USER': LOOM_MYSQL_USER,
-            'PASSWORD': LOOM_MYSQL_PASSWORD,
-        }
+if not LOOM_MYSQL_HOST:
+    raise Exception(
+        "LOOM_MYSQL_HOST is a required setting")
+if not LOOM_MYSQL_USER:
+    raise Exception(
+        "LOOM_MYSQL_USER is a required settings")
+if not LOOM_MYSQL_DB_NAME:
+    raise Exception(
+        "LOOM_MYSQL_DB_NAME is a required setting")
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'HOST': LOOM_MYSQL_HOST,
+        'NAME': LOOM_MYSQL_DB_NAME,
+        'USER': LOOM_MYSQL_USER,
     }
-    if LOOM_MYSQL_PORT:
+}
+if LOOM_MYSQL_PASSWORD:
+    DATABASES['default'].update({
+        'PASSWORD': LOOM_MYSQL_PASSWORD
+    })
+if LOOM_MYSQL_PORT:
+    DATABASES['default'].update({
+        'PORT': LOOM_MYSQL_PORT
+    })
+if LOOM_MYSQL_SSL_CA_CERT_PATH \
+   or LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
+   or LOOM_MYSQL_SSL_CLIENT_KEY_PATH:
+    if not (LOOM_MYSQL_SSL_CA_CERT_PATH \
+            and LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
+            and LOOM_MYSQL_SSL_CLIENT_KEY_PATH):
+        raise Exception(
+            'One or more required values missing: '\
+            'LOOM_MYSQL_SSL_CA_CERT_PATH="%s", '\
+            'LOOM_MYSQL_SSL_CLIENT_CERT_PATH="%s", '\
+            'LOOM_MYSQL_SSL_CLIENT_KEY_PATH="%s"' % (
+                LOOM_MYSQL_SSL_CA_CERT_PATH,
+                LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
+                LOOM_MYSQL_SSL_CLIENT_KEY_PATH))
+    else:
         DATABASES['default'].update({
-            'PORT': LOOM_MYSQL_PORT
-        })
-    if LOOM_MYSQL_SSL_CA_CERT_PATH \
-       or LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
-       or LOOM_MYSQL_SSL_CLIENT_KEY_PATH:
-        if not (LOOM_MYSQL_SSL_CA_CERT_PATH \
-           and LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
-           and LOOM_MYSQL_SSL_CLIENT_KEY_PATH):
-            raise Exception(
-                'One or more required values missing: '\
-                'LOOM_MYSQL_SSL_CA_CERT_PATH="%s", '\
-                'LOOM_MYSQL_SSL_CLIENT_CERT_PATH="%s", '\
-                'LOOM_MYSQL_SSL_CLIENT_KEY_PATH="%s"' % (
-                    LOOM_MYSQL_SSL_CA_CERT_PATH,
-                    LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
-                    LOOM_MYSQL_SSL_CLIENT_KEY_PATH))
-        else:
-            DATABASES['default'].update({
-                'OPTIONS': {
-                    'ssl': {
-                        'ca': LOOM_MYSQL_SSL_CA_CERT_PATH,
-                        'cert': LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
-                        'key': LOOM_MYSQL_SSL_CLIENT_KEY_PATH
-                    }
+            'OPTIONS': {
+                'ssl': {
+                    'ca': LOOM_MYSQL_SSL_CA_CERT_PATH,
+                    'cert': LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
+                    'key': LOOM_MYSQL_SSL_CLIENT_KEY_PATH
                 }
-            })
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(LOOM_SETTINGS_PATH, 'loom-database.sqlite3')
-        }
-    }
+            }
+        })
 
 def _get_django_handler():
     DJANGO_LOGFILE = os.getenv('DJANGO_LOGFILE', None)

@@ -11,7 +11,7 @@ from api.test.serializers.test_templates \
 
 
 def wait_for_run_postprocessing(run):
-    TIMEOUT=120 #seconds
+    TIMEOUT=20 #seconds
     INTERVAL=1 #seconds
     loomengine.utils.helper.wait_for_true(
         lambda: Run.objects.get(id=run.id).saving_status=='ready',
