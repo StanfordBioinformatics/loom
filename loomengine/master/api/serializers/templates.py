@@ -209,13 +209,6 @@ class WorkflowSerializer(serializers.ModelSerializer):
                   'template_import',
                   'saving_status',)
 
-    def validate(self, data):
-        steps = self.initial_data.get('steps', [])
-        for step in steps:
-            serializer = TemplateSerializer(data=step)
-            serializer.is_valid(raise_exception=True)
-        return data
-
     def create(self, validated_data):
 
         # Ignore fixed_inputs and steps until postprocessing

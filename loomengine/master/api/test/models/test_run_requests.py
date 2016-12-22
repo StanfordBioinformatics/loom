@@ -13,7 +13,7 @@ class TestRunRequest(TransactionTestCase):
         data_object = StringDataObject.objects.create(
             type='string', value='one')
         input_one.add_data_as_scalar(data_object)
-        with self.settings(DEBUG_DISABLE_TASK_DELAY=True):
+        with self.settings(TEST_DISABLE_TASK_DELAY=True):
             run_request.initialize()
         return run_request
 

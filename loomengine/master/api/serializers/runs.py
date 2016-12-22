@@ -19,7 +19,7 @@ class RunSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = Run
-        fields = '__all__'
+        fields = ()
 
     def _get_subclass_serializer_class(self, type):
         if type=='workflow':
@@ -75,7 +75,7 @@ class StepRunOutputSerializer(InputOutputNodeSerializer):
 class StepRunSerializer(CreateWithParentModelSerializer):
     
     uuid = serializers.CharField(required=False)
-    template = TemplateNameAndUuidSerializer()
+    #template = TemplateNameAndUuidSerializer()
     inputs = StepRunInputSerializer(many=True,
                                     required=False,
                                     allow_null=True)

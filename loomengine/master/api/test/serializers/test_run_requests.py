@@ -10,7 +10,7 @@ from api.models.data_trees import DataNode
 class TestRunRequestSerializer(TransactionTestCase):
 
     def testCreate(self):
-        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+        with self.settings(TEST_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
             s = TemplateSerializer(data=fixtures.templates.flat_workflow)
             s.is_valid(raise_exception=True)
@@ -45,7 +45,7 @@ class TestRunRequestSerializer(TransactionTestCase):
         self.assertEqual(rr.run.template.uuid, rr.template.uuid)
 
     def testCreateNested(self):
-        with self.settings(DEBUG_DISABLE_TASK_DELAY=True,
+        with self.settings(TEST_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
             s = TemplateSerializer(data=fixtures.templates.nested_workflow)
             s.is_valid(raise_exception=True)

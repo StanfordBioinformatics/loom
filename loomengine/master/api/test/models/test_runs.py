@@ -10,7 +10,7 @@ def get_workflow_run():
 class TestWorkflowRun(TestCase):
 
     def testCreate(self):
-        with self.settings(DEBUG_DISABLE_TASK_DELAY=True):
+        with self.settings(TEST_DISABLE_TASK_DELAY=True):
             workflow_run = get_workflow_run()
         self.assertTrue(workflow_run.name == 'one_two')
         self.assertTrue(

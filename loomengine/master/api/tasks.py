@@ -9,7 +9,10 @@ def _postprocess_workflow(workflow_id):
     WorkflowSerializer.postprocess(workflow_id)
 
 def postprocess_workflow(*args, **kwargs):
-    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+    if get_setting('TEST_NO_POSTPROCESS'):
+        return
+
+    if get_setting('TEST_DISABLE_TASK_DELAY'):
         _postprocess_workflow(*args, **kwargs)
         return
 
@@ -26,7 +29,10 @@ def _postprocess_step(step_id):
     StepSerializer.postprocess(step_id)
 
 def postprocess_step(*args, **kwargs):
-    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+    if get_setting('TEST_NO_POSTPROCESS'):
+        return
+
+    if get_setting('TEST_DISABLE_TASK_DELAY'):
         _postprocess_step(*args, **kwargs)
         return
 
@@ -43,7 +49,10 @@ def _postprocess_step_run(run_id):
     StepRun.postprocess(run_id)
 
 def postprocess_step_run(*args, **kwargs):
-    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+    if get_setting('TEST_NO_POSTPROCESS'):
+        return
+
+    if get_setting('TEST_DISABLE_TASK_DELAY'):
         _postprocess_step_run(*args, **kwargs)
         return
 
@@ -60,7 +69,10 @@ def _postprocess_workflow_run(run_id):
     WorkflowRun.postprocess(run_id)
 
 def postprocess_workflow_run(*args, **kwargs):
-    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+    if get_setting('TEST_NO_POSTPROCESS'):
+        return
+
+    if get_setting('TEST_DISABLE_TASK_DELAY'):
         _postprocess_workflow_run(*args, **kwargs)
         return
 
@@ -73,12 +85,15 @@ def postprocess_workflow_run(*args, **kwargs):
     process.start()
 
 def _run_step_if_ready(step_run_id):
-    print "RUNNING STEP IF READY %s" % step_run_id
+    print "TODO: RUN STEP IF READY %s" % step_run_id
     from api.models import StepRun
     StepRun.run_if_ready(step_run_id)
 
 def run_step_if_ready(*args, **kwargs):
-    if get_setting('DEBUG_DISABLE_TASK_DELAY'):
+    if get_setting('TEST_NO_AUTO_START_RUNS'):
+        return
+
+    if get_setting('TEST_DISABLE_TASK_DELAY'):
         _run_step_if_ready(*args, **kwargs)
         return
 
