@@ -1,6 +1,6 @@
 from rest_framework.test import RequestsClient
 import datetime
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, override_settings
 import loomengine.utils.helper
 
 from . import fixtures
@@ -9,7 +9,7 @@ from api.serializers.templates import *
 
 
 def wait_for_template_postprocessing(template):
-    TIMEOUT = 20 # seconds
+    TIMEOUT = 120 # seconds
     INTERVAL = 1 # seconds
     loomengine.utils.helper.wait_for_true(
         lambda: Template.objects.get(id=template.id).saving_status=='ready',
@@ -21,7 +21,7 @@ def wait_for_template_postprocessing(template):
         sleep_interval=INTERVAL)
     return Template.objects.get(id=template.id)
 
-
+@override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestFixedStepInputSerializer(TestCase):
 
     def testCreate(self):
@@ -56,6 +56,7 @@ class TestFixedStepInputSerializer(TestCase):
                          ['uuid'])
         
 
+@override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestStepSerializer(TransactionTestCase):
 
     def testCreate(self):
@@ -80,6 +81,7 @@ class TestStepSerializer(TransactionTestCase):
         self.assertEqual(m.command, s.data['command'])
 
 
+@override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestWorkflowSerializer(TransactionTestCase):
 
     @classmethod
@@ -87,11 +89,9 @@ class TestWorkflowSerializer(TransactionTestCase):
         return Workflow.objects.get(id=workflow_id).saving_status == 'ready'
 
     def testCreateFlatWorkflow(self):
-        with self.settings(TEST_DISABLE_TASK_DELAY=True,
-                           WORKER_TYPE='MOCK'):
-            s = WorkflowSerializer(data=fixtures.templates.flat_workflow)
-            s.is_valid()
-            m = s.save()
+        s = WorkflowSerializer(data=fixtures.templates.flat_workflow)
+        s.is_valid()
+        m = s.save()
 
         self.assertEqual(
             m.steps.first().step.command,
@@ -101,12 +101,9 @@ class TestWorkflowSerializer(TransactionTestCase):
             fixtures.templates.flat_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testCreateNestedWorkflow(self):
-        with self.settings(TEST_DISABLE_TASK_DELAY=True,
-                           WORKER_TYPE='MOCK'):
-
-            s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
-            s.is_valid()
-            m = s.save()
+        s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
+        s.is_valid()
+        m = s.save()
 
         self.assertEqual(
             m.steps.first().workflow.steps.first().step.command,
@@ -117,14 +114,13 @@ class TestWorkflowSerializer(TransactionTestCase):
             fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testRender(self):
-        with self.settings(TEST_DISABLE_TASK_DELAY=True,
-                           WORKER_TYPE='MOCK'):
-            s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
-            s.is_valid()
-            m = s.save()
+        s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
+        s.is_valid()
+        m = s.save()
 
         self.assertEqual(s.data['name'], 'nested')
 
+@override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestTemplateSerializer(TransactionTestCase):
 
     def testCreateStep(self):
@@ -169,69 +165,23 @@ class TestTemplateSerializer(TransactionTestCase):
             fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testRender(self):
-        with self.settings(TEST_DISABLE_TASK_DELAY=True,
-                           WORKER_TYPE='MOCK'):
-            s = TemplateSerializer(data=fixtures.templates.nested_workflow)
-            s.is_valid()
-            m = s.save()
+        s = TemplateSerializer(data=fixtures.templates.nested_workflow)
+        s.is_valid()
+        m = s.save()
 
         s2 = TemplateSerializer(m)
         self.assertEqual(s2.data['name'], 'nested')
 
-    def testCreationTime(self):
-        # We're measuring request time, not total generation time with
-        # postprocessing
-        with self.settings(TEST_NO_POSTPROCESS=True):
-                
-            data1000 = fixtures.run_fixtures.many_steps\
-                                          .generator.make_many_steps(1000)
+    def testCreationPostprocessing(self):
 
-            s = TemplateSerializer(data=data1000)
-            tic1000 = datetime.datetime.now()
-            s.is_valid(raise_exception=True)
-            m = s.save()
-            time1000 = datetime.datetime.now() - tic1000
-
-            # Check that creation time is reasonable
-            self.assertTrue(time1000.total_seconds() < 0.5)
-
-    def testCreationPostprocessingTime(self):
-        # We're measuring total time to create a new template,
-        # which includes postprocessing after the response to
-        # the initial request.
-
-        STEP_COUNT=50
+        STEP_COUNT=2
         
         data = fixtures.run_fixtures.many_steps\
                                     .generator.make_many_steps(STEP_COUNT)
 
         s = TemplateSerializer(data=data)
-        tic = datetime.datetime.now()
         s.is_valid(raise_exception=True)
         m = s.save()
+
         wait_for_template_postprocessing(m)
-        time = datetime.datetime.now() - tic
-
-        # Check that postprocessing time is reasonable
-        self.assertTrue(time.total_seconds() < 10)
-
-    def testRenderTime(self):
-        data100 = fixtures.run_fixtures.many_steps\
-                                       .generator.make_many_steps(100)
-
-        s = TemplateSerializer(data=data100)
-        s.is_valid(raise_exception=True)
-        m100 = s.save()
-
-        wait_for_template_postprocessing(m100)
-
-        client = RequestsClient()
-
-        tic100 = datetime.datetime.now()
-        response = client.get(
-            'http://testserver/api/templates/%s/' % m100.uuid)
-        time100 = datetime.datetime.now() - tic100
-
-        # Check that rendering time is reasonable
-        self.assertTrue(time100.total_seconds() < 0.5)
-        
+        self.assertTrue(m.workflow.steps.count() == STEP_COUNT+1)

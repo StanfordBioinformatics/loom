@@ -10,6 +10,8 @@ import sys
 import tempfile
 import warnings
 
+CELERY_ALWAYS_EAGER = True
+
 PROJECT_DIR = os.path.dirname(__file__)
 BASE_DIR = os.path.abspath(os.path.join(PROJECT_DIR, '..'))
 WEBPORTAL_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'portal'))
@@ -87,6 +89,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'django_celery_results',
     'api',
 )
 
@@ -122,7 +125,7 @@ LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
 LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
 LOOM_MYSQL_USER = os.getenv('LOOM_MYSQL_USER')
 LOOM_MYSQL_DB_NAME = os.getenv('LOOM_MYSQL_DB_NAME')
-LOOM_MYSQL_PORT = os.getenv('LOOM_MYSQL_PORT')
+LOOM_MYSQL_PORT = os.getenv('LOOM_MYSQL_PORT', 3306)
 LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
@@ -142,15 +145,12 @@ DATABASES = {
         'HOST': LOOM_MYSQL_HOST,
         'NAME': LOOM_MYSQL_DB_NAME,
         'USER': LOOM_MYSQL_USER,
+        'PORT': LOOM_MYSQL_PORT,
     }
 }
 if LOOM_MYSQL_PASSWORD:
     DATABASES['default'].update({
         'PASSWORD': LOOM_MYSQL_PASSWORD
-    })
-if LOOM_MYSQL_PORT:
-    DATABASES['default'].update({
-        'PORT': LOOM_MYSQL_PORT
     })
 if LOOM_MYSQL_SSL_CA_CERT_PATH \
    or LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
@@ -255,3 +255,15 @@ STATICFILES_DIRS = [
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
+RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
+RABBITMQ_VHOST = os.getenv('RABBITMQ_VHOST', '/')
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+RABBITMQ_PORT = os.getenv('RABBIGMQ_PORT', '5672')
+
+CELERY_RESULT_BACKEND = 'django-cache'
+CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
+                    % (RABBITMQ_USER, RABBITMQ_PASSWORD,
+                       RABBITMQ_HOST, RABBITMQ_PORT,
+                       RABBITMQ_VHOST)
