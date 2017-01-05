@@ -221,25 +221,26 @@ class LocalServerControls(BaseServerControls):
         
     def _start_webserver(self, env):
         settings = settings_manager.read_deploy_settings_file()
-        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --capture-output" % (
-                settings['SERVER_WSGI_MODULE'],
-                settings['BIND_IP'],
-                settings['BIND_PORT'],
-                settings['WEBSERVER_PIDFILE'],
-                settings['ACCESS_LOGFILE'],
-                settings['ERROR_LOGFILE'],
-                settings['LOG_LEVEL'],
-                )
-        if not self.args.foreground:
-            cmd = cmd + " --daemon"
+        cmd = "
+#        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --capture-output" % (
+#                settings['SERVER_WSGI_MODULE'],
+#                settings['BIND_IP'],
+#                settings['BIND_PORT'],
+#                settings['WEBSERVER_PIDFILE'],
+#                settings['ACCESS_LOGFILE'],
+#                settings['ERROR_LOGFILE'],
+#                settings['LOG_LEVEL'],
+#                )
+#        if not self.args.foreground:
+#            cmd = cmd + " --daemon"
         if self.args.verbose:
             print("Starting webserver with command:\n%s\nand environment:\n%s" % (cmd, env))
-        process = subprocess.Popen(
-            cmd,
-            shell=True,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
+#        process = subprocess.Popen(
+#            cmd,
+#            shell=True,
+#            env=env,
+#            stdout=subprocess.PIPE,
+#            stderr=subprocess.PIPE)
         (stdout, stderr) = process.communicate()
         if not process.returncode == 0:
             raise Exception('Loom webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))

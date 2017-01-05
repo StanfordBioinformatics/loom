@@ -31,20 +31,14 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     python-dev \
     python-pip \ 
-    && pip install virtualenv \
     && apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Loom and its Python dependencies.
 COPY . /opt/loom/
-RUN virtualenv /opt/loom-env \
-    && . /opt/loom-env/bin/activate \
-    && cd /opt/loom \
+RUN cd /opt/loom \
     && pip install -r requirements.txt
-
-# Add Loom to the path.
-ENV PATH /opt/loom-env/bin:$PATH
 
 # Accept connections on port 8000.
 EXPOSE 8000

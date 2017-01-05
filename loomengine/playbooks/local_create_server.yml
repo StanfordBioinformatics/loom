@@ -1,0 +1,26 @@
+---
+- name: Start the loom server components
+  hosts: localhost
+  tasks:
+    - name: Start rabbitmq
+      docker_container:
+        name: rabbitmq
+        image: "rabbitmq:3.6.6"
+        network_mode: host
+        restart_policy: always
+        api_version: auto
+    - name: Start loom webserver
+      docker_container:
+        name: loom_master
+	image: ${LOOM_DOCKER_IMAGE}
+	command: /opt/loom/loomengine/bin/run_web.sh
+	links:
+	  - rabbit
+	ports:
+	  - "8000:8000"
+    - name: Start loom celery worker
+      docker_container:
+        name: loom_celery_worker
+	image: ${LOOM_DOCKER_IMAGE}
+	command: /opt/loom/loomengine/bin/run_celery.sh
+	links: rabbit
