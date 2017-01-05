@@ -52,3 +52,8 @@ class LocalTaskManager:
             task_run_attempt.save()
 
         logger.debug('Exiting LocalTaskManager')
+
+    @classmethod
+    def delete_worker_by_task_run_attempt(cls, task_run_attempt):
+        # No worker to delete
+        pass
