@@ -46,9 +46,6 @@ PyYAML==3.12
 requests==2.11.1
 rsa==3.4.2
 six==1.10.0
-Sphinx==1.5.1
-sphinx-autobuild==0.6.0
-sphinx-rtd-theme==0.1.9
 uritemplate==3.0.0
 websocket-client==0.37.0
 -e .
