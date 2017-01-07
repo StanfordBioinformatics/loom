@@ -8,11 +8,6 @@ Welcome to Loom's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
 What is Loom?
 =============
