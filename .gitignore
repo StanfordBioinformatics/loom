@@ -7,4 +7,3 @@
 /build
 /*.egg-info
 secrets.py
-/doc/_build
