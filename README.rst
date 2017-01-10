@@ -66,6 +66,8 @@ Check out our Getting Started Guide and give Loom a try.
 
 https://github.com/StanfordBioinformatics/loom/wiki/Getting-Started
 
+Documentation is here: http://loom.readthedocs.io/en/development/
+
 What is the current status?
 ===========================
 
