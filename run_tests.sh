@@ -1,3 +1,3 @@
-#/bin/env bash
+#!/usr/bin/env bash
 . /opt/loom/bin/activate
 loom test
