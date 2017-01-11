@@ -221,7 +221,7 @@ class LocalServerControls(BaseServerControls):
         
     def _start_webserver(self, env):
         settings = settings_manager.read_deploy_settings_file()
-        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --capture-output" % (
+        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --timeout %s --capture-output" % (
                 settings['SERVER_WSGI_MODULE'],
                 settings['BIND_IP'],
                 settings['BIND_PORT'],
@@ -229,7 +229,8 @@ class LocalServerControls(BaseServerControls):
                 settings['ACCESS_LOGFILE'],
                 settings['ERROR_LOGFILE'],
                 settings['LOG_LEVEL'],
-                )
+                settings['TIMEOUT_SECONDS'],
+        )
         if not self.args.foreground:
             cmd = cmd + " --daemon"
         if self.args.verbose:
