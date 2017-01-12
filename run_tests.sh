@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
-echo starting
-source /opt/loom/bin/activate
+source /opt/loom-env/bin/activate
 loom test
