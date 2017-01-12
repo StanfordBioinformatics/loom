@@ -277,7 +277,6 @@ class TaskRunAttempt(BasePolymorphicModel):
         task_manager.delete_worker_by_task_run_attempt(self)
 
     def _post_save(self):
-	print "post save status: %s" % self.status
         if self.status == 'Finished':
             self.push_outputs()
             if get_setting('WORKER_CLEANUP') == 'True':
