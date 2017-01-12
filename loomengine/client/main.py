@@ -65,11 +65,11 @@ class Main(object):
         return parser
 
     def run(self):
-        self.args.SubcommandClass(self.args).run()
+        return self.args.SubcommandClass(self.args).run()
 
 # pip entrypoint requires a function with no arguments 
 def main():
-    Main().run()
+    return Main().run()
 
 if __name__=='__main__':
     main()

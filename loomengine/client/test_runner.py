@@ -29,18 +29,24 @@ class TestRunner:
         loom_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         loom_env = dict(os.environ.copy(), PYTHONPATH=loom_root)
 
+        # Becomes 1 if any tests fail
+        returncode = 0
+
         manage_script = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'master', 'manage.py')))
         manage_script_dir = os.path.dirname(manage_script)
-        subprocess.call([sys.executable, manage_script, 'test'], env=loom_env, cwd=manage_script_dir)
+        returncode |= subprocess.call([sys.executable, manage_script, 'test'], env=loom_env, cwd=manage_script_dir)
 
         client_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'client')))
-        subprocess.call([sys.executable, '-m', 'unittest', 'discover', client_dir])
+        returncode |= subprocess.call([sys.executable, '-m', 'unittest', 'discover', client_dir])
 
         worker_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'worker')))
-        subprocess.call([sys.executable, '-m', 'unittest', 'discover', worker_dir])
+        returncode |= subprocess.call([sys.executable, '-m', 'unittest', 'discover', worker_dir])
 
         utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'utils')))
-        subprocess.call([sys.executable, '-m', 'unittest', 'discover', utils_dir])
+        returncode |= subprocess.call([sys.executable, '-m', 'unittest', 'discover', utils_dir])
+
+        print 'Return code: %s' % returncode
+        return returncode
 
 if __name__=='__main__':
     TestRunner().run()
