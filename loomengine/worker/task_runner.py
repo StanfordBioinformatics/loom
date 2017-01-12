@@ -154,8 +154,11 @@ class TaskRunner(object):
         except Exception as e:
             self._report_error(message='Failed to save monitor log', detail=str(e))
 
-        self._set_status(STATUS.FINISHED)
-        self.logger.info('Done.')
+        try:
+            self._set_status(STATUS.FINISHED)
+            self.logger.info('Done.')
+        except Exception as e:
+            self._report_error(message='Failed to set status to finished', detail=str(e))
 
     def _try_to_copy_inputs(self):
         self.logger.info('Downloading input files')
