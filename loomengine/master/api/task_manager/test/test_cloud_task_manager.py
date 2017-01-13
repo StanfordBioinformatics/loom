@@ -11,7 +11,6 @@ from loomengine.master.api.task_manager.cloud import CloudTaskManagerError
 from loomengine.utils.cloud import on_gcloud_vm
 
 
-@unittest.skipIf(not on_gcloud_vm(), 'not running on Google Compute Engine VM')
 class TestCloudTaskManagerOnGCE(unittest.TestCase):
 
     class Resources:
@@ -55,7 +54,7 @@ class TestCloudTaskManagerOnGCE(unittest.TestCase):
         settings.WORKER_TYPE = 'INVALID_CLOUD_TYPE'
 
         with self.assertRaises(CloudTaskManagerError):
-            CloudTaskManager._run('task-run-id', 'task-run-location-id', self.resources)
+            CloudTaskManager._run('task-run-attempt-id', self.resources, 'environment', 'worker-name', 'worker-log')
 
     def test_get_gcloud_pricelist(self):
         pricelist = CloudTaskManager._get_gcloud_pricelist()
@@ -70,16 +69,6 @@ class TestCloudTaskManagerOnGCE(unittest.TestCase):
         """ May need to be updated if Google starts offering supercomputer instances.""" 
         with self.assertRaises(CloudTaskManagerError):
             CloudTaskManager._get_cheapest_instance_type(cores=sys.maxint, memory=sys.float_info.max)
-
-    def test_setup_ansible_gce(self):
-        CloudTaskManager._setup_ansible_gce()
-        import secrets
-        self.assertIsInstance(secrets.GCE_PARAMS, tuple)
-        self.assertIsInstance(secrets.GCE_KEYWORD_PARAMS, dict)
-
-    #@unittest.skip('Skipping VM task run test')
-    def test_run(self):
-        CloudTaskManager._run(task_run_id='unittest-task-run-id', task_run_location_id='unittest-task-run-location-id', requested_resources=self.resources)
 
 if __name__ == '__main__':
     unittest.main()
