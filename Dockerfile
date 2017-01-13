@@ -36,8 +36,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Loom and its Python dependencies.
-COPY . /opt/loom/
-RUN cd /opt/loom \
+COPY . /loomengine/
+RUN cd /loomengine \
     && pip install -r requirements.txt
 
 # Accept connections on port 8000.

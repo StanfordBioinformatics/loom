@@ -36,7 +36,7 @@ class Main(object):
 
         server_subparser = subparsers.add_parser('server', help='manage the Loom server')
         server.get_parser(server_subparser)
-        server_subparser.set_defaults(SubcommandClass=server.ServerControlsFactory)
+        server_subparser.set_defaults(SubcommandClass=server.ServerControls)
 
         import_subparser = subparsers.add_parser('import', help='import files or other data to the Loom server')
         importer.Importer.get_parser(import_subparser)

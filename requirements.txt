@@ -18,7 +18,7 @@ docker-pycreds==0.2.1
 enum-compat==0.0.2
 enum34==1.1.6
 eventlet==0.20.0
-functools32==3.2.3.post2
+functools32==3.2.3-2
 future==0.16.0
 futures==3.0.5
 gax-google-logging-v2==0.8.3

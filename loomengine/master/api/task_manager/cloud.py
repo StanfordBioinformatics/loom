@@ -117,7 +117,7 @@ class CloudTaskManager:
         logger.debug('Starting worker VM using playbook vars: %s' % playbook_vars)
 
         try:
-            with open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
+            with open(os.path.join(settings.LOG_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
                 cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, playbook_vars, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to provision host.')
@@ -135,7 +135,7 @@ class CloudTaskManager:
             raise e
 
         try:
-            with open(os.path.join(settings.LOGS_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
+            with open(os.path.join(settings.LOG_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
                 connection.update_task_run_attempt(
                     task_run_attempt_id,
                     {

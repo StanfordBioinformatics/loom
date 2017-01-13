@@ -2,6 +2,7 @@ import json
 import os
 import re
 import uuid
+from StringIO import StringIO
 
 from ConfigParser import SafeConfigParser
 from loomengine.client.common import *
@@ -88,12 +89,12 @@ def add_gcloud_settings(settings):
 def write_deploy_settings_file(user_settings_file=None):
     """Writes deploy settings and returns them. Should only be called when creating the Loom server."""
     settings = create_deploy_settings(user_settings_file)
-    write_settings_to_file(settings, get_deploy_settings_filename(), section='deploy')
+    write_env_vars_to_file(settings, get_deploy_settings_filename())
     return settings
 
 def read_deploy_settings_file():
     try:
-        return read_settings_from_file(get_deploy_settings_filename(), section='deploy')
+        return read_env_vars_from_file(get_deploy_settings_filename())
     except:
         raise SettingsError("Could not open server deploy settings at %s. You might need to run \"loom server create\" first." % get_deploy_settings_filename())
 
@@ -115,6 +116,15 @@ def read_settings_from_file(settings_file, section):
     items = dict(config.items(section))
     return items
 
+def read_env_vars_from_file(settings_file):
+    parser = SafeConfigParser()
+    parser.optionxform = lambda option: option.upper() # preserve uppercase in settings names
+    with open(settings_file) as fp:
+        stream = StringIO("[env]\n" + fp.read())
+        parser.readfp(stream)
+    items = dict(parser.items('env'))
+    return items
+
 def add_settings_from_file(settings, settings_file, section):
     """Add settings from a file and section to a provided dict and return the result. If no settings_file provided, just return the original settings."""
     if settings_file == None:
@@ -134,6 +144,12 @@ def write_settings_to_file(settings, settings_file, section):
     with open(settings_file, 'w') as fp:
         config.write(fp)
 
+def write_env_vars_to_file(settings, settings_file):
+    make_settings_directory(settings_file)
+    with open(settings_file, 'w') as fp:
+        for key, value in settings.iteritems():
+            fp.write('%s=%s\n' % (key, value))
+        
 def make_settings_directory(settings_file):
     if os.path.exists(os.path.dirname(settings_file)):
         return

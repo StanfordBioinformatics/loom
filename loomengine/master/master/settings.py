@@ -10,32 +10,62 @@ import sys
 import tempfile
 import warnings
 
-CELERY_ALWAYS_EAGER = True
+def to_boolean(value):
+    if value is None:
+        return False
+    if str(value).upper() == 'FALSE':
+        return False
+    if str(value).upper() == 'TRUE':
+        return True
+    raise Exception("Invalid value %s. Expected True or False")
 
-PROJECT_DIR = os.path.dirname(__file__)
-BASE_DIR = os.path.abspath(os.path.join(PROJECT_DIR, '..'))
-WEBPORTAL_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', 'portal'))
+def to_list(value):
+    if value is None:
+        return []
+    value = value.strip(' "\'')
+    list = value.lstrip('[').rstrip(']').split(',')
+    return [item.strip(' "\'') for item in list]
 
-# Get settings from the environment and expand paths if needed
+SETTINGS_DIR = os.path.dirname(__file__)
+BASE_DIR = (os.path.join(SETTINGS_DIR, '..'))
+sys.path.append(BASE_DIR)
+
+# Security settings
+DEBUG = os.getenv('LOOM_MASTER_DEBUG')
+SECRET_KEY = os.getenv(
+    'LOOM_MASTER_SECRET_KEY',
+    ''.join([random.SystemRandom()\
+             .choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)')
+             for i in range(50)]))
+CORS_ORIGIN_ALLOW_ALL = to_boolean(os.getenv('LOOM_MASTER_CORS_ORIGIN_ALLOW_ALL'))
+CORS_ORIGIN_WHITELIST = to_list(os.getenv('LOOM_MASTER_CORS_ORIGIN_WHITELIST'))
+ALLOWED_HOSTS = to_list(os.getenv('LOOM_MASTER_ALLOWED_HOSTS', '[]'))
+
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
+
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
+FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')
+
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
-FILE_ROOT = os.getenv('FILE_ROOT', '~/loomdata')
+FILE_ROOT = os.path.expanduser(os.getenv('FILE_ROOT', '~/loomdata'))
 FILE_ROOT_FOR_WORKER = os.path.expanduser(
     os.getenv('FILE_ROOT_FOR_WORKER', '~/loomdata'))
-FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')
-LOGS_DIR = os.getenv('LOGS_DIR')
+
+LOG_DIR = os.path.expanduser(os.getenv('LOG_DIR', '/var/log/loom'))
 LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))
 
-PROJECT_ID = os.getenv('GCE_PROJECT', '')   # Used by loom.utils.filemanager.GoogleStorageSource and GoogleStorageDestination
-                                            # Retrieved but not used when filemanager is LocalSource and LocalDestination, so need to set a default value
+# GCP settings
+PROJECT_ID = os.getenv('GCE_PROJECT', '')
 BUCKET_ID = os.getenv('GCE_BUCKET', '')
-DOCKER_FULL_NAME = os.getenv('DOCKER_FULL_NAME')
-DOCKER_TAG = os.getenv('DOCKER_TAG')
 GCE_EMAIL = os.getenv('GCE_EMAIL')
 GCE_INI_PATH = os.getenv('GCE_INI_PATH')
 GCE_PEM_FILE_PATH = os.getenv('GCE_PEM_FILE_PATH')
 GCE_SSH_KEY_FILE = os.getenv('GCE_SSH_KEY_FILE')
+
+DOCKER_FULL_NAME = os.getenv('DOCKER_FULL_NAME')
+DOCKER_TAG = os.getenv('DOCKER_TAG')
+
 SERVER_SKIP_INSTALLS = os.getenv('SERVER_SKIP_INSTALLS')
 WORKER_BOOT_DISK_TYPE = os.getenv('WORKER_BOOT_DISK_TYPE')
 WORKER_BOOT_DISK_SIZE = os.getenv('WORKER_BOOT_DISK_SIZE')
@@ -50,35 +80,47 @@ WORKER_TAGS = os.getenv('WORKER_TAGS')
 WORKER_USES_SERVER_INTERNAL_IP = os.getenv('WORKER_USES_SERVER_INTERNAL_IP')
 WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
 
+# Database settings
+LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
+LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
+LOOM_MYSQL_USER = os.getenv('LOOM_MYSQL_USER')
+LOOM_MYSQL_DATABASE = os.getenv('LOOM_MYSQL_DATABASE')
+LOOM_MYSQL_PORT = os.getenv('LOOM_MYSQL_PORT', 3306)
+LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
+LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
+LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
+
+# Message broker settings
+LOOM_RABBITMQ_PASSWORD = os.getenv('LOOM_RABBITMQ_PASSWORD', 'guest')
+LOOM_RABBITMQ_USER = os.getenv('LOOM_RABBITMQ_USER', 'guest')
+LOOM_RABBITMQ_VHOST = os.getenv('LOOM_RABBITMQ_VHOST', '/')
+LOOM_RABBITMQ_HOST = os.getenv('LOOM_RABBITMQ_HOST', 'rabbitmq')
+LOOM_RABBITMQ_PORT = os.getenv('LOOM_RABBITMQ_PORT', '5672')
+
 KEEP_DUPLICATE_FILES = True
 FORCE_RERUN = True
 
-HARD_STOP_ON_CANCEL = True
-HARD_STOP_ON_FAIL = True
+# For testing only
+TEST_DISABLE_TASK_DELAY = to_boolean(os.getenv('TEST_DISABLE_TASK_DELAY', False))
+TEST_NO_AUTO_START_RUNS = to_boolean(os.getenv('TEST_NO_AUTOSTART_RUNS'))
+TEST_NO_POSTPROCESS = to_boolean(os.getenv('TEST_NO_POSTPROCESS', False))
 
-TEST_DISABLE_TASK_DELAY = os.getenv(
-    'TEST_DISABLE_TASK_DELAY', False)
-TEST_NO_AUTO_START_RUNS = os.getenv(
-    'TEST_NO_AUTOSTART_RUNS', False)
-TEST_NO_POSTPROCESS = os.getenv(
-    'TEST_NO_POSTPROCESS', False)
+# Fixed settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_TZ = True
+CELERY_ALWAYS_EAGER = True
+APPEND_SLASH = True
+ROOT_URLCONF = 'master.urls'
+WSGI_APPLICATION = 'master.wsgi.application'
 
-CORS_ORIGIN_ALLOW_ALL = os.getenv('CORS_ORIGIN_ALLOW_ALL', 'false').upper() == 'TRUE'
-CORS_ORIGIN_WHITELIST = os.getenv('CORS_ORIGIN_WHITELIST', '').split(',')
-
-SECRET_KEY = os.getenv('SECRET_KEY',
-                       ''.join([random.SystemRandom().choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(50)]))
-
-# TODO
-# if os.getenv('LOOM_DEBUG_TRUE'):
-DEBUG = True
-TEMPLATE_DEBUG = True
-
-def str2list(string):
-    list = string.lstrip('[').rstrip(']').split(',')
-    return [item.strip(' "\'') for item in list]
-    
-ALLOWED_HOSTS = str2list(os.getenv('ALLOWED_HOSTS', '[]'))
+# Celery
+CELERY_RESULT_BACKEND = 'django-cache'
+CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
+                    % (LOOM_RABBITMQ_USER, LOOM_RABBITMQ_PASSWORD,
+                       LOOM_RABBITMQ_HOST, LOOM_RABBITMQ_PORT,
+                       LOOM_RABBITMQ_VHOST)
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -86,7 +128,6 @@ INSTALLED_APPS = (
     'django_extensions',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
     'django_celery_results',
@@ -104,10 +145,6 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'loomengine.master.master.urls'
-
-WSGI_APPLICATION = 'loomengine.master.master.wsgi.application'
-
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
@@ -119,31 +156,21 @@ REST_FRAMEWORK = {
     ),
 }
 
-APPEND_SLASH = True
-
-LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
-LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
-LOOM_MYSQL_USER = os.getenv('LOOM_MYSQL_USER')
-LOOM_MYSQL_DB_NAME = os.getenv('LOOM_MYSQL_DB_NAME')
-LOOM_MYSQL_PORT = os.getenv('LOOM_MYSQL_PORT', 3306)
-LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
-LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
-LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
-
+# Database
 if not LOOM_MYSQL_HOST:
     raise Exception(
         "LOOM_MYSQL_HOST is a required setting")
 if not LOOM_MYSQL_USER:
     raise Exception(
         "LOOM_MYSQL_USER is a required settings")
-if not LOOM_MYSQL_DB_NAME:
+if not LOOM_MYSQL_DATABASE:
     raise Exception(
-        "LOOM_MYSQL_DB_NAME is a required setting")
+        "LOOM_MYSQL_DATABASE is a required setting")
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'HOST': LOOM_MYSQL_HOST,
-        'NAME': LOOM_MYSQL_DB_NAME,
+        'NAME': LOOM_MYSQL_DATABASE,
         'USER': LOOM_MYSQL_USER,
         'PORT': LOOM_MYSQL_PORT,
     }
@@ -177,44 +204,27 @@ if LOOM_MYSQL_SSL_CA_CERT_PATH \
             }
         })
 
+# Logging
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
 def _get_django_handler():
-    DJANGO_LOGFILE = os.getenv('DJANGO_LOGFILE', None)
-    if DJANGO_LOGFILE is not None:
-        handler = {
-            'class': 'logging.FileHandler',
-            'filename': DJANGO_LOGFILE,
-            'formatter': 'default',
-            }
-    else:
-        handler = {
-            'class': 'logging.StreamHandler',
-            'formatter': 'default',
-            }
+    django_logfile = os.path.join(LOG_DIR, 'loom_django.log')
+    handler = {
+        'class': 'logging.FileHandler',
+        'filename': django_logfile,
+        'formatter': 'default',
+    }
     return handler
 
 def _get_loomengine_handler():
-    MASTER_LOGFILE = os.getenv('MASTER_LOGFILE', None)
-    if MASTER_LOGFILE  is not None:
-        if not os.path.exists(os.path.dirname(MASTER_LOGFILE)):
-            os.makedirs(os.path.dirname(MASTER_LOGFILE))
-        handler = {
-            'class': 'logging.FileHandler',
-            'filename': MASTER_LOGFILE,
-            'formatter': 'default',
-            }
-    else:
-        handler = {
-            'class': 'logging.StreamHandler',
-            'formatter': 'default',
-            }
+    master_logfile = os.path.join(LOG_DIR, 'loom_master.log')
+    handler = {
+        'class': 'logging.FileHandler',
+        'filename': master_logfile,
+        'formatter': 'default',
+    }
     return handler
-
-def _get_log_level():
-    DEFAULT_LOG_LEVEL = 'WARNING'
-    LOG_LEVEL = os.getenv('LOG_LEVEL', DEFAULT_LOG_LEVEL)
-    return LOG_LEVEL.upper()
-
-LOG_LEVEL = _get_log_level()
 
 LOGGING = {
     'version': 1,
@@ -243,27 +253,3 @@ LOGGING = {
             },
         },
     }
-
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_TZ = True
-
-STATIC_URL = '/home/'
-
-STATICFILES_DIRS = [
-    WEBPORTAL_ROOT,
-]
-
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
-RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
-RABBITMQ_VHOST = os.getenv('RABBITMQ_VHOST', '/')
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
-RABBITMQ_PORT = os.getenv('RABBIGMQ_PORT', '5672')
-
-CELERY_RESULT_BACKEND = 'django-cache'
-CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
-                    % (RABBITMQ_USER, RABBITMQ_PASSWORD,
-                       RABBITMQ_HOST, RABBITMQ_PORT,
-                       RABBITMQ_VHOST)

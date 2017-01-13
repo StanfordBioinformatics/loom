@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import argparse
+import copy
 from datetime import datetime
+import errno
 import imp
 import json
 import os
@@ -12,83 +14,95 @@ import sys
 import time
 import warnings
 
-from ConfigParser import SafeConfigParser
+import ConfigParser
+from StringIO import StringIO
+
 from loomengine.client import settings_manager
 from loomengine.client.common import *
 from loomengine.utils.version import version
 import loomengine.utils.cloud
 
-GCLOUD_SERVER_DEFAULT_NAME = settings_manager.get_default_setting('gcloud', 'SERVER_NAME')
+STOCK_SETTINGS_DIR = os.path.join(
+    os.path.dirname(__file__), '..', 'settings')
+STOCK_PLAYBOOKS_DIR = os.path.join(
+    os.path.dirname(__file__), '..', 'playbooks')
 
-PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
-GCLOUD_CREATE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server.yml')
-GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
-GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
-GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
-GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
-NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
+USER_SETTINGS_DIR = os.path.expanduser('~/.loom')
+SERVER_FILE = os.path.join(USER_SETTINGS_DIR, 'server.cfg')
+SERVER_ADMIN_FILE = os.path.join(USER_SETTINGS_DIR, 'server-admin.cfg')
+SERVER_ADMIN_DIR = os.path.join(USER_SETTINGS_DIR, 'server-admin')
+COMMON_SETTINGS_DIR = os.path.join(USER_SETTINGS_DIR, 'common-settings')
+COMMON_SETTINGS_FILE = 'settings.cfg'
 
-def ServerControlsFactory(args):
-    """Factory method that checks ~/.loom/server.ini, then instantiates and returns the appropriate class."""
+PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
 
-    # Check if we just need the base class (currently, it handles "set" and "status"):
-    try:
-        return BaseServerControls(args)
-    except UnhandledCommandError:
-        pass
-
-    server_type = get_server_type()
-
-    # Instantiate the appropriate subclass:
-    if server_type == 'local':
-        controls = LocalServerControls(args)
-    elif server_type == 'gcloud':
-        controls = GoogleCloudServerControls(args)
-    else:
-        raise Exception('Unrecognized server type: %s' % server_type)
-    
-    return controls
+#GCLOUD_SERVER_DEFAULT_NAME = settings_manager.get_default_setting('gcloud', 'SERVER_NAME')
+#PLAYBOOKS_PATH = os.path.join(imp.find_module('loomengine')[1], 'playbooks')
+#LOCAL_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'local_start_server.yml')
+#GCLOUD_CREATE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_server.yml')
+#GCLOUD_START_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_start_server.yml')
+#GCLOUD_STOP_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_stop_server.yml')
+#GCLOUD_DELETE_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_delete_server.yml')
+#GCLOUD_CREATE_BUCKET_PLAYBOOK = os.path.join(PLAYBOOKS_PATH, 'gcloud_create_bucket.yml')
+#NGINX_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'nginx.conf'))
 
 def get_parser(parser=None):
+
     if parser is None:
         parser = argparse.ArgumentParser(__file__)
 
-    parser.add_argument('--test_database', '-t', action='store_true', help=argparse.SUPPRESS)
-
     subparsers = parser.add_subparsers(dest='command')
-    status_parser = subparsers.add_parser('status')
 
-    create_parser = subparsers.add_parser('create')
-    create_parser.add_argument('--settings', '-s', metavar='SETTINGS_FILE', default=None)
-    create_parser.add_argument('--key', '-k', metavar='GCE_KEY', default=None,
-        help="A premade JSON credential for the custom service account. Ignored when using default settings.")
-    create_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+    create_parser = subparsers.add_parser(
+        'create',
+        help='Create and start a new loom server')
+    create_parser.add_argument('--settings-file', '-s', metavar='SETTINGS_FILE',
+                               default='local.yaml')
+    create_parser.add_argument('--extra-settings', '-e', action='append',
+                               metavar='KEY=VALUE')
 
-    start_parser = subparsers.add_parser('start')
-    start_parser.add_argument('--foreground', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
-    start_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+    create_parser.add_argument('--verbose', '-v', action='store_true',
+                              help='Provide more feedback to console.')
 
-    stop_parser = subparsers.add_parser('stop')
-    stop_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+    start_parser = subparsers.add_parser(
+        'start',
+        help='Restart a server that was stopped')
+    start_parser.add_argument('--verbose', '-v', action='store_true',
+                              help='Provide more feedback to console.')
 
-    restart_parser = subparsers.add_parser('restart')
-    restart_parser.add_argument('--foreground', action='store_true', help='Run webserver in the foreground. Needed to keep Docker container running.')
-    restart_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
-    
-    delete_parser = subparsers.add_parser('delete')
-    delete_parser.add_argument('--verbose', '-v', action='store_true', help='Provide more feedback to console.')
+    stop_parser = subparsers.add_parser(
+        'stop',
+        help='Stop execution of a Loom server. (It can be started again.)')
+    stop_parser.add_argument('--verbose', '-v', action='store_true',
+                             help='Provide more feedback to console.')
 
-    setserver_parser = subparsers.add_parser('set', help='Tells the client how to find the Loom server. This information is stored in %s.' % SERVER_LOCATION_FILE)
-    setserver_parser.add_argument('type', choices=['local', 'gcloud'], help='The type of server the client will manage.')
-    setserver_parser.add_argument('--name', help='Not used for local. For gcloud, the instance name of the server to manage. If not provided, defaults to %s.' % GCLOUD_SERVER_DEFAULT_NAME, metavar='GCE_INSTANCE_NAME', default=GCLOUD_SERVER_DEFAULT_NAME)
+    delete_parser = subparsers.add_parser(
+        'delete',
+        help='Delete the Loom server')
+    delete_parser.add_argument('--verbose', '-v', action='store_true',
+                               help='Provide more feedback to console.')
+
+    connect_parser = subparsers.add_parser(
+        'connect',
+        help='Connect to a running Loom server')
+    connect_parser.add_argument(
+       'Loom Master URL',
+        metavar='LOOM_MASTER_URL',
+        help='Enter the URL of the Loom server you wish to connect to.')
+
+    disconnect_parser = subparsers.add_parser(
+        'disconnect',
+        help='Disconnect the client from a Loom server but leave the server running')
+
+    status_parser = subparsers.add_parser(
+        'status',
+        help='Show the status of the Loom server')
 
     return parser
 
 
-class BaseServerControls:
-    """Base class for managing the Loom server. Handles argument parsing, 
-    subcommand routing, and implements common base methods such as setting
-    the server type and checking the server status.
+class ServerControls:
+    """Class for managing the Loom server.
     """
     def __init__(self, args=None):
         if args is None:
@@ -96,27 +110,161 @@ class BaseServerControls:
         self.args = args
         self._set_run_function(args)
 
-    # Defines what commands this class can handle and maps names to functions.
-    def _get_command_map(self):
-        return {
-            'status': self.status,
-            'set': self.setserver
-        }
-
     def _set_run_function(self, args):
         # Map user input command to class method
-        try:
-            self.run = self._get_command_map()[args.command]
-        except KeyError:
-            raise UnhandledCommandError('Unrecognized command: %s' % args.command)
+        commands = {
+            'status': self.status,
+            'create': self.create,
+            'delete': self.delete,
+            #'start': self.start,
+            #'stop': self.stop,
+
+            #'disconnect': self.disconnect
+            #'connect': self.connect
+        }
+        self.run = commands[args.command]
 
     def _get_args(self):
         parser = get_parser()
         args = parser.parse_args()
         return args
 
+    def status(self):
+        print "status"
+
+    def create(self):
+        self._verify_not_already_connected()
+        settings = self._get_user_settings()
+        self._save_common_settings(settings)
+        playbook = self._get_required_setting('LOOM_CREATE_SERVER_PLAYBOOK',
+                                                            settings)
+                                                            
+        self._run_playbook(playbook, settings, verbose=self.args.verbose)
+
+    def _save_common_settings(self, settings):
+        self._make_dir_if_missing(COMMON_SETTINGS_DIR)
+        with open(os.path.join(COMMON_SETTINGS_DIR, COMMON_SETTINGS_FILE), 'w') as f:
+            for key, value in sorted(settings.items()):
+                f.write('%s=%s\n' % (key, value))
+        settings.update({'LOOM_COMMON_SETTINGS_FILE': COMMON_SETTINGS_FILE})
+        settings.update({'LOOM_COMMON_SETTINGS_DIR': COMMON_SETTINGS_DIR})
+
+    def _make_dir_if_missing(self, path):
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            if e.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else:
+                msg = 'ERROR! unable to create directory %s' % path
+                if self.args.verbose:
+                    msg += '\n' +str(e)
+                raise SystemExit(msg)
+
+    def _run_playbook(self, playbook, settings, verbose=False):
+        playbook = self._check_stock_dir_and_get_full_path(playbook,
+                                                           STOCK_PLAYBOOKS_DIR)
+        inventory = self._get_required_setting('LOOM_ANSIBLE_INVENTORY', settings)
+        cmd_list = ['ansible-playbook',
+                    '-i', inventory,
+                    playbook,
+                    # Without this, ansible uses /usr/bin/python, which
+                    # may be missing needed modules
+                    '-e', 'ansible_python_interpreter="/usr/bin/env python"']
+
+        if verbose:
+            cmd_list.append('-vvvv')
+
+        env = copy.copy(os.environ)
+        env.update(settings) # Settings override env
+        return subprocess.call(cmd_list, env=env)
+
+    # Playbook must:
+    #  - create server.cfg and server-admin.cfg
+    # 
+    #  - provision host
+    #  - start Loom
+
+    def _get_required_setting(self, key, settings):
+        try:
+            return settings[key]
+        except KeyError:
+            raise SystemExit('ERROR! missing required setting "%s"' % key)
+
+    def _verify_not_already_connected(self):
+        """Raise an error if the files "~/.loom/server.cfg" and/or
+        "~/.loom/server-admin.cfg" exist.
+        """
+        if os.path.exists(SERVER_ADMIN_FILE) \
+           or os.path.exists(SERVER_ADMIN_DIR) \
+           or os.path.exists(SERVER_FILE) \
+           or os.path.exists(COMMON_SETTINGS_DIR):
+            raise SystemExit('Cannot create new server because there are existing '\
+                'server settings in "%s", and we don\'t want to '\
+                'overwrite them.' % USER_SETTINGS_DIR)
+
+    def _get_user_settings(self):
+        user_settings = self._parse_settings_file(self.args.settings_file)
+        user_settings.update(self._parse_extra_settings(self.args.extra_settings))
+        return user_settings
+
+    def _parse_settings_file(self, settings_file):
+        if not settings_file:
+            return {}
+        settings_file = self._check_stock_dir_and_get_full_path(settings_file,
+                                                                STOCK_SETTINGS_DIR)
+        parser = ConfigParser.SafeConfigParser()
+        # preserve uppercase in settings names
+        parser.optionxform = lambda option: option.upper()
+        try:
+            with open(settings_file) as stream:
+                # Add a section, since ConfigParser requires it
+                stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
+                parser.readfp(stream)
+        except IOError:
+            raise SystemExit('ERROR! could not open settings file "%s"' % settings_file)
+        except ConfigParser.ParsingError as e:
+            raise SystemExit('ERROR! could not parse settings file.\n %s' % e.message)
+        if parser.sections() != [PARSER_SECTION]:
+            raise SystemExit('ERROR! found extra sections in settings file: "%s".'\
+                             'Sections are not needed.' % parser.sections())
+        return dict(parser.items(PARSER_SECTION))
+
+    def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):
+        """Some playbooks and settings files are provided with loom.
+        If 'filepath' is the name of one of those files, we return the 
+        full path to that stock file. Otherwise, we interpret filepath relative
+        to the current working directory.
+        """
+        if os.path.exists(
+                os.path.join(stock_dir, filepath)):
+            # This matches one of the stock settings files
+            return os.path.abspath(os.path.join(stock_dir, filepath))
+        elif os.path.exists(
+                os.path.join(os.getcwd(), filepath)):
+            # File was found relative to current working directory
+            return os.path.abspath(os.path.join(os.getcwd(), filepath))
+        else:
+            # No need to raise exception now for missing file--we'll
+            # handle it when we try to read it
+            return filepath
+
+    def _parse_extra_settings(self, extra_settings):
+        if not extra_settings:
+            return {}
+        settings_dict = {}
+        for setting in extra_settings:
+            (key, value) = setting.split('=', 1)
+            settings_dict[key]=value
+        return settings_dict
+
+    def delete(self):
+        print "delete"
+        pass
+
+'''
     def setserver(self):
-        '''Set server for the client to manage (currently local or gcloud) and creates Loom settings directory.'''
+        """Set server for the client to manage (currently local or gcloud) and creates Loom settings directory."""
         server_location_file = os.path.expanduser(SERVER_LOCATION_FILE)
         # Create directory/directories if they don't exist
         if not os.path.exists(os.path.expanduser(LOOM_SETTINGS_PATH)):
@@ -136,13 +284,6 @@ class BaseServerControls:
             config.write(configfile)
 
         shutil.copy(NGINX_CONFIG_FILE, os.path.expanduser(LOOM_SETTINGS_PATH))
-
-    def status(self):
-        if is_server_running():
-            print 'OK. The server is running.'
-        else:
-            print 'No response for server at %s. Do you need to run "loom server start"?' % get_server_url()
-
 
 class LocalServerControls(BaseServerControls):
     """Subclass for managing a server running on localhost."""
@@ -221,26 +362,32 @@ class LocalServerControls(BaseServerControls):
         
     def _start_webserver(self, env):
         settings = settings_manager.read_deploy_settings_file()
-        cmd = "
-#        cmd = "gunicorn %s --bind %s:%s --pid %s --access-logfile %s --error-logfile %s --log-level %s --capture-output" % (
-#                settings['SERVER_WSGI_MODULE'],
-#                settings['BIND_IP'],
-#                settings['BIND_PORT'],
-#                settings['WEBSERVER_PIDFILE'],
-#                settings['ACCESS_LOGFILE'],
-#                settings['ERROR_LOGFILE'],
-#                settings['LOG_LEVEL'],
-#                )
-#        if not self.args.foreground:
-#            cmd = cmd + " --daemon"
+        docker_image = settings.get('LOOM_DOCKER_IMAGE')
+        log_dir = os.path.expanduser(settings.get('LOG_DIR'))
+        if not docker_image:
+            raise Exception('Required setting "LOOM_DOCKER_IMAGE" is missing')
+        cmd_list = ['ansible-playbook',
+                    LOCAL_START_PLAYBOOK,
+                    '--extra-vars',
+                    'LOOM_DOCKER_IMAGE=%s LOG_DIR=%s LOOM_ENV_FILE=%s' \
+                    % (docker_image,
+                       log_dir,
+                       settings_manager.get_deploy_settings_filename()
+                    )]
         if self.args.verbose:
-            print("Starting webserver with command:\n%s\nand environment:\n%s" % (cmd, env))
-#        process = subprocess.Popen(
-#            cmd,
-#            shell=True,
-#            env=env,
-#            stdout=subprocess.PIPE,
-#            stderr=subprocess.PIPE)
+            cmd_list.append('-vvvv')
+            print ' '.join(cmd_list)
+            import pprint
+            pprint.pprint(env)
+        return subprocess.call(cmd_list)
+
+        if self.args.verbose:
+            print("Starting webserver with command:\n%s" % cmd_list)
+        process = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
         (stdout, stderr) = process.communicate()
         if not process.returncode == 0:
             raise Exception('Loom webserver failed to start, with return code "%s". \nFailed command is "%s". \n%s \n%s' % (process.returncode, cmd, stdout, stderr))
@@ -321,12 +468,12 @@ class LocalServerControls(BaseServerControls):
         return env
 
     def create(self):
-        '''Create server deploy settings. Overwrite existing ones.'''
+        """Create server deploy settings. Overwrite existing ones."""
         settings_manager.write_deploy_settings_file(self.args.settings)
         print 'Created deploy settings at %s.' % settings_manager.get_deploy_settings_filename()
 
     def delete(self):
-        '''Stops server and deletes deploy settings.'''
+        """Stops server and deletes deploy settings."""
         if not os.path.exists(settings_manager.get_deploy_settings_filename()):
             raise Exception('No local server deploy settings found. Create them with "loom server create" first.')
         self.stop()
@@ -405,14 +552,6 @@ class GoogleCloudServerControls(BaseServerControls):
             pprint.pprint(env)
         return subprocess.call(cmd_list, env=env)
 
-    def build_docker_image(self, build_path, docker_name, docker_tag):
-        """Build Docker image using current code. Dockerfile must exist at build_path."""
-        subprocess.call(['docker', 'build', build_path, '-t', '%s:%s' % (docker_name, docker_tag)])
-
-    def push_docker_image(self, docker_tag):
-        """Use gcloud to push Docker image to registry specified in tag."""
-        subprocess.call(['docker', 'push', docker_tag])
-
     def start(self):
         """Start the gcloud server instance, then start the Loom server."""
         # TODO: Start the gcloud server instance once supported by Ansible
@@ -480,15 +619,12 @@ class GoogleCloudServerControls(BaseServerControls):
 
         delete_libcloud_cached_credential()
 
+'''
 
 class UnhandledCommandError(Exception):
     """Raised when a ServerControls class is given a command that's not in its command map."""
     pass
 
-
-class MissingCredentialError(Exception):
-    """Raised when a required credential file does not exist."""
-    pass
 
 if __name__=='__main__':
     ServerControls().run()
