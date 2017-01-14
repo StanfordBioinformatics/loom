@@ -20,25 +20,16 @@ import loomengine.utils.connection
 from loomengine.client import exceptions
 from loomengine.utils.exceptions import ServerConnectionError
 
-STOCK_SETTINGS_DIR = os.path.join(
-    os.path.join(imp.find_module('loomengine')[1], 'settings'))
+
+LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
+LOOM_SERVER_FILE = os.path.join(LOOM_SETTINGS_HOME, 'server.conf')
 STOCK_PLAYBOOKS_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'playbooks'))
 
-LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
-SERVER_FILE = os.path.join(LOOM_SETTINGS_HOME, 'server.cfg')
-
-SERVER_ADMIN_FILE = os.path.join(LOOM_SETTINGS_HOME, 'server-admin.cfg')
-SERVER_ADMIN_DIR = os.path.join(LOOM_SETTINGS_HOME, 'server-admin')
-
-# Names of files in SHARED_SETTINGS_DIR are saved with no path, because files
-# are copied or mounted to different contexts and path may change.
-SHARED_SETTINGS_DIR = os.path.join(SERVER_ADMIN_DIR, 'shared-settings')
-SHARED_SETTINGS_FILE = 'shared-settings.cfg'
-
-PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
 
 def parse_settings_file(settings_file):
+    PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
+    
     parser = ConfigParser.SafeConfigParser()
     # preserve uppercase in settings names
     parser.optionxform = lambda option: option.upper()
@@ -48,18 +39,32 @@ def parse_settings_file(settings_file):
             stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
             parser.readfp(stream)
     except IOError:
-        raise SystemExit('ERROR! could not open settings file "%s"' % settings_file)
+        raise SystemExit('ERROR! could not open file to read settings at "%s"'
+                         % settings_file)
     except ConfigParser.ParsingError as e:
-        raise SystemExit('ERROR! could not parse settings file.\n %s' % e.message)
+        raise SystemExit('ERROR! could not parse settings in file "%s".\n %s'
+                         % (settings_file, e.message))
     if parser.sections() != [PARSER_SECTION]:
-        raise SystemExit('ERROR! found extra sections in settings file: "%s".'\
+        raise SystemExit('ERROR! found extra sections in settings file: "%s". '\
                          'Sections are not needed.' % parser.sections())
     return dict(parser.items(PARSER_SECTION))
 
-def is_server_running():
+def has_server_file():
+    import pdb; pdb.set_trace()
+    return os.path.exists(LOOM_SERVER_FILE)
+
+def get_server_url():
+    server_settings = parse_settings_file(LOOM_SERVER_FILE)
+    return server_settings.get('LOOM_SERVER_URL')
+
+
+def is_server_running(url=None):
+    if not url:
+        url = get_server_url()
+
     try:
         loomengine.utils.connection.disable_insecure_request_warning()
-        response = requests.get(get_server_url() + '/api/status/', verify=False)
+        response = requests.get(url + '/api/status/', verify=False)
     except requests.exceptions.ConnectionError:
         return False
 
@@ -76,9 +81,6 @@ def verify_server_is_running():
             'Try launching the web server with "loom server start".' \
             % get_server_url())
 
-def get_server_url():
-    server_settings = parse_settings_file(SERVER_FILE)
-    return server_settings.get('LOOM_SERVER_URL')
 
 
 LOOM_HOME_SUBDIR = '.loom'
