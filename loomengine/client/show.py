@@ -7,7 +7,8 @@ import json
 import os
 import sys
 import yaml
-from loomengine.client.common import get_server_url
+from loomengine.client.common import get_server_url, verify_server_is_running, \
+    verify_has_server_file
 
 from loomengine.client.exceptions import *
 from loomengine.utils.connection import Connection
@@ -23,8 +24,10 @@ class AbstractShow(object):
         """Common init tasks for all Show classes
         """
         self.args = args
-        self.master_url = get_server_url()
-        self.connection = Connection(self.master_url)
+        verify_has_server_file()
+        server_url = get_server_url()
+        verify_server_is_running(url=server_url)
+        self.connection = Connection(server_url)
 
     @classmethod
     def get_parser(cls, parser):
@@ -56,6 +59,7 @@ class ShowFile(AbstractShow):
             self.args.file_id)
 
     def _show_files(self):
+        print '[showing %s files]' % len(self.files)
         for file_data_object in self.files:
             text = self._render_file(file_data_object)
             if text is not None:
@@ -113,6 +117,7 @@ class ShowTemplate(AbstractShow):
         self.templates = self.connection.get_template_index(self.args.template_id)
 
     def _show_templates(self):
+        print '[showing %s templates]' % len(self.templates)
         for template in self.templates:
             print self._render_template(template)
 

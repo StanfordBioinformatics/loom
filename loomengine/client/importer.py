@@ -3,9 +3,8 @@
 import argparse
 import glob
 import os
-from loomengine.client.common import verify_server_is_running
-from loomengine.client.common import get_server_url
-from loomengine.client.common import parse_as_json_or_yaml
+from loomengine.client.common import verify_server_is_running, get_server_url, \
+    verify_has_server_file, parse_as_json_or_yaml
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
@@ -19,11 +18,11 @@ class AbstractImporter(object):
         """
 
         self.args = args
-
-        master_url = get_server_url()
-        verify_server_is_running()
-        self.filemanager = FileManager(master_url)
-        self.connection = Connection(master_url)
+        verify_has_server_file()
+        server_url = get_server_url()
+        verify_server_is_running(url=server_url)
+        self.filemanager = FileManager(server_url)
+        self.connection = Connection(server_url)
 
 
 class FileImporter(AbstractImporter):
@@ -64,11 +63,13 @@ class TemplateImporter(AbstractImporter):
         return parser
 
     def run(self):
-        return self.import_template(self.args.template, self.args.note, self.filemanager, self.connection)
-
+        return self.import_template(self.args.template,
+                                    self.args.note,
+                                    self.filemanager,
+                                    self.connection)
     @classmethod
     def import_template(cls, template_file, note, filemanager, connection):
-        print 'Importing template from %s...' % filemanager.normalize_url(
+        print 'Importing template from "%s".' % filemanager.normalize_url(
             template_file)
         (template, source_url) = cls._get_template(template_file, filemanager)
         template.update({
@@ -76,16 +77,27 @@ class TemplateImporter(AbstractImporter):
                 'note': note,
                 'source_url': source_url,
             }})
+            
         template_from_server = connection.post_template(template)
-        print '   imported template %s@%s' % (
+        print 'Imported template "%s@%s".' % (
             template_from_server['name'],
             template_from_server['uuid'])
         return template_from_server
 
     @classmethod
     def _get_template(cls, template_file, filemanager):
-        (template_text, source_url) = filemanager.read_file(template_file)
+        try:
+            (template_text, source_url) = filemanager.read_file(template_file)
+        except Exception as e:
+            raise SystemExit('ERROR! Unable to read file "%s". %s'
+                            % (template_file, str(e)))
         template = parse_as_json_or_yaml(template_text)
+        try:
+            template.update
+        except AttributeError:
+            raise SystemExit(
+                'ERROR! Template at "%s" could not be parsed into a dict.'
+                % os.path.abspath(template_file))
         return template, source_url
 
 

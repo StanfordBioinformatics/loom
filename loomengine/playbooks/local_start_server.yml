@@ -14,13 +14,13 @@
 
     # We look up most 'env' vars on the fly, but these need to be defined
     # for use by the 'template' module
-    LOOM_NGINX_INTERNAL_PORT: "{{ lookup('env', 'LOOM_NGINX_INTERNAL_PORT') }}"
-    LOOM_NGINX_SERVER_NAME: "{{ lookup('env', 'LOOM_NGINX_SERVER_NAME') }}"
-    LOOM_NGINX_WEBPORTAL_ROOT: "{{ lookup('env', 'LOOM_NGINX_WEBPORTAL_ROOT') }}"
-    LOOM_NGINX_ACCESS_LOG: "{{ lookup('env', 'LOOM_NGINX_ACCESS_LOG') }}"
-    LOOM_NGINX_ERROR_LOG: "{{ lookup('env', 'LOOM_NGINX_ERROR_LOG') }}"
-    LOOM_MASTER_INTERNAL_PORT: "{{ lookup('env', 'LOOM_MASTER_INTERNAL_PORT') }}"
-    LOOM_SERVER_URL: "http://127.0.0.1:{{ lookup('env', 'LOOM_EXTERNAL_PORT') }}"
+    loom_nginx_internal_port: "{{ lookup('env', 'LOOM_NGINX_INTERNAL_PORT') }}"
+    loom_nginx_server_name: "{{ lookup('env', 'LOOM_NGINX_SERVER_NAME') }}"
+    loom_nginx_webportal_root: "{{ lookup('env', 'LOOM_NGINX_WEBPORTAL_ROOT') }}"
+    loom_nginx_access_log: "{{ lookup('env', 'LOOM_NGINX_ACCESS_LOG') }}"
+    loom_nginx_error_log: "{{ lookup('env', 'LOOM_NGINX_ERROR_LOG') }}"
+    loom_master_internal_port: "{{ lookup('env', 'LOOM_MASTER_INTERNAL_PORT') }}"
+    loom_server_url: "http://127.0.0.1:{{ lookup('env', 'LOOM_EXTERNAL_PORT') }}"
 
   tasks:
     - name: Start a MySQL database container
@@ -61,8 +61,8 @@
         env:
           C_FORCE_ROOT: true
           LOOM_SHARED_SETTINGS_DIR: "{{ shared_settings_dir_in_container }}"
-          LOOM_MYSQL_HOST: "{{lookup('env', 'loom_mysql_container_name')}}"
-          LOOM_RABBITMQ_HOST: "{{lookup('env', 'loom_rabbitmq_container_name')}}"
+          LOOM_MYSQL_HOST: "{{ loom_mysql_container_name }}"
+          LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
 
         volumes:
           - /loomengine/loomengine/portal
@@ -119,13 +119,13 @@
     - name: Create server config file so command line client knows where to find server
       template:
         src: templates/server.conf
-        dest: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}/{{LOOM_SERVER_FILE}}"
+        dest: "{{ lookup('env', 'LOOM_SERVER_FILE') }}"
 
     - name: Wait for Loom server port to be available
       wait_for: port="{{ lookup('env', 'LOOM_EXTERNAL_PORT') }}"
 
     - name: Wait for Loom server to start. (retry messages are normal)
-      uri: "url={{ LOOM_SERVER_URL }}/api/status/ validate_certs=False"
+      uri: "url={{ loom_server_url }}/api/status/ validate_certs=False"
       register: response
       until: response.status == 200
       retries: 30

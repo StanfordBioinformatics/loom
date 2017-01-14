@@ -29,5 +29,5 @@
 
     - name: Delete the NGINX server container
       docker_container:
-        name: "{{ loom_ngins_container_name }}"
+        name: "{{ loom_nginx_container_name }}"
         state: absent

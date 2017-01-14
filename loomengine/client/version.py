@@ -1,7 +1,7 @@
 #!/usr/bin/env python
     
 import argparse
-from loomengine.client.common import get_server_url
+from loomengine.client.common import get_server_url, has_server_file, is_server_running
 import loomengine.utils.version
 from loomengine.utils.connection import Connection
 
@@ -16,11 +16,6 @@ class Version:
         if args is None:
             args = self._get_args()
         self.args = args
-        self.connection = self._get_connection()
-
-    def _get_connection(self):
-        master_url = get_server_url()
-        return  Connection(master_url)
 
     def _get_args(self):
         parser = self.get_parser()
@@ -36,14 +31,19 @@ class Version:
         return parser
 
     def run(self):
-        server_version = self.get_server_version()
-        if not server_version:
-            server_version = 'unavailable'
+        if not has_server_file():
+            server_version = 'not connected'
+        else:
+            url = get_server_url()
+            if not is_server_running(url=url):
+                server_version = 'no response'
+            else:
+                connection = Connection(url)
+                server_version = connection.get_version()
+
         print "client version: %s" % loomengine.utils.version.version()
         print "server version: %s" % server_version
 
-    def get_server_version(self):
-        return self.connection.get_version()
 
 if __name__=='__main__':
     response = Version().run()

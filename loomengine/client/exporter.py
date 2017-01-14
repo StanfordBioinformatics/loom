@@ -5,8 +5,8 @@ import json
 import os
 import sys
 import yaml
-from loomengine.client.common import get_server_url
-from loomengine.client.common import verify_server_is_running
+from loomengine.client.common import get_server_url, verify_server_is_running, \
+    verify_has_server_file
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
@@ -19,10 +19,11 @@ class AbstractExporter(object):
         """Common init tasks for all Export classes
         """
         self.args = args
-        master_url = get_server_url()
+        verify_has_server_file()
+        server_url = get_server_url()
         verify_server_is_running()
-        self.connection = Connection(master_url)
-        self.filemanager = FileManager(master_url)
+        self.connection = Connection(server_url)
+        self.filemanager = FileManager(server_url)
 
 
 class FileExporter(AbstractExporter):
@@ -66,7 +67,7 @@ class TemplateExporter(AbstractExporter):
         return parser
 
     def run(self):
-        template = self.connection.get_abstract_template_index(query_string=self.args.template_id, min=1, max=1)[0]
+        template = self.connection.get_template_index(query_string=self.args.template_id, min=1, max=1)[0]
         destination_url = self._get_destination_url(template)
         self._save_template(template, destination_url)
 

@@ -39,24 +39,28 @@ def parse_settings_file(settings_file):
             stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
             parser.readfp(stream)
     except IOError:
-        raise SystemExit('ERROR! could not open file to read settings at "%s"'
+        raise SystemExit('ERROR! Could not open file to read settings at "%s".'
                          % settings_file)
     except ConfigParser.ParsingError as e:
-        raise SystemExit('ERROR! could not parse settings in file "%s".\n %s'
+        raise SystemExit('ERROR! Could not parse settings in file "%s".\n %s'
                          % (settings_file, e.message))
     if parser.sections() != [PARSER_SECTION]:
-        raise SystemExit('ERROR! found extra sections in settings file: "%s". '\
+        raise SystemExit('ERROR! Found extra sections in settings file: "%s". '\
                          'Sections are not needed.' % parser.sections())
     return dict(parser.items(PARSER_SECTION))
 
 def has_server_file():
-    import pdb; pdb.set_trace()
     return os.path.exists(LOOM_SERVER_FILE)
+
+def verify_has_server_file():
+    if not has_server_file():
+        raise SystemExit(
+            'ERROR! Not connected to any server. First start a new server '\
+            'or connect to an existing server.')
 
 def get_server_url():
     server_settings = parse_settings_file(LOOM_SERVER_FILE)
     return server_settings.get('LOOM_SERVER_URL')
-
 
 def is_server_running(url=None):
     if not url:
@@ -71,16 +75,12 @@ def is_server_running(url=None):
     if response.status_code == 200:
         return True
     else:
-        raise Exception(
-	    "unexpected status code %s from server" % response.status_code)
+        raise SystemExit(
+	    'ERROR! Unexpected status code "%s" from server' % response.status_code)
 
-def verify_server_is_running():
-    if not is_server_running():
-        raise exceptions.ServerConnectionError(
-            'The Loom server is not currently running at %s. '\
-            'Try launching the web server with "loom server start".' \
-            % get_server_url())
-
+def verify_server_is_running(url=None):
+    if not is_server_running(url=url):
+        raise SystemExit('ERROR! No response from server at %s' % url)
 
 
 LOOM_HOME_SUBDIR = '.loom'

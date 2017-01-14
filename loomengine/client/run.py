@@ -4,7 +4,8 @@ import argparse
 import os
 
 from loomengine.client.importer import TemplateImporter
-from loomengine.client.common import get_server_url, read_as_json_or_yaml
+from loomengine.client.common import get_server_url, read_as_json_or_yaml, \
+    verify_has_server_file, verify_server_is_running
 from loomengine.client.exceptions import *
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
@@ -18,9 +19,11 @@ class TemplateRunner(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.master_url = get_server_url()
-        self.connection = Connection(self.master_url)
-        self.filemanager = FileManager(self.master_url)
+        verify_has_server_file()
+        server_url = get_server_url()
+        verify_server_is_running(url=server_url)
+        self.connection = Connection(server_url)
+        self.filemanager = FileManager(server_url)
 
     @classmethod
     def _get_args(cls):
