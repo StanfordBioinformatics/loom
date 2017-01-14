@@ -1,9 +1,34 @@
 #!/bin/bash
 
 DEFAULT_LOG_LEVEL=info
-DEFAULT_SOCKET=0.0.0.0:8000
+DEFAULT_IP=0.0.0.0
+DEFAULT_PORT=8000
 
-LOG_LEVEL=${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}
-LOOM_MASTER_SOCKET=${LOOM_MASTER_SOCKET:-$DEFAULT_SOCKET}
+LOOM_LOG_LEVEL=${LOOM_LOG_LEVEL:-$DEFAULT_LOG_LEVEL}
+LOOM_MASTER_INTERNAL_IP=${LOOM_MASTER_INTERNAL_IP:-$DEFAULT_IP}
+LOOM_MASTER_INTERNAL_PORT=${LOOM_MASTER_INTERNAL_PORT:-$DEFAULT_PORT}
 
-gunicorn loomengine.master.master.wsgi --bind ${LOOM_MASTER_SOCKET} --log-level ${LOG_LEVEL} --capture-output
+BIN_PATH="`dirname \"$0\"`"
+
+# Wait for database to become available
+RETRIES=30
+n=0
+while :
+do
+    # break if db connection is successful
+    $BIN_PATH/../loomengine/master/manage.py inspectdb > /dev/null 2&>1 && break
+
+    # exit if retries exceeded
+    if [ $n -ge $RETRIES ]
+    then
+	>&2 echo "Timeout while waiting for database"
+	exit 1;
+    fi
+
+    sleep 1
+    n=$[$n+1]
+done
+
+$BIN_PATH/../loomengine/master/manage.py migrate
+
+gunicorn loomengine.master.master.wsgi --bind ${LOOM_MASTER_INTERNAL_IP}:${LOOM_MASTER_INTERNAL_PORT} --log-level ${LOOM_LOG_LEVEL} --capture-output

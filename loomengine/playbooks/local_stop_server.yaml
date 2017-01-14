@@ -1,0 +1,31 @@
+---
+- name: Stop all the components of a loom server
+  hosts: localhost
+  connection: local
+
+  tasks:
+
+    - name: Stop the MySQL database container
+      docker_container:
+        name: "{{ lookup('env', 'LOOM_MYSQL_CONTAINER_NAME') }}"
+        state: stopped
+
+    - name: Stop the rabbitmq container
+      docker_container:
+        name: "{{ lookup('env', 'LOOM_RABBITMQ_CONTAINER_NAME') }}"
+        state: stopped
+
+    - name: Stop the container with celery workers
+      docker_container:
+        name: "{{ lookup('env', 'LOOM_WORKER_CONTAINER_NAME') }}"
+        state: stopped
+
+    - name: Stop the container with the Loom Master webserver
+      docker_container:
+        name: "{{ lookup('env', 'LOOM_MASTER_CONTAINER_NAME') }}"
+        state: stopped
+
+    - name: Stop the NGINX server container
+      docker_container:
+        name: "{{ lookup('env', 'LOOM_NGINX_CONTAINER_NAME') }}"
+        state: stopped

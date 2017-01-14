@@ -39,6 +39,3 @@ RUN apt-get update && apt-get install -y \
 COPY . /loomengine/
 RUN cd /loomengine \
     && pip install -r requirements.txt
-
-# Accept connections on port 8000.
-EXPOSE 8000

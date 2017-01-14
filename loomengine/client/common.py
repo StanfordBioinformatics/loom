@@ -9,6 +9,7 @@ import oauth2client.client
 import os
 import re
 import requests
+from StringIO import StringIO
 import subprocess
 import sys
 import time
@@ -18,6 +19,67 @@ import loomengine.client.settings_manager
 import loomengine.utils.connection
 from loomengine.client import exceptions
 from loomengine.utils.exceptions import ServerConnectionError
+
+STOCK_SETTINGS_DIR = os.path.join(
+    os.path.join(imp.find_module('loomengine')[1], 'settings'))
+STOCK_PLAYBOOKS_DIR = os.path.join(
+    os.path.join(imp.find_module('loomengine')[1], 'playbooks'))
+
+LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
+SERVER_FILE = os.path.join(LOOM_SETTINGS_HOME, 'server.cfg')
+
+SERVER_ADMIN_FILE = os.path.join(LOOM_SETTINGS_HOME, 'server-admin.cfg')
+SERVER_ADMIN_DIR = os.path.join(LOOM_SETTINGS_HOME, 'server-admin')
+
+# Names of files in SHARED_SETTINGS_DIR are saved with no path, because files
+# are copied or mounted to different contexts and path may change.
+SHARED_SETTINGS_DIR = os.path.join(SERVER_ADMIN_DIR, 'shared-settings')
+SHARED_SETTINGS_FILE = 'shared-settings.cfg'
+
+PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
+
+def parse_settings_file(settings_file):
+    parser = ConfigParser.SafeConfigParser()
+    # preserve uppercase in settings names
+    parser.optionxform = lambda option: option.upper()
+    try:
+        with open(settings_file) as stream:
+            # Add a section, since ConfigParser requires it
+            stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
+            parser.readfp(stream)
+    except IOError:
+        raise SystemExit('ERROR! could not open settings file "%s"' % settings_file)
+    except ConfigParser.ParsingError as e:
+        raise SystemExit('ERROR! could not parse settings file.\n %s' % e.message)
+    if parser.sections() != [PARSER_SECTION]:
+        raise SystemExit('ERROR! found extra sections in settings file: "%s".'\
+                         'Sections are not needed.' % parser.sections())
+    return dict(parser.items(PARSER_SECTION))
+
+def is_server_running():
+    try:
+        loomengine.utils.connection.disable_insecure_request_warning()
+        response = requests.get(get_server_url() + '/api/status/', verify=False)
+    except requests.exceptions.ConnectionError:
+        return False
+
+    if response.status_code == 200:
+        return True
+    else:
+        raise Exception(
+	    "unexpected status code %s from server" % response.status_code)
+
+def verify_server_is_running():
+    if not is_server_running():
+        raise exceptions.ServerConnectionError(
+            'The Loom server is not currently running at %s. '\
+            'Try launching the web server with "loom server start".' \
+            % get_server_url())
+
+def get_server_url():
+    server_settings = parse_settings_file(SERVER_FILE)
+    return server_settings.get('LOOM_SERVER_URL')
+
 
 LOOM_HOME_SUBDIR = '.loom'
 LOOM_SETTINGS_PATH = os.path.join('~', LOOM_HOME_SUBDIR)
@@ -119,39 +181,6 @@ def get_gcloud_hosts():
     inv = get_inventory()
     inv_hosts = inv['_meta']['hostvars']
     return inv_hosts
-
-def get_server_url():
-    # TODO: add PROTOCOL and EXTERNAL PORT to server.ini since they are required to construct a URL to reach the server
-    # Consider how to keep in sync with user-provided settings, default_settings.ini, and _deploy_settings.ini
-    # Would remove dependency on settings_manager from other components
-    try:
-        settings = loomengine.client.settings_manager.read_deploy_settings_file()
-    except:
-        raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
-    protocol = settings['PROTOCOL']
-    if settings.get('CLIENT_USES_SERVER_INTERNAL_IP') == 'True':
-        ip = get_server_private_ip()
-    else:
-        ip = get_server_public_ip()
-    port = settings['EXTERNAL_PORT']
-    return '%s://%s:%s' % (protocol, ip, port)
-
-def is_server_running():
-    try:
-        loomengine.utils.connection.disable_insecure_request_warning()
-        #response = requests.get(get_server_url() + '/api/status/', cert=(SSL_CERT_PATH, SSL_KEY_PATH)) 
-        response = requests.get(get_server_url() + '/api/status/', verify=False)
-    except requests.exceptions.ConnectionError:
-        return False
-
-    if response.status_code == 200:
-        return True
-    else:
-        raise Exception("Unexpected status code %s from server" % response.status_code)
-
-def verify_server_is_running():
-    if not is_server_running():
-        raise exceptions.ServerConnectionError('The Loom server is not currently running at %s. Try launching the web server with "loom server start".' % get_server_url())
 
 def get_gcloud_project():
     """Queries gcloud CLI for current project."""
@@ -426,3 +455,4 @@ def read_as_json_or_yaml(file):
         return parse_as_json_or_yaml(text)
     except exceptions.InvalidFormatError:
         raise exceptions.InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
+
