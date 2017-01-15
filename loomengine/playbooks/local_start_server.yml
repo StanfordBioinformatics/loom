@@ -10,7 +10,7 @@
     # These vars only affect file locations in containers, hence
     # belong here rather than in the user-visible settings file
     nginx_conf_file: nginx.conf
-    shared_settings_dir_in_container: /shared-settings
+    shared_files_dir_in_container: /shared-files
 
     # We look up most 'env' vars on the fly, but these need to be defined
     # for use by the 'template' module
@@ -57,16 +57,16 @@
         command: /loomengine/bin/run_worker.sh
         restart_policy: always
         api_version: auto
-        env_file: "{{ lookup('env', 'LOOM_SHARED_SETTINGS_DIR') }}/{{ lookup('env', 'LOOM_SHARED_SETTINGS_FILE') }}"
+        env_file: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}/{{ lookup('env', 'LOOM_SHARED_SETTINGS_FILE') }}"
         env:
           C_FORCE_ROOT: true
-          LOOM_SHARED_SETTINGS_DIR: "{{ shared_settings_dir_in_container }}"
+          LOOM_SHARED_FILES_DIR: "{{ shared_files_dir_in_container }}"
           LOOM_MYSQL_HOST: "{{ loom_mysql_container_name }}"
           LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
 
         volumes:
           - /loomengine/loomengine/portal
-          - "{{ lookup('env', 'LOOM_SHARED_SETTINGS_DIR') }}:{{ shared_settings_dir_in_container }}"
+          - "{{ lookup('env', 'LOOM_SHARED_FILES_DIR') }}:{{ shared_files_dir_in_container }}"
         links:
           - "{{ loom_mysql_container_name }}"
           - "{{ loom_rabbitmq_container_name }}"
@@ -79,14 +79,14 @@
         command: /loomengine/bin/run_master.sh
         restart_policy: always
         api_version: auto
-        env_file: "{{ lookup('env', 'LOOM_SHARED_SETTINGS_DIR') }}/{{ lookup('env', 'LOOM_SHARED_SETTINGS_FILE') }}"
+        env_file: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}/{{ lookup('env', 'LOOM_SHARED_SETTINGS_FILE') }}"
         env:
-          LOOM_SHARED_SETTINGS_DIR: "{{ shared_settings_dir_in_container }}"
+          LOOM_SHARED_FILES_DIR: "{{ shared_files_dir_in_container }}"
           LOOM_MYSQL_HOST: "{{ loom_mysql_container_name }}"
           LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
         volumes:
           - /loomengine/loomengine/portal
-          - "{{ lookup('env', 'LOOM_SHARED_SETTINGS_DIR') }}:{{ shared_settings_dir_in_container }}"
+          - "{{ lookup('env', 'LOOM_SHARED_FILES_DIR') }}:{{ shared_files_dir_in_container }}"
         links:
           - "{{ loom_mysql_container_name }}"
           - "{{ loom_rabbitmq_container_name }}"
@@ -94,12 +94,12 @@
     - name: Create a config file for the NGINX web server
       template:
         src: templates/local.nginx.conf
-        dest: "{{ lookup('env', 'LOOM_SHARED_SETTINGS_DIR') }}/nginx.conf"
+        dest: "{{ lookup('env', 'LOOM_SHARED_FILES_DIR') }}/nginx.conf"
 
     - name: Create server-admin settings file
       template:
         src: templates/local.server-admin.conf
-        dest: "{{ lookup('env', 'LOOM_SERVER_ADMIN_FILE') }}"
+        dest: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}/{{ lookup('env', 'LOOM_ADMIN_SETTINGS_FILE') }}"
 
     - name: Start an NGINX server container
       docker_container:
@@ -108,7 +108,7 @@
         restart_policy: always
         api_version: auto
         volumes:
-          - "{{ lookup('env', 'LOOM_SHARED_SETTINGS_DIR') }}/nginx.conf:/etc/nginx/conf.d/default.conf"
+          - "{{ lookup('env', 'LOOM_SHARED_FILES_DIR') }}/nginx.conf:/etc/nginx/conf.d/default.conf"
         volumes_from:
           - "{{ loom_master_container_name }}"
         links:
@@ -118,8 +118,8 @@
 
     - name: Create server config file so command line client knows where to find server
       template:
-        src: templates/server.conf
-        dest: "{{ lookup('env', 'LOOM_SERVER_FILE') }}"
+        src: "{{ lookup('env', 'LOOM_SERVER_SETTINGS_TEMPLATE_PATH') }}"
+        dest: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}/{{ lookup('env', 'LOOM_SERVER_SETTINGS_FILE') }}"
 
     - name: Wait for Loom server port to be available
       wait_for: port="{{ lookup('env', 'LOOM_EXTERNAL_PORT') }}"

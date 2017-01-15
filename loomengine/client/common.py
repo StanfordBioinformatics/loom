@@ -22,10 +22,10 @@ from loomengine.utils.exceptions import ServerConnectionError
 
 
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
-LOOM_SERVER_FILE = os.path.join(LOOM_SETTINGS_HOME, 'server.conf')
+LOOM_SERVER_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'server-files')
+LOOM_SERVER_SETTINGS_FILE = 'server-settings.conf'
 STOCK_PLAYBOOKS_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'playbooks'))
-
 
 def parse_settings_file(settings_file):
     PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
@@ -50,7 +50,7 @@ def parse_settings_file(settings_file):
     return dict(parser.items(PARSER_SECTION))
 
 def has_server_file():
-    return os.path.exists(LOOM_SERVER_FILE)
+    return os.path.exists(os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
 
 def verify_has_server_file():
     if not has_server_file():
@@ -59,7 +59,7 @@ def verify_has_server_file():
             'or connect to an existing server.')
 
 def get_server_url():
-    server_settings = parse_settings_file(LOOM_SERVER_FILE)
+    server_settings = parse_settings_file(os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
     return server_settings.get('LOOM_SERVER_URL')
 
 def is_server_running(url=None):

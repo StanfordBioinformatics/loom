@@ -17,15 +17,18 @@ from loomengine.client.common import *
 STOCK_SETTINGS_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'settings'))
 
-LOOM_SERVER_ADMIN_DIR = os.path.join(LOOM_SETTINGS_HOME, 'server-admin')
-LOOM_SERVER_ADMIN_FILE = os.path.join(LOOM_SERVER_ADMIN_DIR, 'server-admin.conf')
+LOOM_ADMIN_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'admin-files')
+LOOM_ADMIN_SETTINGS_FILE = 'admin-settings.conf'
 
 LOOM_SETTINGS_HOME_TEMP_BACKUP = LOOM_SETTINGS_HOME + '.tmp'
 
-# Names of files in LOOM_SHARED_SETTINGS_DIR are saved with no path, because files
-# are copied or mounted to different contexts and path may change.
-LOOM_SHARED_SETTINGS_DIR = os.path.join(LOOM_SERVER_ADMIN_DIR, 'shared-settings')
+LOOM_SHARED_FILES_DIR = os.path.join(
+    LOOM_SETTINGS_HOME, 'shared-files')
 LOOM_SHARED_SETTINGS_FILE = 'shared-settings.conf'
+
+TEMPLATES_DIR = os.path.join(
+    os.path.join(imp.find_module('loomengine')[1], 'client', 'templates'))
+LOOM_SERVER_SETTINGS_TEMPLATE_PATH = os.path.join(TEMPLATES_DIR, 'server.conf')
 
 def loom_settings_transaction(function):
     """A decorator to restore settings to original state if an error is raised.
@@ -38,18 +41,28 @@ def loom_settings_transaction(function):
             shutil.rmtree(LOOM_SETTINGS_HOME_TEMP_BACKUP)
         except OSError:
             pass
-        shutil.copytree(LOOM_SETTINGS_HOME,
-                        LOOM_SETTINGS_HOME_TEMP_BACKUP)
+        if os.path.exists(LOOM_SETTINGS_HOME):
+            previous_settings_exist=True
+            shutil.copytree(LOOM_SETTINGS_HOME,
+                            LOOM_SETTINGS_HOME_TEMP_BACKUP)
+        else:
+            previous_settings_exist=False
         try:
             function(*args, **kwargs)
         except (Exception, SystemExit) as e:
-            print ("WARNING! An error occurred. Rolling back settings.")
-            shutil.rmtree(LOOM_SETTINGS_HOME)
-            shutil.copytree(LOOM_SETTINGS_HOME_TEMP_BACKUP,
-                            LOOM_SETTINGS_HOME)
+            if previous_settings_exist:
+                print ("WARNING! An error occurred. Rolling back settings.")
+            try:
+                shutil.rmtree(LOOM_SETTINGS_HOME)
+            except OSError:
+                pass # dir doesn't exist
+            if previous_settings_exist:
+                shutil.move(LOOM_SETTINGS_HOME_TEMP_BACKUP,
+                                LOOM_SETTINGS_HOME)
             raise e
         # Success. Deleting backup.
-        shutil.rmtree(LOOM_SETTINGS_HOME_TEMP_BACKUP)
+        if previous_settings_exist:
+            shutil.rmtree(LOOM_SETTINGS_HOME_TEMP_BACKUP)
 
     return transaction
 
@@ -84,11 +97,21 @@ class ServerControls:
     @loom_settings_transaction
     def start(self):
         settings = self._get_user_settings_and_arbitrate_their_sources()
-        self._make_dir_if_missing(LOOM_SHARED_SETTINGS_DIR)
-        self._make_dir_if_missing(LOOM_SERVER_ADMIN_DIR)
+        # Just one shared setting that doesn't come from the user:
+        settings.update({
+            'LOOM_SHARED_SETTINGS_FILE': LOOM_SHARED_SETTINGS_FILE })
+
+        self._make_dir_if_missing(LOOM_SETTINGS_HOME)
+        self._make_dir_if_missing(LOOM_SERVER_FILES_DIR)
+        self._make_dir_if_missing(LOOM_SHARED_FILES_DIR)
+        self._make_dir_if_missing(LOOM_ADMIN_FILES_DIR)
         self._save_shared_settings_file(settings)
+
+        settings.update(self._get_context_specific_settings())
+
         print 'Starting Loom server named "%s".' % self._get_required_setting(
             'LOOM_SERVER_NAME', settings)
+
         playbook = self._get_required_setting(
             'LOOM_START_SERVER_PLAYBOOK', settings)
         retcode = self._run_playbook(playbook, settings, verbose=self.args.verbose)
@@ -101,7 +124,7 @@ class ServerControls:
             raise SystemExit('ERROR! No server admin settings found. Nothing to stop.')
 
         settings = parse_settings_file(
-            os.path.join(LOOM_SHARED_SETTINGS_DIR, LOOM_SHARED_SETTINGS_FILE))
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_SHARED_SETTINGS_FILE))
         print 'Stopping Loom server named "%s".' % self._get_required_setting(
             'LOOM_SERVER_NAME', settings)
         playbook = self._get_required_setting('LOOM_STOP_SERVER_PLAYBOOK',
@@ -127,7 +150,10 @@ class ServerControls:
                 raise SystemExit('ERROR! Loom server not found at "%s".' % server_url)
         elif not is_server_running(url=server_url):
             raise SystemExit('ERROR! Loom server not found at "%s".' % server_url)
-        with open(LOOM_SERVER_FILE, 'w') as f:
+        with open(os.path.join(
+                LOOM_SETTINGS_HOME,
+                LOOM_SERVER_SETTINGS_FILE),
+                  'w') as f:
             f.write("LOOM_SERVER_URL: %s" % server_url)
         print 'Connected to Loom server at "%s".' % server_url
 
@@ -141,10 +167,10 @@ class ServerControls:
                 'ERROR! Server admin settings found. Disconnecting is not allowed. '\
                 'If you really want to disconnect without deleting the server, back '\
                 'up the settings in %s and manually remove them.'
-                % LOOM_SERVER_ADMIN_DIR)
-        settings = parse_settings_file(LOOM_SERVER_FILE)
+                % os.path.join(LOOM_SETTINGS))
+        settings = parse_settings_file(os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
         server_url = settings.get('LOOM_SERVER_URL')
-        os.remove(LOOM_SERVER_FILE)
+        os.remove(os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
         print 'Disconnected from the Loom server at %s \nTo reconnect, '\
             'use "loom server connect %s"' % (server_url, server_url)
 
@@ -154,7 +180,7 @@ class ServerControls:
             raise SystemExit(
             'ERROR! No server admin settings found. Nothing to delete.')
         settings = parse_settings_file(
-            os.path.join(LOOM_SHARED_SETTINGS_DIR, LOOM_SHARED_SETTINGS_FILE))
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_SHARED_SETTINGS_FILE))
 
         server_name =self._get_required_setting('LOOM_SERVER_NAME', settings)
         confirmation_input = raw_input(
@@ -174,31 +200,25 @@ class ServerControls:
         if retcode:
             raise SystemExit(
                 'ERROR! Playbook to delete server failed. '\
-                'Skipping deletion of config files in "%s".' % LOOM_SERVER_ADMIN_DIR)
+                'Skipping deletion of configuration files in "%s".'
+                % LOOM_SETTINGS_HOME)
 
         # Do not attempt remove if value is missing or root
-        if not LOOM_SERVER_ADMIN_DIR \
-           or os.path.abspath(LOOM_SERVER_ADMIN_DIR) == os.path.abspath('/'):
-            print 'WARNING! LOOM_SERVER_ADMIN_DIR is "%s". Refusing to delete.' \
-                % LOOM_SERVER_ADMIN_DIR
+        if not LOOM_SETTINGS_HOME \
+           or os.path.abspath(LOOM_SETTINGS_HOME) == os.path.abspath('/'):
+            print 'WARNING! LOOM_SETTINGS_HOME is "%s". Refusing to delete.' \
+                % LOOM_SETINGS_HOME
         else:
             try:
-                if os.path.exists(LOOM_SERVER_ADMIN_DIR):
-                    shutil.rmtree(LOOM_SERVER_ADMIN_DIR)
+                if os.path.exists(LOOM_SETTINGS_HOME):
+                    shutil.rmtree(LOOM_SETTINGS_HOME)
             except Exception as e:
-                print 'WARNING! Failed to remove admin settings directory %s.\n%s' \
-                    % (LOOM_SERVER_ADMIN_DIR, str(e))
-
-        try:
-            if os.path.exists(LOOM_SERVER_FILE):
-                os.remove(LOOM_SERVER_FILE)
-        except Exception as e:
-            print 'WARNING! Failed to remove server config file %s.\n%s' \
-                % (LOOM_SERVER_FILE, str(e))
+                print 'WARNING! Failed to remove settings directory %s.\n%s' \
+                    % (LOOM_SETTINGS_HOME, str(e))
 
     def _save_shared_settings_file(self, settings):
         with open(os.path.join(
-                LOOM_SHARED_SETTINGS_DIR, LOOM_SHARED_SETTINGS_FILE), 'w') as f:
+                LOOM_SETTINGS_HOME, LOOM_SHARED_SETTINGS_FILE), 'w') as f:
             for key, value in sorted(settings.items()):
                 f.write('%s=%s\n' % (key, value))
 
@@ -213,9 +233,9 @@ class ServerControls:
                                  % (path, str(e)))
 
     def _run_playbook(self, playbook, settings, verbose=False):
+        inventory = self._get_required_setting('LOOM_ANSIBLE_INVENTORY', settings)
         playbook = self._check_stock_dir_and_get_full_path(playbook,
                                                            STOCK_PLAYBOOKS_DIR)
-        inventory = self._get_required_setting('LOOM_ANSIBLE_INVENTORY', settings)
         cmd_list = ['ansible-playbook',
                     '-i', inventory,
                     playbook,
@@ -229,14 +249,7 @@ class ServerControls:
         env.update(settings) # Settings override env, because env values on local
         # won't be propagated to other environments and we want these settings to
         # be predictabley global.
-        
-        # These are context-dependent and not included in the settings file
-        env.update({
-            'LOOM_SERVER_FILE': LOOM_SERVER_FILE,
-            'LOOM_SHARED_SETTINGS_DIR': LOOM_SHARED_SETTINGS_DIR,
-            'LOOM_SERVER_ADMIN_FILE': LOOM_SERVER_ADMIN_FILE,
-            'LOOM_SERVER_ADMIN_DIR': LOOM_SERVER_ADMIN_DIR,
-        })
+
         return subprocess.call(cmd_list, env=env)
 
     def _get_required_setting(self, key, settings):
@@ -250,7 +263,8 @@ class ServerControls:
         return self.args.settings_file or self.args.extra_settings
 
     def _has_admin_files(self):
-        return os.path.exists(LOOM_SERVER_ADMIN_DIR)
+        return os.path.exists(os.path.join(
+            LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
 
     def _get_user_settings_and_arbitrate_their_sources(self):
         settings = {}
@@ -259,19 +273,21 @@ class ServerControls:
                 raise SystemExit(
                     'ERROR! Using the "--settings-file" and "--extra-settings '\
                     'flags is not allowed now because it would conflict '\
-                    'with existing admin settings in "%s"' % LOOM_SERVER_ADMIN_DIR)
+                    'with existing admin settings in "%s"'
+                    % os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILES))
             else:
                 if has_server_file():
                     raise SystemExit(
                         'ERROR! Using the "--settings-file" and "--extra-settings '\
                         'flags is not allowed now because it may conflict '\
-                        'with existing server settings in "%s"' % LOOM_SERVER_FILE)
+                        'with existing server settings in "%s"'
+                        % os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
                 else:
                     settings.update(self._get_start_settings_from_args())
         else:
             if self._has_admin_files():
                 settings.update(parse_settings_file(os.path.join(
-                    LOOM_SHARED_SETTINGS_DIR,
+                    LOOM_SETTINGS_HOME,
                     LOOM_SHARED_SETTINGS_FILE)))
             else:
                 if has_server_file():
@@ -280,7 +296,7 @@ class ServerControls:
                         'That lets you view or manage workflows, but you do not have '\
                         'the settings needed to manage a server. If you want to '\
                         'start a new server, first disconnect using "loom disconnect".'
-                        % LOOM_SERVER_FILE)
+                        % LOOM_SERVER_SETTINGS_FILE)
                 else:
                     raise SystemExit('ERROR! No settings provided. '\
                                      'Use "--settings-file" to provide your own '\
@@ -288,10 +304,6 @@ class ServerControls:
                                      'files in "%s": [%s].'
                                      % (STOCK_SETTINGS_DIR,
                                         ', '.join(os.listdir(STOCK_SETTINGS_DIR))))
-
-        # Hard-coded shared settings are provided by the user. Add them here.
-        settings.update({ 'LOOM_SHARED_SETTINGS_FILE': LOOM_SHARED_SETTINGS_FILE })
-
         self._validate_settings(settings)
         return settings
 
@@ -312,6 +324,26 @@ class ServerControls:
             raise SystemExit('ERROR! Missing required settings [%s].'
                              % ', '.join(missing_settings))
 
+    def _get_context_specific_settings(self):
+        # These are context-dependent and not included in the settings file
+        return {
+            'LOOM_SETTINGS_HOME': LOOM_SETTINGS_HOME,
+
+            # Config files to be added to these dirs by playbook:
+            'LOOM_SERVER_FILES_DIR': LOOM_SERVER_FILES_DIR,
+            'LOOM_ADMIN_FILES_DIR': LOOM_ADMIN_FILES_DIR,
+            'LOOM_SHARED_FILES_DIR': LOOM_SHARED_FILES_DIR,
+
+            # To be created by playbook from template:
+            'LOOM_SERVER_SETTINGS_FILE': LOOM_SERVER_SETTINGS_FILE, 
+            'LOOM_SERVER_SETTINGS_TEMPLATE_PATH': LOOM_SERVER_SETTINGS_TEMPLATE_PATH,
+            
+            # To be created by playbook:
+            'LOOM_ADMIN_SETTINGS_FILE': LOOM_ADMIN_SETTINGS_FILE,
+
+            # LOOM_SHARED_SETTINGS_FILE not needed--values are passed as env variables
+        }
+        
     def _get_start_settings_from_args(self):
         settings = {}
         if self.args.settings_file:
