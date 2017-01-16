@@ -15,7 +15,11 @@ from loomengine.client.common import *
 
 
 STOCK_SETTINGS_DIR = os.path.join(
-    os.path.join(imp.find_module('loomengine')[1], 'settings'))
+    os.path.join(imp.find_module('loomengine')[1], 'client', 'settings'))
+STOCK_PLAYBOOKS_DIR = os.path.join(
+    os.path.join(imp.find_module('loomengine')[1], 'client', 'playbooks'))
+
+LOOM_PLAYBOOKS_DIR = os.path.join(LOOM_SETTINGS_HOME, 'playbooks')
 
 LOOM_ADMIN_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'admin-files')
 LOOM_ADMIN_SETTINGS_FILE = 'admin-settings.conf'
@@ -106,6 +110,7 @@ class ServerControls:
         self._make_dir_if_missing(LOOM_SHARED_FILES_DIR)
         self._make_dir_if_missing(LOOM_ADMIN_FILES_DIR)
         self._save_shared_settings_file(settings)
+        self._copy_playbooks_to_settings_dir()
 
         settings.update(self._get_context_specific_settings())
 
@@ -232,13 +237,14 @@ class ServerControls:
                 raise SystemExit('ERROR! Unable to create directory "%s"\n%s'
                                  % (path, str(e)))
 
+    def _copy_playbooks_to_settings_dir(self):
+        shutil.copytree(self.args.playbook_root, LOOM_PLAYBOOKS_DIR)
+            
     def _run_playbook(self, playbook, settings, verbose=False):
         inventory = self._get_required_setting('LOOM_ANSIBLE_INVENTORY', settings)
-        playbook = self._check_stock_dir_and_get_full_path(playbook,
-                                                           STOCK_PLAYBOOKS_DIR)
         cmd_list = ['ansible-playbook',
                     '-i', inventory,
-                    playbook,
+                    os.path.join(LOOM_PLAYBOOKS_DIR, playbook),
                     # Without this, ansible uses /usr/bin/python, which
                     # may be missing needed modules
                     '-e', 'ansible_python_interpreter="/usr/bin/env python"',
@@ -274,7 +280,7 @@ class ServerControls:
                     'ERROR! Using the "--settings-file" and "--extra-settings '\
                     'flags is not allowed now because it would conflict '\
                     'with existing admin settings in "%s"'
-                    % os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILES))
+                    % os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
             else:
                 if has_server_file():
                     raise SystemExit(
@@ -316,7 +322,8 @@ class ServerControls:
                              'LOOM_START_SERVER_PLAYBOOK',
                              'LOOM_STOP_SERVER_PLAYBOOK',
                              'LOOM_DELETE_SERVER_PLAYBOOK',
-                             'LOOM_ANSIBLE_INVENTORY']
+                             'LOOM_ANSIBLE_INVENTORY',
+        ]
         
         current_settings = set(settings.keys())
         missing_settings = set(REQUIRED_SETTINGS).difference(current_settings)
@@ -329,13 +336,14 @@ class ServerControls:
         return {
             'LOOM_SETTINGS_HOME': LOOM_SETTINGS_HOME,
 
-            # Config files to be added to these dirs by playbook:
+            # Config files to be added or read from to these dirs by playbooks:
             'LOOM_SERVER_FILES_DIR': LOOM_SERVER_FILES_DIR,
             'LOOM_ADMIN_FILES_DIR': LOOM_ADMIN_FILES_DIR,
             'LOOM_SHARED_FILES_DIR': LOOM_SHARED_FILES_DIR,
+            'LOOM_PLAYBOOKS_DIR': LOOM_PLAYBOOKS_DIR,
 
-            # To be created by playbook from template:
-            'LOOM_SERVER_SETTINGS_FILE': LOOM_SERVER_SETTINGS_FILE, 
+            # Files to be created by playbook from template:
+            'LOOM_SERVER_SETTINGS_FILE': LOOM_SERVER_SETTINGS_FILE,
             'LOOM_SERVER_SETTINGS_TEMPLATE_PATH': LOOM_SERVER_SETTINGS_TEMPLATE_PATH,
             
             # To be created by playbook:
@@ -355,8 +363,7 @@ class ServerControls:
         return settings
 
     def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):
-        """Some playbooks and settings files are provided with loom.
-        If 'filepath' is the name of one of those files, we return the 
+        """If 'filepath' is found in stock settings, we return the 
         full path to that stock file. Otherwise, we interpret filepath relative
         to the current working directory.
         """
@@ -398,6 +405,8 @@ def get_parser(parser=None):
     start_parser.add_argument('--settings-file', '-s', metavar='SETTINGS_FILE')
     start_parser.add_argument('--extra-settings', '-e', action='append',
                                metavar='KEY=VALUE')
+    start_parser.add_argument('--playbook-root', '-p', metavar='PLAYBOOK_ROOT',
+                              default=STOCK_PLAYBOOKS_DIR)
     start_parser.add_argument('--verbose', '-v', action='store_true',
                               help='Provide more feedback to console.')
 

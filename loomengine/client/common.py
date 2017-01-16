@@ -24,8 +24,6 @@ from loomengine.utils.exceptions import ServerConnectionError
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
 LOOM_SERVER_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'server-files')
 LOOM_SERVER_SETTINGS_FILE = 'server-settings.conf'
-STOCK_PLAYBOOKS_DIR = os.path.join(
-    os.path.join(imp.find_module('loomengine')[1], 'playbooks'))
 
 def parse_settings_file(settings_file):
     PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
