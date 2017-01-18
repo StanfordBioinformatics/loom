@@ -170,7 +170,7 @@ class ServerControls:
                 'ERROR! Server admin settings found. Disconnecting is not allowed. '\
                 'If you really want to disconnect without deleting the server, back '\
                 'up the settings in %s and manually remove them.'
-                % os.path.join(LOOM_SETTINGS-HOME))
+                % os.path.join(LOOM_SETTINGS_HOME))
         settings = parse_settings_file(
             os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
         server_url = settings.get('LOOM_SERVER_URL')
