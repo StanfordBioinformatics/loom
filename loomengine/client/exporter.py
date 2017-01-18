@@ -6,7 +6,7 @@ import os
 import sys
 import yaml
 from loomengine.client.common import get_server_url, verify_server_is_running, \
-    verify_has_server_file
+    verify_has_connection_settings
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
@@ -19,7 +19,7 @@ class AbstractExporter(object):
         """Common init tasks for all Export classes
         """
         self.args = args
-        verify_has_server_file()
+        verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running()
         self.connection = Connection(server_url)

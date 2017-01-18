@@ -8,7 +8,7 @@ import os
 import sys
 import yaml
 from loomengine.client.common import get_server_url, verify_server_is_running, \
-    verify_has_server_file
+    verify_has_connection_settings
 
 from loomengine.client.exceptions import *
 from loomengine.utils.connection import Connection
@@ -24,7 +24,7 @@ class AbstractShow(object):
         """Common init tasks for all Show classes
         """
         self.args = args
-        verify_has_server_file()
+        verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         self.connection = Connection(server_url)

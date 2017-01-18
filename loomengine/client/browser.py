@@ -10,7 +10,7 @@ if __name__ == "__main__" and __package__ is None:
 import argparse
     
 from loomengine.client import server
-from loomengine.client.common import verify_has_server_file, get_server_url, \
+from loomengine.client.common import verify_has_connection_settings, get_server_url, \
     verify_server_is_running
 from loomengine.client.exceptions import *
 
@@ -26,7 +26,7 @@ class Browser:
         if args is None:
             args = self._get_args()
         self.args = args
-        verify_has_server_file()
+        verify_has_connection_settings()
         self.server_url = get_server_url()
         verify_server_is_running(url=self.server_url)
 

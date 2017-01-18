@@ -22,19 +22,16 @@ from loomengine.utils.exceptions import ServerConnectionError
 
 
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
-LOOM_SERVER_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'server-files')
-LOOM_SERVER_SETTINGS_FILE = 'server-settings.conf'
+LOOM_CONNECTION_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'connection-files')
+LOOM_CONNECTION_SETTINGS_FILE = 'connection-settings.conf'
+CONNECTION_SETTINGS_SECTION = 'connection-settings'
 
-def parse_settings_file(settings_file):
-    PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
-    
+def parse_settings_file(settings_file, section):
     parser = ConfigParser.SafeConfigParser()
     # preserve uppercase in settings names
     parser.optionxform = lambda option: option.upper()
     try:
         with open(settings_file) as stream:
-            # Add a section, since ConfigParser requires it
-            stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
             parser.readfp(stream)
     except IOError:
         raise SystemExit('ERROR! Could not open file to read settings at "%s".'
@@ -42,23 +39,30 @@ def parse_settings_file(settings_file):
     except ConfigParser.ParsingError as e:
         raise SystemExit('ERROR! Could not parse settings in file "%s".\n %s'
                          % (settings_file, e.message))
-    if parser.sections() != [PARSER_SECTION]:
-        raise SystemExit('ERROR! Found extra sections in settings file: "%s". '\
-                         'Sections are not needed.' % parser.sections())
-    return dict(parser.items(PARSER_SECTION))
+    if section not in parser.sections():
+        raise SystemExit('ERROR! Section [%s] not found when parsing '\
+                         'settings file "%s"' % (section, settings_file))
+    return dict(parser.items(section))
 
-def has_server_file():
-    return os.path.exists(os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
+def write_settings_file(settings_file, section, settings):
+    with open(settings_file, 'w') as f:
+        f.write('[%s]' % section)
+        for key, value in sorted(settings.items()):
+            f.write('%s=%s\n' % (key, value))
+    
+def has_connection_settings():
+    return os.path.exists(os.path.join(
+        LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
 
-def verify_has_server_file():
-    if not has_server_file():
+def verify_has_connection_settings():
+    if not has_connection_settings():
         raise SystemExit(
             'ERROR! Not connected to any server. First start a new server '\
             'or connect to an existing server.')
 
 def get_server_url():
-    server_settings = parse_settings_file(os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
-    return server_settings.get('LOOM_SERVER_URL')
+    connection_settings = parse_settings_file(os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE), CONNECTION_SETTINGS_SECTION)
+    return connection_settings.get('LOOM_SERVER_URL')
 
 def is_server_running(url=None):
     if not url:

@@ -4,7 +4,7 @@ import argparse
 import glob
 import os
 from loomengine.client.common import verify_server_is_running, get_server_url, \
-    verify_has_server_file, parse_as_json_or_yaml
+    verify_has_connection_settings, parse_as_json_or_yaml
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
@@ -18,7 +18,7 @@ class AbstractImporter(object):
         """
 
         self.args = args
-        verify_has_server_file()
+        verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         self.filemanager = FileManager(server_url)

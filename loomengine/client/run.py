@@ -5,7 +5,7 @@ import os
 
 from loomengine.client.importer import TemplateImporter
 from loomengine.client.common import get_server_url, read_as_json_or_yaml, \
-    verify_has_server_file, verify_server_is_running
+    verify_has_connection_settings, verify_server_is_running
 from loomengine.client.exceptions import *
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
@@ -19,7 +19,7 @@ class TemplateRunner(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        verify_has_server_file()
+        verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         self.connection = Connection(server_url)

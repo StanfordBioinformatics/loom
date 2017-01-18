@@ -1,7 +1,7 @@
 #!/usr/bin/env python
     
 import argparse
-from loomengine.client.common import get_server_url, has_server_file, is_server_running
+from loomengine.client.common import get_server_url, has_connection_settings, is_server_running
 import loomengine.utils.version
 from loomengine.utils.connection import Connection
 
@@ -31,7 +31,7 @@ class Version:
         return parser
 
     def run(self):
-        if not has_server_file():
+        if not has_connection_settings():
             server_version = 'not connected'
         else:
             url = get_server_url()
