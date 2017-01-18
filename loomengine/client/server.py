@@ -129,8 +129,7 @@ class ServerControls:
             raise SystemExit('ERROR! No server admin settings found. Nothing to stop.')
 
         settings = parse_settings_file(
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE),
-            ADMIN_SETTINGS_SECTION)
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
         print 'Stopping Loom server named "%s".' % self._get_required_setting(
             'LOOM_SERVER_NAME', settings)
         playbook = self._get_required_setting('LOOM_STOP_SERVER_PLAYBOOK',
@@ -141,11 +140,11 @@ class ServerControls:
 
     @loom_settings_transaction
     def connect(self):
+        server_url = self.args.server_url
         if has_connection_settings():
             raise SystemExit(
                 'ERROR! Already connected to "%s".' % get_server_url())
 
-        server_url = self.args.server_url
         parsed_url = urlparse.urlparse(server_url)
         if not parsed_url.scheme:
             if is_server_running(url='https://' + server_url):
@@ -156,11 +155,9 @@ class ServerControls:
                 raise SystemExit('ERROR! Loom server not found at "%s".' % server_url)
         elif not is_server_running(url=server_url):
             raise SystemExit('ERROR! Loom server not found at "%s".' % server_url)
-        with open(os.path.join(
-                LOOM_SETTINGS_HOME,
-                LOOM_CONNECTION_SETTINGS_FILE),
-                  'w') as f:
-            f.write("LOOM_SERVER_URL: %s" % server_url)
+        self._copy_connection_files_to_settings_dir()
+        connection_settings = { "LOOM_SERVER_URL": server_url }
+        self._save_connection_settings_file(connection_settings)
         print 'Connected to Loom server at "%s".' % server_url
 
     @loom_settings_transaction
@@ -175,10 +172,16 @@ class ServerControls:
                 'up the settings in %s and manually remove them.'
                 % os.path.join(LOOM_SETTINGS-HOME))
         settings = parse_settings_file(
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE),
-            ADMIN_SETTINGS_SECTION)
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
         server_url = settings.get('LOOM_SERVER_URL')
         os.remove(os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
+        if os.path.exists(LOOM_CONNECTION_FILES_DIR):
+            shutil.rmtree(LOOM_CONNECTION_FILES_DIR)
+        try:
+            # remove if empty
+            os.rmdir(LOOM_SETTINGS_HOME)
+        except OSError:
+            pass
         print 'Disconnected from the Loom server at %s \nTo reconnect, '\
             'use "loom server connect %s"' % (server_url, server_url)
 
@@ -188,8 +191,7 @@ class ServerControls:
             raise SystemExit(
             'ERROR! No server admin settings found. Nothing to delete.')
         settings = parse_settings_file(
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE),
-            ADMIN_SETTINGS_SECTION)
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
 
         server_name =self._get_required_setting('LOOM_SERVER_NAME', settings)
         confirmation_input = raw_input(
@@ -228,7 +230,11 @@ class ServerControls:
     def _save_admin_settings_file(self, settings):
         write_settings_file(
             os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE),
-            ADMIN_SETTINGS_SECTION,
+            settings)
+
+    def _save_connection_settings_file(self, settings):
+        write_settings_file(
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE),
             settings)
 
     def _make_dir_if_missing(self, path):
@@ -248,14 +254,6 @@ class ServerControls:
             playbook_dir = STOCK_PLAYBOOK_DIR
         shutil.copytree(playbook_dir,
                         os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR))
-
-    def _copy_connection_files_to_settings_dir(self):
-        if self.args.connection_files_dir:
-            shutil.copytree(self.args.connection_files_dir,
-                            os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_FILES_DIR))
-        else:
-            # If no files, leave an empty directory
-            os.makedirs(LOOM_CONNECTION_FILES_DIR)
 
     def _copy_admin_files_to_settings_dir(self):
         if self.args.admin_files_dir:
@@ -330,8 +328,7 @@ class ServerControls:
                     % os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
             else:
                 settings = parse_settings_file(
-                    os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE),
-                    ADMIN_SETTINGS_SECTION)
+                    os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
         elif has_connection_settings():
             if self._user_provided_settings():
                 raise SystemExit(
@@ -381,8 +378,7 @@ class ServerControls:
         if self.args.settings_file:
             full_path_to_settings_file = self._check_stock_dir_and_get_full_path(
                 self.args.settings_file, STOCK_SETTINGS_DIR)
-            settings.update(parse_settings_file(full_path_to_settings_file,
-                                                ADMIN_SETTINGS_SECTION))
+            settings.update(parse_settings_file(full_path_to_settings_file))
         if self.args.extra_settings:
             settings.update(self._parse_extra_settings(self.args.extra_settings))
         return settings
@@ -404,6 +400,14 @@ class ServerControls:
             # No need to raise exception now for missing file--we'll
             # handle it when we try to read it
             return filepath
+
+    def _copy_connection_files_to_settings_dir(self):
+        if self.args.connection_files_dir:
+            shutil.copytree(self.args.connection_files_dir,
+                            os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_FILES_DIR))
+        else:
+            # If no files, leave an empty directory
+            os.makedirs(LOOM_CONNECTION_FILES_DIR)
 
     def _parse_extra_settings(self, extra_settings):
         settings_dict = {}
@@ -431,8 +435,6 @@ def get_parser(parser=None):
     start_parser.add_argument('--extra-settings', '-e', action='append',
                                metavar='KEY=VALUE')
     start_parser.add_argument('--playbook-dir', '-p', metavar='PLAYBOOK_DIR')
-    start_parser.add_argument('--connection-files-dir', '-c',
-                              metavar='CONNECTION_FILES_DIR')
     start_parser.add_argument('--admin-files-dir', '-f', metavar='ADMIN_FILES_DIR')
     start_parser.add_argument('--verbose', '-v', action='store_true',
                               help='Provide more feedback to console.')
@@ -450,6 +452,8 @@ def get_parser(parser=None):
         'server_url',
         metavar='LOOM_SERVER_URL',
         help='Enter the URL of the Loom server you wish to connect to.')
+    connect_parser.add_argument('--connection-files-dir', '-c',
+                              metavar='CONNECTION_FILES_DIR')
 
     disconnect_parser = subparsers.add_parser(
         'disconnect',

@@ -24,14 +24,16 @@ from loomengine.utils.exceptions import ServerConnectionError
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
 LOOM_CONNECTION_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'connection-files')
 LOOM_CONNECTION_SETTINGS_FILE = 'connection-settings.conf'
-CONNECTION_SETTINGS_SECTION = 'connection-settings'
 
-def parse_settings_file(settings_file, section):
+def parse_settings_file(settings_file):
+    PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
     parser = ConfigParser.SafeConfigParser()
     # preserve uppercase in settings names
     parser.optionxform = lambda option: option.upper()
     try:
         with open(settings_file) as stream:
+            # Add a section, since ConfigParser requires it
+            stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
             parser.readfp(stream)
     except IOError:
         raise SystemExit('ERROR! Could not open file to read settings at "%s".'
@@ -39,17 +41,16 @@ def parse_settings_file(settings_file, section):
     except ConfigParser.ParsingError as e:
         raise SystemExit('ERROR! Could not parse settings in file "%s".\n %s'
                          % (settings_file, e.message))
-    if section not in parser.sections():
-        raise SystemExit('ERROR! Section [%s] not found when parsing '\
-                         'settings file "%s"' % (section, settings_file))
-    return dict(parser.items(section))
+    if parser.sections() != [PARSER_SECTION]:
+        raise SystemExit('ERROR! Found extra sections in settings file: "%s". '\
+                         'Sections are not needed.' % parser.sections())
+    return dict(parser.items(PARSER_SECTION))
 
-def write_settings_file(settings_file, section, settings):
+def write_settings_file(settings_file, settings):
     with open(settings_file, 'w') as f:
-        f.write('[%s]' % section)
         for key, value in sorted(settings.items()):
             f.write('%s=%s\n' % (key, value))
-    
+
 def has_connection_settings():
     return os.path.exists(os.path.join(
         LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
@@ -61,7 +62,8 @@ def verify_has_connection_settings():
             'or connect to an existing server.')
 
 def get_server_url():
-    connection_settings = parse_settings_file(os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE), CONNECTION_SETTINGS_SECTION)
+    connection_settings = parse_settings_file(
+        os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
     return connection_settings.get('LOOM_SERVER_URL')
 
 def is_server_running(url=None):
