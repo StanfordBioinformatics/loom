@@ -314,6 +314,8 @@ class GoogleStorageDestination(AbstractDestination):
 
     type = 'google_storage'
 
+    CHUNK_SIZE = 1024*1024*100
+
     def __init__(self, url, settings):
         self.settings = settings
         self.url = _urlparse(url)
@@ -324,10 +326,12 @@ class GoogleStorageDestination(AbstractDestination):
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
+            if self.blob:
+                self.blob.chunk_size = self.CHUNK_SIZE
         except HttpAccessTokenRefreshError:
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
         if self.blob is None:
-            self.blob = gcloud.storage.blob.Blob(self.blob_id, self.bucket)
+            self.blob = gcloud.storage.blob.Blob(self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
 
     def get_url(self):
         return self.url.geturl()
