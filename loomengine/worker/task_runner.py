@@ -349,7 +349,7 @@ class TaskRunner(object):
                 filepath,
             )
         except IOError:
-            message = 'Failed to upload log file %s' % filename
+            message = 'Failed to upload log file %s' % filepath
             self.logger.error(message)
             raise FileImportError(message)
 
