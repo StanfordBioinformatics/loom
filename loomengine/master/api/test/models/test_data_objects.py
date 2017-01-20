@@ -157,7 +157,7 @@ class TestFileDataObject(TestCase):
     def testAddUrlPrefixLocal(self):
         path = '/my/path'
         with self.settings(
-                FILE_SERVER_TYPE='LOCAL'):
+                LOOM_STORAGE_TYPE='LOCAL'):
             url = FileResource._add_url_prefix(path)
         self.assertEqual(url, 'file://'+path)
 
@@ -165,7 +165,7 @@ class TestFileDataObject(TestCase):
         path = '/my/path'
         bucket_id = 'mybucket'
         with self.settings(
-                FILE_SERVER_TYPE='GOOGLE_CLOUD',
+                LOOM_STORAGE_TYPE='GOOGLE_CLOUD',
                 BUCKET_ID=bucket_id):
             url = FileResource._add_url_prefix(path)
         self.assertEqual(url, 'gs://'+bucket_id+path)
@@ -173,14 +173,14 @@ class TestFileDataObject(TestCase):
     def testAddUrlPrefixRelativePathError(self):
         path = 'relative/path'
         with self.settings(
-                FILE_SERVER_TYPE='LOCAL'):
+                LOOM_STORAGE_TYPE='LOCAL'):
             with self.assertRaises(RelativePathError):
                 FileResource._add_url_prefix(path)
 
     def testAddUrlPrefixInvalidServerTypeError(self):
         path = '/my/path'
         with self.settings(
-                FILE_SERVER_TYPE='WRONG_VALUE'):
+                LOOM_STORAGE_TYPE='WRONG_VALUE'):
             with self.assertRaises(InvalidFileServerTypeError):
                 FileResource._add_url_prefix(path)
 
@@ -192,22 +192,22 @@ class TestFileDataObject(TestCase):
     def testGetFileRoot(self):
         file_root = '/mydata'
         with self.settings(
-                FILE_ROOT=file_root):
+                LOOM_STORAGE_ROOT=file_root):
             self.assertEqual(FileResource._get_file_root(),
                              file_root)
 
     def testGetFileRootExpandUser(self):
         file_root = '~/mydata'
         with self.settings(
-                FILE_ROOT=file_root,
-                FILE_SERVER_TYPE='LOCAL'):
+                LOOM_STORAGE_ROOT=file_root,
+                LOOM_STORAGE_TYPE='LOCAL'):
             self.assertEqual(FileResource._get_file_root(),
                              os.path.expanduser(file_root))
 
     def testGetFileRootRelativeFileRootError(self):
         file_root = 'mydata'
         with self.settings(
-                FILE_ROOT=file_root):
+                LOOM_STORAGE_ROOT=file_root):
             with self.assertRaises(RelativeFileRootError):
                 FileResource._get_file_root()
 
@@ -216,7 +216,7 @@ class TestFileDataObject(TestCase):
         with self.settings(
                 KEEP_DUPLICATE_FILES=True,
                 FORCE_RERUN=True,
-                FILE_ROOT = file_root
+                LOOM_STORAGE_ROOT = file_root
         ):
             
             path = FileResource._get_path_for_import(self.file)
@@ -231,7 +231,7 @@ class TestFileDataObject(TestCase):
         with self.settings(
                 KEEP_DUPLICATE_FILES=True,
                 FORCE_RERUN=False,
-                FILE_ROOT = file_root
+                LOOM_STORAGE_ROOT = file_root
         ):
             
             path = FileResource._get_path_for_import(self.file)
@@ -245,7 +245,7 @@ class TestFileDataObject(TestCase):
         file_root = '/mydata'
         with self.settings(
                 KEEP_DUPLICATE_FILES=False,
-                FILE_ROOT = file_root,
+                LOOM_STORAGE_ROOT = file_root,
         ):
             path = FileResource._get_path_for_import(self.file)
             self.assertEqual(

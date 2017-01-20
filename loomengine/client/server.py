@@ -381,6 +381,8 @@ class ServerControls:
             settings.update(parse_settings_file(full_path_to_settings_file))
         if self.args.extra_settings:
             settings.update(self._parse_extra_settings(self.args.extra_settings))
+        for key, value in settings.items():
+            settings[key] = os.path.expanduser(value)
         return settings
 
     def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):

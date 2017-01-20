@@ -322,13 +322,13 @@ class FileResource(BaseModel):
 
     @classmethod
     def _get_file_root(cls):
-        file_root = get_setting('FILE_ROOT')
+        file_root = get_setting('LOOM_STORAGE_ROOT')
         # Allow '~/path' home dir notation on local file server
-        if get_setting('FILE_SERVER_TYPE') == 'LOCAL':
+        if get_setting('LOOM_STORAGE_TYPE') == 'LOCAL':
             file_root = os.path.expanduser(file_root)
         if not file_root.startswith('/'):
             raise RelativeFileRootError(
-                'FILE_ROOT setting must be an absolute path. Found "%s" instead.' \
+                'LOOM_STORAGE_ROOT setting must be an absolute path. Found "%s" instead.' \
                 % file_root)
         return file_root
 
@@ -425,13 +425,13 @@ class FileResource(BaseModel):
         if not path.startswith('/'):
             raise RelativePathError(
                 'Expected an absolute path but got path="%s"' % path)
-        FILE_SERVER_TYPE = get_setting('FILE_SERVER_TYPE')
-        if FILE_SERVER_TYPE == 'LOCAL':
+        LOOM_STORAGE_TYPE = get_setting('LOOM_STORAGE_TYPE')
+        if LOOM_STORAGE_TYPE == 'LOCAL':
             return 'file://' + path
-        elif FILE_SERVER_TYPE == 'GOOGLE_CLOUD':
+        elif LOOM_STORAGE_TYPE == 'GOOGLE_CLOUD':
             return 'gs://' + get_setting('BUCKET_ID') + path
         else:
             raise InvalidFileServerTypeError(
-                'Couldn\'t recognize value for setting FILE_SERVER_TYPE="%s"'\
-                % FILE_SERVER_TYPE)
+                'Couldn\'t recognize value for setting LOOM_STORAGE_TYPE="%s"'\
+                % LOOM_STORAGE_TYPE)
 
