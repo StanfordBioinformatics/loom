@@ -1,6 +1,9 @@
 # General settings
 loom_settings_home: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}"
-loom_settings_home_in_container: /settings
+loom_settings_home_in_container: /loom-settings
+loom_storage_root: "{{ lookup('env', 'LOOM_STORAGE_ROOT') }}"
+loom_storage_root_in_container: /loom-storage
+
 loom_admin_files_full_path: "\
   {{ loom_settings_home }}\
   /{{ lookup('env', 'LOOM_ADMIN_FILES_DIR') }}"

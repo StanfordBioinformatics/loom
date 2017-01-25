@@ -175,7 +175,7 @@ class ShowRun(AbstractShow):
             print self._render_run(run)
 
     def _render_run(self, run):
-        run_identifier = '%s@%s' % (run['name'], run['uuid'])
+        run_identifier = '%s@%s' % (run['template']['name'], run['uuid'])
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier

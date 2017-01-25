@@ -8,3 +8,4 @@
       module: gce
       state: 'absent'
       instance_names: "{{lookup('env','SERVER_NAME')}}"
+      zone: "{{lookup('env','SERVER_ZONE')}}"

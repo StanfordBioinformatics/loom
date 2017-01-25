@@ -31,7 +31,7 @@ BASE_DIR = (os.path.join(SETTINGS_DIR, '..'))
 sys.path.append(BASE_DIR)
 
 # Security settings
-DEBUG = os.getenv('LOOM_MASTER_DEBUG')
+DEBUG = os.getenv('LOOM_DEBUG')
 SECRET_KEY = os.getenv(
     'LOOM_MASTER_SECRET_KEY',
     ''.join([random.SystemRandom()\
@@ -43,14 +43,15 @@ ALLOWED_HOSTS = to_list(os.getenv('LOOM_MASTER_ALLOWED_HOSTS', '[]'))
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
-WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL')
-FILE_SERVER_TYPE = os.getenv('FILE_SERVER_TYPE', 'LOCAL')
+WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL').upper()
+LOOM_STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'LOCAL').upper()
+LOOM_STORAGE_ROOT = os.getenv('LOOM_STORAGE_ROOT', 'LOCAL').upper()
 
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
-FILE_ROOT = os.path.expanduser(os.getenv('FILE_ROOT', '~/loomdata'))
+LOOM_STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-data'))
 FILE_ROOT_FOR_WORKER = os.path.expanduser(
-    os.getenv('FILE_ROOT_FOR_WORKER', '~/loomdata'))
+    os.getenv('FILE_ROOT_FOR_WORKER', LOOM_STORAGE_ROOT))
 
 LOG_DIR = os.path.expanduser(os.getenv('LOG_DIR', '/var/log/loom'))
 LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))

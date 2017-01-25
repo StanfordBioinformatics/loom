@@ -292,16 +292,14 @@ class ServerControls:
             cmd_list.extend(['--private-key', settings['ANSIBLE_SSH_PRIVATE_KEY_FILE']])
         if verbose:
             cmd_list.append('-vvvv')
-        
-        # Settings override env, because env values on local won't be propagated
-        # to other environments and we want these settings to be predictably global.
-        env = copy.copy(os.environ)
-        env.update(settings)
-        
-        # Add one context-specific setting
-        env.update({ 'LOOM_SETTINGS_HOME': LOOM_SETTINGS_HOME })
 
-        return subprocess.call(cmd_list, env=env)
+        # Add one context-specific setting
+        settings.update({ 'LOOM_SETTINGS_HOME': LOOM_SETTINGS_HOME })
+
+        # Add settings to environment, with precedence to environment vars
+        settings.update(copy.copy(os.environ))
+
+        return subprocess.call(cmd_list, env=settings)
 
     def _get_required_setting(self, key, settings):
         try:
@@ -400,6 +398,17 @@ class ServerControls:
             settings.update(parse_settings_file(full_path_to_settings_file))
         if self.args.extra_settings:
             settings.update(self._parse_extra_settings(self.args.extra_settings))
+
+        # Pick up any LOOM_* settings from the environment, and give precedence to
+        # env over settings file. Exclude LOOM_SETTINGS_HOME because it is
+        # context-specific.
+        for key, value in os.environ.iteritems():
+            if key.startswith('LOOM_') and key != 'LOOM_SETTINGS_HOME':
+                settings.update({ key: value })
+
+        for key, value in settings.items():
+            settings[key] = os.path.expanduser(value)
+
         return settings
 
     def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):

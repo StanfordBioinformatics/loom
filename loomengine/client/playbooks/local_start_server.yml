@@ -5,6 +5,11 @@
   roles:
     - local
   tasks:
+    - name: Create the data root directory
+      file:
+        path: "{{ loom_storage_root }}"
+        state: directory
+
     - name: Start a MySQL database container
       docker_container:
         name: "{{ loom_mysql_container_name }}"
