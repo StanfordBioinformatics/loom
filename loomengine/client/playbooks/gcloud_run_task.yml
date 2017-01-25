@@ -6,7 +6,7 @@
   become: yes
   become_method: sudo
   vars:
-    remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_HOME_SUBDIR')}}"
+    remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_SETTINGS_SUBDIR')}}"
   tasks:
   - name: Run the Loom task runner.
     docker_container:

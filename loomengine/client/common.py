@@ -15,13 +15,12 @@ import sys
 import time
 import yaml
 
-import loomengine.client.settings_manager
 import loomengine.utils.connection
 from loomengine.client import exceptions
 from loomengine.utils.exceptions import ServerConnectionError
 
-
-LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/.loom'))
+LOOM_SETTINGS_SUBDIR = '.loom'
+LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/'+LOOM_SETTINGS_SUBDIR))
 LOOM_CONNECTION_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'connection-files')
 LOOM_CONNECTION_SETTINGS_FILE = 'connection-settings.conf'
 
@@ -86,14 +85,10 @@ def verify_server_is_running(url=None):
     if not is_server_running(url=url):
         raise SystemExit('ERROR! No response from server at %s' % url)
 
-
-LOOM_HOME_SUBDIR = '.loom'
-LOOM_SETTINGS_PATH = os.path.join('~', LOOM_HOME_SUBDIR)
-SERVER_LOCATION_FILE = os.path.join(LOOM_SETTINGS_PATH, 'server.ini')
-SSL_CERT_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.crt'))
-SSL_KEY_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.key'))
-GCE_INI_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce.ini')
-GCE_JSON_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce_key.json')
+SSL_CERT_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_HOME, 'ssl.crt'))
+SSL_KEY_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_HOME, 'ssl.key'))
+GCE_INI_PATH = os.path.join(LOOM_SETTINGS_HOME, 'gce.ini')
+GCE_JSON_PATH = os.path.join(LOOM_SETTINGS_HOME, 'gce_key.json')
 GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
 SERVER_PATH = os.path.join(imp.find_module('loomengine')[1], 'master')
 
@@ -390,7 +385,7 @@ def grant_roles(roles, email=None):
 
     # Set policy on project
     policy = get_project_policy(project)
-    jsonfilename = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'policy-%s.json' % time.strftime("%Y%m%d-%H%M%S")))
+    jsonfilename = os.path.expanduser(os.path.join(LOOM_SETTINGS_HOME, 'policy-%s.json' % time.strftime("%Y%m%d-%H%M%S")))
     with open(jsonfilename, 'w') as jsonfile:
         json.dump(policy, jsonfile)
     print 'Current project policy saved to %s' % jsonfilename
