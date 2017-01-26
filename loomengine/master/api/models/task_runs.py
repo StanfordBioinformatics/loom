@@ -147,7 +147,7 @@ class TaskRunOutput(BaseModel):
         if self.data_object is None:
             self.data_object=data_object
             self.save()
-        self.step_run_output.add_data_object([], data_object)
+            self.step_run_output.add_data_object([], data_object)
 
 
 class TaskRunResourceSet(BaseModel):

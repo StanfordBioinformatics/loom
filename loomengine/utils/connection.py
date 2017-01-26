@@ -253,7 +253,6 @@ class Connection(object):
         )
 
     def update_task_run_attempt_output(self, task_run_attempt_output_id, task_run_attempt_output_update):
-        print task_run_attempt_output_update
         return self._patch_object(
             task_run_attempt_output_update,
             'task-run-attempt-outputs/%s/' % task_run_attempt_output_id)
