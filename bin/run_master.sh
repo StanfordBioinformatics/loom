@@ -30,5 +30,6 @@ do
 done
 
 $BIN_PATH/../loomengine/master/manage.py migrate
+$BIN_PATH/../loomengine/master/manage.py collectstatic --noinput
 
 gunicorn loomengine.master.master.wsgi --bind ${LOOM_MASTER_INTERNAL_IP}:${LOOM_MASTER_INTERNAL_PORT} --log-level ${LOOM_LOG_LEVEL} --capture-output

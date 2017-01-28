@@ -47,6 +47,8 @@ WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL').upper()
 LOOM_STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'LOCAL').upper()
 LOOM_STORAGE_ROOT = os.getenv('LOOM_STORAGE_ROOT', 'LOCAL').upper()
 
+STATIC_ROOT = os.getenv('LOOM_STATIC_ROOT', '/tmp/static')
+
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
 LOOM_STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-data'))
@@ -114,7 +116,6 @@ USE_TZ = True
 CELERY_ALWAYS_EAGER = True
 APPEND_SLASH = True
 ROOT_URLCONF = 'master.urls'
-WSGI_APPLICATION = 'master.wsgi.application'
 
 # Celery
 CELERY_RESULT_BACKEND = 'django-cache'
@@ -129,6 +130,7 @@ INSTALLED_APPS = (
     'django_extensions',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
     'django_celery_results',
@@ -154,8 +156,27 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ),
 }
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(BASE_DIR, "templates")],
+	'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+		'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'master.wsgi.application'
 
 # Database
 if not LOOM_MYSQL_HOST:
@@ -254,3 +275,8 @@ LOGGING = {
             },
         },
     }
+
+STATIC_URL = '/%s/' % os.path.basename(STATIC_ROOT)
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]

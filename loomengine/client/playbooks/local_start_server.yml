@@ -52,7 +52,6 @@
           LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
 
         volumes:
-          - /loomengine/loomengine/portal
           - "{{ loom_settings_home }}:{{ loom_settings_home_in_container }}"
         links:
           - "{{ loom_mysql_container_name }}"
@@ -73,6 +72,7 @@
           LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
         volumes:
           - /loomengine/loomengine/portal
+          - "{{ loom_static_root }}"
           - "{{ loom_settings_home }}:{{ loom_settings_home_in_container }}"
         links:
           - "{{ loom_mysql_container_name }}"
