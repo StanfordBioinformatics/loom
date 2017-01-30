@@ -6,7 +6,7 @@ import api.views
 router = routers.DefaultRouter()
 
 router.register('data-objects', api.views.DataObjectViewSet, base_name='DataObject')
-router.register('imported-files', api.views.ImportedFileDataObjectViewSet, base_name='ImportedFile')
+router.register('files', api.views.FileDataObjectViewSet, base_name='File')
 router.register('data-trees', api.views.DataTreeViewSet, base_name='DataTree')
 router.register('file-resources', api.views.FileResourceViewSet, base_name='FileResources')
 router.register('tasks', api.views.TaskViewSet, base_name='Task')

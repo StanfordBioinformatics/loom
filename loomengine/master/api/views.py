@@ -42,13 +42,16 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class ImportedFileDataObjectViewSet(viewsets.ModelViewSet):
+class FileDataObjectViewSet(viewsets.ModelViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.FileDataObjectSerializer
 
     def get_queryset(self):
-        queryset = models.FileDataObject.objects.filter(
-            type='file', source_type='imported')
+        query_string = self.request.query_params.get('q', '')
+        if query_string:
+            queryset = models.FileDataObject.filter_by_name_or_id_or_hash(query_string)
+        else:
+            queryset = models.FileDataObject.objects.all()
         queryset = queryset.select_related('file_resource')
         return queryset
 
@@ -108,7 +111,11 @@ class TemplateViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TemplateSerializer
 
     def get_queryset(self):
-        queryset = models.Template.objects.all()
+        query_string = self.request.query_params.get('q', '')
+        if query_string:
+            queryset = models.Template.filter_by_name_or_id(query_string)
+        else:
+            queryset = models.Template.objects.all()
         queryset = queryset\
             .prefetch_related(
                 'workflow__fixed_inputs__data_root')\
@@ -116,12 +123,17 @@ class TemplateViewSet(viewsets.ModelViewSet):
                 'step__fixed_inputs__data_root')
         return queryset
 
+
 class RunViewSet(viewsets.ModelViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.RunSerializer
 
     def get_queryset(self):
-        queryset = models.Run.objects.all()
+        query_string = self.request.query_params.get('q', '')
+        if query_string:
+            queryset = models.Run.filter_by_name_or_id(query_string)
+        else:
+            queryset = models.Run.objects.all()
         queryset = queryset.select_related('workflowrun__template')\
                            .prefetch_related('workflowrun__inputs__data_root')\
                            .prefetch_related('workflowrun__outputs__data_root')\

@@ -55,7 +55,7 @@ class ShowFile(AbstractShow):
         self._show_files()
 
     def _get_files(self):
-        self.files = self.connection.get_imported_file_data_object_index(
+        self.files = self.connection.get_file_data_object_index(
             self.args.file_id)
 
     def _show_files(self):
@@ -168,9 +168,10 @@ class ShowRun(AbstractShow):
         self._show_runs(runs)
 
     def _get_runs(self):
-        return self.connection.get_run_request_index(self.args.run_id)
+        return self.connection.get_run_index(self.args.run_id)
 
     def _show_runs(self, runs):
+        print '[showing %s runs]' % len(runs)
         for run in runs:
             print self._render_run(run)
 
@@ -179,7 +180,7 @@ class ShowRun(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
-            text += '  - Submitted: %s\n' % format(dateutil.parser.parse(run['datetime_created']), DATETIME_FORMAT)
+            text += '  - Created: %s\n' % format(dateutil.parser.parse(run['datetime_created']), DATETIME_FORMAT)
         else:
             text = 'Run: %s' % run_identifier
         return text

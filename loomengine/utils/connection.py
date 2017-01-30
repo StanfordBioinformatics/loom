@@ -2,6 +2,8 @@ import json
 import requests
 import time
 import datetime
+import urllib
+
 from loomengine.utils.exceptions import *
 
 class TASK_ATTEMPT_STATUSES:
@@ -135,10 +137,9 @@ class Connection(object):
             'data-objects/%s/' % file_id)
 
     def get_data_object_index(self, query_string='', min=0, max=float('inf')):
+        url = 'data-objects/'
         if query_string:
-            url = 'data-objects/?q='+query_string
-        else:
-            url = 'data-objects/'
+            url += 'data-objects/?q='+urllib.quote(query_string)
         data_objects =  self._get_object_index(url)
         if len(data_objects) < min:
             raise IdMatchedTooFewDataObjectsError(
@@ -150,12 +151,11 @@ class Connection(object):
                 % (len(data_objects), max))
         return data_objects
 
-    def get_imported_file_data_object_index(
+    def get_file_data_object_index(
             self, query_string='', min=0, max=float('inf')):
+        url = 'files/'
         if query_string:
-            url = 'imported-files/?q='+query_string
-        else:
-            url = 'imported-files/'
+            url += '?q=' + urllib.quote(query_string)
         file_data_objects =  self._get_object_index(url)
         if len(file_data_objects) < min:
             raise IdMatchedTooFewDataObjectsError(
@@ -164,7 +164,7 @@ class Connection(object):
         if len(file_data_objects) > max:
             raise IdMatchedTooManyDataObjectsError(
                 'Found %s FilDataObjects, expected at most %s' \
-                % (len(data_objects), max))
+                % (len(file_data_objects), max))
         return file_data_objects
 
 #    def get_file_resources_by_file(self, file_id):
@@ -193,10 +193,9 @@ class Connection(object):
         )
 
     def get_template_index(self, query_string='', min=0, max=float('inf')):
+        url = 'templates/'
         if query_string:
-            url = 'templates/?q='+query_string
-        else:
-            url = 'templates/'
+            url += '?q='+urllib.quote(query_string)
         templates = self._get_object_index(url)
         if len(templates) < min:
             raise Error('Found %s templates, expected at least %s' %(len(templates), min))
@@ -215,10 +214,9 @@ class Connection(object):
         )
 
     def get_run_index(self, query_string='', min=0, max=float('inf')):
+        url = 'runs/'
         if query_string:
-            url = 'runs/?q='+query_string
-        else:
-            url = 'runs/'
+            url += '?q='+urllib.quote(query_string)
         runs = self._get_object_index(url)
         if len(runs) < min:
             raise Error('Found %s template runs, expected at least %s' %(len(runs), min))
@@ -238,7 +236,7 @@ class Connection(object):
 
     def get_run_request_index(self, query_string='', min=0, max=float('inf')):
         if query_string:
-            url = 'run-requests/?q='+query_string
+            url = 'run-requests/?q='+urllib.quote(query_string)
         else:
             url = 'run-requests/'
         run_requests = self._get_object_index(url)

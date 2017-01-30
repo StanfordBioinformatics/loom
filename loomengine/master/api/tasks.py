@@ -3,11 +3,24 @@ from celery import shared_task
 from django import db
 import multiprocessing
 from api import get_setting
+import kombu.exceptions
 
 
 @shared_task
 def add(x, y):
     return x + y
+
+def _run_with_delay(task_function, args, kwargs):
+    db.connections.close_all()
+    try:
+        task_function.delay(*args, **kwargs)
+    except kombu.exceptions.OperationalError as e:
+        if e.message.startswith('[Errno 8]'):
+            raise Exception(
+                "Message passing service for asynchronous tasks not found. "
+                "Have you configured RabbitMQ correctly?")
+        else:
+            raise e
 
 @shared_task
 def _postprocess_workflow(workflow_id):
@@ -22,9 +35,7 @@ def postprocess_workflow(*args, **kwargs):
         _postprocess_workflow(*args, **kwargs)
         return
 
-    # Kill connections so new process will create its own
-    db.connections.close_all()
-    _postprocess_workflow.delay(*args, **kwargs)
+    _run_with_delay(_postprocess_workflow, args, kwargs)
 
 @shared_task
 def _postprocess_step(step_id):
@@ -39,9 +50,7 @@ def postprocess_step(*args, **kwargs):
         _postprocess_step(*args, **kwargs)
         return
 
-    # Kill connections so new process will create its own
-    db.connections.close_all()
-    _postprocess_step.delay(*args, **kwargs)
+    _run_with_delay(_postprocess_step, args, kwargs)
 
 @shared_task
 def _postprocess_step_run(run_id):
@@ -56,9 +65,7 @@ def postprocess_step_run(*args, **kwargs):
         _postprocess_step_run(*args, **kwargs)
         return
 
-    # Kill connections so new process will create its own
-    db.connections.close_all()
-    _postprocess_step_run.delay(*args, **kwargs)
+    _run_with_delay(_postprocess_step_run, args, kwargs)
 
 @shared_task
 def _postprocess_workflow_run(run_id):
@@ -73,9 +80,7 @@ def postprocess_workflow_run(*args, **kwargs):
         _postprocess_workflow_run(*args, **kwargs)
         return
 
-    # Kill connections so new process will create its own
-    db.connections.close_all()
-    _postprocess_workflow_run.delay(*args, **kwargs)
+    _run_with_delay(_postprocess_workflow_run, args, kwargs)
 
 @shared_task
 def _run_step_if_ready(step_run_id):
@@ -90,6 +95,4 @@ def run_step_if_ready(*args, **kwargs):
         _run_step_if_ready(*args, **kwargs)
         return
 
-    # Kill connections so new process will create its own
-    db.connections.close_all()
-    _run_step_if_ready.delay(*args, **kwargs)
+    _run_with_delay(_run_step_if_ready, args, kwargs)

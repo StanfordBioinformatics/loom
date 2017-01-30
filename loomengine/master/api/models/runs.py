@@ -62,6 +62,8 @@ class Run(BaseModel):
     Workflow composed of one or more Steps.
     """
 
+    NAME_FIELD = 'template__name'
+
     _MANAGER_CLASSES = {
         'step': StepRunManager,
         'workflow': WorkflowRunManager
@@ -390,8 +392,6 @@ class WorkflowRun(Run):
 
 
 class StepRun(Run):
-
-    NAME_FIELD = 'template__name'
 
     command = models.TextField()
     interpreter = models.CharField(max_length=255)

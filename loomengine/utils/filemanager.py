@@ -561,14 +561,14 @@ class FileManager:
 
         if not destination_url:
             destination_url = os.getcwd()
-        default_name = file_data_object['file_content']['filename']
+        default_name = file_data_object['filename']
         destination_url = self.get_destination_file_url(destination_url, default_name)
         destination = Destination(destination_url, self.settings)
 
-        self.logger.info('Exporting file %s@%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['uuid'], destination.get_url()))
+        self.logger.info('Exporting file %s@%s to %s...' % (file_data_object['filename'], file_data_object['uuid'], destination.get_url()))
 
         # Copy from the first file location
-        source_url = file_data_object['file_location']['url']
+        source_url = file_data_object['file_resource']['file_url']
         Source(source_url, self.settings).copy_to(destination)
 
         self.logger.info('...finished exporting file')
