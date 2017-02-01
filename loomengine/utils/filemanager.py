@@ -204,10 +204,12 @@ class GoogleStorageSource(AbstractSource):
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
-            self.blob.chunk_size = self.CHUNK_SIZE
         except HttpAccessTokenRefreshError:
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
-
+        if self.blob is None:
+            raise Exception('Could not find file %s'
+                            % (self.url.geturl()))
+        self.blob.chunk_size = self.CHUNK_SIZE
 
     def calculate_hash_value(self, hash_function):
         if hash_function == 'md5':
