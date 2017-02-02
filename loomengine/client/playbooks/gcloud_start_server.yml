@@ -53,6 +53,8 @@
     protocol: "{{lookup('env', 'LOOM_SERVER_PROTOCOL')}}"
     file_root: "{{lookup('env', 'LOOM_SERVER_FILE_ROOT')}}"
   tasks:
+  - include: tasks/start_server.yml
+
   - name: Start the Loom server.
     docker_container:
       name: loom

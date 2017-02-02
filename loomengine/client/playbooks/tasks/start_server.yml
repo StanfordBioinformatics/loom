@@ -1,0 +1,107 @@
+- name: Create the data root directory
+  file:
+    path: "{{ loom_storage_root }}"
+    state: directory
+
+- name: Start a MySQL database container
+  docker_container:
+    name: "{{ loom_mysql_container_name }}"
+    hostname: "{{ loom_mysql_container_name }}"
+    image: "{{ loom_mysql_image }}"
+    restart_policy: always
+    api_version: auto
+    env:
+      MYSQL_RANDOM_ROOT_PASSWORD: "{{ loom_mysql_random_root_password }}"
+      MYSQL_DATABASE: "{{ loom_mysql_database }}"
+      MYSQL_USER: "{{ loom_mysql_user }}"
+      MYSQL_PASSWORD: "{{ loom_mysql_password }}"
+
+- name: Start a rabbitmq container to handle message passing for asynchronous tasks
+  docker_container:
+    name: "{{ loom_rabbitmq_container_name }}"
+    hostname: "{{ loom_rabbitmq_container_name }}"
+    image: "{{ loom_rabbitmq_image }}"
+    restart_policy: always
+    api_version: auto
+    env:
+      RABBITMQ_USER: "{{ loom_rabbitmq_user }}"
+      RABBITMQ_PASSWORD: "{{ loom_rabbitmq_password }}"
+      RABBITMQ_HOST: "{{ loom_rabbitmq_host }}"
+      RABBITMQ_PORT: "{{ loom_rabbitmq_port }}"
+      RABBITMQ_VHOST: "{{ loom_rabbitmq_vhost }}"
+
+- name: Start a container with celery workers to run asynchronous tasks
+  docker_container:
+    name: "{{ loom_worker_container_name }}"
+    image: "{{ loom_docker_image }}"
+    command: /loomengine/bin/run_worker.sh
+    restart_policy: always
+    api_version: auto
+    env_file: "{{ loom_admin_settings_full_path }}"
+    env:
+      C_FORCE_ROOT: true
+      LOOM_SETTINGS_HOME: "{{ loom_settings_home_in_container }}"
+      LOOM_MYSQL_HOST: "{{ loom_mysql_container_name }}"
+      LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
+
+    volumes:
+      - /loomengine/loomengine/portal
+      - "{{ loom_settings_home }}:{{ loom_settings_home_in_container }}"
+    links:
+      - "{{ loom_mysql_container_name }}"
+      - "{{ loom_rabbitmq_container_name }}"
+
+- name: Start a container with the Loom Master webserver
+  docker_container:
+    name: "{{ loom_master_container_name }}"
+    hostname: "{{ loom_master_container_name }}"
+    image: "{{ loom_docker_image }}"
+    command: /loomengine/bin/run_master.sh
+    restart_policy: always
+    api_version: auto
+    env_file: "{{ loom_admin_settings_full_path }}"
+    env:
+      LOOM_SETTINGS_HOME: "{{ loom_settings_home_in_container }}"
+      LOOM_MYSQL_HOST: "{{ loom_mysql_container_name }}"
+      LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
+    volumes:
+      - /loomengine/loomengine/portal
+      - "{{ loom_settings_home }}:{{ loom_settings_home_in_container }}"
+    links:
+      - "{{ loom_mysql_container_name }}"
+      - "{{ loom_rabbitmq_container_name }}"
+
+- name: Create a config file for the NGINX web server
+  template:
+    src: templates/local.nginx.conf
+    dest: "{{ loom_nginx_conf_file }}"
+
+- name: Start an NGINX server container
+  docker_container:
+    name: "{{ loom_nginx_container_name }}"
+    image: "{{ loom_nginx_image }}"
+    restart_policy: always
+    api_version: auto
+    volumes:
+      - "{{ loom_nginx_conf_file }}:/etc/nginx/conf.d/default.conf"
+    volumes_from:
+      - "{{ loom_master_container_name }}"
+    links:
+      - "{{ loom_master_container_name }}"
+    ports:
+      - "{{ loom_external_port }}:{{ loom_nginx_internal_port }}"
+
+- name: Create connection settings file so client knows where to find server
+  template:
+    src: templates/local.server-admin.conf
+    dest: "{{ loom_connection_settings_full_path }}"
+
+- name: Wait for Loom server port to be available
+  wait_for: port="{{ loom_external_port }}"
+
+- name: Wait for Loom server to start. (retry messages are normal)
+  uri: "url={{ loom_server_url }}/api/status/ validate_certs=False"
+  register: response
+  until: response.status == 200
+  retries: 30
+  delay: 10
