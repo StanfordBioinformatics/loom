@@ -101,16 +101,16 @@ class FilterHelper(object):
         id = None
         hash_value = None
 
-        # Name comes at the beginning and ends with $, @, or end of string
-        name_match = re.match('^(?!\$|@)(.+?)($|\$|@)', query_string)
+        # Name comes at the beginning and ends with %, @, or end of string
+        name_match = re.match('^(?!%|@)(.+?)($|%|@)', query_string)
         if name_match is not None:
             name = name_match.groups()[0]
-        # id starts with @ and ends with $ or end of string
-        id_match = re.match('^.*?@(.*?)($|\$)', query_string)
+        # id starts with @ and ends with % or end of string
+        id_match = re.match('^.*?@(.*?)($|%)', query_string)
         if id_match is not None:
             id = id_match.groups()[0]
-        # hash starts with $ and ends with @ or end of string
-        hash_match = re.match('^.*?\$(.*?)($|@)', query_string)
+        # hash starts with % and ends with @ or end of string
+        hash_match = re.match('^.*?%(.*?)($|@)', query_string)
         if hash_match is not None:
             hash_value = hash_match.groups()[0]
         return name, id, hash_value
@@ -134,10 +134,6 @@ class _FilterMixin(object):
     def filter_by_name_or_id(cls, filter_string):
         helper = FilterHelper(cls)
         return helper.filter_by_name_or_id(filter_string)
-
-    @classmethod
-    def query(cls, filter_string):
-        return cls.filter_by_name_or_id(filter_string)
 
 
 class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):

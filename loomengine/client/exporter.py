@@ -78,7 +78,7 @@ class TemplateExporter(AbstractExporter):
     def _save_template(self, template, destination):
         print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('_id'), destination)
         if self.args.format == 'json':
-            template_text = json.dumps(template)
+            template_text = json.dumps(template, indent=4, separators=(',', ': '))
         elif self.args.format == 'yaml':
             template_text = yaml.safe_dump(template)
         else:

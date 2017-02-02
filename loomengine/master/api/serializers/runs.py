@@ -85,13 +85,14 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     type = serializers.CharField()
     tasks = TaskUuidSerializer(many=True)
     run_request = RunRequestUuidSerializer(required=False)
+    datetime_created = serializers.CharField(read_only=True)
 #    errors = TaskAttemptErrorSerializer(many=True, read_only=True)
     
     class Meta:
         model = StepRun
         fields = ('uuid', 'template', 'inputs', 'outputs',
                   'command', 'interpreter', 'tasks', 'run_request',
-                  'saving_status', 'type')
+                  'saving_status', 'type', 'datetime_created')
 
 
 
@@ -120,8 +121,9 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
                                         allow_null=True)
     outputs = WorkflowRunOutputSerializer(many=True)
     run_request = RunRequestUuidSerializer(required=False)
+    datetime_created = serializers.CharField(read_only=True)
 
     class Meta:
         model = WorkflowRun
         fields = ('uuid', 'template', 'steps', 'inputs', 'outputs',
-                  'run_request', 'saving_status', 'type')
+                  'run_request', 'saving_status', 'type', 'datetime_created')

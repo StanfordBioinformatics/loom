@@ -1,0 +1,12 @@
+{% extends "rest_framework/base.html" %}
+{% load staticfiles %}
+
+{% block branding %}
+<a class='navbar-brand' rel="nofollow" href='/api'>
+Loom API browser
+</a>
+{% endblock %}
+
+{% block bootstrap_theme %}
+    <link rel="stylesheet" href="{% static "style/bootstrap.min.css" %}" type="text/css">
+{% endblock %}

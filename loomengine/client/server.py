@@ -51,7 +51,7 @@ def loom_settings_transaction(function):
             function(*args, **kwargs)
         except (Exception, SystemExit) as e:
             if previous_settings_exist:
-                print ("WARNING! An error occurred. Rolling back settings.")
+                print ("WARNING! An error occurred. Rolling back changes to settings.")
             try:
                 shutil.rmtree(LOOM_SETTINGS_HOME)
             except OSError:
@@ -203,7 +203,7 @@ class ServerControls:
             'WARNING! This will delete the Loom server and all its data. '\
             'Data will be lost!\n'\
             'If you are sure you want to continue, please '\
-            'type the name of the server instance:\n> ')
+            'type the name of the server:\n> ')
 
         if confirmation_input != server_name:
             print 'Input did not match current server name \"%s\".' % server_name
