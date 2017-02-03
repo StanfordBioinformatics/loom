@@ -3,22 +3,8 @@
   hosts: localhost
   connection: local
   gather_facts: no
-  vars:
-  - boot_disk_type: "{{lookup('env','LOOM_GCLOUD_SERVER_BOOT_DISK_TYPE')}}"
-  - boot_disk_size_gb: "{{lookup('env','LOOM_GCLOUD_SERVER_BOOT_DISK_SIZE_GB')}}"
-  - gce_email: "{{lookup('env','GCE_EMAIL')}}"
-  - gce_project: "{{lookup('env','GCE_PROJECT')}}"
-  - gce_credential: "{{lookup('env','GCE_PEM_FILE_PATH')}}"
-  - gce_ssh_key_file: "{{lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_FILE')}}"
-  - instance_name: "{{lookup('env','LOOM_SERVER_NAME')}}"
-  - instance_image: "{{lookup('env','LOOM_GCLOUD_SERVER_INSTANCE_IMAGE')}}"
-  - instance_type: "{{lookup('env','LOOM_GCLOUD_SERVER_INSTANCE_TYPE')}}"
-  - network: "{{lookup('env','LOOM_GCLOUD_SERVER_NETWORK')}}"
-  - remote_user: "{{lookup('env','USER')}}"
-  - subnetwork: "{{lookup('env','LOOM_GCLOUD_SERVER_SUBNETWORK')}}"
-  - tags: "{{lookup('env','LOOM_GCLOUD_SERVER_TAGS')}}"
-  - use_internal_ip: "{{lookup('env','LOOM_GCLOUD_SERVER_USE_INTERNAL_IP')}}"
-  - zone: "{{lookup('env','LOOM_GCLOUD_SERVER_ZONE')}}"
+  vars_files:
+    - vars/gcloud.yml
   tasks:
   - include: tasks/gcloud_create_instance.yml
   - include: tasks/gcloud_configure_instance_ssh.yml
@@ -32,7 +18,7 @@
   tasks:
   - include: tasks/gcloud_setup_loom_user.yml
 
-- name: Set up the Loom server on the new instance. 
+- name: Set up the Loom server on the new instance.
   hosts: new_instances
   become: yes
   become_user: loom

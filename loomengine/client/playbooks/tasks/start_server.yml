@@ -15,6 +15,10 @@
       MYSQL_DATABASE: "{{ loom_mysql_database }}"
       MYSQL_USER: "{{ loom_mysql_user }}"
       MYSQL_PASSWORD: "{{ loom_mysql_password }}"
+  when:
+  - loom_mysql_container_name is defined
+  - loom_mysql_image is defined
+  - loom_mysql_random_root_password is defined
 
 - name: Start a rabbitmq container to handle message passing for asynchronous tasks
   docker_container:
@@ -73,7 +77,7 @@
 
 - name: Create a config file for the NGINX web server
   template:
-    src: templates/local.nginx.conf
+    src: templates/nginx.conf
     dest: "{{ loom_nginx_conf_file }}"
 
 - name: Start an NGINX server container
@@ -93,7 +97,7 @@
 
 - name: Create connection settings file so client knows where to find server
   template:
-    src: templates/local.server-admin.conf
+    src: templates/server-admin.conf
     dest: "{{ loom_connection_settings_full_path }}"
 
 - name: Wait for Loom server port to be available

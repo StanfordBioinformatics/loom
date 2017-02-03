@@ -2,9 +2,7 @@
 - name: Stop all the components of a loom server
   hosts: localhost
   connection: local
-
-  roles:
-    - local
-
+  vars_files:
+    - vars/local.yml
   tasks:
-    - include: tasks/stop_server.yml
+    - include: tasks/stop_containers.yml

@@ -2,7 +2,7 @@
 - name: Start the various components of a loom server
   hosts: localhost
   connection: local
-  roles:
-    - local
+  vars_files:
+    - vars/local.yml
   tasks:
     - include: tasks/start_server.yml

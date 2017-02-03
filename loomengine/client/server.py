@@ -94,7 +94,7 @@ class ServerControls:
         else:
             print 'No response from server at "%s".' % get_server_url()
 
-    @loom_settings_transaction
+    #@loom_settings_transaction
     def start(self):
         settings = self._get_admin_settings()
         # Hard-coded settings that don't come from the user:
@@ -106,13 +106,13 @@ class ServerControls:
             'LOOM_ADMIN_FILES_DIR': LOOM_ADMIN_FILES_DIR,
             'LOOM_ADMIN_SETTINGS_FILE': LOOM_ADMIN_SETTINGS_FILE,
         })
-        
+
         if self._user_provided_settings():
             self._make_dir_if_missing(LOOM_SETTINGS_HOME)
             self._copy_playbooks_to_settings_dir()
             self._copy_inventory_to_settings_dir()
 
-            # These may be later updated by start playbook: 
+            # These may be later updated by start playbook:
             self._save_admin_settings_file(settings)
             self._copy_admin_files_to_settings_dir()
 
@@ -288,7 +288,7 @@ class ServerControls:
                     # which may be missing needed modules
                     '-e', 'ansible_python_interpreter="/usr/bin/env python"',
         ]
-        if settings['ANSIBLE_SSH_PRIVATE_KEY_FILE']:
+        if 'ANSIBLE_SSH_PRIVATE_KEY_FILE' in settings:
             cmd_list.extend(['--private-key', settings['ANSIBLE_SSH_PRIVATE_KEY_FILE']])
         if verbose:
             cmd_list.append('-vvvv')
@@ -364,6 +364,7 @@ class ServerControls:
             if self._user_provided_settings():
                 settings = self._get_start_settings_from_args()
             else:
+                stock_settings_files = ', '.join(stock_settings_files)
                 raise SystemExit('ERROR! No settings provided. '\
                                  'Use "--settings-file" to provide your own '\
                                  'custom settings or one of the stock settings '\
@@ -374,7 +375,7 @@ class ServerControls:
         return settings
 
     def _validate_settings(self, settings):
-        
+
         # These are always required, independent of what playbooks are used.
         # Additional settings are typically required by the playbooks, but LOOM
         # is blind to those settings.
@@ -412,7 +413,7 @@ class ServerControls:
         return settings
 
     def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):
-        """If 'filepath' is found in stock settings, we return the 
+        """If 'filepath' is found in stock settings, we return the
         full path to that stock file. Otherwise, we interpret filepath relative
         to the current working directory.
         """
