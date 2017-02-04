@@ -1,5 +1,7 @@
   - name: Create SSH key if it doesn't exist
     user: name={{ remote_user }} generate_ssh_key=yes ssh_key_bits=2048 ssh_key_file={{ gce_ssh_key_file }} ssh_key_type=rsa
+    # With multiple steps running simultaneously one may return 1 while another step successfuly creates the key
+    ignore_errors: yes
   - name: Read SSH key and create a metadata file from it
     shell: "echo -n {{remote_user}}: | cat - {{gce_ssh_key_file}}.pub > {{gce_ssh_key_file}}.pub.{{instance_name}}.metadata"
   - name: Add SSH key to instance metadata
