@@ -1,5 +1,0 @@
-#!/bin/bash
-
-export ROOTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )
-export PYTHONPATH=${ROOTDIR}:$PYTHONPATH
-python $ROOTDIR/loom/client/main.py "$@"

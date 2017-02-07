@@ -1,0 +1,30 @@
+  - name: Get release version from yum
+    shell: "yum -q version nogroups 2>/dev/null | grep Installed | sed 's|Installed: ||' | sed 's|/.*$||'"
+    register: release_version
+  - name: Resolve release version URL, which could be a link, to a Fedora Project EPEL mirror.
+    uri: url=http://download.fedoraproject.org/pub/epel/{{release_version.stdout}}
+    register: resolved_mirror
+  - name: Add epel repository to yum.
+    yum_repository:
+      name: epel
+      description: EPEL YUM repo
+      baseurl: "{{resolved_mirror.url}}$basearch/"
+  - name: Install pip, which is needed to install docker-py.
+    yum: name=python-pip disable_gpg_check=yes update_cache=yes
+    register: pipinstallresult
+    retries: 10
+    until: pipinstallresult['rc'] is defined and pipinstallresult['rc'] == 0
+  - debug: var=pipinstallresult
+    when: pipinstallresult | failed
+
+  - name: Install requests
+    pip: name=requests version=2.12.1
+    register: requestsinstallresult
+    retries: 10
+    until: requestsinstallresult['state'] == 'present'
+
+  - name: Install docker-py, which is required by Ansible to use Docker modules.
+    pip: name=docker-py version=1.9.0
+    register: dockerpyinstallresult
+    retries: 10
+    until: dockerpyinstallresult['state'] == 'present'

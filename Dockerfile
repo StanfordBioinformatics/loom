@@ -38,12 +38,13 @@ RUN apt-get update && apt-get install -y \
 
 # Install Loom and its Python dependencies.
 COPY . /opt/loom/
-RUN virtualenv /opt/loom \
-    && . /opt/loom/bin/activate \
-    && pip install -e /opt/loom 
+RUN virtualenv /opt/loom-env \
+    && . /opt/loom-env/bin/activate \
+    && cd /opt/loom \
+    && pip install -r requirements.txt
 
 # Add Loom to the path.
-ENV PATH /opt/loom/bin:$PATH
+ENV PATH /opt/loom-env/bin:$PATH
 
 # Accept connections on port 8000.
 EXPOSE 8000
