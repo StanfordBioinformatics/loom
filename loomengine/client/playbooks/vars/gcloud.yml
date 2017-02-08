@@ -12,8 +12,7 @@ loom_connection_settings_full_path: "\
   /{{ lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE') }}"
 
 loom_docker_image: "{{ lookup('env', 'LOOM_DOCKER_IMAGE') }}"
-loom_docker_registry: "{{ lookup('env', 'LOOM_DOCKER_REGISTRY') }}"
-loom_server_url: "http://127.0.0.1:{{ lookup('env', 'LOOM_EXTERNAL_PORT') }}"
+loom_server_protocol: "{{ lookup('env', 'LOOM_SERVER_PROTOCOL') }}"
 loom_external_port: "{{ lookup('env', 'LOOM_EXTERNAL_PORT') }}"
 
 # MySQL settings (possibly not needed here if Django reads them from env)
@@ -71,5 +70,13 @@ network: "{{lookup('env','LOOM_GCLOUD_SERVER_NETWORK')}}"
 remote_user: "{{lookup('env','USER')}}"
 subnetwork: "{{lookup('env','LOOM_GCLOUD_SERVER_SUBNETWORK')}}"
 tags: "{{lookup('env','LOOM_GCLOUD_SERVER_TAGS')}}"
-use_internal_ip: "{{lookup('env','LOOM_GCLOUD_SERVER_USE_INTERNAL_IP')}}"
+ansible_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_CLIENT_USES_SERVER_INTERNAL_IP')}}"
+external_ip: "{{lookup('env','LOOM_GCLOUD_SERVER_EXTERNAL_IP')}}"
 zone: "{{lookup('env','LOOM_GCLOUD_SERVER_ZONE')}}"
+
+remote_loom_settings_home: "{{ansible_env.HOME}}/.loom"
+remote_loom_admin_settings_full_path: "\
+  {{ remote_loom_settings_home }}\
+  /{{ lookup('env', 'LOOM_ADMIN_SETTINGS_FILE') }}"
+
+loom_storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"

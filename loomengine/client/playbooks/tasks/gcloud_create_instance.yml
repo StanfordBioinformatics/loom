@@ -1,7 +1,7 @@
   - name: Create a boot disk with the same name as the instance.
     gce_pd: name={{instance_name}} image={{instance_image}} disk_type={{boot_disk_type}} size_gb={{boot_disk_size_gb}} zone={{zone}} mode=READ_WRITE service_account_email={{gce_email}} credentials_file={{gce_credential}}
   - name: Boot up a new instance using the just-created boot disk.
-    gce: name={{instance_name}} disks={{instance_name}} zone={{zone}} machine_type={{instance_type}} network={{network|default(omit)}} subnetwork={{subnetwork|default(omit)}} service_account_email={{gce_email}} credentials_file={{gce_credential}} service_account_permissions=cloud-platform tags={{tags|default(omit)}}
+    gce: name={{instance_name}} disks={{instance_name}} zone={{zone}} machine_type={{instance_type}} network={{network|default(omit)}} subnetwork={{subnetwork|default(omit)}} service_account_email={{gce_email}} credentials_file={{gce_credential}} service_account_permissions=cloud-platform tags={{tags|default(omit)}} external_ip={{external_ip}}
     register: gce_result
   - name: If all required variables defined, create a scratch disk and attach it to the instance.
     gce_pd: instance_name={{instance_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE
@@ -15,6 +15,9 @@
     - scratch_disk_name is defined
     - scratch_disk_type is defined
     - scratch_disk_size_gb is defined
-  - name: Add host to new_instances.
-    add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
+  - name: Add host IP to new_instances for downstream plays. Use internal or external IP depending on setting.
+    add_host: hostname={{ (ansible_uses_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
+  - name: Compute the server URL now that we have an IP address.
+    set_fact:
+      loom_server_url: "{{loom_server_protocol}}://{{groups['new_instances'][0]}}:{{loom_external_port}}"

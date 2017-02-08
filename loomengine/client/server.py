@@ -208,7 +208,7 @@ class ServerControls:
         if confirmation_input != server_name:
             print 'Input did not match current server name \"%s\".' % server_name
             return
-
+        print settings
         playbook = self._get_required_setting('LOOM_DELETE_SERVER_PLAYBOOK',
                                               settings)
         retcode = self._run_playbook(playbook, settings, verbose=self.args.verbose)
@@ -364,7 +364,6 @@ class ServerControls:
             if self._user_provided_settings():
                 settings = self._get_start_settings_from_args()
             else:
-                stock_settings_files = ', '.join(stock_settings_files)
                 raise SystemExit('ERROR! No settings provided. '\
                                  'Use "--settings-file" to provide your own '\
                                  'custom settings or one of the stock settings '\

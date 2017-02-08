@@ -4,7 +4,7 @@
   connection: local
   gather_facts: no
   vars_files:
-    - vars/gcloud.yml
+  - vars/gcloud.yml
   tasks:
   - include: tasks/gcloud_create_instance.yml
   - include: tasks/gcloud_configure_instance_ssh.yml
@@ -22,51 +22,18 @@
   hosts: new_instances
   become: yes
   become_user: loom
-  roles:
-  - loom-master
+  vars_files:
+  - vars/gcloud.yml
+  tasks:
+  - include: tasks/gcloud_setup_server.yml
 
 - name: Start the Loom server.
-  hosts: "{{lookup('env','LOOM_SERVER_NAME')}}"
+  hosts: new_instances
   become: yes
   become_user: loom
+  vars_files:
+  - vars/gcloud.yml
   vars:
-    ansible_ssh_private_key_file: "{{lookup('env','ANSIBLE_SSH_PRIVATE_KEY_FILE')}}"
-    remote_loom_settings_path: "{{ansible_env.HOME}}/{{lookup('env', 'LOOM_SETTINGS_HOME')}}"
-    container_loom_settings_path: "/root/{{lookup('env', 'LOOM_SETTINGS_HOME')}}"
-    local_loom_settings_path: "{{lookup('env','HOME')}}/{{lookup('env', 'LOOM_SETTINGS_HOME')}}"
-    docker_full_name: "{{lookup('env', 'LOOM_DOCKER_REGISTRY')}}/{{lookup('env', 'LOOM_DOCKER_IMAGE}}"
-    external_port: "{{lookup('env', 'LOOM_SERVER_EXTERNAL_PORT')}}"
-    protocol: "{{lookup('env', 'LOOM_SERVER_PROTOCOL')}}"
-    file_root: "{{lookup('env', 'LOOM_SERVER_FILE_ROOT')}}"
+    loom_server_url: "{{hostvars[host]['loom_server_url']}}"
   tasks:
   - include: tasks/start_server.yml
-
-  - name: Start the Loom server.
-    docker_container:
-      name: loom
-      image: "{{docker_full_name}}"
-      ports: 8000:8000
-      volumes:
-      - "{{remote_loom_settings_path}}/:{{container_loom_settings_path}}/"
-      - /var/run/docker.sock:/var/run/docker.sock
-      - "{{file_root}}/:{{file_root}}/"
-      hostname: "{{ansible_hostname}}"
-      restart_policy: always
-      api_version: auto
-      command: /bin/bash -c 'source /opt/loom-env/bin/activate && loom server set local && loom server start --foreground --verbose'
-  - name: Start NGINX.
-    docker_container:
-      name: nginx
-      image: nginx:stable
-      network_mode: host
-      volumes: /var/log/nginx:/var/log/nginx,{{remote_loom_settings_path}}/nginx.conf:/etc/nginx/conf.d/default.conf,{{remote_loom_settings_path}}/ssl:/etc/nginx/ssl
-      restart_policy: always
-      api_version: auto
-  - name: Wait for Loom server port to be available.
-    wait_for: port={{external_port}}
-  - name: Wait for Loom server status API call to return 200.
-    uri: url={{protocol}}://{{ansible_hostname}}:{{external_port}}/api/status/ validate_certs=False
-    register: response
-    until: response.status == 200
-    retries: 30
-    delay: 10

@@ -2,6 +2,7 @@
   file:
     path: "{{ loom_storage_root }}"
     state: directory
+  when: loom_storage_type == "local"
 
 - name: Start a MySQL database container
   docker_container:
