@@ -6,20 +6,6 @@ import urllib
 
 from loomengine.utils.exceptions import *
 
-class TASK_ATTEMPT_STATUSES:
-    NOT_STARTED = 'Not started'
-    PROVISIONING_HOST = 'Provisioning host'
-    LAUNCHING_MONITOR = 'Launching monitor process on worker'
-    INITIALIZING_MONITOR = 'Initializing monitor process on worker'
-    COPYING_INPUTS = 'Copying input files to runtime environment'
-    CREATING_RUN_SCRIPT = 'Creating run script'
-    FETCHING_IMAGE = 'Fetching runtime environment image'
-    CREATING_CONTAINER = 'Creating runtime environment container'
-    STARTING_ANALYSIS = 'Starting analysis'
-    RUNNING_ANALYSIS = 'Running analysis'
-    SAVING_OUTPUTS = 'Saving outputs'
-    FINISHED = 'Finished'
-
 def disable_insecure_request_warning():
     """Suppress warning about untrusted SSL certificate."""
     import requests

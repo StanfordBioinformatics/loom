@@ -82,10 +82,6 @@ class Run(BaseModel):
                                related_name='steps',
                                null=True,
                                on_delete=models.CASCADE)
-    status = models.CharField(
-        max_length=255,
-        default='',
-    )
     template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT,
@@ -131,16 +127,19 @@ class Run(BaseModel):
         assert len(outputs) == 1, 'missing output for channel %s' % channel
         return outputs[0]
 
-#    def update_parent_status(self):
-#        if self.parent:
-#            self.parent.update_status()
-
-    def get_run_request(self):
+    def get_topmost_run(self):
         try:
-            return self.run_request
+            self.run_request
         except ObjectDoesNotExist:
-            pass
-        return self.parent.get_run_request()
+            return self.parent.get_topmost_run()
+        return self
+
+    def is_topmost_run(self):
+        try:
+            self.run_request
+        except ObjectDoesNotExist:
+            return False
+        return True
 
     @classmethod
     def create_from_template(cls, template, parent=None, run_request=None):
@@ -187,6 +186,7 @@ class Run(BaseModel):
             try:
                 return self.steprun
             except AttributeError:
+                # already downcast
                 return self
         else:
             assert self.type == 'workflow', \
@@ -194,73 +194,33 @@ class Run(BaseModel):
             try:
                 return self.workflowrun
             except AttributeError:
+                # already downcast
                 return self
 
-    def _get_destinations(self):
-        run = self.downcast()
-        return [dest for dest in run.inputs.all()]
-
-    def _get_source(self, channel):
-        run = self.downcast()
-        # Four possible sources for this step's inputs:
-        # 1. inputs from parent
-        # 2. outputs from siblings
-        # 3. user-provided inputs in run_request
-        # 4. fixed_inputs on template
-        sources = []
-        if run.parent:
-            sources.extend(run.parent.inputs.filter(channel=channel))
-            siblings = run.parent.workflowrun.steps.exclude(id=run.id)
-            for sibling in siblings:
-                sources.extend(sibling.outputs.filter(channel=channel))
-        try:
-            run_request = run.run_request
-            sources.extend(run_request.inputs.filter(channel=channel))
-        except ObjectDoesNotExist:
-            pass
-        sources.extend(run.template.fixed_inputs.filter(channel=channel))
-        assert len(sources) == 1, \
-            'Found "%s" sources for channel %s' % (len(sources), channel)
-        return sources[0]
-
-    def _connect_channels(self):
-        run = self.downcast()
-        # Channels must be connected in order from the outside in,
-        # so this function connects the current run outward
-        # but does not connect to its steps.
-        for destination in run._get_destinations():
-            source = run._get_source(destination.channel)
-            # Make sure matching source and destination nodes are connected
-            source.connect(destination)
-#        try:
-#            for step in run.workflowrun.steps.all():
-#                step.connect_channels()
-#        except ObjectDoesNotExist:
-            # run.workflowrun does not exist for a StepRun
-#            pass
-
-    def _external_connect_input(self, input):
+    def _connect_input_to_parent(self, input):
         if self.parent:
             try:
                 parent_connector = self.parent.connectors.get(channel=input.channel)
                 parent_connector.connect(input)
-                return
             except ObjectDoesNotExist:
-                pass
-        try:
-            rr_input = self.run_request.inputs.get(channel=input.channel)
-            rr_input.connect(input)
-            return
-        except ObjectDoesNotExist:
-            return
+                self.parent.downcast()._create_connector(input)
 
-    def _external_connect_output(self, output):
+    def _connect_input_to_run_request(self, input):
+        try:
+            run_request = self.run_request
+        except ObjectDoesNotExist:
+            # No run request here
+            return
+        run_request_input = run_request.inputs.get(channel=input.channel)
+        run_request_input.connect(input)
+
+    def _connect_output_to_parent(self, output):
         if self.parent:
             try:
                 parent_connector = self.parent.connectors.get(channel=output.channel)
                 parent_connector.connect(output)
             except ObjectDoesNotExist:
-                return
+                self.parent.downcast()._create_connector(output)
 
 
 class WorkflowRun(Run):
@@ -269,45 +229,9 @@ class WorkflowRun(Run):
         step_run.parent = self
         step_run.save()
 
-    def get_step_status_count(self):
-        count = {
-            'waiting': 0,
-            'running': 0,
-            'error': 0,
-            'success': 0,
-        }
-        for step in self.steps.all():
-            step_counts = step.get_step_status_count()
-            count['waiting'] += step_counts['waiting']
-            count['running'] += step_counts['running']
-            count['error'] += step_counts['error']
-            count['success'] += step_counts['success']
-        return count
-
-    def update_status(self):
-        status_list = []
-        count = self.get_step_status_count()
-        if count['waiting']:
-            pluralize = 's' if count['waiting'] > 1 else ''
-            status_list.append('%s step%s waiting.' % (count['waiting'], pluralize))
-        if count['running']:
-            pluralize = 's' if count['running'] > 1 else ''
-            status_list.append('%s step%s running.' % (count['running'], pluralize))
-        if count['error']:
-            pluralize = 's' if count['error'] > 1 else ''
-            status_list.append('%s step%s with errors.' % (count['error'], pluralize))
-        if count['success']:
-            pluralize = 's' if count['success'] > 1 else ''
-            status_list.append('%s step%s finished successfully.' % (count['success'], pluralize))
-#        self.status = ' '.join(status_list)
-        self.save()
-#        self.update_parent_status()
-
     def create_ready_tasks(self, do_start=True):
         for step_run in self.steps.all():
             step_run.create_ready_tasks(do_start=do_start)
-
-
             
     @classmethod
     def postprocess(cls, run_id):
@@ -321,12 +245,13 @@ class WorkflowRun(Run):
         run = WorkflowRun.objects.get(id=run_id)
 
         # Don't postprocess twice
+        # The "save" method is overridden in our base model to have concurrency
+        # protection
+
         if run.postprocessing_status == 'done' \
            or run.postprocessing_status == 'in_progress':
             return
         
-        # Since "save" method has is overridden in our base model to have concurrency
-        # protection, this prevents us from running this method twice.
         run.postprocessing_status = 'in_progress'
         try:
             run.save()
@@ -337,62 +262,78 @@ class WorkflowRun(Run):
         assert run.template.postprocessing_status == 'done', \
             'Template not ready, cannot postprocess run %s' % run.uuid
 
-        try:
-            run._initialize_inputs()
-            run._initialize_outputs()
-            run._initialize_steps()
+        #try:
+        run._initialize_inputs()
+        run._initialize_outputs()
+        run._initialize_steps()
 
-            run.postprocessing_status = 'done'
-            run.save()
-        except Exception as e:
-            run.postprocessing_status = 'error'
-            run.save()
-            raise e
+        run.postprocessing_status = 'done'
+        run.save()
+        #except Exception as e:
+        #    run.postprocessing_status = 'error'
+        #    run.save()
+        #    raise e
         
     def _initialize_inputs(self):
         run = self.downcast()
-        all_channels = set()
+        visited_channels = set()
         if run.template.inputs:
             for input in run.template.inputs:
-                assert input.get('channel') not in all_channels, \
+                assert input.get('channel') not in visited_channels, \
                     'Encountered multiple inputs for channel "%s"' \
                     % input.get('channel')
-                all_channels.add(input.get('channel'))
+                visited_channels.add(input.get('channel'))
 
                 run_input = WorkflowRunInput.objects.create(
                     workflow_run=run,
                     channel=input.get('channel'),
                     type=input.get('type'))
-                self._external_connect_input(run_input)
-                self._connect(run_input)
+
+                # One of these two should always take effect. The other is ignored.
+                self._connect_input_to_parent(run_input)
+                self._connect_input_to_run_request(run_input)
+
+                # Now create a connector on the current WorkflowRun so that
+                # children can connect on this channel
+                self._create_connector(run_input)
 
         for fixed_input in run.template.fixed_inputs.all():
-            assert fixed_input.channel not in all_channels, \
+            assert fixed_input.channel not in visited_channels, \
                 'Encountered multiple inputs/fixed_inputs for channel "%s"' \
                 % fixed_input.channel
-            all_channels.add(fixed_input.channel)
+            visited_channels.add(fixed_input.channel)
 
             run_input = WorkflowRunInput.objects.create(
                 workflow_run=run,
                 channel=fixed_input.channel,
                 type=fixed_input.type)
-            self._connect(run_input)
+
+            run_input.connect(fixed_input)
+
+            # Now create a connector on the current WorkflowRun so that
+            # children can connect on this channel
+            self._create_connector(run_input)
 
     def _initialize_outputs(self):
         run = self.downcast()
-        all_channels = set()
+        visited_channels = set()
         for output in run.template.outputs:
-            assert output.get('channel') not in all_channels, \
+            assert output.get('channel') not in visited_channels, \
                 'Encountered multiple outputs for channel %s' \
                 % output.get('channel')
-            all_channels.add(output.get('channel'))
+            visited_channels.add(output.get('channel'))
 
             run_output = WorkflowRunOutput.objects.create(
                 workflow_run=run,
                 type=output.get('type'),
                 channel=output.get('channel'))
-            self._external_connect_output(run_output)
-            self._connect(run_output)
+
+            # This takes effect only if the WorkflowRun has a parent
+            self._connect_output_to_parent(run_output)
+
+            # Now create a connector on the current WorkflowRun so that
+            # children can connect on this channel
+            self._create_connector(run_output)
 
     def _initialize_steps(self):
         run = self.downcast()
@@ -401,7 +342,7 @@ class WorkflowRun(Run):
         for step in run.template.workflow.steps.all():
             self.create_from_template(step, parent=run)
 
-    def _connect(self, io_node):
+    def _create_connector(self, io_node):
         try:
             connector = WorkflowRunConnectorNode.objects.create(
                 workflow_run = self,
@@ -409,6 +350,7 @@ class WorkflowRun(Run):
                 type = io_node.type
             )
         except IntegrityError:
+            # connector already exists. Just use it.
             connector = self.connectors.get(channel=io_node.channel)
         connector.connect(io_node)
 
@@ -418,28 +360,27 @@ class StepRun(Run):
     command = models.TextField()
     interpreter = models.CharField(max_length=255)
 
+    # True if ALL inputs are available
+    status_received_all_inputs = models.BooleanField(default=False)
+    
+    # True if ANY tasks are running
+    status_running = models.BooleanField(default=False)
+    
+    # True if ALL tasks are finished
+    status_finished = models.BooleanField(default=False)
+    
+    # True if ANY tasks are failed
+    status_failed = models.BooleanField(default=False)
+
+    status_tasks_running = models.IntegerField(default=0)
+    status_tasks_finished = models.IntegerField(default=0)
+    status_tasks_failed = models.IntegerField(default=0)
+
     @property
     def errors(self):
         if self.tasks.count() == 0:
             return TaskAttemptError.objects.none()
         return self.tasks.first().errors
-
-    def get_step_status_count(self):
-        count = {
-            'waiting': 0,
-            'running': 0,
-            'error': 0,
-            'success': 0,
-        }
-        if self.errors.count() > 0:
-            count['error'] = 1
-        elif self.status.startswith('Waiting'):
-            count['waiting'] = 1
-        elif self.status.startswith('Finished'):
-            count['success'] = 1
-        else:
-            count['running'] = 1
-        return count
 
     def get_all_inputs(self):
         inputs = [i for i in self.inputs.all()]
@@ -457,24 +398,6 @@ class StepRun(Run):
                     task.run()
             self.update_status()
 
-    def update_status(self):
-        pass
-#        if self.tasks.count() == 0:
-#            missing_inputs = InputNodeSet(
-#                self.get_all_inputs()).get_missing_inputs()
-#            if len(missing_inputs) == 1:
-#                status = 'Waiting for input "%s"' % missing_inputs[0].channel
-#            else:
-#                status = 'Waiting for inputs %s' % ', '.join(
-#                    [input.channel for input in missing_inputs])
-#        else:
-#            status = self.tasks.first().status
-
-#        if status != self.status:
-#            self.status = status
-#            self.save()
-        #self.update_parent_status()
-
     @classmethod
     def postprocess(cls, run_id):
         run = StepRun.objects.get(id=run_id)
@@ -488,33 +411,25 @@ class StepRun(Run):
         if run.postprocessing_status == 'done':
             return
 
-        try:
-            run._initialize_inputs()
-            run._initialize_outputs()
-
-            # connect_channels must be triggered on the topmost parent.
-            # This will connect channels on children as well.
-            #try:
-            #    run.run_request
-            #    run.connect_channels()
-            #except ObjectDoesNotExist:
-            #    pass
+        #try:
+        run._initialize_inputs()
+        run._initialize_outputs()
                 
-            run.postprocessing_status = 'done'
-            run.save()
-            tasks.run_step_if_ready(run.id)
-        except Exception as e:
-            run.postprocessing_status = 'error'
-            run.save()
-            raise e
+        run.postprocessing_status = 'done'
+        run.save()
+        tasks.run_step_if_ready(run.id)
+        #except Exception as e:
+        #    run.postprocessing_status = 'error'
+        #    run.save()
+        #    raise e
 
     def _initialize_inputs(self):
-        all_channels = set()
+        visited_channels = set()
         for input in self.template.inputs:
-            assert input.get('channel') not in all_channels, \
+            assert input.get('channel') not in visited_channels, \
                 "steprun has multiple inputs for channel '%s'" \
                 % input.get('channel')
-            all_channels.add(input.get('channel'))
+            visited_channels.add(input.get('channel'))
 
             run_input = StepRunInput.objects.create(
                 step_run=self,
@@ -522,13 +437,16 @@ class StepRun(Run):
                 type=input.get('type'),
                 group=input.get('group'),
                 mode=input.get('mode'))
-            self._external_connect_input(run_input)
+            
+            # One of these two should always take effect. The other is ignored.
+            self._connect_input_to_parent(run_input)
+            self._connect_input_to_run_request(run_input)
 
         for fixed_input in self.template.fixed_inputs.all():
-            assert fixed_input.channel not in all_channels, \
+            assert fixed_input.channel not in visited_channels, \
                 "steprun has multiple inputs or fixed inputs for channel "\
                 "'%s'" % input.channel
-            all_channels.add(fixed_input.channel)
+            visited_channels.add(fixed_input.channel)
 
             run_input = StepRunInput.objects.create(
                 step_run=self,
@@ -539,19 +457,19 @@ class StepRun(Run):
             run_input.connect(fixed_input)
 
     def _initialize_outputs(self):
-        all_channels = set()
+        visited_channels = set()
         for output in self.template.outputs:
-            assert output.get('channel') not in all_channels, \
+            assert output.get('channel') not in visited_channels, \
                 "workflowrun has multiple outputs for channel '%s'"\
                 % output.get('channel')
 
-            all_channels.add(output.get('channel'))
+            visited_channels.add(output.get('channel'))
 
             run_output = StepRunOutput.objects.create(
                 step_run=self,
                 type=output.get('type'),
                 channel=output.get('channel'))
-            self._external_connect_output(run_output)
+            self._connect_output_to_parent(run_output)
 
     @classmethod
     def run_if_ready(cls, step_run_id):
@@ -604,6 +522,24 @@ class WorkflowRunConnectorNode(InputOutputNode):
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='connectors',
                                      on_delete=models.CASCADE)
+
+    # True if ALL steps received all inputs
+    status_received_all_inputs = models.BooleanField(default=False)
+    
+    # True if ANY steps are running
+    status_running = models.BooleanField(default=False)
+
+    # True if ALL steps are finished
+    status_finished = models.BooleanField(default=False)
+
+    # True if ANY steps are failed
+    status_failed = models.BooleanField(default=False)
+
+    status_steps_waiting = models.IntegerField(default=0)
+    status_steps_running = models.IntegerField(default=0)
+    status_steps_finished = models.IntegerField(default=0)
+    status_steps_failed = models.IntegerField(default=0)
+
 
     class Meta:
         unique_together = (("workflow_run", "channel"),)

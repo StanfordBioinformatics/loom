@@ -5,6 +5,7 @@ from api.test.models.test_templates import get_workflow
 
 def get_workflow_run():
     wf = get_workflow()
+    import pdb; pdb.set_trace()
     return Run.create_from_template(wf)
 
 class TestWorkflowRun(TestCase):

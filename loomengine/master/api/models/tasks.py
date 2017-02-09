@@ -9,7 +9,30 @@ from api.models.data_objects import DataObject
 # from api.models.workflows import Step, RequestedResourceSet
 from api import get_setting
 from api.task_manager.factory import TaskManagerFactory
-from loomengine.utils.connection import TASK_ATTEMPT_STATUSES
+
+TASK_STATUSES = [
+    ('STARTING', 'Starting'),
+    ('RUNNING', 'Running'),
+    ('FINISHED', 'Finished'),
+    ('FAILED', 'Failed'),
+]
+
+TASK_DETAILED_STATUSES = {
+    'STARTING': 'Starting',
+    'RUNNING_PROVISIONING_HOST': 'Provisioning host',
+    'RUNNING_LAUNCHING_MONITOR': 'Launching monitor process on worker',
+    'RUNNING_INITIALIZING_MONITOR': 'Initializing monitor process on worker',
+    'RUNNING_COPYING_INPUTS': 'Copying input files to runtime environment',
+    'RUNNING_CREATING_RUN_SCRIPT': 'Creating run script',
+    'RUNNING_FETCHING_IMAGE': 'Fetching runtime environment image',
+    'RUNNING_CREATING_CONTAINER': 'Creating runtime environment container',
+    'RUNNING_STARTING_ANALYSIS': 'Starting analysis',
+    'RUNNING_EXECUTING_ANALYSIS': 'Running analysis',
+    'RUNNING_SAVING_OUTPUTS': 'Saving outputs',
+    'FINISHED': 'Finished',
+    'FAILED': 'Failed',
+}
+
 
 class Task(BaseModel):
 
@@ -32,17 +55,21 @@ class Task(BaseModel):
                                  on_delete=models.CASCADE,
                                  null=True) # null for testing only
 
+    status = models.CharField(
+        max_length=255,
+        default='STARTING',
+        choices=TASK_STATUSES,
+    )
+    status_detail = models.CharField(
+        max_length=255,
+        default=TASK_DETAILED_STATUSES['STARTING'])
+    attempt_number = models.IntegerField(default=1)
+
 #    @property
 #    def errors(self):
 #        if self.task_attempts.count() == 0:
 #            return TaskAttemptError.objects.none()
 #        return self.task_attempts.first().errors
-
-#    @property
-#    def status(self):
-#        if self.task_attempts.count() == 0:
-#            return ''
-#        return self.task_attempts.first().status
 
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
@@ -84,14 +111,14 @@ class Task(BaseModel):
         attempt = TaskAttempt.objects.create(task=self)
         attempt.initialize()
         return attempt
-    
+
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
             context[input.channel] = input.data_object\
                                             .get_substitution_value()
         return context
-        
+
     def get_output_context(self):
         context = {}
         for output in self.outputs.all():
@@ -139,12 +166,6 @@ class TaskOutput(BaseModel):
     type = models.CharField(max_length = 255,
                             choices=DataObject.TYPE_CHOICES)
 
-#    def push(self, data_object):
-#        if self.data_object is None:
-#            self.data_object=data_object
-#            self.save()
-#        self.step_run_output.add_data_object([], data_object)
-
 
 class TaskOutputSource(BaseModel):
 
@@ -178,8 +199,6 @@ class TaskEnvironment(BaseModel):
 
 class TaskAttempt(BaseModel):
 
-    STATUSES = TASK_ATTEMPT_STATUSES
-
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
@@ -198,12 +217,16 @@ class TaskAttempt(BaseModel):
     last_heartbeat = models.DateTimeField(auto_now=True)
     status = models.CharField(
         max_length=255,
-        default=STATUSES.NOT_STARTED
+        default='STARTING',
+        choices=TASK_STATUSES,
     )
+    status_detail = models.CharField(
+        max_length=255,
+        default=TASK_DETAILED_STATUSES['STARTING'])
 
     @property
     def name(self):
-        return self.task.interpreter
+        return self.task.name
 
     @property
     def interpreter(self):
@@ -229,10 +252,6 @@ class TaskAttempt(BaseModel):
         error = TaskAttemptError.objects.create(
             message=message, detail=detail, task_attempt=self)
         error.save()
-
-#    def abort(self):
-#        self.status = self.STATUSES.ABORTED
-#        self.save()
 
     @classmethod
     def create_from_task(cls, task):
@@ -344,10 +363,6 @@ class TaskAttemptOutput(BaseModel):
     def source(self):
         return self.task_output.source
 
-#    def push(self):
-#        if self.data_object is not None:
-#            self.task_output.push(self.data_object)
-
 
 class TaskAttemptLogFile(BaseModel):
 
@@ -361,17 +376,6 @@ class TaskAttemptLogFile(BaseModel):
         null=True,
         related_name='task_attempt_log_file',
         on_delete=models.PROTECT)
-
-#    def _post_save(self):
-        # Create a blank file_data_object on save.
-        # The client will upload the file to this object.
-#        if self.file is None:
-#            self.file = DataObject.objects.create(source_type='log')
-#            self.save()
-
-#@receiver(models.signals.post_save, sender=TaskAttemptLogFile)
-#def _post_save_task_attempt_log_file_signal_receiver(sender, instance, **kwargs):
-#    instance._post_save()
 
 
 class TaskAttemptError(BaseModel):
