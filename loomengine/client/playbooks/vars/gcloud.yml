@@ -1,26 +1,39 @@
 # General settings
-loom_settings_home: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}"
-loom_settings_home_in_container: /settings
-loom_admin_files_full_path: "\
-  {{ loom_settings_home }}\
+loom_client_settings_home: "{{ lookup('env', 'LOOM_SETTINGS_HOME') }}"
+loom_client_admin_files_full_path: "\
+  {{ loom_client_settings_home }}\
   /{{ lookup('env', 'LOOM_ADMIN_FILES_DIR') }}"
-loom_admin_settings_full_path: "\
-  {{ loom_settings_home }}\
+loom_client_admin_settings_full_path: "\
+  {{ loom_client_settings_home }}\
+  /{{ lookup('env', 'LOOM_ADMIN_SETTINGS_FILE') }}"
+loom_server_settings_home: "{{ansible_env.HOME}}/.loom"
+loom_server_admin_files_full_path: "\
+  {{ loom_server_settings_home }}\
+  /{{ lookup('env', 'LOOM_ADMIN_FILES_DIR') }}"
+loom_server_admin_settings_full_path: "\
+  {{ loom_server_settings_home }}\
   /{{ lookup('env', 'LOOM_ADMIN_SETTINGS_FILE') }}"
 loom_connection_settings_full_path: "\
-  {{ loom_settings_home }}\
+  {{ loom_client_settings_home }}\
   /{{ lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE') }}"
+loom_settings_home_in_container: /loom-settings
 
+loom_storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"
 loom_docker_image: "{{ lookup('env', 'LOOM_DOCKER_IMAGE') }}"
 loom_server_protocol: "{{ lookup('env', 'LOOM_SERVER_PROTOCOL') }}"
 loom_external_port: "{{ lookup('env', 'LOOM_EXTERNAL_PORT') }}"
+loom_static_root: "{{ lookup('env', 'LOOM_STATIC_ROOT') }}"
 
 # MySQL settings (possibly not needed here if Django reads them from env)
+loom_mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER') | bool}}"
 loom_mysql_database: "{{lookup('env', 'LOOM_MYSQL_DATABASE')}}"
 loom_mysql_user: "{{lookup('env', 'LOOM_MYSQL_USER')}}"
 loom_mysql_password: "{{lookup('env', 'LOOM_MYSQL_PASSWORD')}}"
-loom_mysql_host: "{{lookup('env', 'LOOM_MYSQL_HOST')}}"
 loom_mysql_port: "{{lookup('env', 'LOOM_MYSQL_PORT')}}"
+loom_mysql_image: "{{ lookup('env', 'LOOM_MYSQL_IMAGE')}}"
+loom_mysql_container_name: "{{ lookup('env', 'LOOM_SERVER_NAME')~lookup('env', 'LOOM_MYSQL_CONTAINER_NAME_SUFFIX') }}"
+loom_mysql_random_root_password: "{{ lookup('env', 'LOOM_MYSQL_RANDOM_ROOT_PASSWORD') }}"
+loom_mysql_host: "{{ loom_mysql_create_docker_container | ternary(loom_mysql_container_name,lookup('env', 'LOOM_MYSQL_HOST')) }}"
 
 # Rabbitmq container settings
 loom_rabbitmq_image: "{{ lookup('env', 'LOOM_RABBITMQ_IMAGE') }}"
@@ -43,7 +56,7 @@ loom_nginx_image: "{{ lookup('env', 'LOOM_NGINX_IMAGE') }}"
 loom_nginx_container_name: "\
   {{ lookup('env', 'LOOM_SERVER_NAME') }}\
   {{ lookup('env', 'LOOM_NGINX_CONTAINER_NAME_SUFFIX') }}"
-loom_nginx_conf_file: "{{ loom_admin_files_full_path }}/nginx.conf"
+loom_nginx_conf_file: "{{ loom_server_admin_files_full_path }}/nginx.conf"
 loom_nginx_internal_port: "{{ lookup('env', 'LOOM_NGINX_INTERNAL_PORT') }}"
 loom_nginx_server_name: "{{ lookup('env', 'LOOM_NGINX_SERVER_NAME') }}"
 loom_nginx_webportal_root: "{{ lookup('env', 'LOOM_NGINX_WEBPORTAL_ROOT') }}"
@@ -73,10 +86,3 @@ tags: "{{lookup('env','LOOM_GCLOUD_SERVER_TAGS')}}"
 ansible_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_CLIENT_USES_SERVER_INTERNAL_IP')}}"
 external_ip: "{{lookup('env','LOOM_GCLOUD_SERVER_EXTERNAL_IP')}}"
 zone: "{{lookup('env','LOOM_GCLOUD_SERVER_ZONE')}}"
-
-remote_loom_settings_home: "{{ansible_env.HOME}}/.loom"
-remote_loom_admin_settings_full_path: "\
-  {{ remote_loom_settings_home }}\
-  /{{ lookup('env', 'LOOM_ADMIN_SETTINGS_FILE') }}"
-
-loom_storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"

@@ -1,20 +1,19 @@
-  - name: Create directory for deploy settings.
-    file: path={{remote_loom_settings_home}} state=directory mode=0777
-  - name: Copy deploy settings to server.
-    copy: src={{loom_admin_settings_full_path}} dest={{remote_loom_admin_settings_full_path}}
+  - name: Create directory for Loom settings.
+    file: path={{loom_server_settings_home}} state=directory mode=0777
+  - name: Copy Loom admin settings to server.
+    copy: src={{loom_client_admin_settings_full_path}} dest={{loom_server_admin_settings_full_path}}
   - name: Copy service account key to server.
-    copy: src={{gce_credential}} dest={{remote_loom_settings_home}}
+    copy: src={{gce_credential}} dest={{loom_server_settings_home}}
   - name: Create directory for SSL certificate and key.
-    file: path={{remote_loom_settings_home}}/ssl state=directory mode=0755
+    file: path={{loom_server_settings_home}}/ssl state=directory mode=0755
   - name: Create self-signed SSL certificate and key.
-    command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{remote_loom_settings_home}}/ssl/ssl.key -out {{remote_loom_settings_home}}/ssl/ssl.crt -subj "/C=US/ST=California/L=Palo Alto/O=Stanford University/CN={{ansible_hostname}}"
-  - name: Pull Docker image.
+    command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{loom_server_settings_home}}/ssl/ssl.key -out {{loom_server_settings_home}}/ssl/ssl.crt -subj "/C=US/ST=California/L=Palo Alto/O=Stanford University/CN={{ansible_hostname}}"
+  - name: Pull Loom image.
     docker_image: name={{loom_docker_image}} api_version=auto force=True
   - name: Pull NGINX image.
     docker_image: name={{loom_nginx_image}} api_version=auto force=True
   - name: Pull RabbitMQ image.
     docker_image: name={{loom_rabbitmq_image}} api_version=auto force=True
-  - name: Pull MySQL image when specified.
+  - name: Pull MySQL image when needed.
     docker_image: name={{loom_mysql_image}} api_version=auto force=True
-    when:
-    - loom_mysql_image is defined
+    when: loom_mysql_create_docker_container

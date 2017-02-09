@@ -5,4 +5,5 @@
   vars_files:
     - vars/local.yml
   tasks:
+    - include: tasks/create_connection_settings.yml
     - include: tasks/start_server.yml

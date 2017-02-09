@@ -16,10 +16,7 @@
       MYSQL_DATABASE: "{{ loom_mysql_database }}"
       MYSQL_USER: "{{ loom_mysql_user }}"
       MYSQL_PASSWORD: "{{ loom_mysql_password }}"
-  when:
-  - loom_mysql_container_name is defined
-  - loom_mysql_image is defined
-  - loom_mysql_random_root_password is defined
+  when: loom_mysql_create_docker_container
 
 - name: Start a rabbitmq container to handle message passing for asynchronous tasks
   docker_container:
@@ -42,18 +39,16 @@
     command: /loomengine/bin/run_worker.sh
     restart_policy: always
     api_version: auto
-    env_file: "{{ loom_admin_settings_full_path }}"
+    env_file: "{{ loom_server_admin_settings_full_path }}"
     env:
       C_FORCE_ROOT: true
       LOOM_SETTINGS_HOME: "{{ loom_settings_home_in_container }}"
-      LOOM_MYSQL_HOST: "{{ loom_mysql_container_name }}"
+      LOOM_MYSQL_HOST: "{{ loom_mysql_host }}"
       LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
-
     volumes:
-      - "{{ loom_settings_home }}:{{ loom_settings_home_in_container }}"
-    links:
-      - "{{ loom_mysql_container_name }}"
-      - "{{ loom_rabbitmq_container_name }}"
+      - "{{ loom_server_settings_home }}:{{ loom_settings_home_in_container }}"
+    links: "{{ [loom_mysql_container_name if loom_mysql_create_docker_container else none,\
+            loom_rabbitmq_container_name] | reject('none') | list }}"
 
 - name: Start a container with the Loom Master webserver
   docker_container:
@@ -63,18 +58,22 @@
     command: /loomengine/bin/run_master.sh
     restart_policy: always
     api_version: auto
-    env_file: "{{ loom_admin_settings_full_path }}"
+    env_file: "{{ loom_server_admin_settings_full_path }}"
     env:
       LOOM_SETTINGS_HOME: "{{ loom_settings_home_in_container }}"
-      LOOM_MYSQL_HOST: "{{ loom_mysql_container_name }}"
+      LOOM_MYSQL_HOST: "{{ loom_mysql_host }}"
       LOOM_RABBITMQ_HOST: "{{ loom_rabbitmq_container_name }}"
     volumes:
       - /loomengine/loomengine/portal
       - "{{ loom_static_root }}"
-      - "{{ loom_settings_home }}:{{ loom_settings_home_in_container }}"
-    links:
-      - "{{ loom_mysql_container_name }}"
-      - "{{ loom_rabbitmq_container_name }}"
+      - "{{ loom_server_settings_home }}:{{ loom_settings_home_in_container }}"
+    links: "{{ [loom_mysql_container_name if loom_mysql_create_docker_container else none,\
+            loom_rabbitmq_container_name] | reject('none') | list }}"
+
+- name: Create the admin files directory on the server
+  file:
+    path: "{{ loom_server_admin_files_full_path }}"
+    state: directory
 
 - name: Create a config file for the NGINX web server
   template:
@@ -95,11 +94,6 @@
       - "{{ loom_master_container_name }}"
     ports:
       - "{{ loom_external_port }}:{{ loom_nginx_internal_port }}"
-
-- name: Create connection settings file so client knows where to find server
-  template:
-    src: templates/server-admin.conf
-    dest: "{{ loom_connection_settings_full_path }}"
 
 - name: Wait for Loom server port to be available
   wait_for: port="{{ loom_external_port }}"

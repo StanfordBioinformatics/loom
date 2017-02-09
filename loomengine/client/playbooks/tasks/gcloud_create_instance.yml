@@ -18,6 +18,3 @@
   - name: Add host IP to new_instances for downstream plays. Use internal or external IP depending on setting.
     add_host: hostname={{ (ansible_uses_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
-  - name: Compute the server URL now that we have an IP address.
-    set_fact:
-      loom_server_url: "{{loom_server_protocol}}://{{groups['new_instances'][0]}}:{{loom_external_port}}"
