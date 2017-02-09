@@ -34,6 +34,9 @@ loom_mysql_image: "{{ lookup('env', 'LOOM_MYSQL_IMAGE')}}"
 loom_mysql_container_name: "{{ lookup('env', 'LOOM_SERVER_NAME')~lookup('env', 'LOOM_MYSQL_CONTAINER_NAME_SUFFIX') }}"
 loom_mysql_random_root_password: "{{ lookup('env', 'LOOM_MYSQL_RANDOM_ROOT_PASSWORD') }}"
 loom_mysql_host: "{{ loom_mysql_create_docker_container | ternary(loom_mysql_container_name,lookup('env', 'LOOM_MYSQL_HOST')) }}"
+loom_mysql_ssl_ca_cert_path_on_client: "{{ lookup('env', 'LOOM_MYSQL_SSL_CA_CERT_PATH_ON_CLIENT')}}"
+loom_mysql_ssl_client_cert_path_on_client: "{{ lookup('env', 'LOOM_MYSQL_SSL_CLIENT_CERT_PATH_ON_CLIENT')}}"
+loom_mysql_ssl_client_key_path_on_client: "{{ lookup('env', 'LOOM_MYSQL_SSL_CLIENT_KEY_PATH_ON_CLIENT')}}"
 
 # Rabbitmq container settings
 loom_rabbitmq_image: "{{ lookup('env', 'LOOM_RABBITMQ_IMAGE') }}"

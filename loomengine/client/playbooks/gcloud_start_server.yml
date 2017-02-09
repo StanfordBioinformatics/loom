@@ -1,17 +1,4 @@
 ---
-- hosts: localhost
-  connection: local
-  vars_files:
-    - vars/gcloud.yml
-  vars:
-    testvar: "{{ [loom_mysql_container_name if loom_mysql_create_docker_container else none,\
-            loom_rabbitmq_container_name] | reject('none') | list }}"
-  tasks:
-    - debug: var=loom_mysql_container_name
-    - debug: var=loom_mysql_host
-    - debug: msg="{% for item in ['asdf', loom_mysql_container_name if loom_mysql_create_docker_container else none] | reject('none') %}{{item}}{% endfor %}"
-    - debug: var=testvar
-
 - name: Create a new instance for the Loom server.
   hosts: localhost
   connection: local
@@ -37,8 +24,8 @@
   hosts: new_instances
   become: yes
   roles:
-  - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')}}"}
-  - {role: docker-py, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')}}"}
+  - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
+  - {role: docker-py, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
   tasks:
   - include: tasks/gcloud_create_docker_group.yml
 

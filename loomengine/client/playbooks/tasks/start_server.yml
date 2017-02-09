@@ -4,6 +4,19 @@
     state: directory
   when: loom_storage_type == "local"
 
+- name: Create the admin files directory on the server
+  file:
+    path: "{{ loom_server_admin_files_full_path }}"
+    state: directory
+
+- name: Copy admin files from client to server
+  copy:
+    src: "{{ loom_client_admin_files_full_path }}"
+    dest: "{{ loom_server_admin_files_full_path }}"
+
+- name: Copy admin settings file from client to server.
+  copy: src={{loom_client_admin_settings_full_path}} dest={{loom_server_admin_settings_full_path}}
+
 - name: Start a MySQL database container
   docker_container:
     name: "{{ loom_mysql_container_name }}"
@@ -69,11 +82,6 @@
       - "{{ loom_server_settings_home }}:{{ loom_settings_home_in_container }}"
     links: "{{ [loom_mysql_container_name if loom_mysql_create_docker_container else none,\
             loom_rabbitmq_container_name] | reject('none') | list }}"
-
-- name: Create the admin files directory on the server
-  file:
-    path: "{{ loom_server_admin_files_full_path }}"
-    state: directory
 
 - name: Create a config file for the NGINX web server
   template:

@@ -1,9 +1,13 @@
-  - name: Create directory for Loom settings.
+  - name: Copy service account key to admin files directory.
+    copy: src={{gce_credential}} dest={{loom_client_admin_files_full_path}}
+  - name: Copy MySQL CA certificate to admin files directory.
+    copy: src={{loom_mysql_ssl_ca_cert_path_on_client}} dest={{loom_client_admin_files_full_path}}
+  - name: Copy MySQL client certificate to admin files directory.
+    copy: src={{loom_mysql_ssl_client_cert_path_on_client}} dest={{loom_client_admin_files_full_path}}
+  - name: Copy MySQL client key to admin files directory.
+    copy: src={{loom_mysql_ssl_client_key_path_on_client}} dest={{loom_client_admin_files_full_path}}
+  - name: Create directory for Loom settings on the server.
     file: path={{loom_server_settings_home}} state=directory mode=0777
-  - name: Copy Loom admin settings to server.
-    copy: src={{loom_client_admin_settings_full_path}} dest={{loom_server_admin_settings_full_path}}
-  - name: Copy service account key to server.
-    copy: src={{gce_credential}} dest={{loom_server_settings_home}}
   - name: Create directory for SSL certificate and key.
     file: path={{loom_server_settings_home}}/ssl state=directory mode=0755
   - name: Create self-signed SSL certificate and key.
