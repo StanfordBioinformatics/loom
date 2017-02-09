@@ -91,7 +91,7 @@ class StepSerializer(serializers.ModelSerializer):
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
     outputs = serializers.JSONField(required=False)
     template_import =  serializers.JSONField(required=False)
-    saving_status = serializers.CharField(required=False)
+    postprocessing_status = serializers.CharField(required=False)
 
     class Meta:
         model = Step
@@ -107,7 +107,7 @@ class StepSerializer(serializers.ModelSerializer):
                   'outputs',
                   'datetime_created',
                   'template_import',
-                  'saving_status',
+                  'postprocessing_status',
         )
 
     def create(self, validated_data):
@@ -115,16 +115,16 @@ class StepSerializer(serializers.ModelSerializer):
         validated_data['raw_data'] = self.initial_data
         validated_data.pop('fixed_inputs', None)
 
+        # Apply defaults for certain settings if missing
         inputs = validated_data.get('inputs')
+        outputs = validated_data.get('outputs')
         if inputs:
             for input in inputs:
                 self._set_input_defaults(input)
-
-        outputs = validated_data.get('outputs')
         if outputs:
             for output in outputs:
-                self._set_output_defaults(input)
-                
+                self._set_output_defaults(output)
+
         # Type might not be explicitly declared
         validated_data['type'] = 'step'
 
@@ -155,12 +155,16 @@ class StepSerializer(serializers.ModelSerializer):
                     })
                 s.is_valid(raise_exception=True)
                 s.save()
-            step.saving_status='ready'
+
+            step.postprocessing_status='done'
             step.save()
         except Exception as e:
-            step.saving_status='error'
+            step.postprocessing_status='error'
             step.save
             raise e
+
+        # The user may have already submitted a run request before this
+        # template finished postprocessing. If runs exist, postprocess them now.
         for step_run in step.runs.all():
             tasks.postprocess_step_run(step_run.id)
 
@@ -194,7 +198,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
     outputs = serializers.JSONField(required=False)
     steps = TemplateNameAndUuidSerializer(many=True)
     template_import = serializers.JSONField(required=False)
-    saving_status = serializers.CharField(required=False)
+    postprocessing_status = serializers.CharField(required=False)
 
     class Meta:
         model = Workflow
@@ -207,7 +211,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
                   'outputs',
                   'datetime_created',
                   'template_import',
-                  'saving_status',)
+                  'postprocessing_status',)
 
     def create(self, validated_data):
 
@@ -228,6 +232,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
 
     @classmethod
     def postprocess(cls, workflow_id):
+
         workflow = Workflow.objects.get(id=workflow_id)
         try:
             fixed_inputs = workflow.raw_data.get('fixed_inputs', [])
@@ -247,12 +252,18 @@ class WorkflowSerializer(serializers.ModelSerializer):
                 step = s.save()
                 workflow.add_step(step)
 
-            workflow.saving_status = 'ready'
+            workflow.postprocessing_status = 'done'
             workflow.save()
 
+            # There are only runs if the user submitted a run with this
+            # template before we finished postprocessing the template. The run's
+            # postprocessing is skipped if its template is not
+            # postprocessing_status==done.
+
+            for workflow_run in workflow.runs.all():
+                tasks.postprocess_workflow_run(workflow_run.id)
+
         except Exception as e:
-            workflow.saving_status = 'error'
+            workflow.postprocessing_status = 'error'
             workflow.save()
             raise e
-        for workflow_run in workflow.runs.all():
-            tasks.postprocess_workflow_run(workflow_run.id)

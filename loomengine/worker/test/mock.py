@@ -1,19 +1,19 @@
 class Connection:
 
-    def __init__(self, worker_settings, task_run_attempt):
+    def __init__(self, worker_settings, task_attempt):
         self.worker_settings = worker_settings
-        self.task_run_attempt = task_run_attempt
+        self.task_attempt = task_attempt
 
     def get_worker_settings(self, id):
         return self.worker_settings
 
-    def get_task_run_attempt(self, id):
-        return self.task_run_attempt
+    def get_task_attempt(self, id):
+        return self.task_attempt
 
-    def update_task_run_attempt(self, id, data):
-        self.task_run_attempt.update(data)
+    def update_task_attempt(self, id, data):
+        self.task_attempt.update(data)
 
-    def post_task_run_attempt_error(self, id, error):
+    def post_task_attempt_error(self, id, error):
         pass
         
         

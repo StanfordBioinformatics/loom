@@ -92,19 +92,15 @@ class Template(BaseModel):
                                             editable=False)
     name = models.CharField(max_length=255)
 
-    saving_status = models.CharField(
+    postprocessing_status = models.CharField(
         max_length=255,
         default='saving',
-        choices=(('saving', 'Saving'),
-                 ('ready', 'Ready'),
+        choices=(('waiting', 'Waiting'),
+                 ('in_progress', 'In progress'),
+                 ('done', 'Done'),
                  ('error', 'Error'))
     )
 
-    def is_saving_status_ready(self):
-        # Refresh object
-        template = Template.objects.get(id=self.id)
-        return template.saving_status=='ready'
-    
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]

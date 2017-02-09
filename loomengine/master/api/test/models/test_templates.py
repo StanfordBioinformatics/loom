@@ -14,7 +14,7 @@ def get_step_one():
         outputs=[{'channel': 'two', 'type': 'string',
                   'source': {'stream': 'stdout'}}],
         type='step',
-        saving_status='ready')
+        postprocessing_status='done')
     return step_one
 
 def get_step_two():
@@ -28,7 +28,7 @@ def get_step_two():
         outputs=[{'channel': 'three', 'type': 'string',
                   'source': {'stream': 'stdout'}}],
         type='step',
-        saving_status='ready')
+        postprocessing_status='done')
     return step_two
         
 def get_workflow():
@@ -37,7 +37,7 @@ def get_workflow():
         name='one_two',
         inputs = [{'channel': 'one', 'type': 'string'}],
         outputs = [{'channel': 'three', 'type': 'string'}],
-        saving_status='ready')
+        postprocessing_status='done')
     workflow.add_steps([get_step_one(),
                         get_step_two()])
     return workflow

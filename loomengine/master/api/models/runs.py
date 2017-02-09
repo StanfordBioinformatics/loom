@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .base import BaseModel
 from api import get_setting
+from api.exceptions import *
 from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAttemptError
@@ -89,11 +90,12 @@ class Run(BaseModel):
                                  related_name='runs',
                                  on_delete=models.PROTECT,
                                  null=True) # For testing only
-    saving_status = models.CharField(
+    postprocessing_status = models.CharField(
         max_length=255,
         default='saving',
-        choices=(('saving', 'Saving'),
-                 ('ready', 'Ready'),
+        choices=(('waiting', 'Waiting'),
+                 ('in_progress', 'In progress'),
+                 ('done', 'Done'),
                  ('error', 'Error'))
     )
 
@@ -152,10 +154,12 @@ class Run(BaseModel):
             if run_request:
                 run_request.run = run
                 run_request.save()
-            # Postprocess run only if postprocessing of template is complete.
-            # Otherwise the run postprocessing will be triggered when the
-            # template is ready
-            if template.saving_status == 'ready':
+            # Postprocess run only if postprocessing of template is done.
+            # It is possible for the run to be completed before the template
+            # is postprocessing_status=='done'. In that case, the run postprocessing
+            # will be triggered by the template postprocessing when the template
+            # is ready
+            if template.postprocessing_status == 'done':
                 tasks.postprocess_step_run(run.id)
         else:
             assert template.type == 'workflow', \
@@ -168,10 +172,12 @@ class Run(BaseModel):
             if run_request:
                 run_request.run = run
                 run_request.save()
-            # Postprocess run only if postprocessing of template is complete.
-            # Otherwise the run postprocessing will be triggered when the
-            # template is ready
-            if template.saving_status == 'ready':
+            # Postprocess run only if postprocessing of template is done.
+            # It is possible for the run to be completed before the template
+            # is postprocessing_status==ready. In that case, the run postprocessing
+            # will be triggered by the template postprocessing when the template
+            # is ready
+            if template.postprocessing_status == 'done':
                 tasks.postprocess_workflow_run(run.id)
 
         return run.downcast()
@@ -305,28 +311,44 @@ class WorkflowRun(Run):
             
     @classmethod
     def postprocess(cls, run_id):
+
+        # There are two paths to get here:
+        # 1. user calls "run" on a template that is already ready, and
+        #    run is postprocessed right away.
+        # 2. user calls "run" on a template that is not ready, and run
+        #    is postprocessed only after template is ready.
+
         run = WorkflowRun.objects.get(id=run_id)
-        # There are two paths to get here--if user calls "run" on a
-        # template that is already ready, run.postprocess will be triggered
-        # without delay. If template is not ready, run.postprocess will be
-        # triggered only after template is ready. To avoid a race condition,
-        # postprocessing is a no-op if the run is already marked ready.
-        assert run.template.saving_status == 'ready', \
-            'Template not ready, cannot postprocess run %s' % run.uuid
-        if run.saving_status == 'ready':
+
+        # Don't postprocess twice
+        if run.postprocessing_status == 'done' \
+           or run.postprocessing_status == 'in_progress':
             return
+        
+        # Since "save" method has is overridden in our base model to have concurrency
+        # protection, this prevents us from running this method twice.
+        run.postprocessing_status = 'in_progress'
+        try:
+            run.save()
+        except ConcurrentModificationError:
+            # Already being processed. Nothing to do.
+            return
+
+        assert run.template.postprocessing_status == 'done', \
+            'Template not ready, cannot postprocess run %s' % run.uuid
+
         try:
             run._initialize_inputs()
             run._initialize_outputs()
             run._initialize_steps()
 
-            run.saving_status = 'ready'
+            run.postprocessing_status = 'done'
             run.save()
         except Exception as e:
-            run.saving_status = 'error'
+            run.postprocessing_status = 'error'
             run.save()
             raise e
-
+        
     def _initialize_inputs(self):
         run = self.downcast()
         all_channels = set()
@@ -461,9 +483,9 @@ class StepRun(Run):
         # without delay. If template is not ready, run.postprocess will be
         # triggered only after template is ready. To avoid a race condition,
         # postprocessing is a no-op if the run is already marked ready.
-        assert run.template.saving_status == 'ready', \
+        assert run.template.postprocessing_status == 'done', \
             'Template not ready, cannot postprocess run %s' % run.uuid
-        if run.saving_status == 'ready':
+        if run.postprocessing_status == 'done':
             return
 
         try:
@@ -478,11 +500,11 @@ class StepRun(Run):
             #except ObjectDoesNotExist:
             #    pass
                 
-            run.saving_status = 'ready'
+            run.postprocessing_status = 'done'
             run.save()
             tasks.run_step_if_ready(run.id)
         except Exception as e:
-            run.saving_status = 'error'
+            run.postprocessing_status = 'error'
             run.save()
             raise e
 

@@ -24,8 +24,15 @@ def _run_with_delay(task_function, args, kwargs):
 
 @shared_task
 def _postprocess_workflow(workflow_id):
+    from api.models.templates import Workflow
     from api.serializers.templates import WorkflowSerializer
-    WorkflowSerializer.postprocess(workflow_id)
+
+    try:
+        Workflow.objects.select_for_update(nowait=True).filter(id=workflow_id)
+        WorkflowSerializer.postprocess(workflow_id)
+    except db.DatabaseError:
+        # Ignore this task since the same one is already running
+        pass
 
 def postprocess_workflow(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):

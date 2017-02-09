@@ -92,7 +92,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
         model = StepRun
         fields = ('uuid', 'template', 'inputs', 'outputs',
                   'command', 'interpreter', 'tasks', 'run_request',
-                  'saving_status', 'type', 'datetime_created')
+                  'postprocessing_status', 'type', 'datetime_created')
 
 
 
@@ -126,4 +126,4 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = WorkflowRun
         fields = ('uuid', 'template', 'steps', 'inputs', 'outputs',
-                  'run_request', 'saving_status', 'type', 'datetime_created')
+                  'run_request', 'postprocessing_status', 'type', 'datetime_created')

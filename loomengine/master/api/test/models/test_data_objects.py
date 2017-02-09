@@ -76,13 +76,13 @@ class TestFileDataObject(TestCase):
 
     def testGetByValue_Hash(self):
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "$%s" % self.file.md5)
+            "%%%s" % self.file.md5)
         self.assertEqual(len(matches),2) 
         self.assertTrue(matches[0].filename, self.filename)
 
     def testGetByValue_NameHash(self):
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "%s$%s" % (self.filename, self.file.md5))
+            "%s%%%s" % (self.filename, self.file.md5))
         self.assertEqual(len(matches),1) 
         self.assertTrue(matches[0].filename, self.filename)
 
@@ -94,14 +94,15 @@ class TestFileDataObject(TestCase):
 
     def testGetByValue_HashId(self):
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "@%s$%s" % (self.file.uuid, self.file.md5))
+            "@%s%%%s" % (self.file.uuid, self.file.md5))
         self.assertEqual(len(matches),1) 
         self.assertTrue(matches[0].filename, self.filename)
 
     def testGetByValue_NameHashId(self):
-        query = "%s$%s@%s" % (self.filename, self.file.md5, self.file.uuid)
+        query = "%s%%%s@%s" % (self.filename, self.file.md5, self.file.uuid)
+        
         matches = FileDataObject.filter_by_name_or_id_or_hash(
-            "%s$%s@%s" % (self.filename, self.file.md5, self.file.uuid))
+            "%s%%%s@%s" % (self.filename, self.file.md5, self.file.uuid))
         self.assertEqual(len(matches),1) 
         self.assertTrue(matches[0].filename, self.filename)
 

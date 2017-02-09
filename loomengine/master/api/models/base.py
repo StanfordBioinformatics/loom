@@ -138,6 +138,19 @@ class _FilterMixin(object):
 
 class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):
 
+    _change = models.IntegerField(default=0)
+
     class Meta:
         abstract = True
         app_label = 'api'
+
+    def save(self, *args, **kwargs):
+        cls = self.__class__
+        if self.pk:
+            rows = cls.objects.filter(
+                pk=self.pk, _change=self._change).update(
+                _change=self._change + 1)
+            if not rows:
+                raise ConcurrentModificationError(cls.__name__, self.pk)
+            self._change += 1
+        super(BaseModel, self).save(*args, **kwargs)

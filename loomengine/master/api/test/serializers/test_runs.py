@@ -14,11 +14,11 @@ def wait_for_run_postprocessing(run):
     TIMEOUT=20 #seconds
     INTERVAL=1 #seconds
     loomengine.utils.helper.wait_for_true(
-        lambda: Run.objects.get(id=run.id).saving_status=='ready',
+        lambda: Run.objects.get(id=run.id).postprocessing_status=='done',
         timeout_seconds=TIMEOUT,
         sleep_interval=INTERVAL)
     loomengine.utils.helper.wait_for_true(
-        lambda: all([step.saving_status=='ready' for step in Run.objects.get(id=run.id).workflowrun.steps.all()]),
+        lambda: all([step.postprocessing_status=='done' for step in Run.objects.get(id=run.id).workflowrun.steps.all()]),
         timeout_seconds=TIMEOUT,
         sleep_interval=INTERVAL)
     return Run.objects.get(id=run.id)
@@ -59,7 +59,7 @@ class TestRunSerializer(TransactionTestCase):
         s = TemplateSerializer(data=fixtures.templates.step_a)
         s.is_valid()
         m = s.save()
-        # Refresh to update saving_status
+        # Refresh to update postprocessing_status
         m = Template.objects.get(id=m.id)
         run = Run.create_from_template(m)
         

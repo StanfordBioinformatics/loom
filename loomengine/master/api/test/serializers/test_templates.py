@@ -12,11 +12,11 @@ def wait_for_template_postprocessing(template):
     TIMEOUT = 120 # seconds
     INTERVAL = 1 # seconds
     loomengine.utils.helper.wait_for_true(
-        lambda: Template.objects.get(id=template.id).saving_status=='ready',
+        lambda: Template.objects.get(id=template.id).postprocessing_status=='done',
         timeout_seconds=TIMEOUT,
         sleep_interval=INTERVAL)
     loomengine.utils.helper.wait_for_true(
-        lambda: all([step.saving_status=='ready' for step in Template.objects.get(id=template.id).workflow.steps.all()]),
+        lambda: all([step.postprocessing_status=='done' for step in Template.objects.get(id=template.id).workflow.steps.all()]),
         timeout_seconds=TIMEOUT,
         sleep_interval=INTERVAL)
     return Template.objects.get(id=template.id)
@@ -83,10 +83,6 @@ class TestStepSerializer(TransactionTestCase):
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestWorkflowSerializer(TransactionTestCase):
-
-    @classmethod
-    def isWorkflowReady(cls, workflow_id):
-        return Workflow.objects.get(id=workflow_id).saving_status == 'ready'
 
     def testCreateFlatWorkflow(self):
         s = WorkflowSerializer(data=fixtures.templates.flat_workflow)

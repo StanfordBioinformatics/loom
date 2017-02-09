@@ -48,7 +48,7 @@ class TaskRunner(object):
         if args is None:
             args = self._get_args()
         self.settings = {
-            'TASK_ATTEMPT_ID': args.attempt_id,
+            'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
             'LOG_FILE': args.log_file,
@@ -446,8 +446,8 @@ class TaskRunner(object):
         )
 
     def _set_image_id(self, image_id):
-        self.connection.update_task_run_attempt(
-            self.settings['TASK_RUN_ATTEMPT_ID'],
+        self.connection.update_task_attempt(
+            self.settings['TASK_ATTEMPT_ID'],
             {'image_id': image_id}
         )
 
@@ -476,7 +476,7 @@ class TaskRunner(object):
     @classmethod
     def get_parser(self):
         parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('--run_attempt_id',
+        parser.add_argument('--task_attempt_id',
                             '-i',
                             required=True,
                             help='ID of TaskAttempt to be processed')

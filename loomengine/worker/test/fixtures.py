@@ -1,4 +1,4 @@
-task_run_attempt = {
+task_attempt = {
     "id": "76d7a27f2d984ecbb08df87a1b3ca5b3",
     "name": "hello_step",
     "log_files": [],

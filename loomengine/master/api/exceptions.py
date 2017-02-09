@@ -21,3 +21,6 @@ class IdNotFoundError(Error):
 
 class TooManyMatchesError(Error):
     pass
+
+class ConcurrentModificationError(Exception):
+    pass
