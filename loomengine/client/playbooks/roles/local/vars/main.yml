@@ -46,6 +46,11 @@ loom_worker_container_name: "\
   {{ lookup('env', 'LOOM_SERVER_NAME') }}\
   {{ lookup('env', 'LOOM_WORKER_CONTAINER_NAME_SUFFIX') }}"
 
+# Celery scheuler container settings
+loom_scheduler_container_name: "\
+  {{ lookup('env', 'LOOM_SERVER_NAME') }}\
+  {{ lookup('env', 'LOOM_SCHEDULER_CONTAINER_NAME_SUFFIX') }}"
+
 # NGINX container settings
 loom_nginx_image: "{{ lookup('env', 'LOOM_NGINX_IMAGE') }}"
 loom_nginx_container_name: "\

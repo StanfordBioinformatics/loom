@@ -31,7 +31,7 @@ BASE_DIR = (os.path.join(SETTINGS_DIR, '..'))
 sys.path.append(BASE_DIR)
 
 # Security settings
-DEBUG = os.getenv('LOOM_DEBUG')
+DEBUG = to_boolean(os.getenv('LOOM_DEBUG'))
 SECRET_KEY = os.getenv(
     'LOOM_MASTER_SECRET_KEY',
     ''.join([random.SystemRandom()\
