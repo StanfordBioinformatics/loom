@@ -12,6 +12,7 @@ loom_server_admin_settings_full_path: "{{loom_client_admin_settings_full_path}}"
 loom_connection_settings_full_path: "\
   {{ loom_client_settings_home }}\
   /{{ lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE') }}"
+loom_settings_home_in_container: /loom-settings
 
 loom_storage_root: "{{ lookup('env', 'LOOM_STORAGE_ROOT') }}"
 loom_storage_root_in_container: /loom-storage
@@ -33,7 +34,7 @@ loom_mysql_random_root_password: >
 loom_mysql_database: "{{lookup('env', 'LOOM_MYSQL_DATABASE')}}"
 loom_mysql_user: "{{lookup('env', 'LOOM_MYSQL_USER')}}"
 loom_mysql_password: "{{lookup('env', 'LOOM_MYSQL_PASSWORD')}}"
-loom_mysql_host: {{loom_mysql_container_name}}
+loom_mysql_host: "{{loom_mysql_container_name}}"
 
 # Rabbitmq container settings
 loom_rabbitmq_image: "{{ lookup('env', 'LOOM_RABBITMQ_IMAGE') }}"
