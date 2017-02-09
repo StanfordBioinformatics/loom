@@ -11,7 +11,7 @@
 
 - name: Copy admin files from client to server
   copy:
-    src: "{{ loom_client_admin_files_full_path }}"
+    src: "{{ loom_client_admin_files_full_path }}/"
     dest: "{{ loom_server_admin_files_full_path }}"
 
 - name: Copy admin settings file from client to server.

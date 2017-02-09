@@ -1,5 +1,0 @@
-docker_full_name: "{{lookup('env','DOCKER_FULL_NAME')}}"
-docker_tag: "{{lookup('env','DOCKER_TAG')}}"
-scratch_disk_device_path: "{{lookup('env','WORKER_SCRATCH_DISK_DEVICE_PATH')}}"
-scratch_disk_mount_point: "{{lookup('env','WORKER_SCRATCH_DISK_MOUNT_POINT')}}"
-task_run_docker_image: "{{lookup('env','TASK_RUN_DOCKER_IMAGE')}}"
