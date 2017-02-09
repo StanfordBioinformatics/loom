@@ -94,7 +94,7 @@ class ServerControls:
         else:
             print 'No response from server at "%s".' % get_server_url()
 
-    #@loom_settings_transaction
+    @loom_settings_transaction
     def start(self):
         settings = self._get_admin_settings()
         # Hard-coded settings that don't come from the user:
