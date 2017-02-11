@@ -1,5 +1,6 @@
 from django.test import TransactionTestCase
 
+from api import tasks
 from api.models import *
 from .test_templates import get_workflow
 
@@ -13,8 +14,9 @@ class TestRunRequest(TransactionTestCase):
         data_object = StringDataObject.objects.create(
             type='string', value='one')
         input_one.add_data_as_scalar(data_object)
+        run_request.initialize_run()
         with self.settings(TEST_DISABLE_TASK_DELAY=True):
-            run_request.initialize()
+            tasks.postprocess_workflow_run(run_request.run.id)
         return run_request
 
     def testInitialize(self):

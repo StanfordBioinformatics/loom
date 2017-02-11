@@ -20,11 +20,8 @@ def get_task():
     output = TaskOutput.objects.create(
         task=task,
         channel='output1',
-        type='string'
-    )
-    output_source = TaskOutputSource.objects.create(
-        task_output=output,
-        stream='stdout'
+        type='string',
+        source={'stream': 'stdout'}
     )
     resources = TaskResourceSet.objects.create(
         task=task,
@@ -61,6 +58,6 @@ class TestTaskAttempt(TestCase):
                          self.task.outputs.first().channel)
         self.assertEqual(self.task_attempt.outputs.first().type,
                          self.task.outputs.first().type)
-        self.assertEqual(self.task_attempt.outputs.first().source.stream,
+        self.assertEqual(self.task_attempt.outputs.first().source.get('stream'),
                          self.task.outputs.first().source.stream)
         

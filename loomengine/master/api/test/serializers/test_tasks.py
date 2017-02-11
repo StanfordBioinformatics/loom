@@ -29,11 +29,8 @@ def get_task():
         task=task,
         channel='output1',
         type='string',
-        data_object=output_data_object
-    )
-    task_output_source = TaskOutputSource.objects.create(
-        task_output=task_output,
-        stream='stdout'
+        data_object=output_data_object,
+        source={'stream': 'stdout'}
     )
     task_resources = TaskResourceSet.objects.create(
         task=task,

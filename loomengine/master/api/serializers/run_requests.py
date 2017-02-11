@@ -41,11 +41,7 @@ class RunRequestSerializer(serializers.ModelSerializer):
         s.is_valid()
         template = s.save()
 
-        from api.serializers.runs import RunSerializer
-        run = Run.create_from_template(template)
-
         validated_data['template'] = template
-        validated_data['run'] = run
 
         run_request = RunRequest.objects.create(**validated_data)
         
@@ -63,7 +59,9 @@ class RunRequestSerializer(serializers.ModelSerializer):
                          })
                 s.is_valid(raise_exception=True)
                 s.save()
-                
+
+        run_request.initialize_run()
+        
         return run_request
 
 class RunRequestUuidSerializer(UuidSerializer, RunRequestSerializer):

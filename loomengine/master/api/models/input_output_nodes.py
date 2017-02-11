@@ -29,7 +29,11 @@ class InputOutputNode(BaseModel):
 
     @property
     def data(self):
-        # Dummy attribute required by serializer
+        # Dummy attribute required by serializers.
+        # DataNodeSerializer is needed to render this field.
+        # We don't implement that as a model method here to avoid
+        # circular dependencies between models and serializers.
+        # To access data directly use the data_root field instead.
         return
 
     def get_data_as_scalar(self):

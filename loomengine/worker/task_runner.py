@@ -17,7 +17,6 @@ import uuid
 import loomengine.utils
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-from loomengine.utils.connection import TASK_ATTEMPT_STATUSES as STATUS
 from loomengine.utils.logger import get_file_logger, get_stdout_logger
 from loomengine.utils.helper import init_directory
 
@@ -73,7 +72,7 @@ class TaskRunner(object):
         # Errors here can be both logged and reported to server
 
         try:
-            self._set_status(STATUS.INITIALIZING_MONITOR)
+            self._set_status('RUNNING_INITIALIZING_MONITOR')
             self._init_task_attempt()
             if mock_filemanager is not None:
                 self.filemanager = mock_filemanager
@@ -85,7 +84,7 @@ class TaskRunner(object):
         except Exception as e:
             try:
                 self._report_error(message='Failed to initialize', detail=str(e))
-                self._set_status(STATUS.FINISHED)
+                self._set_status('RUNNING_FINISHED')
             except:
                 # Raise original error, not status change error
                 pass
@@ -139,7 +138,7 @@ class TaskRunner(object):
 
     def cleanup(self):
         # Never raise errors, so cleanup can continue
-        self._set_status(STATUS.SAVING_OUTPUTS)
+        self._set_status('RUNNING_SAVING_OUTPUTS')
 
         self._try_to_save_process_logs()
             
@@ -154,12 +153,12 @@ class TaskRunner(object):
         except Exception as e:
             self._report_error(message='Failed to save monitor log', detail=str(e))
 
-        self._set_status(STATUS.FINISHED)
+        self._set_status('RUNNING_FINISHED')
         self.logger.info('Done.')
 
     def _try_to_copy_inputs(self):
         self.logger.info('Downloading input files')
-        self._set_status(STATUS.COPYING_INPUTS)
+        self._set_status('RUNNING_COPYING_INPUTS')
         try:
             self._copy_inputs()
         except Exception as e:
@@ -181,7 +180,7 @@ class TaskRunner(object):
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
-        self._set_status(STATUS.CREATING_RUN_SCRIPT)
+        self._set_status('RUNNING_CREATING_RUN_SCRIPT')
         try:
             self._create_run_script()
         except Exception as e:
@@ -194,7 +193,7 @@ class TaskRunner(object):
             f.write(user_command + '\n')
         
     def _try_to_pull_image(self):
-        self._set_status(STATUS.FETCHING_IMAGE)
+        self._set_status('RUNNING_FETCHING_IMAGE')
         try:
             self._pull_image()
             image_id = self.docker_client.inspect_image(self._get_docker_image())['Id']
@@ -222,7 +221,7 @@ class TaskRunner(object):
         return [json.loads(line) for line in data.strip().split('\r\n')]
 
     def _try_to_create_container(self):
-        self._set_status(STATUS.CREATING_CONTAINER)
+        self._set_status('RUNNING_CREATING_CONTAINER')
         try:
             self._create_container()
             self._set_container_id(self.container['Id'])
@@ -254,7 +253,7 @@ class TaskRunner(object):
         )
 
     def _try_to_run_container(self):
-        self._set_status(STATUS.STARTING_ANALYSIS)
+        self._set_status('RUNNING_STARTING_ANALYSIS')
         try:
             self.docker_client.start(self.container)
             self._verify_container_started_running()
@@ -270,7 +269,7 @@ class TaskRunner(object):
             raise ContainerStartError('Unexpected container status "%s"' % status)
 
     def _try_to_get_returncode(self):
-        self._set_status(STATUS.RUNNING_ANALYSIS)
+        self._set_status('RUNNING_EXECUTING_ANALYSIS')
         try:
             returncode = self._poll_for_returncode()
             if returncode == 0:

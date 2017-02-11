@@ -2,6 +2,7 @@ from django.db import models, IntegrityError
 from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+import jsonfield
 
 from .base import BaseModel
 from api import get_setting
@@ -30,9 +31,6 @@ class WorkflowRunManager(object):
     def get_outputs(self):
         return self.run.workflowrun.outputs
 
-    def create_ready_tasks(self, do_start):
-        return self.run.workflowrun.create_ready_tasks(do_start=do_start)
-
     def get_tasks(self):
         raise Exception('No tasks on run of type "workflow"')
 
@@ -49,9 +47,6 @@ class StepRunManager(object):
 
     def get_outputs(self):
         return self.run.steprun.outputs
-
-    def create_ready_tasks(self, do_start):
-        return self.run.steprun.create_ready_tasks(do_start=do_start)
 
     def get_tasks(self):
         return self.run.steprun.tasks
@@ -114,9 +109,6 @@ class Run(BaseModel):
     def tasks(self):
         return self._get_manager().get_tasks()
 
-    def create_ready_tasks(self, do_start=True):
-        return self._get_manager().create_ready_tasks(do_start=do_start)
-    
     def get_input(self, channel):
         inputs = [i for i in self.inputs.filter(channel=channel)]
         assert len(inputs) == 1, 'missing input for channel %s' % channel
@@ -229,10 +221,6 @@ class WorkflowRun(Run):
         step_run.parent = self
         step_run.save()
 
-    def create_ready_tasks(self, do_start=True):
-        for step_run in self.steps.all():
-            step_run.create_ready_tasks(do_start=do_start)
-            
     @classmethod
     def postprocess(cls, run_id):
 
@@ -362,13 +350,13 @@ class StepRun(Run):
 
     # True if ALL inputs are available
     status_received_all_inputs = models.BooleanField(default=False)
-    
+
     # True if ANY tasks are running
     status_running = models.BooleanField(default=False)
-    
+
     # True if ALL tasks are finished
     status_finished = models.BooleanField(default=False)
-    
+
     # True if ANY tasks are failed
     status_failed = models.BooleanField(default=False)
 
@@ -382,21 +370,13 @@ class StepRun(Run):
             return TaskAttemptError.objects.none()
         return self.tasks.first().errors
 
-    def get_all_inputs(self):
-        inputs = [i for i in self.inputs.all()]
-        inputs.extend([i for i in self.fixed_inputs.all()])
-        return inputs
-
     def create_ready_tasks(self, do_start=True):
         # This is a temporary limit. It assumes no parallel workflows, and no
         # failure recovery, so each step has only one Task.
         if self.tasks.count() == 0:
             for input_set in InputNodeSet(
-                    self.get_all_inputs()).get_ready_input_sets():
+                    self.inputs.all()).get_ready_input_sets():
                 task = Task.create_from_input_set(input_set, self)
-                if do_start:
-                    task.run()
-            self.update_status()
 
     @classmethod
     def postprocess(cls, run_id):
@@ -411,17 +391,15 @@ class StepRun(Run):
         if run.postprocessing_status == 'done':
             return
 
-        #try:
-        run._initialize_inputs()
-        run._initialize_outputs()
-                
-        run.postprocessing_status = 'done'
-        run.save()
-        tasks.run_step_if_ready(run.id)
-        #except Exception as e:
-        #    run.postprocessing_status = 'error'
-        #    run.save()
-        #    raise e
+        try:
+            run._initialize_inputs()
+            run._initialize_outputs()
+            run.postprocessing_status = 'done'
+            run.save()
+        except Exception as e:
+            run.postprocessing_status = 'error'
+            run.save()
+            raise e
 
     def _initialize_inputs(self):
         visited_channels = set()
@@ -468,7 +446,9 @@ class StepRun(Run):
             run_output = StepRunOutput.objects.create(
                 step_run=self,
                 type=output.get('type'),
-                channel=output.get('channel'))
+                channel=output.get('channel'),
+                source=output.get('source'))
+                
             self._connect_output_to_parent(run_output)
 
     @classmethod
@@ -502,12 +482,7 @@ class StepRunOutput(InputOutputNode):
                                  on_delete=models.CASCADE,
                                  null=True) # for testing only
     mode = models.CharField(max_length=255)
-
-#    @property
-#    def parser(self):
-#        if self.step_output is None:
-#            return ''
-#        return self.step_output.parser
+    source = jsonfield.JSONField(null=True)
 
 
 class WorkflowRunConnectorNode(InputOutputNode):
@@ -557,13 +532,3 @@ class WorkflowRunOutput(InputOutputNode):
                                      related_name='outputs',
                                      on_delete=models.CASCADE)
 
-
-class StepRunOutputSource(BaseModel):
-
-    output = models.OneToOneField(
-        StepRunOutput,
-	related_name='source',
-        on_delete=models.CASCADE)
-
-    filename = models.CharField(max_length=1024, null=True)
-    stream = models.CharField(max_length=255, null=True)

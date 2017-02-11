@@ -6,22 +6,6 @@ from . import fixtures
 from api.serializers.templates import *
 from api.serializers.runs import *
 from api.models.runs import Run
-from api.test.serializers.test_templates \
-    import wait_for_template_postprocessing
-
-
-def wait_for_run_postprocessing(run):
-    TIMEOUT=20 #seconds
-    INTERVAL=1 #seconds
-    loomengine.utils.helper.wait_for_true(
-        lambda: Run.objects.get(id=run.id).postprocessing_status=='done',
-        timeout_seconds=TIMEOUT,
-        sleep_interval=INTERVAL)
-    loomengine.utils.helper.wait_for_true(
-        lambda: all([step.postprocessing_status=='done' for step in Run.objects.get(id=run.id).workflowrun.steps.all()]),
-        timeout_seconds=TIMEOUT,
-        sleep_interval=INTERVAL)
-    return Run.objects.get(id=run.id)
 
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
@@ -62,7 +46,7 @@ class TestRunSerializer(TransactionTestCase):
         # Refresh to update postprocessing_status
         m = Template.objects.get(id=m.id)
         run = Run.create_from_template(m)
-        
+
         self.assertEqual(
             m.uuid,
             RunSerializer(run).data['template']['uuid'])

@@ -8,19 +8,6 @@ import fixtures.run_fixtures.many_steps.generator
 from api.serializers.templates import *
 
 
-def wait_for_template_postprocessing(template):
-    TIMEOUT = 120 # seconds
-    INTERVAL = 1 # seconds
-    loomengine.utils.helper.wait_for_true(
-        lambda: Template.objects.get(id=template.id).postprocessing_status=='done',
-        timeout_seconds=TIMEOUT,
-        sleep_interval=INTERVAL)
-    loomengine.utils.helper.wait_for_true(
-        lambda: all([step.postprocessing_status=='done' for step in Template.objects.get(id=template.id).workflow.steps.all()]),
-        timeout_seconds=TIMEOUT,
-        sleep_interval=INTERVAL)
-    return Template.objects.get(id=template.id)
-
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestFixedStepInputSerializer(TestCase):
 
@@ -179,5 +166,4 @@ class TestTemplateSerializer(TransactionTestCase):
         s.is_valid(raise_exception=True)
         m = s.save()
 
-        wait_for_template_postprocessing(m)
         self.assertTrue(m.workflow.steps.count() == STEP_COUNT+1)

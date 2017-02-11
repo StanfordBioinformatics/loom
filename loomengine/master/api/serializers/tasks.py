@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, \
     UuidSerializer
-from api.models.tasks import Task, TaskInput, TaskOutput, TaskOutputSource, \
+from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskResourceSet, TaskEnvironment, TaskAttempt, TaskAttemptOutput, \
     TaskAttemptLogFile, TaskAttemptError
 from api.serializers.data_objects import DataObjectSerializer, DataObjectUuidSerializer, FileDataObjectSerializer
@@ -22,23 +22,13 @@ class TaskEnvironmentSerializer(CreateWithParentModelSerializer):
         fields = ('docker_image',)
 
 
-class TaskOutputSourceSerializer(CreateWithParentModelSerializer):
-
-    filename = serializers.CharField(read_only=True, required=False)
-    stream = serializers.CharField(read_only=True, required=False)
-
-    class Meta:
-        model = TaskOutputSource
-        fields = ('filename', 'stream')
-
-
 class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
     # Used for both TaskOutput and TaskAttemptOutput
 
     data_object = DataObjectUuidSerializer(allow_null=True, required=False)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
-    source = TaskOutputSourceSerializer(read_only=True)
+    source = serializers.JSONField(required=False)
     # parser = TaskDefinitionOutputParserSerializer(read_only=True)
 
     class Meta:
@@ -142,7 +132,7 @@ class TaskOutputSerializer(CreateWithParentModelSerializer):
     data_object = DataObjectUuidSerializer(read_only=True)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
-    source = TaskOutputSourceSerializer(read_only=True)
+    source = serializers.JSONField(required=False)
 
     class Meta:
         model = TaskOutput

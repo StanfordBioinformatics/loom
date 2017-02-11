@@ -79,13 +79,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskSerializer
 
     def get_queryset(self):
-        queryset = models.tasks.Task.objects.all()
+        queryset = models.Task.objects.all()
         queryset = queryset.select_related('resources')\
                            .select_related('accepted_task_attempt')\
                            .prefetch_related('task_attempts')\
                            .prefetch_related('inputs__data_object')\
-                           .prefetch_related('outputs__data_object')\
-                           .prefetch_related('outputs__source')
+                           .prefetch_related('outputs__data_object')
         return queryset
 
 
@@ -93,14 +92,14 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptSerializer
 
     def get_queryset(self):
-        queryset = models.tasks.TaskAttempt.objects.all()
+        queryset = models.TaskAttempt.objects.all()
         queryset = queryset.select_related('task')\
                            .select_related('task__step_run')\
                            .prefetch_related('task__resources')\
                            .prefetch_related('task__environment')\
                            .prefetch_related('task__inputs__data_object')\
                            .prefetch_related('outputs__data_object')\
-                           .prefetch_related('outputs__task_output__source')\
+                           .prefetch_related('outputs__task_output')\
                            .prefetch_related('log_files__file')\
                            .prefetch_related('errors')
         return queryset

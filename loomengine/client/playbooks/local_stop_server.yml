@@ -22,6 +22,11 @@
         name: "{{ loom_worker_container_name }}"
         state: stopped
 
+    - name: Stop the container with celery scheduler
+      docker_container:
+        name: "{{ loom_scheduler_container_name }}"
+        state: stopped
+
     - name: Stop the container with the Loom Master webserver
       docker_container:
         name: "{{ loom_master_container_name }}"

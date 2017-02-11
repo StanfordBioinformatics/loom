@@ -1,7 +1,9 @@
 from django.db import models
 # from django.dispatch import receiver
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import os
+import jsonfield
 
 from api.models import uuidstr
 from .base import BaseModel, render_from_template
@@ -77,9 +79,6 @@ class Task(BaseModel):
             step_run=step_run,
             command=step_run.command,
         )
-        task.rendered_command = task.render_command
-        task.save()
-
         for input in input_set:
             TaskInput.objects.create(
                 task=task,
@@ -87,23 +86,29 @@ class Task(BaseModel):
                 type=input.type,
                 data_object = input.data_object)
         for step_run_output in step_run.outputs.all():
-            TaskOutput.objects.create(
+            task_output = TaskOutput.objects.create(
                 channel = step_run_output.channel,
                 type=step_run_output.type,
-                task=task)
+                task=task,
+                source=step_run_output.source)
+
         TaskResourceSet.objects.create(
             task=task,
-            memory=step_run.template.resources.memory,
-            disk_size=step_run.template.resources.disk_size,
-            cores=step_run.template.resources.cores
+            memory=step_run.template.resources.get('memory'),
+            disk_size=step_run.template.resources.get('disk_size'),
+            cores=step_run.template.resources.get('cores')
         )
         TaskEnvironment.objects.create(
             task=task,
-            docker_image = step_run.template.environment.docker_image,
+            docker_image = step_run.template.environment.get('docker_image'),
         )
+        task.rendered_command = task.render_command()
+        task.save()
+
         return task
 
     def run(self):
+        print "RUNNING TASK %s" % self.id
         task_manager = TaskManagerFactory.get_task_manager()
         task_manager.run(self)
 
@@ -116,7 +121,7 @@ class Task(BaseModel):
         context = {}
         for input in self.inputs.all():
             context[input.channel] = input.data_object\
-                                            .get_substitution_value()
+                                            .substitution_value
         return context
 
     def get_output_context(self):
@@ -125,8 +130,8 @@ class Task(BaseModel):
             # This returns a value only for Files, where the filename
             # is known beforehand and may be used in the command.
             # For other types, nothing is added to the context.
-            if output.source.filename:
-                context[output.channel] = output.source.filename
+            if output.source.get('filename'):
+                context[output.channel] = output.source.get('filename')
         return context
 
     def get_full_context(self):
@@ -165,18 +170,7 @@ class TaskOutput(BaseModel):
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
                             choices=DataObject.TYPE_CHOICES)
-
-
-class TaskOutputSource(BaseModel):
-
-    task_output = models.OneToOneField(
-        TaskOutput,
-        related_name='source',
-        on_delete=models.CASCADE)
-    filename = models.CharField(max_length=255)
-    stream = models.CharField(max_length=255,
-                              choices=(('stdout', 'stdout'),
-                                       ('sterr','stderr')))
+    source = jsonfield.JSONField(null=True)
 
 
 class TaskResourceSet(BaseModel):
@@ -281,7 +275,7 @@ class TaskAttempt(BaseModel):
     def get_log_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
                             'runtime_volumes',
-                            self.id,
+                            str(self.uuid),
                             'logs')
 
     def get_worker_log_file(self):

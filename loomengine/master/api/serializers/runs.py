@@ -66,10 +66,11 @@ class StepRunInputSerializer(InputOutputNodeSerializer):
 class StepRunOutputSerializer(InputOutputNodeSerializer):
 
     mode = serializers.CharField()
+    source = serializers.JSONField(required=False)
 
     class Meta:
         model = StepRunOutput
-        fields = ('type', 'channel', 'data', 'mode')
+        fields = ('type', 'channel', 'data', 'mode', 'source')
 
 
 class StepRunSerializer(CreateWithParentModelSerializer):

@@ -25,9 +25,9 @@ class LocalTaskManager:
 
         cmd = [
             sys.executable,
-            TASKNER_EXECUTABLE,
+            TASK_RUNNER_EXECUTABLE,
             '--attempt_id',
-            task_attempt.id.hex,
+            str(task_attempt.uuid),
             '--master_url',
             get_setting('MASTER_URL_FOR_WORKER'),
             '--log_level',

@@ -1,5 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task
+from celery.decorators import periodic_task
+import datetime
 from django import db
 import multiprocessing
 from api import get_setting
@@ -11,6 +13,10 @@ def add(x, y):
     return x + y
 
 def _run_with_delay(task_function, args, kwargs):
+    if get_setting('TEST_DISABLE_TASK_DELAY'):
+        # Delay disabled, run synchronously
+        return task_function(*args, **kwargs)
+
     db.connections.close_all()
     try:
         task_function.delay(*args, **kwargs)
@@ -37,12 +43,7 @@ def _postprocess_workflow(workflow_id):
 def postprocess_workflow(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
         return
-
-    if get_setting('TEST_DISABLE_TASK_DELAY'):
-        _postprocess_workflow(*args, **kwargs)
-        return
-
-    _run_with_delay(_postprocess_workflow, args, kwargs)
+    return _run_with_delay(_postprocess_workflow, args, kwargs)
 
 @shared_task
 def _postprocess_step(step_id):
@@ -52,12 +53,7 @@ def _postprocess_step(step_id):
 def postprocess_step(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
         return
-
-    if get_setting('TEST_DISABLE_TASK_DELAY'):
-        _postprocess_step(*args, **kwargs)
-        return
-
-    _run_with_delay(_postprocess_step, args, kwargs)
+    return _run_with_delay(_postprocess_step, args, kwargs)
 
 @shared_task
 def _postprocess_step_run(run_id):
@@ -67,12 +63,7 @@ def _postprocess_step_run(run_id):
 def postprocess_step_run(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
         return
-
-    if get_setting('TEST_DISABLE_TASK_DELAY'):
-        _postprocess_step_run(*args, **kwargs)
-        return
-
-    _run_with_delay(_postprocess_step_run, args, kwargs)
+    return _run_with_delay(_postprocess_step_run, args, kwargs)
 
 @shared_task
 def _postprocess_workflow_run(run_id):
@@ -82,24 +73,36 @@ def _postprocess_workflow_run(run_id):
 def postprocess_workflow_run(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
         return
+    return _run_with_delay(_postprocess_workflow_run, args, kwargs)
 
-    if get_setting('TEST_DISABLE_TASK_DELAY'):
-        _postprocess_workflow_run(*args, **kwargs)
-        return
-
-    _run_with_delay(_postprocess_workflow_run, args, kwargs)
-
-@shared_task
-def _run_step_if_ready(step_run_id):
-    from api.models import StepRun
-    StepRun.run_if_ready(step_run_id)
-
-def run_step_if_ready(*args, **kwargs):
+@periodic_task(run_every=datetime.timedelta(seconds=10))
+def process_active_step_runs():
+    from api.models.runs import StepRun
     if get_setting('TEST_NO_AUTO_START_RUNS'):
         return
+    for step_run in StepRun.objects.filter(status_finished=False, status_failed=False):
+        args = [step_run.id]
+        kwargs = {}
+        _run_with_delay(_create_tasks_from_step_run, args, kwargs)
 
-    if get_setting('TEST_DISABLE_TASK_DELAY'):
-        _run_step_if_ready(*args, **kwargs)
+@shared_task
+def _create_tasks_from_step_run(step_run_id):
+    from api.models.runs import StepRun
+    step_run = StepRun.objects.get(id=step_run_id)
+    step_run.create_ready_tasks()
+
+@periodic_task(run_every=datetime.timedelta(seconds=10))
+def process_active_tasks():
+    from api.models.tasks import Task
+    if get_setting('TEST_NO_AUTO_START_RUNS'):
         return
+    for task in Task.objects.filter(status='STARTING'):
+        args = [task.id]
+        kwargs = {}
+        _run_with_delay(_run_task, args, kwargs)
 
-    _run_with_delay(_run_step_if_ready, args, kwargs)
+@shared_task
+def _run_task(task_id):
+    from api.models.tasks import Task
+    task = Task.objects.get(id=task_id)
+    task.run()
