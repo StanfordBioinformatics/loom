@@ -153,8 +153,12 @@ class TaskRunner(object):
         except Exception as e:
             self._report_error(message='Failed to save monitor log', detail=str(e))
 
-        self._set_status('RUNNING_FINISHED')
-        self.logger.info('Done.')
+        try:
+            self._set_status('RUNNING_FINISHED')
+            self.logger.info('Done.')
+        except Exception as e:
+            self._report_error(message='Failed to set status to finished',
+                               detail=str(e))
 
     def _try_to_copy_inputs(self):
         self.logger.info('Downloading input files')
@@ -162,7 +166,8 @@ class TaskRunner(object):
         try:
             self._copy_inputs()
         except Exception as e:
-            self._report_error(message='Failed to copy inputs to workspace', detail=str(e))
+            self._report_error(message='Failed to copy inputs to workspace',
+                               detail=str(e))
             raise e
 
     def _copy_inputs(self):
@@ -173,7 +178,8 @@ class TaskRunner(object):
         for input in self.task_attempt['inputs']:
             if input['data_object']['type'] == 'file':
                 file_data_object_ids.append('@'+input['data_object']['id'])
-        self.logger.debug('Copying inputs %s to %s.' % ( file_data_object_ids, self.settings['WORKING_DIR']))
+        self.logger.debug('Copying inputs %s to %s.' % ( file_data_object_ids,
+                                                         self.settings['WORKING_DIR']))
         self.filemanager.export_files(
             file_data_object_ids,
             destination_url=self.settings['WORKING_DIR'])
@@ -189,7 +195,10 @@ class TaskRunner(object):
 
     def _create_run_script(self):
         user_command = self.task_attempt['task_definition']['command']
-        with open(os.path.join(self.settings['WORKING_DIR'], self.LOOM_RUN_SCRIPT_NAME), 'w') as f:
+        with open(os.path.join(
+                self.settings['WORKING_DIR'],
+                self.LOOM_RUN_SCRIPT_NAME),
+                  'w') as f:
             f.write(user_command + '\n')
         
     def _try_to_pull_image(self):
@@ -198,13 +207,18 @@ class TaskRunner(object):
             self._pull_image()
             image_id = self.docker_client.inspect_image(self._get_docker_image())['Id']
             self._set_image_id(image_id)
-            self.logger.info('Pulled image %s and received image id %s' % (self._get_docker_image(), image_id))
+            self.logger.info(
+                'Pulled image %s and received image id %s' % (
+                    self._get_docker_image(), image_id))
         except Exception as e:
-            self._report_error(message='Failed to fetch image for runtime environment', detail=str(e))
+            self._report_error(
+                message='Failed to fetch image for runtime environment',
+                detail=str(e))
             raise e
 
     def _pull_image(self):
-        pull_data = self._parse_docker_output(self.docker_client.pull(self._get_docker_image()))
+        pull_data = self._parse_docker_output(
+            self.docker_client.pull(self._get_docker_image()))
         if pull_data[-1].get('errorDetail'):
             raise ContainerPullError(pull_data[-1].get('errorDetail'))
         else:
@@ -226,7 +240,9 @@ class TaskRunner(object):
             self._create_container()
             self._set_container_id(self.container['Id'])
         except Exception as e:
-            self._report_error(message='Failed to create container for runtime environment', detail=str(e))
+            self._report_error(
+                message='Failed to create container for runtime environment',
+                detail=str(e))
             raise e
 
     def _create_container(self):
@@ -262,7 +278,8 @@ class TaskRunner(object):
             raise e
 
     def _verify_container_started_running(self):
-        status = self.docker_client.inspect_container(self.container)['State'].get('Status')
+        status = self.docker_client.inspect_container(
+            self.container)['State'].get('Status')
         if status == 'running' or status == 'exited':
             return
         else:
@@ -276,10 +293,15 @@ class TaskRunner(object):
                 return
             else:
                 # bad returncode
-                self._report_error(message='Analysis finished with a bad returncode %s' % returncode, detail='Returncode %s. Check stderr log for more information.' % returncode)
+                self._report_error(
+                    message='Analysis finished with a bad returncode %s' % returncode,
+                    detail='Returncode %s. Check stderr log for more information.' \
+                    % returncode)
                 # Do not raise error. Attempt to save log files.
         except Exception as e:
-            self._report_error(message='An error prevented the analysis from finishing', detail=str(e))
+            self._report_error(
+                message='An error prevented the analysis from finishing',
+                detail=str(e))
             # Do not raise error. Attempt to save log files.
 
     def _poll_for_returncode(self, poll_interval_seconds=1, timeout_seconds=86400):
@@ -289,7 +311,8 @@ class TaskRunner(object):
             self._send_heartbeat()
             time_running = datetime.now() - start_time
             if time_running.seconds > timeout_seconds:
-                raise Exception('Process timed out after %s seconds' % time_running.seconds)
+                raise Exception(
+                    'Process timed out after %s seconds' % time_running.seconds)
 
             try:
                 container_data = self.docker_client.inspect_container(self.container)
@@ -297,7 +320,8 @@ class TaskRunner(object):
                 raise Exception('Unable to inspect Docker container: "%s"' % str(e))
 
             if not container_data.get('State'):
-                raise Exception('Could not parse container info from Docker: "%s"' % container_data)
+                raise Exception(
+                    'Could not parse container info from Docker: "%s"' % container_data)
 
             if container_data['State'].get('Status') == 'exited':
                 # Success
@@ -325,12 +349,14 @@ class TaskRunner(object):
             self.logger.debug('No container, so no process logs to save.')
             return
 
-        init_directory(os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
+        init_directory(
+            os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
         with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
             stdoutlog.write(
                 self.docker_client.logs(self.container, stderr=False, stdout=True)
             )
-        init_directory(os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
+        init_directory(
+            os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
         with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
             stderrlog.write(
                 self.docker_client.logs(self.container, stderr=True, stdout=False)
@@ -345,7 +371,7 @@ class TaskRunner(object):
                 filepath,
             )
         except IOError:
-            message = 'Failed to upload log file %s' % filename
+            message = 'Failed to upload log file %s' % filepath
             self.logger.error(message)
             raise FileImportError(message)
 
@@ -374,7 +400,9 @@ class TaskRunner(object):
                     )
                     self.logger.debug('Saved file output "%s"' % data_object['id'])
                 except IOError as e:
-                    self._report_error(message='Failed to save output file %s' % filename, detail=str(e))
+                    self._report_error(
+                        message='Failed to save output file %s' % filename,
+                        detail=str(e))
             else:
                 if output['source'].get('filename'):
                     with open(
@@ -387,16 +415,21 @@ class TaskRunner(object):
                 elif output['source'].get('stream'):
                     # Get result from stream
                     if output['source'].get('stream') == 'stdout':
-                        output_text = self.docker_client.logs(self.container, stderr=False, stdout=True)
+                        output_text = self.docker_client.logs(
+                            self.container, stderr=False, stdout=True)
                     elif output['source'].get('stream') == 'stderr':
-                        output_text = self.docker_client.logs(self.container, stderr=True, stdout=False)
+                        output_text = self.docker_client.logs(
+                            self.container, stderr=True, stdout=False)
                     else:
-                        raise Exception('Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
+                        raise Exception(
+                            'Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
                 else:
-                    raise Exception('Could not save output "%s" because did not include a filename or a stream: "%s"' %  (output['channel'], output['source']))
+                    raise Exception(
+                        'Could not save output "%s" because did not include a filename or a stream: "%s"' %  (output['channel'], output['source']))
 
                 data_object = self._save_nonfile_output(output, output_text)
-                self.logger.debug('Saved %s output "%s"' % (output['type'], data_object['id']))
+                self.logger.debug(
+                    'Saved %s output "%s"' % (output['type'], data_object['id']))
 
     def _save_nonfile_output(self, output, output_text):
         data_type = output['type']
@@ -411,7 +444,8 @@ class TaskRunner(object):
         self.logger.debug('Saving worker process monitor log')
         try:
             if not self.settings.get('LOG_FILE'):
-                self.logger.debug('No log to save for process monitor, because we logged to stdout instead. Use "--log_file" if you want to save the output.')
+                self.logger.debug(
+                    'No log to save for process monitor, because we logged to stdout instead. Use "--log_file" if you want to save the output.')
                 return True
             self._save_monitor_log()
         except Exception as e:

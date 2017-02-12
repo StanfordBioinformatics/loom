@@ -252,8 +252,8 @@ class Connection(object):
             'task-attempt-outputs/%s/' % task_attempt_output_id
         )
 
-    def update_task_attempt_output(self, task_attempt_output_id, task_attempt_output_update):
-        print task_attempt_output_update
+    def update_task_attempt_output(self, task_attempt_output_id,
+                                   task_attempt_output_update):
         return self._patch_object(
             task_attempt_output_update,
             'task-attempt-outputs/%s/' % task_attempt_output_id)

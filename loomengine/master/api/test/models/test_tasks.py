@@ -59,5 +59,4 @@ class TestTaskAttempt(TestCase):
         self.assertEqual(self.task_attempt.outputs.first().type,
                          self.task.outputs.first().type)
         self.assertEqual(self.task_attempt.outputs.first().source.get('stream'),
-                         self.task.outputs.first().source.stream)
-        
+                         self.task.outputs.first().source.get('stream'))

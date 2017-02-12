@@ -2,6 +2,7 @@ from django.test import TestCase
 from rest_framework import serializers
 
 from api.serializers.tasks import *
+from api.serializers.data_trees import DataNodeSerializer
 from api.models.tasks import *
 from api.models.data_objects import BooleanDataObject, StringDataObject, \
     FileResource, FileDataObject
@@ -21,10 +22,12 @@ def get_task():
                                      data_object=input_data_object,
                                      channel='input1',
                                      type='boolean')
+
     output_data_object = StringDataObject.objects.create(
         type='string',
         value='answer'
     )
+
     task_output = TaskOutput.objects.create(
         task=task,
         channel='output1',
@@ -45,7 +48,6 @@ def get_task():
     task_attempt = TaskAttempt.objects.create(task=task)
     task_attempt_output = TaskAttemptOutput.objects.create(
         task_attempt=task_attempt,
-        task_output=task_output,
         data_object=output_data_object
     )
     task_attempt_error = TaskAttemptError.objects.create(

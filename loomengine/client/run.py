@@ -58,7 +58,6 @@ class TemplateRunner(object):
         print 'Created run %s@%s' % (
             run_request['template']['name'],
             run_request['uuid'])
-        return run_request
 
     def _get_inputs(self):
         """Converts command line args into a list of template inputs
