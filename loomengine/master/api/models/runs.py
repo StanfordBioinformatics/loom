@@ -451,10 +451,12 @@ class StepRun(Run):
                 
             self._connect_output_to_parent(run_output)
 
-    @classmethod
-    def run_if_ready(cls, step_run_id):
-        pass
+    def get_output(self, channel):
+        return self.outputs.get(channel=channel)
 
+    def update_status(self):
+        #TODO
+        pass
 
 class AbstractStepRunInput(InputOutputNode):
 

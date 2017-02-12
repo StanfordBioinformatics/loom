@@ -19,9 +19,7 @@ TASK_RUNNER_EXECUTABLE = os.path.abspath(
 class LocalTaskManager:
 
     @classmethod
-    def run(cls, task):
-
-        task_attempt = task.create_attempt()
+    def run(cls, task_attempt):
 
         cmd = [
             sys.executable,

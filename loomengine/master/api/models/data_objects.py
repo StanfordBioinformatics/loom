@@ -378,27 +378,27 @@ class FileResource(BaseModel):
         
         if file_data_object.source_type == 'log':
             subdir = 'logs'
-            task_run_attempt \
-                = file_data_object.task_run_attempt_log_file.task_run_attempt
+            task_attempt \
+                = file_data_object.task_attempt_log_file.task_attempt
             
         elif file_data_object.source_type == 'result':
             subdir = 'work'
-            task_run_attempt \
-                = file_data_object.task_run_attempt_output.task_run_attempt
+            task_attempt \
+                = file_data_object.task_attempt_output.task_attempt
         else:
             raise InvalidSourceTypeError('Invalid source_type %s'
                             % file_data_object.source_type)
 
-        task_run = task_run_attempt.task_run
-        step_run = task_run.step_run
+        task = task_attempt.task
+        step_run = task.step_run
 
         path = os.path.join(
             "%s-%s" % (
                 step_run.template.name,
                 step_run.uuid,
             ),
-            "task-%s" % task_run.uuid,
-            "attempt-%s" % task_run_attempt.uuid,
+            "task-%s" % task.uuid,
+            "attempt-%s" % task_attempt.uuid,
         )
         while step_run.parent is not None:
             step_run = step_run.parent

@@ -1,6 +1,7 @@
 from django.db import models
 # from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
+from django.dispatch import receiver
 from django.utils import timezone
 import os
 import jsonfield
@@ -57,6 +58,12 @@ class Task(BaseModel):
                                  on_delete=models.CASCADE,
                                  null=True) # null for testing only
 
+    attempt_number = models.IntegerField(default=1)
+    active_task_attempt = models.OneToOneField('TaskAttempt',
+                                               related_name='task_as_active',
+                                               on_delete=models.CASCADE,
+                                               null=True)
+
     status = models.CharField(
         max_length=255,
         default='STARTING',
@@ -65,13 +72,6 @@ class Task(BaseModel):
     status_detail = models.CharField(
         max_length=255,
         default=TASK_DETAILED_STATUSES['STARTING'])
-    attempt_number = models.IntegerField(default=1)
-
-#    @property
-#    def errors(self):
-#        if self.task_attempts.count() == 0:
-#            return TaskAttemptError.objects.none()
-#        return self.task_attempts.first().errors
 
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
@@ -109,13 +109,22 @@ class Task(BaseModel):
 
     def run(self):
         print "RUNNING TASK %s" % self.id
+
+        if not self.status == 'STARTING':
+            return
+
+        task_attempt = self.create_attempt()
         task_manager = TaskManagerFactory.get_task_manager()
-        task_manager.run(self)
+        task_manager.run(task_attempt)
 
     def create_attempt(self):
-        attempt = TaskAttempt.objects.create(task=self)
-        attempt.initialize()
-        return attempt
+        task_attempt = TaskAttempt.objects.create(task=self)
+        task_attempt.initialize()
+
+        self.active_task_attempt = task_attempt
+        self.save()
+
+        return task_attempt
 
     def get_input_context(self):
         context = {}
@@ -144,8 +153,20 @@ class Task(BaseModel):
             self.command,
             self.get_full_context())
 
-    def update_status(self):
+    def get_output(self, channel):
+        return self.outputs.get(channel=channel)
+
+    def finish(self):
+        for output in self.outputs.all():
+            output.pull_data_object()
+            output.push_data_object()
+        self.update_status()
         self.step_run.update_status()
+
+    def update_status(self):
+        self.status = self.active_task_attempt.status
+        self.status_detail = self.active_task_attempt.status_detail
+        self.save()
 
 
 class TaskInput(BaseModel):
@@ -164,13 +185,21 @@ class TaskOutput(BaseModel):
     task = models.ForeignKey('Task',
                              related_name='outputs',
                              on_delete=models.CASCADE)
-    data_object = models.ForeignKey('DataObject',
-                                    null=True,
-                                    on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
                             choices=DataObject.TYPE_CHOICES)
     source = jsonfield.JSONField(null=True)
+    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT, null=True)
+
+    def pull_data_object(self):
+        attempt_output = self.task.active_task_attempt.get_output(self.channel)
+        self.data_object = attempt_output.data_object
+        self.save()
+
+    def push_data_object(self):
+        step_run_output = self.task.step_run.get_output(self.channel)
+        if not step_run_output.has_scalar():
+            step_run_output.add_data_object([], self.data_object)
 
 
 class TaskResourceSet(BaseModel):
@@ -201,12 +230,6 @@ class TaskAttempt(BaseModel):
     task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
-    task_as_accepted_attempt = models.OneToOneField(
-        'Task',
-        related_name='accepted_task_attempt',
-        on_delete=models.CASCADE,
-        null=True
-    )
     # container_id = models.CharField(max_length=255, null=True)
     last_heartbeat = models.DateTimeField(auto_now=True)
     status = models.CharField(
@@ -217,6 +240,17 @@ class TaskAttempt(BaseModel):
     status_detail = models.CharField(
         max_length=255,
         default=TASK_DETAILED_STATUSES['STARTING'])
+
+    def get_output(self, channel):
+        return self.outputs.get(channel=channel)
+    
+    def _post_save(self):
+        if self.status == 'FINISHED':
+            try:
+                self.task_as_active.finish()
+            except ObjectDoesNotExist:
+                # This attempt is not active.
+                pass
 
     @property
     def name(self):
@@ -264,7 +298,9 @@ class TaskAttempt(BaseModel):
         for output in self.task.outputs.all():
             TaskAttemptOutput.objects.create(
                 task_attempt=self,
-                task_output=output)
+                type=output.type,
+                channel=output.channel,
+                source=output.source)
 
     def get_working_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
@@ -309,19 +345,9 @@ class TaskAttempt(BaseModel):
 
 #        return files, tasks, edges
 
-#    def push_outputs(self):
-#        for output in self.outputs.all():
-#            output.push()
-#        self.task.step_run.get_run_request().create_ready_tasks()
-
-#    def _post_save(self):
-#        if self.status == 'Finished':
-#            self.push_outputs()
-#        self.task.update_status()
-
-#@receiver(models.signals.post_save, sender=TaskAttempt)
-#def _post_save_task_attempt_signal_receiver(sender, instance, **kwargs):
-#    instance._post_save()
+@receiver(models.signals.post_save, sender=TaskAttempt)
+def _post_save_task_attempt_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
 
 
 class TaskAttemptOutput(BaseModel):
@@ -340,22 +366,10 @@ class TaskAttemptOutput(BaseModel):
         null=True,
         related_name='task_attempt_output',
         on_delete=models.PROTECT)
-    task_output = models.ForeignKey(
-        'TaskOutput',
-        related_name='task_attempt_outputs',
-        on_delete=models.PROTECT)
-
-    @property
-    def type(self):
-        return self.task_output.type
-
-    @property
-    def channel(self):
-        return self.task_output.channel
-
-    @property
-    def source(self):
-        return self.task_output.source
+    channel = models.CharField(max_length=255)
+    type = models.CharField(max_length = 255,
+                            choices=DataObject.TYPE_CHOICES)
+    source = jsonfield.JSONField(null=True)
 
 
 class TaskAttemptLogFile(BaseModel):

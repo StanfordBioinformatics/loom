@@ -19,7 +19,7 @@ class BooleanDataObjectSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BooleanDataObject
-        exclude = ('id',)
+        exclude = ('id', '_change',)
 
 
 class IntegerDataObjectSerializer(serializers.ModelSerializer):
@@ -28,7 +28,7 @@ class IntegerDataObjectSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = IntegerDataObject
-        exclude = ('id',)
+        exclude = ('id', '_change',)
 
 
 class FloatDataObjectSerializer(serializers.ModelSerializer):
@@ -37,7 +37,7 @@ class FloatDataObjectSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = FloatDataObject
-        exclude = ('id',)
+        exclude = ('id', '_change',)
 
 
 class StringDataObjectSerializer(serializers.ModelSerializer):
@@ -46,7 +46,7 @@ class StringDataObjectSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = StringDataObject
-        exclude = ('id',)
+        exclude = ('id', '_change',)
 
 
 class FileResourceSerializer(serializers.ModelSerializer):
@@ -55,7 +55,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = FileResource
-        exclude = ('id',)
+        exclude = ('id', '_change',)
 
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
@@ -64,10 +64,10 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
     
     file_resource = FileResourceSerializer(allow_null=True, required=False)
     file_import = serializers.JSONField(required=False)
-
+    
     class Meta:
         model = FileDataObject
-        exclude = ('id',)
+        exclude = ('id', '_change',)
 
     def create(self, validated_data):
         validated_data['file_resource'] = self._create_file_resource(
@@ -88,7 +88,7 @@ class DataObjectSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = DataObject
-        fields = '__all__'
+        exclude = ('_change',)
 
     subclass_serializers = {
         # array type excluded to avoid circular dependency
@@ -149,7 +149,7 @@ class DataObjectArraySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataObjectArray
-        exclude = ('id',)
+        exclude = ('id', '_change',)
 
     def create(self, validated_data):
         member_instances = self._create_member_instances()

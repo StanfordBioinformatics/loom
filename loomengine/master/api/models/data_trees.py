@@ -105,6 +105,13 @@ class DataNode(BaseModel):
         node = self.get_node(path)
         return node._get_value()
 
+    def has_data_object(self, path):
+        try:
+            data_object = self.get_data_object(path)
+        except MissingBranchError:
+            return False
+        return boolean(data_object)
+
     def get_node(self, path):
         if len(path) == 0:
             return self
@@ -116,7 +123,7 @@ class DataNode(BaseModel):
                 raise MissingBranchError(
                     'Requested branch is missing')
             return child.get_node(path)
-
+        
     def _get_child_by_index(self, index):
         try:
             child = self.children.get(index=index)

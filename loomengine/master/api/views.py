@@ -76,12 +76,13 @@ class FileResourceViewSet(viewsets.ModelViewSet):
 
         
 class TaskViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.TaskSerializer
 
     def get_queryset(self):
         queryset = models.Task.objects.all()
         queryset = queryset.select_related('resources')\
-                           .select_related('accepted_task_attempt')\
+                           .select_related('active_task_attempt')\
                            .prefetch_related('task_attempts')\
                            .prefetch_related('inputs__data_object')\
                            .prefetch_related('outputs__data_object')
@@ -89,6 +90,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 
 class TaskAttemptViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.TaskAttemptSerializer
 
     def get_queryset(self):
@@ -99,7 +101,6 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
                            .prefetch_related('task__environment')\
                            .prefetch_related('task__inputs__data_object')\
                            .prefetch_related('outputs__data_object')\
-                           .prefetch_related('outputs__task_output')\
                            .prefetch_related('log_files__file')\
                            .prefetch_related('errors')
         return queryset
@@ -149,6 +150,7 @@ class RunViewSet(viewsets.ModelViewSet):
 
 
 class RunRequestViewSet(viewsets.ModelViewSet):
+    lookup_field = 'uuid'
     serializer_class = serializers.RunRequestSerializer
 
     def get_queryset(self):

@@ -46,6 +46,9 @@ class InputOutputNode(BaseModel):
     def add_data_as_scalar(self, data_object):
         self.add_data_object([], data_object)
 
+    def has_scalar(self):
+        return self.data_root.has_data_object([])
+
     def get_data_object(self, path):
         # Get the data object at the given path.
         return self.data_root.get_data_object(path)

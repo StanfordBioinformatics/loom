@@ -30,47 +30,44 @@ logger = logging.getLogger(__name__)
 class CloudTaskManager:
 
     @classmethod
-    def run(cls, task_run):
-        from api.models.task_runs import TaskRunAttempt
-        task_run_attempt = TaskRunAttempt.create_from_task_run(task_run)
-        
+    def run(cls, task_attempt):
         
         # Don't want to block while waiting for VM to come up, so start another process to finish the rest of the steps.
         logger.debug("Launching CloudTaskManager as a separate process.")
 
         requested_resources = {
-            'cores': task_run_attempt.task_run.step_run.resources.cores,
-            'memory': task_run_attempt.task_run.step_run.resources.memory,
-            'disk_size': task_run_attempt.task_run.step_run.resources.disk_size,
+            'cores': task_attempt.task_run.step_run.resources.cores,
+            'memory': task_attempt.task_run.step_run.resources.memory,
+            'disk_size': task_attempt.task_run.step_run.resources.disk_size,
         }
         environment = {
-            'docker_image': task_run_attempt.task_definition.environment.docker_image,
+            'docker_image': task_attempt.task_definition.environment.docker_image,
         }
         
         hostname = socket.gethostname()
-        worker_name = cls.create_worker_name(hostname, task_run_attempt)
-        task_run_attempt_id = task_run_attempt.id.hex
-        worker_log_file = task_run_attempt.get_worker_log_file()
+        worker_name = cls.create_worker_name(hostname, task_attempt)
+        task_attempt_id = task_attempt.id.hex
+        worker_log_file = task_attempt.get_worker_log_file()
 
-        task_run_attempt.status = task_run_attempt.STATUSES.PROVISIONING_HOST
-        task_run_attempt.save()
+        task_attempt.status = task_attempt.STATUSES.PROVISIONING_HOST
+        task_attempt.save()
 
-        process = multiprocessing.Process(target=CloudTaskManager._try_run, args=(task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file))
+        process = multiprocessing.Process(target=CloudTaskManager._try_run, args=(task_attempt_id, requested_resources, environment, worker_name, worker_log_file))
         process.start()
 
     @classmethod
-    def _try_run(cls, task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file):
+    def _try_run(cls, task_attempt_id, requested_resources, environment, worker_name, worker_log_file):
         try:
-            cls._run(task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file)
+            cls._run(task_attempt_id, requested_resources, environment, worker_name, worker_log_file)
         except Exception as e:
-            logger.exception('Failed to create task run attempt %s: %s' % (task_run_attempt_id, str(e)))
+            logger.exception('Failed to create task run attempt %s: %s' % (task_attempt_id, str(e)))
             
     @classmethod
-    def _run(cls, task_run_attempt_id, requested_resources, environment, worker_name, worker_log_file):
+    def _run(cls, task_attempt_id, requested_resources, environment, worker_name, worker_log_file):
         from api.models.task_runs import TaskRunAttempt
 
         logger.debug("CloudTaskManager separate process started.")
-        logger.debug("task_run_attempt: %s" % task_run_attempt_id)
+        logger.debug("task_attempt: %s" % task_attempt_id)
 
         connection = Connection(settings.MASTER_URL_FOR_SERVER)
         
@@ -95,7 +92,7 @@ class CloudTaskManager:
             'WORKER_SCRATCH_DISK_DEVICE_PATH': scratch_disk_device_path,
             'WORKER_SCRATCH_DISK_NAME': scratch_disk_name,
             'WORKER_SCRATCH_DISK_SIZE': scratch_disk_size_gb,
-            'TASK_RUN_ATTEMPT_ID': task_run_attempt_id,
+            'TASK_ATTEMPT_ID': task_attempt_id,
             'TASK_RUN_DOCKER_IMAGE': environment['docker_image'],
             'WORKER_LOG_FILE': worker_log_file,
         }
@@ -107,14 +104,14 @@ class CloudTaskManager:
                 cls._run_playbook(GCLOUD_CREATE_WORKER_PLAYBOOK, ansible_env, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to provision host.')
-            connection.post_task_run_attempt_error(
-                task_run_attempt_id,
+            connection.post_task_attempt_error(
+                task_attempt_id,
                 {
                     'message': 'Failed to provision host',
                     'detail': str(e)
                 })
-            connection.update_task_run_attempt(
-                task_run_attempt_id,
+            connection.update_task_attempt(
+                task_attempt_id,
                 {
                     'status': TaskRunAttempt.STATUSES.FINISHED,
                 })
@@ -122,22 +119,22 @@ class CloudTaskManager:
 
         try:
             with open(os.path.join(settings.LOG_DIR, 'loom_ansible.log'), 'a', 0) as ansible_logfile:
-                connection.update_task_run_attempt(
-                    task_run_attempt_id,
+                connection.update_task_attempt(
+                    task_attempt_id,
                     {
                         'status': TaskRunAttempt.STATUSES.LAUNCHING_MONITOR,
                     })
                 cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, ansible_env, logfile=ansible_logfile)
         except Exception as e:
             logger.exception('Failed to launch monitor process on worker: %s')
-            connection.post_task_run_attempt_error(
-                task_run_attempt_id,
+            connection.post_task_attempt_error(
+                task_attempt_id,
                 {
                     'message': 'Failed to launch monitor process on worker',
                     'detail': str(e)
                 })
-            connection.update_task_run_attempt(
-                task_run_attempt_id,
+            connection.update_task_attempt(
+                task_attempt_id,
                 {
                     'status': TaskRunAttempt.STATUSES.FINISHED,
                 })
@@ -203,10 +200,10 @@ class CloudTaskManager:
         return pricelist
 
     @classmethod
-    def delete_worker_by_task_run_attempt(cls, task_run_attempt):
+    def delete_worker_by_task_attempt(cls, task_attempt):
         """Delete the worker that ran the specified task run attempt from this server."""
         hostname = socket.gethostname()
-        worker_name = cls.create_worker_name(hostname, task_run_attempt)
+        worker_name = cls.create_worker_name(hostname, task_attempt)
         cls.delete_worker_by_name(worker_name)
         
     @classmethod
@@ -224,7 +221,7 @@ class CloudTaskManager:
             cls._run_playbook(GCLOUD_DELETE_WORKER_PLAYBOOK, ansible_env, logfile=ansible_logfile)
 
     @classmethod
-    def create_worker_name(cls, hostname, task_run_attempt):
+    def create_worker_name(cls, hostname, task_attempt):
         """Create a name for the worker instance that will run the specified task run attempt, from this server.
 
         Since hostname, workflow name, and step name can easily be duplicated,
@@ -234,10 +231,10 @@ class CloudTaskManager:
         63 characters, leave 5 characters for the '-disk' suffix.
 
         """
-        task_run = task_run_attempt.task_run
+        task_run = task_attempt.task_run
         #workflow_name = task_run.workflow_name
         step_name = task_run.step_run.template.name
-        attempt_id = task_run_attempt.id.hex
+        attempt_id = task_attempt.id.hex
         name_base = '-'.join([hostname, step_name])
         sanitized_name_base = cls.sanitize_instance_name_base(name_base)
         sanitized_name_base = sanitized_name_base[:53]      # leave 10 characters at the end for location id and -disk suffix

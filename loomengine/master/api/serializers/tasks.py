@@ -96,7 +96,7 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TaskAttempt
-        fields = ('id', 'uuid', 'datetime_created', 'datetime_finished', 
+        fields = ('uuid', 'datetime_created', 'datetime_finished', 
                   'last_heartbeat', 'status', 'errors', 'log_files', 
                   'inputs', 'outputs', 'name', 'interpreter', 
                   'rendered_command', 'environment', 'resources')
@@ -146,8 +146,8 @@ class TaskSerializer(serializers.ModelSerializer):
     environment = TaskEnvironmentSerializer(read_only=True)
     inputs = TaskInputSerializer(many=True, read_only=True)
     outputs = TaskOutputSerializer(many=True, read_only=True)
-    task_attempts = TaskAttemptSerializer(many=True, read_only=True)
-    accepted_task_attempt = TaskAttemptSerializer(read_only=True)
+    task_attempts = TaskAttemptUuidSerializer(many=True, read_only=True)
+    active_task_attempt = TaskAttemptSerializer(read_only=True)
 #    status = serializers.CharField(read_only=True)
 #    errors = TaskAttemptErrorSerializer(many=True, read_only=True)
     command = serializers.CharField(read_only=True)
@@ -158,8 +158,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ('id', 'uuid', 'resources', 'environment', 'inputs', 
-                  'outputs', 'task_attempts', 'accepted_task_attempt', 
+        fields = ('uuid', 'resources', 'environment', 'inputs', 
+                  'outputs', 'task_attempts', 'active_task_attempt', 
                   'command', 'rendered_command', 'interpreter', 
                   'datetime_finished', 'datetime_created')
 

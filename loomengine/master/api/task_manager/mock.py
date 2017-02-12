@@ -1,6 +1,7 @@
 import hashlib
 
-from api.models import DataObject
+from api.models import DataObject, FileDataObject, StringDataObject, \
+    BooleanDataObject, FloatDataObject, IntegerDataObject
 
 
 class MockTaskManager(object):
@@ -11,40 +12,70 @@ class MockTaskManager(object):
     mock_data_counter = 0
 
     @classmethod
-    def run(cls, task):
-        from api.models.tasks import TaskAttempt
-        attempt = TaskAttempt.create_from_task(task)
+    def run(cls, task_attempt):
+        task_attempt.status = 'RUNNING'
+        task_attempt.save()
 
-        for output in attempt.outputs.all():
+        # import time
+        # time.sleep(20)
+        
+        for output in task_attempt.outputs.all():
             cls._add_mock_data(output)
 
-        attempt.status='complete'
-        attempt.save()
-        
+        task_attempt.status = 'FINISHED'
+        task_attempt.save()
+
     @classmethod
     def _add_mock_data(cls, output):
+        cls.mock_data_counter += 1
+
         if output.type == 'file':
-            cls._add_mock_file_data_object(output)
+            return cls._add_mock_file_data_object(output)
+
+        if output.type == 'string':
+            value = 'string'+str(cls.mock_data_counter)
+            DataObjectClass = StringDataObject
+        elif output.type == 'integer':
+            value = cls.mock_data_counter
+            DataObjectClass = IntegerDataObject
+        elif output.type == 'float':
+            value = float(cls.mock_data_counter)/7
+            DataObjectClass = FloatDataObject
+        elif output.type == 'boolean':
+            value = bool(cls.mock_data_counter % 2)
+            DataObjectClass = BooleanDataObject
+        else:
+            raise Exception(
+                'The mock task manager cannot handle type %s' % output.type)
+        cls._add_mock_data_object(output, DataObjectClass, value)
 
     @classmethod
-    def _add_mock_file_data_object(self, output):
-        from api.serializers import FileDataObjectSerializer
-
-        self.mock_data_counter += 1
-        mock_text = "mock%s" % self.mock_data_counter
+    def _add_mock_file_data_object(cls, output):
+        mock_text = "mock%s" % cls.mock_data_counter
         mock_md5 = hashlib.md5(mock_text).hexdigest()
 
         file_data = {
             'type': 'file',
-            'filename': 'mock_file_%s' % self.mock_data_counter,
+            'filename': 'mock_file_%s' % cls.mock_data_counter,
             'md5': mock_md5,
-            'source_type': 'result'}
+            'source_type': 'result',
+        }
+        file_data_object = FileDataObject.objects.create(**file_data)
+        output.data_object = file_data_object
+        output.save()
+        file_data_object.initialize()
+        file_data_object.save()
+        file_data_object.file_resource.upload_status = 'complete'
+        file_data_object.file_resource.save()
+        return file_data_object
 
-        s = FileDataObjectSerializer(data=file_data)
-        s.is_valid(raise_exception=True)
-        data_object = s.save()
-
+    @classmethod
+    def _add_mock_data_object(cls, output, DataObjectClass, value):
+        data = {
+            'type': output.type,
+            'value': value
+        }
+        data_object = DataObjectClass.objects.create(**data)
         output.data_object = data_object
         output.save()
-
-        return output.data_object
+        return data_object
