@@ -59,17 +59,11 @@ LOG_DIR = os.path.expanduser(os.getenv('LOG_DIR', '/var/log/loom'))
 LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))
 
 # GCP settings
-PROJECT_ID = os.getenv('GCE_PROJECT', '')
-BUCKET_ID = os.getenv('GCE_BUCKET', '')
 GCE_EMAIL = os.getenv('GCE_EMAIL')
-GCE_INI_PATH = os.getenv('GCE_INI_PATH')
+GCE_PROJECT = os.getenv('GCE_PROJECT', '')
 GCE_PEM_FILE_PATH = os.getenv('GCE_PEM_FILE_PATH')
-GCE_SSH_KEY_FILE = os.getenv('GCE_SSH_KEY_FILE')
+BUCKET_ID = os.getenv('GCE_BUCKET', '')
 
-DOCKER_FULL_NAME = os.getenv('DOCKER_FULL_NAME')
-DOCKER_TAG = os.getenv('DOCKER_TAG')
-
-SERVER_SKIP_INSTALLS = os.getenv('SERVER_SKIP_INSTALLS')
 WORKER_BOOT_DISK_TYPE = os.getenv('WORKER_BOOT_DISK_TYPE')
 WORKER_BOOT_DISK_SIZE = os.getenv('WORKER_BOOT_DISK_SIZE')
 WORKER_CUSTOM_SUBNET = os.getenv('WORKER_CUSTOM_SUBNET', '')

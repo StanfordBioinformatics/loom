@@ -198,7 +198,7 @@ class GoogleStorageSource(AbstractSource):
         
         self.settings = settings
 
-        self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])    
+        self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])    
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
@@ -313,7 +313,7 @@ class GoogleStorageDestination(AbstractDestination):
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
-        self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])
+        self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)

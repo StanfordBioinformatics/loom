@@ -2,10 +2,12 @@
 - name: Delete the Loom server.
   hosts: localhost
   connection: local
+  vars_files:
+  - vars/gcloud.yml
   tasks:
   - name: Delete the Loom server.
     local_action:
       module: gce
       state: 'absent'
-      instance_names: "{{lookup('env','SERVER_NAME')}}"
-      zone: "{{lookup('env','SERVER_ZONE')}}"
+      instance_names: "{{instance_name}}"
+      zone: "{{zone}}"

@@ -18,8 +18,11 @@ STOCK_SETTINGS_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'client', 'settings'))
 STOCK_PLAYBOOK_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'client', 'playbooks'))
+STOCK_INVENTORY_DIR = os.path.join(
+    os.path.join(imp.find_module('loomengine')[1], 'client', 'inventory'))
 
 LOOM_PLAYBOOK_DIR = 'playbooks'
+LOOM_INVENTORY_DIR = 'inventory'
 
 LOOM_ADMIN_FILES_DIR = 'admin-files'
 LOOM_ADMIN_SETTINGS_FILE = 'admin-settings.conf'
@@ -97,17 +100,19 @@ class ServerControls:
         # Hard-coded settings that don't come from the user:
         settings.update({
             'LOOM_PLAYBOOK_DIR': LOOM_PLAYBOOK_DIR,
+            'LOOM_INVENTORY_DIR': LOOM_INVENTORY_DIR,
             'LOOM_CONNECTION_FILES_DIR': LOOM_CONNECTION_FILES_DIR,
             'LOOM_CONNECTION_SETTINGS_FILE': LOOM_CONNECTION_SETTINGS_FILE,
             'LOOM_ADMIN_FILES_DIR': LOOM_ADMIN_FILES_DIR,
             'LOOM_ADMIN_SETTINGS_FILE': LOOM_ADMIN_SETTINGS_FILE,
         })
-        
+
         if self._user_provided_settings():
             self._make_dir_if_missing(LOOM_SETTINGS_HOME)
             self._copy_playbooks_to_settings_dir()
+            self._copy_inventory_to_settings_dir()
 
-            # These may be later updated by start playbook: 
+            # These may be later updated by start playbook:
             self._save_admin_settings_file(settings)
             self._copy_admin_files_to_settings_dir()
 
@@ -203,7 +208,7 @@ class ServerControls:
         if confirmation_input != server_name:
             print 'Input did not match current server name \"%s\".' % server_name
             return
-
+        print settings
         playbook = self._get_required_setting('LOOM_DELETE_SERVER_PLAYBOOK',
                                               settings)
         retcode = self._run_playbook(playbook, settings, verbose=self.args.verbose)
@@ -255,6 +260,14 @@ class ServerControls:
         shutil.copytree(playbook_dir,
                         os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR))
 
+    def _copy_inventory_to_settings_dir(self):
+        if self.args.inventory_dir:
+            inventory_dir = self.args.inventory_dir
+        else:
+            inventory_dir = STOCK_INVENTORY_DIR
+        shutil.copytree(inventory_dir,
+                        os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR))
+
     def _copy_admin_files_to_settings_dir(self):
         if self.args.admin_files_dir:
             shutil.copytree(self.args.admin_files_dir,
@@ -266,6 +279,8 @@ class ServerControls:
 
     def _run_playbook(self, playbook, settings, verbose=False):
         inventory = self._get_required_setting('LOOM_ANSIBLE_INVENTORY', settings)
+        if ',' not in inventory:
+            inventory = os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR, inventory)
         cmd_list = ['ansible-playbook',
                     '-i', inventory,
                     os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR, playbook),
@@ -273,6 +288,8 @@ class ServerControls:
                     # which may be missing needed modules
                     '-e', 'ansible_python_interpreter="/usr/bin/env python"',
         ]
+        if 'ANSIBLE_SSH_PRIVATE_KEY_FILE' in settings:
+            cmd_list.extend(['--private-key', settings['ANSIBLE_SSH_PRIVATE_KEY_FILE']])
         if verbose:
             cmd_list.append('-vvvv')
 
@@ -297,6 +314,7 @@ class ServerControls:
     admin_files_paths = [
         os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_FILES_DIR),
         os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR),
+        os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR),
     ]
 
     def _has_admin_settings(self):
@@ -305,6 +323,7 @@ class ServerControls:
         admin_files_paths = [
             os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_FILES_DIR),
             os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR),
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR),
         ]
         has_settings = os.path.exists(admin_settings_path)
         has_files = any(os.path.exists(path) for path in admin_files_paths)
@@ -355,9 +374,9 @@ class ServerControls:
         return settings
 
     def _validate_settings(self, settings):
-        
+
         # These are always required, independent of what playbooks are used.
-        # Additional settings are typically required by he playbooks, but LOOM
+        # Additional settings are typically required by the playbooks, but LOOM
         # is blind to those settings.
         REQUIRED_SETTINGS = ['LOOM_SERVER_NAME',
                              'LOOM_START_SERVER_PLAYBOOK',
@@ -393,7 +412,7 @@ class ServerControls:
         return settings
 
     def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):
-        """If 'filepath' is found in stock settings, we return the 
+        """If 'filepath' is found in stock settings, we return the
         full path to that stock file. Otherwise, we interpret filepath relative
         to the current working directory.
         """
@@ -444,6 +463,7 @@ def get_parser(parser=None):
     start_parser.add_argument('--extra-settings', '-e', action='append',
                                metavar='KEY=VALUE')
     start_parser.add_argument('--playbook-dir', '-p', metavar='PLAYBOOK_DIR')
+    start_parser.add_argument('--inventory-dir', '-i', metavar='INVENTORY_DIR')
     start_parser.add_argument('--admin-files-dir', '-f', metavar='ADMIN_FILES_DIR')
     start_parser.add_argument('--verbose', '-v', action='store_true',
                               help='Provide more feedback to console.')
@@ -484,146 +504,3 @@ def _get_args():
 
 if __name__=='__main__':
     ServerControls().run()
-
-
-'''
-class GoogleCloudServerControls(BaseServerControls):
-    """Subclass for managing a server running in Google Cloud."""
-    
-    def __init__(self, args=None):
-        BaseServerControls.__init__(self, args)
-
-    # Defines what commands this class can handle and maps names to functions.
-    def _get_command_map(self):
-        command_to_method_map = {
-            'create': self.create,
-            'start': self.start,
-            'stop': self.stop,
-            'delete': self.delete,
-        }
-        return command_to_method_map
-
-    def create(self):
-        """Create a service account for the server (can use custom
-        service account instead), create gce.ini, create JSON credential, create
-        server deploy settings, set up SSH keys, create and set up a gcloud
-        instance, and copy deploy settings to the instance.
-        """
-        default_settings = settings_manager.get_default_settings()
-        default_plus_user_settings = settings_manager.add_user_settings(default_settings, self.args.settings)
-
-        if not settings_manager.has_custom_service_account(default_plus_user_settings):
-            # Default behavior: create a service account based on server name, grant roles, create JSON credential, write to ini.
-            server_name = get_gcloud_server_name()
-            print 'Creating service account for instance %s...' % server_name 
-            try:
-                create_service_account(server_name)
-            except googleapiclient.errors.HttpError as e:
-                print 'Warning: %s' % e._get_reason()
-            email = find_service_account_email(server_name)
-            if email != None:
-                print 'Service account %s created.' % email
-            roles = json.loads(default_plus_user_settings['SERVICE_ACCOUNT_ROLES'])
-            print 'Granting "%s" roles to service account %s:' % (roles, email)
-            grant_roles(roles, email)
-            create_gce_json(email)
-            create_gce_ini(email)
-        else:
-            # Pre-existing service account specified: copy and validate JSON credential, and write to ini.
-            if self.args.key:
-                print 'Copying %s to %s...' % (self.args.key, GCE_JSON_PATH)
-                shutil.copyfile(self.args.key, os.path.expanduser(GCE_JSON_PATH))
-            create_gce_ini(default_plus_user_settings['CUSTOM_SERVICE_ACCOUNT_EMAIL'])
-
-        settings_manager.write_deploy_settings_file(self.args.settings)
-
-        env = settings_manager.get_ansible_env()
-        self.run_playbook(GCLOUD_CREATE_BUCKET_PLAYBOOK, env)
-        return self.run_playbook(GCLOUD_CREATE_PLAYBOOK, env)
-        
-    def run_playbook(self, playbook, env):
-        settings = settings_manager.read_deploy_settings_file()
-
-        if settings['CLIENT_USES_SERVER_INTERNAL_IP'] == 'True':
-            env['INVENTORY_IP_TYPE'] = 'internal'   # Tell gce.py to use internal IP for ansible_ssh_host
-        else:
-            env['INVENTORY_IP_TYPE'] = 'external'   
-        env['ANSIBLE_HOST_KEY_CHECKING']='False'    # Don't fail due to host ssh key change when creating a new instance with the same IP
-        os.chmod(GCE_PY_PATH, 0755)                 # Make sure dynamic inventory is executable
-        cmd_list = ['ansible-playbook', '--key-file', settings['GCE_SSH_KEY_FILE'], '-i', GCE_PY_PATH, playbook]
-        if self.args.verbose:
-            cmd_list.append('-vvvv')
-            print ' '.join(cmd_list)
-            import pprint
-            pprint.pprint(env)
-        return subprocess.call(cmd_list, env=env)
-
-    def start(self):
-        """Start the gcloud server instance, then start the Loom server."""
-        # TODO: Start the gcloud server instance once supported by Ansible
-        instance_name = get_gcloud_server_name()
-        current_hosts = get_gcloud_hosts()
-        if not os.path.exists(settings_manager.get_deploy_settings_filename()):
-            print 'Server deploy settings %s not found. Creating it using default settings.' % settings_manager.get_deploy_settings_filename()
-        if instance_name not in current_hosts:
-            print 'No instance named \"%s\" found in project \"%s\". Creating it using default settings.' % (instance_name, get_gcloud_project())
-        if instance_name not in current_hosts or not os.path.exists(settings_manager.get_deploy_settings_filename()):
-            returncode = self.create()
-            if returncode != 0:
-                raise Exception('Error deploying Google Cloud server instance.')
-
-        env = settings_manager.get_ansible_env()
-        return self.run_playbook(GCLOUD_START_PLAYBOOK, env)
-
-    def stop(self):
-        """Stop the Loom server, then stop the gcloud server instance."""
-        env = settings_manager.get_ansible_env()
-        return self.run_playbook(GCLOUD_STOP_PLAYBOOK, env)
-        # TODO: Stop the gcloud server instance once supported by Ansible
-
-    def delete(self):
-        """Delete the gcloud server instance. Warn and ask for confirmation because this deletes everything on the VM."""
-        settings = settings_manager.read_deploy_settings_file()
-        try:
-            instance_name = get_gcloud_server_name()
-            current_hosts = get_gcloud_hosts()
-            confirmation_input = raw_input('WARNING! This will delete the server\'s instance, attached disks, and service account. Data will be lost!\n'+ 
-                                           'If you are sure you want to continue, please type the name of the server instance:\n> ')
-            if confirmation_input != get_gcloud_server_name():
-                print 'Input did not match current server name \"%s\".' % instance_name
-                return
-
-            if instance_name not in current_hosts:
-                print 'No instance named \"%s\" found in project \"%s\". It may have been deleted using another method.' % (instance_name, get_gcloud_project())
-            else:
-                env = settings_manager.get_ansible_env()
-                delete_returncode = self.run_playbook(GCLOUD_DELETE_PLAYBOOK, env)
-                if delete_returncode == 0:
-                    print 'Instance successfully deleted.'
-        except Exception as e:
-            print e
-
-        try:
-            email = find_service_account_email(instance_name)
-            custom_email = settings['CUSTOM_SERVICE_ACCOUNT_EMAIL']
-            if email and custom_email == 'None':
-                print 'Deleting service account %s...' % email
-                delete_service_account(email)
-                json_key = os.path.expanduser(GCE_JSON_PATH)
-                if os.path.exists(json_key):
-                    print 'Deleting %s...' % json_key
-                    os.remove(json_key)
-        except Exception as e:
-            print e
-
-        cleanup_files = [settings_manager.get_deploy_settings_filename(), GCE_INI_PATH, SERVER_LOCATION_FILE]
-        for path in cleanup_files:
-            path = os.path.expanduser(path)
-            if os.path.exists(path):
-                print 'Deleting %s...' % path
-                os.remove(path)
-
-        delete_libcloud_cached_credential()
-
-'''
-

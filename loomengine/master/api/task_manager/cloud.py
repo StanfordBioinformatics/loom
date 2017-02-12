@@ -64,7 +64,7 @@ class CloudTaskManager:
             
     @classmethod
     def _run(cls, task_attempt_id, requested_resources, environment, worker_name, worker_log_file):
-        from api.models.task_runs import TaskRunAttempt
+        from api.models.tasks import TaskAttempt
 
         logger.debug("CloudTaskManager separate process started.")
         logger.debug("task_attempt: %s" % task_attempt_id)
@@ -113,7 +113,7 @@ class CloudTaskManager:
             connection.update_task_attempt(
                 task_attempt_id,
                 {
-                    'status': TaskRunAttempt.STATUSES.FINISHED,
+                    'status': TaskAttempt.STATUSES.FINISHED,
                 })
             raise e
 
@@ -122,7 +122,7 @@ class CloudTaskManager:
                 connection.update_task_attempt(
                     task_attempt_id,
                     {
-                        'status': TaskRunAttempt.STATUSES.LAUNCHING_MONITOR,
+                        'status': TaskAttempt.STATUSES.LAUNCHING_MONITOR,
                     })
                 cls._run_playbook(GCLOUD_RUN_TASK_PLAYBOOK, ansible_env, logfile=ansible_logfile)
         except Exception as e:
@@ -136,7 +136,7 @@ class CloudTaskManager:
             connection.update_task_attempt(
                 task_attempt_id,
                 {
-                    'status': TaskRunAttempt.STATUSES.FINISHED,
+                    'status': TaskAttempt.STATUSES.FINISHED,
                 })
             raise e
 

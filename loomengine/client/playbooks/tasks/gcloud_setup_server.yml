@@ -1,0 +1,15 @@
+  - name: Create directory for Loom settings on the server.
+    file: path={{loom_server_settings_home}} state=directory mode=0777
+  - name: Create directory for SSL certificate and key.
+    file: path={{loom_server_settings_home}}/ssl state=directory mode=0755
+  - name: Create self-signed SSL certificate and key.
+    command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{loom_server_settings_home}}/ssl/ssl.key -out {{loom_server_settings_home}}/ssl/ssl.crt -subj "/C=US/ST=California/L=Palo Alto/O=Stanford University/CN={{ansible_hostname}}"
+  - name: Pull Loom image.
+    docker_image: name={{loom_docker_image}} api_version=auto force=True
+  - name: Pull NGINX image.
+    docker_image: name={{loom_nginx_image}} api_version=auto force=True
+  - name: Pull RabbitMQ image.
+    docker_image: name={{loom_rabbitmq_image}} api_version=auto force=True
+  - name: Pull MySQL image when needed.
+    docker_image: name={{loom_mysql_image}} api_version=auto force=True
+    when: loom_mysql_create_docker_container

@@ -254,7 +254,7 @@ def worker_settings(request, id):
 @require_http_methods(["GET"])
 def filemanager_settings(request):
     return JsonResponse({
-        'PROJECT_ID': get_setting('PROJECT_ID'),
+        'GCE_PROJECT': get_setting('GCE_PROJECT'),
     })
 
 @require_http_methods(["GET"])

@@ -2,37 +2,8 @@
 - name: Delete all the components of a loom server
   hosts: localhost
   connection: local
-
-  roles:
-    - local
-
+  vars_files:
+    - vars/local.yml
   tasks:
-    - name: Delete the MySQL database container
-      docker_container:
-        name: "{{ loom_mysql_container_name }}"
-        state: absent
+    - include: tasks/delete_containers.yml
 
-    - name: Delete the rabbitmq container
-      docker_container:
-        name: "{{ loom_rabbitmq_container_name }}"
-        state: absent
-
-    - name: Delete the container with celery workers
-      docker_container:
-        name: "{{ loom_worker_container_name }}"
-        state: absent
-
-    - name: Delete the container with celery scheduler
-      docker_container:
-        name: "{{ loom_scheduler_container_name }}"
-        state: absent
-
-    - name: Delete the container with the Loom Master webserver
-      docker_container:
-        name: "{{ loom_master_container_name }}"
-        state: absent
-
-    - name: Delete the NGINX server container
-      docker_container:
-        name: "{{ loom_nginx_container_name }}"
-        state: absent
