@@ -3,6 +3,7 @@
   hosts: localhost
   connection: local
   vars_files:
+    - vars/common.yml
     - vars/local.yml
   tasks:
     - include: tasks/delete_containers.yml

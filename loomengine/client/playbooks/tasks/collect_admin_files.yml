@@ -1,8 +1,0 @@
-  - name: Copy service account key to admin files directory.
-    copy: src={{gce_credential}} dest={{loom_client_admin_files_full_path}}
-  - name: Copy MySQL CA certificate to admin files directory.
-    copy: src={{loom_mysql_ssl_ca_cert_path_on_client}} dest={{loom_client_admin_files_full_path}}
-  - name: Copy MySQL client certificate to admin files directory.
-    copy: src={{loom_mysql_ssl_client_cert_path_on_client}} dest={{loom_client_admin_files_full_path}}
-  - name: Copy MySQL client key to admin files directory.
-    copy: src={{loom_mysql_ssl_client_key_path_on_client}} dest={{loom_client_admin_files_full_path}}

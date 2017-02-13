@@ -3,7 +3,7 @@
   - external_ip: "{{lookup('env','LOOM_GCLOUD_WORKER_EXTERNAL_IP')}}"
   - gce_credential: "{{lookup('env','GCE_PEM_FILE_PATH')}}"
   - gce_email: "{{lookup('env','GCE_EMAIL')}}"
-  - gce_ssh_key_file: "{{lookup('env', 'GCE_SSH_KEY_FILE')}}"
+  - gce_ssh_key_file: "{{lookup('env', 'LOOM_ANSIBLE_SSH_KEY_FILE')}}"
   - instance_image: "{{lookup('env','LOOM_GCLOUD_WORKER_INSTANCE_IMAGE')}}"
   - instance_name: "{{lookup('env','WORKER_INSTANCE_NAME')}}"
   - instance_type: "{{lookup('env','LOOM_GCLOUD_WORKER_INSTANCE_TYPE')}}"

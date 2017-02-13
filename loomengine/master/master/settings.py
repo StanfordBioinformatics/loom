@@ -47,7 +47,7 @@ WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL').upper()
 LOOM_STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'LOCAL').upper()
 LOOM_STORAGE_ROOT = os.getenv('LOOM_STORAGE_ROOT', 'LOCAL').upper()
 
-STATIC_ROOT = os.getenv('LOOM_STATIC_ROOT', '/tmp/static')
+STATIC_ROOT = os.getenv('LOOM_MASTER_STATIC_ROOT', '/tmp/static')
 
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
@@ -62,7 +62,7 @@ LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/
 GCE_EMAIL = os.getenv('GCE_EMAIL')
 GCE_PROJECT = os.getenv('GCE_PROJECT', '')
 GCE_PEM_FILE_PATH = os.getenv('GCE_PEM_FILE_PATH')
-BUCKET_ID = os.getenv('GCE_BUCKET', '')
+GOOGLE_STORAGE_BUCKET = os.getenv('LOOM_GOOGLE_STORAGE_BUCKET', '')
 
 WORKER_BOOT_DISK_TYPE = os.getenv('WORKER_BOOT_DISK_TYPE')
 WORKER_BOOT_DISK_SIZE = os.getenv('WORKER_BOOT_DISK_SIZE')

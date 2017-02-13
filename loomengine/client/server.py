@@ -288,8 +288,12 @@ class ServerControls:
                     # which may be missing needed modules
                     '-e', 'ansible_python_interpreter="/usr/bin/env python"',
         ]
-        if 'ANSIBLE_SSH_PRIVATE_KEY_FILE' in settings:
-            cmd_list.extend(['--private-key', settings['ANSIBLE_SSH_PRIVATE_KEY_FILE']])
+        if 'LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE' in settings:
+            cmd_list.extend(['--private-key', settings['LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE']])
+        if 'LOOM_ANSIBLE_HOST_KEY_CHECKING' in settings:
+            settings.update({'ANSIBLE_HOST_KEY_CHECKING':
+                             settings.get('LOOM_ANSIBLE_HOST_KEY_CHECKING')
+            })
         if verbose:
             cmd_list.append('-vvvv')
 

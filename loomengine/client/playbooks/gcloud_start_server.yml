@@ -4,6 +4,7 @@
   connection: local
   gather_facts: no
   vars_files:
+  - vars/common.yml
   - vars/gcloud.yml
   tasks:
   - include: tasks/gcloud_create_instance.yml
@@ -14,12 +15,20 @@
   connection: local
   gather_facts: no
   vars_files:
+  - vars/common.yml
   - vars/gcloud.yml
   vars:
-  - loom_server_url: "{{loom_server_protocol}}://{{groups['new_instances'][0]}}:{{loom_external_port}}"
+  - server_url: "{{server_protocol}}://{{groups['new_instances'][0]}}:{{server_port}}"
   tasks:
-  - include: tasks/collect_admin_files.yml
   - include: tasks/create_connection_settings.yml
+
+- name: Create storage bucket. Ignore error if bucket already exists.
+  hosts: localhost
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud.yml
+  tasks:
+  - include tasks/create_google_storage_bucket.yml
 
 - name: Install Docker on the Loom server.
   hosts: new_instances
@@ -35,6 +44,7 @@
   become: yes
   become_user: loom
   vars_files:
+  - vars/common.yml
   - vars/gcloud.yml
   tasks:
   - include: tasks/gcloud_setup_server.yml
@@ -44,8 +54,9 @@
   become: yes
   become_user: loom
   vars_files:
+  - vars/common.yml
   - vars/gcloud.yml
   vars:
-  - loom_server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file='+loom_connection_settings_full_path)}}"
+  - server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file='+settings_home+'/'+connection_settings_file)}}"
   tasks:
   - include: tasks/start_server.yml

@@ -1,4 +1,4 @@
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 import json
 import os
 from api.models import RunRequest
@@ -67,6 +67,7 @@ class AbstractRunTest(object):
         return run_request
 
 
+@override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestHelloWorld(TransactionTestCase, AbstractRunTest):
 
     def setUp(self):
@@ -98,6 +99,7 @@ class TestHelloWorld(TransactionTestCase, AbstractRunTest):
         #    self.run_request.outputs.first()\
         #    .indexed_data_objects.first().data_object)
 
+@override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestManySteps(TransactionTestCase, AbstractRunTest):
 
     def setUp(self):

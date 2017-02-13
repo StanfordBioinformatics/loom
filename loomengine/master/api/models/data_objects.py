@@ -428,8 +428,8 @@ class FileResource(BaseModel):
         LOOM_STORAGE_TYPE = get_setting('LOOM_STORAGE_TYPE')
         if LOOM_STORAGE_TYPE == 'LOCAL':
             return 'file://' + path
-        elif LOOM_STORAGE_TYPE == 'GOOGLE_CLOUD':
-            return 'gs://' + get_setting('BUCKET_ID') + path
+        elif LOOM_STORAGE_TYPE == 'GOOGLE_STORAGE':
+            return 'gs://' + get_setting('GOOGLE_STORAGE_BUCKET') + path
         else:
             raise InvalidFileServerTypeError(
                 'Couldn\'t recognize value for setting LOOM_STORAGE_TYPE="%s"'\

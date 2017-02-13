@@ -1,9 +1,10 @@
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 
 from api import tasks
 from api.models import *
 from .test_templates import get_workflow
 
+@override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestRunRequest(TransactionTestCase):
 
     def _get_run_request(self):
@@ -15,8 +16,7 @@ class TestRunRequest(TransactionTestCase):
             type='string', value='one')
         input_one.add_data_as_scalar(data_object)
         run_request.initialize_run()
-        with self.settings(TEST_DISABLE_TASK_DELAY=True):
-            tasks.postprocess_workflow_run(run_request.run.id)
+        tasks.postprocess_workflow_run(run_request.run.id)
         return run_request
 
     def testInitialize(self):
@@ -28,4 +28,3 @@ class TestRunRequest(TransactionTestCase):
             steprun__template__name='step_one')
         data = step_one.inputs.first().data_root.data_object
         self.assertEqual(data.substitution_value, 'one')
-
