@@ -1,11 +1,8 @@
 ---
-- name: Stop the Loom server.
-  hosts: "{{lookup('env','SERVER_NAME')}}"
+- name: Stop all the components of a loom server
+  hosts: "{{lookup('env','LOOM_SERVER_NAME')}}"
   become: yes
+  vars_files:
+    - vars/gcloud.yml
   tasks:
-  - name: Stop the Docker container running the Loom server.
-    docker_container:
-      name: loom
-      api_version: auto
-      state: stopped
-
+    - include: tasks/stop_containers.yml
