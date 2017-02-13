@@ -166,8 +166,8 @@ class TestFileDataObject(TestCase):
         path = '/my/path'
         bucket_id = 'mybucket'
         with self.settings(
-                LOOM_STORAGE_TYPE='GOOGLE_CLOUD',
-                BUCKET_ID=bucket_id):
+                LOOM_STORAGE_TYPE='GOOGLE_STORAGE',
+                GOOGLE_STORAGE_BUCKET=bucket_id):
             url = FileResource._add_url_prefix(path)
         self.assertEqual(url, 'gs://'+bucket_id+path)
 
