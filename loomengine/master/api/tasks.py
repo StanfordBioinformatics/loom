@@ -113,15 +113,15 @@ def _run_task(task_id):
     env = os.environ
     env['LOOM_TASK_ATTEMPT_ID'] = str(task_attempt.uuid)
     print env
-    self._run_playbook(env['LOOM_RUN_TASK_PLAYBOOK'], env)
+    _run_playbook(env['LOOM_RUN_TASK_PLAYBOOK'], env, env['LOOM_DEBUG'])
 
-def _run_playbook(self, playbook, settings, verbose=False):
-    inventory = self._get_required_setting('LOOM_ANSIBLE_INVENTORY', settings)
+def _run_playbook(playbook, settings, verbose=False):
+    inventory = settings['LOOM_ANSIBLE_INVENTORY']
     if ',' not in inventory:
-        inventory = os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR, inventory)
+        inventory = os.path.join(settings['LOOM_SETTINGS_HOME'], settings['LOOM_INVENTORY_DIR'], settings['LOOM_ANSIBLE_INVENTORY'])
     cmd_list = ['ansible-playbook',
                 '-i', inventory,
-                os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR, playbook),
+                os.path.join(settings['LOOM_SETTINGS_HOME'], settings['LOOM_PLAYBOOK_DIR'], playbook),
                 # Without this, ansible uses /usr/bin/python,
                 # which may be missing needed modules
                 '-e', 'ansible_python_interpreter="/usr/bin/env python"',
@@ -135,16 +135,4 @@ def _run_playbook(self, playbook, settings, verbose=False):
     if verbose:
         cmd_list.append('-vvvv')
 
-    # Add one context-specific setting
-    settings.update({ 'LOOM_SETTINGS_HOME': LOOM_SETTINGS_HOME })
-
-    # Add settings to environment, with precedence to environment vars
-    settings.update(copy.copy(os.environ))
-
     return subprocess.call(cmd_list, env=settings)
-
-def _get_required_setting(self, key, settings):
-    try:
-        return settings[key]
-    except KeyError:
-        raise SystemExit('ERROR! Missing required setting "%s".' % key)

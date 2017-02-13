@@ -3,7 +3,7 @@ settings_home: "{{ lookup('env', 'LOOM_SETTINGS_HOME')}}"
 container_settings_home: /loom-settings
 
 server_name: "{{lookup('env', 'LOOM_SERVER_NAME')}}"
-log_level: "{{lookup('env', 'LOOM_LOG_LEVEL'}}"
+log_level: "{{lookup('env', 'LOOM_LOG_LEVEL')}}"
 loom_docker_image: "{{lookup('env', 'LOOM_DOCKER_IMAGE')}}"
 
 admin_files_dir: "{{lookup('env', 'LOOM_ADMIN_FILES_DIR')}}"

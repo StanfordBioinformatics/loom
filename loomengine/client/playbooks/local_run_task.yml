@@ -6,7 +6,7 @@
     - vars/common.yml
     - vars/local.yml
   vars:
-    task_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
+    task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
   tasks:
   - name: Run the Loom task runner.
     docker_container:
@@ -14,4 +14,4 @@
       image: "{{loom_docker_image}}"
       volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
       api_version: auto
-      command: /bin/bash -c 'source /opt/loom-env/bin/activate && loom-taskrunner --run_attempt_id {{task_attempt_id}} --master_url {{server_url}} --log_level {{log_level}} --log_file {{worker_log_file}}'
+      command: /bin/bash -c 'loom-taskrunner --run_attempt_id {{task_attempt_id}} --master_url {{server_url}} --log_level {{log_level}} --log_file {{worker_log_file}}'
