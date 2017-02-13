@@ -28,7 +28,7 @@
   - vars/common.yml
   - vars/gcloud.yml
   tasks:
-  - include tasks/create_google_storage_bucket.yml
+  - include: tasks/create_google_storage_bucket.yml
 
 - name: Install Docker on the Loom server.
   hosts: new_instances
