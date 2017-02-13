@@ -107,16 +107,6 @@ class Task(BaseModel):
 
         return task
 
-    def run(self):
-        print "RUNNING TASK %s" % self.id
-
-        if not self.status == 'STARTING':
-            return
-
-        task_attempt = self.create_attempt()
-        task_manager = TaskManagerFactory.get_task_manager()
-        task_manager.run(task_attempt)
-
     def create_attempt(self):
         task_attempt = TaskAttempt.objects.create(task=self)
         task_attempt.initialize()
@@ -243,7 +233,7 @@ class TaskAttempt(BaseModel):
 
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
-    
+
     def _post_save(self):
         if self.status == 'FINISHED':
             try:
@@ -351,7 +341,7 @@ def _post_save_task_attempt_signal_receiver(sender, instance, **kwargs):
 
 
 class TaskAttemptOutput(BaseModel):
-    
+
     # All info here is saved in the TaskOutput,
     # except for the data_object. If multiple
     # attempts are run, each may have a different

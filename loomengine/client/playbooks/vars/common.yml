@@ -25,6 +25,7 @@ ssl_cert_file: "{{lookup('env', 'LOOM_SSL_CERT_FILE')}}"
 ssl_cert_subj: "/C={{lookup('env', 'LOOM_SSL_CERT_C')}}/ST={{lookup('env', 'LOOM_SSL_CERT_ST')}}/L={{lookup('env', 'LOOM_SSL_CERT_L')}}/O={{lookup('env', 'LOOM_SSL_CERT_O')}}/CN={{ansible_hostname}}"
 
 storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"
+storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
 
 # MySQL container settings
 mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER') | bool}}"
@@ -80,3 +81,6 @@ master_static_root: "{{lookup('env', 'LOOM_MASTER_STATIC_ROOT')}}"
 
 google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
 gce_project: "{{lookup('env','GCE_PROJECT')}}"
+
+# Loom worker settings
+worker_log_file: loom_worker.log

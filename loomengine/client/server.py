@@ -385,6 +385,7 @@ class ServerControls:
                              'LOOM_START_SERVER_PLAYBOOK',
                              'LOOM_STOP_SERVER_PLAYBOOK',
                              'LOOM_DELETE_SERVER_PLAYBOOK',
+                             'LOOM_RUN_TASK_PLAYBOOK',
                              'LOOM_ANSIBLE_INVENTORY',
         ]
         current_settings = set(settings.keys())
