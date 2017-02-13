@@ -226,6 +226,7 @@ def _get_mysql_databases():
                 }
             }
         })
+    return DATABASES
 
 # Database
 if LOOM_MYSQL_HOST:
