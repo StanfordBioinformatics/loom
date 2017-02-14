@@ -82,5 +82,8 @@ master_static_root: "{{lookup('env', 'LOOM_MASTER_STATIC_ROOT')}}"
 google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
 gce_project: "{{lookup('env','GCE_PROJECT')}}"
 
-# Loom worker settings
+# Loom taskrunner container settings
+taskrunner_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_TASKRUNNER_CONTAINER_NAME_SUFFIX')}}"
 worker_log_file: loom_worker.log

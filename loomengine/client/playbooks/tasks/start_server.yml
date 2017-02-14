@@ -62,6 +62,7 @@
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
     volumes:
       - "{{server_settings_home}}:{{container_settings_home}}"
+      - /var/run/docker.sock:/var/run/docker.sock #TODO: omit this mount if not local
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
 
