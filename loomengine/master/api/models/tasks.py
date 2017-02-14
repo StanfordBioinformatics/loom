@@ -67,7 +67,7 @@ class Task(BaseModel):
     status = models.CharField(
         max_length=255,
         default='STARTING',
-        choices=TASK_STATUSES,
+        choices=TASK_DETAILED_STATUSES,
     )
     status_detail = models.CharField(
         max_length=255,
@@ -225,7 +225,8 @@ class TaskAttempt(BaseModel):
     status = models.CharField(
         max_length=255,
         default='STARTING',
-        choices=TASK_STATUSES,
+        choices=
+        ,
     )
     status_detail = models.CharField(
         max_length=255,

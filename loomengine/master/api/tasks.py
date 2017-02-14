@@ -8,6 +8,7 @@ from api import get_setting
 import kombu.exceptions
 import os
 import subprocess
+import sys
 
 @shared_task
 def add(x, y):
@@ -112,7 +113,6 @@ def _run_task(task_id):
     task_attempt = task.create_attempt()
     env = os.environ
     env['LOOM_TASK_ATTEMPT_ID'] = str(task_attempt.uuid)
-    print env
     _run_playbook(env['LOOM_RUN_TASK_PLAYBOOK'], env, env['LOOM_DEBUG'])
 
 def _run_playbook(playbook, settings, verbose=False):
@@ -135,4 +135,4 @@ def _run_playbook(playbook, settings, verbose=False):
     if verbose:
         cmd_list.append('-vvvv')
 
-    return subprocess.call(cmd_list, env=settings)
+    return subprocess.Popen(cmd_list, env=settings, stderr=subprocess.STDOUT)

@@ -86,4 +86,4 @@ gce_project: "{{lookup('env','GCE_PROJECT')}}"
 taskrunner_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_TASKRUNNER_CONTAINER_NAME_SUFFIX')}}"
-worker_log_file: loom_worker.log
+loom_workspace: "{{lookup('env', 'WORKING_DIR')}}"
