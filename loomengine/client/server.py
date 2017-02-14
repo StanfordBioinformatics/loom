@@ -287,12 +287,11 @@ class ServerControls:
                     # which may be missing needed modules
                     '-e', 'ansible_python_interpreter="/usr/bin/env python"',
         ]
-        if 'LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE' in settings:
-            cmd_list.extend(['--private-key', settings['LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE']])
-        if 'LOOM_ANSIBLE_HOST_KEY_CHECKING' in settings:
-            settings.update({'ANSIBLE_HOST_KEY_CHECKING':
-                             settings.get('LOOM_ANSIBLE_HOST_KEY_CHECKING')
-            })
+        if 'SSH_PRIVATE_KEY_NAME' in settings:
+            private_key_file_path = os.path.join(
+                os.path.expanduser('~/.ssh'),
+                settings['SSH_PRIVATE_KEY_NAME'])
+            cmd_list.extend(['--private-key', private_key_file_path])
         if verbose:
             cmd_list.append('-vvvv')
 
@@ -413,6 +412,27 @@ class ServerControls:
         for key, value in settings.items():
             settings[key] = os.path.expanduser(value)
 
+        # For environment variables with an effect on third-party software,
+        # remove "LOOM_" prefix from the setting name.
+        # In the settings file or command line args, either form is ok.
+        # In environment variables, only "LOOM_*" will be detected.
+        settings = self._strip_loom_prefix(settings, 'ANSIBLE_HOST_KEY_CHECKING')
+
+        return settings
+
+    def _strip_loom_prefix(self, settings, real_setting_name):
+        loom_setting_name = 'LOOM_'+real_setting_name
+        if settings.get(loom_setting_name) and not \
+           settings.get(real_setting_name):
+            settings[real_setting_name] = settings.pop(loom_setting_name)
+        elif settings.get(loom_setting_name) == settings.get(real_setting_name):
+            settings.pop(loom_setting_name)
+        else:
+            raise Exception("Conflicting settings %s=%s, %s=%s" % (
+                real_setting_name,
+                settings.get(real_setting_name),
+                loom_setting_name,
+                settings.get(loom_setting_name)))
         return settings
 
     def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):

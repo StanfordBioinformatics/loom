@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task
 from celery.decorators import periodic_task
+import copy
 import datetime
 from django import db
 import multiprocessing
@@ -9,10 +10,6 @@ import kombu.exceptions
 import os
 import subprocess
 import sys
-
-@shared_task
-def add(x, y):
-    return x + y
 
 def _run_with_delay(task_function, args, kwargs):
     if get_setting('TEST_DISABLE_TASK_DELAY'):
@@ -111,28 +108,27 @@ def _run_task(task_id):
     if not task.status == 'STARTING':
         return
     task_attempt = task.create_attempt()
-    env = os.environ
-    env['LOOM_TASK_ATTEMPT_ID'] = str(task_attempt.uuid)
-    _run_playbook(env['LOOM_RUN_TASK_PLAYBOOK'], env, env['LOOM_DEBUG'])
+    _run_task_runner_playbook(str(task_attempt.uuid))
 
-def _run_playbook(playbook, settings, verbose=False):
-    inventory = settings['LOOM_ANSIBLE_INVENTORY']
-    if ',' not in inventory:
-        inventory = os.path.join(settings['LOOM_SETTINGS_HOME'], settings['LOOM_INVENTORY_DIR'], settings['LOOM_ANSIBLE_INVENTORY'])
+def _run_task_runner_playbook(task_attempt_id):
+    env = copy.copy(os.environ)
+    playbook = os.path.join(
+        get_setting('PLAYBOOK_PATH'),
+        get_setting('LOOM_RUN_TASK_PLAYBOOK'))
     cmd_list = ['ansible-playbook',
-                '-i', inventory,
-                os.path.join(settings['LOOM_SETTINGS_HOME'], settings['LOOM_PLAYBOOK_DIR'], playbook),
+                '-i', get_setting('ANSIBLE_INVENTORY'),
+                playbook,
                 # Without this, ansible uses /usr/bin/python,
                 # which may be missing needed modules
                 '-e', 'ansible_python_interpreter="/usr/bin/env python"',
     ]
-    if 'LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE' in settings:
-        cmd_list.extend(['--private-key', settings['LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE']])
-    if 'LOOM_ANSIBLE_HOST_KEY_CHECKING' in settings:
-        settings.update({'ANSIBLE_HOST_KEY_CHECKING':
-                         settings.get('LOOM_ANSIBLE_HOST_KEY_CHECKING')
-        })
-    if verbose:
+    if get_setting('SSH_PRIVATE_KEY_NAME'):
+        private_key_file_path = os.path.join(
+            os.path.expanduser('~/.ssh'),
+            get_setting('SSH_PRIVATE_KEY_NAME'))
+        cmd_list.extend(['--private-key', private_key_file_path])
+
+    if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
     return subprocess.Popen(cmd_list, env=settings, stderr=subprocess.STDOUT)

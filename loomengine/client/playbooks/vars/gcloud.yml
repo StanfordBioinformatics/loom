@@ -1,7 +1,6 @@
 server_settings_home: "{{ansible_env.HOME}}/.loom"
 
-ssh_private_key_file_create_new: "{{lookup('env', 'LOOM_ANSILE_SSH_PRIVATE_KEY_FILE_CREATE_NEW') | bool}}"
-ssh_private_key_file: "{{lookup('env', 'LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE')}}"
+ssh_private_key_file_path: "{{ansible_env.HOME}}/.ssh/{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')}}"
 
 # GCE settings
 boot_disk_type: "{{lookup('env','LOOM_GCLOUD_SERVER_BOOT_DISK_TYPE')}}"

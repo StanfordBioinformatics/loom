@@ -77,6 +77,16 @@ WORKER_TAGS = os.getenv('WORKER_TAGS')
 WORKER_USES_SERVER_INTERNAL_IP = os.getenv('WORKER_USES_SERVER_INTERNAL_IP')
 WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
 
+def _get_run_task_playbook_path():
+    if not os.getenv('LOOM_RUN_TASK_PLAYBOOK'):
+        return None
+    return os.path.join(PLAYBOOKS_PATH,
+                        os.getenv('LOOM_RUN_TASK_PLAYBOOK'))
+
+LOOM_SETTINGS_HOME = os.getenv('LOOM_SETTINGS_HOME', os.path.expanduser('~/.loom'))
+PLAYBOOK_PATH = os.path.join(LOOM_SETTINGS_HOME, os.getenv('LOOM_PLAYBOOK_DIR', 'playbooks'))
+LOOM_RUN_TASK_PLAYBOOK = os.getenv('LOOM_RUN_TASK_PLAYBOOK')
+
 # Database settings
 LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')
 LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
@@ -93,6 +103,18 @@ LOOM_RABBITMQ_USER = os.getenv('LOOM_RABBITMQ_USER', 'guest')
 LOOM_RABBITMQ_VHOST = os.getenv('LOOM_RABBITMQ_VHOST', '/')
 LOOM_RABBITMQ_HOST = os.getenv('LOOM_RABBITMQ_HOST', 'rabbitmq')
 LOOM_RABBITMQ_PORT = os.getenv('LOOM_RABBITMQ_PORT', '5672')
+
+def _get_ansible_inventory():
+    ansible_inventory = os.getenv('LOOM_ANSIBLE_INVENTORY', 'localhost,')
+    if ',' not in ansible_inventory:
+	ansible_inventory = os.path.join(
+            os.getenv('LOOM_SETTINGS_HOME'),
+            os.getenv('LOOM_INVENTORY_DIR'),
+            os.getenv('LOOM_ANSIBLE_INVENTORY'))
+    return ansible_inventory
+
+ANSIBLE_INVENTORY = _get_ansible_inventory()
+SSH_PRIVATE_KEY_NAME = os.getenv('LOOM_SSH_PRIVATE_KEY_NAME')
 
 KEEP_DUPLICATE_FILES = True
 FORCE_RERUN = True

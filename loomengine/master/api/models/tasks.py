@@ -20,21 +20,21 @@ TASK_STATUSES = [
     ('FAILED', 'Failed'),
 ]
 
-TASK_DETAILED_STATUSES = {
-    'STARTING': 'Starting',
-    'RUNNING_PROVISIONING_HOST': 'Provisioning host',
-    'RUNNING_LAUNCHING_MONITOR': 'Launching monitor process on worker',
-    'RUNNING_INITIALIZING_MONITOR': 'Initializing monitor process on worker',
-    'RUNNING_COPYING_INPUTS': 'Copying input files to runtime environment',
-    'RUNNING_CREATING_RUN_SCRIPT': 'Creating run script',
-    'RUNNING_FETCHING_IMAGE': 'Fetching runtime environment image',
-    'RUNNING_CREATING_CONTAINER': 'Creating runtime environment container',
-    'RUNNING_STARTING_ANALYSIS': 'Starting analysis',
-    'RUNNING_EXECUTING_ANALYSIS': 'Running analysis',
-    'RUNNING_SAVING_OUTPUTS': 'Saving outputs',
-    'FINISHED': 'Finished',
-    'FAILED': 'Failed',
-}
+TASK_DETAILED_STATUSES = [
+    ('STARTING', 'Starting'),
+    ('RUNNING_PROVISIONING_HOST', 'Provisioning host'),
+    ('RUNNING_LAUNCHING_MONITOR', 'Launching monitor process on worker'),
+    ('RUNNING_INITIALIZING_MONITOR', 'Initializing monitor process on worker'),
+    ('RUNNING_COPYING_INPUTS', 'Copying input files to runtime environment'),
+    ('RUNNING_CREATING_RUN_SCRIPT', 'Creating run script'),
+    ('RUNNING_FETCHING_IMAGE', 'Fetching runtime environment image'),
+    ('RUNNING_CREATING_CONTAINER', 'Creating runtime environment container'),
+    ('RUNNING_STARTING_ANALYSIS', 'Starting analysis'),
+    ('RUNNING_EXECUTING_ANALYSIS', 'Running analysis'),
+    ('RUNNING_SAVING_OUTPUTS', 'Saving outputs'),
+    ('FINISHED', 'Finished'),
+    ('FAILED', 'Failed'),
+]
 
 
 class Task(BaseModel):
@@ -71,7 +71,8 @@ class Task(BaseModel):
     )
     status_detail = models.CharField(
         max_length=255,
-        default=TASK_DETAILED_STATUSES['STARTING'])
+        default='STARTING',
+        choices=TASK_DETAILED_STATUSES)
 
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
@@ -225,12 +226,11 @@ class TaskAttempt(BaseModel):
     status = models.CharField(
         max_length=255,
         default='STARTING',
-        choices=
-        ,
-    )
+        choices=TASK_STATUSES)
     status_detail = models.CharField(
         max_length=255,
-        default=TASK_DETAILED_STATUSES['STARTING'])
+        default='STARTING',
+        choices=TASK_DETAILED_STATUSES)
 
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
