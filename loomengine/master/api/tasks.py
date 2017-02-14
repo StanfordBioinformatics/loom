@@ -6,7 +6,9 @@ from django import db
 import multiprocessing
 from api import get_setting
 import kombu.exceptions
-
+import os
+import subprocess
+import sys
 
 @shared_task
 def add(x, y):
@@ -105,4 +107,32 @@ def process_active_tasks():
 def _run_task(task_id):
     from api.models.tasks import Task
     task = Task.objects.get(id=task_id)
-    task.run()
+    print "RUNNING TASK %s" % task.id
+    if not task.status == 'STARTING':
+        return
+    task_attempt = task.create_attempt()
+    env = os.environ
+    env['LOOM_TASK_ATTEMPT_ID'] = str(task_attempt.uuid)
+    _run_playbook(env['LOOM_RUN_TASK_PLAYBOOK'], env, env['LOOM_DEBUG'])
+
+def _run_playbook(playbook, settings, verbose=False):
+    inventory = settings['LOOM_ANSIBLE_INVENTORY']
+    if ',' not in inventory:
+        inventory = os.path.join(settings['LOOM_SETTINGS_HOME'], settings['LOOM_INVENTORY_DIR'], settings['LOOM_ANSIBLE_INVENTORY'])
+    cmd_list = ['ansible-playbook',
+                '-i', inventory,
+                os.path.join(settings['LOOM_SETTINGS_HOME'], settings['LOOM_PLAYBOOK_DIR'], playbook),
+                # Without this, ansible uses /usr/bin/python,
+                # which may be missing needed modules
+                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
+    ]
+    if 'LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE' in settings:
+        cmd_list.extend(['--private-key', settings['LOOM_ANSIBLE_SSH_PRIVATE_KEY_FILE']])
+    if 'LOOM_ANSIBLE_HOST_KEY_CHECKING' in settings:
+        settings.update({'ANSIBLE_HOST_KEY_CHECKING':
+                         settings.get('LOOM_ANSIBLE_HOST_KEY_CHECKING')
+        })
+    if verbose:
+        cmd_list.append('-vvvv')
+
+    return subprocess.Popen(cmd_list, env=settings, stderr=subprocess.STDOUT)

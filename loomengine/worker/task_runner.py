@@ -79,6 +79,7 @@ class TaskRunner(object):
             else:
                 self.filemanager = FileManager(self.settings['MASTER_URL'])
             self.settings.update(self._get_worker_settings())
+            print self.settings
             self._init_docker_client()
             self._init_working_dir()
         except Exception as e:
@@ -141,7 +142,7 @@ class TaskRunner(object):
         self._set_status('RUNNING_SAVING_OUTPUTS')
 
         self._try_to_save_process_logs()
-            
+
 
         try:
             self._try_to_save_outputs()
@@ -200,7 +201,7 @@ class TaskRunner(object):
                 self.LOOM_RUN_SCRIPT_NAME),
                   'w') as f:
             f.write(user_command + '\n')
-        
+
     def _try_to_pull_image(self):
         self._set_status('RUNNING_FETCHING_IMAGE')
         try:
@@ -230,7 +231,7 @@ class TaskRunner(object):
         if not ':' in docker_image:
             docker_image = docker_image + ':latest'
         return docker_image
-        
+
     def _parse_docker_output(self, data):
         return [json.loads(line) for line in data.strip().split('\r\n')]
 
@@ -531,7 +532,7 @@ class TaskRunner(object):
         return parser
 
 
-# pip entrypoint requires a function with no arguments 
+# pip entrypoint requires a function with no arguments
 def main():
 
     run_error = None
@@ -556,4 +557,4 @@ def main():
         raise cleanup_error
 
 if __name__=='__main__':
-    main()
+    return main()
