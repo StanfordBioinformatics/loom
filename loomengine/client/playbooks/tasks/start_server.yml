@@ -60,6 +60,10 @@
       LOOM_SETTINGS_HOME: "{{container_settings_home}}"
       LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
+      LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
+
     volumes:
       - "{{server_settings_home}}:{{container_settings_home}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
@@ -76,8 +80,12 @@
     env:
       C_FORCE_ROOT: true
       LOOM_SETTINGS_HOME: "{{container_settings_home}}"
-      LOOM_MYSQL_HOST: "{{mysql_container_name}}"
+      LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
+      LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
+
     volumes:
       - "{{server_settings_home}}:{{container_settings_home}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
@@ -97,6 +105,9 @@
       LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
       LOOM_MASTER_ALLOWED_HOSTS: "{{server_url.split('://')[1].split(':')[0]}}"
+      LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
     volumes:
       - /loomengine/loomengine/portal
       - "{{master_static_root}}"

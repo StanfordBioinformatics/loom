@@ -37,7 +37,16 @@ mysql_random_root_password: >
 mysql_database: "{{lookup('env', 'LOOM_MYSQL_DATABASE')}}"
 mysql_user: "{{lookup('env', 'LOOM_MYSQL_USER')}}"
 mysql_password: "{{lookup('env', 'LOOM_MYSQL_PASSWORD')}}"
-mysql_host: "{{mysql_container_name}}"
+mysql_host: "{{mysql_container_name if mysql_create_docker_container \
+             else lookup('env', 'LOOM_MYSQL_HOST')}}"
+
+cert_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CA_CERT_FILE')}}"
+client_cert_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CLIENT_CERT_FILE')}}"
+client_key_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CLIENT_KEY_FILE')}}"
+
+container_mysql_ssl_ca_cert_path: "{{container_settings_home+'/'+admin_files_dir+'/'+cert_file if cert_file else none}}"
+container_mysql_ssl_client_cert_path: "{{container_settings_home+'/'+admin_files_dir+'/'+client_cert_file if client_cert_file else none}}"
+container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+admin_files_dir+'/'+client_key_file if client_key_file else none}}"
 
 # Rabbitmq container settings
 rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_IMAGE')}}"

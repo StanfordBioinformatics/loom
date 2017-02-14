@@ -216,16 +216,16 @@ def _get_mysql_databases():
                     LOOM_MYSQL_SSL_CA_CERT_PATH,
                     LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
                     LOOM_MYSQL_SSL_CLIENT_KEY_PATH))
-    else:
-        DATABASES['default'].update({
-            'OPTIONS': {
-                'ssl': {
-                    'ca': LOOM_MYSQL_SSL_CA_CERT_PATH,
-                    'cert': LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
-                    'key': LOOM_MYSQL_SSL_CLIENT_KEY_PATH
+        else:
+            DATABASES['default'].update({
+                'OPTIONS': {
+                    'ssl': {
+                        'ca': LOOM_MYSQL_SSL_CA_CERT_PATH,
+                        'cert': LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
+                        'key': LOOM_MYSQL_SSL_CLIENT_KEY_PATH
+                    }
                 }
-            }
-        })
+            })
     return DATABASES
 
 # Database
