@@ -2,7 +2,6 @@
 - name: Create a new instance for the Loom server.
   hosts: localhost
   connection: local
-  gather_facts: no
   vars_files:
   - vars/common.yml
   - vars/gcloud.yml
@@ -13,7 +12,6 @@
 - name: Create connection settings file now that we have a server IP, and collect admin files on the client.
   hosts: localhost
   connection: local
-  gather_facts: no
   vars_files:
   - vars/common.yml
   - vars/gcloud.yml
