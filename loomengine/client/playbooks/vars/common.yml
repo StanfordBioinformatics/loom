@@ -93,3 +93,7 @@ taskrunner_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_TASKRUNNER_CONTAINER_NAME_SUFFIX')}}"
 loom_workspace: "{{lookup('env', 'WORKING_DIR')}}"
+
+# Gcloud storage settings
+google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
+gce_project: "{{lookup('env','GCE_PROJECT')}}"
