@@ -467,7 +467,7 @@ class FileManager:
         source = Source(source_url, self.settings)
         filename = source.get_filename()
 
-        self.logger.info('Calculating md5 for file %s ...' % source_url)
+        self.logger.info('Calculating md5 on file "%s"...' % source_url)
         md5 = source.calculate_md5()
 
         return self.connection.post_data_object({
@@ -480,27 +480,51 @@ class FileManager:
             'source_type': 'imported',
         })
 
-    def import_result_file(self, task_run_attempt_output, source_url):
+    def import_result_file(self, task_attempt_output, source_url):
+        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        source = Source(source_url, self.settings)
+        md5 = source.calculate_md5()
+
         file_data_object = self._execute_file_import(
-            self._create_task_run_attempt_output_file(task_run_attempt_output),
+            self._create_task_attempt_output_file(task_attempt_output, md5),
             source_url
         )
         return file_data_object
 
-    def _create_task_run_attempt_output_file(self, task_run_attempt_output):
-        updated_task_run_attempt_output = self.connection.update_task_run_attempt_output(
-            task_run_attempt_output['id'],
+    def _create_task_attempt_output_file(self, task_attempt_output, md5):
+
+        updated_task_attempt_output = self.connection.update_task_attempt_output(
+            task_attempt_output['id'],
             {
                 'data_object': {
+                    'type': 'file',
                     'source_type': 'result',
+                    'md5': md5,
                 }})
-        return updated_task_run_attempt_output['data_object']
+        return updated_task_attempt_output['data_object']
 
-    def import_log_file(self, task_run_attempt, source_url):
+    def import_log_file(self, task_attempt, source_url):
         log_name = os.path.basename(source_url)
-        log_file = self.connection.post_task_run_attempt_log_file(task_run_attempt['uuid'], {'log_name': log_name})
+        log_file = self.connection.post_task_attempt_log_file(
+            task_attempt['uuid'], {'log_name': log_name})
+
+        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        source = Source(source_url, self.settings)
+        md5 = source.calculate_md5()
+
+        file_data_object = self.connection.get_data_object(log_file['file']['uuid'])
+
+        assert not file_data_object.get('md5')
+        file_data_object.update({'md5': md5,
+                                 'filename': log_name})
+        file_data_object['file_resource'].update({'md5': md5})
+        
+        # update file_data_object with md5 and other missing info
+        file_data_object = self.connection.update_data_object(
+            log_file['file']['uuid'], file_data_object)
+        
         return self._execute_file_import(
-            log_file['file_data_object'],
+            file_data_object,
             source_url
         )
 
@@ -519,17 +543,18 @@ class FileManager:
         if file_data_object['file_resource']['upload_status'] == 'complete':
             self.logger.info(
                 '   server already has the file. Skipping upload.')
-        else:
-            try:
-                destination = Destination(
-                    file_data_object['file_resource']['file_url'],
-                    self.settings)
-                self.logger.info(
-                    '   copying to destination %s ...' % destination.get_url())
-                source.copy_to(destination)
-            except Exception as e:
-                self._set_upload_status(file_data_object, 'failed')
-                raise e
+            return file_data_object
+        
+        try:
+            destination = Destination(
+                file_data_object['file_resource']['file_url'],
+                self.settings)
+            self.logger.info(
+                '   copying to destination %s ...' % destination.get_url())
+            source.copy_to(destination)
+        except Exception as e:
+            self._set_upload_status(file_data_object, 'failed')
+            raise e
 
         # Signal that the upload completed successfully
         file_data_object = self._set_upload_status(

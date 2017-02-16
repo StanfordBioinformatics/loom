@@ -105,7 +105,6 @@
       LOOM_SETTINGS_HOME: "{{container_settings_home}}"
       LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
-      LOOM_MASTER_ALLOWED_HOSTS: "{{server_url.split('://')[1].split(':')[0]}}"
       LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"

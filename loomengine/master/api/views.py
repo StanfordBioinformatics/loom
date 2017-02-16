@@ -238,9 +238,9 @@ def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
 
 @require_http_methods(["GET"])
-def worker_settings(request, id):
+def worker_settings(request, uuid):
     try:
-        task_attempt = models.TaskAttempt.objects.get(id=id)
+        task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
         return JsonResponse({
             'WORKING_DIR': task_attempt.get_working_dir(),
             'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
@@ -266,11 +266,11 @@ def info(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def create_task_attempt_log_file(request, id):
+def create_task_attempt_log_file(request, uuid):
     data_json = request.body
     data = json.loads(data_json)
     try:
-        task_attempt = models.TaskAttempt.objects.get(id=id)
+        task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     s = serializers.TaskAttemptLogFileSerializer(
@@ -285,11 +285,11 @@ def create_task_attempt_log_file(request, id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def create_task_attempt_error(request, id):
+def create_task_attempt_error(request, uuid):
     data_json = request.body
     data = json.loads(data_json)
     try:
-        task_attempt = models.TaskAttempt.objects.get(id=id)
+        task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
     except ObjectDoesNotExist:
         return JsonResponse({"message": "Not Found"}, status=404)
     s = serializers.TaskAttemptErrorSerializer(

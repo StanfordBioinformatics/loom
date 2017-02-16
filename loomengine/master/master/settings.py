@@ -39,7 +39,7 @@ SECRET_KEY = os.getenv(
              for i in range(50)]))
 CORS_ORIGIN_ALLOW_ALL = to_boolean(os.getenv('LOOM_MASTER_CORS_ORIGIN_ALLOW_ALL'))
 CORS_ORIGIN_WHITELIST = to_list(os.getenv('LOOM_MASTER_CORS_ORIGIN_WHITELIST'))
-ALLOWED_HOSTS = to_list(os.getenv('LOOM_MASTER_ALLOWED_HOSTS', '[]'))
+ALLOWED_HOSTS = to_list(os.getenv('LOOM_MASTER_ALLOWED_HOSTS', '[*]'))
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 

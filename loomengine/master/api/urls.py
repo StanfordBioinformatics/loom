@@ -27,9 +27,12 @@ urlpatterns = [
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
     url(r'^filemanager-settings/$', api.views.filemanager_settings),
-#    url(r'^task-attempts/(?P<id>[a-zA-Z0-9_\-]+)/worker-settings/$', api.views.worker_settings),
-#    url(r'^task-attempts/(?P<id>[a-zA-Z0-9_\-]+)/task-attempt-log-files/$',
-#        api.views.create_task_run_attempt_log_file),
-#    url(r'^task-attempts/(?P<id>[a-zA-Z0-9_\-]+)/task-attempt-errors/$',
-#        api.views.create_task_run_attempt_error)
+    url(r'^task-attempts/(?P<uuid>[a-zA-Z0-9_\-]+)/worker-settings/$',
+        api.views.worker_settings),
+    url(r'^task-attempts/(?P<uuid>[a-zA-Z0-9_\-]+)/worker-settings/$',
+        api.views.worker_settings),
+    url(r'^task-attempts/(?P<uuid>[a-zA-Z0-9_\-]+)/task-attempt-log-files/$',
+        api.views.create_task_attempt_log_file),
+    url(r'^task-attempts/(?P<uuid>[a-zA-Z0-9_\-]+)/task-attempt-errors/$',
+        api.views.create_task_attempt_error)
 ]
