@@ -111,7 +111,6 @@ def _run_task(task_id):
     _run_task_runner_playbook(str(task_attempt.uuid))
 
 def _run_task_runner_playbook(task_attempt_id):
-    env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
         get_setting('LOOM_RUN_TASK_PLAYBOOK'))
@@ -131,4 +130,4 @@ def _run_task_runner_playbook(task_attempt_id):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    return subprocess.Popen(cmd_list, env=settings, stderr=subprocess.STDOUT)
+    return subprocess.Popen(cmd_list, env=os.environ, stderr=subprocess.STDOUT)
