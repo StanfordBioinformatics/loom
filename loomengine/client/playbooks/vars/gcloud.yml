@@ -5,8 +5,9 @@ ssh_private_key_file_path: "{{ansible_env.HOME}}/.ssh/{{lookup('env', 'LOOM_SSH_
 # GCE settings
 boot_disk_type: "{{lookup('env','LOOM_GCLOUD_SERVER_BOOT_DISK_TYPE')}}"
 boot_disk_size_gb: "{{lookup('env','LOOM_GCLOUD_SERVER_BOOT_DISK_SIZE_GB')}}"
-gce_email: "{{lookup('env','GCE_EMAIL')}}"
-gce_credential: "{{lookup('env','GCE_PEM_FILE_PATH')}}"
+gce_credential: "{{server_settings_home}}/{{admin_files_dir}}/{{lookup('env','LOOM_GCE_PEM_FILE')}}"
+gce_email: "{{lookup('env','LOOM_GCE_EMAIL')}}"
+gce_project: "{{lookup('env','LOOM_GCE_PROJECT')}}"
 instance_name: "{{lookup('env','LOOM_SERVER_NAME')}}"
 instance_image: "{{lookup('env','LOOM_GCLOUD_SERVER_INSTANCE_IMAGE')}}"
 instance_type: "{{lookup('env','LOOM_GCLOUD_SERVER_INSTANCE_TYPE')}}"

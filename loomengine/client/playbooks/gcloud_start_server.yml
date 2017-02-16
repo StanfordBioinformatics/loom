@@ -2,7 +2,6 @@
 - name: Create a new instance for the Loom server.
   hosts: localhost
   connection: local
-  gather_facts: no
   vars_files:
   - vars/common.yml
   - vars/gcloud.yml
@@ -13,7 +12,6 @@
 - name: Create connection settings file now that we have a server IP, and collect admin files on the client.
   hosts: localhost
   connection: local
-  gather_facts: no
   vars_files:
   - vars/common.yml
   - vars/gcloud.yml
@@ -39,7 +37,7 @@
   tasks:
   - include: tasks/gcloud_create_docker_group.yml
 
-- name: Set up the Loom server on the new instance.
+- name: Pull Docker images on the new instance.
   hosts: new_instances
   become: yes
   become_user: loom
@@ -47,7 +45,7 @@
   - vars/common.yml
   - vars/gcloud.yml
   tasks:
-  - include: tasks/gcloud_setup_server.yml
+  - include: tasks/pull_docker_images.yml
 
 - name: Start the Loom server.
   hosts: new_instances

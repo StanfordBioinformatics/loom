@@ -1,15 +1,43 @@
 ---
+- name: Create a new instance for the Loom worker.
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+  - include: tasks/gcloud_create_instance.yml
+  - include: tasks/gcloud_configure_instance_ssh.yml
+
+- name: Install Docker on the Loom worker.
+  hosts: "{{lookup('env','WORKER_INSTANCE_NAME')}}"
+  become: yes
+  roles:
+  - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')}}"}
+  - {role: docker-py, when: "not {{lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')}}"}
+  tasks:
+  - include: tasks/gcloud_create_docker_group.yml
+
+- name: Set up the Loom worker on the new instance.
+  hosts: "{{lookup('env','WORKER_INSTANCE_NAME')}}"
+  become: yes
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+  - include: tasks/gcloud_setup_worker.yml
+
 - name: Run the Loom task runner on the specified worker instance.
   hosts: "{{lookup('env','WORKER_INSTANCE_NAME')}}"
-  remote_user: loom
   become: yes
-  become_method: sudo
   vars_files:
+  - vars/common.yml
   - vars/gcloud_worker.yml  
   tasks:
   - name: Run the Loom task runner.
     docker_container:
-      name: loom
+      name: loom_task_runner
       image: "{{loom_docker_image}}"
       volumes: ["{{remote_loom_settings_path}}:/root/.loom", "{{scratch_disk_mount_point}}:{{scratch_disk_mount_point}}", "/var/run/docker.sock:/var/run/docker.sock"]
       api_version: auto

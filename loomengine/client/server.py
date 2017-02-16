@@ -287,10 +287,10 @@ class ServerControls:
                     # which may be missing needed modules
                     '-e', 'ansible_python_interpreter="/usr/bin/env python"',
         ]
-        if 'SSH_PRIVATE_KEY_NAME' in settings:
+        if 'LOOM_SSH_PRIVATE_KEY_NAME' in settings:
             private_key_file_path = os.path.join(
                 os.path.expanduser('~/.ssh'),
-                settings['SSH_PRIVATE_KEY_NAME'])
+                settings['LOOM_SSH_PRIVATE_KEY_NAME'])
             cmd_list.extend(['--private-key', private_key_file_path])
         if verbose:
             cmd_list.append('-vvvv')
