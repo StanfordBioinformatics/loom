@@ -75,10 +75,8 @@ class Connection(object):
             try:
                 response = query_function()
                 if raise_for_status:
-                    try:
-                        response.raise_for_status()
-                    except requests.exceptions.HTTPError as e:
-                        error = BadResponseError("%s\n%s" % (e.message, response.text))
+                    print response.text
+                    response.raise_for_status()
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError("No response from server.\n%s" % e.message)
             if error:
@@ -117,10 +115,10 @@ class Connection(object):
         return self._post_object(
             data,
             'data-objects/')
-        
-    def get_data_object(self, file_id):
+
+    def get_data_object(self, data_object_id):
         return self._get_object(
-            'data-objects/%s/' % file_id)
+            'data-objects/%s/' % data_object_id)
 
     def get_data_object_index(self, query_string='', min=0, max=float('inf')):
         url = 'data-objects/'
@@ -137,6 +135,12 @@ class Connection(object):
                 % (len(data_objects), max))
         return data_objects
 
+    def update_data_object(self, data_object_id, data_update):
+        return self._patch_object(
+            data_update,
+            'data-objects/%s/' % data_object_id)
+
+    
     def get_file_data_object_index(
             self, query_string='', min=0, max=float('inf')):
         url = 'files/'

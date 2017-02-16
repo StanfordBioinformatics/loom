@@ -1,5 +1,5 @@
 from django.db import models
-# from django.dispatch import receiver
+from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
 from django.dispatch import receiver
 from django.utils import timezone
@@ -8,7 +8,7 @@ import jsonfield
 
 from api.models import uuidstr
 from .base import BaseModel, render_from_template
-from api.models.data_objects import DataObject
+from api.models.data_objects import DataObject, FileDataObject
 # from api.models.workflows import Step, RequestedResourceSet
 from api import get_setting
 from api.task_manager.factory import TaskManagerFactory
@@ -296,7 +296,7 @@ class TaskAttempt(BaseModel):
     def get_working_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
                             'runtime_volumes',
-                            self.id,
+                            str(self.uuid),
                             'work')
 
     def get_log_dir(self):
@@ -375,6 +375,18 @@ class TaskAttemptLogFile(BaseModel):
         null=True,
         related_name='task_attempt_log_file',
         on_delete=models.PROTECT)
+
+    def _post_save(self):
+        # Create a blank file_data_object on save.
+        # The client will upload the file to this object.
+        if self.file is None:
+            self.file = FileDataObject.objects.create(source_type='log', type='file')
+            self.file.initialize()
+            self.save()
+
+@receiver(models.signals.post_save, sender=TaskAttemptLogFile)
+def _post_save_task_attempt_log_file_signal_receiver(sender, instance, **kwargs):
+    instance._post_save()
 
 
 class TaskAttemptError(BaseModel):

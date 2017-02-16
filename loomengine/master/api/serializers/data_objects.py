@@ -63,15 +63,16 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
     uuid = serializers.CharField(required=False)
     
     file_resource = FileResourceSerializer(allow_null=True, required=False)
-    file_import = serializers.JSONField(required=False)
+    file_import = serializers.JSONField(required=False, allow_null=True)
     
     class Meta:
         model = FileDataObject
         exclude = ('id', '_change',)
 
     def create(self, validated_data):
-        validated_data['file_resource'] = self._create_file_resource(
-            self.initial_data.get('file_resource', None))
+        if self.initial_data.get('file_resource'):
+            validated_data['file_resource'] = self._create_file_resource(
+                self.initial_data.get('file_resource'))
         file_data_object = self.Meta.model.objects.create(**validated_data)
         file_data_object.initialize()
         return file_data_object
@@ -83,9 +84,29 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         s.is_valid()
         return s.save()
 
+    def update(self, instance, validated_data):
+        instance = instance.filedataobject
+        if self.initial_data.get('file_resource'):
+            validated_data['file_resource'] = self._update_file_resource(
+                instance.file_resource,
+                self.initial_data.get('file_resource'))
+        for field, value in validated_data.iteritems():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
+
+    def _update_file_resource(self, instance, resource_data):
+        if not resource_data:
+            return instance
+        s = FileResourceSerializer(instance, data=resource_data)
+        s.is_valid()
+        return s.save()
+
 
 class DataObjectSerializer(SuperclassModelSerializer):
 
+    type = serializers.CharField(required=True)
+    
     class Meta:
         model = DataObject
         exclude = ('_change',)
@@ -117,11 +138,16 @@ class DataObjectSerializer(SuperclassModelSerializer):
         # DataObjectArraySerializer.members uses DataObjectSerializer.
         if type == 'array':
             return DataObjectArraySerializer
+        elif not type:
+            return DataObjectSerializer
         else:
             return self.subclass_serializers[type]
 
     def _get_subclass_field(self, type):
-        return self.subclass_fields[type]
+        try:
+            return self.subclass_fields[type]
+        except KeyError:
+            return None
 
     def _get_type(self, data=None, instance=None):
         if instance:
@@ -130,7 +156,7 @@ class DataObjectSerializer(SuperclassModelSerializer):
             else:
                 return instance.type
         else:
-            assert data, 'either instance or data is required'
+#            assert data, 'either instance or data is required'
             if data.get('is_array'):
                 return 'array'
             else:

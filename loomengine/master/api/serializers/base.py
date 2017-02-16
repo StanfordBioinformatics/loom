@@ -106,6 +106,10 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             # initial data, because required fields may be lost
             return data
         type = self._get_type(data=data)
+        # If this is an update, data may not have 'type'.
+        # Not possible to validate here
+        if type is None:
+            return data
         SubclassSerializer \
             = self._get_subclass_serializer_class(type)
         serializer = SubclassSerializer(
@@ -129,6 +133,7 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
         SubclassSerializer \
             = self._get_subclass_serializer_class(type)
         serializer = SubclassSerializer(
+            instance,
             data=self.initial_data,
             context=self.context)
         serializer.is_valid(raise_exception=True)

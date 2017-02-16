@@ -21,6 +21,9 @@ from loomengine.utils.logger import get_file_logger, get_stdout_logger
 from loomengine.utils.helper import init_directory
 
 
+class WorkerSettingsError(Exception):
+    pass
+
 class ContainerStartError(Exception):
     pass
 
@@ -72,7 +75,8 @@ class TaskRunner(object):
         # Errors here can be both logged and reported to server
 
         try:
-            self._set_status('RUNNING_INITIALIZING_MONITOR')
+            self._set_status(status='RUNNING',
+                             detailed_status='RUNNING_INITIALIZING_MONITOR')
             self._init_task_attempt()
             if mock_filemanager is not None:
                 self.filemanager = mock_filemanager
@@ -85,7 +89,8 @@ class TaskRunner(object):
         except Exception as e:
             try:
                 self._report_error(message='Failed to initialize', detail=str(e))
-                self._set_status('RUNNING_FINISHED')
+                self._set_status(status='FAILED',
+                                 detailed_status='FAILED')
             except:
                 # Raise original error, not status change error
                 pass
@@ -139,7 +144,8 @@ class TaskRunner(object):
 
     def cleanup(self):
         # Never raise errors, so cleanup can continue
-        self._set_status('RUNNING_SAVING_OUTPUTS')
+        self._set_status(status='RUNNING',
+                         detailed_status='RUNNING_SAVING_OUTPUTS')
 
         self._try_to_save_process_logs()
 
@@ -155,7 +161,8 @@ class TaskRunner(object):
             self._report_error(message='Failed to save monitor log', detail=str(e))
 
         try:
-            self._set_status('RUNNING_FINISHED')
+            self._set_status(status='FINISHED',
+                         detailed_status='FINISHED')
             self.logger.info('Done.')
         except Exception as e:
             self._report_error(message='Failed to set status to finished',
@@ -163,7 +170,8 @@ class TaskRunner(object):
 
     def _try_to_copy_inputs(self):
         self.logger.info('Downloading input files')
-        self._set_status('RUNNING_COPYING_INPUTS')
+        self._set_status(status='RUNNING',
+                         detailed_status='RUNNING_COPYING_INPUTS')
         try:
             self._copy_inputs()
         except Exception as e:
@@ -177,8 +185,9 @@ class TaskRunner(object):
             return
         file_data_object_ids = []
         for input in self.task_attempt['inputs']:
-            if input['data_object']['type'] == 'file':
-                file_data_object_ids.append('@'+input['data_object']['id'])
+            data_object = self.connection.get_data_object(input['data_object']['uuid'])
+            if data_object['type'] == 'file':
+                file_data_object_ids.append('@'+data_object['uuid'])
         self.logger.debug('Copying inputs %s to %s.' % ( file_data_object_ids,
                                                          self.settings['WORKING_DIR']))
         self.filemanager.export_files(
@@ -187,15 +196,17 @@ class TaskRunner(object):
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
-        self._set_status('RUNNING_CREATING_RUN_SCRIPT')
+        self._set_status(status='RUNNING',
+                         detailed_status='RUNNING_CREATING_RUN_SCRIPT')
+
         try:
             self._create_run_script()
         except Exception as e:
-            self._report_error(message-'Failed to create run script', detail=str(e))
+            self._report_error(message='Failed to create run script', detail=str(e))
             raise e
 
     def _create_run_script(self):
-        user_command = self.task_attempt['task_definition']['command']
+        user_command = self.task_attempt['rendered_command']
         with open(os.path.join(
                 self.settings['WORKING_DIR'],
                 self.LOOM_RUN_SCRIPT_NAME),
@@ -203,7 +214,9 @@ class TaskRunner(object):
             f.write(user_command + '\n')
 
     def _try_to_pull_image(self):
-        self._set_status('RUNNING_FETCHING_IMAGE')
+        self._set_status(status='RUNNING',
+                         detailed_status='RUNNING_FETCHING_IMAGE')
+
         try:
             self._pull_image()
             image_id = self.docker_client.inspect_image(self._get_docker_image())['Id']
@@ -227,7 +240,7 @@ class TaskRunner(object):
 
     def _get_docker_image(self):
         # Tag is required. Otherwise docker-py pull will download all tags.
-        docker_image = self.task_attempt['task_definition']['environment']['docker_image']
+        docker_image = self.task_attempt['environment']['docker_image']
         if not ':' in docker_image:
             docker_image = docker_image + ':latest'
         return docker_image
@@ -236,7 +249,8 @@ class TaskRunner(object):
         return [json.loads(line) for line in data.strip().split('\r\n')]
 
     def _try_to_create_container(self):
-        self._set_status('RUNNING_CREATING_CONTAINER')
+        self._set_status(status='RUNNING',
+                         detailed_status='RUNNING_CREATING_CONTAINER')
         try:
             self._create_container()
             self._set_container_id(self.container['Id'])
@@ -248,7 +262,7 @@ class TaskRunner(object):
 
     def _create_container(self):
         docker_image = self._get_docker_image()
-        interpreter = self.task_attempt['task_definition']['interpreter']
+        interpreter = self.task_attempt['interpreter']
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/loom_workspace'
 
@@ -270,7 +284,8 @@ class TaskRunner(object):
         )
 
     def _try_to_run_container(self):
-        self._set_status('RUNNING_STARTING_ANALYSIS')
+        self._set_status(status='RUNNING',
+                         detailed_status='RUNNING_STARTING_ANALYSIS')
         try:
             self.docker_client.start(self.container)
             self._verify_container_started_running()
@@ -287,7 +302,9 @@ class TaskRunner(object):
             raise ContainerStartError('Unexpected container status "%s"' % status)
 
     def _try_to_get_returncode(self):
-        self._set_status('RUNNING_EXECUTING_ANALYSIS')
+        self._set_status(status='RUNNING',
+                         detailed_status='RUNNING_EXECUTING_ANALYSIS')
+
         try:
             returncode = self._poll_for_returncode()
             if returncode == 0:
@@ -399,7 +416,7 @@ class TaskRunner(object):
                         output,
                         os.path.join(self.settings['WORKING_DIR'], filename)
                     )
-                    self.logger.debug('Saved file output "%s"' % data_object['id'])
+                    self.logger.debug('Saved file output "%s"' % data_object['uuid'])
                 except IOError as e:
                     self._report_error(
                         message='Failed to save output file %s' % filename,
@@ -430,7 +447,7 @@ class TaskRunner(object):
 
                 data_object = self._save_nonfile_output(output, output_text)
                 self.logger.debug(
-                    'Saved %s output "%s"' % (output['type'], data_object['id']))
+                    'Saved %s output "%s"' % (output['type'], data_object['uuid']))
 
     def _save_nonfile_output(self, output, output_text):
         data_type = output['type']
@@ -439,7 +456,7 @@ class TaskRunner(object):
             'value': output_text
         }
         output.update({'data_object': data_object})
-        return self.connection.update_task_attempt_output(output['id'], output)
+        return self.connection.update_task_attempt_output(output['uuid'], output)
 
     def _try_to_save_monitor_log(self):
         self.logger.debug('Saving worker process monitor log')
@@ -485,12 +502,19 @@ class TaskRunner(object):
             {'image_id': image_id}
         )
 
-    def _set_status(self, status):
-        self.logger.debug('Setting status to "%s"' % status)
-        self.connection.update_task_attempt(
-            self.settings['TASK_ATTEMPT_ID'],
-            {'status': status}
-        )
+    def _set_status(self, status=None, detailed_status=None):
+        self.logger.debug('Setting status, detailed_status to "%s", "%s"'
+                          % (status, detailed_status))
+        update = {}
+        if status:
+            update['status'] = status
+        if detailed_status:
+            update['detailed_status'] = detailed_status
+        if update:
+            self.connection.update_task_attempt(
+                self.settings['TASK_ATTEMPT_ID'],
+                update
+            )
 
     def _report_error(self, message, detail):
         self.logger.error(message + ': ' + detail)
@@ -557,4 +581,4 @@ def main():
         raise cleanup_error
 
 if __name__=='__main__':
-    return main()
+    main()
