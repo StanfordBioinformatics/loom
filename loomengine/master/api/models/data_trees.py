@@ -110,7 +110,7 @@ class DataNode(BaseModel):
             data_object = self.get_data_object(path)
         except MissingBranchError:
             return False
-        return boolean(data_object)
+        return bool(data_object)
 
     def get_node(self, path):
         if len(path) == 0:

@@ -222,7 +222,7 @@ class ServerControls:
         if not LOOM_SETTINGS_HOME \
            or os.path.abspath(LOOM_SETTINGS_HOME) == os.path.abspath('/'):
             print 'WARNING! LOOM_SETTINGS_HOME is "%s". Refusing to delete.' \
-                % LOOM_SETINGS_HOME
+                % LOOM_SETTINGS_HOME
         else:
             try:
                 if os.path.exists(LOOM_SETTINGS_HOME):
