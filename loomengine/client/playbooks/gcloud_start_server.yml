@@ -4,7 +4,7 @@
   connection: local
   vars_files:
   - vars/common.yml
-  - vars/gcloud.yml
+  - vars/gcloud_server.yml
   tasks:
   - include: tasks/gcloud_create_instance.yml
   - include: tasks/gcloud_configure_instance_ssh.yml
@@ -14,7 +14,7 @@
   connection: local
   vars_files:
   - vars/common.yml
-  - vars/gcloud.yml
+  - vars/gcloud_server.yml
   vars:
   - server_url: "{{server_protocol}}://{{groups['new_instances'][0]}}:{{server_port}}"
   tasks:
@@ -24,7 +24,7 @@
   hosts: localhost
   vars_files:
   - vars/common.yml
-  - vars/gcloud.yml
+  - vars/gcloud_server.yml
   tasks:
   - include: tasks/create_google_storage_bucket.yml
 
@@ -43,7 +43,7 @@
   become_user: loom
   vars_files:
   - vars/common.yml
-  - vars/gcloud.yml
+  - vars/gcloud_server.yml
   tasks:
   - include: tasks/pull_docker_images.yml
 
@@ -53,7 +53,7 @@
   become_user: loom
   vars_files:
   - vars/common.yml
-  - vars/gcloud.yml
+  - vars/gcloud_server.yml
   vars:
   - server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file='+settings_home+'/'+connection_settings_file)}}"
   tasks:

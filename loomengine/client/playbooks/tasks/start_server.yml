@@ -4,20 +4,10 @@
     state: directory
   when: storage_type == "local"
 
-- name: Create the admin files directory on the server
-  file:
-    path: "{{server_settings_home}}/{{admin_files_dir}}"
-    state: directory
-
-- name: Copy admin files from client to server
+- name: Copy settings directory from client to server
   copy:
-    src: "{{settings_home}}/{{admin_files_dir}}/"
-    dest: "{{server_settings_home}}/{{admin_files_dir}}/"
-
-- name: Copy admin settings file from client to server.
-  copy:
-    src: "{{settings_home}}/{{admin_settings_file}}"
-    dest: "{{server_settings_home}}/{{admin_settings_file}}"
+    src: "{{settings_home}}"
+    dest: "{{server_settings_home}}"
 
 - name: Start a MySQL database container
   docker_container:
