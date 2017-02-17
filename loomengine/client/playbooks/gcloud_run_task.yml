@@ -11,7 +11,7 @@
   - include: tasks/gcloud_configure_instance_ssh.yml
 
 - name: Install Docker on the Loom worker.
-  hosts: "{{lookup('env','WORKER_INSTANCE_NAME')}}"
+  hosts: "{{instance_name}}"
   become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')}}"}
@@ -19,26 +19,31 @@
   tasks:
   - include: tasks/gcloud_create_docker_group.yml
 
-- name: Set up the Loom worker on the new instance.
-  hosts: "{{lookup('env','WORKER_INSTANCE_NAME')}}"
+- name: Pull Docker images on the new instance.
+  hosts: "{{instance_name}}"
   become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
   tasks:
-  - include: tasks/gcloud_setup_worker.yml
+  - include: tasks/pull_worker_docker_images.yml
 
 - name: Run the Loom task runner on the specified worker instance.
-  hosts: "{{lookup('env','WORKER_INSTANCE_NAME')}}"
+  hosts: "{{instance_name}}"
   become: yes
   vars_files:
   - vars/common.yml
-  - vars/gcloud_worker.yml  
+  - vars/gcloud_worker.yml
+  vars:
+    task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
+    worker_log_file: "loom_taskrunner.log"
+    working_dir: "{{scratch_disk_mount_point}}/{{task_attempt_id}}"
   tasks:
   - name: Run the Loom task runner.
     docker_container:
-      name: loom_task_runner
+      name: "{{taskrunner_container_name}}-{{task_attempt_id}}"
       image: "{{loom_docker_image}}"
-      volumes: ["{{remote_loom_settings_path}}:/root/.loom", "{{scratch_disk_mount_point}}:{{scratch_disk_mount_point}}", "/var/run/docker.sock:/var/run/docker.sock"]
+      volumes: [{{scratch_disk_mount_point}}:{{scratch_disk_mount_point}}", "/var/run/docker.sock:/var/run/docker.sock"]
       api_version: auto
-      command: /bin/bash -c 'source /opt/loom-env/bin/activate && loom-taskrunner --run_attempt_id {{task_run_attempt_id}} --master_url {{master_url}} --log_level {{log_level}} --log_file {{worker_log_file}}'
+      network_mode: host
+      command: /bin/bash -c 'loom-taskrunner --task_attempt_id {{task_attempt_id}} --master_url {{server_url}} --log_level {{log_level}} --log_file {{working_dir}}/{{worker_log_file}} --working_dir {{working_dir}}'

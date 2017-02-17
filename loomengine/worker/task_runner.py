@@ -54,6 +54,7 @@ class TaskRunner(object):
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
             'LOG_FILE': args.log_file,
+            'WORKING_DIR': args.working_dir,
         }
 
         # Errors here can't be reported since there is no server connection

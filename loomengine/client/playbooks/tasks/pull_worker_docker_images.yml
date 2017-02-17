@@ -1,0 +1,4 @@
+  - name: Pull Loom image.
+    docker_image: name={{loom_docker_image}} api_version=auto
+  - name: Pull task run image.
+    docker_image: name={{task_run_docker_image}} api_version=auto
