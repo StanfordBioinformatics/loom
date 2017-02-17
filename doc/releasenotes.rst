@@ -1,6 +1,9 @@
 Release Notes
 =============
 
+0.2.1
+-----------
+* Use release-specific DOCKER_TAG in default settings
 0.2.0
 -----------
 
