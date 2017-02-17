@@ -88,11 +88,12 @@ master_container_name: "\
 master_internal_port: "{{lookup('env', 'LOOM_MASTER_INTERNAL_PORT')}}"
 master_static_root: "{{lookup('env', 'LOOM_MASTER_STATIC_ROOT')}}"
 
-google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
-gce_project: "{{lookup('env','GCE_PROJECT')}}"
-
 # Loom taskrunner container settings
 taskrunner_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_TASKRUNNER_CONTAINER_NAME_SUFFIX')}}"
 loom_workspace: "{{lookup('env', 'WORKING_DIR')}}"
+
+# Gcloud storage settings
+google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
+gce_project: "{{lookup('env','GCE_PROJECT')}}"
