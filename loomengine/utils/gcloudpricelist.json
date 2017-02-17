@@ -1,0 +1,1174 @@
+{
+  "comment": "If you've gotten here by mistake, this is the JSON data used by our pricing calculator. It is helpful for developers. Go to https://cloud.google.com/products/calculator/ to get back to our web calculator.",
+  "version": "v1.10",
+  "updated": "12-January-2017",
+  "gcp_price_list": {
+    "sustained_use_base": 0.25,
+    "sustained_use_tiers": {
+      "0.25": 1.0,
+      "0.50": 0.8,
+      "0.75": 0.6,
+      "1.0": 0.4
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-F1-MICRO": {
+      "us": 0.008,
+      "europe": 0.009,
+      "asia": 0.009,
+      "asia-east": 0.009,
+      "asia-northeast": 0.010,
+      "cores": "shared",
+      "memory": "0.6",
+      "gceu": "Shared CPU, not guaranteed",
+      "maxNumberOfPd": 4,
+      "maxPdSize": 3,
+      "ssd": [0]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-G1-SMALL": {
+      "us": 0.027,
+      "europe": 0.030,
+      "asia": 0.030,
+      "asia-east": 0.030,
+      "asia-northeast": 0.035,
+      "cores": "shared",
+      "memory": "1.7",
+      "gceu": 1.38,
+      "maxNumberOfPd": 4,
+      "maxPdSize": 3,
+      "ssd": [0]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-1": {
+      "us": 0.050,
+      "europe": 0.055,
+      "asia": 0.055,
+      "asia-east": 0.055,
+      "asia-northeast": 0.0663,
+      "cores": "1",
+      "memory": "3.75",
+      "gceu": 2.75,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-2": {
+      "us": 0.100,
+      "europe": 0.110,
+      "asia": 0.110,
+      "asia-east": 0.110,
+      "asia-northeast": 0.1326,
+      "cores": "2",
+      "memory": "7.5",
+      "gceu": 5.50,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-4": {
+      "us": 0.200,
+      "europe": 0.220,
+      "asia": 0.220,
+      "asia-east": 0.220,
+      "asia-northeast": 0.2652,
+      "cores": "4",
+      "memory": "15",
+      "gceu": 11,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-8": {
+      "us": 0.400,
+      "europe": 0.440,
+      "asia": 0.440,
+      "asia-east": 0.440,
+      "asia-northeast": 0.5304,
+      "cores": "8",
+      "memory": "30",
+      "gceu": 22,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-16": {
+      "us": 0.800,
+      "europe": 0.880,
+      "asia": 0.880,
+      "asia-east": 0.880,
+      "asia-northeast": 1.0608,
+      "cores": "16",
+      "memory": "60",
+      "gceu": 44,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-32": {
+      "us": 1.600,
+      "europe": 1.760,
+      "asia": 1.760,
+      "asia-east": 1.760,
+      "asia-northeast": 2.1216,
+      "cores": "32",
+      "memory": "120",
+      "gceu": 88,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-2": {
+      "us": 0.126,
+      "europe": 0.139,
+      "asia": 0.139,
+      "asia-east": 0.139,
+      "asia-northeast": 0.1649,
+      "cores": "2",
+      "memory": "13",
+      "gceu": 5.50,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-4": {
+      "us": 0.252,
+      "europe": 0.278,
+      "asia": 0.278,
+      "asia-east": 0.278,
+      "asia-northeast": 0.3298,
+      "cores": "4",
+      "memory": "26",
+      "gceu": 11,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-8": {
+      "us": 0.504,
+      "europe": 0.556,
+      "asia": 0.556,
+      "asia-east": 0.556,
+      "asia-northeast": 0.6596,
+      "cores": "8",
+      "memory": "52",
+      "gceu": 22,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-16": {
+      "us": 1.008,
+      "europe": 1.112,
+      "asia": 1.112,
+      "asia-east": 1.112,
+      "asia-northeast": 1.3192,
+      "cores": "16",
+      "memory": "104",
+      "gceu": 44,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-32": {
+      "us": 2.016,
+      "europe": 2.224,
+      "asia": 2.224,
+      "asia-east": 2.224,
+      "asia-northeast": 2.6384,
+      "cores": "32",
+      "memory": "208",
+      "gceu": 88,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-2": {
+      "us": 0.076,
+      "europe": 0.084,
+      "asia": 0.084,
+      "asia-east": 0.084,
+      "asia-northeast": 0.0990,
+      "cores": "2",
+      "memory": "1.8",
+      "gceu": 5.5,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-4": {
+      "us": 0.152,
+      "europe": 0.168,
+      "asia": 0.168,
+      "asia-east": 0.168,
+      "asia-northeast": 0.198,
+      "cores": "4",
+      "memory": "3.6",
+      "gceu": 11,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-8": {
+      "us": 0.304,
+      "europe": 0.336,
+      "asia": 0.336,
+      "asia-east": 0.336,
+      "asia-northeast": 0.3960,
+      "cores": "8",
+      "memory": "7.2",
+      "gceu": 22,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-16": {
+      "us": 0.608,
+      "europe": 0.672,
+      "asia": 0.672,
+      "asia-east": 0.672,
+      "asia-northeast": 0.792,
+      "cores": "16",
+      "memory": "14.40",
+      "gceu": 44,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-32": {
+      "us": 1.216,
+      "europe": 1.344,
+      "asia": 1.344,
+      "asia-east": 1.344,
+      "asia-northeast": 1.584,
+      "cores": "32",
+      "memory": "28.80",
+      "gceu": 88,
+      "maxNumberOfPd": 16,
+      "maxPdSize": 10,
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-F1-MICRO-PREEMPTIBLE": {
+      "us": 0.0035,
+      "europe": 0.0039,
+      "asia": 0.0039,
+      "asia-east": 0.0039,
+      "asia-northeast": 0.005,
+      "cores": "shared",
+      "memory": "0.6",
+      "ssd": [0]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-G1-SMALL-PREEMPTIBLE": {
+      "us": 0.007,
+      "europe": 0.0077,
+      "asia": 0.0077,
+      "asia-east": 0.0077,
+      "asia-northeast": 0.0100,
+      "cores": "shared",
+      "memory": "1.7",
+      "ssd": [0]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-1-PREEMPTIBLE": {
+      "us": 0.01,
+      "europe": 0.011,
+      "asia": 0.011,
+      "asia-east": 0.011,
+      "asia-northeast": 0.01325,
+      "cores": "1",
+      "memory": "3.75",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-2-PREEMPTIBLE": {
+      "us": 0.02,
+      "europe": 0.022,
+      "asia": 0.022,
+      "asia-east": 0.022,
+      "asia-northeast": 0.0265,
+      "cores": "2",
+      "memory": "7.5",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-4-PREEMPTIBLE": {
+      "us": 0.04,
+      "europe": 0.044,
+      "asia": 0.044,
+      "asia-east": 0.044,
+      "asia-northeast": 0.053,
+      "cores": "4",
+      "memory": "15",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-8-PREEMPTIBLE": {
+      "us": 0.08,
+      "europe": 0.088,
+      "asia": 0.088,
+      "asia-east": 0.088,
+      "asia-northeast": 0.106,
+      "cores": "8",
+      "memory": "30",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-16-PREEMPTIBLE": {
+      "us": 0.16,
+      "europe": 0.176,
+      "asia": 0.176,
+      "asia-east": 0.176,
+      "asia-northeast": 0.212,
+      "cores": "16",
+      "memory": "60",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-STANDARD-32-PREEMPTIBLE": {
+      "us": 0.32,
+      "europe": 0.352,
+      "asia": 0.352,
+      "asia-east": 0.352,
+      "asia-northeast": 0.424,
+      "cores": "32",
+      "memory": "120",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-2-PREEMPTIBLE": {
+      "us": 0.025,
+      "europe": 0.0275,
+      "asia": 0.0275,
+      "asia-east": 0.0275,
+      "asia-northeast": 0.033,
+      "cores": "2",
+      "memory": "13",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-4-PREEMPTIBLE": {
+      "us": 0.05,
+      "europe": 0.055,
+      "asia": 0.055,
+      "asia-east": 0.055,
+      "asia-northeast": 0.066,
+      "cores": "4",
+      "memory": "26",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-8-PREEMPTIBLE": {
+      "us": 0.1,
+      "europe": 0.11,
+      "asia": 0.11,
+      "asia-east": 0.11,
+      "asia-northeast": 0.132,
+      "cores": "8",
+      "memory": "52",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-16-PREEMPTIBLE": {
+      "us": 0.2,
+      "europe": 0.22,
+      "asia": 0.22,
+      "asia-east": 0.22,
+      "asia-northeast": 0.264,
+      "cores": "16",
+      "memory": "104",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHMEM-32-PREEMPTIBLE": {
+      "us": 0.4,
+      "europe": 0.44,
+      "asia": 0.44,
+      "asia-east": 0.44,
+      "asia-northeast": 0.528,
+      "cores": "32",
+      "memory": "208",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-2-PREEMPTIBLE": {
+      "us": 0.015,
+      "europe": 0.0165,
+      "asia": 0.0165,
+      "asia-east": 0.0165,
+      "asia-northeast": 0.0198,
+      "cores": "2",
+      "memory": "1.8",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-4-PREEMPTIBLE": {
+      "us": 0.03,
+      "europe": 0.033,
+      "asia": 0.033,
+      "asia-east": 0.033,
+      "asia-northeast": 0.0396,
+      "cores": "4",
+      "memory": "3.6",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-8-PREEMPTIBLE": {
+      "us": 0.06,
+      "europe": 0.066,
+      "asia": 0.066,
+      "asia-east": 0.066,
+      "asia-northeast": 0.0792,
+      "cores": "8",
+      "memory": "7.2",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-16-PREEMPTIBLE": {
+      "us": 0.12,
+      "europe": 0.132,
+      "asia": 0.132,
+      "asia-east": 0.132,
+      "asia-northeast": 0.1584,
+      "cores": "16",
+      "memory": "14.40",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-VMIMAGE-N1-HIGHCPU-32-PREEMPTIBLE": {
+      "us": 0.24,
+      "europe": 0.264,
+      "asia": 0.264,
+      "asia-east": 0.264,
+      "asia-northeast": 0.3168,
+      "cores": "32",
+      "memory": "28.80",
+      "ssd": [0, 1, 2, 3, 4]
+    },
+    "CP-COMPUTEENGINE-LOCAL-SSD": {
+      "us": 0.0003,
+      "europe": 0.0003,
+      "asia": 0.0003,
+      "asia-east": 0.0003,
+      "asia-northeast": 0.0003878
+    },
+    "CP-COMPUTEENGINE-OS": {
+      "win": {
+        "low": 0.02,
+        "high": 0.04,
+        "cores": "shared",
+        "percore": true
+      },
+      "windows-server-core": null,
+      "rhel": {
+        "low": 0.06,
+        "high": 0.13,
+        "cores": "4",
+        "percore": false
+      },
+      "suse": {
+        "low": 0.02,
+        "high": 0.11,
+        "cores": "shared",
+        "percore": false
+      },
+      "sql-standard": {
+        "low": 0.1645,
+        "high": 0.1645,
+        "cores": "4",
+        "percore": true
+      },
+      "sql-web": {
+        "low": 0.011,
+        "high": 0.011,
+        "cores": "4",
+        "percore": true
+      },
+      "sql-enterprise": {
+        "low": 0.399,
+        "high": 0.399,
+        "cores": "4",
+        "percore": true
+      }
+    },
+    "CP-COMPUTEENGINE-STORAGE-PD-CAPACITY": {
+      "us": 0.04,
+      "europe": 0.04,
+      "asia-east": 0.04,
+      "asia-northeast": 0.052
+    },
+    "CP-COMPUTEENGINE-STORAGE-PD-SSD": {
+      "us": 0.17,
+      "europe": 0.17,
+      "asia-east": 0.17,
+      "asia-northeast": 0.221
+    },
+    "CP-COMPUTEENGINE-PD-IO-REQUEST": {
+      "us": 0.0
+    },
+    "CP-COMPUTEENGINE-STORAGE-PD-SNAPSHOT": {
+      "us": 0.026,
+      "europe": 0.026,
+      "asia-east": 0.026,
+      "asia-northeast": 0.034
+    },
+    "CP-BIGSTORE-CLASS-A-REQUEST": {
+      "us": 0.05,
+      "europe": 0.05,
+      "asia-east": 0.05,
+      "asia-northeast": 0.05
+    },
+    "CP-BIGSTORE-CLASS-B-REQUEST": {
+      "us": 0.004,
+      "europe": 0.004,
+      "asia-east": 0.004,
+      "asia-northeast": 0.004
+    },
+    "CP-CLOUDSQL-PERUSE-D0": {
+      "us": 0.025
+    },
+    "CP-CLOUDSQL-PERUSE-D1": {
+      "us": 0.10
+    },
+    "CP-CLOUDSQL-PERUSE-D2": {
+      "us": 0.19
+    },
+    "CP-CLOUDSQL-PERUSE-D4": {
+      "us": 0.29
+    },
+    "CP-CLOUDSQL-PERUSE-D8": {
+      "us": 0.58
+    },
+    "CP-CLOUDSQL-PERUSE-D16": {
+      "us": 1.16
+    },
+    "CP-CLOUDSQL-PERUSE-D32": {
+      "us": 2.31
+    },
+    "CP-CLOUDSQL-PACKAGE-D0": {
+      "us": 0.360
+    },
+    "CP-CLOUDSQL-PACKAGE-D1": {
+      "us": 1.46
+    },
+    "CP-CLOUDSQL-PACKAGE-D2": {
+      "us": 2.93
+    },
+    "CP-CLOUDSQL-PACKAGE-D4": {
+      "us": 4.4
+    },
+    "CP-CLOUDSQL-PACKAGE-D8": {
+      "us": 8.78
+    },
+    "CP-CLOUDSQL-PACKAGE-D16": {
+      "us": 17.57
+    },
+    "CP-CLOUDSQL-PACKAGE-D32": {
+      "us": 35.13
+    },
+    "CP-CLOUDSQL-STORAGE": {
+      "us": 0.24
+    },
+    "CP-CLOUDSQL-TRAFFIC": {
+      "us": 0.12
+    },
+    "CP-CLOUDSQL-IO": {
+      "us": 0.10
+    },
+    "CP-BIGSTORE-STORAGE": {
+      "us": 0.026
+    },
+    "CP-BIGSTORE-STORAGE-DRA": {
+      "us": 0.02
+    },
+    "CP-NEARLINE-STORAGE": {
+      "us": 0.01
+    },
+    "CP-NEARLINE-RESTORE-SIZE": {
+      "us": 0.01
+    },
+    "FORWARDING_RULE_CHARGE_BASE": {
+      "us": 0.025,
+      "europe": 0.025,
+      "asia-east": 0.025,
+      "asia-northeast": 0.038,
+      "fixed": true
+    },
+    "FORWARDING_RULE_CHARGE_EXTRA": {
+      "us": 0.010,
+      "europe": 0.010,
+      "asia-east": 0.010,
+      "asia-northeast": 0.015
+    },
+    "NETWORK_LOAD_BALANCED_INGRESS": {
+      "us": 0.008,
+      "europe": 0.008,
+      "asia-east": 0.008,
+      "asia-northeast": 0.012
+    },
+    "CP-COMPUTEENGINE-INTERNET-EGRESS-NA-NA": {
+      "tiers": {
+        "1024": 0.12,
+        "10240": 0.11,
+        "92160": 0.08
+      }
+    },
+    "CP-COMPUTEENGINE-INTERNET-EGRESS-APAC-APAC": {
+      "tiers": {
+        "1024": 0.12,
+        "10240": 0.11,
+        "92160": 0.08
+      }
+    },
+    "CP-COMPUTEENGINE-INTERNET-EGRESS-AU-AU": {
+      "tiers": {
+        "1024": 0.19,
+        "10240": 0.18,
+        "92160": 0.15
+      }
+    },
+    "CP-COMPUTEENGINE-INTERNET-EGRESS-CN-CN": {
+      "tiers": {
+        "1024": 0.23,
+        "10240": 0.22,
+        "92160": 0.20
+      }
+    },
+    "CP-COMPUTEENGINE-INTERCONNECT-US-US": {
+      "us": 0.04
+    },
+    "CP-COMPUTEENGINE-INTERCONNECT-EU-EU": {
+      "us": 0.05
+    },
+    "CP-COMPUTEENGINE-INTERCONNECT-APAC-APAC": {
+      "us": 0.06
+    },
+    "CP-COMPUTEENGINE-INTERNET-EGRESS-ZONE": {
+      "us": 0.01
+    },
+    "CP-COMPUTEENGINE-INTERNET-EGRESS-REGION": {
+      "us": 0.01
+    },
+    "CP-APP-ENGINE-INSTANCES": {
+      "us": 0.05,
+      "freequota": {
+        "quantity": 851.2
+      }
+    },
+    "CP-APP-ENGINE-OUTGOING-TRAFFIC": {
+      "us": 0.12,
+      "freequota": {
+        "quantity": 1
+      }
+    },
+    "CP-APP-ENGINE-CLOUD-STORAGE": {
+      "us": 0.026,
+      "freequota": {
+        "quantity": 5
+      }
+    },
+    "CP-APP-ENGINE-MEMCACHE": {
+      "us": 0.06
+    },
+    "CP-APP-ENGINE-SEARCH": {
+      "us": 0.00005,
+      "freequota": {
+        "quantity": 100
+      }
+    },
+    "CP-APP-ENGINE-INDEXING-DOCUMENTS": {
+      "us": 2.0,
+      "freequota": {
+        "quantity": 0.01
+      }
+    },
+    "CP-APP-ENGINE-DOCUMENT-STORAGE": {
+      "us": 0.18,
+      "freequota": {
+        "quantity": 0.25
+      }
+    },
+    "CP-APP-ENGINE-LOGS-API": {
+      "us": 0.12,
+      "freequota": {
+        "quantity": 0.1
+      }
+    },
+    "CP-APP-ENGINE-TASK-QUEUE": {
+      "us": 0.026,
+      "freequota": {
+        "quantity": 5
+      }
+    },
+    "CP-APP-ENGINE-LOGS-STORAGE": {
+      "us": 0.026,
+      "freequota": {
+        "quantity": 1
+      }
+    },
+    "CP-APP-ENGINE-SSL-VIRTUAL-IP": {
+      "us": 39
+    },
+    "CP-CLOUD-DATASTORE-INSTANCES": {
+      "us": 0.18,
+      "freequota": {
+        "quantity": 30.4
+      }
+    },
+    "CP-CLOUD-DATASTORE-WRITE-OP": {
+      "us": 0.0000006,
+      "freequota": {
+        "quantity": 1520000
+      }
+    },
+    "CP-CLOUD-DATASTORE-READ-OP": {
+      "us": 0.0000006,
+      "freequota": {
+        "quantity": 1520000
+      }
+    },
+    "CP-CLOUD-DATASTORE-ENTITY-READ": {
+      "us": 0.0000006,
+      "freequota": {
+        "quantity": 1520000
+      }
+    },
+    "CP-CLOUD-DATASTORE-ENTITY-WRITE": {
+      "us": 0.0000018,
+      "freequota": {
+        "quantity": 608000
+      }
+    },
+    "CP-CLOUD-DATASTORE-ENTITY-DELETE": {
+      "us": 0.0000002,
+      "freequota": {
+        "quantity": 608000
+      }
+    },
+    "CP-BIGQUERY-GENERAL": {
+      "storage": {
+        "us": 0.02
+      },
+      "interactiveQueries": {
+        "us": 5,
+        "freequota": {
+          "quantity": 1
+        }
+      },
+      "streamingInserts": {
+        "us": 0.00005
+      }
+    },
+    "CP-CLOUD-DNS-ZONES": {
+      "tiers": {
+        "25": 0.2,
+        "10000": 0.1,
+        "100000": 0.03
+      }
+    },
+    "CP-CLOUD-DNS-QUERIES": {
+      "tiers": {
+        "1000000000": 0.0000004,
+        "10000000000": 0.0000002
+      }
+    },
+    "CP-TRANSLATE-API-TRANSLATION": {
+      "us": 0.00002
+    },
+    "CP-TRANSLATE-API-DETECTION": {
+      "us": 0.00002
+    },
+    "CP-PREDICTION-PREDICTION": {
+      "tiers": {
+        "10000": 0,
+        "100000": 0.0005
+      }
+    },
+    "CP-PREDICTION-BULK-TRAINING": {
+      "us": 0.002
+    },
+    "CP-PREDICTION-STREAMING-TRAINING": {
+      "tiers": {
+        "10000": 0,
+        "100000": 0.00005
+      }
+    },
+    "CP-GENOMICS-STORAGE": {
+      "us": 0.022
+    },
+    "CP-GENOMICS-QUERIES": {
+      "us": 1.0
+    },
+    "CP-DATAFLOW-BATCH-VCPU": {
+      "us": 0.056,
+      "europe": 0.059,
+      "asia": 0.059
+    },
+    "CP-DATAFLOW-STREAMING-VCPU": {
+      "us": 0.069,
+      "europe": 0.072,
+      "asia": 0.072
+    },
+    "CP-DATAFLOW-BATCH-MEMORY": {
+      "us": 0.003557,
+      "europe": 0.004172,
+      "asia": 0.004172
+    },
+    "CP-DATAFLOW-STREAMING-MEMORY": {
+      "us": 0.003557,
+      "europe": 0.004172,
+      "asia": 0.004172
+    },
+    "CP-DATAFLOW-BATCH-STORAGE-PD": {
+      "us": 0.000054,
+      "europe": 0.000054,
+      "asia": 0.000054
+    },
+    "CP-DATAFLOW-STREAMING-STORAGE-PD": {
+      "us": 0.000054,
+      "europe": 0.000054,
+      "asia": 0.000054
+    },
+    "CP-DATAFLOW-BATCH-STORAGE-PD-SSD": {
+      "us": 0.000298,
+      "europe": 0.000298,
+      "asia": 0.000298
+    },
+    "CP-DATAFLOW-STREAMING-STORAGE-PD-SSD": {
+      "us": 0.000298,
+      "europe": 0.000298,
+      "asia": 0.000298
+    },
+    "CP-BIGTABLE-NODES": {
+      "us": 0.65
+    },
+    "CP-BIGTABLE-SSD": {
+      "us": 0.17
+    },
+    "CP-BIGTABLE-HDD": {
+      "us": 0.026
+    },
+    "CP-PUB-SUB-OPERATIONS": {
+      "tiers": {
+        "250": 0.40,
+        "750": 0.20,
+        "1750": 0.10,
+        "100000": 0.05
+      }
+    },
+    "CP-COMPUTEENGINE-STATIC-IP-CHARGE": {
+      "us": 0.01
+    },
+    "CP-COMPUTEENGINE-VPN": {
+      "us": 0.05
+    },
+    "CP-DATAPROC": {
+      "us": 0.01
+    },
+    "CP-CONTAINER-ENGINE-BASIC": {
+      "us": 0.0
+    },
+    "CP-CONTAINER-ENGINE-STANDARD": {
+      "us": 0.15
+    },
+    "CP-SUPPORT-BRONZE": {
+      "us": 0.0
+    },
+    "CP-SUPPORT-SILVER": {
+      "us": 150
+    },
+    "CP-SUPPORT-GOLD": {
+      "us": 400,
+      "schedule": {
+        "10000": 0.09,
+        "50000": 0.07,
+        "200000": 0.05,
+        "1000000000": 0.03
+      }
+    },
+    "CP-COMPUTEENGINE-CUSTOM-VM-CORE": {
+      "us": 0.03492,
+      "europe": 0.03841,
+      "asia": 0.03841,
+      "asia-east": 0.03841,
+      "asia-northeast": 0.04415
+    },
+    "CP-COMPUTEENGINE-CUSTOM-VM-RAM": {
+      "us": 0.00468,
+      "europe": 0.00515,
+      "asia": 0.00515,
+      "asia-east": 0.00515,
+      "asia-northeast": 0.00589
+    },
+    "CP-COMPUTEENGINE-CUSTOM-VM-CORE-PREEMPTIBLE": {
+      "us": 0.00698,
+      "europe": 0.00768,
+      "asia": 0.00768,
+      "asia-east": 0.00768,
+      "asia-northeast": 0.00883
+    },
+    "CP-COMPUTEENGINE-CUSTOM-VM-RAM-PREEMPTIBLE": {
+      "us": 0.00094,
+      "europe": 0.00103,
+      "asia": 0.00103,
+      "asia-east": 0.00103,
+      "asia-northeast": 0.001178
+    },
+    "CP-DB-F1-MICRO": {
+      "us": 0.015
+    },
+    "CP-DB-G1-SMALL": {
+      "us": 0.0500
+    },
+    "CP-DB-N1-STANDARD-1": {
+      "us": 0.0965
+    },
+    "CP-DB-N1-STANDARD-2": {
+      "us": 0.1930
+    },
+    "CP-DB-N1-STANDARD-4": {
+      "us": 0.3860
+    },
+    "CP-DB-N1-STANDARD-8": {
+      "us": 0.7720
+    },
+    "CP-DB-N1-STANDARD-16": {
+      "us": 1.5445
+    },
+    "CP-DB-N1-HIGHMEM-2": {
+      "us": 0.2515
+    },
+    "CP-DB-N1-HIGHMEM-4": {
+      "us": 0.5030
+    },
+    "CP-DB-N1-HIGHMEM-8": {
+      "us": 1.0060
+    },
+    "CP-DB-N1-HIGHMEM-16": {
+      "us": 2.0120
+    },
+    "CP-CLOUDSQL-STORAGE-SSD": {
+      "us": 0.17
+    },
+    "CP-CLOUDSQL-BACKUP": {
+      "us": 0.08
+    },
+    "CP-CLOUDSQL-IO": {
+      "us": 0.10
+    },
+    "CP-VISION-LABEL-DETECTION": {
+      "tiers": {
+        "1000": 0,
+        "5000000": 0.0015,
+        "20000000": 0.001
+      }
+    },
+    "CP-VISION-OCR": {
+      "tiers": {
+        "1000": 0,
+        "5000000": 0.0015,
+        "20000000": 0.00060
+      }
+    },
+    "CP-VISION-EXPLICIT-CONTENT-DETECTION": {
+      "tiers": {
+        "1000": 0,
+        "5000000": 0.0015,
+        "20000000": 0.00060
+      }
+    },
+    "CP-VISION-FACIAL-DETECTION": {
+      "tiers": {
+        "1000": 0,
+        "5000000": 0.0015,
+        "20000000": 0.00060
+      }
+    },
+    "CP-VISION-LANDMARK-DETECTION": {
+      "tiers": {
+        "1000": 0,
+        "5000000": 0.0015,
+        "20000000": 0.00060
+      }
+    },
+    "CP-VISION-LOGO-DETECTION": {
+      "tiers": {
+        "1000": 0,
+        "5000000": 0.0015,
+        "20000000": 0.00060
+      }
+    },
+    "CP-VISION-IMAGE-PROPERTIES": {
+      "tiers": {
+        "1000": 0,
+        "5000000": 0.0015,
+        "20000000": 0.00060
+      }
+    },
+    "CP-STACKDRIVER-MONITORED-RESOURCES": {
+      "us": 8.0
+    },
+    "CP-STACKDRIVER-LOGS-VOLUME": {
+      "us": 0.50
+    },
+    "CP-STACKDRIVER-METRICS-DESCRIPTION": {
+      "us": 1,
+      "freequota" : {
+        "quantity": 250
+      }
+    },
+    "CP-STACKDRIVER-TIME-SERIES": {
+      "us": 0.10
+    },
+    "CP-CLOUDCDN-CACHE-EGRESS-APAC": {
+      "tiers": {
+        "10240": 0.09,
+        "153600": 0.06,
+        "1024000": 0.05,
+        "2048000": 0.04
+      }
+    },
+    "CP-CLOUDCDN-CACHE-EGRESS-AU": {
+      "tiers": {
+        "10240": 0.11,
+        "153600": 0.09,
+        "1024000": 0.08,
+        "2048000": 0.065
+      }
+    },
+    "CP-CLOUDCDN-CACHE-EGRESS-CN": {
+      "tiers": {
+        "10240": 0.20,
+        "153600": 0.17,
+        "1024000": 0.16,
+        "2048000": 0.145
+      }
+    },
+    "CP-CLOUDCDN-CACHE-EGRESS-EU": {
+      "tiers": {
+        "10240": 0.08,
+        "153600": 0.055,
+        "1024000": 0.03,
+        "2048000": 0.02
+      }
+    },
+    "CP-CLOUDCDN-CACHE-EGRESS-NA": {
+      "tiers": {
+        "10240": 0.08,
+        "153600": 0.055,
+        "1024000": 0.03,
+        "2048000": 0.02
+      }
+    },
+    "CP-CLOUDCDN-CACHE-EGRESS-OTHER": {
+      "tiers": {
+        "10240": 0.09,
+        "153600": 0.06,
+        "1024000": 0.05,
+        "2048000": 0.04
+      }
+    },
+    "CP-CLOUDCDN-CACHE-FILL-INTRA-APAC": {
+      "us": 0.06
+    },
+    "CP-CLOUDCDN-CACHE-FILL-INTRA-EU": {
+      "us": 0.05
+    },
+    "CP-CLOUDCDN-CACHE-FILL-INTRA-NA": {
+      "us": 0.04
+    },
+    "CP-CLOUDCDN-CACHE-FILL-INTER-AU": {
+      "us": 0.15
+    },
+    "CP-CLOUDCDN-CACHE-FILL-INTER-OTHER": {
+      "us": 0.08
+    },
+    "CP-CLOUDCDN-CACHE-LOOKUP-REQUESTS": {
+      "us": 0.00000075
+    },
+    "CP-CLOUDCDN-CACHE-INVALIDATION": {
+      "us": 0.005
+    },
+    "CP-SPEECH-API-RECOGNITION": {
+      "tiers": {
+        "60": 0,
+        "1000000": 0.024,
+        "10000000": 0.02,
+        "100000000": 0.018
+      }
+    },
+    "CP-NL-API-ENTITY-RECOGNITION": {
+      "tiers": {
+        "5000": 0,
+        "1000000": 0.001,
+        "5000000": 0.0005,
+        "20000000": 0.00025
+      }
+    },
+    "CP-NL-API-SENTIMENT-ANALYSIS": {
+      "tiers": {
+        "5000": 0,
+        "1000000": 0.001,
+        "5000000": 0.0005,
+        "20000000": 0.00025
+      }
+    },
+    "CP-NL-API-SYNTAX-ANALYSIS": {
+      "tiers": {
+        "5000": 0,
+        "1000000": 0.0005,
+        "5000000": 0.00025,
+        "20000000": 0.000125
+      }
+    },
+    "BIG_QUERY_FLAT_RATE_ANALYSIS": {
+      "us": 20
+    },
+    "BIG_QUERY_FLAT_RATE_ANALYSIS_12_MONTHS": {
+      "us": 15
+    },
+    "CP-ML-TRAINING": {
+      "us": 0.49,
+      "europe": 0.54,
+      "asia": 0.54
+    },
+    "CP-ML-PREDICTION-ONLINE": {
+      "us": 0.10,
+      "europe": 0.11,
+      "asia": 0.11
+    },
+    "CP-ML-PREDICTION-PROCESSING": {
+      "us": 0.40,
+      "europe": 0.44,
+      "asia": 0.44
+    },
+    "CP-BIGSTORE-STORAGE-COLDLINE": {
+      "us": 0.007,
+      "europe": 0.007,
+      "asia-east": 0.007,
+      "asia-northeast": 0.01
+    },
+    "CP-BIGSTORE-DATA-RETRIEVAL-COLDLINE": {
+      "us": 0.05
+    },
+    "CP-BIGSTORE-STORAGE-MULTI_REGIONAL": {
+      "us": 0.026,
+      "europe": 0.026,
+      "asia-east": 0.026,
+      "asia-northeast": 0.026
+    },
+    "CP-BIGSTORE-STORAGE-REGIONAL": {
+      "us": 0.02,
+      "europe": 0.02,
+      "asia-east": 0.02,
+      "asia-northeast": 0.03
+    },
+    "CP-BIGSTORE-STORAGE-NEARLINE-US": {
+      "us": 0.01,
+      "europe": 0.01,
+      "asia-east": 0.01,
+      "asia-northeast": 0.016
+    },
+    "CP-GAE-FLEX-INSTANCE-CORE-HOURS": {
+      "us": 0.0526
+    },
+    "CP-GAE-FLEX-INSTANCE-RAM": {
+      "us": 0.0071
+    },
+    "CP-GAE-FLEX-STORAGE-PD-CAPACITY": {
+      "us": 0.0400
+    },
+    "CP-KMS-KEY-VERSION": {
+      "us": 0.06
+    },
+    "CP-KMS-CRYPTO-OPERATION": {
+      "us": 0.000003
+    },
+    "CP-PUBSUB-MESSAGE-DELIVERY-BASIC": {
+      "tiers": {
+        "50000": 0.06,
+        "100000": 0.05,
+        "1000000": 0.04
+      }
+    }
+  }
+}

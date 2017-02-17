@@ -9,7 +9,7 @@
   - include: tasks/gcloud_create_instance.yml
   - include: tasks/gcloud_configure_instance_ssh.yml
 
-- name: Create connection settings file now that we have a server IP, and collect admin files on the client.
+- name: Create connection settings file now that we have a server IP.
   hosts: localhost
   connection: local
   vars_files:
