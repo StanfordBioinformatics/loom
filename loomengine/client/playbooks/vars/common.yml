@@ -7,6 +7,8 @@ log_level: "{{lookup('env', 'LOOM_LOG_LEVEL')}}"
 loom_docker_image: "{{lookup('env', 'LOOM_DOCKER_IMAGE')}}"
 
 admin_files_dir: "{{lookup('env', 'LOOM_ADMIN_FILES_DIR')}}"
+loom_playbook_dir: "{{lookup('env', 'LOOM_PLAYBOOK_DIR')}}"
+loom_inventory_dir: "{{lookup('env', 'LOOM_INVENTORY_DIR')}}"
 admin_settings_file: "{{lookup('env', 'LOOM_ADMIN_SETTINGS_FILE')}}"
 connection_settings_file: "{{lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE')}}"
 
@@ -65,7 +67,7 @@ worker_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_WORKER_CONTAINER_NAME_SUFFIX')}}"
 
-# Celery scheuler container settings
+# Celery scheduler container settings
 scheduler_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_SCHEDULER_CONTAINER_NAME_SUFFIX')}}"
@@ -93,6 +95,6 @@ taskrunner_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_TASKRUNNER_CONTAINER_NAME_SUFFIX')}}"
 
-# Gcloud storage settings
+# Google Cloud storage settings
 google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
 gce_project: "{{lookup('env','GCE_PROJECT')}}"

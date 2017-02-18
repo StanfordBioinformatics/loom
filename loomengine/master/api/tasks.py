@@ -108,9 +108,10 @@ def _run_task(task_id):
     if not task.status == 'STARTING':
         return
     task_attempt = task.create_attempt()
-    _run_task_runner_playbook(str(task_attempt.uuid))
+    _run_task_runner_playbook(str(task_attempt.uuid), task_id)
 
-def _run_task_runner_playbook(task_attempt_id):
+def _run_task_runner_playbook(task_attempt_id, task_id):
+    task = Task.objects.get(id=task_id)
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -131,6 +132,12 @@ def _run_task_runner_playbook(task_attempt_id):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    env.update({'LOOM_TASK_ATTEMPT_ID': task_attempt_id})
-        
+    env.update({'LOOM_TASK_ATTEMPT_ID': task_attempt_id,
+                'LOOM_TASK_ATTEMPT_CORES': task.step_run.template.resources.get('cores'),
+                'LOOM_TASK_ATTEMPT_MEMORY': task.step_run.template.resources.get('memory')
+                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB': task.step_run.template.resources.get('disk_size'),
+                'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': task.step_run.template.environment.get('docker_image'),
+                'LOOM_TASK_ATTEMPT_STEP_NAME': task.step_run.template.name,
+                })
+
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)

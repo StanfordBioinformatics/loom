@@ -1,4 +1,28 @@
 ---
+- name: Gather information needed to create the worker instance.
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+    - name: Find the cheapest instance type that has at least the cores and memory needed by the task.
+      command: python -c "import gcloud_utils; gcloud_utils.get_cheapest_instance_type({{cores}}, {{memory}})"
+      args:
+        chdir: "{{playbook_dir}}/files"
+      register: instance_type_result
+    - name: Create a GCP-safe name for the worker instance.
+      command: python -c "import gcloud_utils; gcloud_utils.get_worker_name('{{server_name}}','{{step_name}},'{{task_attempt_id}})'"
+      args:
+        chdir: "{{playbook_dir}}/files"
+      register: worker_name_result
+    - name: Set vars for downstream tasks.
+      set_fact:
+        instance_type: instance_type_result.stdout
+        instance_name: worker_name_result.stdout
+        scratch_disk_name: "{{instance_name}}-disk"
+
 - name: Create a new instance for the Loom worker.
   hosts: localhost
   connection: local
