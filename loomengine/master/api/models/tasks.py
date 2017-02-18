@@ -11,7 +11,7 @@ from .base import BaseModel, render_from_template
 from api.models.data_objects import DataObject, FileDataObject
 # from api.models.workflows import Step, RequestedResourceSet
 from api import get_setting
-from api.task_manager.factory import TaskManagerFactory
+#from api.task_manager.factory import TaskManagerFactory
 
 TASK_STATUSES = [
     ('STARTING', 'Starting'),
