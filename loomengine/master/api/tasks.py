@@ -88,28 +88,42 @@ def process_active_step_runs():
 def _create_tasks_from_step_run(step_run_id):
     from api.models.runs import StepRun
     step_run = StepRun.objects.get(id=step_run_id)
-    step_run.create_ready_tasks()
-
-@periodic_task(run_every=datetime.timedelta(seconds=10))
-def process_active_tasks():
-    from api.models.tasks import Task
-    if get_setting('TEST_NO_AUTO_START_RUNS'):
-        return
-    for task in Task.objects.filter(status='STARTING'):
+    for task in step_run.create_ready_tasks():
         args = [task.id]
         kwargs = {}
         _run_with_delay(_run_task, args, kwargs)
 
+#@periodic_task(run_every=datetime.timedelta(seconds=10))
+#def process_active_tasks():
+#    from api.models.tasks import Task
+#    if get_setting('TEST_NO_AUTO_START_RUNS'):
+#        return
+#    for task in Task.objects.filter(active=True):
+#        if not task.has_been_run():
+#            args = [task.id]
+#            kwargs = {}
+#            _run_with_delay(_run_task, args, kwargs)
+#        elif not task.is_responsive():
+#            args = [task.id]
+#            kwargs = {}
+#            _run_with_delay(_rerun_task, args, kwargs)
+        # Else task is running ok. Nothing to do.
+        # State changes will be driven by the active TaskAttempt            
+
 @shared_task
 def _run_task(task_id):
+    # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
     task = Task.objects.get(id=task_id)
-    print "RUNNING TASK %s" % task.id
-    if not task.status == 'STARTING':
-        return
-    task_attempt = task.create_attempt()
+    task_attempt = task.create_and_activate_attempt()
     _run_task_runner_playbook(str(task_attempt.uuid))
 
+@shared_task
+def _rerun_task(task_id):
+    # TODO
+    # Check counter and fail if too high
+    pass
+    
 def _run_task_runner_playbook(task_attempt_id):
     env = copy.copy(os.environ)
     playbook = os.path.join(
