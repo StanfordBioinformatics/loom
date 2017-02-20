@@ -54,7 +54,6 @@ class TaskRunner(object):
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
             'LOG_FILE': args.log_file,
-            'HOST_WORKING_DIR': args.host_working_dir,
         }
 
         # Errors here can't be reported since there is no server connection
@@ -265,8 +264,8 @@ class TaskRunner(object):
     def _create_container(self):
         docker_image = self._get_docker_image()
         interpreter = self.task_attempt['interpreter']
-        host_dir = self.settings['HOST_WORKING_DIR']
-        container_dir = self.settings['WORKING_DIR']
+        host_dir = self.settings['WORKING_DIR']
+        container_dir = '/loom_workspace'
 
         command = [
             interpreter,
@@ -544,10 +543,6 @@ class TaskRunner(object):
                             '-u',
                             required=True,
                             help='URL of the Loom master server')
-        parser.add_argument('--host_working_dir',
-                            '-w',
-                            required=True,
-                            help='Working directory outside containers')
         parser.add_argument('--log_level',
                             '-l',
                             required=False,

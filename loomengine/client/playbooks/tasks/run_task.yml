@@ -3,7 +3,7 @@
       name: "{{taskrunner_container_name}}-{{task_attempt_id}}"
       image: "{{loom_docker_image}}"
       volumes:  "{{[ '/var/run/docker.sock'~':'~'/var/run/docker.sock', \
-                 taskrunner_host_working_dir~':'~storage_root ]}}"
+                 storage_root~':'~storage_root ]}}"
       api_version: auto
       network_mode: host
-      command: /bin/bash -c 'loom-taskrunner --task_attempt_id {{task_attempt_id}} --master_url {{server_url}} --log_level {{log_level}} --log_file {{taskrunner_host_working_dir}}/loom_taskrunner.log --host_working_dir {{taskrunner_host_working_dir}}'
+      command: /bin/bash -c 'loom-taskrunner --task_attempt_id {{task_attempt_id}} --master_url {{server_url}} --log_level {{log_level}} --log_file {{storage_root}}/loom_taskrunner-{{task_attempt_id}}.log}}'
