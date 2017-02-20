@@ -111,6 +111,7 @@ def _run_task(task_id):
     _run_task_runner_playbook(str(task_attempt.uuid), task_id)
 
 def _run_task_runner_playbook(task_attempt_id, task_id):
+    from api.models.tasks import Task
     task = Task.objects.get(id=task_id)
     env = copy.copy(os.environ)
     playbook = os.path.join(
