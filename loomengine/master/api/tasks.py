@@ -133,12 +133,15 @@ def _run_task_runner_playbook(task_attempt_id, task_id):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    env.update({'LOOM_TASK_ATTEMPT_ID': task_attempt_id,
+    disk_size = task.step_run.template.resources.get('disk_size')
+    new_vars = {'LOOM_TASK_ATTEMPT_ID': task_attempt_id,
                 'LOOM_TASK_ATTEMPT_CORES': task.step_run.template.resources.get('cores'),
                 'LOOM_TASK_ATTEMPT_MEMORY': task.step_run.template.resources.get('memory'),
-                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB': task.step_run.template.resources.get('disk_size'),
+                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB': disk_size if disk_size else '1', # guard against None value
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': task.step_run.template.environment.get('docker_image'),
                 'LOOM_TASK_ATTEMPT_STEP_NAME': task.step_run.template.name,
-                })
+                }
+    print new_vars
+    env.update(new_vars)
 
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)

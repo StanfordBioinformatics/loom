@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     && CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)" \
     && echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | tee /etc/apt/sources.list.d/google-cloud-sdk.list \
     && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - \
-    && apt-get update && apt-get install -y google-cloud-sdk \
+    && apt-get update && apt-get install -y \
+    google-cloud-sdk \
     && apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -21,7 +22,10 @@ RUN apt-get update && apt-get install -y \
     && apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D \
     && echo 'deb https://apt.dockerproject.org/repo debian-jessie main' > /etc/apt/sources.list.d/docker.list
 RUN apt-get update && apt-get install -y \
-    docker-engine
+    docker-engine \
+    && apt-get autoremove \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Loom's OS dependencies.
 RUN apt-get update && apt-get install -y \
@@ -30,12 +34,18 @@ RUN apt-get update && apt-get install -y \
     libmysqlclient-dev \
     libssl-dev \
     python-dev \
-    python-pip \ 
+    python-pip \
     && apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Loom and its Python dependencies.
-COPY . /loomengine/
-RUN cd /loomengine \
-    && pip install -r requirements.txt
+WORKDIR /loom/
+ADD ./requirements.txt /loom/
+ADD ./setup.py /loom/
+ADD ./README.rst /loom/
+ADD ./loomengine/utils/ /loom/loomengine/utils/
+ADD ./loomengine/__init__.py /loom/loomengine/
+ADD ./loomengine/VERSION /loom/loomengine/
+RUN pip install -r requirements.txt
+ADD . /loom/
