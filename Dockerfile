@@ -40,12 +40,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Loom and its Python dependencies.
-WORKDIR /loom/
-ADD ./requirements.txt /loom/
-ADD ./setup.py /loom/
-ADD ./README.rst /loom/
-ADD ./loomengine/utils/ /loom/loomengine/utils/
-ADD ./loomengine/__init__.py /loom/loomengine/
-ADD ./loomengine/VERSION /loom/loomengine/
+WORKDIR /loomengine/
+ADD ./requirements.txt /loomengine/
+ADD ./setup.py /loomengine/
+ADD ./README.rst /loomengine/
+ADD ./loomengine/utils/ /loomengine/loomengine/utils/
+ADD ./loomengine/__init__.py /loomengine/loomengine/
+ADD ./loomengine/VERSION /loomengine/loomengine/
 RUN pip install -r requirements.txt
-ADD . /loom/
+ADD . /loomengine/

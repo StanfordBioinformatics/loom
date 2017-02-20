@@ -2,9 +2,9 @@
     docker_container:
       name: "{{taskrunner_container_name}}-{{task_attempt_id}}"
       image: "{{loom_docker_image}}"
-      volumes:  "{{[ /var/run/docker.sock~':'~/var/run/docker.sock, \
+      volumes:  "{{[ '/var/run/docker.sock'~':'~'/var/run/docker.sock', \
                  taskrunner_host_working_dir~':'~taskrunner_container_working_dir, \
-                 storage_root~':'~storage_root if lower(storage_type) == 'local'] \
+                 storage_root~':'~storage_root if storage_type|lower == 'local'] \
                  | reject('undefined') | list}}"
       api_version: auto
       network_mode: host
