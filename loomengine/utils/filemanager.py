@@ -493,15 +493,18 @@ class FileManager:
 
     def _create_task_attempt_output_file(self, task_attempt_output, md5):
 
+        
         updated_task_attempt_output = self.connection.update_task_attempt_output(
             task_attempt_output['id'],
             {
                 'data_object': {
                     'type': 'file',
+                    'filename': task_attempt_output['source']['filename'],
                     'source_type': 'result',
                     'md5': md5,
                 }})
-        return updated_task_attempt_output['data_object']
+        return self.connection.get_data_object(
+            updated_task_attempt_output['data_object']['uuid'])
 
     def import_log_file(self, task_attempt, source_url):
         log_name = os.path.basename(source_url)

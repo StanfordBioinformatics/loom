@@ -265,13 +265,13 @@ class Connection(object):
     def post_task_attempt_log_file(self, task_attempt_id, task_attempt_log_file):
         return self._post_object(
             task_attempt_log_file,
-            'task-attempts/%s/task-attempt-log-files/' % task_attempt_id
+            'task-attempts/%s/create-log-file/' % task_attempt_id
         )
 
     def post_task_attempt_error(self, task_attempt_id, task_attempt_error):
         return self._post_object(
             task_attempt_error,
-            'task-attempts/%s/task-attempt-errors/' % task_attempt_id
+            'task-attempts/%s/create-error/' % task_attempt_id
         )
 
     def post_abstract_file_import(self, file_import):

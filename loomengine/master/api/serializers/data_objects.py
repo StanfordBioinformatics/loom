@@ -87,9 +87,13 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         instance = instance.filedataobject
         if self.initial_data.get('file_resource'):
-            validated_data['file_resource'] = self._update_file_resource(
-                instance.file_resource,
-                self.initial_data.get('file_resource'))
+            if instance.file_resource:
+                validated_data['file_resource'] = self._update_file_resource(
+                    instance.file_resource,
+                    self.initial_data.get('file_resource'))
+            else:
+                validated_data['file_resource'] = self._create_file_resource(
+                    self.initial_data.get('file_resource'))
         for field, value in validated_data.iteritems():
             setattr(instance, field, value)
         instance.save()

@@ -71,7 +71,8 @@ class TaskRunner(object):
             try:
                 self.connection = Connection(self.settings['MASTER_URL'])
             except Exception as e:
-                self.logger.error('Failed to initialize server connection: "%s"' % str(e))
+                self.logger.error(
+                    'Failed to initialize server connection: "%s"' % str(e))
                 raise e
 
         # Errors here can be both logged and reported to server
@@ -84,10 +85,10 @@ class TaskRunner(object):
                 self.filemanager = mock_filemanager
             else:
                 self.filemanager = FileManager(self.settings['MASTER_URL'])
-            self.settings.update(self._get_worker_settings())
-            print self.settings
-            self._init_docker_client()
-            self._init_working_dir()
+                self.settings.update(self._get_worker_settings())
+                print self.settings
+                self._init_docker_client()
+                self._init_working_dir()
         except Exception as e:
             try:
                 self._report_error(message='Failed to initialize', detail=str(e))
@@ -100,12 +101,12 @@ class TaskRunner(object):
 
     def _init_loggers(self):
         log_level = self.settings['LOG_LEVEL']
-        if self.settings['LOG_FILE'] is None:
-            self.logger = get_stdout_logger(__name__, log_level)
-            utils_logger = get_stdout_logger(loomengine.utils.__name__, log_level)
-        else:
-            self.logger = get_file_logger(__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
-            utils_logger = get_file_logger(loomengine.utils.__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
+        #if self.settings['LOG_FILE'] is None:
+        self.logger = get_stdout_logger(__name__, log_level)
+        utils_logger = get_stdout_logger(loomengine.utils.__name__, log_level)
+        #else:
+        #    self.logger = get_file_logger(__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
+        #    utils_logger = get_file_logger(loomengine.utils.__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
 
     def _init_task_attempt(self):
         self.task_attempt = self.connection.get_task_attempt(self.settings['TASK_ATTEMPT_ID'])
@@ -449,7 +450,7 @@ class TaskRunner(object):
 
                 data_object = self._save_nonfile_output(output, output_text)
                 self.logger.debug(
-                    'Saved %s output "%s"' % (output['type'], data_object['uuid']))
+                    'Saved %s output "%s"' % (output['type'], data_object['id']))
 
     def _save_nonfile_output(self, output, output_text):
         data_type = output['type']
@@ -458,7 +459,7 @@ class TaskRunner(object):
             'value': output_text
         }
         output.update({'data_object': data_object})
-        return self.connection.update_task_attempt_output(output['uuid'], output)
+        return self.connection.update_task_attempt_output(output['id'], output)
 
     def _try_to_save_monitor_log(self):
         self.logger.debug('Saving worker process monitor log')

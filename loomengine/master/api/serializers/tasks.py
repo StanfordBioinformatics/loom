@@ -2,10 +2,12 @@ from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, \
     UuidSerializer
+from api.models.data_objects import FileDataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskResourceSet, TaskEnvironment, TaskAttempt, TaskAttemptOutput, \
     TaskAttemptLogFile, TaskAttemptError
 from api.serializers.data_objects import DataObjectSerializer, DataObjectUuidSerializer, FileDataObjectSerializer
+
 
 
 class TaskResourceSetSerializer(CreateWithParentModelSerializer):
@@ -39,14 +41,28 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
         data_object_data = self.initial_data.get('data_object', None)
         validated_data.pop('data_object', None)
 
-        s = DataObjectSerializer(data=data_object_data)
-        s.is_valid(raise_exception=True)
-        validated_data['data_object'] = s.save()
-
+        if data_object_data:
+            if not instance.data_object:
+                if data_object_data.get('type') == 'file':
+                    # We can't use the serializer because it fails to initialize
+                    # the file data object when it isn't attached to a
+                    # task_attempt_output
+                    instance.data_object = FileDataObject.objects.create(
+                        **data_object_data)
+                    instance.save()
+                    instance.data_object.initialize()
+                else:
+                    s = DataObjectSerializer(data=data_object_data)
+                    s.is_valid(raise_exception=True)
+                    validated_data['data_object'] = s.save()
+            else:
+                s = DataObjectSerializer(instance.data_object, data=data_object_data)
+                s.is_valid(raise_exception=True)
+                validated_data['data_object'] = s.save()
         return super(self.__class__, self).update(
             instance,
             validated_data)
-
+                
 
 class TaskInputSerializer(CreateWithParentModelSerializer):
 

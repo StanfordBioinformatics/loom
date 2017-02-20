@@ -235,8 +235,15 @@ class TaskAttempt(BaseModel):
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
+    def set_datetime_finished(self):
+        if not self.datetime_finished:
+            self.datetime_finished = timezone.now()
+            self.save()
+        
+    
     def _post_save(self):
         if self.status == 'FINISHED':
+            self.set_datetime_finished()
             try:
                 self.task_as_active.finish()
             except ObjectDoesNotExist:
