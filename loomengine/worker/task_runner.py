@@ -54,7 +54,8 @@ class TaskRunner(object):
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
             'LOG_FILE': args.log_file,
-            'WORKING_DIR': args.working_dir,
+            'HOST_WORKING_DIR': args.host_working_dir,
+            'CONTAINER_WORKING_DIR': args.container_working_dir,
         }
 
         # Errors here can't be reported since there is no server connection
@@ -128,8 +129,8 @@ class TaskRunner(object):
             raise DockerDaemonNotFoundError('Failed to connect to Docker daemon')
 
     def _init_working_dir(self):
-        self.logger.info('Initializing working directory %s' % self.settings['WORKING_DIR'])
-        init_directory(self.settings['WORKING_DIR'], new=True)
+        self.logger.info('Initializing working directory %s' % self.settings['CONTAINER_WORKING_DIR'])
+        init_directory(self.settings['CONTAINER_WORKING_DIR'], new=True)
 
     def run(self):
         try:
@@ -190,10 +191,10 @@ class TaskRunner(object):
             if data_object['type'] == 'file':
                 file_data_object_ids.append('@'+data_object['uuid'])
         self.logger.debug('Copying inputs %s to %s.' % ( file_data_object_ids,
-                                                         self.settings['WORKING_DIR']))
+                                                         self.settings['CONTAINER_WORKING_DIR']))
         self.filemanager.export_files(
             file_data_object_ids,
-            destination_url=self.settings['WORKING_DIR'])
+            destination_url=self.settings['CONTAINER_WORKING_DIR'])
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
@@ -209,7 +210,7 @@ class TaskRunner(object):
     def _create_run_script(self):
         user_command = self.task_attempt['rendered_command']
         with open(os.path.join(
-                self.settings['WORKING_DIR'],
+                self.settings['CONTAINER_WORKING_DIR'],
                 self.LOOM_RUN_SCRIPT_NAME),
                   'w') as f:
             f.write(user_command + '\n')
@@ -264,8 +265,8 @@ class TaskRunner(object):
     def _create_container(self):
         docker_image = self._get_docker_image()
         interpreter = self.task_attempt['interpreter']
-        host_dir = self.settings['WORKING_DIR']
-        container_dir = '/loom_workspace'
+        host_dir = self.settings['HOST_WORKING_DIR']
+        container_dir = self.settings['CONTAINER_WORKING_DIR']
 
         command = [
             interpreter,
@@ -415,7 +416,7 @@ class TaskRunner(object):
                 try:
                     data_object = self.filemanager.import_result_file(
                         output,
-                        os.path.join(self.settings['WORKING_DIR'], filename)
+                        os.path.join(self.settings['CONTAINER_WORKING_DIR'], filename)
                     )
                     self.logger.debug('Saved file output "%s"' % data_object['uuid'])
                 except IOError as e:
@@ -426,7 +427,7 @@ class TaskRunner(object):
                 if output['source'].get('filename'):
                     with open(
                             os.path.join(
-                                self.settings['WORKING_DIR'],
+                                self.settings['CONTAINER_WORKING_DIR'],
                                 output['source'].get('filename')),
                             'r') as f:
                         output_text = f.read()
@@ -543,6 +544,14 @@ class TaskRunner(object):
                             '-u',
                             required=True,
                             help='URL of the Loom master server')
+        parser.add_argument('--host_working_dir',
+                            '-w',
+                            required=True,
+                            help='Working directory outside containers')
+        parser.add_argument('--container_working_dir',
+                            '-c',
+                            required=True,
+                            help='Working directory inside containers')
         parser.add_argument('--log_level',
                             '-l',
                             required=False,
