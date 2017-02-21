@@ -19,7 +19,7 @@
     add_host: hostname={{ (ansible_uses_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
   - name: Add server IP for worker.
-    set_fact: 
+    set_fact:
       server_ip_for_worker: "{{ (worker_uses_internal_ip) | ternary(gce_result.instance_data[0].private_ip, gce_result.instance_data[0].public_ip) }}"
 
   - name: If all required variables defined, create a scratch disk and attach it to the instance.
@@ -39,6 +39,7 @@
     when:
     - scratch_disk_mount_point is defined
     - scratch_disk_device_path is defined
+    retries: 30
   - name: Create the scratch disk mount point.
     file: path={{scratch_disk_mount_point}} state=directory
     when:
