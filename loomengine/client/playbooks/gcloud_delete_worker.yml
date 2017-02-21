@@ -1,11 +1,9 @@
 ---
-- name: Delete the worker instance.
+- name: Delete the named worker instance.
   hosts: localhost
   connection: local
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
   tasks:
-  - name: Delete the worker instance.
-    local_action:
-      module: gce
-      state: 'absent'
-      instance_names: "{{lookup('env','WORKER_NAME')}}"
-      zone: "{{lookup('env','WORKER_ZONE')}}"
+  - include: tasks/gcloud_delete_instance.yml
