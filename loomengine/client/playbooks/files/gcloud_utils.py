@@ -79,6 +79,20 @@ def get_worker_name(hostname, step_name, attempt_id):
     print sanitized_instance_name
     return sanitized_instance_name
 
+def get_scratch_disk_name(hostname, step_name, attempt_id):
+    """Create a name for the worker scratch disk."""
+    worker_name = get_worker_name(hostname, step_name, attempt_id)
+    disk_name = '-',join(worker_name, 'disk')
+    print disk_name
+    return disk_name
+
+def get_scratch_disk_device_path(hostname, step_name, attempt_id):
+    """Get the device path for the worker scratch disk."""
+    disk_name = get_scratch_disk_name(hostname, step_name, attempt_id)
+    device_path = '-'.join('/dev/disk/by-id/google', disk_name)
+    print device_path
+    return device_path
+
 def sanitize_instance_name_base(name):
     """ Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit. """
     name = str(name).lower()                # make all letters lowercase

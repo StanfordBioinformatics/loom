@@ -22,6 +22,7 @@
         instance_type: "{{instance_type_result.stdout}}"
         instance_name: "{{worker_name_result.stdout}}"
         scratch_disk_name: "{{worker_name_result.stdout}}-disk"
+        scratch_disk_device_path: "/dev/disk/by-id/google-{{worker_name_result.stdout}}-disk"
 
 - name: Create a new instance for the Loom worker.
   hosts: localhost
