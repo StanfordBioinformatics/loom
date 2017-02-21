@@ -217,6 +217,7 @@ def _get_mysql_databases():
             'NAME': LOOM_MYSQL_DATABASE,
             'USER': LOOM_MYSQL_USER,
             'PORT': LOOM_MYSQL_PORT,
+            'CONN_MAX_AGE': 60,
         }
     }
 
@@ -310,3 +311,6 @@ STATIC_URL = '/%s/' % os.path.basename(STATIC_ROOT)
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
