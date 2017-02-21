@@ -146,6 +146,24 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
         model = s.save()
         return JsonResponse(s.data, status=201)
 
+    @detail_route(methods=['post'], url_path='create-timepoint')
+    def create_timepoint(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            return JsonResponse({"message": "Not Found"}, status=404)
+        s = serializers.TaskAttemptTimepointSerializer(
+            data=data,
+            context={
+                'parent_field': 'task_attempt',
+                'parent_instance': task_attempt
+            })
+        s.is_valid(raise_exception=True)
+        model = s.save()
+        return JsonResponse(s.data, status=201)
+
     @detail_route(methods=['get'], url_path='worker-settings')
     def get_worker_settings(self, request, uuid=None):
         try:

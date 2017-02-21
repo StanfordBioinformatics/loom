@@ -80,7 +80,7 @@ class Task(BaseModel):
         try:
             return self.active_task_attempt.datetime_finished
         except AttributeError:
-            return null
+            return None
     
     @property
     def attempt_number(self):
@@ -130,6 +130,8 @@ class Task(BaseModel):
         self.active_task_attempt = task_attempt
         self.save()
 
+        task_attempt.add_timepoint('TaskAttempt created')
+        
         return task_attempt
 
     def get_input_context(self):
@@ -293,6 +295,11 @@ class TaskAttempt(BaseModel):
             message=message, detail=detail, task_attempt=self)
         error.save()
 
+    def add_timepoint(self, message):
+        timepoint = TaskAttemptTimepoint.objects.create(
+            message=message, task_attempt=self)
+        error.save()
+        
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls.objects.create(task=task)
@@ -418,3 +425,12 @@ class TaskAttemptError(BaseModel):
         on_delete=models.CASCADE)
     message = models.CharField(max_length=255)
     detail = models.TextField(null=True, blank=True)
+
+class TaskAttemptTimepoint(BaseModel):
+    task_attempt = models.ForeignKey(
+        'TaskAttempt',
+        related_name='timepoints',
+        on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now,
+                                     editable=False)
+    message = models.CharField(max_length=255)

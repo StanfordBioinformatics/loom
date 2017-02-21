@@ -5,7 +5,7 @@ from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, \
 from api.models.data_objects import FileDataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskResourceSet, TaskEnvironment, TaskAttempt, TaskAttemptOutput, \
-    TaskAttemptLogFile, TaskAttemptError
+    TaskAttemptLogFile, TaskAttemptError, TaskAttemptTimepoint
 from api.serializers.data_objects import DataObjectSerializer, DataObjectUuidSerializer, FileDataObjectSerializer
 
 
@@ -96,6 +96,13 @@ class TaskAttemptErrorSerializer(CreateWithParentModelSerializer):
         fields = ('message', 'detail')
 
 
+class TaskAttemptTimepointSerializer(CreateWithParentModelSerializer):
+
+    class Meta:
+        model = TaskAttemptTimepoint
+        fields = ('message', 'timestamp')
+
+
 class TaskAttemptSerializer(serializers.ModelSerializer):
 
     uuid = serializers.CharField(required=False)
@@ -105,6 +112,8 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
     outputs = TaskAttemptOutputSerializer(
         many=True, allow_null=True, required=False)
     errors = TaskAttemptErrorSerializer(
+        many=True, allow_null=True, required=False)
+    timepoints = TaskAttemptTimepointSerializer(
         many=True, allow_null=True, required=False)
     resources = TaskResourceSetSerializer(read_only=True)
     environment = TaskEnvironmentSerializer(read_only=True)
@@ -118,7 +127,7 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
                   'status_is_finished', 'status_is_failed',
                   'errors', 'log_files', 'inputs', 'outputs',
                   'interpreter', 'rendered_command', 'environment',
-                  'resources', 'is_active')
+                  'resources', 'is_active', 'timepoints')
 
     def update(self, instance, validated_data):
         # Only updates to status fields are allowed

@@ -223,6 +223,7 @@ class TaskRunner(object):
                 detail=str(e))
             raise e
 
+
     def _pull_image(self):
         pull_data = self._parse_docker_output(
             self.docker_client.pull(self._get_docker_image()))
@@ -504,7 +505,14 @@ class TaskRunner(object):
                 self.settings['TASK_ATTEMPT_ID'],
                 update
             )
+            self._timepoint(status)
 
+    def _timepoint(self, message):
+        self.connection.post_task_attempt_timepoint(
+            self.settings['TASK_ATTEMPT_ID'],
+            {'message': message}
+        )
+            
     def _fail(self, message, detail):
         self.is_failed = True
         self.logger.error(message + ': ' + detail)
@@ -520,15 +528,19 @@ class TaskRunner(object):
                 'status_is_failed': True,
             }
         )
+        self._timepoint(message)
+
     def _finish(self):
+        status_message = 'Finished'
         self.connection.update_task_attempt(
             self.settings['TASK_ATTEMPT_ID'],
             {
                 'status_is_finished': True,
-                'status_message': 'Finished',
+                'status_message': status_message,
                 'status_message_detail': None
             }
         )
+        self._timepoint(status_message)
 
     # Parser
 
