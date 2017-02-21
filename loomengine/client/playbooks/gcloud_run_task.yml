@@ -13,15 +13,15 @@
         chdir: "{{playbook_dir}}/files"
       register: instance_type_result
     - name: Create a GCP-safe name for the worker instance.
-      command: python -c "import gcloud_utils; gcloud_utils.get_worker_name('{{server_name}}','{{step_name}},'{{task_attempt_id}})'"
+      command: python -c "import gcloud_utils; gcloud_utils.get_worker_name('{{server_name}}','{{step_name}}','{{task_attempt_id}}')"
       args:
         chdir: "{{playbook_dir}}/files"
       register: worker_name_result
     - name: Set vars for downstream tasks.
       set_fact:
-        instance_type: instance_type_result.stdout
-        instance_name: worker_name_result.stdout
-        scratch_disk_name: "{{instance_name}}-disk"
+        instance_type: "{{instance_type_result.stdout}}"
+        instance_name: "{{worker_name_result.stdout}}"
+        scratch_disk_name: "{{worker_name_result.stdout}}-disk"
 
 - name: Create a new instance for the Loom worker.
   hosts: localhost
@@ -60,5 +60,6 @@
     - vars/gcloud_worker.yml
   vars:
     task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
+    server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file=container_settings_home+'/'+worker_connection_settings_file)}}"
   tasks:
     - include: tasks/run_task.yml
