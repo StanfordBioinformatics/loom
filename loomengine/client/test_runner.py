@@ -39,7 +39,8 @@ class TestRunner:
         template_file_name = 'integration_test.yaml'
 
         import_file_cmd = [loom_executable, 'import', 'file',
-                           os.path.join(template_dir, input_file_name)]
+                           os.path.join(template_dir, input_file_name),
+                           '--force-duplicates']
         (returncode, stdout) = self._run_command(import_file_cmd)
         if returncode != 0:
             raise SystemExit('Failed to import file.')

@@ -442,34 +442,51 @@ class FileManager:
         self.settings = self.connection.get_filemanager_settings()
         self.logger = logging.getLogger(__name__)
 
-    def import_from_patterns(self, patterns, note):
+    def import_from_patterns(self, patterns, note, force_duplicates=False):
         files = []
         for pattern in patterns:
-            files.extend(self.import_from_pattern(pattern, note))
+            files.extend(self.import_from_pattern(
+                pattern, note, force_duplicates=force_duplicates))
         return files
 
-    def import_from_pattern(self, pattern, note):
+    def import_from_pattern(self, pattern, note, force_duplicates=False):
         files = []
         for source in SourceSet(pattern, self.settings):
             files.append(self.import_file(
                 source.get_url(),
-                note
+                note,
+                force_duplicates=force_duplicates
             ))
         return files
 
-    def import_file(self, source_url, note):
+    def import_file(self, source_url, note, force_duplicates=False):
         return self._execute_file_import(
-            self._create_file_data_object_for_import(source_url, note),
-            source_url
+            self._create_file_data_object_for_import(
+                source_url, note, force_duplicates=force_duplicates),
+            source_url,
         )
 
-    def _create_file_data_object_for_import(self, source_url, note):
+    def _create_file_data_object_for_import(self, source_url, note,
+                                            force_duplicates=True):
         source = Source(source_url, self.settings)
         filename = source.get_filename()
 
         self.logger.info('Calculating md5 on file "%s"...' % source_url)
         md5 = source.calculate_md5()
 
+        if not force_duplicates:
+            files = self.connection.get_file_data_object_index(
+                query_string='%%%s' % md5)
+            if len(files) > 0:
+                md5 = files[0].get('md5')
+                matches = []
+                for file in files:
+                    matches.append('%s@%s' % (file.get('filename'), file.get('uuid')))
+                raise Exception(
+                    'One or more files with md5 %s already exist: "%s". '\
+                    'Use --force-duplicates if you want to create another copy.'
+                    % (md5, ', '.join(matches)))
+        
         return self.connection.post_data_object({
             'type': 'file',
             'filename': filename,
