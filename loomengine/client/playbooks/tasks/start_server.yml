@@ -101,6 +101,7 @@
     env_file: "{{server_settings_home}}/{{admin_settings_file}}"
     env:
       LOOM_SETTINGS_HOME: "{{container_settings_home}}"
+      LOOM_SSH_PRIVATE_KEY_PATH: "{{container_settings_home}}/{{admin_files_dir}}/loom_worker_id_rsa"
       LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
       LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"

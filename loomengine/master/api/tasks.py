@@ -124,10 +124,8 @@ def _run_task_runner_playbook(task_attempt_id, task_id):
                 # which may be missing needed modules
                 '-e', 'ansible_python_interpreter="/usr/bin/env python"',
     ]
-    if get_setting('SSH_PRIVATE_KEY_NAME', required=False):
-        private_key_file_path = os.path.join(
-            os.path.expanduser('~/.ssh'),
-            get_setting('SSH_PRIVATE_KEY_NAME'))
+    if get_setting('LOOM_SSH_PRIVATE_KEY_PATH', required=False):
+        private_key_file_path = get_setting('LOOM_SSH_PRIVATE_KEY_PATH')
         cmd_list.extend(['--private-key', private_key_file_path])
 
     if get_setting('DEBUG'):

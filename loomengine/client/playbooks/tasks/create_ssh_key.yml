@@ -1,2 +1,2 @@
-  - name: Create SSH key if it doesn't exist
+  - name: Create user and SSH key if it doesn't exist
     user: name={{ remote_user }} generate_ssh_key=yes ssh_key_bits=2048 ssh_key_file={{ ssh_private_key_file_path }} ssh_key_type=rsa

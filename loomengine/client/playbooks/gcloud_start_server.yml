@@ -1,5 +1,5 @@
 ---
-- name: Create SSH keys for the server and worker.
+- name: Create SSH keys for the server and workers.
   hosts: localhost
   connection: local
   become: yes
@@ -8,7 +8,7 @@
   - vars/gcloud_server.yml
   tasks:
   - include: tasks/create_ssh_key.yml
-  - include: tasks/create_ssh_key.yml remote_user={{worker_remote_user}} ssh_private_key_file_path={{worker_ssh_private_key_file_path}}
+  - include: tasks/create_ssh_key.yml remote_user=loom ssh_private_key_file_path={{worker_ssh_private_key_file_path}}
   - file: path="{{worker_ssh_private_key_file_path}}" mode="o+r"
 
 - name: Create a new instance for the Loom server.
@@ -45,6 +45,10 @@
   roles:
   - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
   - {role: docker-py, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
+
+- name: Create remote user if it doesn't exist and add it to the docker group.
+  hosts: new_instances
+  become: yes
   tasks:
   - include: tasks/gcloud_create_docker_group.yml
 

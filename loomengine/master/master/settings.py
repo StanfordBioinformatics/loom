@@ -113,7 +113,7 @@ def _get_ansible_inventory():
     return ansible_inventory
 
 ANSIBLE_INVENTORY = _get_ansible_inventory()
-SSH_PRIVATE_KEY_NAME = os.getenv('LOOM_SSH_PRIVATE_KEY_NAME')
+LOOM_SSH_PRIVATE_KEY_PATH = os.getenv('LOOM_SSH_PRIVATE_KEY_PATH')
 
 KEEP_DUPLICATE_FILES = True
 FORCE_RERUN = True
