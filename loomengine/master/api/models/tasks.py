@@ -13,29 +13,6 @@ from api.models.data_objects import DataObject, FileDataObject
 from api import get_setting
 #from api.task_manager.factory import TaskManagerFactory
 
-TASK_STATUSES = [
-    ('STARTING', 'Starting'),
-    ('RUNNING', 'Running'),
-    ('FINISHED', 'Finished'),
-    ('FAILED', 'Failed'),
-]
-
-TASK_DETAILED_STATUSES = [
-    ('STARTING', 'Starting'),
-    ('RUNNING_PROVISIONING_HOST', 'Provisioning host'),
-    ('RUNNING_LAUNCHING_MONITOR', 'Launching monitor process on worker'),
-    ('RUNNING_INITIALIZING_MONITOR', 'Initializing monitor process on worker'),
-    ('RUNNING_COPYING_INPUTS', 'Copying input files to runtime environment'),
-    ('RUNNING_CREATING_RUN_SCRIPT', 'Creating run script'),
-    ('RUNNING_FETCHING_IMAGE', 'Fetching runtime environment image'),
-    ('RUNNING_CREATING_CONTAINER', 'Creating runtime environment container'),
-    ('RUNNING_STARTING_ANALYSIS', 'Starting analysis'),
-    ('RUNNING_EXECUTING_ANALYSIS', 'Running analysis'),
-    ('RUNNING_SAVING_OUTPUTS', 'Saving outputs'),
-    ('FINISHED', 'Finished'),
-    ('FAILED', 'Failed'),
-]
-
 
 class Task(BaseModel):
 
@@ -48,7 +25,6 @@ class Task(BaseModel):
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    datetime_finished = models.DateTimeField(null=True)
     interpreter = models.CharField(max_length=255, default='/bin/bash')
     command = models.TextField()
     rendered_command = models.TextField()
@@ -58,22 +34,64 @@ class Task(BaseModel):
                                  on_delete=models.CASCADE,
                                  null=True) # null for testing only
 
-    attempt_number = models.IntegerField(default=1)
     active_task_attempt = models.OneToOneField('TaskAttempt',
                                                related_name='task_as_active',
                                                on_delete=models.CASCADE,
                                                null=True)
+    active = models.BooleanField(default=True)
 
-    status = models.CharField(
-        max_length=255,
-        default='STARTING',
-        choices=TASK_DETAILED_STATUSES,
-    )
-    status_detail = models.CharField(
-        max_length=255,
-        default='STARTING',
-        choices=TASK_DETAILED_STATUSES)
+    @property
+    def status_message(self):
+        try:
+            return self.active_task_attempt.status_message
+        except AttributeError:
+            # No active TaskAttempt. Return human-readable status
+            # based on status flags
+            if self.task_attempts.count() == 0:
+                return 'Initializing'
+            else:
+                # TaskAttempts exist but none is active. Why?
+                return 'Unknown'
 
+    @property
+    def status_message_detail(self):
+        try:
+            return self.active_task_attempt.status_message_detail
+        except AttributeError:
+            # No active task Attempt
+            return ''
+
+    @property
+    def status_is_finished(self):
+        try:
+            return self.active_task_attempt.status_is_finished
+        except AttributeError:
+            return False
+        
+    @property
+    def status_is_failed(self):
+        try:
+            return self.active_task_attempt.status_is_failed
+        except AttributeError:
+            return False
+
+    @property
+    def datetime_finished(self):
+        try:
+            return self.active_task_attempt.datetime_finished
+        except AttributeError:
+            return None
+    
+    @property
+    def attempt_number(self):
+        return self.task_attempts.count()
+
+    def fail(self):
+        self.step_run.fail()
+    
+    def has_been_run(self):
+        return self.attempt_number == 0
+    
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
         task = Task.objects.create(
@@ -108,13 +126,15 @@ class Task(BaseModel):
 
         return task
 
-    def create_attempt(self):
+    def create_and_activate_attempt(self):
         task_attempt = TaskAttempt.objects.create(task=self)
         task_attempt.initialize()
 
         self.active_task_attempt = task_attempt
         self.save()
 
+        task_attempt.add_timepoint('TaskAttempt created')
+        
         return task_attempt
 
     def get_input_context(self):
@@ -151,13 +171,7 @@ class Task(BaseModel):
         for output in self.outputs.all():
             output.pull_data_object()
             output.push_data_object()
-        self.update_status()
         self.step_run.update_status()
-
-    def update_status(self):
-        self.status = self.active_task_attempt.status
-        self.status_detail = self.active_task_attempt.status_detail
-        self.save()
 
 
 class TaskInput(BaseModel):
@@ -223,37 +237,24 @@ class TaskAttempt(BaseModel):
                              on_delete=models.CASCADE)
     # container_id = models.CharField(max_length=255, null=True)
     last_heartbeat = models.DateTimeField(auto_now=True)
-    status = models.CharField(
+    status_is_failed = models.BooleanField(default=False)
+    status_is_finished = models.BooleanField(default=False)
+    status_message = models.CharField(
         max_length=255,
-        default='STARTING',
-        choices=TASK_STATUSES)
-    status_detail = models.CharField(
+        default='Starting')
+    status_message_detail = models.CharField(
         max_length=255,
-        default='STARTING',
-        choices=TASK_DETAILED_STATUSES)
-
-    def get_output(self, channel):
-        return self.outputs.get(channel=channel)
-
-    def set_datetime_finished(self):
-        if not self.datetime_finished:
-            self.datetime_finished = timezone.now()
-            self.save()
-        
-    
-    def _post_save(self):
-        if self.status == 'FINISHED':
-            self.set_datetime_finished()
-            try:
-                self.task_as_active.finish()
-            except ObjectDoesNotExist:
-                # This attempt is not active.
-                pass
+        default='')
 
     @property
-    def name(self):
-        return self.task.name
-
+    def is_active(self):
+        try:
+            self.task_as_active
+        except ObjectDoesNotExist:
+            return False
+        return True
+        
+    
     @property
     def interpreter(self):
         return self.task.interpreter
@@ -274,11 +275,42 @@ class TaskAttempt(BaseModel):
     def environment(self):
         return self.task.environment
 
+    def get_output(self, channel):
+        return self.outputs.get(channel=channel)
+
+    def set_datetime_finished(self):
+        if not self.datetime_finished:
+            self.datetime_finished = timezone.now()
+            self.save()
+
+    def _post_save(self):
+        if self.status_is_failed:
+            self.set_datetime_finished()
+            try:
+                self.task_as_active.fail()
+            except ObjectDoesNotExist:
+                # This attempt is no longer active
+                # and will be ignored.
+                pass
+        elif self.status_is_finished:
+            self.set_datetime_finished()
+            try:
+                self.task_as_active.finish()
+            except ObjectDoesNotExist:
+                # This attempt is no longer active
+                # and will be ignored.
+                pass
+
     def add_error(self, message, detail):
         error = TaskAttemptError.objects.create(
             message=message, detail=detail, task_attempt=self)
         error.save()
 
+    def add_timepoint(self, message):
+        timepoint = TaskAttemptTimepoint.objects.create(
+            message=message, task_attempt=self)
+        timepoint.save()
+        
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls.objects.create(task=task)
@@ -387,7 +419,8 @@ class TaskAttemptLogFile(BaseModel):
         # Create a blank file_data_object on save.
         # The client will upload the file to this object.
         if self.file is None:
-            self.file = FileDataObject.objects.create(source_type='log', type='file')
+            self.file = FileDataObject.objects.create(
+                source_type='log', type='file', filename=self.log_name)
             self.file.initialize()
             self.save()
 
@@ -404,3 +437,12 @@ class TaskAttemptError(BaseModel):
         on_delete=models.CASCADE)
     message = models.CharField(max_length=255)
     detail = models.TextField(null=True, blank=True)
+
+class TaskAttemptTimepoint(BaseModel):
+    task_attempt = models.ForeignKey(
+        'TaskAttempt',
+        related_name='timepoints',
+        on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now,
+                                     editable=False)
+    message = models.CharField(max_length=255)

@@ -373,10 +373,14 @@ class StepRun(Run):
     def create_ready_tasks(self, do_start=True):
         # This is a temporary limit. It assumes no parallel workflows, and no
         # failure recovery, so each step has only one Task.
-        if self.tasks.count() == 0:
+        if self.tasks.count() > 0:
+            # Already ran. Nothing new to process
+            return []
+        else:
             for input_set in InputNodeSet(
                     self.inputs.all()).get_ready_input_sets():
                 task = Task.create_from_input_set(input_set, self)
+            return self.tasks.all()
 
     @classmethod
     def postprocess(cls, run_id):

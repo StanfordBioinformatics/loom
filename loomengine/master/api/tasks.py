@@ -88,31 +88,43 @@ def process_active_step_runs():
 def _create_tasks_from_step_run(step_run_id):
     from api.models.runs import StepRun
     step_run = StepRun.objects.get(id=step_run_id)
-    step_run.create_ready_tasks()
-
-@periodic_task(run_every=datetime.timedelta(seconds=10))
-def process_active_tasks():
-    from api.models.tasks import Task
-    if get_setting('TEST_NO_AUTO_START_RUNS'):
-        return
-    for task in Task.objects.filter(status='STARTING'):
+    for task in step_run.create_ready_tasks():
         args = [task.id]
         kwargs = {}
         _run_with_delay(_run_task, args, kwargs)
 
+#@periodic_task(run_every=datetime.timedelta(seconds=10))
+#def process_active_tasks():
+#    from api.models.tasks import Task
+#    if get_setting('TEST_NO_AUTO_START_RUNS'):
+#        return
+#    for task in Task.objects.filter(active=True):
+#        if not task.has_been_run():
+#            args = [task.id]
+#            kwargs = {}
+#            _run_with_delay(_run_task, args, kwargs)
+#        elif not task.is_responsive():
+#            args = [task.id]
+#            kwargs = {}
+#            _run_with_delay(_rerun_task, args, kwargs)
+        # Else task is running ok. Nothing to do.
+        # State changes will be driven by the active TaskAttempt            
+
 @shared_task
 def _run_task(task_id):
+    # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
     task = Task.objects.get(id=task_id)
-    print "RUNNING TASK %s" % task.id
-    if not task.status == 'STARTING':
-        return
-    task_attempt = task.create_attempt()
-    _run_task_runner_playbook(str(task_attempt.uuid), task_id)
+    task_attempt = task.create_and_activate_attempt()
+    _run_task_runner_playbook(task_attempt)
 
-def _run_task_runner_playbook(task_attempt_id, task_id):
-    from api.models.tasks import Task
-    task = Task.objects.get(id=task_id)
+@shared_task
+def _rerun_task(task_id):
+    # TODO
+    # Check counter and fail if too high
+    pass
+
+def _run_task_runner_playbook(task_attempt):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -131,15 +143,19 @@ def _run_task_runner_playbook(task_attempt_id, task_id):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    disk_size = task.step_run.template.resources.get('disk_size')
-    new_vars = {'LOOM_TASK_ATTEMPT_ID': task_attempt_id,
-                'LOOM_TASK_ATTEMPT_CORES': task.step_run.template.resources.get('cores'),
-                'LOOM_TASK_ATTEMPT_MEMORY': task.step_run.template.resources.get('memory'),
-                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB': disk_size if disk_size else '1', # guard against None value
-                'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': task.step_run.template.environment.get('docker_image'),
-                'LOOM_TASK_ATTEMPT_STEP_NAME': task.step_run.template.name,
+    disk_size = task_attempt.task.step_run.template.resources.get('disk_size')
+    new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
+                'LOOM_TASK_ATTEMPT_CORES':
+                task_attempt.task.step_run.template.resources.get('cores'),
+                'LOOM_TASK_ATTEMPT_MEMORY':
+                task_attempt.task.step_run.template.resources.get('memory'),
+                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB':
+                disk_size if disk_size else '1', # guard against None value
+                'LOOM_TASK_ATTEMPT_DOCKER_IMAGE':
+                task_attempt.task.step_run.template.environment.get('docker_image'),
+                'LOOM_TASK_ATTEMPT_STEP_NAME':
+                task_attempt.task.step_run.template.name,
                 }
-    print new_vars
     env.update(new_vars)
 
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)

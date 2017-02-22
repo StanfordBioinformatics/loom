@@ -47,6 +47,7 @@ class TaskRunner(object):
     LOOM_RUN_SCRIPT_NAME = 'loom_run_script'
 
     def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
+        self.is_failed = False
         if args is None:
             args = self._get_args()
         self.settings = {
@@ -76,8 +77,7 @@ class TaskRunner(object):
         # Errors here can be both logged and reported to server
 
         try:
-            self._set_status(status='RUNNING',
-                             detailed_status='RUNNING_INITIALIZING_MONITOR')
+            self._set_status(status='Initializing monitor')
             self._init_task_attempt()
             if mock_filemanager is not None:
                 self.filemanager = mock_filemanager
@@ -89,9 +89,7 @@ class TaskRunner(object):
                 self._init_working_dir()
         except Exception as e:
             try:
-                self._report_error(message='Failed to initialize', detail=str(e))
-                self._set_status(status='FAILED',
-                                 detailed_status='FAILED')
+                self._fail(message='Failed to initialize', detail=str(e))
             except:
                 # Raise original error, not status change error
                 pass
@@ -145,38 +143,34 @@ class TaskRunner(object):
 
     def cleanup(self):
         # Never raise errors, so cleanup can continue
-        self._set_status(status='RUNNING',
-                         detailed_status='RUNNING_SAVING_OUTPUTS')
+        self._set_status(status='Saving outputs')
 
         self._try_to_save_process_logs()
-
 
         try:
             self._try_to_save_outputs()
         except Exception as e:
-            self._report_error(message='Failed to save outputs', detail=str(e))
+            self._fail(message='Failed to save outputs', detail=str(e))
+
+#        try:
+#            self._try_to_save_monitor_log()
+#        except Exception as e:
+#            self._fail(message='Failed to save monitor log', detail=str(e))
 
         try:
-            self._try_to_save_monitor_log()
-        except Exception as e:
-            self._report_error(message='Failed to save monitor log', detail=str(e))
-
-        try:
-            self._set_status(status='FINISHED',
-                         detailed_status='FINISHED')
+            self._finish()
             self.logger.info('Done.')
         except Exception as e:
-            self._report_error(message='Failed to set status to finished',
+            self._fail(message='Failed to set status to finished',
                                detail=str(e))
 
     def _try_to_copy_inputs(self):
         self.logger.info('Downloading input files')
-        self._set_status(status='RUNNING',
-                         detailed_status='RUNNING_COPYING_INPUTS')
+        self._set_status(status='Copying inputs')
         try:
             self._copy_inputs()
         except Exception as e:
-            self._report_error(message='Failed to copy inputs to workspace',
+            self._fail(message='Failed to copy inputs to workspace',
                                detail=str(e))
             raise e
 
@@ -197,13 +191,12 @@ class TaskRunner(object):
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
-        self._set_status(status='RUNNING',
-                         detailed_status='RUNNING_CREATING_RUN_SCRIPT')
+        self._set_status(status='Creating run script')
 
         try:
             self._create_run_script()
         except Exception as e:
-            self._report_error(message='Failed to create run script', detail=str(e))
+            self._fail(message='Failed to create run script', detail=str(e))
             raise e
 
     def _create_run_script(self):
@@ -215,8 +208,7 @@ class TaskRunner(object):
             f.write(user_command + '\n')
 
     def _try_to_pull_image(self):
-        self._set_status(status='RUNNING',
-                         detailed_status='RUNNING_FETCHING_IMAGE')
+        self._set_status(status='Fetching image')
 
         try:
             self._pull_image()
@@ -226,10 +218,11 @@ class TaskRunner(object):
                 'Pulled image %s and received image id %s' % (
                     self._get_docker_image(), image_id))
         except Exception as e:
-            self._report_error(
+            self._fail(
                 message='Failed to fetch image for runtime environment',
                 detail=str(e))
             raise e
+
 
     def _pull_image(self):
         pull_data = self._parse_docker_output(
@@ -250,13 +243,12 @@ class TaskRunner(object):
         return [json.loads(line) for line in data.strip().split('\r\n')]
 
     def _try_to_create_container(self):
-        self._set_status(status='RUNNING',
-                         detailed_status='RUNNING_CREATING_CONTAINER')
+        self._set_status(status='Creating container')
         try:
             self._create_container()
             self._set_container_id(self.container['Id'])
         except Exception as e:
-            self._report_error(
+            self._fail(
                 message='Failed to create container for runtime environment',
                 detail=str(e))
             raise e
@@ -285,13 +277,12 @@ class TaskRunner(object):
         )
 
     def _try_to_run_container(self):
-        self._set_status(status='RUNNING',
-                         detailed_status='RUNNING_STARTING_ANALYSIS')
+        self._set_status(status='Starting analysis')
         try:
             self.docker_client.start(self.container)
             self._verify_container_started_running()
         except Exception as e:
-            self._report_error(message='Failed to start analysis', detail=str(e))
+            self._fail(message='Failed to start analysis', detail=str(e))
             raise e
 
     def _verify_container_started_running(self):
@@ -303,22 +294,20 @@ class TaskRunner(object):
             raise ContainerStartError('Unexpected container status "%s"' % status)
 
     def _try_to_get_returncode(self):
-        self._set_status(status='RUNNING',
-                         detailed_status='RUNNING_EXECUTING_ANALYSIS')
-
+        self._set_status(status='Analysis is running')
         try:
             returncode = self._poll_for_returncode()
             if returncode == 0:
                 return
             else:
                 # bad returncode
-                self._report_error(
+                self._fail(
                     message='Analysis finished with a bad returncode %s' % returncode,
                     detail='Returncode %s. Check stderr log for more information.' \
                     % returncode)
                 # Do not raise error. Attempt to save log files.
         except Exception as e:
-            self._report_error(
+            self._fail(
                 message='An error prevented the analysis from finishing',
                 detail=str(e))
             # Do not raise error. Attempt to save log files.
@@ -358,7 +347,7 @@ class TaskRunner(object):
         try:
             self._save_process_logs()
         except Exception as e:
-            self._report_error(message='Failed to save process logs', detail=str(e))
+            self._fail(message='Failed to save process logs', detail=str(e))
             # Don't raise error. Continue cleanup
 
     def _save_process_logs(self):
@@ -405,7 +394,7 @@ class TaskRunner(object):
         try:
             self._save_outputs()
         except Exception as e:
-            self._report_error(message='Failed to save outputs', detail=str(e))
+            self._fail(message='Failed to save outputs', detail=str(e))
             # Don't raise error. Continue cleanup
 
     def _save_outputs(self):
@@ -419,7 +408,7 @@ class TaskRunner(object):
                     )
                     self.logger.debug('Saved file output "%s"' % data_object['uuid'])
                 except IOError as e:
-                    self._report_error(
+                    self._fail(
                         message='Failed to save output file %s' % filename,
                         detail=str(e))
             else:
@@ -468,7 +457,7 @@ class TaskRunner(object):
                 return True
             self._save_monitor_log()
         except Exception as e:
-            self._report_error(message='Failed to save worker process monitor log',
+            self._fail(message='Failed to save worker process monitor log',
                                detail=str(e))
             # Don't raise error. Continue cleanup
 
@@ -508,16 +497,24 @@ class TaskRunner(object):
                           % (status, detailed_status))
         update = {}
         if status:
-            update['status'] = status
+            update['status_message'] = status
         if detailed_status:
-            update['detailed_status'] = detailed_status
+            update['status_message_detail'] = detailed_status
         if update:
             self.connection.update_task_attempt(
                 self.settings['TASK_ATTEMPT_ID'],
                 update
             )
+            self._timepoint(status)
 
-    def _report_error(self, message, detail):
+    def _timepoint(self, message):
+        self.connection.post_task_attempt_timepoint(
+            self.settings['TASK_ATTEMPT_ID'],
+            {'message': message}
+        )
+            
+    def _fail(self, message, detail):
+        self.is_failed = True
         self.logger.error(message + ': ' + detail)
         self.connection.post_task_attempt_error(
             self.settings['TASK_ATTEMPT_ID'],
@@ -525,6 +522,25 @@ class TaskRunner(object):
                 'message': message,
                 'detail': detail
             })
+        self.connection.update_task_attempt(
+            self.settings['TASK_ATTEMPT_ID'],
+            {
+                'status_is_failed': True,
+            }
+        )
+        self._timepoint(message)
+
+    def _finish(self):
+        status_message = 'Finished'
+        self.connection.update_task_attempt(
+            self.settings['TASK_ATTEMPT_ID'],
+            {
+                'status_is_finished': True,
+                'status_message': status_message,
+                'status_message_detail': None
+            }
+        )
+        self._timepoint(status_message)
 
     # Parser
 

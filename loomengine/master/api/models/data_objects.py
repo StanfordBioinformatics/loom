@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.utils import timezone
 from django.dispatch import receiver
@@ -188,7 +187,8 @@ class FileDataObject(DataObject):
     HASH_FIELD = 'md5'
     
     filename = models.CharField(max_length=1024)
-    file_resource = models.ForeignKey('FileResource', null=True)
+    file_resource = models.ForeignKey('FileResource', null=True,
+                                      related_name='file_data_objects')
     md5 = models.CharField(max_length=255)
     source_type = models.CharField(
         max_length=255,
@@ -328,8 +328,8 @@ class FileResource(BaseModel):
             file_root = os.path.expanduser(file_root)
         if not file_root.startswith('/'):
             raise RelativeFileRootError(
-                'LOOM_STORAGE_ROOT setting must be an absolute path. Found "%s" instead.' \
-                % file_root)
+                'LOOM_STORAGE_ROOT setting must be an absolute path. '\
+                'Found "%s" instead.' % file_root)
         return file_root
 
     @classmethod
@@ -338,15 +338,19 @@ class FileResource(BaseModel):
         if get_setting('KEEP_DUPLICATE_FILES') and get_setting('FORCE_RERUN'):
             # If both are True, we can organize the directory structure in
             # a human browsable way
+            if file_data_object.source_type == 'imported':
+                filename = cls._get_filename(file_data_object, timestamp=True,
+                                             filename=True, uuid=True)
+            elif file_data_object.source_type == 'log':
+                filename = cls._get_filename(file_data_object, timestamp=False,
+                                             filename=True, uuid=False)
+            else: # result
+                filename = cls._get_filename(file_data_object, timestamp=False,
+                                             filename=True, uuid=True)
             return os.path.join(
                 file_root,
                 cls._get_browsable_path(file_data_object),
-                "%s_%s_%s" % (
-                    timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data_object.uuid,
-                    file_data_object.filename
-                )
-            )
+                filename)
         elif get_setting('KEEP_DUPLICATE_FILES'):
             # Separate dirs for imported, results, logs.
             # Within each dir use a flat directory structure but give
@@ -354,19 +358,25 @@ class FileResource(BaseModel):
             return os.path.join(
                 file_root,
                 cls._get_path_by_source_type(file_data_object),
-                '%s_%s_%s' % (
-                    timezone.now().strftime('%Y%m%d%H%M%S'),
-                    file_data_object.uuid,
-                    file_data_object.filename
-                )
-            )
+                cls._get_filename(file_data_object, timestamp=True,
+                                  filename=True, uuid=True))
         else:
             # Use a flat directory structure and use file names that
             # reflect content
             return os.path.join(
                 file_root,
-                '%s' % file_data_object.md5
-            )
+                '%s' % file_data_object.md5)
+
+    @classmethod
+    def _get_filename(cls, file_data_object, timestamp, filename, uuid):
+        parts = []
+        if timestamp:
+            parts.append(timezone.now().strftime('%Y-%m-%dT%H.%M.%SZ'))
+        if uuid:
+            parts.append(str(file_data_object.uuid)[0:8])
+        if filename:
+            parts.append(file_data_object.filename)
+        return '_'.join(parts)
 
     @classmethod
     def _get_browsable_path(cls, file_data_object):
@@ -380,7 +390,6 @@ class FileResource(BaseModel):
             subdir = 'logs'
             task_attempt \
                 = file_data_object.task_attempt_log_file.task_attempt
-            
         elif file_data_object.source_type == 'result':
             subdir = 'work'
             task_attempt \
@@ -394,21 +403,23 @@ class FileResource(BaseModel):
 
         path = os.path.join(
             "%s-%s" % (
+                str(step_run.uuid)[0:8],
                 step_run.template.name,
-                step_run.uuid,
             ),
-            "task-%s" % task.uuid,
-            "attempt-%s" % task_attempt.uuid,
+            "task-%s" % str(task.uuid)[0:8],
+            "attempt-%s" % str(task_attempt.uuid)[0:8],
         )
         while step_run.parent is not None:
             step_run = step_run.parent
             path = os.path.join(
                 "%s-%s" % (
-                    step_run.template.name,
-                    step_run.uuid,
+                    str(step_run.uuid)[0:8],
+                    step_run.template.name
                 ),
                 path
             )
+        path = "%s-%s" % (step_run.datetime_created.strftime(
+            '%Y-%m-%dT%H.%M.%SZ'), path)
         return os.path.join('runs', path, subdir)
 
     @classmethod
@@ -434,4 +445,3 @@ class FileResource(BaseModel):
             raise InvalidFileServerTypeError(
                 'Couldn\'t recognize value for setting LOOM_STORAGE_TYPE="%s"'\
                 % LOOM_STORAGE_TYPE)
-
