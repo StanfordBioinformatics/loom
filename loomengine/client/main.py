@@ -54,8 +54,8 @@ class Main(object):
         browser.Browser.get_parser(browser_subparser)
         browser_subparser.set_defaults(SubcommandClass=browser.Browser)
 
-        test_subparser = subparsers.add_parser('test', help='run all unit tests')
-        test_runner.TestRunner.get_parser(test_subparser)
+        test_subparser = subparsers.add_parser('test', help='run tests')
+        test_runner.get_parser(test_subparser)
         test_subparser.set_defaults(SubcommandClass=test_runner.TestRunner)
 
         version_subparser = subparsers.add_parser('version', help='display current version of Loom')

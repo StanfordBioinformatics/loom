@@ -76,7 +76,7 @@ class ServerControls:
         self._set_run_function()
 
     def _set_run_function(self):
-        # Map user input command to class method
+        # Map user input command to method
         commands = {
             'status': self.status,
             'start': self.start,
@@ -92,7 +92,7 @@ class ServerControls:
         if is_server_running():
             print 'OK, the server is up.'
         else:
-            print 'No response from server at "%s".' % get_server_url()
+            SystemExit('No response from server at "%s".' % get_server_url())
 
     @loom_settings_transaction
     def start(self):
@@ -199,13 +199,15 @@ class ServerControls:
             os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
 
         server_name =self._get_required_setting('LOOM_SERVER_NAME', settings)
-        confirmation_input = raw_input(
-            'WARNING! This will delete the Loom server and all its data. '\
-            'Data will be lost!\n'\
-            'If you are sure you want to continue, please '\
-            'type the name of the server:\n> ')
+        user_provided_server_name = self.args.name
+        if not user_provided_server_name:
+            user_provided_server_name = raw_input(
+                'WARNING! This will delete the Loom server and all its data. '\
+                'Data will be lost!\n'\
+                'If you are sure you want to continue, please '\
+                'type the name of the server:\n> ')
 
-        if confirmation_input != server_name:
+        if user_provided_server_name != server_name:
             print 'Input did not match current server name \"%s\".' % server_name
             return
         playbook = self._get_required_setting('LOOM_DELETE_SERVER_PLAYBOOK',
@@ -515,6 +517,8 @@ def get_parser(parser=None):
     delete_parser = subparsers.add_parser(
         'delete',
         help='Delete the Loom server')
+    delete_parser.add_argument('--name', '-n', metavar='SERVER_NAME',
+                               help='Provide server name here to skip prompt.')
     delete_parser.add_argument('--verbose', '-v', action='store_true',
                                help='Provide more feedback to console.')
 

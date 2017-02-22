@@ -35,7 +35,7 @@ pip install -r requirements.txt
 
 Run tests to verify installation:
 
-    loom test
+    loom test unit
 
 ## Starting a server
 
