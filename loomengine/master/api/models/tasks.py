@@ -11,7 +11,7 @@ from .base import BaseModel, render_from_template
 from api.models.data_objects import DataObject, FileDataObject
 # from api.models.workflows import Step, RequestedResourceSet
 from api import get_setting
-from api.task_manager.factory import TaskManagerFactory
+#from api.task_manager.factory import TaskManagerFactory
 
 
 class Task(BaseModel):
@@ -86,6 +86,9 @@ class Task(BaseModel):
     def attempt_number(self):
         return self.task_attempts.count()
 
+    def fail(self):
+        self.step_run.fail()
+    
     def has_been_run(self):
         return self.attempt_number == 0
     
@@ -281,13 +284,21 @@ class TaskAttempt(BaseModel):
             self.save()
 
     def _post_save(self):
-        if self.status_is_finished == True:
+        if self.status_is_failed:
+            self.set_datetime_finished()
+            try:
+                self.task_as_active.fail()
+            except ObjectDoesNotExist:
+                # This attempt is no longer active
+                # and will be ignored.
+                pass
+        elif self.status_is_finished:
             self.set_datetime_finished()
             try:
                 self.task_as_active.finish()
             except ObjectDoesNotExist:
                 # This attempt is no longer active
-                # Results will be ignored
+                # and will be ignored.
                 pass
 
     def add_error(self, message, detail):
@@ -298,7 +309,7 @@ class TaskAttempt(BaseModel):
     def add_timepoint(self, message):
         timepoint = TaskAttemptTimepoint.objects.create(
             message=message, task_attempt=self)
-        error.save()
+        timepoint.save()
         
     @classmethod
     def create_from_task(cls, task):
@@ -408,7 +419,8 @@ class TaskAttemptLogFile(BaseModel):
         # Create a blank file_data_object on save.
         # The client will upload the file to this object.
         if self.file is None:
-            self.file = FileDataObject.objects.create(source_type='log', type='file')
+            self.file = FileDataObject.objects.create(
+                source_type='log', type='file', filename=self.log_name)
             self.file.initialize()
             self.save()
 

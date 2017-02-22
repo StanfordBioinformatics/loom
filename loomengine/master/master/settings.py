@@ -45,7 +45,6 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
 WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL').upper()
 LOOM_STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'LOCAL').upper()
-LOOM_STORAGE_ROOT = os.getenv('LOOM_STORAGE_ROOT', 'LOCAL').upper()
 
 STATIC_ROOT = os.getenv('LOOM_MASTER_STATIC_ROOT', '/tmp/static')
 
@@ -300,7 +299,7 @@ LOGGING = {
             'handlers': ['loomengine_handler'],
             'level': LOG_LEVEL,
             },
-        'api': { 
+        'api': {
             'handlers': ['loomengine_handler'],
             'level': LOG_LEVEL,
             },

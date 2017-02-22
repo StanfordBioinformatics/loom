@@ -152,10 +152,10 @@ class TaskRunner(object):
         except Exception as e:
             self._fail(message='Failed to save outputs', detail=str(e))
 
-        try:
-            self._try_to_save_monitor_log()
-        except Exception as e:
-            self._fail(message='Failed to save monitor log', detail=str(e))
+#        try:
+#            self._try_to_save_monitor_log()
+#        except Exception as e:
+#            self._fail(message='Failed to save monitor log', detail=str(e))
 
         try:
             self._finish()

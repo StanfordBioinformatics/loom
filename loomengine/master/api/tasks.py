@@ -116,15 +116,15 @@ def _run_task(task_id):
     from api.models.tasks import Task
     task = Task.objects.get(id=task_id)
     task_attempt = task.create_and_activate_attempt()
-    _run_task_runner_playbook(str(task_attempt.uuid))
+    _run_task_runner_playbook(task_attempt)
 
 @shared_task
 def _rerun_task(task_id):
     # TODO
     # Check counter and fail if too high
     pass
-    
-def _run_task_runner_playbook(task_attempt_id):
+
+def _run_task_runner_playbook(task_attempt):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -145,6 +145,19 @@ def _run_task_runner_playbook(task_attempt_id):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    env.update({'LOOM_TASK_ATTEMPT_ID': task_attempt_id})
-        
+    disk_size = task_attempt.task.step_run.template.resources.get('disk_size')
+    new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
+                'LOOM_TASK_ATTEMPT_CORES':
+                task_attempt.task.step_run.template.resources.get('cores'),
+                'LOOM_TASK_ATTEMPT_MEMORY':
+                task_attempt.task.step_run.template.resources.get('memory'),
+                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB':
+                disk_size if disk_size else '1', # guard against None value
+                'LOOM_TASK_ATTEMPT_DOCKER_IMAGE':
+                task_attempt.task.step_run.template.environment.get('docker_image'),
+                'LOOM_TASK_ATTEMPT_STEP_NAME':
+                task_attempt.task.step_run.template.name,
+                }
+    env.update(new_vars)
+
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)

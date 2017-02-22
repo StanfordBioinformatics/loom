@@ -3,6 +3,6 @@
   hosts: "{{lookup('env','LOOM_SERVER_NAME')}}"
   become: yes
   vars_files:
-    - vars/gcloud.yml
+    - vars/gcloud_server.yml
   tasks:
     - include: tasks/stop_containers.yml

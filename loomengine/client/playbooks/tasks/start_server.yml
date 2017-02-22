@@ -1,23 +1,41 @@
-- name: Create the data root directory
+- name: Create the data root directory if running in local mode
   file:
     path: "{{storage_root}}"
     state: directory
   when: storage_type == "local"
 
-- name: Create the admin files directory on the server
-  file:
-    path: "{{server_settings_home}}/{{admin_files_dir}}"
-    state: directory
-
-- name: Copy admin files from client to server
+- name: Copy admin files directory from client to server
   copy:
     src: "{{settings_home}}/{{admin_files_dir}}/"
-    dest: "{{server_settings_home}}/{{admin_files_dir}}/"
+    dest: "{{server_settings_home}}/{{admin_files_dir}}"
+
+- name: Copy playbooks directory from client to server
+  copy:
+    src: "{{settings_home}}/{{loom_playbook_dir}}/"
+    dest: "{{server_settings_home}}/{{loom_playbook_dir}}"
+
+- name: Copy inventory directory from client to server
+  copy:
+    src: "{{settings_home}}/{{loom_inventory_dir}}/"
+    dest: "{{server_settings_home}}/{{loom_inventory_dir}}"
+
+- name: Set inventory files to be executable.
+  file:
+    path: "{{server_settings_home}}/{{loom_inventory_dir}}"
+    state: directory
+    mode: "a+x"
+    recurse: yes
 
 - name: Copy admin settings file from client to server.
   copy:
     src: "{{settings_home}}/{{admin_settings_file}}"
     dest: "{{server_settings_home}}/{{admin_settings_file}}"
+
+- name: Copy worker connection settings file from client to server.
+  copy:
+    src: "{{settings_home}}/{{worker_connection_settings_file}}"
+    dest: "{{server_settings_home}}"
+  when: worker_connection_settings_file is defined
 
 - name: Start a MySQL database container
   docker_container:
