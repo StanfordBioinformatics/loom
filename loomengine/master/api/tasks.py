@@ -137,10 +137,10 @@ def _run_task_runner_playbook(task_attempt):
                 # which may be missing needed modules
                 '-e', 'ansible_python_interpreter="/usr/bin/env python"',
     ]
-    if 'LOOM_SSH_PRIVATE_KEY_NAME' in settings:
+    if get_setting('LOOM_SSH_PRIVATE_KEY_NAME', required=False):
         private_key_file_path = os.path.join(
             os.path.expanduser('~/.ssh'),
-            settings['LOOM_SSH_PRIVATE_KEY_NAME'])
+            get_setting('LOOM_SSH_PRIVATE_KEY_NAME'))
         cmd_list.extend(['--private-key', private_key_file_path])
 
     if get_setting('DEBUG'):
@@ -187,10 +187,10 @@ def _run_cleanup_task_playbook(task_attempt):
                 # which may be missing needed modules
                 '-e', 'ansible_python_interpreter="/usr/bin/env python"',
     ]
-    if get_setting('SSH_PRIVATE_KEY_NAME', required=False):
+    if get_setting('LOOM_SSH_PRIVATE_KEY_NAME', required=False):
         private_key_file_path = os.path.join(
             os.path.expanduser('~/.ssh'),
-            get_setting('SSH_PRIVATE_KEY_NAME'))
+            get_setting('LOOM_SSH_PRIVATE_KEY_NAME'))
         cmd_list.extend(['--private-key', private_key_file_path])
 
     if get_setting('DEBUG'):
