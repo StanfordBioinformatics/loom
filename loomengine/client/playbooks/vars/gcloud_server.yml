@@ -1,5 +1,5 @@
 remote_user: loom
-server_settings_home: "/home/{{remote_user}}/.loom"
+server_settings_home: "{{ansible_env.HOME}}/.loom"
 server_ssh_private_key_path_on_client: "{{ansible_env.HOME}}/.ssh/{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')}}"
 worker_ssh_private_key_path_on_server: "/home/{{remote_user}}/.ssh/{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')}}"
 client_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_CLIENT_USES_SERVER_INTERNAL_IP')}}"

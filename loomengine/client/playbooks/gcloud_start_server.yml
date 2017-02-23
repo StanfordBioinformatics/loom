@@ -8,16 +8,7 @@
   tasks:
   - include: tasks/create_google_storage_bucket.yml
 
-- name: Create SSH key to connect to the server.
-  hosts: localhost
-  connection: local
-  vars_files:
-  - vars/common.yml
-  - vars/gcloud_server.yml
-  tasks:
-  - include: tasks/create_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path}}
-
-- name: Create a new instance for the Loom server.
+- name: Create a new instance for the Loom server and configure SSH.
   hosts: localhost
   connection: local
   vars_files:
@@ -26,7 +17,7 @@
   tasks:
   - include: tasks/create_ssh_key.yml ssh_private_key_path={{server_ssh_private_key_path_on_client}}
   - include: tasks/gcloud_create_instance.yml use_internal_ip={{client_uses_internal_ip}}
-  - include: tasks/gcloud_configure_instance_ssh.yml use_internal_ip={{client_uses_internal_ip}}
+  - include: tasks/gcloud_configure_instance_ssh.yml use_internal_ip={{client_uses_internal_ip}} ssh_private_key_path={{server_ssh_private_key_path_on_client}}
   - name: Save server IP for worker.
     set_fact:
       server_ip_for_worker: "{{ (worker_uses_internal_ip) | ternary(gce_result.instance_data[0].private_ip, gce_result.instance_data[0].public_ip) }}"
@@ -44,6 +35,10 @@
 - name: Install Docker on the Loom server and add remote user to docker group.
   hosts: new_instances
   become: yes
+  become_user: "{{remote_user}}"
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_server.yml
   roles:
   - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
   - {role: docker-py, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
@@ -53,7 +48,7 @@
 - name: Pull Docker images on the new instance.
   hosts: new_instances
   become: yes
-  become_user: {{remote_user}}
+  become_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
@@ -63,11 +58,12 @@
 - name: Copy files to Loom server and create an SSH key that will be used to connect to workers.
   hosts: new_instances
   become: yes
-  become_user: {{remote_user}}
+  become_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
+  - include: tasks/create_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
   - name: Copy inventory directory from client to server
     copy:
       src: "{{settings_home}}/{{loom_inventory_dir}}/"
@@ -82,7 +78,6 @@
     copy:
       src: "{{settings_home}}/{{worker_connection_settings_file}}"
       dest: "{{server_settings_home}}"
-  - include: tasks/create_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
   - name: Copy admin files directory from client to server
     copy:
       src: "{{settings_home}}/{{admin_files_dir}}/"
@@ -99,7 +94,7 @@
 - name: Start the Loom server.
   hosts: new_instances
   become: yes
-  become_user: {{remote_user}}
+  become_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
