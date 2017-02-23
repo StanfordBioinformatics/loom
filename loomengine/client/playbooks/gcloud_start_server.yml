@@ -34,8 +34,8 @@
 
 - name: Install Docker on the Loom server and add remote user to docker group.
   hosts: new_instances
+  remote_user: "{{remote_user}}"
   become: yes
-  become_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
@@ -47,8 +47,7 @@
 
 - name: Pull Docker images on the new instance.
   hosts: new_instances
-  become: yes
-  become_user: "{{remote_user}}"
+  remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
@@ -57,8 +56,7 @@
 
 - name: Copy files to Loom server and create an SSH key that will be used to connect to workers.
   hosts: new_instances
-  become: yes
-  become_user: "{{remote_user}}"
+  remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
@@ -93,8 +91,7 @@
 
 - name: Start the Loom server.
   hosts: new_instances
-  become: yes
-  become_user: "{{remote_user}}"
+  remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
