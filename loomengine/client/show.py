@@ -118,6 +118,7 @@ class ShowTemplate(AbstractShow):
 
     def _show_templates(self):
         print '[showing %s templates]' % len(self.templates)
+        wjfewojkofwe
         for template in self.templates:
             print self._render_template(template)
 
@@ -141,7 +142,6 @@ class ShowTemplate(AbstractShow):
                     text += '    - %s@%s\n' % (step['name'], step['uuid'])
             if template.get('command'):
                 text += '  - Command: %s\n' % template['command']
-
         else:
             text = 'Template: %s' % template_identifier
         return text
@@ -181,9 +181,25 @@ class ShowRun(AbstractShow):
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
             text += '  - Created: %s\n' % format(dateutil.parser.parse(run['datetime_created']), DATETIME_FORMAT)
+            text += '  - Status: %s\n' % self._render_status(run)
+            if run.get('steps'):
+                text += '  - Steps:\n'
+                for step in run['steps']:
+                    text += '    - %s@%s \n' % (step['name'], step['uuid'])
         else:
             text = 'Run: %s' % run_identifier
         return text
+    def _render_status(self, run):
+        if run.get('status_is_failed'):
+            return 'failed'
+        elif run.get('status_is_killed'):
+            return 'killed'
+        elif run.get('status_is_running'):
+            return 'running'
+        elif run.get('status_is_finished'):
+            return 'finished'
+        else:
+            return 'unknown'
 
 
 class Show:

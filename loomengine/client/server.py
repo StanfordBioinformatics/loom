@@ -116,7 +116,7 @@ class ServerControls:
             self._save_admin_settings_file(settings)
             self._copy_admin_files_to_settings_dir()
 
-        print 'Starting Loom server named "%s".' % self._get_required_setting(
+        print 'Starting a Loom server named "%s".' % self._get_required_setting(
             'LOOM_SERVER_NAME', settings)
 
         playbook = self._get_required_setting(
