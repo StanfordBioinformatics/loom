@@ -139,6 +139,8 @@ class Importer:
         hidden_file_subparser = subparsers.add_parser('files')
         FileImporter.get_parser(hidden_file_subparser)
         hidden_file_subparser.set_defaults(SubSubcommandClass=FileImporter)
+        hidden_file_subparser.add_argument('--force-duplicates', '-d',
+                                           action='store_true', default=False)
 
         template_subparser = subparsers.add_parser('template', help='import a template')
         TemplateImporter.get_parser(template_subparser)

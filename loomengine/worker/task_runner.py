@@ -256,13 +256,14 @@ class TaskRunner(object):
     def _create_container(self):
         docker_image = self._get_docker_image()
         interpreter = self.task_attempt['interpreter']
+        interpreter_options = self.task_attempt['interpreter_options']
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/loom_workspace'
 
-        command = [
-            interpreter,
-            self.LOOM_RUN_SCRIPT_NAME
-        ]
+        command = [interpreter]
+        if interpreter_options:
+            command.extend(interpreter_options.split(' '))
+        command.append(self.LOOM_RUN_SCRIPT_NAME)
 
         self.container = self.docker_client.create_container(
             image=docker_image,
@@ -531,11 +532,17 @@ class TaskRunner(object):
         self._timepoint(message)
 
     def _finish(self):
-        status_message = 'Finished'
+        if self.is_failed:
+            status_message = 'Failed'
+            is_finished = False
+        else:
+            status_message = 'Finished successfully'
+            is_finished = True
+
         self.connection.update_task_attempt(
             self.settings['TASK_ATTEMPT_ID'],
             {
-                'status_is_finished': True,
+                'status_is_finished': is_finished,
                 'status_message': status_message,
                 'status_message_detail': None
             }

@@ -199,7 +199,7 @@ class ServerControls:
             os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
 
         server_name =self._get_required_setting('LOOM_SERVER_NAME', settings)
-        user_provided_server_name = self.args.name
+        user_provided_server_name = self.args.confirm_server_name
         if not user_provided_server_name:
             user_provided_server_name = raw_input(
                 'WARNING! This will delete the Loom server and all its data. '\
@@ -517,8 +517,9 @@ def get_parser(parser=None):
     delete_parser = subparsers.add_parser(
         'delete',
         help='Delete the Loom server')
-    delete_parser.add_argument('--name', '-n', metavar='SERVER_NAME',
-                               help='Provide server name here to skip prompt.')
+    delete_parser.add_argument('--confirm-server-name', '-n', metavar='SERVER_NAME',
+                               help='Provide server name to skip confirmation prompt '\
+                               'when deleting the server')
     delete_parser.add_argument('--verbose', '-v', action='store_true',
                                help='Provide more feedback to console.')
 

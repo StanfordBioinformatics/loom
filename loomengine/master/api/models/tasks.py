@@ -6,6 +6,7 @@ from django.utils import timezone
 import os
 import jsonfield
 
+from api import tasks
 from api.models import uuidstr
 from .base import BaseModel, render_from_template
 from api.models.data_objects import DataObject, FileDataObject
@@ -26,6 +27,7 @@ class Task(BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     interpreter = models.CharField(max_length=255, default='/bin/bash')
+    interpreter_options = models.CharField(max_length=1024, default='-euo pipefail')
     command = models.TextField()
     rendered_command = models.TextField()
 
@@ -87,7 +89,8 @@ class Task(BaseModel):
         return self.task_attempts.count()
 
     def fail(self):
-        self.step_run.fail()
+        if not self.step_run.status_is_failed:
+            self.step_run.fail()
     
     def has_been_run(self):
         return self.attempt_number == 0
@@ -173,6 +176,10 @@ class Task(BaseModel):
             output.push_data_object()
         self.step_run.update_status()
 
+    def kill(self):
+        for task_attempt in self.task_attempts.all():
+            task_attempt.kill()
+
 
 class TaskInput(BaseModel):
 
@@ -239,6 +246,7 @@ class TaskAttempt(BaseModel):
     last_heartbeat = models.DateTimeField(auto_now=True)
     status_is_failed = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
+    status_is_killed = models.BooleanField(default=False)
     status_message = models.CharField(
         max_length=255,
         default='Starting')
@@ -258,6 +266,9 @@ class TaskAttempt(BaseModel):
     @property
     def interpreter(self):
         return self.task.interpreter
+
+    def interpreter_options(self):
+        return self.task.interpreter_options
 
     @property
     def rendered_command(self):
@@ -353,6 +364,11 @@ class TaskAttempt(BaseModel):
     def get_stderr_log_file(self):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
+    def kill(self):
+        if not self.status_is_finished:
+            tasks.kill_task_attempt(self.uuid)
+        
+    
 #    def get_provenance_data(self, files=None, tasks=None, edges=None):
 #        if files is None:
 #            files = set()
@@ -435,6 +451,8 @@ class TaskAttemptError(BaseModel):
         'TaskAttempt',
         related_name='errors',
         on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now,
+                                     editable=False)
     message = models.CharField(max_length=255)
     detail = models.TextField(null=True, blank=True)
 

@@ -33,7 +33,7 @@ def _postprocess_workflow(workflow_id):
     from api.serializers.templates import WorkflowSerializer
 
     try:
-        Workflow.objects.select_for_update(nowait=True).filter(id=workflow_id)
+        Workflow.objects.filter(id=workflow_id)
         WorkflowSerializer.postprocess(workflow_id)
     except db.DatabaseError:
         # Ignore this task since the same one is already running
@@ -79,7 +79,8 @@ def process_active_step_runs():
     from api.models.runs import StepRun
     if get_setting('TEST_NO_AUTO_START_RUNS'):
         return
-    for step_run in StepRun.objects.filter(status_finished=False, status_failed=False):
+    for step_run in StepRun.objects.filter(
+            status_is_finished=False, status_is_failed=False):
         args = [step_run.id]
         kwargs = {}
         _run_with_delay(_create_tasks_from_step_run, args, kwargs)
@@ -155,6 +156,47 @@ def _run_task_runner_playbook(task_attempt):
                 disk_size if disk_size else '1', # guard against None value
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE':
                 task_attempt.task.step_run.template.environment.get('docker_image'),
+                'LOOM_TASK_ATTEMPT_STEP_NAME':
+                task_attempt.task.step_run.template.name,
+                }
+    env.update(new_vars)
+
+    return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
+
+@shared_task
+def _kill_task_attempt(task_attempt_uuid):
+    from api.models.tasks import TaskAttempt
+    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
+    task_attempt.status_is_killed = True
+    task_attempt.save()
+    task_attempt.add_timepoint('Killing TaskAttempt')
+    _run_cleanup_task_playbook(task_attempt)
+
+def kill_task_attempt(*args, **kwargs):
+    return _run_with_delay(_kill_task_attempt, args, kwargs)
+
+def _run_cleanup_task_playbook(task_attempt):
+    env = copy.copy(os.environ)
+    playbook = os.path.join(
+        get_setting('PLAYBOOK_PATH'),
+        get_setting('LOOM_CLEANUP_TASK_PLAYBOOK'))
+    cmd_list = ['ansible-playbook',
+                '-i', get_setting('ANSIBLE_INVENTORY'),
+                playbook,
+                # Without this, ansible uses /usr/bin/python,
+                # which may be missing needed modules
+                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
+    ]
+    if get_setting('SSH_PRIVATE_KEY_NAME', required=False):
+        private_key_file_path = os.path.join(
+            os.path.expanduser('~/.ssh'),
+            get_setting('SSH_PRIVATE_KEY_NAME'))
+        cmd_list.extend(['--private-key', private_key_file_path])
+
+    if get_setting('DEBUG'):
+        cmd_list.append('-vvvv')
+
+    new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_STEP_NAME':
                 task_attempt.task.step_run.template.name,
                 }

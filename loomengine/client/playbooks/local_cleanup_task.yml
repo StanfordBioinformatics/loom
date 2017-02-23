@@ -1,0 +1,11 @@
+---
+- name: Stop and/or cleanup the Loom task runner localhost
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars/common.yml
+    - vars/local.yml
+  vars:
+    task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
+  tasks:
+    - include: tasks/cleanup_task.yml

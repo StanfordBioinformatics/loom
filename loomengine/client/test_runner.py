@@ -149,7 +149,7 @@ class TestRunner:
         if self._started_new_server_named:
             loom_executable = sys.argv[0]
             cmd = [loom_executable, 'server', 'delete',
-                   '--name', self._started_new_server_named]
+                   '--confirm-server-name', self._started_new_server_named]
             returncode = subprocess.call(cmd, env=os.environ)
 
 def get_parser(parser=None):

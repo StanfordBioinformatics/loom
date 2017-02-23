@@ -34,6 +34,9 @@ class WorkflowRunManager(object):
     def get_tasks(self):
         raise Exception('No tasks on run of type "workflow"')
 
+    def kill(self):
+        return self.run.workflowrun._kill()
+    
 
 class StepRunManager(object):
 
@@ -50,6 +53,9 @@ class StepRunManager(object):
 
     def get_tasks(self):
         return self.run.steprun.tasks
+
+    def kill(self):
+        return self.run.steprun._kill()
 
 
 class Run(BaseModel):
@@ -90,6 +96,9 @@ class Run(BaseModel):
                  ('error', 'Error'))
     )
 
+    status_is_finished = models.BooleanField(default=False)
+    status_is_failed = models.BooleanField(default=False)
+    
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]
@@ -136,12 +145,14 @@ class Run(BaseModel):
     @classmethod
     def create_from_template(cls, template, parent=None, run_request=None):
         if template.type == 'step':
-            run = StepRun.objects.create(template=template,
-                                         name=template.name,
-                                         type=template.type,
-                                         command=template.step.command,
-                                         interpreter=template.step.interpreter,
-                                         parent=parent).run_ptr
+            run = StepRun.objects.create(
+                template=template,
+                name=template.name,
+                type=template.type,
+                command=template.step.command,
+                interpreter=template.step.interpreter,
+                interpreter_options = template.step.interpreter_options,
+                parent=parent).run_ptr
             if run_request:
                 run_request.run = run
                 run_request.save()
@@ -213,6 +224,17 @@ class Run(BaseModel):
                 parent_connector.connect(output)
             except ObjectDoesNotExist:
                 self.parent.downcast()._create_connector(output)
+
+    def fail(self):
+        self.status_is_failed = True
+        self.save()
+        if self.parent:
+            self.parent.fail()
+        else:
+            self.kill()
+
+    def kill(self):
+        return self._get_manager().kill()
 
 
 class WorkflowRun(Run):
@@ -342,23 +364,32 @@ class WorkflowRun(Run):
             connector = self.connectors.get(channel=io_node.channel)
         connector.connect(io_node)
 
+    def update_workflow_status(self):
+        if self._are_children_finished():
+            self.status_is_finished = True
+            self.save()
+        if self.parent:
+            self.parent.update_workflow_status()
+
+    def _are_children_finished(self):
+        return all([step.status_is_finished for step in self.steps.all()])
+
+    def _kill(self):
+        for step in self.steps.all():
+            step.kill()
+
 
 class StepRun(Run):
 
     command = models.TextField()
     interpreter = models.CharField(max_length=255)
+    interpreter_options = models.CharField(max_length=1024)
 
     # True if ALL inputs are available
     status_received_all_inputs = models.BooleanField(default=False)
 
     # True if ANY tasks are running
     status_running = models.BooleanField(default=False)
-
-    # True if ALL tasks are finished
-    status_finished = models.BooleanField(default=False)
-
-    # True if ANY tasks are failed
-    status_failed = models.BooleanField(default=False)
 
     status_tasks_running = models.IntegerField(default=0)
     status_tasks_finished = models.IntegerField(default=0)
@@ -459,8 +490,15 @@ class StepRun(Run):
         return self.outputs.get(channel=channel)
 
     def update_status(self):
-        #TODO
-        pass
+        self.status_is_finished = True
+        self.save()
+        if self.parent:
+            self.parent.update_workflow_status()
+
+    def _kill(self):
+        for task in self.tasks.all():
+            task.kill()
+
 
 class AbstractStepRunInput(InputOutputNode):
 
@@ -511,10 +549,10 @@ class WorkflowRunConnectorNode(InputOutputNode):
     status_running = models.BooleanField(default=False)
 
     # True if ALL steps are finished
-    status_finished = models.BooleanField(default=False)
+    status_is_finished = models.BooleanField(default=False)
 
     # True if ANY steps are failed
-    status_failed = models.BooleanField(default=False)
+    status_is_failed = models.BooleanField(default=False)
 
     status_steps_waiting = models.IntegerField(default=0)
     status_steps_running = models.IntegerField(default=0)
