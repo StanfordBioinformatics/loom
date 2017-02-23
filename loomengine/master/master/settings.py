@@ -85,6 +85,7 @@ def _get_run_task_playbook_path():
 LOOM_SETTINGS_HOME = os.getenv('LOOM_SETTINGS_HOME', os.path.expanduser('~/.loom'))
 PLAYBOOK_PATH = os.path.join(LOOM_SETTINGS_HOME, os.getenv('LOOM_PLAYBOOK_DIR', 'playbooks'))
 LOOM_RUN_TASK_PLAYBOOK = os.getenv('LOOM_RUN_TASK_PLAYBOOK')
+LOOM_CLEANUP_TASK_PLAYBOOK = os.getenv('LOOM_CLEANUP_TASK_PLAYBOOK')
 
 # Database settings
 LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD')

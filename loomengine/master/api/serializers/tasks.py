@@ -93,7 +93,7 @@ class TaskAttemptErrorSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = TaskAttemptError
-        fields = ('message', 'detail')
+        fields = ('message', 'detail', 'timestamp')
 
 
 class TaskAttemptTimepointSerializer(CreateWithParentModelSerializer):
@@ -124,10 +124,10 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
         model = TaskAttempt
         fields = ('uuid', 'datetime_created', 'datetime_finished', 
                   'last_heartbeat', 'status_message', 'status_message_detail',
-                  'status_is_finished', 'status_is_failed',
+                  'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'errors', 'log_files', 'inputs', 'outputs',
-                  'interpreter', 'rendered_command', 'environment',
-                  'resources', 'is_active', 'timepoints')
+                  'interpreter', 'interpreter_options',  'rendered_command',
+                  'environment', 'resources', 'is_active', 'timepoints')
 
     def update(self, instance, validated_data):
         # Only updates to status fields are allowed
@@ -135,6 +135,7 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
         status_message_detail = validated_data.pop('status_message_detail', None)
         status_is_finished = validated_data.pop('status_is_finished', None)
         status_is_failed = validated_data.pop('status_is_failed', None)
+        status_is_killed = validated_data.pop('status_is_killed', None)
 
         if status_message is not None:
             instance.status_message = status_message
@@ -144,6 +145,8 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
             instance.status_is_finished = status_is_finished
         if status_is_failed is not None:
             instance.status_is_failed = status_is_failed
+        if status_is_killed is not None:
+            instance.status_is_killed = status_is_killed
 
         instance.save()
         return instance
@@ -188,6 +191,7 @@ class TaskSerializer(serializers.ModelSerializer):
     command = serializers.CharField(read_only=True)
     rendered_command = serializers.CharField(read_only=True)
     interpreter = serializers.CharField(read_only=True)
+    interpreter_options = serializers.CharField(read_only=True)
     datetime_finished = serializers.CharField(read_only=True)
     datetime_created = serializers.CharField(read_only=True)
     active = serializers.BooleanField(read_only=True)
@@ -195,16 +199,17 @@ class TaskSerializer(serializers.ModelSerializer):
     status_message_detail = serializers.CharField(read_only=True)
     status_is_finished = serializers.BooleanField(read_only=True)
     status_is_failed = serializers.BooleanField(read_only=True)
+    status_is_killed = serializers.BooleanField(read_only=True)
     attempt_number = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Task
         fields = ('uuid', 'resources', 'environment', 'inputs', 
                   'outputs', 'task_attempts', 'active_task_attempt', 
-                  'command', 'rendered_command', 'interpreter', 
+                  'command', 'rendered_command', 'interpreter', 'interpreter_options',
                   'datetime_finished', 'datetime_created', 'active',
                   'status_message', 'status_message_detail',
-                  'status_is_finished', 'status_is_failed',
+                  'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'attempt_number')
 
 class TaskUuidSerializer(UuidSerializer, TaskSerializer):

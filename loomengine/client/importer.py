@@ -42,7 +42,8 @@ class FileImporter(AbstractImporter):
     def run(self):
         files_imported = self.filemanager.import_from_patterns(
             self.args.files,
-            self.args.note
+            self.args.note,
+            force_duplicates=self.args.force_duplicates,
         )
         if len(files_imported) == 0:
             raise Exception('No files found')
@@ -130,10 +131,16 @@ class Importer:
         file_subparser = subparsers.add_parser('file', help='import a file or list files')
         FileImporter.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileImporter)
+        file_subparser.add_argument('--force-duplicates', '-d', action='store_true',
+                                    default=False,
+                                    help='Force upload even if another file with '\
+                                    'the same md5 exists')
 
         hidden_file_subparser = subparsers.add_parser('files')
         FileImporter.get_parser(hidden_file_subparser)
         hidden_file_subparser.set_defaults(SubSubcommandClass=FileImporter)
+        hidden_file_subparser.add_argument('--force-duplicates', '-d',
+                                           action='store_true', default=False)
 
         template_subparser = subparsers.add_parser('template', help='import a template')
         TemplateImporter.get_parser(template_subparser)

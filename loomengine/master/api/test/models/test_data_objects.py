@@ -224,7 +224,7 @@ class TestFileDataObject(TestCase):
             self.assertTrue(
                 path.startswith(os.path.join(file_root, 'imported')))
             self.assertTrue(
-                path.endswith('_%s_%s' % (self.file.uuid,
+                path.endswith('_%s_%s' % (str(self.file.uuid)[0:8],
                                           self.file.filename)))
 
     def testGetPathForImportDuplicatesNoReruns(self):
@@ -239,7 +239,7 @@ class TestFileDataObject(TestCase):
             self.assertTrue(
                 path.startswith(os.path.join(file_root, 'imported')))
             self.assertTrue(
-                path.endswith('_%s_%s' % (self.file.uuid,
+                path.endswith('_%s_%s' % (str(self.file.uuid)[0:8],
                                           self.file.filename)))
 
     def testGetPathForImportNoDuplicates(self):

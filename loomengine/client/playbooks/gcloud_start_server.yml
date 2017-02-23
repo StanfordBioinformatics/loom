@@ -63,7 +63,7 @@
   tasks:
   - include: tasks/create_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
   - name: Copy inventory directory from client to server
-    copy:
+    synchronize:
       src: "{{settings_home}}/{{loom_inventory_dir}}/"
       dest: "{{server_settings_home}}/{{loom_inventory_dir}}"
   - name: Set inventory files to be executable.
@@ -73,19 +73,19 @@
       mode: "a+x"
       recurse: yes
   - name: Copy worker connection settings file from client to server
-    copy:
+    synchronize:
       src: "{{settings_home}}/{{worker_connection_settings_file}}"
       dest: "{{server_settings_home}}"
   - name: Copy admin files directory from client to server
-    copy:
+    synchronize:
       src: "{{settings_home}}/{{admin_files_dir}}/"
       dest: "{{server_settings_home}}/{{admin_files_dir}}"
   - name: Copy playbooks directory from client to server
-    copy:
+    synchronize:
       src: "{{settings_home}}/{{loom_playbook_dir}}/"
       dest: "{{server_settings_home}}/{{loom_playbook_dir}}"
   - name: Copy admin settings file from client to server.
-    copy:
+    synchronize:
       src: "{{settings_home}}/{{admin_settings_file}}"
       dest: "{{server_settings_home}}/{{admin_settings_file}}"
 

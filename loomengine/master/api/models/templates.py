@@ -192,6 +192,7 @@ class Step(Template):
 
     command = models.TextField()
     interpreter = models.CharField(max_length=255, default='/bin/bash')
+    interpreter_options = models.CharField(max_length=1024, default='-euo pipefail')
     environment = jsonfield.JSONField(null=True)
     outputs = jsonfield.JSONField(null=True)
     inputs = jsonfield.JSONField(null=True)
