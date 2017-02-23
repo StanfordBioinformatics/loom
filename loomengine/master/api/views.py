@@ -87,7 +87,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = models.Task.objects.all()
         queryset = queryset.select_related('resources')\
-                           .select_related('active_task_attempt')\
+                           .select_related('selected_task_attempt')\
                            .prefetch_related('task_attempts')\
                            .prefetch_related('inputs__data_object')\
                            .prefetch_related('outputs__data_object')

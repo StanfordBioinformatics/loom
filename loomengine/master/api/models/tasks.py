@@ -36,16 +36,20 @@ class Task(BaseModel):
                                  on_delete=models.CASCADE,
                                  null=True) # null for testing only
 
-    active_task_attempt = models.OneToOneField('TaskAttempt',
-                                               related_name='task_as_active',
+    selected_task_attempt = models.OneToOneField('TaskAttempt',
+                                               related_name='task_as_selected',
                                                on_delete=models.CASCADE,
                                                null=True)
-    active = models.BooleanField(default=True)
+
+    # While status_is_running, Loom will continue trying to complete the task
+    status_is_running = models.BooleanField(default=True)
+    status_is_killed = models.BooleanField(default=False)
+    status_is_finished = models.BooleanField(default=False)
 
     @property
     def status_message(self):
         try:
-            return self.active_task_attempt.status_message
+            return self.selected_task_attempt.status_message
         except AttributeError:
             # No active TaskAttempt. Return human-readable status
             # based on status flags
@@ -58,32 +62,25 @@ class Task(BaseModel):
     @property
     def status_message_detail(self):
         try:
-            return self.active_task_attempt.status_message_detail
+            return self.selected_task_attempt.status_message_detail
         except AttributeError:
             # No active task Attempt
             return ''
 
     @property
-    def status_is_finished(self):
-        try:
-            return self.active_task_attempt.status_is_finished
-        except AttributeError:
-            return False
-        
-    @property
     def status_is_failed(self):
         try:
-            return self.active_task_attempt.status_is_failed
+            return self.selected_task_attempt.status_is_failed
         except AttributeError:
             return False
 
     @property
     def datetime_finished(self):
         try:
-            return self.active_task_attempt.datetime_finished
+            return self.selected_task_attempt.datetime_finished
         except AttributeError:
             return None
-    
+
     @property
     def attempt_number(self):
         return self.task_attempts.count()
@@ -92,6 +89,28 @@ class Task(BaseModel):
         if not self.step_run.status_is_failed:
             self.step_run.fail()
     
+    def finish(self):
+        if self.status_is_finished:
+            return
+        self.status_is_finished = True
+        self.save()
+        for output in self.outputs.all():
+            output.pull_data_object()
+            output.push_data_object()
+        self.step_run.update_status()
+        self.status_is_running = False
+        self.save()
+        for task_attempt in self.task_attempts.all():
+            task_attempt.cleanup()
+
+    def kill(self):
+        self.status_is_running = False
+        self.status_is_killed = True
+        self.save()
+        for task_attempt in self.task_attempts.all():
+            task_attempt.kill()
+            task_attempt.cleanup()
+
     def has_been_run(self):
         return self.attempt_number == 0
     
@@ -133,7 +152,7 @@ class Task(BaseModel):
         task_attempt = TaskAttempt.objects.create(task=self)
         task_attempt.initialize()
 
-        self.active_task_attempt = task_attempt
+        self.selected_task_attempt = task_attempt
         self.save()
 
         task_attempt.add_timepoint('TaskAttempt created')
@@ -170,16 +189,6 @@ class Task(BaseModel):
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
-    def finish(self):
-        for output in self.outputs.all():
-            output.pull_data_object()
-            output.push_data_object()
-        self.step_run.update_status()
-
-    def kill(self):
-        for task_attempt in self.task_attempts.all():
-            task_attempt.kill()
-
 
 class TaskInput(BaseModel):
 
@@ -204,7 +213,7 @@ class TaskOutput(BaseModel):
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT, null=True)
 
     def pull_data_object(self):
-        attempt_output = self.task.active_task_attempt.get_output(self.channel)
+        attempt_output = self.task.selected_task_attempt.get_output(self.channel)
         self.data_object = attempt_output.data_object
         self.save()
 
@@ -247,6 +256,8 @@ class TaskAttempt(BaseModel):
     status_is_failed = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
+    status_is_running = models.BooleanField(default=True)
+    status_is_cleaned_up = models.BooleanField(default=False)
     status_message = models.CharField(
         max_length=255,
         default='Starting')
@@ -257,7 +268,7 @@ class TaskAttempt(BaseModel):
     @property
     def is_active(self):
         try:
-            self.task_as_active
+            self.task_as_selected
         except ObjectDoesNotExist:
             return False
         return True
@@ -298,7 +309,7 @@ class TaskAttempt(BaseModel):
         if self.status_is_failed:
             self.set_datetime_finished()
             try:
-                self.task_as_active.fail()
+                self.task_as_selected.fail()
             except ObjectDoesNotExist:
                 # This attempt is no longer active
                 # and will be ignored.
@@ -306,7 +317,7 @@ class TaskAttempt(BaseModel):
         elif self.status_is_finished:
             self.set_datetime_finished()
             try:
-                self.task_as_active.finish()
+                self.task_as_selected.finish()
             except ObjectDoesNotExist:
                 # This attempt is no longer active
                 # and will be ignored.
@@ -365,10 +376,18 @@ class TaskAttempt(BaseModel):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
     def kill(self):
-        if not self.status_is_finished:
-            tasks.kill_task_attempt(self.uuid)
+        self.status_is_killed = True
+        self.status_is_running = False
+        self.save()
+        self.add_timepoint('TaskAttempt killed')
+
+    def cleanup(self):
+        if self.status_is_cleaned_up:
+            return
+        tasks.cleanup_task_attempt(self.uuid)
+        self.status_is_cleaned_up = True
+        self.save()
         
-    
 #    def get_provenance_data(self, files=None, tasks=None, edges=None):
 #        if files is None:
 #            files = set()

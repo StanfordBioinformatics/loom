@@ -98,7 +98,11 @@ class Run(BaseModel):
 
     status_is_finished = models.BooleanField(default=False)
     status_is_failed = models.BooleanField(default=False)
-    
+    status_is_killed = models.BooleanField(default=False)
+    status_is_running = models.BooleanField(default=True)
+    # True if ANY input ports have not received all inputs
+    # status_waiting_for_inputs = models.BooleanField(default=False)
+
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]
@@ -227,6 +231,7 @@ class Run(BaseModel):
 
     def fail(self):
         self.status_is_failed = True
+        self.status_is_running = False
         self.save()
         if self.parent:
             self.parent.fail()
@@ -238,6 +243,13 @@ class Run(BaseModel):
 
 
 class WorkflowRun(Run):
+
+    # True if ANY steps are running
+    # status_running = models.BooleanField(default=False)
+
+    # status_steps_waiting = models.IntegerField(default=0)
+    # status_steps_running = models.IntegerField(default=0)
+    # status_steps_finished = models.IntegerField(default=0)
 
     def add_step(self, step_run):
         step_run.parent = self
@@ -366,6 +378,7 @@ class WorkflowRun(Run):
 
     def update_workflow_status(self):
         if self._are_children_finished():
+            self.status_is_running = False
             self.status_is_finished = True
             self.save()
         if self.parent:
@@ -375,6 +388,9 @@ class WorkflowRun(Run):
         return all([step.status_is_finished for step in self.steps.all()])
 
     def _kill(self):
+        self.status_is_killed = True
+        self.status_is_running = False
+        self.save()
         for step in self.steps.all():
             step.kill()
 
@@ -385,15 +401,12 @@ class StepRun(Run):
     interpreter = models.CharField(max_length=255)
     interpreter_options = models.CharField(max_length=1024)
 
-    # True if ALL inputs are available
-    status_received_all_inputs = models.BooleanField(default=False)
-
     # True if ANY tasks are running
-    status_running = models.BooleanField(default=False)
+    # status_running = models.BooleanField(default=False)
 
-    status_tasks_running = models.IntegerField(default=0)
-    status_tasks_finished = models.IntegerField(default=0)
-    status_tasks_failed = models.IntegerField(default=0)
+    # status_tasks_running = models.IntegerField(default=0)
+    # status_tasks_finished = models.IntegerField(default=0)
+    # status_tasks_failed = models.IntegerField(default=0)
 
     @property
     def errors(self):
@@ -491,11 +504,15 @@ class StepRun(Run):
 
     def update_status(self):
         self.status_is_finished = True
+        self.status_is_running = False
         self.save()
         if self.parent:
             self.parent.update_workflow_status()
 
     def _kill(self):
+        self.status_is_killed = True
+        self.status_is_running = False
+        self.save()
         for task in self.tasks.all():
             task.kill()
 
@@ -541,24 +558,6 @@ class WorkflowRunConnectorNode(InputOutputNode):
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='connectors',
                                      on_delete=models.CASCADE)
-
-    # True if ALL steps received all inputs
-    status_received_all_inputs = models.BooleanField(default=False)
-    
-    # True if ANY steps are running
-    status_running = models.BooleanField(default=False)
-
-    # True if ALL steps are finished
-    status_is_finished = models.BooleanField(default=False)
-
-    # True if ANY steps are failed
-    status_is_failed = models.BooleanField(default=False)
-
-    status_steps_waiting = models.IntegerField(default=0)
-    status_steps_running = models.IntegerField(default=0)
-    status_steps_finished = models.IntegerField(default=0)
-    status_steps_failed = models.IntegerField(default=0)
-
 
     class Meta:
         unique_together = (("workflow_run", "channel"),)

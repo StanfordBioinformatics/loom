@@ -79,8 +79,7 @@ def process_active_step_runs():
     from api.models.runs import StepRun
     if get_setting('TEST_NO_AUTO_START_RUNS'):
         return
-    for step_run in StepRun.objects.filter(
-            status_is_finished=False, status_is_failed=False):
+    for step_run in StepRun.objects.filter(status_is_running=True):
         args = [step_run.id]
         kwargs = {}
         _run_with_delay(_create_tasks_from_step_run, args, kwargs)
@@ -99,7 +98,7 @@ def _create_tasks_from_step_run(step_run_id):
 #    from api.models.tasks import Task
 #    if get_setting('TEST_NO_AUTO_START_RUNS'):
 #        return
-#    for task in Task.objects.filter(active=True):
+#    for task in Task.objects.filter(status_is_running=True):
 #        if not task.has_been_run():
 #            args = [task.id]
 #            kwargs = {}
@@ -164,16 +163,13 @@ def _run_task_runner_playbook(task_attempt):
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
 
 @shared_task
-def _kill_task_attempt(task_attempt_uuid):
+def _cleanup_task_attempt(task_attempt_uuid):
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    task_attempt.status_is_killed = True
-    task_attempt.save()
-    task_attempt.add_timepoint('Killing TaskAttempt')
     _run_cleanup_task_playbook(task_attempt)
 
-def kill_task_attempt(*args, **kwargs):
-    return _run_with_delay(_kill_task_attempt, args, kwargs)
+def cleanup_task_attempt(*args, **kwargs):
+    return _run_with_delay(_cleanup_task_attempt, args, kwargs)
 
 def _run_cleanup_task_playbook(task_attempt):
     env = copy.copy(os.environ)

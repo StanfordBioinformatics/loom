@@ -533,16 +533,15 @@ class TaskRunner(object):
 
     def _finish(self):
         if self.is_failed:
-            status_message = 'Failed'
-            is_finished = False
+            status_message = 'Finished with failure(s)'
         else:
             status_message = 'Finished successfully'
-            is_finished = True
 
         self.connection.update_task_attempt(
             self.settings['TASK_ATTEMPT_ID'],
             {
-                'status_is_finished': is_finished,
+                'status_is_running': False,
+                'status_is_finished': True,
                 'status_message': status_message,
                 'status_message_detail': None
             }
