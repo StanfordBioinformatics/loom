@@ -32,11 +32,12 @@
   - vars/common.yml
   - vars/gcloud_worker.yml
   tasks:
-  - include: tasks/gcloud_create_instance.yml
-  - include: tasks/gcloud_configure_instance_ssh.yml
+  - include: tasks/gcloud_create_instance.yml use_internal_ip={{worker_uses_internal_ip}}
+  - include: tasks/gcloud_configure_instance_ssh.yml  use_internal_ip={{worker_uses_internal_ip}} ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
 
-- name: Install Docker on the Loom worker.
+- name: Install Docker on the Loom worker and add remote user to docker group.
   hosts: "{{instance_name}}"
+  remote_user: "{{remote_user}}"
   become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')}}"}
@@ -46,7 +47,7 @@
 
 - name: Pull Docker images on the new instance.
   hosts: "{{instance_name}}"
-  become: yes
+  remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
@@ -55,7 +56,7 @@
 
 - name: Run the Loom task runner on the specified worker instance.
   hosts: "{{instance_name}}"
-  become: yes
+  remote_user: "{{remote_user}}"
   vars_files:
     - vars/common.yml
     - vars/gcloud_worker.yml
