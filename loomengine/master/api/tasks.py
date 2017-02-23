@@ -108,7 +108,7 @@ def _create_tasks_from_step_run(step_run_id):
 #            kwargs = {}
 #            _run_with_delay(_rerun_task, args, kwargs)
         # Else task is running ok. Nothing to do.
-        # State changes will be driven by the active TaskAttempt            
+        # State changes will be driven by the active TaskAttempt
 
 @shared_task
 def _run_task(task_id):
@@ -136,8 +136,10 @@ def _run_task_runner_playbook(task_attempt):
                 # which may be missing needed modules
                 '-e', 'ansible_python_interpreter="/usr/bin/env python"',
     ]
-    if get_setting('LOOM_SSH_PRIVATE_KEY_PATH', required=False):
-        private_key_file_path = get_setting('LOOM_SSH_PRIVATE_KEY_PATH')
+    if 'LOOM_SSH_PRIVATE_KEY_NAME' in settings:
+        private_key_file_path = os.path.join(
+            os.path.expanduser('~/.ssh'),
+            settings['LOOM_SSH_PRIVATE_KEY_NAME'])
         cmd_list.extend(['--private-key', private_key_file_path])
 
     if get_setting('DEBUG'):

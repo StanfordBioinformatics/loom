@@ -1,6 +1,6 @@
 remote_user: loom
 ssh_private_key_file_path: "{{container_settings_home}}/{{admin_files_dir}}/loom_worker_id_rsa"
-ansible_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_SERVER_USES_WORKER_INTERNAL_IP')}}"
+client_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_SERVER_USES_WORKER_INTERNAL_IP')}}"
 worker_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_WORKER_USES_SERVER_INTERNAL_IP')}}"
 worker_connection_settings_file: "{{lookup('env','LOOM_GCLOUD_WORKER_CONNECTION_SETTINGS_FILE')}}"
 
