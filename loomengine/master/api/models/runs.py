@@ -166,7 +166,7 @@ class Run(BaseModel):
             # will be triggered by the template postprocessing when the template
             # is ready
             if template.postprocessing_status == 'done':
-                tasks.postprocess_step_run(run.id)
+                tasks.postprocess_step_run(run.uuid)
         else:
             assert template.type == 'workflow', \
                 'Invalid template type "%s"' % template.type
@@ -184,7 +184,7 @@ class Run(BaseModel):
             # will be triggered by the template postprocessing when the template
             # is ready
             if template.postprocessing_status == 'done':
-                tasks.postprocess_workflow_run(run.id)
+                tasks.postprocess_workflow_run(run.uuid)
 
         return run.downcast()
 
@@ -256,7 +256,7 @@ class WorkflowRun(Run):
         step_run.save()
 
     @classmethod
-    def postprocess(cls, run_id):
+    def postprocess(cls, run_uuid):
 
         # There are two paths to get here:
         # 1. user calls "run" on a template that is already ready, and
@@ -264,7 +264,7 @@ class WorkflowRun(Run):
         # 2. user calls "run" on a template that is not ready, and run
         #    is postprocessed only after template is ready.
 
-        run = WorkflowRun.objects.get(id=run_id)
+        run = WorkflowRun.objects.get(uuid=run_uuid)
 
         # Don't postprocess twice
         # The "save" method is overridden in our base model to have concurrency
@@ -427,8 +427,8 @@ class StepRun(Run):
             return self.tasks.all()
 
     @classmethod
-    def postprocess(cls, run_id):
-        run = StepRun.objects.get(id=run_id)
+    def postprocess(cls, run_uuid):
+        run = StepRun.objects.get(uuid=run_uuid)
         # There are two paths to get here--if user calls "run" on a
         # template that is already ready, run.postprocess will be triggered
         # without delay. If template is not ready, run.postprocess will be

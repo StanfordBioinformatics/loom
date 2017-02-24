@@ -132,7 +132,7 @@ class StepSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             step = super(StepSerializer, self).create(validated_data)
 
-        tasks.postprocess_step(step.id)
+        tasks.postprocess_step(step.uuid)
 
         return step
 
@@ -144,8 +144,8 @@ class StepSerializer(serializers.ModelSerializer):
         output.setdefault('group', DEFAULT_OUTPUT_MODE)
 
     @classmethod
-    def postprocess(cls, step_id):
-        step = Step.objects.get(id=step_id)
+    def postprocess(cls, step_uuid):
+        step = Step.objects.get(uuid=step_uuid)
         try:
             fixed_inputs = step.raw_data.get('fixed_inputs', [])
             for fixed_input_data in fixed_inputs:
@@ -167,7 +167,7 @@ class StepSerializer(serializers.ModelSerializer):
         # The user may have already submitted a run request before this
         # template finished postprocessing. If runs exist, postprocess them now.
         for step_run in step.runs.all():
-            tasks.postprocess_step_run(step_run.id)
+            tasks.postprocess_step_run(step_run.uuid)
 
 
 class TemplateLookupSerializer(serializers.Serializer):
@@ -227,14 +227,14 @@ class WorkflowSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             workflow = super(WorkflowSerializer, self).create(validated_data)
 
-        tasks.postprocess_workflow(workflow.id)
+        tasks.postprocess_workflow(workflow.uuid)
 
         return workflow
 
     @classmethod
-    def postprocess(cls, workflow_id):
+    def postprocess(cls, workflow_uuid):
 
-        workflow = Workflow.objects.get(id=workflow_id)
+        workflow = Workflow.objects.get(uuid=workflow_uuid)
         try:
             fixed_inputs = workflow.raw_data.get('fixed_inputs', [])
             steps = workflow.raw_data.get('steps', [])
@@ -262,7 +262,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
             # postprocessing_status==done.
 
             for workflow_run in workflow.runs.all():
-                tasks.postprocess_workflow_run(workflow_run.id)
+                tasks.postprocess_workflow_run(workflow_run.uuid)
 
         except Exception as e:
             workflow.postprocessing_status = 'error'

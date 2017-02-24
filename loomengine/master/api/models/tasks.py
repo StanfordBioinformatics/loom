@@ -85,6 +85,18 @@ class Task(BaseModel):
     def attempt_number(self):
         return self.task_attempts.count()
 
+    def is_unresponsive(self):
+        heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
+        try:
+            last_heartbeat = self.selected_task_attempt.last_heartbeat
+        except AttributeError:
+            # No TaskAttempt selected
+            last_heartbeat = self.datetime_created
+        # Actual interval is expected to be slightly longer than setpoint,
+        # depending on settings in TaskRunner. If 2.5 x heartbeat_interval
+        # has passed, we have probably missed 2 heartbeats 
+        return (timezone.now() - last_heartbeat).total_seconds() > 2.5 * heartbeat
+
     def fail(self):
         if not self.step_run.status_is_failed:
             self.step_run.fail()
@@ -111,8 +123,19 @@ class Task(BaseModel):
             task_attempt.kill()
             task_attempt.cleanup()
 
+    def restart(self):
+        old_task_attempt = self.selected_task_attempt
+        old_task_attempt.kill()
+        old_task_attempt.cleanup()
+
+        max_retries = int(get_setting('MAXIMUM_TASK_RETRIES'))
+        if self.attempt_number - 1 < max_retries:
+            tasks.run_task(self.uuid)
+        else:
+            self.fail() # Max retries exceeded
+
     def has_been_run(self):
-        return self.attempt_number == 0
+        return self.attempt_number != 0
     
     @classmethod
     def create_from_input_set(cls, input_set, step_run):

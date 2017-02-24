@@ -43,7 +43,6 @@ class FileImportError(Exception):
 class TaskRunner(object):
 
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
-    HEARTBEAT_INTERVAL_SECONDS = 60
     LOOM_RUN_SCRIPT_NAME = 'loom_run_script'
 
     def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
@@ -474,7 +473,7 @@ class TaskRunner(object):
             self.last_heartbeat = datetime.now()
 
         time_since_heartbeat = datetime.now() - self.last_heartbeat
-        if time_since_heartbeat.seconds > self.HEARTBEAT_INTERVAL_SECONDS:
+        if time_since_heartbeat.seconds > self.settings['HEARTBEAT_INTERVAL_SECONDS']:
             self.connection.update_task_attempt(
                 self.settings['TASK_ATTEMPT_ID'],
                 {}

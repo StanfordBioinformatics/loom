@@ -172,6 +172,8 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
                 'WORKING_DIR': task_attempt.get_working_dir(),
                 'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
                 'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
+                'HEARTBEAT_INTERVAL_SECONDS':
+                get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
             }, status=200)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)

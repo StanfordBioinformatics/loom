@@ -92,7 +92,7 @@ class ServerControls:
         if is_server_running():
             print 'OK, the server is up.'
         else:
-            SystemExit('No response from server at "%s".' % get_server_url())
+            raise SystemExit('No response from server at "%s".' % get_server_url())
 
     @loom_settings_transaction
     def start(self):
