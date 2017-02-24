@@ -56,6 +56,8 @@ FILE_ROOT_FOR_WORKER = os.path.expanduser(
 
 LOG_DIR = os.path.expanduser(os.getenv('LOG_DIR', '/var/log/loom'))
 LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))
+TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60')
+MAXIMUM_TASK_RETRIES = os.getenv('LOOM_MAXIMUM_TASK_RETRIES', '2')
 
 # GCP settings
 GCE_EMAIL = os.getenv('GCE_EMAIL')

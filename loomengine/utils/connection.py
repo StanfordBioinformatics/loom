@@ -75,7 +75,6 @@ class Connection(object):
             try:
                 response = query_function()
                 if raise_for_status:
-                    print response.text
                     response.raise_for_status()
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError("No response from server.\n%s" % e.message)

@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 
 import argparse
+from datetime import datetime
 import os
 import re
 import subprocess
 import sys
+import time
+
+
+class IntegrationTestFailure(Exception):
+    pass
+
 
 class TestRunner:
 
@@ -29,8 +36,18 @@ class TestRunner:
 
     def integration_test(self):
         self._find_or_start_server()
-        self._run_integration_test()
+
+        failure = None
+        try:
+            self._run_integration_test()
+        except IntegrationTestFailure as e:
+            failure = e
         self._cleanup_server()
+
+        if failure:
+            raise SystemExit(e.message)
+
+        print "Test passed"
 
     def _run_integration_test(self):
         loom_executable = sys.argv[0]
@@ -43,36 +60,58 @@ class TestRunner:
                            '--force-duplicates']
         (returncode, stdout) = self._run_command(import_file_cmd)
         if returncode != 0:
-            raise SystemExit('Failed to import file.')
+            raise IntegrationTestFailure('ERROR: Failed to import file.')
         match = re.search(r'[a-zA-Z0-9\.\-\_]*@[a-z0-9\-]*', stdout)
         if not match:
-            SystemExit('Could not find id of imported file')
+            raise IntegrationTestFailure('Could not find id of imported file')
         file_id = match.group()
  
         import_template_cmd = [loom_executable, 'import', 'template',
                                os.path.join(template_dir, template_file_name)]
         (returncode, stdout) = self._run_command(import_template_cmd)
         if returncode != 0:
-            raise SystemExit('Failed to import template.')
+            raise IntegrationTestFailure('ERROR: Failed to import template.')
         match = re.search(r'[a-zA-Z0-9\.\-\_]*@[a-z0-9\-]*', stdout)
         if not match:
-            SystemExit('Could not find id of imported template')
+            raise IntegrationTestFailure('ERROR: Could not find id of imported template')
         template_id = match.group()
 
         run_cmd = [loom_executable, 'run', template_id, 'message=%s' % file_id]
         (returncode, stdout) = self._run_command(run_cmd)
         if returncode != 0:
-            raise SystemExit('Failed to execute run.')
+            raise IntegrationTestFailure('ERROR: Failed to execute run.')
         match = re.search(r'[a-zA-Z0-9\.\-\_]*@[a-z0-9\-]*', stdout)
         if not match:
-            SystemExit('Could not find id of run')
+            raise IntegrationTestFailure('ERROR: Could not find id of run')
         run_id = match.group()
 
-        self._monitor_run(run_id)
+        self._wait_for_run(run_id)
 
-    def _monitor_run(self, run_id):
-        # TODO
-        print 'Integration test is executing with run id %s' % run_id
+    def _wait_for_run(self, run_id):
+        sleep_interval_seconds = 3
+        start_time = datetime.now()
+        loom_executable = sys.argv[0]
+        timeout = int(self.args.timeout)
+        cmd = [loom_executable, 'show', 'run', run_id, '--detail']
+        while (datetime.now() - start_time).total_seconds() < timeout:
+            p = subprocess.Popen(cmd, env=os.environ,
+                                stdout=subprocess.PIPE)
+            p.wait()
+            if not p.returncode == 0:
+                raise IntegrationTestFailure(
+                    'ERROR: "loom server show" command failed.')
+            (stdout, stderr) = p.communicate()
+            match = re.search(r'Status: ([a-zA-Z_@\-]*)', stdout)
+            if match:
+                status = match.groups()[0]
+                print 'Status: %s' % status
+                if status == 'finished':
+                    # success
+                    return
+                elif status != 'running':
+                    raise IntegrationTestFailure('Unexpected run status: %s' % status)
+            time.sleep(sleep_interval_seconds)
+        raise IntegrationTestFailure('ERROR: Test timed out after %s seconds' % timeout)
 
     def _run_command(self, cmd, display=True):
         stdout=''
@@ -166,6 +205,8 @@ def get_parser(parser=None):
         'integration',
         help='Run integration test. If no Loom server is running,'\
         'a temporary local Loom server will be created.')
+    integration_parser.add_argument('--timeout', '-t', metavar='TIMEOUT_SECONDS',
+                                    default=300)
 
 #    profile_parser = subparsers.add_parser(
 #        'profile',

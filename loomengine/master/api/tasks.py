@@ -28,13 +28,13 @@ def _run_with_delay(task_function, args, kwargs):
             raise e
 
 @shared_task
-def _postprocess_workflow(workflow_id):
+def _postprocess_workflow(workflow_uuid):
     from api.models.templates import Workflow
     from api.serializers.templates import WorkflowSerializer
 
     try:
-        Workflow.objects.filter(id=workflow_id)
-        WorkflowSerializer.postprocess(workflow_id)
+        Workflow.objects.filter(uuid=workflow_uuid)
+        WorkflowSerializer.postprocess(workflow_uuid)
     except db.DatabaseError:
         # Ignore this task since the same one is already running
         pass
@@ -45,9 +45,9 @@ def postprocess_workflow(*args, **kwargs):
     return _run_with_delay(_postprocess_workflow, args, kwargs)
 
 @shared_task
-def _postprocess_step(step_id):
+def _postprocess_step(step_uuid):
     from api.serializers.templates import StepSerializer
-    StepSerializer.postprocess(step_id)
+    StepSerializer.postprocess(step_uuid)
 
 def postprocess_step(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
@@ -55,9 +55,9 @@ def postprocess_step(*args, **kwargs):
     return _run_with_delay(_postprocess_step, args, kwargs)
 
 @shared_task
-def _postprocess_step_run(run_id):
+def _postprocess_step_run(run_uuid):
     from api.serializers.runs import StepRun
-    StepRun.postprocess(run_id)
+    StepRun.postprocess(run_uuid)
 
 def postprocess_step_run(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
@@ -65,65 +65,59 @@ def postprocess_step_run(*args, **kwargs):
     return _run_with_delay(_postprocess_step_run, args, kwargs)
 
 @shared_task
-def _postprocess_workflow_run(run_id):
+def _postprocess_workflow_run(run_uuid):
     from api.serializers.runs import WorkflowRun
-    WorkflowRun.postprocess(run_id)
+    WorkflowRun.postprocess(run_uuid)
 
 def postprocess_workflow_run(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
         return
     return _run_with_delay(_postprocess_workflow_run, args, kwargs)
 
-@periodic_task(run_every=datetime.timedelta(seconds=10))
+@periodic_task(run_every=datetime.timedelta(seconds=30))
 def process_active_step_runs():
     from api.models.runs import StepRun
     if get_setting('TEST_NO_AUTO_START_RUNS'):
         return
-    for step_run in StepRun.objects.filter(
-            status_is_finished=False, status_is_failed=False):
-        args = [step_run.id]
+    for step_run in StepRun.objects.filter(status_is_running=True):
+        args = [step_run.uuid]
         kwargs = {}
         _run_with_delay(_create_tasks_from_step_run, args, kwargs)
 
 @shared_task
-def _create_tasks_from_step_run(step_run_id):
+def _create_tasks_from_step_run(step_run_uuid):
     from api.models.runs import StepRun
-    step_run = StepRun.objects.get(id=step_run_id)
+    step_run = StepRun.objects.get(uuid=step_run_uuid)
     for task in step_run.create_ready_tasks():
-        args = [task.id]
+        args = [task.uuid]
         kwargs = {}
         _run_with_delay(_run_task, args, kwargs)
 
-#@periodic_task(run_every=datetime.timedelta(seconds=10))
-#def process_active_tasks():
-#    from api.models.tasks import Task
-#    if get_setting('TEST_NO_AUTO_START_RUNS'):
-#        return
-#    for task in Task.objects.filter(active=True):
-#        if not task.has_been_run():
-#            args = [task.id]
-#            kwargs = {}
-#            _run_with_delay(_run_task, args, kwargs)
-#        elif not task.is_responsive():
-#            args = [task.id]
-#            kwargs = {}
-#            _run_with_delay(_rerun_task, args, kwargs)
+@periodic_task(run_every=datetime.timedelta(seconds=60))
+def process_active_tasks():
+    from api.models.tasks import Task
+    if get_setting('TEST_NO_AUTO_START_RUNS'):
+        return
+    for task in Task.objects.filter(status_is_running=True):
+        if not task.has_been_run():
+            args = [task.uuid]
+            kwargs = {}
+            _run_with_delay(_run_task, args, kwargs)
+        elif task.is_unresponsive():
+            task.restart()
         # Else task is running ok. Nothing to do.
         # State changes will be driven by the active TaskAttempt
 
 @shared_task
-def _run_task(task_id):
+def _run_task(task_uuid):
     # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
-    task = Task.objects.get(id=task_id)
+    task = Task.objects.get(uuid=task_uuid)
     task_attempt = task.create_and_activate_attempt()
     _run_task_runner_playbook(task_attempt)
 
-@shared_task
-def _rerun_task(task_id):
-    # TODO
-    # Check counter and fail if too high
-    pass
+def run_task(*args, **kwargs):
+    return _run_with_delay(_run_task, args, kwargs)
 
 def _run_task_runner_playbook(task_attempt):
     env = copy.copy(os.environ)
@@ -164,16 +158,13 @@ def _run_task_runner_playbook(task_attempt):
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
 
 @shared_task
-def _kill_task_attempt(task_attempt_uuid):
+def _cleanup_task_attempt(task_attempt_uuid):
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    task_attempt.status_is_killed = True
-    task_attempt.save()
-    task_attempt.add_timepoint('Killing TaskAttempt')
     _run_cleanup_task_playbook(task_attempt)
 
-def kill_task_attempt(*args, **kwargs):
-    return _run_with_delay(_kill_task_attempt, args, kwargs)
+def cleanup_task_attempt(*args, **kwargs):
+    return _run_with_delay(_cleanup_task_attempt, args, kwargs)
 
 def _run_cleanup_task_playbook(task_attempt):
     env = copy.copy(os.environ)

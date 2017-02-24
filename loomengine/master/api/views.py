@@ -87,7 +87,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = models.Task.objects.all()
         queryset = queryset.select_related('resources')\
-                           .select_related('active_task_attempt')\
+                           .select_related('selected_task_attempt')\
                            .prefetch_related('task_attempts')\
                            .prefetch_related('inputs__data_object')\
                            .prefetch_related('outputs__data_object')
@@ -172,6 +172,8 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
                 'WORKING_DIR': task_attempt.get_working_dir(),
                 'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
                 'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
+                'HEARTBEAT_INTERVAL_SECONDS':
+                get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
             }, status=200)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
