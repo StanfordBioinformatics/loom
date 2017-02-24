@@ -36,15 +36,21 @@
   - include: tasks/gcloud_configure_instance_ssh.yml  use_internal_ip={{worker_uses_internal_ip}} ssh_private_key_path={{worker_ssh_private_key_path_in_container}}
 
 - name: Create, format, and mount the scratch disk on the Loom worker.
-  hosts: "{{instance_name}}"
+  hosts: new_instances
   remote_user: "{{remote_user}}"
   become: yes
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
   tasks:
   - include: tasks/gcloud_setup_scratch_disk.yml
 
 - name: Install Docker on the Loom worker and add remote user to docker group.
-  hosts: "{{instance_name}}"
+  hosts: new_instances
   remote_user: "{{remote_user}}"
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
   become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')}}"}
@@ -53,7 +59,7 @@
   - include: tasks/gcloud_create_docker_group.yml
 
 - name: Pull Docker images on the new instance.
-  hosts: "{{instance_name}}"
+  hosts: new_instances
   remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
@@ -62,13 +68,13 @@
   - include: tasks/pull_worker_docker_images.yml
 
 - name: Run the Loom task runner on the specified worker instance.
-  hosts: "{{instance_name}}"
+  hosts: new_instances
   remote_user: "{{remote_user}}"
   vars_files:
     - vars/common.yml
     - vars/gcloud_worker.yml
   vars:
     task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
-    server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file=container_settings_home+'/'+worker_connection_settings_file)}}"
+    server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file='+container_settings_home+'/'+worker_connection_settings_file)}}"
   tasks:
     - include: tasks/run_task.yml
