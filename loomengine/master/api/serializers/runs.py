@@ -5,10 +5,9 @@ from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, \
     NameAndUuidSerializer
 from api.models.runs import Run, StepRun, \
     StepRunInput, StepRunOutput, WorkflowRunInput, \
-    WorkflowRunOutput, WorkflowRun
+    WorkflowRunOutput, WorkflowRun, RunTimepoint
 from api.serializers.templates import TemplateNameAndUuidSerializer
-from api.serializers.tasks import TaskUuidSerializer, \
-    TaskAttemptErrorSerializer
+from api.serializers.tasks import TaskUuidSerializer
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 from api.serializers.run_requests import RunRequestSerializer, \
     RunRequestUuidSerializer
@@ -53,6 +52,13 @@ class RunNameAndUuidSerializer(NameAndUuidSerializer, RunSerializer):
     pass
 
 
+class RunTimepointSerializer(CreateWithParentModelSerializer):
+
+    class Meta:
+        model = RunTimepoint
+        fields = ('message', 'detail', 'timestamp', 'is_error')
+
+
 class StepRunInputSerializer(InputOutputNodeSerializer):
 
     mode = serializers.CharField()
@@ -88,6 +94,8 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     tasks = TaskUuidSerializer(many=True)
     run_request = RunRequestUuidSerializer(required=False)
     datetime_created = serializers.CharField(read_only=True)
+    timepoints = RunTimepointSerializer(
+        many=True, allow_null=True, required=False)
     
     class Meta:
         model = StepRun
@@ -95,7 +103,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
                   'command', 'interpreter', 'interpreter_options', 'tasks',
                   'run_request', 'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running')
+                  'status_is_running', 'timepoints')
 
 
 class WorkflowRunInputSerializer(InputOutputNodeSerializer):
@@ -124,10 +132,12 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     outputs = WorkflowRunOutputSerializer(many=True)
     run_request = RunRequestUuidSerializer(required=False)
     datetime_created = serializers.CharField(read_only=True)
+    timepoints = RunTimepointSerializer(
+        many=True, allow_null=True, required=False)
 
     class Meta:
         model = WorkflowRun
         fields = ('uuid', 'template', 'steps', 'inputs', 'outputs',
                   'run_request', 'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running')
+                  'status_is_running', 'timepoints')

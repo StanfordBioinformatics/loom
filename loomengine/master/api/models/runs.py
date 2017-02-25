@@ -9,7 +9,7 @@ from api import get_setting
 from api.exceptions import *
 from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.data_objects import DataObject
-from api.models.tasks import Task, TaskInput, TaskOutput, TaskAttemptError
+from api.models.tasks import Task, TaskInput, TaskOutput
 from api.models import uuidstr
 from api import tasks
 
@@ -34,8 +34,8 @@ class WorkflowRunManager(object):
     def get_tasks(self):
         raise Exception('No tasks on run of type "workflow"')
 
-    def kill(self):
-        return self.run.workflowrun._kill()
+    def kill(self, kill_message):
+        return self.run.workflowrun._kill(kill_message)
     
 
 class StepRunManager(object):
@@ -54,8 +54,8 @@ class StepRunManager(object):
     def get_tasks(self):
         return self.run.steprun.tasks
 
-    def kill(self):
-        return self.run.steprun._kill()
+    def kill(self, kill_message):
+        return self.run.steprun._kill(kill_message)
 
 
 class Run(BaseModel):
@@ -186,6 +186,10 @@ class Run(BaseModel):
             if template.postprocessing_status == 'done':
                 tasks.postprocess_workflow_run(run.uuid)
 
+        run.add_timepoint("Run %s@%s was created" % (run.name, run.uuid))
+        if run.parent:
+            run.parent.add_timepoint("Child run %s@%s was created" % (
+                run.name, run.uuid))
         return run.downcast()
 
     def downcast(self):
@@ -229,18 +233,36 @@ class Run(BaseModel):
             except ObjectDoesNotExist:
                 self.parent.downcast()._create_connector(output)
 
-    def fail(self):
+    def fail(self, message, detail=''):
         self.status_is_failed = True
         self.status_is_running = False
         self.save()
+        self.add_timepoint(message, detail=detail, is_error=True)
         if self.parent:
-            self.parent.fail()
+            self.parent.fail('Run %s failed' % self.uuid, detail=detail)
         else:
-            self.kill()
+            self.kill(detail)
 
-    def kill(self):
-        return self._get_manager().kill()
+    def kill(self, kill_message):
+        return self._get_manager().kill(kill_message)
 
+    def add_timepoint(self, message, detail='', is_error=False):
+        timepoint = RunTimepoint.objects.create(
+            message=message, run=self, detail=detail, is_error=is_error)
+        timepoint.save()
+
+
+class RunTimepoint(BaseModel):
+    run = models.ForeignKey(
+        'Run',
+	related_name='timepoints',
+	on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now,
+                                     editable=False)
+    message = models.CharField(max_length=255)
+    detail = models.TextField(null=True, blank=True)
+    is_error = models.BooleanField(default=False)
+    
 
 class WorkflowRun(Run):
 
@@ -284,17 +306,17 @@ class WorkflowRun(Run):
         assert run.template.postprocessing_status == 'done', \
             'Template not ready, cannot postprocess run %s' % run.uuid
 
-        #try:
-        run._initialize_inputs()
-        run._initialize_outputs()
-        run._initialize_steps()
+        try:
+            run._initialize_inputs()
+            run._initialize_outputs()
+            run._initialize_steps()
 
-        run.postprocessing_status = 'done'
-        run.save()
-        #except Exception as e:
-        #    run.postprocessing_status = 'error'
-        #    run.save()
-        #    raise e
+            run.postprocessing_status = 'done'
+            run.save()
+        except Exception as e:
+            run.postprocessing_status = 'error'
+            run.save()
+            raise e
         
     def _initialize_inputs(self):
         run = self.downcast()
@@ -381,18 +403,24 @@ class WorkflowRun(Run):
             self.status_is_running = False
             self.status_is_finished = True
             self.save()
+            self.add_timepoint("Run %s@%s finished successfully" % (
+                self.name, self.uuid))
+            if self.parent:
+                self.parent.add_timepoint("Child Run %s@%s finished successfully" % (
+                    self.name, self.uuid))
         if self.parent:
             self.parent.update_workflow_status()
 
     def _are_children_finished(self):
         return all([step.status_is_finished for step in self.steps.all()])
 
-    def _kill(self):
+    def _kill(self, kill_message):
+        self.add_timepoint('Run killed', detail=kill_message, is_error=True)
         self.status_is_killed = True
         self.status_is_running = False
         self.save()
-        for step in self.steps.all():
-            step.kill()
+        for step in self.downcast().steps.all():
+            step.kill(kill_message)
 
 
 class StepRun(Run):
@@ -407,12 +435,6 @@ class StepRun(Run):
     # status_tasks_running = models.IntegerField(default=0)
     # status_tasks_finished = models.IntegerField(default=0)
     # status_tasks_failed = models.IntegerField(default=0)
-
-    @property
-    def errors(self):
-        if self.tasks.count() == 0:
-            return TaskAttemptError.objects.none()
-        return self.tasks.first().errors
 
     def create_ready_tasks(self, do_start=True):
         # This is a temporary limit. It assumes no parallel workflows, and no
@@ -506,15 +528,20 @@ class StepRun(Run):
         self.status_is_finished = True
         self.status_is_running = False
         self.save()
+        self.add_timepoint("Run %s@%s finished successfully" % (self.name, self.uuid))
         if self.parent:
+            self.parent.add_timepoint(
+                "Child Run %s@%s finished successfully" % (self.name, self.uuid))
             self.parent.update_workflow_status()
+                
 
-    def _kill(self):
+    def _kill(self, kill_message):
+        self.add_timepoint('Run killed', detail=kill_message, is_error=True)
         self.status_is_killed = True
         self.status_is_running = False
         self.save()
-        for task in self.tasks.all():
-            task.kill()
+        for task in self.downcast().tasks.all():
+            task.kill(kill_message)
 
 
 class AbstractStepRunInput(InputOutputNode):

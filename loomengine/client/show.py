@@ -118,7 +118,6 @@ class ShowTemplate(AbstractShow):
 
     def _show_templates(self):
         print '[showing %s templates]' % len(self.templates)
-        wjfewojkofwe
         for template in self.templates:
             print self._render_template(template)
 

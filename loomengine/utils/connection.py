@@ -75,7 +75,11 @@ class Connection(object):
             try:
                 response = query_function()
                 if raise_for_status:
-                    response.raise_for_status()
+                    try:
+                        response.raise_for_status()
+                    except Exception as e:
+                        print response.text
+                        raise
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError("No response from server.\n%s" % e.message)
             if error:
@@ -267,17 +271,21 @@ class Connection(object):
             'task-attempts/%s/create-log-file/' % task_attempt_id
         )
 
-    def post_task_attempt_error(self, task_attempt_id, task_attempt_error):
-        return self._post_object(
-            task_attempt_error,
-            'task-attempts/%s/create-error/' % task_attempt_id
-        )
-
     def post_task_attempt_timepoint(self, task_attempt_id, task_attempt_timepoint):
         return self._post_object(
             task_attempt_timepoint,
             'task-attempts/%s/create-timepoint/' % task_attempt_id
         )
+
+    def post_task_attempt_fail(self, task_attempt_id):
+        return self._post_object(
+            {},
+            'task-attempts/%s/fail/' % task_attempt_id)
+
+    def post_task_attempt_finish(self, task_attempt_id):
+        return self._post_object(
+            {},
+            'task-attempts/%s/finish/' % task_attempt_id)
 
     def post_abstract_file_import(self, file_import):
         return self._post_object(

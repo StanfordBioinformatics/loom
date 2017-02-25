@@ -107,7 +107,7 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
                            .prefetch_related('task__inputs__data_object')\
                            .prefetch_related('outputs__data_object')\
                            .prefetch_related('log_files__file')\
-                           .prefetch_related('errors')
+                           .prefetch_related('timepoints')
         return queryset
 
     @detail_route(methods=['post'], url_path='create-log-file')
@@ -128,24 +128,24 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
         model = s.save()
         return JsonResponse(s.data, status=201)
 
-    @detail_route(methods=['post'], url_path='create-error')
-    def create_error(self, request, uuid=None):
-        data_json = request.body
-        data = json.loads(data_json)
+    @detail_route(methods=['post'], url_path='fail')
+    def fail(self, request, uuid=None):
         try:
             task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
-        s = serializers.TaskAttemptErrorSerializer(
-            data=data,
-            context={
-                'parent_field': 'task_attempt',
-                'parent_instance': task_attempt
-            })
-        s.is_valid(raise_exception=True)
-        model = s.save()
-        return JsonResponse(s.data, status=201)
+        task_attempt.fail()
+        return JsonResponse({}, status=201)
 
+    @detail_route(methods=['post'], url_path='finish')
+    def finish(self, request, uuid=None):
+        try:
+            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt.finish()
+        return JsonResponse({}, status=201)
+    
     @detail_route(methods=['post'], url_path='create-timepoint')
     def create_timepoint(self, request, uuid=None):
         data_json = request.body
@@ -162,6 +162,11 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
             })
         s.is_valid(raise_exception=True)
         model = s.save()
+
+        task_attempt.status_message = data.get('message')
+        task_attempt.status_detail = data.get('detail')
+        task_attempt.save()
+
         return JsonResponse(s.data, status=201)
 
     @detail_route(methods=['get'], url_path='worker-settings')
@@ -234,10 +239,6 @@ class RunRequestViewSet(viewsets.ModelViewSet):
                            .select_related('template')\
                            .prefetch_related('inputs__data_root')
         return queryset.order_by('-datetime_created')
-
-class TaskAttemptErrorViewSet(viewsets.ModelViewSet):
-    queryset = models.TaskAttemptError.objects.all()
-    serializer_class = serializers.TaskAttemptErrorSerializer
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
     queryset = models.TaskAttemptLogFile.objects.all()

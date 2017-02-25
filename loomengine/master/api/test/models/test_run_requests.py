@@ -16,7 +16,7 @@ class TestRunRequest(TransactionTestCase):
             type='string', value='one')
         input_one.add_data_as_scalar(data_object)
         run_request.initialize_run()
-        tasks.postprocess_workflow_run(run_request.run.id)
+        tasks.postprocess_workflow_run(run_request.run.uuid)
         return run_request
 
     def testInitialize(self):

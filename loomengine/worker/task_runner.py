@@ -76,7 +76,7 @@ class TaskRunner(object):
         # Errors here can be both logged and reported to server
 
         try:
-            self._set_status(status='Initializing monitor')
+            self._timepoint('Initializing monitor')
             self._init_task_attempt()
             if mock_filemanager is not None:
                 self.filemanager = mock_filemanager
@@ -88,7 +88,7 @@ class TaskRunner(object):
                 self._init_working_dir()
         except Exception as e:
             try:
-                self._fail(message='Failed to initialize', detail=str(e))
+                self._fail('Failed to initialize', detail=str(e))
             except:
                 # Raise original error, not status change error
                 pass
@@ -142,14 +142,14 @@ class TaskRunner(object):
 
     def cleanup(self):
         # Never raise errors, so cleanup can continue
-        self._set_status(status='Saving outputs')
+        self._timepoint('Saving outputs')
 
         self._try_to_save_process_logs()
 
         try:
             self._try_to_save_outputs()
         except Exception as e:
-            self._fail(message='Failed to save outputs', detail=str(e))
+            self._fail('Failed to save outputs', detail=str(e))
 
 #        try:
 #            self._try_to_save_monitor_log()
@@ -160,17 +160,17 @@ class TaskRunner(object):
             self._finish()
             self.logger.info('Done.')
         except Exception as e:
-            self._fail(message='Failed to set status to finished',
-                               detail=str(e))
+            self._fail('Failed to set status to finished',
+                       detail=str(e))
 
     def _try_to_copy_inputs(self):
         self.logger.info('Downloading input files')
-        self._set_status(status='Copying inputs')
+        self._timepoint('Copying inputs')
         try:
             self._copy_inputs()
         except Exception as e:
-            self._fail(message='Failed to copy inputs to workspace',
-                               detail=str(e))
+            self._fail('Failed to copy inputs to workspace',
+                       detail=str(e))
             raise e
 
     def _copy_inputs(self):
@@ -190,12 +190,12 @@ class TaskRunner(object):
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
-        self._set_status(status='Creating run script')
+        self._timepoint('Creating run script')
 
         try:
             self._create_run_script()
         except Exception as e:
-            self._fail(message='Failed to create run script', detail=str(e))
+            self._fail('Failed to create run script', detail=str(e))
             raise e
 
     def _create_run_script(self):
@@ -207,7 +207,7 @@ class TaskRunner(object):
             f.write(user_command + '\n')
 
     def _try_to_pull_image(self):
-        self._set_status(status='Fetching image')
+        self._timepoint('Fetching image')
 
         try:
             self._pull_image()
@@ -218,7 +218,7 @@ class TaskRunner(object):
                     self._get_docker_image(), image_id))
         except Exception as e:
             self._fail(
-                message='Failed to fetch image for runtime environment',
+                'Failed to fetch image for runtime environment',
                 detail=str(e))
             raise e
 
@@ -242,13 +242,13 @@ class TaskRunner(object):
         return [json.loads(line) for line in data.strip().split('\r\n')]
 
     def _try_to_create_container(self):
-        self._set_status(status='Creating container')
+        self._timepoint('Creating container')
         try:
             self._create_container()
             self._set_container_id(self.container['Id'])
         except Exception as e:
             self._fail(
-                message='Failed to create container for runtime environment',
+                'Failed to create container for runtime environment',
                 detail=str(e))
             raise e
 
@@ -277,12 +277,12 @@ class TaskRunner(object):
         )
 
     def _try_to_run_container(self):
-        self._set_status(status='Starting analysis')
+        self._timepoint('Starting analysis')
         try:
             self.docker_client.start(self.container)
             self._verify_container_started_running()
         except Exception as e:
-            self._fail(message='Failed to start analysis', detail=str(e))
+            self._fail('Failed to start analysis', detail=str(e))
             raise e
 
     def _verify_container_started_running(self):
@@ -294,7 +294,7 @@ class TaskRunner(object):
             raise ContainerStartError('Unexpected container status "%s"' % status)
 
     def _try_to_get_returncode(self):
-        self._set_status(status='Analysis is running')
+        self._timepoint('Running analysis')
         try:
             returncode = self._poll_for_returncode()
             if returncode == 0:
@@ -302,13 +302,13 @@ class TaskRunner(object):
             else:
                 # bad returncode
                 self._fail(
-                    message='Analysis finished with a bad returncode %s' % returncode,
+                    'Analysis finished with a bad returncode %s' % returncode,
                     detail='Returncode %s. Check stderr log for more information.' \
                     % returncode)
                 # Do not raise error. Attempt to save log files.
         except Exception as e:
             self._fail(
-                message='An error prevented the analysis from finishing',
+                'An error prevented the analysis from finishing',
                 detail=str(e))
             # Do not raise error. Attempt to save log files.
 
@@ -347,7 +347,7 @@ class TaskRunner(object):
         try:
             self._save_process_logs()
         except Exception as e:
-            self._fail(message='Failed to save process logs', detail=str(e))
+            self._fail('Failed to save process logs', detail=str(e))
             # Don't raise error. Continue cleanup
 
     def _save_process_logs(self):
@@ -394,7 +394,7 @@ class TaskRunner(object):
         try:
             self._save_outputs()
         except Exception as e:
-            self._fail(message='Failed to save outputs', detail=str(e))
+            self._fail('Failed to save outputs', detail=str(e))
             # Don't raise error. Continue cleanup
 
     def _save_outputs(self):
@@ -409,7 +409,7 @@ class TaskRunner(object):
                     self.logger.debug('Saved file output "%s"' % data_object['uuid'])
                 except IOError as e:
                     self._fail(
-                        message='Failed to save output file %s' % filename,
+                        'Failed to save output file %s' % filename,
                         detail=str(e))
             else:
                 if output['source'].get('filename'):
@@ -457,7 +457,7 @@ class TaskRunner(object):
                 return True
             self._save_monitor_log()
         except Exception as e:
-            self._fail(message='Failed to save worker process monitor log',
+            self._fail('Failed to save worker process monitor log',
                                detail=str(e))
             # Don't raise error. Continue cleanup
 
@@ -492,60 +492,26 @@ class TaskRunner(object):
             {'image_id': image_id}
         )
 
-    def _set_status(self, status=None, detailed_status=None):
-        self.logger.debug('Setting status, detailed_status to "%s", "%s"'
-                          % (status, detailed_status))
-        update = {}
-        if status:
-            update['status_message'] = status
-        if detailed_status:
-            update['status_message_detail'] = detailed_status
-        if update:
-            self.connection.update_task_attempt(
-                self.settings['TASK_ATTEMPT_ID'],
-                update
-            )
-            self._timepoint(status)
-
-    def _timepoint(self, message):
+    def _timepoint(self, message, detail='', is_error=False):
+        timepoint = {'message': message,
+                     'detail': detail,
+                     'is_error': is_error
+        }
+        if is_error:
+            self.logger.error('Adding error %s' % timepoint)
+        else:
+            self.logger.debug('Adding timepoint %s' % timepoint)
         self.connection.post_task_attempt_timepoint(
-            self.settings['TASK_ATTEMPT_ID'],
-            {'message': message}
-        )
-            
-    def _fail(self, message, detail):
+            self.settings['TASK_ATTEMPT_ID'], timepoint)
+
+    def _fail(self, message, detail=''):
         self.is_failed = True
         self.logger.error(message + ': ' + detail)
-        self.connection.post_task_attempt_error(
-            self.settings['TASK_ATTEMPT_ID'],
-            {
-                'message': message,
-                'detail': detail
-            })
-        self.connection.update_task_attempt(
-            self.settings['TASK_ATTEMPT_ID'],
-            {
-                'status_is_failed': True,
-            }
-        )
-        self._timepoint(message)
+        self._timepoint(message, detail=detail, is_error=True)
+        self.connection.post_task_attempt_fail(self.settings['TASK_ATTEMPT_ID'])
 
     def _finish(self):
-        if self.is_failed:
-            status_message = 'Finished with failure(s)'
-        else:
-            status_message = 'Finished successfully'
-
-        self.connection.update_task_attempt(
-            self.settings['TASK_ATTEMPT_ID'],
-            {
-                'status_is_running': False,
-                'status_is_finished': True,
-                'status_message': status_message,
-                'status_message_detail': None
-            }
-        )
-        self._timepoint(status_message)
+        self.connection.post_task_attempt_finish(self.settings['TASK_ATTEMPT_ID'])
 
     # Parser
 

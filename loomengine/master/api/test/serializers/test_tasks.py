@@ -50,10 +50,11 @@ def get_task():
         task_attempt=task_attempt,
         data_object=output_data_object
     )
-    task_attempt_error = TaskAttemptError.objects.create(
+    task_attempt_timepoint = TaskAttemptTimepoint.objects.create(
         task_attempt=task_attempt,
         message='oops',
-        detail='something went wrong')
+        detail='something went wrong',
+        is_error=True)
     log_file_resource = FileResource.objects.create(
         **fixtures.data_objects.file_resource)
     log_file_data_object = FileDataObject.objects.create(

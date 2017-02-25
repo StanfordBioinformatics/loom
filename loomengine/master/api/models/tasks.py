@@ -10,9 +10,7 @@ from api import tasks
 from api.models import uuidstr
 from .base import BaseModel, render_from_template
 from api.models.data_objects import DataObject, FileDataObject
-# from api.models.workflows import Step, RequestedResourceSet
 from api import get_setting
-#from api.task_manager.factory import TaskManagerFactory
 
 
 class Task(BaseModel):
@@ -26,6 +24,7 @@ class Task(BaseModel):
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
+    datetime_finished = models.DateTimeField(null=True)
     interpreter = models.CharField(max_length=255, default='/bin/bash')
     interpreter_options = models.CharField(max_length=1024, default='-euo pipefail')
     command = models.TextField()
@@ -60,9 +59,9 @@ class Task(BaseModel):
                 return 'Unknown'
 
     @property
-    def status_message_detail(self):
+    def status_detail(self):
         try:
-            return self.selected_task_attempt.status_message_detail
+            return self.selected_task_attempt.status_detail
         except AttributeError:
             # No active task Attempt
             return ''
@@ -73,13 +72,6 @@ class Task(BaseModel):
             return self.selected_task_attempt.status_is_failed
         except AttributeError:
             return False
-
-    @property
-    def datetime_finished(self):
-        try:
-            return self.selected_task_attempt.datetime_finished
-        except AttributeError:
-            return None
 
     @property
     def attempt_number(self):
@@ -97,46 +89,62 @@ class Task(BaseModel):
         # has passed, we have probably missed 2 heartbeats 
         return (timezone.now() - last_heartbeat).total_seconds() > 2.5 * heartbeat
 
-    def fail(self):
+    def fail(self, message, detail=''):
+        self.add_timepoint(message, detail=detail, is_error=True)
         if not self.step_run.status_is_failed:
-            self.step_run.fail()
+            self.step_run.fail(
+                'Task %s failed' % self.uuid,
+                detail=detail)
     
     def finish(self):
-        if self.status_is_finished:
-            return
+        self.set_datetime_finished()
         self.status_is_finished = True
+        self.status_is_running = False
         self.save()
+        self.step_run.add_timepoint('Child Task %s finished successfully' % self.uuid)
+        self.step_run.update_status()
         for output in self.outputs.all():
             output.pull_data_object()
             output.push_data_object()
-        self.step_run.update_status()
-        self.status_is_running = False
-        self.save()
         for task_attempt in self.task_attempts.all():
             task_attempt.cleanup()
 
-    def kill(self):
+    def kill(self, kill_message):
         self.status_is_running = False
         self.status_is_killed = True
         self.save()
+        self.add_timepoint('Task killed', detail=kill_message, is_error=True)
         for task_attempt in self.task_attempts.all():
-            task_attempt.kill()
+            task_attempt.kill(kill_message)
             task_attempt.cleanup()
 
     def restart(self):
         old_task_attempt = self.selected_task_attempt
-        old_task_attempt.kill()
+        old_task_attempt.kill('TaskAttempt killed because it was unresponsive.')
         old_task_attempt.cleanup()
 
         max_retries = int(get_setting('MAXIMUM_TASK_RETRIES'))
         if self.attempt_number - 1 < max_retries:
-            tasks.run_task(self.uuid)
+            self.add_timepoint(
+                'TaskAttempt %s was unresponsive. Restarting task with retry %s of %s'
+                % (old_task_attempt.uuid, self.attempt_number, max_retries),
+                is_error=True)
+            tasks.run_task(self.uuid)            
         else:
-            self.fail() # Max retries exceeded
+            self.fail('TaskAttempt %s failed' % old_task_attempt.uuid,
+                      detail='TaskAttempt %s was unresponsive, '\
+                      'and Task %s already reached max retries of %s.' %
+                      (old_task_attempt.uuid,
+                       old_task_attempt.task.uuid,
+                       max_retries))
 
     def has_been_run(self):
         return self.attempt_number != 0
     
+    def set_datetime_finished(self):
+        self.datetime_finished = timezone.now()
+        self.save()
+
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
         task = Task.objects.create(
@@ -168,7 +176,8 @@ class Task(BaseModel):
         )
         task.rendered_command = task.render_command()
         task.save()
-
+        task.add_timepoint('Task %s was created' % task.uuid)
+        step_run.add_timepoint('Child Task %s was created' % task.uuid)
         return task
 
     def create_and_activate_attempt(self):
@@ -178,8 +187,9 @@ class Task(BaseModel):
         self.selected_task_attempt = task_attempt
         self.save()
 
-        task_attempt.add_timepoint('TaskAttempt created')
-        
+        self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
+        task_attempt.add_timepoint('TaskAttempt %s was created' % task_attempt.uuid)
+
         return task_attempt
 
     def get_input_context(self):
@@ -211,6 +221,11 @@ class Task(BaseModel):
 
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
+
+    def add_timepoint(self, message, detail='', is_error=False):
+        timepoint = TaskTimepoint.objects.create(
+            message=message, task=self, detail=detail, is_error=is_error)
+        timepoint.save()
 
 
 class TaskInput(BaseModel):
@@ -264,6 +279,18 @@ class TaskEnvironment(BaseModel):
     docker_image = models.CharField(max_length=255)
 
 
+class TaskTimepoint(BaseModel):
+    task = models.ForeignKey(
+        'Task',
+        related_name='timepoints',
+        on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now,
+                                     editable=False)
+    message = models.CharField(max_length=255)
+    detail = models.TextField(null=True, blank=True)
+    is_error = models.BooleanField(default=False)
+
+
 class TaskAttempt(BaseModel):
 
     uuid = models.CharField(default=uuidstr, editable=False,
@@ -284,7 +311,7 @@ class TaskAttempt(BaseModel):
     status_message = models.CharField(
         max_length=255,
         default='Starting')
-    status_message_detail = models.CharField(
+    status_detail = models.CharField(
         max_length=255,
         default='')
 
@@ -324,38 +351,53 @@ class TaskAttempt(BaseModel):
         return self.outputs.get(channel=channel)
 
     def set_datetime_finished(self):
-        if not self.datetime_finished:
-            self.datetime_finished = timezone.now()
-            self.save()
+        self.datetime_finished = timezone.now()
+        self.save()
 
-    def _post_save(self):
-        if self.status_is_failed:
-            self.set_datetime_finished()
-            try:
-                self.task_as_selected.fail()
-            except ObjectDoesNotExist:
-                # This attempt is no longer active
-                # and will be ignored.
-                pass
-        elif self.status_is_finished:
-            self.set_datetime_finished()
-            try:
-                self.task_as_selected.finish()
-            except ObjectDoesNotExist:
-                # This attempt is no longer active
-                # and will be ignored.
-                pass
+    def fail(self):
+        self.status_is_failed = True
+        self.status_is_running = False
+        self.save()
+        self.add_timepoint("Child TaskAttempt %s failed" % self.uuid,
+                           detail="The TaskRunner experienced an error when executing '\
+                           'TaskAttempt %s" % self.uuid,
+                           is_error=True)
+        try:
+            self.task_as_selected.fail(
+                "Child TaskAttempt %s failed" % self.uuid,
+                detail='The TaskRunner experienced an error when executing '\
+                'TaskAttempt %s' % self.uuid)
+        except ObjectDoesNotExist:
+            # This attempt is no longer active
+            # and will be ignored.
+            pass
 
-    def add_error(self, message, detail):
-        error = TaskAttemptError.objects.create(
-            message=message, detail=detail, task_attempt=self)
-        error.save()
+    def finish(self):
+        self.set_datetime_finished()
+        self.status_is_finished = True
+        self.status_is_running = False
+        self.save()
+        try:
+            task = self.task_as_selected
+        except ObjectDoesNotExist:
+            # This attempt is no longer active
+            # and will be ignored.
+            return
+        if task.status_is_finished \
+           or task.status_is_failed \
+           or task.status_is_killed:
+            return
+        task.add_timepoint("Child TaskAttempt %s finished successfully" % self.uuid)
+        task.finish()
 
-    def add_timepoint(self, message):
+    def add_timepoint(self, message, detail='', is_error=False):
         timepoint = TaskAttemptTimepoint.objects.create(
-            message=message, task_attempt=self)
+            message=message, task_attempt=self, detail=detail, is_error=is_error)
         timepoint.save()
-        
+        self.status_message = message
+        self.status_detail = detail
+        self.save()
+
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls.objects.create(task=task)
@@ -398,11 +440,11 @@ class TaskAttempt(BaseModel):
     def get_stderr_log_file(self):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
-    def kill(self):
+    def kill(self, kill_message):
         self.status_is_killed = True
         self.status_is_running = False
         self.save()
-        self.add_timepoint('TaskAttempt killed')
+        self.add_timepoint('TaskAttempt killed', detail=kill_message, is_error=True)
 
     def cleanup(self):
         if self.status_is_cleaned_up:
@@ -410,6 +452,7 @@ class TaskAttempt(BaseModel):
         tasks.cleanup_task_attempt(self.uuid)
         self.status_is_cleaned_up = True
         self.save()
+        self.add_timepoint('Cleaning up')
         
 #    def get_provenance_data(self, files=None, tasks=None, edges=None):
 #        if files is None:
@@ -432,10 +475,6 @@ class TaskAttempt(BaseModel):
 #                pass
 
 #        return files, tasks, edges
-
-@receiver(models.signals.post_save, sender=TaskAttempt)
-def _post_save_task_attempt_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
 
 
 class TaskAttemptOutput(BaseModel):
@@ -487,17 +526,6 @@ def _post_save_task_attempt_log_file_signal_receiver(sender, instance, **kwargs)
     instance._post_save()
 
 
-class TaskAttemptError(BaseModel):
-
-    task_attempt = models.ForeignKey(
-        'TaskAttempt',
-        related_name='errors',
-        on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(default=timezone.now,
-                                     editable=False)
-    message = models.CharField(max_length=255)
-    detail = models.TextField(null=True, blank=True)
-
 class TaskAttemptTimepoint(BaseModel):
     task_attempt = models.ForeignKey(
         'TaskAttempt',
@@ -506,3 +534,5 @@ class TaskAttemptTimepoint(BaseModel):
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
     message = models.CharField(max_length=255)
+    detail = models.TextField(null=True, blank=True)
+    is_error = models.BooleanField(default=False)
