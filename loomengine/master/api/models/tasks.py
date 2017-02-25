@@ -79,6 +79,7 @@ class Task(BaseModel):
 
     def is_unresponsive(self):
         heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
+        timeout = int(get_setting('TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS'))
         try:
             last_heartbeat = self.selected_task_attempt.last_heartbeat
         except AttributeError:
@@ -87,7 +88,7 @@ class Task(BaseModel):
         # Actual interval is expected to be slightly longer than setpoint,
         # depending on settings in TaskRunner. If 2.5 x heartbeat_interval
         # has passed, we have probably missed 2 heartbeats 
-        return (timezone.now() - last_heartbeat).total_seconds() > 2.5 * heartbeat
+        return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
     def fail(self, message, detail=''):
         self.add_timepoint(message, detail=detail, is_error=True)
