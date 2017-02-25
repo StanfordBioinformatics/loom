@@ -7,7 +7,7 @@
   - vars/common.yml
   - vars/gcloud_worker.yml
   tasks:
-    - include: gcloud_get_worker_instance_name.yml
+    - include: tasks/gcloud_get_worker_instance_name.yml
     - name: Find the cheapest instance type that has at least the cores and memory needed by the task.
       command: python -c "import gcloud_utils; gcloud_utils.get_cheapest_instance_type({{cores}}, {{memory}})"
       args:
