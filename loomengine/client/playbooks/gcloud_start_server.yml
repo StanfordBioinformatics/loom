@@ -1,27 +1,26 @@
 ---
-- name: Create SSH keys for the server and worker.
+- name: Create storage bucket. Ignore error if bucket already exists.
   hosts: localhost
   connection: local
-  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
-  - include: tasks/create_ssh_key.yml
-  - include: tasks/create_ssh_key.yml remote_user={{worker_remote_user}} ssh_private_key_file_path={{worker_ssh_private_key_file_path}}
-  - file: path="{{worker_ssh_private_key_file_path}}" mode="o+r"
+  - include: tasks/create_google_storage_bucket.yml
 
-- name: Create a new instance for the Loom server.
+- name: Create a new instance for the Loom server and configure SSH.
   hosts: localhost
   connection: local
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
-  - include: tasks/create_ssh_key.yml
-  - include: tasks/create_ssh_key.yml remote_user={{worker_remote_user}} ssh_private_key_file_path={{worker_ssh_private_key_file_path}}
-  - include: tasks/gcloud_create_instance.yml
-  - include: tasks/gcloud_configure_instance_ssh.yml
+  - include: tasks/create_ssh_key.yml ssh_private_key_path={{server_ssh_private_key_path_on_client}}
+  - include: tasks/gcloud_create_instance.yml use_internal_ip={{client_uses_internal_ip}}
+  - include: tasks/gcloud_configure_instance_ssh.yml use_internal_ip={{client_uses_internal_ip}} ssh_private_key_path={{server_ssh_private_key_path_on_client}}
+  - name: Save server IP for worker.
+    set_fact:
+      server_ip_for_worker: "{{ (worker_uses_internal_ip) | ternary(gce_result.instance_data[0].private_ip, gce_result.instance_data[0].public_ip) }}"
 
 - name: Create connection settings files now that we have server IPs.
   hosts: localhost
@@ -33,17 +32,13 @@
   - include: tasks/create_connection_settings.yml server_url={{server_protocol}}://{{groups['new_instances'][0]}}:{{server_port}}
   - include: tasks/create_connection_settings.yml server_url={{server_protocol}}://{{server_ip_for_worker}}:{{server_port}} connection_settings_file={{worker_connection_settings_file}}
 
-- name: Create storage bucket. Ignore error if bucket already exists.
-  hosts: localhost
+- name: Install Docker on the Loom server and add remote user to docker group.
+  hosts: new_instances
+  remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
-  tasks:
-  - include: tasks/create_google_storage_bucket.yml
-
-- name: Install Docker on the Loom server.
-  hosts: new_instances
-  become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
   - {role: docker-py, when: "not {{lookup('env', 'LOOM_GCLOUD_SERVER_SKIP_INSTALLS')|bool}}"}
@@ -52,18 +47,55 @@
 
 - name: Pull Docker images on the new instance.
   hosts: new_instances
-  become: yes
-  become_user: loom
+  remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
   - include: tasks/pull_docker_images.yml
 
+- name: Copy files to Loom server and create an SSH key that will be used to connect to workers.
+  hosts: new_instances
+  remote_user: "{{remote_user}}"
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_server.yml
+  tasks:
+  - include: tasks/create_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
+  - name: Create a settings directory on the server
+    file:
+      path: "{{server_settings_home}}"
+      state: directory
+  - name: Copy inventory directory from client to server
+    synchronize:
+      src: "{{settings_home}}/{{loom_inventory_dir}}/"
+      dest: "{{server_settings_home}}/{{loom_inventory_dir}}"
+  - name: Set inventory files to be executable.
+    file:
+      path: "{{server_settings_home}}/{{loom_inventory_dir}}"
+      state: directory
+      mode: "a+x"
+      recurse: yes
+  - name: Copy worker connection settings file from client to server
+    synchronize:
+      src: "{{settings_home}}/{{worker_connection_settings_file}}"
+      dest: "{{server_settings_home}}"
+  - name: Copy admin files directory from client to server
+    synchronize:
+      src: "{{settings_home}}/{{admin_files_dir}}/"
+      dest: "{{server_settings_home}}/{{admin_files_dir}}"
+  - name: Copy playbooks directory from client to server
+    synchronize:
+      src: "{{settings_home}}/{{loom_playbook_dir}}/"
+      dest: "{{server_settings_home}}/{{loom_playbook_dir}}"
+  - name: Copy admin settings file from client to server.
+    synchronize:
+      src: "{{settings_home}}/{{admin_settings_file}}"
+      dest: "{{server_settings_home}}/{{admin_settings_file}}"
+
 - name: Start the Loom server.
   hosts: new_instances
-  become: yes
-  become_user: loom
+  remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml

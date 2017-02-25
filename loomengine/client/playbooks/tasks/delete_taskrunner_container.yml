@@ -1,4 +1,4 @@
-  - name: Cleanup the Loom task runner.
+  - name: Delete the Loom task runner container.
     docker_container:
       name: "{{taskrunner_container_name}}-{{task_attempt_id}}"
       state: absent

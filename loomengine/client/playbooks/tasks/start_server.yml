@@ -1,41 +1,8 @@
-- name: Create the data root directory if running in local mode
+- name: Create the data root directory if using local storage
   file:
     path: "{{storage_root}}"
     state: directory
   when: storage_type == "local"
-
-- name: Copy admin files directory from client to server
-  synchronize:
-    src: "{{settings_home}}/{{admin_files_dir}}/"
-    dest: "{{server_settings_home}}/{{admin_files_dir}}"
-
-- name: Copy playbooks directory from client to server
-  synchronize:
-    src: "{{settings_home}}/{{loom_playbook_dir}}/"
-    dest: "{{server_settings_home}}/{{loom_playbook_dir}}"
-
-- name: Copy inventory directory from client to server
-  synchronize:
-    src: "{{settings_home}}/{{loom_inventory_dir}}/"
-    dest: "{{server_settings_home}}/{{loom_inventory_dir}}"
-
-- name: Set inventory files to be executable.
-  file:
-    path: "{{server_settings_home}}/{{loom_inventory_dir}}"
-    state: directory
-    mode: "a+x"
-    recurse: yes
-
-- name: Copy admin settings file from client to server.
-  synchronize:
-    src: "{{settings_home}}/{{admin_settings_file}}"
-    dest: "{{server_settings_home}}/{{admin_settings_file}}"
-
-- name: Copy worker connection settings file from client to server.
-  synchronize:
-    src: "{{settings_home}}/{{worker_connection_settings_file}}"
-    dest: "{{server_settings_home}}"
-  when: worker_connection_settings_file is defined
 
 - name: Start a MySQL database container
   docker_container:
@@ -81,9 +48,11 @@
       LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
-    volumes:
-      - "{{server_settings_home}}:{{container_settings_home}}"
-      - /var/run/docker.sock:/var/run/docker.sock #TODO: omit this mount if not local
+    volumes: "{{[
+      server_settings_home+':'+container_settings_home,
+      '/var/run/docker.sock:/var/run/docker.sock' if lookup('env', 'WORKER_TYPE') | lower == 'local',
+      '/home/'+remote_user+'/.ssh:/root/.ssh' if lookup('env', 'WORKER_TYPE') | lower == 'gcloud']
+      | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
 

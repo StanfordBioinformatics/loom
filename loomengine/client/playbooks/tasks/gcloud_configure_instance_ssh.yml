@@ -1,11 +1,11 @@
   - name: Read SSH key and create a metadata file from it
-    shell: "echo -n {{remote_user}}: | cat - {{ssh_private_key_file_path}}.pub > {{settings_home}}/{{admin_files_dir}}/{{ssh_private_key_file_path|basename}}.pub.{{instance_name}}.metadata"
+    shell: "echo -n {{remote_user}}: | cat - {{ssh_private_key_path}}.pub > {{settings_home}}/{{admin_files_dir}}/{{ssh_private_key_path|basename}}.pub.{{instance_name}}.metadata"
   - name: Add SSH key to instance metadata
-    shell: "gcloud compute instances add-metadata {{instance_name}} --zone {{zone}} --metadata-from-file ssh-keys={{settings_home}}/{{admin_files_dir}}/{{ssh_private_key_file_path|basename}}.pub.{{instance_name}}.metadata"
+    shell: "gcloud compute instances add-metadata {{instance_name}} --zone {{zone}} --metadata-from-file ssh-keys={{settings_home}}/{{admin_files_dir}}/{{ssh_private_key_path|basename}}.pub.{{instance_name}}.metadata"
   - name: Delete temporary instance metadata file.
-    file: path={{settings_home}}/{{admin_files_dir}}/{{ssh_private_key_file_path|basename}}.pub.{{instance_name}}.metadata state=absent
+    file: path={{settings_home}}/{{admin_files_dir}}/{{ssh_private_key_path|basename}}.pub.{{instance_name}}.metadata state=absent
   - name: Wait for SSH port to be available.
-    wait_for: host={{ (ansible_uses_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
+    wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
     with_items: '{{ gce_result.instance_data }}'
   - name: Wait while ssh keys propagate to the instance
     pause: seconds=5

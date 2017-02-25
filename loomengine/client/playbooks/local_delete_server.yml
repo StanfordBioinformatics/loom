@@ -6,5 +6,4 @@
     - vars/common.yml
     - vars/local.yml
   tasks:
-    - include: tasks/delete_containers.yml
-
+    - include: tasks/delete_server_containers.yml

@@ -6,12 +6,4 @@
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
-  - name: Delete the Loom server.
-    local_action:
-      module: gce
-      state: 'absent'
-      instance_names: "{{instance_name}}"
-      zone: "{{zone}}"
-      credentials_file: "{{gce_credential}}"
-      project_id: "{{gce_project}}"
-      service_account_email: "{{gce_email}}"
+  - include: tasks/gcloud_delete_instance.yml
