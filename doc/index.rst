@@ -10,5 +10,6 @@ Welcome to Loom's documentation!
    :maxdepth: 2
    :caption: Table of Contents
 
+   releasenotes
    about
    installing
