@@ -12,7 +12,7 @@
       credentials_file: "{{gce_credential}}"
       project_id: "{{gce_project}}"
       service_account_permissions: cloud-platform
-      tags: "{{tags|default(omit)}}"
+      tags: "{{(tags if tags|trim) | default(omit)}}"
       external_ip: "{{external_ip}}"
     register: gce_result
   - name: Add host IP to new_instances for downstream plays. Use internal or external IP depending on setting.
