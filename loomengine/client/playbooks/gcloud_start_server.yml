@@ -103,14 +103,3 @@
   - server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file='+settings_home+'/'+connection_settings_file)}}"
   tasks:
   - include: tasks/start_server.yml
-
-- name: Start the Loom server.
-  hosts: localhost
-  connection: local
-  vars_files:
-  - vars/common.yml
-  - vars/gcloud_server.yml
-  vars:
-  - server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file='+settings_home+'/'+connection_settings_file)}}"
-  tasks:
-  - include: tasks/wait_for_server_to_start.yml
