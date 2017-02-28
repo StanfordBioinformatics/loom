@@ -5,6 +5,8 @@
   vars_files:
     - vars/common.yml
     - vars/local.yml
+  vars:
+    - host: 127.0.0.1
   tasks:
     - include: tasks/create_connection_settings.yml
     - include: tasks/create_google_storage_bucket.yml

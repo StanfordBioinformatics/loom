@@ -5,15 +5,15 @@
       name: "{{instance_name}}"
       disks: "{{instance_name}}"
       zone: "{{zone}}"
-      machine_type: "{{instance_type}}"
-      network: "{{network|default(omit)}}"
-      subnetwork: "{{subnetwork|default(omit)}}"
+      machine_type: "{{instance_type if instance_type|trim else omit}}"
+      network: "{{network if network|trim else omit}}"
+      subnetwork: "{{subnetwork if subnetwork|trim else omit}}"
       service_account_email: "{{gce_email}}"
       credentials_file: "{{gce_credential}}"
       project_id: "{{gce_project}}"
       service_account_permissions: cloud-platform
-      tags: "{{(tags if tags|trim) | default(omit)}}"
-      external_ip: "{{external_ip}}"
+      tags: "{{tags if tags|trim else omit}}"
+      external_ip: "{{external_ip if external_ip|trim else omit}}"
     register: gce_result
   - name: Add host IP to new_instances for downstream plays. Use internal or external IP depending on setting.
     add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
