@@ -1,0 +1,14 @@
+- name: Wait for Loom server http port to be available
+  wait_for: port="{{http_port}}"
+  when: "{{http_port_enabled or http_redirect_to_https}}"
+
+- name: Wait for Loom server https port to be available
+  wait_for: port="{{https_port}}"
+  when: "{{https_port_enabled}}"
+
+- name: Wait for Loom server to start. (retry messages are normal)
+  uri: "url={{server_url}}/api/status/ validate_certs=False"
+  register: response
+  until: response.status == 200
+  retries: 30
+  delay: 10

@@ -9,3 +9,4 @@
     - include: tasks/create_connection_settings.yml
     - include: tasks/create_google_storage_bucket.yml
     - include: tasks/start_server.yml
+    - include: tasks/wait_for_server_to_start.yml
