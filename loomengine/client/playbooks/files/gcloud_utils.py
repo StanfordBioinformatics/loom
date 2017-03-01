@@ -77,20 +77,20 @@ def get_worker_name_base(hostname, step_name, attempt_id):
     return sanitized_worker_name_base
 
 def get_worker_name(hostname, step_name, attempt_id):
-    worker_name = '-'.join(get_worker_name_base(hostname, step_name, attempt_id), 'work')
+    worker_name = '-'.join([get_worker_name_base(hostname, step_name, attempt_id), 'work'])
     print worker_name
     return worker_name
 
 def get_scratch_disk_name(hostname, step_name, attempt_id):
     """Create a name for the worker scratch disk."""
-    disk_name = '-'.join(get_worker_name_base(hostname, step_name, attempt_id), 'disk')
+    disk_name = '-'.join([get_worker_name_base(hostname, step_name, attempt_id), 'disk'])
     print disk_name
     return disk_name
 
 def get_scratch_disk_device_path(hostname, step_name, attempt_id):
     """Get the device path for the worker scratch disk."""
     disk_name = get_scratch_disk_name(hostname, step_name, attempt_id)
-    device_path = '-'.join('/dev/disk/by-id/google', disk_name)
+    device_path = '-'.join(['/dev/disk/by-id/google', disk_name])
     print device_path
     return device_path
 
