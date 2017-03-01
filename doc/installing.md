@@ -1,7 +1,7 @@
 Getting started
 ===============
 
-This guide walks you through installing the Loom client onto a local machine. Once you have the client set up, you can use it to create a Loom server, either locally or in Google Cloud.
+This guide walks you through installing the Loom client onto a local machine. Once you have the client set up, you can use it to create a Loom server, either locally or in Google Cloud. Finally, we show you how to run a workflow on the newly-created server.
 
 ## Available branches
 
@@ -9,7 +9,7 @@ The GitHub branch or tag you choose should have a corresponding build in DockerH
 
 For now, we recommend the "development" branch for most users.
 
-## Dependencies
+## Requirements
 
 * python >= 2.7 < 3.x
 * [pip](http://pip.readthedocs.org/en/stable/installing/)
@@ -20,15 +20,14 @@ For now, we recommend the "development" branch for most users.
 * git
 * [Google Cloud SDK](https://cloud.google.com/sdk/) (for Google Cloud deployment only)
 
-## Installing Loom from the development branch
-```
-unset PYTHONPATH        # because PYTHONPATH takes precedence over virtualenv
-git clone -b development https://github.com/StanfordBioinformatics/loom.git
-virtualenv loom-env
-source loom-env/bin/activate
-cd loom/
-pip install -r requirements.txt
-```
+## Installing the development branch of Loom
+
+    unset PYTHONPATH        # because PYTHONPATH takes precedence over virtualenv
+    git clone -b development https://github.com/StanfordBioinformatics/loom.git
+    virtualenv loom-env
+    source loom-env/bin/activate
+    cd loom/
+    pip install -r requirements.txt
 
 ## Tests
 
@@ -41,38 +40,55 @@ Run tests to verify installation:
 ### Local
 
 To start a local server with default settings:
-```
-loom server start --settings-file local.conf
-```
+
+    loom server start --settings-file local.conf
 
 ### Google Cloud
 
-Create a settings file that contains, minimally, the docker tag corresponding to branch that you are running.
+First, create a directory that will store files needed to administer the Loom server:
 
-_mysettings.ini:_
-```
-[gcloud]
-DOCKER_TAG = development
-```
+    mkdir ~/admin
 
-Then run these commands in the shell:
+Second, create a service account credential: [https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys)
 
-    loom server set gcloud --name my-loom-server # name is optional
-    loom server create --settings mysettings.ini
-    loom server start
+Save the JSON credential to `~/admin/key.json`.
 
-## Ubuntu setup of loom
-<!--
-    bash
-    sudo apt-get install build-essential libssl-dev libffi-dev python-dev
-    wget --no-check-certificate https://pypi.python.org/packages/source/s/setuptools/setuptools-1.4.2.tar.gz
-    tar -xf setuptools-1.4.2.tar.gz
-    sudo python setuptools-1.4.2/setup.py install
-    wget https://raw.githubusercontent.com/pypa/pip/master/contrib/get-pip.py
-    sudo python get-pip.py
-    sudo pip install virtualenv
--->
-Note: Use Ubuntu 16.04 instead of 14.04, because Python 2.7.9 is not officially supported on 14.04, which leads to InsecurePlatformWarnings and headaches with SSL/TLS.
+Third, make sure your Google Cloud SDK is initialized and authenticated:
+
+    gcloud init
+
+Fourth, copy the settings file template at `loom/loomengine/client/settings/gcloud.conf` and fill in values specific to your project. Make sure these settings are defined:
+
+    LOOM_GCE_EMAIL:                 # service account email whose key you provided
+    LOOM_GCE_PROJECT:               
+    LOOM_GOOGLE_STORAGE_BUCKET:     
+
+Save the config file as ~/gcloud.conf.
+
+Finally, create and start the server:
+
+    loom server start --settings-file ~/gcloud.conf --admin-files ~/admin
+
+## Making sure the server is running and reachable
+
+    loom server status
+
+## Running a workflow
+
+Once you have a server up and running, you can run a workflow!
+
+    loom import file loom/doc/examples/hello_world/hello.txt
+    loom import file loom/doc/examples/hello_world/world.txt
+    loom import template loom/doc/examples/hello_world/hello_world.json
+    loom run hello_world hello=hello.txt world=world.txt
+
+## Viewing run progress in a web browser
+
+    loom browser
+
+## Ubuntu prerequisites
+
+Note: We recommend using Ubuntu 16.04 rather than 14.04, because Python 2.7.9 is not officially supported on 14.04. This leads to InsecurePlatformWarnings and headaches with SSL/TLS.
 
     sudo apt-get update
     sudo apt-get install -y build-essential libssl-dev libffi-dev libmysqlclient-dev python-dev git
@@ -82,25 +98,24 @@ Note: Use Ubuntu 16.04 instead of 14.04, because Python 2.7.9 is not officially 
 
     # Then follow setup instructions above    
 
-## CentOS installation of Loom client
-```
-# Add EPEL repo and update yum
-sudo yum install -y epel-release
-sudo yum update -y
+## CentOS prerequisites
 
-# Install OS-level dependencies
-sudo yum install -y gcc python-devel openssl-devel libffi-devel mysql-devel python-pip git
+    # Add EPEL repo and update yum
+    sudo yum install -y epel-release
+    sudo yum update -y
 
-# Install and activate virtualenv
-sudo pip install virtualenv
-virtualenv loom-env
-source loom-env/bin/activate
+    # Install OS-level dependencies
+    sudo yum install -y gcc python-devel openssl-devel libffi-devel mysql-devel python-pip git
 
-# Install google_compute_engine for gsutil
-pip install google_compute_engine
+    # Install and activate virtualenv
+    sudo pip install virtualenv
+    virtualenv loom-env
+    source loom-env/bin/activate
 
-# Then follow setup instructions above
-```
+    # Install google_compute_engine for gsutil
+    pip install google_compute_engine
+
+    # Then follow setup instructions above
 
 ## Production installation
 
