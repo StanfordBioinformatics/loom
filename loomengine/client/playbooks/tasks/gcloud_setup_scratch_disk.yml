@@ -1,15 +1,3 @@
-- name: If all required variables defined, create a scratch disk and attach it to the instance.
-  gce_pd: instance_name={{instance_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE service_account_email={{gce_email}} credentials_file={{gce_credential}} project_id={{gce_project}}
-  when:
-  - scratch_disk_name is defined
-  - scratch_disk_type is defined
-  - scratch_disk_size_gb is defined
-- name: Set scratch disk to be deleted with the instance.
-  shell: gcloud compute instances set-disk-auto-delete {{instance_name}} --auto-delete --disk {{scratch_disk_name}} --zone {{zone}}
-  when:
-  - scratch_disk_name is defined
-  - scratch_disk_type is defined
-  - scratch_disk_size_gb is defined
 - name: Create a filesystem on the scratch disk.
   filesystem: fstype=ext4 dev={{scratch_disk_device_path}} force=no
   when:

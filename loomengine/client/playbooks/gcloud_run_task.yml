@@ -2,7 +2,6 @@
 - name: Gather information needed to create the worker instance.
   hosts: localhost
   connection: local
-  gather_facts: no
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
@@ -19,7 +18,6 @@
 - name: Create a new instance for the Loom worker.
   hosts: localhost
   connection: local
-  gather_facts: no
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
@@ -40,7 +38,27 @@
         scratch_disk_name: "{{hostvars.localhost.instance_name}}-disk"
         scratch_disk_device_path: "/dev/disk/by-id/google-{{hostvars.localhost.instance_name}}-disk"
 
-- name: Create, format, and mount the scratch disk on the Loom worker.
+- name: Create a scratch disk and attach it to the worker when required vars defined.
+  hosts: localhost
+  connection: local
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+    - name: Create a scratch disk and attach it to the instance.
+      gce_pd: instance_name={{instance_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE service_account_email={{gce_email}} credentials_file={{gce_credential}} project_id={{gce_project}}
+      when:
+      - scratch_disk_name is defined
+      - scratch_disk_type is defined
+      - scratch_disk_size_gb is defined
+    - name: Set scratch disk to be deleted with the instance.
+      shell: gcloud compute instances set-disk-auto-delete {{instance_name}} --auto-delete --disk {{scratch_disk_name}} --zone {{zone}}
+      when:
+      - scratch_disk_name is defined
+      - scratch_disk_type is defined
+      - scratch_disk_size_gb is defined
+
+- name: Format and mount the scratch disk on the Loom worker.
   hosts: new_instances
   remote_user: "{{remote_user}}"
   become: yes
