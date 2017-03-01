@@ -61,28 +61,29 @@ def get_gcloud_pricelist():
     pricelist = content['gcp_price_list']
     return pricelist
 
-def get_worker_name(hostname, step_name, attempt_id):
-    """Create a name for the worker instance that will run the specified task run attempt, from this server.
-    Since hostname, workflow name, and step name can easily be duplicated,
-    we do this in two steps to ensure that at least 4 characters of the
-    location ID are part of the name. Also, since worker scratch disks are
-    named by appending '-disk' to the instance name, and disk names are max
-    63 characters, leave 5 characters for the '-disk' suffix.
+MIN_TASKID_CHARS = 8
+def get_worker_name_base(hostname, step_name, attempt_id):
+    """Create a base name for the worker instance that will run the specified task
+    run attempt, from this server. Since hostname and step name will be
+    duplicated across workers (reruns, etc.), ensure that at least
+    MIN_TASKID_CHARS are preserved in the instance name. Also, save 5 characters
+    at the end for '-disk' and '-work' suffixes, which also prevent names from ending with dashes.
     """
     name_base = '-'.join([hostname, step_name])
     sanitized_name_base = sanitize_instance_name_base(name_base)
-    sanitized_name_base = sanitized_name_base[:53]      # leave 10 characters at the end for location id and -disk suffix
+    sanitized_name_base = sanitized_name_base[:63-5-MIN_TASK_ID_CHARS]  # leave characters at the end for task attempt id and suffixes
+    worker_name_base = '-'.join([sanitized_name_base, attempt_id])
+    sanitized_worker_name_base = sanitize_instance_name_base(worker_name_base)[:58] # leave 5 characters for suffixes
+    return sanitized_worker_name_base
 
-    instance_name = '-'.join([sanitized_name_base, attempt_id])
-    sanitized_instance_name = sanitize_instance_name(instance_name)
-    sanitized_instance_name = sanitized_instance_name[:58]      # leave 5 characters for -disk suffix
-    print sanitized_instance_name
-    return sanitized_instance_name
+def get_worker_name(hostname, step_name, attempt_id):
+    worker_name = '-'.join(get_worker_name_base(hostname, step_name, attempt_id), 'work')
+    print worker_name
+    return worker_name
 
 def get_scratch_disk_name(hostname, step_name, attempt_id):
     """Create a name for the worker scratch disk."""
-    worker_name = get_worker_name(hostname, step_name, attempt_id)
-    disk_name = '-',join(worker_name, 'disk')
+    disk_name = '-'.join(get_worker_name_base(hostname, step_name, attempt_id), 'disk')
     print disk_name
     return disk_name
 
@@ -94,23 +95,8 @@ def get_scratch_disk_device_path(hostname, step_name, attempt_id):
     return device_path
 
 def sanitize_instance_name_base(name):
-    """ Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit. """
+    """Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit."""
     name = str(name).lower()                # make all letters lowercase
     name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
     name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
     return name
-
-def sanitize_instance_name(name):
-    """ Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit. Last character cannot be a dash.
-    Instance names must be 1-63 characters long.
-    """
-    name = str(name).lower()                # make all letters lowercase
-    name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
-    name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
-    name = re.sub(r'-+$', '', name)         # remove dashes from the end
-    name = name[:63]                        # truncate if too long
-    if len(name) < 1:
-        raise CloudTaskManagerError('Cannot create an instance name from %s' % name)
-
-    sanitized_name = name
-    return sanitized_name

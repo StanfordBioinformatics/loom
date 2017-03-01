@@ -7,6 +7,11 @@
   - vars/gcloud_worker.yml
   tasks:
     - include: tasks/gcloud_get_worker_instance_name.yml
+    - name: Create a GCP-safe name for the worker scratch disk.
+      command: python -c "import gcloud_utils; gcloud_utils.get_scratch_disk_name('{{server_name}}','{{step_name}}','{{task_attempt_id}}')"
+      args:
+        chdir: "{{playbook_dir}}/files"
+      register: scratch_disk_name_result
     - name: Find the cheapest instance type that has at least the cores and memory needed by the task.
       command: python -c "import gcloud_utils; gcloud_utils.get_cheapest_instance_type({{cores}}, {{memory}})"
       args:
@@ -14,8 +19,8 @@
       register: instance_type_result
     - set_fact:
         instance_type: "{{instance_type_result.stdout}}"
-        scratch_disk_name: "{{instance_name}}-disk"
-        scratch_disk_device_path: "/dev/disk/by-id/google-{{instance_name}}-disk"
+        scratch_disk_name: "{{scratch_disk_name_result.stdout}}"
+        scratch_disk_device_path: "/dev/disk/by-id/google-{{scratch_disk_name_result.stdout}}"
 
 - name: Create a new instance for the Loom worker.
   hosts: localhost
