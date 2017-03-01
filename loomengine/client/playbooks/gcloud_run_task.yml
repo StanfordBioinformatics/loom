@@ -43,10 +43,10 @@
 - name: Install Docker on the Loom worker and add remote user to docker group.
   hosts: new_instances
   remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
-  become: yes
   roles:
   - {role: docker, when: "not {{lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')}}"}
   - {role: docker-py, when: "not {{lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')}}"}
@@ -56,6 +56,7 @@
 - name: Pull Docker images on the new instance.
   hosts: new_instances
   remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
@@ -65,6 +66,7 @@
 - name: Run the Loom task runner on the specified worker instance.
   hosts: new_instances
   remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
     - vars/common.yml
     - vars/gcloud_worker.yml

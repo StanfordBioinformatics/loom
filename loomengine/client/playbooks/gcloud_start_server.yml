@@ -49,6 +49,7 @@
 - name: Pull Docker images on the new instance.
   hosts: new_instances
   remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
@@ -58,6 +59,7 @@
 - name: Copy files to Loom server and create an SSH key that will be used to connect to workers.
   hosts: new_instances
   remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
@@ -97,6 +99,7 @@
 - name: Start the Loom server.
   hosts: new_instances
   remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
