@@ -14,6 +14,8 @@
       register: instance_type_result
     - set_fact:
         instance_type: "{{instance_type_result.stdout}}"
+        scratch_disk_name: "{{instance_name}}-disk"
+        scratch_disk_device_path: "/dev/disk/by-id/google-{{instance_name}}-disk"
 
 - name: Create a new instance for the Loom worker.
   hosts: localhost
@@ -35,8 +37,8 @@
     - name: Set vars for downstream tasks.
       set_fact:
         instance_name: "{{hostvars.localhost.instance_name}}"
-        scratch_disk_name: "{{hostvars.localhost.instance_name}}-disk"
-        scratch_disk_device_path: "/dev/disk/by-id/google-{{hostvars.localhost.instance_name}}-disk"
+        scratch_disk_name: "{{hostvars.localhost.scratch_disk_name}}"
+        scratch_disk_device_path: "{{hostvars.localhost.scratch_disk_device_path}}"
 
 - name: Create a scratch disk and attach it to the worker when required vars defined.
   hosts: localhost
