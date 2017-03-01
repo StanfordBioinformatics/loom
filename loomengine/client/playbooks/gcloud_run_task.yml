@@ -34,11 +34,11 @@
   - vars/common.yml
   - vars/gcloud_worker.yml
   tasks:
-    - include: tasks/gcloud_get_worker_instance_name.yml
     - name: Set vars for downstream tasks.
       set_fact:
-        scratch_disk_name: "{{instance_name}}-disk"
-        scratch_disk_device_path: "/dev/disk/by-id/google-{{instance_name}}-disk"
+        instance_name: "{{hostvars.localhost.instance_name}}"
+        scratch_disk_name: "{{hostvars.localhost.instance_name}}-disk"
+        scratch_disk_device_path: "/dev/disk/by-id/google-{{hostvars.localhost.instance_name}}-disk"
 
 - name: Create, format, and mount the scratch disk on the Loom worker.
   hosts: new_instances
