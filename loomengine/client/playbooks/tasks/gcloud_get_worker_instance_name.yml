@@ -3,6 +3,6 @@
   args:
     chdir: "{{playbook_dir}}/files"
   register: worker_name_result
-- name: Set vars for downstream tasks.
+- name: Set worker instance name.
   set_fact:
     instance_name: "{{worker_name_result.stdout}}"
