@@ -61,12 +61,12 @@ def get_gcloud_pricelist():
     pricelist = content['gcp_price_list']
     return pricelist
 
-MIN_TASKID_CHARS = 8
+MIN_TASK_ID_CHARS = 8
 def get_worker_name_base(hostname, step_name, attempt_id):
     """Create a base name for the worker instance that will run the specified task
     run attempt, from this server. Since hostname and step name will be
     duplicated across workers (reruns, etc.), ensure that at least
-    MIN_TASKID_CHARS are preserved in the instance name. Also, save 5 characters
+    MIN_TASK_ID_CHARS are preserved in the instance name. Also, save 5 characters
     at the end for '-disk' and '-work' suffixes, which also prevent names from ending with dashes.
     """
     name_base = '-'.join([hostname, step_name])
