@@ -59,13 +59,6 @@ Loom is built for the kind of workflows that bioinformaticians run -- multi-step
 
 Loom is scalable and supports individual analysts or large institutions.
 
-Get started
-===========
-
-Check out our Getting Started Guide and give Loom a try.
-
-https://github.com/StanfordBioinformatics/loom/wiki/Getting-Started
-
 What is the current status?
 ===========================
 

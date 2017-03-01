@@ -1,29 +1,28 @@
-Installing Loom
+Getting started
 ===============
 
-This is for installing loom onto the client machine from github into a virtualenv Python environment, for either local use or Google Cloud. Once you have the client set up, you can use Loom to create the Loom server.
+This guide walks you through installing the Loom client onto a local machine. Once you have the client set up, you can use it to create a Loom server, either locally or in Google Cloud.
 
 ## Available branches
 
-The github branch or tag you choose should have a corresponding build in Dockerhub, listed here: https://hub.docker.com/r/loomengine/loom/tags/
+The GitHub branch or tag you choose should have a corresponding build in DockerHub, listed here: https://hub.docker.com/r/loomengine/loom/tags/
 
 For now, we recommend the "development" branch for most users.
 
 ## Dependencies
 
 * python >= 2.7 < 3.x
-* pip # http://pip.readthedocs.org/en/stable/installing/
-* virtualenv # use 'pip install virtualenv' to install
-* Docker
+* [pip](http://pip.readthedocs.org/en/stable/installing/)
+* [virtualenv](https://virtualenv.pypa.io/en/stable/) (use 'pip install virtualenv' to install)
+* [Docker](https://www.docker.com/products/overview)
 * gcc (Comes with XCode on Mac)
 * MySQL
 * git
-* gcloud (for Google Cloud deployment only)
+* [Google Cloud SDK](https://cloud.google.com/sdk/) (for Google Cloud deployment only)
 
-## Installing Loom
-
+## Installing Loom from the development branch
 ```
-unset PYTHONPATH # because PYTHONPATH takes precedence over virtualenv
+unset PYTHONPATH        # because PYTHONPATH takes precedence over virtualenv
 git clone -b development https://github.com/StanfordBioinformatics/loom.git
 virtualenv loom-env
 source loom-env/bin/activate
@@ -41,19 +40,10 @@ Run tests to verify installation:
 
 ### Local
 
-Create a settings file that contains, minimally, the docker tag corresponding to branch that you are running.
-
-_mysettings.ini:_
+To start a local server with default settings:
 ```
-[local]
-DOCKER_TAG = development
+loom server start --settings-file local.conf
 ```
-
-Then run these commands in the shell:
-
-    loom server set local
-    loom server create --settings mysettings.ini
-    loom server start
 
 ### Google Cloud
 
@@ -76,7 +66,7 @@ Then run these commands in the shell:
     bash
     sudo apt-get install build-essential libssl-dev libffi-dev python-dev
     wget --no-check-certificate https://pypi.python.org/packages/source/s/setuptools/setuptools-1.4.2.tar.gz
-    tar -xf setuptools-1.4.2.tar.gz 
+    tar -xf setuptools-1.4.2.tar.gz
     sudo python setuptools-1.4.2/setup.py install
     wget https://raw.githubusercontent.com/pypa/pip/master/contrib/get-pip.py
     sudo python get-pip.py

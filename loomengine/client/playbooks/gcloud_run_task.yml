@@ -29,6 +29,7 @@
 
 - name: Set facts on the worker instance
   hosts: new_instances
+  remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
