@@ -4,12 +4,14 @@ from celery.decorators import periodic_task
 import copy
 import datetime
 from django import db
-import multiprocessing
+from django.utils import timezone
 from api import get_setting
 import kombu.exceptions
 import os
 import subprocess
 import sys
+import threading
+import time
 
 def _run_with_delay(task_function, args, kwargs):
     if get_setting('TEST_DISABLE_TASK_DELAY'):
@@ -114,10 +116,26 @@ def _run_task(task_uuid):
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
     task_attempt = task.create_and_activate_attempt()
-    _run_task_runner_playbook(task_attempt)
+    _run_with_heartbeats(task_attempt, _run_task_runner_playbook, args=[task_attempt])
 
 def run_task(*args, **kwargs):
     return _run_with_delay(_run_task, args, kwargs)
+
+def _run_with_heartbeats(task_attempt, function, args=None, kwargs=None):
+        heartbeat_interval = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
+        polling_interval = 1
+
+	t = threading.Thread(target=function, args=args, kwargs=kwargs)
+        t.start()
+
+        task_attempt.heartbeat()
+        last_heartbeat = timezone.now()
+
+	while t.is_alive():
+            time.sleep(polling_interval)
+            if (timezone.now() - last_heartbeat).total_seconds() > heartbeat_interval:
+                task_attempt.heartbeat()
+                last_heartbeat = timezone.now()
 
 def _run_task_runner_playbook(task_attempt):
     env = copy.copy(os.environ)
@@ -150,7 +168,19 @@ def _run_task_runner_playbook(task_attempt):
                 }
     env.update(new_vars)
 
-    return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(cmd_list, env=env,
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p.wait()
+    stdout = p.stdout.read()
+
+    if p.returncode != 0:
+        task_attempt.add_timepoint(
+            "Failed to launch worker process for TaskAttempt %s" \
+            % task_attempt.uuid,
+            detail=stdout,
+            is_error=True)
+        task_attempt.fail()
+    print stdout
 
 @shared_task
 def _cleanup_task_attempt(task_attempt_uuid):
