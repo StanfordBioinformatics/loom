@@ -103,6 +103,19 @@ class Run(BaseModel):
     # True if ANY input ports have not received all inputs
     # status_waiting_for_inputs = models.BooleanField(default=False)
 
+    @property
+    def status(self):
+        if self.status_is_failed:
+            return 'Failed'
+        elif self.status_is_killed:
+            return 'Killed'
+        elif self.status_is_running:
+            return 'Running'
+        elif self.status_is_finished:
+            return 'Finished'
+        else:
+            return 'Unknown'
+    
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]

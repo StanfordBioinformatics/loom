@@ -180,25 +180,14 @@ class ShowRun(AbstractShow):
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
             text += '  - Created: %s\n' % format(dateutil.parser.parse(run['datetime_created']), DATETIME_FORMAT)
-            text += '  - Status: %s\n' % self._render_status(run)
             if run.get('steps'):
+                text += '  - Status: %s\n' % run.get('status')
                 text += '  - Steps:\n'
                 for step in run['steps']:
                     text += '    - %s@%s \n' % (step['name'], step['uuid'])
         else:
-            text = 'Run: %s' % run_identifier
+            text = "Run: %s (%s)" % (run_identifier, run.get('status'))
         return text
-    def _render_status(self, run):
-        if run.get('status_is_failed'):
-            return 'failed'
-        elif run.get('status_is_killed'):
-            return 'killed'
-        elif run.get('status_is_running'):
-            return 'running'
-        elif run.get('status_is_finished'):
-            return 'finished'
-        else:
-            return 'unknown'
 
 
 class Show:

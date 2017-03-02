@@ -92,7 +92,7 @@ class TestRunner:
         start_time = datetime.now()
         loom_executable = sys.argv[0]
         timeout = int(self.args.timeout)
-        cmd = [loom_executable, 'show', 'run', run_id, '--detail']
+        cmd = [loom_executable, 'show', 'run', run_id]
         while (datetime.now() - start_time).total_seconds() < timeout:
             p = subprocess.Popen(cmd, env=os.environ,
                                 stdout=subprocess.PIPE)
@@ -101,14 +101,14 @@ class TestRunner:
                 raise IntegrationTestFailure(
                     'ERROR: "loom server show" command failed.')
             (stdout, stderr) = p.communicate()
-            match = re.search(r'Status: ([a-zA-Z_@\-]*)', stdout)
+            match = re.search(r'Run: .* \(([a-zA-Z0-9_\-]*)\)', stdout)
             if match:
                 status = match.groups()[0]
                 print 'Status: %s' % status
-                if status == 'finished':
+                if status == 'Finished':
                     # success
                     return
-                elif status != 'running':
+                elif status != 'Running':
                     raise IntegrationTestFailure('Unexpected run status: %s' % status)
             time.sleep(sleep_interval_seconds)
         raise IntegrationTestFailure('ERROR: Test timed out after %s seconds' % timeout)

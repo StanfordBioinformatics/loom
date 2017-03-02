@@ -96,6 +96,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     datetime_created = serializers.CharField(read_only=True)
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
+    status = serializers.CharField(read_only=True)
     
     class Meta:
         model = StepRun
@@ -103,7 +104,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
                   'command', 'interpreter', 'interpreter_options', 'tasks',
                   'run_request', 'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'timepoints')
+                  'status_is_running', 'timepoints', 'status')
 
 
 class WorkflowRunInputSerializer(InputOutputNodeSerializer):
@@ -134,10 +135,11 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     datetime_created = serializers.CharField(read_only=True)
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
+    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = WorkflowRun
         fields = ('uuid', 'template', 'steps', 'inputs', 'outputs',
                   'run_request', 'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'timepoints')
+                  'status_is_running', 'timepoints', 'status')
