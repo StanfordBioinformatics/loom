@@ -98,6 +98,7 @@
 - name: Start the Loom server.
   hosts: new_instances
   remote_user: "{{remote_user}}"
+  become: yes
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
