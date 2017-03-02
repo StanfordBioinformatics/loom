@@ -15,7 +15,7 @@
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
-  - include: tasks/create_ssh_key.yml ssh_private_key_path={{server_ssh_private_key_path_on_client}}
+  - include: tasks/create_user_and_ssh_key.yml ssh_private_key_path={{server_ssh_private_key_path_on_client}}
   - include: tasks/gcloud_create_instance.yml use_internal_ip={{client_uses_internal_ip}}
   - include: tasks/gcloud_configure_instance_ssh.yml use_internal_ip={{client_uses_internal_ip}} ssh_private_key_path={{server_ssh_private_key_path_on_client}}
   - name: Save server IP for worker.
