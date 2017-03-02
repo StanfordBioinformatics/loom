@@ -46,7 +46,7 @@
   tasks:
   - include: tasks/gcloud_create_docker_group.yml
 
-- name: Pull Docker images on the new instance.
+- name: Pull Docker images on the new instance. Create remote user and an SSH key that will be used to connect to workers.
   hosts: new_instances
   remote_user: "{{remote_user}}"
   become: yes
@@ -55,15 +55,16 @@
   - vars/gcloud_server.yml
   tasks:
   - include: tasks/pull_docker_images.yml
+  - include: tasks/create_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
 
-- name: Copy files to Loom server and create an SSH key that will be used to connect to workers.
+
+- name: Copy files to Loom server.
   hosts: new_instances
   remote_user: "{{remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
-  - include: tasks/create_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
   - name: Create a settings directory on the server
     file:
       path: "{{server_settings_home}}"
