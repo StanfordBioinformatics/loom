@@ -1,5 +1,7 @@
 from rest_framework import serializers
+from django.db import transaction
 
+from api.exceptions import *
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, \
     UuidSerializer
 from api.models.data_objects import FileDataObject
@@ -126,7 +128,9 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
                   'interpreter_options',  'rendered_command',
                   'environment', 'resources', 'timepoints')
 
+    @transaction.atomic
     def update(self, instance, validated_data):
+        instance = self.Meta.model.objects.get(uuid=instance.uuid)
         # Only updates to status message fields,
         # status_is_finished, status_is_failed, and status_is_running
         status_message = validated_data.pop('status_message', None)
@@ -145,10 +149,8 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
             instance.status_is_failed = status_is_failed
         if status_is_running is not None:
             instance.status_is_running = status_is_running
-
         instance.save()
         return instance
-
 
 class TaskAttemptUuidSerializer(UuidSerializer, TaskAttemptSerializer):
     pass

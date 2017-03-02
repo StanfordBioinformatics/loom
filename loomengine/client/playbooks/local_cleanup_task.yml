@@ -8,4 +8,4 @@
   vars:
     task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
   tasks:
-    - include: tasks/cleanup_task.yml
+    - include: tasks/delete_taskrunner_container.yml

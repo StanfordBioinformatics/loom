@@ -163,10 +163,6 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
         s.is_valid(raise_exception=True)
         model = s.save()
 
-        task_attempt.status_message = data.get('message')
-        task_attempt.status_detail = data.get('detail')
-        task_attempt.save()
-
         return JsonResponse(s.data, status=201)
 
     @detail_route(methods=['get'], url_path='worker-settings')

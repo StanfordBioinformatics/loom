@@ -309,12 +309,6 @@ class TaskAttempt(BaseModel):
     status_is_killed = models.BooleanField(default=False)
     status_is_running = models.BooleanField(default=True)
     status_is_cleaned_up = models.BooleanField(default=False)
-    status_message = models.CharField(
-        max_length=255,
-        default='Starting')
-    status_detail = models.CharField(
-        max_length=255,
-        default='')
 
     @property
     def is_active(self):
@@ -348,6 +342,22 @@ class TaskAttempt(BaseModel):
     def environment(self):
         return self.task.environment
 
+    @property
+    def status_message(self):
+        if self.timepoints.count() == 0:
+            return ''
+        return self.timepoints.last().detail
+
+    @property
+    def status_detail(self):
+        if self.timepoints.count() == 0:
+            return ''
+        return self.timepoints.last().message
+    
+    def heartbeat(self):
+        task_attempt = TaskAttempt.objects.get(uuid=self.uuid)
+        task_attempt.save()
+
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
@@ -356,18 +366,20 @@ class TaskAttempt(BaseModel):
         self.save()
 
     def fail(self):
-        self.status_is_failed = True
-        self.status_is_running = False
-        self.save()
-        self.add_timepoint("Child TaskAttempt %s failed" % self.uuid,
-                           detail="The TaskRunner experienced an error when executing '\
-                           'TaskAttempt %s" % self.uuid,
-                           is_error=True)
+        task_attempt = TaskAttempt.objects.get(uuid=self.uuid)
+        task_attempt.status_is_failed = True
+        task_attempt.status_is_running = False
+        task_attempt.save()
+        task_attempt.add_timepoint(
+            "TaskAttempt %s failed" % self.uuid,
+            detail="The TaskRunner experienced an error when executing '\
+            'TaskAttempt %s" % task_attempt.uuid,
+            is_error=True)
         try:
-            self.task_as_selected.fail(
-                "Child TaskAttempt %s failed" % self.uuid,
+            task_attempt.task_as_selected.fail(
+                "Child TaskAttempt %s failed" % task_attempt.uuid,
                 detail='The TaskRunner experienced an error when executing '\
-                'TaskAttempt %s' % self.uuid)
+                'TaskAttempt %s' % task_attempt.uuid)
         except ObjectDoesNotExist:
             # This attempt is no longer active
             # and will be ignored.
@@ -395,9 +407,6 @@ class TaskAttempt(BaseModel):
         timepoint = TaskAttemptTimepoint.objects.create(
             message=message, task_attempt=self, detail=detail, is_error=is_error)
         timepoint.save()
-        self.status_message = message
-        self.status_detail = detail
-        self.save()
 
     @classmethod
     def create_from_task(cls, task):

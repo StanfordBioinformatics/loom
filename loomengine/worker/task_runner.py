@@ -11,6 +11,7 @@ import requests
 import string
 import subprocess
 import sys
+import threading
 import time
 import uuid
 
@@ -125,10 +126,47 @@ class TaskRunner(object):
             raise DockerDaemonNotFoundError('Failed to connect to Docker daemon')
 
     def _init_working_dir(self):
-        self.logger.info('Initializing working directory %s' % self.settings['WORKING_DIR'])
+        self.logger.info('Initializing working directory %s' %
+                         self.settings['WORKING_DIR'])
         init_directory(self.settings['WORKING_DIR'], new=True)
 
-    def run(self):
+    def run_with_heartbeats(self, function):
+        heartbeat_interval = int(self.settings['HEARTBEAT_INTERVAL_SECONDS'])
+        polling_interval = 1
+
+        t = threading.Thread(target=function)
+        t.start()
+
+        self._send_heartbeat()
+        last_heartbeat = datetime.now()
+
+        while t.is_alive():
+            time.sleep(polling_interval)
+            if (datetime.now() - last_heartbeat).total_seconds() > heartbeat_interval:
+                self._send_heartbeat()
+                last_heartbeat = datetime.now()
+
+    def main(self):
+        run_error = None
+        cleanup_error = None
+
+        try:
+            self._run()
+        except Exception as e:
+            run_error = e
+        try:
+            self._cleanup()
+        except Exception as e:
+            cleanup_error = e
+
+        # Errors from initialization or run
+        # take priority over errors from cleanup
+        if run_error:
+            raise run_error
+        elif cleanup_error:
+            raise cleanup_error
+
+    def _run(self):
         try:
             self._try_to_copy_inputs()
             self._try_to_create_run_script()
@@ -140,7 +178,7 @@ class TaskRunner(object):
             self.logger.error('Exiting run with error: %s' % str(e))
             raise e
 
-    def cleanup(self):
+    def _cleanup(self):
         # Never raise errors, so cleanup can continue
         self._timepoint('Saving outputs')
 
@@ -150,11 +188,6 @@ class TaskRunner(object):
             self._try_to_save_outputs()
         except Exception as e:
             self._fail('Failed to save outputs', detail=str(e))
-
-#        try:
-#            self._try_to_save_monitor_log()
-#        except Exception as e:
-#            self._fail(message='Failed to save monitor log', detail=str(e))
 
         try:
             self._finish()
@@ -312,16 +345,8 @@ class TaskRunner(object):
                 detail=str(e))
             # Do not raise error. Attempt to save log files.
 
-    def _poll_for_returncode(self, poll_interval_seconds=1, timeout_seconds=86400):
-        start_time = datetime.now()
-
+    def _poll_for_returncode(self, poll_interval_seconds=1):
         while True:
-            self._send_heartbeat()
-            time_running = datetime.now() - start_time
-            if time_running.seconds > timeout_seconds:
-                raise Exception(
-                    'Process timed out after %s seconds' % time_running.seconds)
-
             try:
                 container_data = self.docker_client.inspect_container(self.container)
             except Exception as e:
@@ -448,37 +473,13 @@ class TaskRunner(object):
         output.update({'data_object': data_object})
         return self.connection.update_task_attempt_output(output['id'], output)
 
-    def _try_to_save_monitor_log(self):
-        self.logger.debug('Saving worker process monitor log')
-        try:
-            if not self.settings.get('LOG_FILE'):
-                self.logger.debug(
-                    'No log to save for process monitor, because we logged to stdout instead. Use "--log_file" if you want to save the output.')
-                return True
-            self._save_monitor_log()
-        except Exception as e:
-            self._fail('Failed to save worker process monitor log',
-                               detail=str(e))
-            # Don't raise error. Continue cleanup
-
-    def _save_monitor_log(self):
-        self._import_log_file(self.settings['LOG_FILE'])
-
     # Updates to TaskAttempt
 
     def _send_heartbeat(self):
-        try:
-            self.last_heartbeat
-        except AttributeError:
-            self.last_heartbeat = datetime.now()
-
-        time_since_heartbeat = datetime.now() - self.last_heartbeat
-        if time_since_heartbeat.seconds > self.settings['HEARTBEAT_INTERVAL_SECONDS']:
-            self.connection.update_task_attempt(
-                self.settings['TASK_ATTEMPT_ID'],
-                {}
-            )
-            self.last_heartbeat = datetime.now()
+        self.connection.update_task_attempt(
+            self.settings['TASK_ATTEMPT_ID'],
+            {}
+        )
 
     def _set_container_id(self, container_id):
         self.connection.update_task_attempt(
@@ -547,26 +548,8 @@ class TaskRunner(object):
 # pip entrypoint requires a function with no arguments
 def main():
 
-    run_error = None
-    cleanup_error = None
-
-    try:
-        tr = TaskRunner()
-        tr.run()
-    except Exception as e:
-        run_error = e
-
-    try:
-        tr.cleanup()
-    except Exception as e:
-        cleanup_error = e
-
-    # Errors from initialization or run
-    # take priority over errors from cleanup
-    if run_error:
-        raise run_error
-    elif cleanup_error:
-        raise cleanup_error
+    tr = TaskRunner()
+    tr.run_with_heartbeats(tr.main)
 
 if __name__=='__main__':
     main()
