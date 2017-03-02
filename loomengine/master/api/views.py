@@ -90,7 +90,8 @@ class TaskViewSet(viewsets.ModelViewSet):
                            .select_related('selected_task_attempt')\
                            .prefetch_related('task_attempts')\
                            .prefetch_related('inputs__data_object')\
-                           .prefetch_related('outputs__data_object')
+                           .prefetch_related('outputs__data_object')\
+                           .prefetch_related('timepoints')
         return queryset
 
 
@@ -221,7 +222,8 @@ class RunViewSet(viewsets.ModelViewSet):
                            .prefetch_related('steprun__outputs__data_root')\
                            .prefetch_related('steprun__tasks')\
                            .prefetch_related('steprun__run_request__inputs__data_root')\
-                           .prefetch_related('steprun__run_request__template')
+                           .prefetch_related('steprun__run_request__template')\
+                           .prefetch_related('timepoints')
         return queryset
 
 
