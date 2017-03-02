@@ -14,12 +14,10 @@ import requests
 from loomengine.utils import md5calc
 from loomengine.utils.exceptions import *
 from loomengine.utils.connection import Connection
-from loomengine.utils.logger import StreamToLogger
 
 # Google Storage JSON API imports
-from apiclient.http import MediaIoBaseDownload
-from oauth2client.client import GoogleCredentials
 from oauth2client.client import HttpAccessTokenRefreshError
+from oauth2client.client import ApplicationDefaultCredentialsError
 import apiclient.discovery
 
 
@@ -198,7 +196,14 @@ class GoogleStorageSource(AbstractSource):
         
         self.settings = settings
 
-        self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])    
+        try:
+            self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])
+        except ApplicationDefaultCredentialsError as e:
+            raise SystemExit(
+                'ERROR! '\
+                'Google Cloud application default credentials are not set. '\
+                'Please run "gcloud auth application-default login"')
+
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
@@ -572,6 +577,12 @@ class FileManager:
             self.logger.info(
                 '   copying to destination %s ...' % destination.get_url())
             source.copy_to(destination)
+        except ApplicationDefaultCredentialsError as e:
+            self._set_upload_status(file_data_object, 'failed')
+            raise SystemExit(
+                'ERROR! '\
+                'Google Cloud application default credentials are not set. '\
+                'Please run "gcloud auth application-default login"')
         except Exception as e:
             self._set_upload_status(file_data_object, 'failed')
             raise e
