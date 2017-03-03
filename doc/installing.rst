@@ -28,8 +28,9 @@ Prerequisites
 *****************************************
 Installing the development branch of Loom
 *****************************************
+::
 
-::    unset PYTHONPATH        # because PYTHONPATH takes precedence over virtualenv
+    unset PYTHONPATH        # because PYTHONPATH takes precedence over virtualenv
     git clone -b development https://github.com/StanfordBioinformatics/loom.git
     virtualenv loom-env
     source loom-env/bin/activate
@@ -85,6 +86,7 @@ Finally, create and start the server::
 Making sure the server is running and reachable
 ===============================================
 ::
+
     loom server status
 
 Running a workflow
@@ -92,6 +94,7 @@ Running a workflow
 
 Once you have a server up and running, you can run a workflow!
 ::
+
     loom import file loom/doc/examples/hello_world/hello.txt
     loom import file loom/doc/examples/hello_world/world.txt
     loom import template loom/doc/examples/hello_world/hello_world.json
@@ -100,6 +103,7 @@ Once you have a server up and running, you can run a workflow!
 Listing entities in Loom's database
 ===================================
 ::
+
     loom show files
     loom show templates
     loom show runs
@@ -107,11 +111,13 @@ Listing entities in Loom's database
 Viewing run progress in a web browser
 =====================================
 ::
+
     loom browser
 
 Deleting the Loom server
 ========================
 ::
+
     loom server delete
 
 ****************
@@ -125,6 +131,7 @@ Note: We recommend using Ubuntu 16.04 rather than 14.04, because Python 2.7.9 is
 
 Install Docker: https://docs.docker.com/engine/installation/linux/ubuntu/
 Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
+::
 
     sudo apt-get update
     sudo apt-get install -y build-essential libssl-dev libffi-dev libmysqlclient-dev python-dev git
@@ -140,6 +147,7 @@ Installing prerequisites on CentOS 7
 Install Docker: https://docs.docker.com/engine/installation/linux/centos/
 Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
 ::
+
     # Add EPEL repo and update yum
     sudo yum install -y epel-release
     sudo yum update -y
