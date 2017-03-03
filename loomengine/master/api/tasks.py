@@ -170,17 +170,18 @@ def _run_task_runner_playbook(task_attempt):
 
     p = subprocess.Popen(cmd_list, env=env,
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    terminal_output = ''
+    for line in iter(p.stdout.readline, ''):
+        terminal_output += line
+        print line.strip()
     p.wait()
-    stdout = p.stdout.read()
-
     if p.returncode != 0:
         task_attempt.add_timepoint(
             "Failed to launch worker process for TaskAttempt %s" \
             % task_attempt.uuid,
-            detail=stdout,
+            detail=terminal_output,
             is_error=True)
         task_attempt.fail()
-    print stdout
 
 @shared_task
 def _cleanup_task_attempt(task_attempt_uuid):

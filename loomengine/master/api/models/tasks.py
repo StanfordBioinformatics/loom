@@ -346,13 +346,13 @@ class TaskAttempt(BaseModel):
     def status_message(self):
         if self.timepoints.count() == 0:
             return ''
-        return self.timepoints.last().detail
+        return self.timepoints.last().message
 
     @property
     def status_detail(self):
         if self.timepoints.count() == 0:
             return ''
-        return self.timepoints.last().message
+        return self.timepoints.last().detail
     
     def heartbeat(self):
         task_attempt = TaskAttempt.objects.get(uuid=self.uuid)
