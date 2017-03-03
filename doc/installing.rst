@@ -28,7 +28,7 @@ Prerequisites
 *****************************************
 Installing the development branch of Loom
 *****************************************
-
+::
     unset PYTHONPATH        # because PYTHONPATH takes precedence over virtualenv
     git clone -b development https://github.com/StanfordBioinformatics/loom.git
     virtualenv loom-env
@@ -39,7 +39,7 @@ Installing the development branch of Loom
 Tests
 =====
 
-Run tests to verify installation:
+Run tests to verify installation::
 
     sudo mkdir /var/log/loom
     sudo chmod a+w /var/log/loom
@@ -51,14 +51,14 @@ Starting a server
 Local server
 ------------
 
-To start a local server with default settings:
+To start a local server with default settings::
 
     loom server start --settings-file local.conf
 
 Google Cloud server
 -------------------
 
-First, create a directory that will store files needed to administer the Loom server:
+First, create a directory that will store files needed to administer the Loom server::
 
     mkdir ~/admin
 
@@ -66,11 +66,11 @@ Second, create a service account credential: https://cloud.google.com/iam/docs/c
 
 Save the JSON credential to `~/admin/key.json`.
 
-Third, make sure your Google Cloud SDK is initialized and authenticated:
+Third, make sure your Google Cloud SDK is initialized and authenticated::
 
     gcloud init
 
-Fourth, copy the settings file template at `loom/loomengine/client/settings/gcloud.conf` and fill in values specific to your project. Make sure these settings are defined:
+Fourth, copy the settings file template at `loom/loomengine/client/settings/gcloud.conf` and fill in values specific to your project. Make sure these settings are defined::
 
     LOOM_GCE_EMAIL:                 # service account email whose key you provided
     LOOM_GCE_PROJECT:
@@ -78,20 +78,20 @@ Fourth, copy the settings file template at `loom/loomengine/client/settings/gclo
 
 Save the config file as ~/gcloud.conf.
 
-Finally, create and start the server:
+Finally, create and start the server::
 
     loom server start --settings-file ~/gcloud.conf --admin-files ~/admin
 
 Making sure the server is running and reachable
 ===============================================
-
+::
     loom server status
 
 Running a workflow
 ==================
 
 Once you have a server up and running, you can run a workflow!
-
+::
     loom import file loom/doc/examples/hello_world/hello.txt
     loom import file loom/doc/examples/hello_world/world.txt
     loom import template loom/doc/examples/hello_world/hello_world.json
@@ -99,19 +99,19 @@ Once you have a server up and running, you can run a workflow!
 
 Listing entities in Loom's database
 ===================================
-
+::
     loom show files
     loom show templates
     loom show runs
 
 Viewing run progress in a web browser
 =====================================
-
+::
     loom browser
 
 Deleting the Loom server
 ========================
-
+::
     loom server delete
 
 ****************
@@ -125,7 +125,7 @@ Note: We recommend using Ubuntu 16.04 rather than 14.04, because Python 2.7.9 is
 
 Install Docker: https://docs.docker.com/engine/installation/linux/ubuntu/
 Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
-
+::
     sudo apt-get update
     sudo apt-get install -y build-essential libssl-dev libffi-dev libmysqlclient-dev python-dev git
     wget https://bootstrap.pypa.io/get-pip.py
@@ -139,7 +139,7 @@ Installing prerequisites on CentOS 7
 
 Install Docker: https://docs.docker.com/engine/installation/linux/centos/
 Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
-
+::
     # Add EPEL repo and update yum
     sudo yum install -y epel-release
     sudo yum update -y
@@ -161,11 +161,11 @@ Review the `Django deployment checklist <https://docs.djangoproject.com/en/1.8/h
 High-memory Docker containers on Mac OS
 =======================================
 
-When running on a Mac, docker-machine uses a default memory size of 2024 MB for VirtualBox. When you run out of memory, you will see "Killed" in the program output. If you need Docker containers with higher memory, create it like this:
+When running on a Mac, docker-machine uses a default memory size of 2024 MB for VirtualBox. When you run out of memory, you will see "Killed" in the program output. If you need Docker containers with higher memory, create it like this::
 
     docker-machine create -d virtualbox --virtualbox-memory 8192 highmem
 
-Then you can load the necessary environment variables like this:
+Then you can load the necessary environment variables like this::
 
     eval "$(docker-machine env highmem)"
 
