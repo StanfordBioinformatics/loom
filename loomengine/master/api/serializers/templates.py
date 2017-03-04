@@ -100,7 +100,6 @@ class StepSerializer(serializers.ModelSerializer):
                   'name',
                   'command',
                   'interpreter',
-                  'interpreter_options',
                   'environment',
                   'resources',
                   'inputs',

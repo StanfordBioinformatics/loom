@@ -288,15 +288,12 @@ class TaskRunner(object):
     def _create_container(self):
         docker_image = self._get_docker_image()
         interpreter = self.task_attempt['interpreter']
-        interpreter_options = self.task_attempt['interpreter_options']
         host_dir = self.settings['WORKING_DIR']
         container_dir = '/loom_workspace'
 
-        command = [interpreter]
-        if interpreter_options:
-            command.extend(interpreter_options.split(' '))
+        command = interpreter.split(' ')
         command.append(self.LOOM_RUN_SCRIPT_NAME)
-
+        
         self.container = self.docker_client.create_container(
             image=docker_image,
             command=command,

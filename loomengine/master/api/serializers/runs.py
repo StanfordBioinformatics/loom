@@ -89,7 +89,6 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     outputs = StepRunOutputSerializer(many=True)
     command = serializers.CharField()
     interpreter = serializers.CharField()
-    interpreter_options = serializers.CharField()
     type = serializers.CharField()
     tasks = TaskUuidSerializer(many=True)
     run_request = RunRequestUuidSerializer(required=False)
@@ -101,7 +100,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = StepRun
         fields = ('uuid', 'template', 'inputs', 'outputs',
-                  'command', 'interpreter', 'interpreter_options', 'tasks',
+                  'command', 'interpreter', 'tasks',
                   'run_request', 'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'status_is_running', 'timepoints', 'status')

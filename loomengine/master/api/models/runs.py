@@ -168,7 +168,6 @@ class Run(BaseModel):
                 type=template.type,
                 command=template.step.command,
                 interpreter=template.step.interpreter,
-                interpreter_options = template.step.interpreter_options,
                 parent=parent).run_ptr
             if run_request:
                 run_request.run = run
@@ -439,8 +438,7 @@ class WorkflowRun(Run):
 class StepRun(Run):
 
     command = models.TextField()
-    interpreter = models.CharField(max_length=255)
-    interpreter_options = models.CharField(max_length=1024)
+    interpreter = models.CharField(max_length=1024)
 
     # True if ANY tasks are running
     # status_running = models.BooleanField(default=False)

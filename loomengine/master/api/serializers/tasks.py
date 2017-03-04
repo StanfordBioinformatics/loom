@@ -125,8 +125,8 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'status_is_running', 'status_is_cleaned_up',
                   'log_files', 'inputs', 'outputs', 'interpreter', 
-                  'interpreter_options',  'rendered_command',
-                  'environment', 'resources', 'timepoints')
+                  'rendered_command', 'environment', 'resources', 'timepoints')
+                  
 
     @transaction.atomic
     def update(self, instance, validated_data):
@@ -191,7 +191,6 @@ class TaskSerializer(serializers.ModelSerializer):
     command = serializers.CharField(read_only=True)
     rendered_command = serializers.CharField(read_only=True)
     interpreter = serializers.CharField(read_only=True)
-    interpreter_options = serializers.CharField(read_only=True)
     datetime_finished = serializers.CharField(read_only=True)
     datetime_created = serializers.CharField(read_only=True)
     status_message = serializers.CharField(read_only=True)
@@ -208,7 +207,7 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = ('uuid', 'resources', 'environment', 'inputs', 
                   'outputs', 'task_attempts', 'selected_task_attempt', 
-                  'command', 'rendered_command', 'interpreter', 'interpreter_options',
+                  'command', 'rendered_command', 'interpreter',
                   'datetime_finished', 'datetime_created',
                   'status_message', 'status_detail',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',

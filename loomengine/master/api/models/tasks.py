@@ -25,8 +25,7 @@ class Task(BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True)
-    interpreter = models.CharField(max_length=255, default='/bin/bash')
-    interpreter_options = models.CharField(max_length=1024, default='-euo pipefail')
+    interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     rendered_command = models.TextField()
 
@@ -151,6 +150,7 @@ class Task(BaseModel):
         task = Task.objects.create(
             step_run=step_run,
             command=step_run.command,
+            interpreter=step_run.interpreter,
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -322,9 +322,6 @@ class TaskAttempt(BaseModel):
     @property
     def interpreter(self):
         return self.task.interpreter
-
-    def interpreter_options(self):
-        return self.task.interpreter_options
 
     @property
     def rendered_command(self):
