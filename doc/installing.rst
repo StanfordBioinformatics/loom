@@ -18,12 +18,12 @@ Prerequisites
 
 * python >= 2.7 < 3.x
 * `pip <http://pip.readthedocs.org/en/stable/installing/>`_
-* `virtualenv <https://virtualenv.pypa.io/en/stable/`_ (use 'pip install virtualenv' to install)
+* `virtualenv <https://virtualenv.pypa.io/en/stable/>`_ (use 'pip install virtualenv' to install)
 * `Docker <https://www.docker.com/products/overview>`_
 * gcc (Comes with XCode on Mac)
 * MySQL
 * git
-* `Google Cloud SDK <https://cloud.google.com/sdk/`_ (for Google Cloud deployment only)
+* `Google Cloud SDK <https://cloud.google.com/sdk/>`_ (for Google Cloud deployment only)
 
 *****************************************
 Installing the development branch of Loom
@@ -129,8 +129,9 @@ Installing prerequisites on Ubuntu 16.04
 
 Note: We recommend using Ubuntu 16.04 rather than 14.04, because Python 2.7.9 is not officially supported on 14.04. This leads to InsecurePlatformWarnings and headaches with SSL/TLS.
 
-Install Docker: https://docs.docker.com/engine/installation/linux/ubuntu/
-Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
+* Install Docker: https://docs.docker.com/engine/installation/linux/ubuntu/
+* Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
+
 ::
 
     sudo apt-get update
@@ -144,8 +145,9 @@ Add current user to docker group (may have to log out and back in for change to 
 Installing prerequisites on CentOS 7
 ====================================
 
-Install Docker: https://docs.docker.com/engine/installation/linux/centos/
-Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
+* Install Docker: https://docs.docker.com/engine/installation/linux/centos/
+* Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
+
 ::
 
     # Add EPEL repo and update yum
@@ -164,7 +166,7 @@ Add current user to docker group (may have to log out and back in for change to 
 Production installation
 =======================
 
-Review the `Django deployment checklist <https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/>`_
+Make sure to review the `Django deployment checklist <https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/>`_.
 
 High-memory Docker containers on Mac OS
 =======================================
