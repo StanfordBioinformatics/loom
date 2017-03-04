@@ -372,8 +372,8 @@ class TaskAttempt(BaseModel):
         task_attempt.save()
         task_attempt.add_timepoint(
             "TaskAttempt %s failed" % self.uuid,
-            detail="The TaskRunner experienced an error when executing '\
-            'TaskAttempt %s" % task_attempt.uuid,
+            detail='The TaskRunner experienced an error when executing '\
+            'TaskAttempt %s' % task_attempt.uuid,
             is_error=True)
         try:
             task_attempt.task_as_selected.fail(

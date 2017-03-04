@@ -19,7 +19,7 @@ n=0
 while :
 do
     # break if db connection is successful
-    $BIN_PATH/../loomengine/master/manage.py inspectdb > /dev/null 2&>1 && break
+    $BIN_PATH/../loomengine/master/manage.py inspectdb > /dev/null 2>%1 && break
 
     # exit if retries exceeded
     if [ $n -ge $RETRIES ]
