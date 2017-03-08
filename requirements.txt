@@ -10,6 +10,7 @@ cryptography==1.5.2
 Django==1.10.3
 django-celery-results==1.0.1
 django-cors-headers==1.2.2
+django-debug-toolbar==1.7
 django-extensions==1.7.4
 django-jsonfield==1.0.1
 djangorestframework==3.5.1

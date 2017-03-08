@@ -2,6 +2,7 @@ import copy
 from django.test import TestCase, TransactionTestCase
 
 from . import fixtures
+from . import get_mock_request, get_mock_context
 from api.serializers.run_requests import *
 from api.serializers.templates import TemplateSerializer
 from api.models.data_trees import DataNode
@@ -33,13 +34,17 @@ class TestRunRequestSerializer(TransactionTestCase):
             rr.inputs.first().get_data_as_scalar().substitution_value,
             fixtures.run_requests.run_request_input['data']['contents'])
 
-        data_tree = DataNode.objects.get(uuid=RunRequestSerializer(rr).data['inputs'][0]['data']['uuid'])
+        uuid = RunRequestSerializer(rr, context=get_mock_context()).data[
+            'inputs'][0]['data']['uuid']
+        data_tree = DataNode.objects.get(uuid=uuid)
+
         self.assertEqual(
             data_tree.data_object.substitution_value,
             fixtures.run_requests.run_request_input['data']['contents'])
 
         self.assertEqual(
-            RunRequestSerializer(rr).data['template']['uuid'],
+            RunRequestSerializer(rr, context=get_mock_context()).data[
+                'template']['uuid'],
             rr.template.uuid)
 
         self.assertEqual(rr.run.template.uuid, rr.template.uuid)

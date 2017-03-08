@@ -7,9 +7,9 @@ from api.models.runs import Run
 from api.models.run_requests import RunRequest, RunRequestInput
 from api.models.signals import post_save_children
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
-from api.serializers.templates import TemplateNameAndUuidSerializer
-from api.serializers.base import UuidSerializer
+from api.serializers.templates import TemplateSerializer, AbridgedTemplateSerializer
 from api import tasks
+
 
 class RunRequestInputSerializer(InputOutputNodeSerializer):
 
@@ -19,10 +19,11 @@ class RunRequestInputSerializer(InputOutputNodeSerializer):
         model = RunRequestInput
         fields = ('type', 'channel', 'data',)
 
+
 class RunRequestSerializer(serializers.ModelSerializer):
 
     inputs = RunRequestInputSerializer(many=True, required=False)
-    template = TemplateNameAndUuidSerializer()
+    template = AbridgedTemplateSerializer()
     uuid = serializers.UUIDField(required=False)
 
     class Meta:
@@ -37,10 +38,10 @@ class RunRequestSerializer(serializers.ModelSerializer):
         validated_data.pop('inputs', None)
 
         # Look up workflow or step 'template' using identifier string
-        s = TemplateNameAndUuidSerializer(data=validated_data.pop('template'))
+        s = TemplateSerializer(data=validated_data.pop('template'))
         s.is_valid()
         template = s.save()
-
+        
         validated_data['template'] = template
 
         run_request = RunRequest.objects.create(**validated_data)
@@ -63,7 +64,3 @@ class RunRequestSerializer(serializers.ModelSerializer):
         run_request.initialize_run()
         
         return run_request
-
-class RunRequestUuidSerializer(UuidSerializer, RunRequestSerializer):
-
-    pass

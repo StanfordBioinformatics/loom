@@ -7,6 +7,7 @@ from api.models.tasks import *
 from api.models.data_objects import BooleanDataObject, StringDataObject, \
     FileResource, FileDataObject
 from . import fixtures
+from . import get_mock_context
 
 def get_task():
     task = Task.objects.create(
@@ -76,17 +77,17 @@ class TestTaskSerializer(TestCase):
 
     def testRender(self):
         task = get_task()
-        s = TaskSerializer(task)
+        s = TaskSerializer(task, context=get_mock_context())
         task_data = s.data
         self.assertEqual(task_data['command'],
                          task.command)
 
 
-class TestTaskSerializerIdOnly(TestCase):
+class TestAbridgedTaskSerializer(TestCase):
 
     def testRender(self):
         task = get_task()
-        s = TaskUuidSerializer(task)
+        s = AbridgedTaskSerializer(task, context=get_mock_context())
         task_data = s.data
         self.assertEqual(task_data['uuid'],
                          task.uuid)

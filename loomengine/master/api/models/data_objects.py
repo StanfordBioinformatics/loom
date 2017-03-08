@@ -29,7 +29,7 @@ class MultipleMatchesError(Exception):
 
 
 class DataObjectManager():
-
+    
     def __init__(self, model):
         self.model = model
 

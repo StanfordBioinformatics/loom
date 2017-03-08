@@ -2,14 +2,12 @@ from rest_framework import serializers
 from django.db import transaction
 
 from api.exceptions import *
-from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, \
-    UuidSerializer
+from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.data_objects import FileDataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskResourceSet, TaskEnvironment, TaskAttempt, TaskAttemptOutput, \
     TaskAttemptLogFile, TaskAttemptTimepoint, TaskTimepoint
-from api.serializers.data_objects import DataObjectSerializer, DataObjectUuidSerializer, FileDataObjectSerializer
-
+from api.serializers.data_objects import DataObjectSerializer
 
 
 class TaskResourceSetSerializer(CreateWithParentModelSerializer):
@@ -25,6 +23,7 @@ class TaskEnvironmentSerializer(CreateWithParentModelSerializer):
         model = TaskEnvironment
         fields = ('docker_image',)
 
+
 class TaskTimepointSerializer(CreateWithParentModelSerializer):
 
     class Meta:
@@ -35,7 +34,7 @@ class TaskTimepointSerializer(CreateWithParentModelSerializer):
 class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
     # Used for both TaskOutput and TaskAttemptOutput
 
-    data_object = DataObjectUuidSerializer(allow_null=True, required=False)
+    data_object = DataObjectSerializer(allow_null=True, required=False)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = serializers.JSONField(required=False)
@@ -74,7 +73,7 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
 
 class TaskInputSerializer(CreateWithParentModelSerializer):
 
-    data_object = DataObjectUuidSerializer(allow_null=True, required=False)
+    data_object = DataObjectSerializer(allow_null=True, required=False)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
 
@@ -83,14 +82,9 @@ class TaskInputSerializer(CreateWithParentModelSerializer):
         fields = ('id', 'type', 'channel', 'data_object',)
 
 
-class FullTaskInputSerializer(TaskInputSerializer):
-
-    data_object = DataObjectSerializer(allow_null=True, required=False)
-
-
 class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
 
-    file = DataObjectUuidSerializer(allow_null=True, required=False)
+    file = DataObjectSerializer(allow_null=True, required=False)
 
     class Meta:
         model = TaskAttemptLogFile
@@ -104,9 +98,12 @@ class TaskAttemptTimepointSerializer(CreateWithParentModelSerializer):
         fields = ('message', 'detail', 'timestamp', 'is_error')
 
 
-class TaskAttemptSerializer(serializers.ModelSerializer):
+class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='task-attempt-detail',
+        lookup_field='uuid')
     log_files = TaskAttemptLogFileSerializer(
         many=True, allow_null=True, required=False)
     inputs = TaskInputSerializer(many=True, allow_null=True, required=False)
@@ -120,7 +117,7 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TaskAttempt
-        fields = ('uuid', 'datetime_created', 'datetime_finished', 
+        fields = ('uuid', 'url', 'datetime_created', 'datetime_finished', 
                   'last_heartbeat', 'status_message', 'status_detail',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'status_is_running', 'status_is_cleaned_up',
@@ -152,13 +149,23 @@ class TaskAttemptSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-class TaskAttemptUuidSerializer(UuidSerializer, TaskAttemptSerializer):
-    pass
+
+class AbridgedTaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
+    # This serializer is used for display only
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='task-attempt-detail',
+        lookup_field='uuid')
+
+    class Meta:
+        model = TaskAttempt
+        fields = ('uuid',
+                  'url',)
 
 
 class TaskInputSerializer(CreateWithParentModelSerializer):
 
-    data_object = DataObjectUuidSerializer(read_only=True)
+    data_object = DataObjectSerializer(read_only=True)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
 
@@ -169,7 +176,7 @@ class TaskInputSerializer(CreateWithParentModelSerializer):
 
 class TaskOutputSerializer(CreateWithParentModelSerializer):
 
-    data_object = DataObjectUuidSerializer(read_only=True)
+    data_object = DataObjectSerializer(read_only=True)
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = serializers.JSONField(required=False)
@@ -179,14 +186,17 @@ class TaskOutputSerializer(CreateWithParentModelSerializer):
         fields = ('data_object', 'source', 'type', 'channel')
 
 
-class TaskSerializer(serializers.ModelSerializer):
+class TaskSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False, read_only=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='task-detail',
+        lookup_field='uuid')
     resources = TaskResourceSetSerializer(read_only=True)
     environment = TaskEnvironmentSerializer(read_only=True)
     inputs = TaskInputSerializer(many=True, read_only=True)
     outputs = TaskOutputSerializer(many=True, read_only=True)
-    task_attempts = TaskAttemptUuidSerializer(many=True, read_only=True)
+    task_attempts = AbridgedTaskAttemptSerializer(many=True, read_only=True)
     selected_task_attempt = TaskAttemptSerializer(read_only=True)
     command = serializers.CharField(read_only=True)
     rendered_command = serializers.CharField(read_only=True)
@@ -205,7 +215,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ('uuid', 'resources', 'environment', 'inputs', 
+        fields = ('uuid', 'url', 'resources', 'environment', 'inputs', 
                   'outputs', 'task_attempts', 'selected_task_attempt', 
                   'command', 'rendered_command', 'interpreter',
                   'datetime_finished', 'datetime_created',
@@ -213,6 +223,18 @@ class TaskSerializer(serializers.ModelSerializer):
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'status_is_running', 'attempt_number', 'timepoints')
 
-class TaskUuidSerializer(UuidSerializer, TaskSerializer):
-    pass
 
+class AbridgedTaskSerializer(serializers.HyperlinkedModelSerializer):
+    # This serializer is used for display only
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='task-detail',
+        lookup_field='uuid')
+    datetime_created = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Task
+        fields = ('uuid',
+                  'url',
+                  'status_message',
+                  'datetime_created',)

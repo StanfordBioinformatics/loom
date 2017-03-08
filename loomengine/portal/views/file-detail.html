@@ -5,35 +5,29 @@
       <tr>
         <th>Filename</th>
 	<td>
-          {{activeData.file.file_content.filename}}
+          {{activeData.file.filename}}
 	</td>
       </tr>
       <tr>
         <th>File ID</th>
 	<td>
-          {{activeData.file.id}}
+          {{activeData.file.uuid}}
 	</td>
       </tr>
       <tr>
-	<th>Hash function</th>
+	<th>md5</th>
 	<td>
-	  {{activeData.file.file_content.unnamed_file_content.hash_function}}
+          {{activeData.file.md5}}
         </td>
       </tr>
-      <tr>
-	<th>Hash value</th>
+      <tr ng-show="activeData.file.file_resource">
+	<th>File URL</th>
 	<td>
-          {{activeData.file.file_content.unnamed_file_content.hash_value}}
-        </td>
-      </tr>
-      <tr ng-show="activeData.file.file_location">
-	<th>File location</th>
-	<td>
-	  {{activeData.file.file_location.url}}
+	  {{activeData.file.file_resource.file_url}}
         </td>
       </tr>
       <tr ng-show="activeData.file.file_import.source_url">
-        <th>Original source</th>
+        <th>Source URL</th>
 	<td>
 	  {{activeData.file.file_import.source_url}}
 	</td>
@@ -53,4 +47,3 @@
     </tbody>
   </table>
 </div>
-

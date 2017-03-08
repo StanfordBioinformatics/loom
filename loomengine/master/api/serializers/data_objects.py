@@ -1,8 +1,7 @@
 from django.db import models
 from rest_framework import serializers
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, \
-    UuidSerializer
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.data_objects import StringDataObject, BooleanDataObject, \
     IntegerDataObject, FloatDataObject, FileDataObject, DataObject, \
     FileResource, DataObjectArray
@@ -13,61 +12,84 @@ class UpdateNotAllowedError(Exception):
     pass
 
 
-class BooleanDataObjectSerializer(serializers.ModelSerializer):
+class BooleanDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
     
     class Meta:
         model = BooleanDataObject
-        exclude = ('id', '_change',)
+        fields = ('uuid', 'url', 'type', 'is_array', 'datetime_created', 'value')
 
 
-class IntegerDataObjectSerializer(serializers.ModelSerializer):
+class IntegerDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
     
     class Meta:
         model = IntegerDataObject
-        exclude = ('id', '_change',)
+        fields = ('uuid', 'url', 'type', 'is_array', 'datetime_created', 'value')
 
 
-class FloatDataObjectSerializer(serializers.ModelSerializer):
+class FloatDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
     
     class Meta:
         model = FloatDataObject
-        exclude = ('id', '_change',)
+        fields = ('uuid', 'url', 'type', 'is_array', 'datetime_created', 'value')
 
 
-class StringDataObjectSerializer(serializers.ModelSerializer):
+class StringDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
     
     class Meta:
         model = StringDataObject
-        exclude = ('id', '_change',)
+        fields = ('uuid', 'url', 'type', 'is_array', 'datetime_created', 'value')
 
 
-class FileResourceSerializer(serializers.ModelSerializer):
+class FileResourceSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='file-resource-detail',
+        lookup_field='uuid'
+    )
     
     class Meta:
         model = FileResource
-        exclude = ('id', '_change',)
-
+        fields = ('uuid', 'url', 'datetime_created', 'file_url', 'md5', 'upload_status')
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
 
     uuid = serializers.CharField(required=False)
-    
     file_resource = FileResourceSerializer(allow_null=True, required=False)
     file_import = serializers.JSONField(required=False, allow_null=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
     
     class Meta:
         model = FileDataObject
-        exclude = ('id', '_change',)
+        fields = ('uuid', 'url', 'file_resource', 'file_import', 'type',
+                  'is_array', 'datetime_created', 'filename', 'md5', 'source_type')
 
     def create(self, validated_data):
         if self.initial_data.get('file_resource'):
@@ -110,14 +132,17 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
 class DataObjectSerializer(SuperclassModelSerializer):
 
     type = serializers.CharField(required=True)
-    
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
+
     class Meta:
         model = DataObject
         exclude = ('_change',)
 
     subclass_serializers = {
-        # array type excluded to avoid circular dependency
-        #'array': DataObjectArraySerializer,
+        # array type handled separately to avoid circular dependency
         'string': StringDataObjectSerializer,
         'integer': IntegerDataObjectSerializer,
         'boolean': BooleanDataObjectSerializer,
@@ -167,19 +192,32 @@ class DataObjectSerializer(SuperclassModelSerializer):
                 return data.get('type')
 
 
-class DataObjectUuidSerializer(UuidSerializer, DataObjectSerializer):
+class DataObjectUuidSerializer(serializers.HyperlinkedModelSerializer):
+    # This serializer is used for display only                                           
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
 
-    pass
+    class Meta:
+        model = DataObject
+        fields = ('uuid',
+                  'url',)
 
 
-class DataObjectArraySerializer(serializers.ModelSerializer):
+class DataObjectArraySerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     members = DataObjectSerializer(many=True, required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
 
     class Meta:
         model = DataObjectArray
-        exclude = ('id', '_change',)
+        exclude = ('_change',)
 
     def create(self, validated_data):
         member_instances = self._create_member_instances()

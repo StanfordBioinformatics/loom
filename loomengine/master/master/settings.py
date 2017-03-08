@@ -29,6 +29,7 @@ def to_list(value):
 SETTINGS_DIR = os.path.dirname(__file__)
 BASE_DIR = (os.path.join(SETTINGS_DIR, '..'))
 sys.path.append(BASE_DIR)
+PORTAL_ROOT = os.path.join(BASE_DIR, '..', 'portal')
 
 # Security settings
 DEBUG = to_boolean(os.getenv('LOOM_DEBUG'))
@@ -143,7 +144,7 @@ CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
                        LOOM_RABBITMQ_HOST, LOOM_RABBITMQ_PORT,
                        LOOM_RABBITMQ_VHOST)
 
-INSTALLED_APPS = (
+INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django_extensions',
@@ -154,9 +155,9 @@ INSTALLED_APPS = (
     'rest_framework',
     'django_celery_results',
     'api',
-)
+]
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE_CLASSES = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -165,7 +166,7 @@ MIDDLEWARE_CLASSES = (
 #    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-)
+]
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -317,3 +318,15 @@ STATICFILES_DIRS = [
 
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE_CLASSES.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+    DEBUG_TOOLBAR_CONFIG = {
+        "INTERCEPT_REDIRECTS": False,
+        'MEDIA_URL': '/__debug__/m/',
+    }

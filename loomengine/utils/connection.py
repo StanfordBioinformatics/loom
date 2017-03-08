@@ -160,16 +160,6 @@ class Connection(object):
                 % (len(file_data_objects), max))
         return file_data_objects
 
-#    def get_file_resources_by_file(self, file_id):
-#        return self._get_object(
-#            'files/'+file_id+'/file-resources/'
-#        )
-
-#    def post_file_resource(self, file_resource):
-#        return self._post_object(
-#            file_resource,
-#            'file-resources/')
-
     def update_file_resource(self, file_resource_id, file_resource_update):
         return self._patch_object(
             file_resource_update,

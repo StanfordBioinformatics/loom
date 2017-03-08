@@ -2,11 +2,13 @@ from rest_framework.test import RequestsClient
 import datetime
 from django.test import TestCase, TransactionTestCase, override_settings
 import loomengine.utils.helper
+from rest_framework.request import Request
+from rest_framework.test import APIRequestFactory
 
 from . import fixtures
+from . import get_mock_request, get_mock_context
 import fixtures.run_fixtures.many_steps.generator
 from api.serializers.templates import *
-
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestFixedStepInputSerializer(TestCase):
@@ -35,12 +37,12 @@ class TestFixedStepInputSerializer(TestCase):
             data=fixtures.templates.fixed_step_input,
             context={'parent_field': 'step',
                      'parent_instance': step})
+            
         s.is_valid(raise_exception=True)
         fixed_input = s.save()
 
-        s2 = FixedStepInputSerializer(fixed_input)
-        self.assertEqual(s2.data['data'].keys(),
-                         ['uuid'])
+        s2 = FixedStepInputSerializer(fixed_input, context=get_mock_context())
+        self.assertTrue('uuid' in s2.data['data'].keys())
         
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
@@ -61,7 +63,8 @@ class TestStepSerializer(TransactionTestCase):
     def testRender(self):
         with self.settings(TEST_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
-            s = StepSerializer(data=fixtures.templates.step_a)
+            s = StepSerializer(data=fixtures.templates.step_a,
+                               context=get_mock_context())
             s.is_valid()
             m = s.save()
 
@@ -72,7 +75,8 @@ class TestStepSerializer(TransactionTestCase):
 class TestWorkflowSerializer(TransactionTestCase):
 
     def testCreateFlatWorkflow(self):
-        s = WorkflowSerializer(data=fixtures.templates.flat_workflow)
+        s = WorkflowSerializer(data=fixtures.templates.flat_workflow,
+                               context=get_mock_context())
         s.is_valid()
         m = s.save()
 
@@ -97,7 +101,8 @@ class TestWorkflowSerializer(TransactionTestCase):
             fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testRender(self):
-        s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
+        s = WorkflowSerializer(data=fixtures.templates.nested_workflow,
+                               context=get_mock_context())
         s.is_valid()
         m = s.save()
 
@@ -152,7 +157,7 @@ class TestTemplateSerializer(TransactionTestCase):
         s.is_valid()
         m = s.save()
 
-        s2 = TemplateSerializer(m)
+        s2 = TemplateSerializer(m, context=get_mock_context())
         self.assertEqual(s2.data['name'], 'nested')
 
     def testCreationPostprocessing(self):

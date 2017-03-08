@@ -16,7 +16,7 @@ function parseId(){
 	if (component == 'name'){
 	    return parts[0];
 	};
-	if (component == 'id'){
+	if (component == 'uuid'){
 	    return parts[1];
 	};
     };
