@@ -125,7 +125,7 @@ FORCE_RERUN = True
 
 # For testing only
 TEST_DISABLE_TASK_DELAY = to_boolean(os.getenv('TEST_DISABLE_TASK_DELAY', False))
-TEST_NO_AUTO_START_RUNS = to_boolean(os.getenv('TEST_NO_AUTOSTART_RUNS'))
+TEST_NO_AUTOSTART_RUNS = to_boolean(os.getenv('TEST_NO_AUTOSTART_RUNS'))
 TEST_NO_POSTPROCESS = to_boolean(os.getenv('TEST_NO_POSTPROCESS', False))
 
 # Fixed settings
@@ -326,7 +326,12 @@ INTERNAL_IPS = [
 if DEBUG:
     INSTALLED_APPS.append('debug_toolbar')
     MIDDLEWARE_CLASSES.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+
+    def custom_show_toolbar(request):
+        return True
+
     DEBUG_TOOLBAR_CONFIG = {
         "INTERCEPT_REDIRECTS": False,
         'MEDIA_URL': '/__debug__/m/',
+        'SHOW_TOOLBAR_CALLBACK': custom_show_toolbar,
     }
