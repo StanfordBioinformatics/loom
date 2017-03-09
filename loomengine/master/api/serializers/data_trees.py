@@ -165,3 +165,25 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
                 path_i.append((i, len(contents)))
                 self._extend_all_paths_and_add_data_at_leaves(
                     data_node, contents[i], path_i, data_type)
+
+
+class ExpandableDataNodeSerializer(DataNodeSerializer):
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-tree-detail',
+        lookup_field='uuid'
+    )
+
+    class Meta:
+        model = DataNode
+        fields = ('uuid',
+                  'url',
+        )
+
+    def to_representation(self, instance):
+        if self.context.get('expand'):
+            return super(ExpandableDataNodeSerializer, self).to_representation(instance)
+        else:
+            return serializers.HyperlinkedModelSerializer.to_representation(
+                self, instance)

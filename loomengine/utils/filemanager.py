@@ -514,8 +514,6 @@ class FileManager:
         return file_data_object
 
     def _create_task_attempt_output_file(self, task_attempt_output, md5):
-
-        
         updated_task_attempt_output = self.connection.update_task_attempt_output(
             task_attempt_output['id'],
             {

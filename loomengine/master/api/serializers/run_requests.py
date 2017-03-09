@@ -7,7 +7,7 @@ from api.models.runs import Run
 from api.models.run_requests import RunRequest, RunRequestInput
 from api.models.signals import post_save_children
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
-from api.serializers.templates import TemplateSerializer, AbridgedTemplateSerializer
+from api.serializers.templates import TemplateSerializer, ExpandableTemplateSerializer
 from api import tasks
 
 
@@ -23,7 +23,7 @@ class RunRequestInputSerializer(InputOutputNodeSerializer):
 class RunRequestSerializer(serializers.ModelSerializer):
 
     inputs = RunRequestInputSerializer(many=True, required=False)
-    template = AbridgedTemplateSerializer()
+    template = ExpandableTemplateSerializer()
     uuid = serializers.UUIDField(required=False)
 
     class Meta:

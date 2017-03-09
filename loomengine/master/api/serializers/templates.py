@@ -75,8 +75,8 @@ class TemplateSerializer(SuperclassModelSerializer):
             return data
 
 
-class AbridgedTemplateSerializer(TemplateSerializer):
-    # This serializer is used for display only
+class ExpandableTemplateSerializer(TemplateSerializer):
+    # A shortened set of fields for display only
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -90,6 +90,13 @@ class AbridgedTemplateSerializer(TemplateSerializer):
                   'url',
                   'name',
         )
+
+    def to_representation(self, instance):
+        if self.context.get('expand'):
+            return super(ExpandableTemplateSerializer, self).to_representation(instance)
+        else:
+            return serializers.HyperlinkedModelSerializer.to_representation(
+                self, instance)
 
 
 class StepSerializer(serializers.HyperlinkedModelSerializer):
@@ -216,7 +223,7 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
         required=False,
         allow_null=True)
     outputs = serializers.JSONField(required=False)
-    steps = AbridgedTemplateSerializer(many=True)
+    steps = ExpandableTemplateSerializer(many=True)
     template_import = serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
 

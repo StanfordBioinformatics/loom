@@ -5,8 +5,8 @@ from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.runs import Run, StepRun, \
     StepRunInput, StepRunOutput, WorkflowRunInput, \
     WorkflowRunOutput, WorkflowRun, RunTimepoint
-from api.serializers.templates import AbridgedTemplateSerializer
-from api.serializers.tasks import AbridgedTaskSerializer
+from api.serializers.templates import ExpandableTemplateSerializer
+from api.serializers.tasks import ExpandableTaskSerializer
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 from api.serializers.run_requests import RunRequestSerializer
 from api import tasks
@@ -46,7 +46,7 @@ class RunSerializer(SuperclassModelSerializer):
         return type
 
 
-class AbridgedRunSerializer(serializers.HyperlinkedModelSerializer):
+class ExpandableRunSerializer(RunSerializer):
     # This serializer is used for display only
 
     uuid = serializers.UUIDField(required=False)
@@ -64,6 +64,13 @@ class AbridgedRunSerializer(serializers.HyperlinkedModelSerializer):
                   'status',
                   'datetime_created',
         )
+
+    def to_representation(self, instance):
+        if self.context.get('expand'):
+            return super(ExpandableRunSerializer, self).to_representation(instance)
+        else:
+            return serializers.HyperlinkedModelSerializer.to_representation(
+                self, instance)
 
 
 class RunTimepointSerializer(CreateWithParentModelSerializer):
@@ -96,7 +103,7 @@ class StepRunOutputSerializer(InputOutputNodeSerializer):
 class StepRunSerializer(CreateWithParentModelSerializer):
     
     uuid = serializers.CharField(required=False)
-    template = AbridgedTemplateSerializer()
+    template = ExpandableTemplateSerializer()
     inputs = StepRunInputSerializer(many=True,
                                     required=False,
                                     allow_null=True)
@@ -104,8 +111,8 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     command = serializers.CharField()
     interpreter = serializers.CharField()
     type = serializers.CharField()
-    tasks = AbridgedTaskSerializer(many=True)
-    run_request = RunRequestSerializer(required=False)
+    tasks = ExpandableTaskSerializer(many=True)
+#    run_request = RunRequestSerializer(required=False)
     datetime_created = serializers.CharField(read_only=True)
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
@@ -120,9 +127,9 @@ class StepRunSerializer(CreateWithParentModelSerializer):
         model = StepRun
         fields = ('uuid', 'template', 'inputs', 'outputs',
                   'command', 'interpreter', 'tasks',
-                  'run_request', 'postprocessing_status', 'type', 'datetime_created',
+                  'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'timepoints', 'status', 'url')
+                  'status_is_running', 'status', 'url', 'timepoints') #'run_request',
 
 
 class WorkflowRunInputSerializer(InputOutputNodeSerializer):
@@ -143,13 +150,13 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
 
     uuid = serializers.CharField(required=False)
     type = serializers.CharField(required=False)
-    template = AbridgedTemplateSerializer()
-    steps = AbridgedRunSerializer(many=True)
+    template = ExpandableTemplateSerializer()
+    steps = ExpandableRunSerializer(many=True)
     inputs = WorkflowRunInputSerializer(many=True,
                                         required=False,
                                         allow_null=True)
     outputs = WorkflowRunOutputSerializer(many=True)
-    run_request = RunRequestSerializer(required=False)
+    #run_request = RunRequestSerializer(required=False)
     datetime_created = serializers.CharField(read_only=True)
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
@@ -162,6 +169,6 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
     class Meta:
         model = WorkflowRun
         fields = ('uuid', 'template', 'steps', 'inputs', 'outputs',
-                  'run_request', 'postprocessing_status', 'type', 'datetime_created',
+                  'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'timepoints', 'status', 'url')
+                  'status_is_running', 'status', 'url', 'timepoints',) # 'run_request',

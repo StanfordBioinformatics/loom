@@ -28,7 +28,9 @@ class Task(BaseModel):
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     rendered_command = models.TextField()
-
+    environment = jsonfield.JSONField()
+    resources = jsonfield.JSONField()
+    
     step_run = models.ForeignKey('StepRun',
                                  related_name='tasks',
                                  on_delete=models.CASCADE,
@@ -41,36 +43,9 @@ class Task(BaseModel):
 
     # While status_is_running, Loom will continue trying to complete the task
     status_is_running = models.BooleanField(default=True)
+    status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
-
-    @property
-    def status_message(self):
-        try:
-            return self.selected_task_attempt.status_message
-        except AttributeError:
-            # No active TaskAttempt. Return human-readable status
-            # based on status flags
-            if self.task_attempts.count() == 0:
-                return 'Initializing'
-            else:
-                # TaskAttempts exist but none is active. Why?
-                return 'Unknown'
-
-    @property
-    def status_detail(self):
-        try:
-            return self.selected_task_attempt.status_detail
-        except AttributeError:
-            # No active task Attempt
-            return ''
-
-    @property
-    def status_is_failed(self):
-        try:
-            return self.selected_task_attempt.status_is_failed
-        except AttributeError:
-            return False
 
     @property
     def attempt_number(self):
@@ -90,6 +65,9 @@ class Task(BaseModel):
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
     def fail(self, message, detail=''):
+        self.status_is_failed = True
+        self.status_is_running = False
+        self.save()
         self.add_timepoint(message, detail=detail, is_error=True)
         if not self.step_run.status_is_failed:
             self.step_run.fail(
@@ -151,6 +129,8 @@ class Task(BaseModel):
             step_run=step_run,
             command=step_run.command,
             interpreter=step_run.interpreter,
+            environment=step_run.template.environment,
+            resources=step_run.template.resources,
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -164,17 +144,6 @@ class Task(BaseModel):
                 type=step_run_output.type,
                 task=task,
                 source=step_run_output.source)
-
-        TaskResourceSet.objects.create(
-            task=task,
-            memory=step_run.template.resources.get('memory'),
-            disk_size=step_run.template.resources.get('disk_size'),
-            cores=step_run.template.resources.get('cores')
-        )
-        TaskEnvironment.objects.create(
-            task=task,
-            docker_image = step_run.template.environment.get('docker_image'),
-        )
         task.rendered_command = task.render_command()
         task.save()
         task.add_timepoint('Task %s was created' % task.uuid)
@@ -182,9 +151,7 @@ class Task(BaseModel):
         return task
 
     def create_and_activate_attempt(self):
-        task_attempt = TaskAttempt.objects.create(task=self)
-        task_attempt.initialize()
-
+        task_attempt = TaskAttempt.create_from_task(self)
         self.selected_task_attempt = task_attempt
         self.save()
 
@@ -262,24 +229,6 @@ class TaskOutput(BaseModel):
             step_run_output.add_data_object([], self.data_object)
 
 
-class TaskResourceSet(BaseModel):
-    task = models.OneToOneField('Task',
-                                on_delete=models.CASCADE,
-                                related_name='resources')
-    memory = models.CharField(max_length=255, null=True)
-    disk_size = models.CharField(max_length=255, null=True)
-    cores = models.CharField(max_length=255, null=True)
-
-
-class TaskEnvironment(BaseModel):
-
-    task = models.OneToOneField(
-        'Task',
-        on_delete=models.CASCADE,
-        related_name='environment')
-    docker_image = models.CharField(max_length=255)
-
-
 class TaskTimepoint(BaseModel):
     task = models.ForeignKey(
         'Task',
@@ -303,6 +252,10 @@ class TaskAttempt(BaseModel):
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
     # container_id = models.CharField(max_length=255, null=True)
+    interpreter = models.CharField(max_length=1024)
+    rendered_command = models.TextField()
+    environment = jsonfield.JSONField()
+    resources = jsonfield.JSONField()
     last_heartbeat = models.DateTimeField(auto_now=True)
     status_is_failed = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
@@ -310,47 +263,6 @@ class TaskAttempt(BaseModel):
     status_is_running = models.BooleanField(default=True)
     status_is_cleaned_up = models.BooleanField(default=False)
 
-    @property
-    def is_active(self):
-        try:
-            self.task_as_selected
-        except ObjectDoesNotExist:
-            return False
-        return True
-        
-    
-    @property
-    def interpreter(self):
-        return self.task.interpreter
-
-    @property
-    def rendered_command(self):
-        return self.task.rendered_command
-
-    @property
-    def inputs(self):
-        return self.task.inputs
-
-    @property
-    def resources(self):
-        return self.task.resources
-
-    @property
-    def environment(self):
-        return self.task.environment
-
-    @property
-    def status_message(self):
-        if self.timepoints.count() == 0:
-            return ''
-        return self.timepoints.last().message
-
-    @property
-    def status_detail(self):
-        if self.timepoints.count() == 0:
-            return ''
-        return self.timepoints.last().detail
-    
     def heartbeat(self):
         task_attempt = TaskAttempt.objects.get(uuid=self.uuid)
         task_attempt.save()
@@ -407,7 +319,13 @@ class TaskAttempt(BaseModel):
 
     @classmethod
     def create_from_task(cls, task):
-        task_attempt = cls.objects.create(task=task)
+        task_attempt = cls.objects.create(
+            task=task,
+            interpreter=task.interpreter,
+            rendered_command=task.rendered_command,
+            environment=task.environment,
+            resources=task.resources
+        )
         task_attempt.initialize()
         return task_attempt
 
@@ -417,6 +335,14 @@ class TaskAttempt(BaseModel):
 
         if self.outputs.count() == 0:
             self._initialize_outputs()
+
+    def _initialize_inputs(self):
+        for input in self.task.inputs.all():
+            TaskAttemptInput.objects.create(
+                task_attempt=self,
+                type=input.type,
+                channel=input.channel,
+                data_object=input.data_object)
 
     def _initialize_outputs(self):
         for output in self.task.outputs.all():
@@ -483,6 +409,16 @@ class TaskAttempt(BaseModel):
 
 #        return files, tasks, edges
 
+
+class TaskAttemptInput(BaseModel):
+
+    task_attempt = models.ForeignKey('TaskAttempt',
+                             related_name='inputs',
+                             on_delete=models.CASCADE)
+    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
+    channel = models.CharField(max_length=255)
+    type = models.CharField(max_length = 255,
+                            choices=DataObject.TYPE_CHOICES)
 
 class TaskAttemptOutput(BaseModel):
 

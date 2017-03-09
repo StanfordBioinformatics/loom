@@ -183,7 +183,6 @@ class Run(BaseModel):
             assert template.type == 'workflow', \
                 'Invalid template type "%s"' % template.type
             run = WorkflowRun.objects.create(template=template,
-                                             run_request=run_request,
                                              name=template.name,
                                              type=template.type,
                                              parent=parent).run_ptr

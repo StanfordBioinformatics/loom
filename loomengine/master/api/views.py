@@ -22,6 +22,12 @@ DATA_CLASSES = {'file': models.FileDataObject,
                 'float': models.FloatDataObject,
                 'integer': models.IntegerDataObject}
 
+class ExpandableViewSet(viewsets.ModelViewSet):
+
+    def get_serializer_context(self):
+        return {'request': self.request,
+                'expand': 'expand' in self.request.query_params}
+
 
 class DataObjectViewSet(viewsets.ModelViewSet):
     lookup_field = 'uuid'
@@ -69,7 +75,7 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class DataTreeViewSet(viewsets.ModelViewSet):
+class DataTreeViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.DataNodeSerializer
 
@@ -97,56 +103,16 @@ class FileResourceViewSet(viewsets.ModelViewSet):
         return models.FileResource.objects.all().order_by('-datetime_created')
 
         
-class TaskViewSet(viewsets.ModelViewSet):
+class TaskViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.TaskSerializer
 
     def get_queryset(self):
         queryset = models.Task.objects.all()
         queryset = queryset\
-                   .select_related('resources')\
                    .select_related('selected_task_attempt')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object__stringdataobject')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object__filedataobject')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object__filedataobject__file_resource')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object__booleandataobject')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object__integerdataobject')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object__floatdataobject')\
-                   .prefetch_related('selected_task_attempt__outputs__'\
-                                     'data_object__dataobjectarray')\
-                   .prefetch_related(
-                       'selected_task_attempt__outputs__data_object__'\
-                       'dataobjectarray__prefetch_members__stringdataobject')\
-                   .prefetch_related(
-                               'selected_task_attempt__outputs__data_object__'\
-                       'dataobjectarray__prefetch_members__booleandataobject')\
-                   .prefetch_related(
-                       'selected_task_attempt__outputs__data_object__'\
-                       'dataobjectarray__prefetch_members__integerdataobject')\
-                   .prefetch_related(
-                       'selected_task_attempt__outputs__data_object__'\
-                       'dataobjectarray__prefetch_members__floatdataobject')\
-                   .prefetch_related(
-                       'selected_task_attempt__outputs__data_object__'\
-                       'dataobjectarray__prefetch_members__filedataobject__'\
-                       'file_resource')\
-                   .prefetch_related('selected_task_attempt__log_files__file')\
-                   .prefetch_related('selected_task_attempt__log_files__file__'\
-                                     'filedataobject__file_resource')\
-                   .prefetch_related('selected_task_attempt__timepoints')\
                    .prefetch_related('task_attempts')\
-                   .prefetch_related('task_attempts__log_files__file')\
-                   .prefetch_related('task_attempts__log_files__file__'\
-                                     'filedataobject__file_resource')\
-                   .prefetch_related('task_attempts__timepoints')\
+                   .prefetch_related('inputs')\
                    .prefetch_related('inputs__data_object')\
                    .prefetch_related('inputs__data_object__stringdataobject')\
                    .prefetch_related('inputs__data_object__filedataobject')\
@@ -172,6 +138,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                        'inputs__data_object__dataobjectarray__'\
                        'prefetch_members__filedataobject__'\
                        'file_resource')\
+                   .prefetch_related('outputs')\
                    .prefetch_related('outputs__data_object')\
                    .prefetch_related('outputs__data_object__stringdataobject')\
                    .prefetch_related('outputs__data_object__filedataobject')\
@@ -201,17 +168,40 @@ class TaskViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class TaskAttemptViewSet(viewsets.ModelViewSet):
+class TaskAttemptViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.TaskAttemptSerializer
 
     def get_queryset(self):
         queryset = models.TaskAttempt.objects.all()
         queryset = queryset.select_related('task')\
-                           .select_related('task__step_run')\
-                           .prefetch_related('task__resources')\
-                           .prefetch_related('task__environment')\
-                           .prefetch_related('task__inputs__data_object')\
+                           .prefetch_related('inputs')\
+                           .prefetch_related('inputs__data_object')\
+                           .prefetch_related('inputs__data_object__stringdataobject')\
+                           .prefetch_related('inputs__data_object__filedataobject')\
+                           .prefetch_related('inputs__data_object__filedataobject__'\
+                                             'file_resource')\
+                           .prefetch_related('inputs__data_object__booleandataobject')\
+                           .prefetch_related('inputs__data_object__integerdataobject')\
+                           .prefetch_related('inputs__data_object__floatdataobject')\
+                           .prefetch_related('inputs__data_object__dataobjectarray')\
+                           .prefetch_related(
+                               'inputs__data_object__dataobjectarray__'\
+                               'prefetch_members__stringdataobject')\
+                           .prefetch_related(
+                               'inputs__data_object__dataobjectarray__'\
+                               'prefetch_members__booleandataobject')\
+                           .prefetch_related(
+                               'inputs__data_object__dataobjectarray__'\
+                               'prefetch_members__integerdataobject')\
+                           .prefetch_related(
+                               'inputs__data_object__dataobjectarray__'\
+                               'prefetch_members__floatdataobject')\
+                           .prefetch_related(
+                               'inputs__data_object__dataobjectarray__'\
+                               'prefetch_members__filedataobject__'\
+                               'file_resource')\
+                           .prefetch_related('outputs')\
                            .prefetch_related('outputs__'\
                                              'data_object')\
                            .prefetch_related('outputs__'\
@@ -325,7 +315,7 @@ class TaskAttemptViewSet(viewsets.ModelViewSet):
             return JsonResponse({"message": e.message}, status=500)
 
 
-class TemplateViewSet(viewsets.ModelViewSet):
+class TemplateViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.TemplateSerializer
 
@@ -336,14 +326,15 @@ class TemplateViewSet(viewsets.ModelViewSet):
         else:
             queryset = models.Template.objects.all()
         queryset = queryset\
-            .prefetch_related(
-                'workflow__fixed_inputs__data_root')\
-            .prefetch_related(
-                'step__fixed_inputs__data_root')
+                   .prefetch_related('workflow__steps')\
+                   .prefetch_related(
+                       'workflow__fixed_inputs__data_root')\
+                   .prefetch_related(
+                       'step__fixed_inputs__data_root')
         return queryset
 
 
-class RunViewSet(viewsets.ModelViewSet):
+class RunViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.RunSerializer
 
@@ -354,29 +345,28 @@ class RunViewSet(viewsets.ModelViewSet):
         else:
             queryset = models.Run.objects.all()
         queryset = queryset.select_related('workflowrun__template')\
+                           .prefetch_related('workflowrun__inputs')\
                            .prefetch_related(
                                'workflowrun__inputs__data_root')\
+                           .prefetch_related('workflowrun__outputs')\
                            .prefetch_related(
                                'workflowrun__outputs__data_root')\
                            .prefetch_related('workflowrun__steps')\
-                           .prefetch_related(
-                               'workflowrun__run_request__inputs__data_root')\
-                           .prefetch_related(
-                               'workflowrun__run_request__template')\
+                           .select_related(
+                               'workflowrun__run_request')\
+                           .prefetch_related('workflowrun__timepoints')\
                            .select_related('steprun__template')\
+                           .prefetch_related('steprun__inputs')\
                            .prefetch_related('steprun__inputs__data_root')\
+                           .prefetch_related('steprun__outputs')\
                            .prefetch_related('steprun__outputs__data_root')\
                            .prefetch_related('steprun__tasks')\
-                           .prefetch_related(
-                               'steprun__run_request__inputs__data_root')\
-                           .prefetch_related(
-                               'steprun__run_request__template')\
-                           .prefetch_related('timepoints')
-                               
+                           .select_related(
+                               'steprun__run_request')\
+                           .prefetch_related('steprun__timepoints')
         return queryset
 
-
-class RunRequestViewSet(viewsets.ModelViewSet):
+class RunRequestViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
     serializer_class = serializers.RunRequestSerializer
 
