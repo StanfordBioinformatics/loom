@@ -63,14 +63,14 @@ function DataService($http, $q) {
     };
 
     function getRuns() {
-	return $http.get('/api/runs/')
+	return $http.get('/api/runs/?parent_only')
 	    .then(function(response) {
 		return response.data;
 	    });
     };
 
     function getTemplates() {
-	return $http.get('/api/templates/')
+	return $http.get('/api/templates/?imported')
 	    .then(function(response) {
 		return response.data;
 	    });

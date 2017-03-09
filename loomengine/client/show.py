@@ -47,6 +47,13 @@ class ShowFile(AbstractShow):
             '--detail',
             action='store_true',
             help='Show detailed view of files')
+        parser.add_argument(
+            '--type',
+            choices=['imported', 'result', 'log', 'all'],
+            default='imported',
+            help='Show only files of the specified type. '\
+            '(ignored when FILE_IDENTIFIER is given)')
+
         parser = super(ShowFile, cls).get_parser(parser)
         return parser
 
@@ -55,8 +62,12 @@ class ShowFile(AbstractShow):
         self._show_files()
 
     def _get_files(self):
+        if self.args.file_id:
+            source_type=None
+        else:
+            source_type=self.args.type
         self.files = self.connection.get_file_data_object_index(
-            self.args.file_id)
+            query_string=self.args.file_id, source_type=source_type)
 
     def _show_files(self):
         print '[showing %s files]' % len(self.files)
@@ -106,6 +117,11 @@ class ShowTemplate(AbstractShow):
             '--detail',
             action='store_true',
             help='Show detailed view of templates')
+        parser.add_argument(
+            '--all',
+            action='store_true',
+            help='Show all templates, including nested children. '\
+            '(ignored when TEMPLATE_IDENTIFIER is given)')
         parser = super(ShowTemplate, cls).get_parser(parser)
         return parser
 
@@ -114,7 +130,13 @@ class ShowTemplate(AbstractShow):
         self._show_templates()
 
     def _get_templates(self):
-        self.templates = self.connection.get_template_index(self.args.template_id)
+        if self.args.template_id:
+            imported = False
+        else:
+            imported = not self.args.all
+        self.templates = self.connection.get_template_index(
+            query_string=self.args.template_id,
+            imported=imported)
 
     def _show_templates(self):
         print '[showing %s templates]' % len(self.templates)
@@ -159,6 +181,11 @@ class ShowRun(AbstractShow):
             '--detail',
             action='store_true',
             help='Show detailed view of runs')
+        parser.add_argument(
+            '--all',
+            action='store_true',
+            help='Show all runs, including nested children '\
+            '(ignored when RUN_IDENTIFIER is given)')
         parser = super(ShowRun, cls).get_parser(parser)
         return parser
 
@@ -167,7 +194,12 @@ class ShowRun(AbstractShow):
         self._show_runs(runs)
 
     def _get_runs(self):
-        return self.connection.get_run_index(self.args.run_id)
+        if self.args.run_id:
+            parent_only = False
+        else:
+            parent_only = not self.args.all
+        return self.connection.get_run_index(query_string=self.args.run_id,
+                                             parent_only=parent_only)
 
     def _show_runs(self, runs):
         print '[showing %s runs]' % len(runs)

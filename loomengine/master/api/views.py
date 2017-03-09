@@ -53,8 +53,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
                            .prefetch_related(
                                'dataobjectarray__prefetch_members__filedataobject__'\
                                'file_resource')
-        queryset.order_by('-datetime_created')
-        return queryset
+        return queryset.order_by('-datetime_created')
 
 
 class FileDataObjectViewSet(viewsets.ModelViewSet):
@@ -68,11 +67,10 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
             queryset = models.FileDataObject.filter_by_name_or_id_or_hash(query_string)
         else:
             queryset = models.FileDataObject.objects.all()
-        if source_type:
+        if source_type and source_type != 'all':
             queryset = queryset.filter(source_type=source_type)
         queryset = queryset.select_related('file_resource')
-        queryset.order_by('-datetime_created')
-        return queryset
+        return queryset.order_by('-datetime_created')
 
 
 class DataTreeViewSet(ExpandableViewSet):
@@ -92,7 +90,7 @@ class DataTreeViewSet(ExpandableViewSet):
                    .prefetch_related('descendants__data_object__integerdataobject')\
                    .prefetch_related('descendants__data_object__floatdataobject')
         queryset.order_by('-datetime_created')
-        return queryset
+        return queryset.order_by('-datetime_created')
 
 
 class FileResourceViewSet(viewsets.ModelViewSet):
@@ -165,7 +163,7 @@ class TaskViewSet(ExpandableViewSet):
                        'prefetch_members__filedataobject__'\
                        'file_resource')\
                    .prefetch_related('timepoints')
-        return queryset
+        return queryset.order_by('-datetime_created')
 
 
 class TaskAttemptViewSet(ExpandableViewSet):
@@ -239,7 +237,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
                            .prefetch_related('log_files__file__'\
                                              'filedataobject__file_resource')\
                            .prefetch_related('timepoints')
-        return queryset
+        return queryset.order_by('-datetime_created')
 
     @detail_route(methods=['post'], url_path='create-log-file')
     def create_log_file(self, request, uuid=None):
@@ -321,18 +319,20 @@ class TemplateViewSet(ExpandableViewSet):
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
+        imported = 'imported' in self.request.query_params
         if query_string:
             queryset = models.Template.filter_by_name_or_id(query_string)
         else:
             queryset = models.Template.objects.all()
+        if imported:
+            queryset = queryset.filter(template_import__isnull=False)
         queryset = queryset\
                    .prefetch_related('workflow__steps')\
                    .prefetch_related(
                        'workflow__fixed_inputs__data_root')\
                    .prefetch_related(
                        'step__fixed_inputs__data_root')
-        return queryset
-
+        return queryset.order_by('-datetime_created')
 
 class RunViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
@@ -340,10 +340,13 @@ class RunViewSet(ExpandableViewSet):
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
+        parent_only = 'parent_only' in self.request.query_params
         if query_string:
             queryset = models.Run.filter_by_name_or_id(query_string)
         else:
             queryset = models.Run.objects.all()
+        if parent_only:
+            queryset = queryset.filter(parent__isnull=True)
         queryset = queryset.select_related('workflowrun__template')\
                            .prefetch_related('workflowrun__inputs')\
                            .prefetch_related(
@@ -364,7 +367,7 @@ class RunViewSet(ExpandableViewSet):
                            .select_related(
                                'steprun__run_request')\
                            .prefetch_related('steprun__timepoints')
-        return queryset
+        return queryset.order_by('-datetime_created')
 
 class RunRequestViewSet(ExpandableViewSet):
     lookup_field = 'uuid'
@@ -384,6 +387,7 @@ class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
         queryset = models.TaskAttemptLogFile.objects.all()
         queryset = queryset.select_related('file')\
                    .select_related('file__filedataobject__file_resource')
+        return queryset.order_by('-datetime_created')
 
 class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptOutputSerializer
@@ -414,8 +418,7 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
                                'data_object__dataobjectarray__'\
                                'prefetch_members__filedataobject__'\
                                'file_resource')
-        queryset.order_by('-datetime_created')
-        return queryset
+        return queryset.order_by('-datetime_created')
 
 
 """
