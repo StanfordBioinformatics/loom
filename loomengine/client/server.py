@@ -90,9 +90,9 @@ class ServerControls:
     def status(self):
         verify_has_connection_settings()
         if is_server_running():
-            print 'OK, the server is up.'
+            print 'OK, the server is up at %s' % get_server_url()
         else:
-            raise SystemExit('No response from server at "%s".' % get_server_url())
+            raise SystemExit('No response from server at %s' % get_server_url())
 
     @loom_settings_transaction
     def start(self):
