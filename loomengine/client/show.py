@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime
 import dateutil.parser
+from dateutil import tz
 import json
 import os
 import sys
@@ -15,6 +16,11 @@ from loomengine.utils.connection import Connection
 
 
 DATETIME_FORMAT = '%b %d, %Y %-I:%M:%S %p'
+
+def render_time(timestr):
+    time_gmt = dateutil.parser.parse(timestr)
+    time_local = time_gmt.astimezone(tz.tzlocal())
+    return format(time_local, DATETIME_FORMAT)
 
 class AbstractShow(object):
     """Common functions for the various subcommands under 'show'
@@ -86,9 +92,8 @@ class ShowFile(AbstractShow):
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
             try:
-                text += '  - Imported: %s\n' % format(
-                    dateutil.parser.parse(
-                        file_data_object['datetime_created']), DATETIME_FORMAT)
+                text += '  - Imported: %s\n' % \
+                        render_time(file_data_object['datetime_created'])
                 text += '  - md5: %s\n' % file_data_object['md5']
                 if file_data_object.get('file_import'):
                     if file_data_object['file_import'].get('source_url'):
@@ -148,7 +153,8 @@ class ShowTemplate(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Template: %s\n' % template_identifier
-            text += '  - Imported: %s\n' % format(dateutil.parser.parse(template['datetime_created']), DATETIME_FORMAT)
+            text += '  - Imported: %s\n' % \
+                    render_time(template['datetime_created'])
             if template.get('inputs'):
                 text += '  - Inputs\n'
                 for input in template['inputs']:
@@ -211,7 +217,7 @@ class ShowRun(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
-            text += '  - Created: %s\n' % format(dateutil.parser.parse(run['datetime_created']), DATETIME_FORMAT)
+            text += '  - Created: %s\n' % render_time(run['datetime_created'])
             if run.get('steps'):
                 text += '  - Status: %s\n' % run.get('status')
                 text += '  - Steps:\n'

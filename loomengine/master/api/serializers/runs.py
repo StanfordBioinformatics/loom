@@ -54,7 +54,7 @@ class ExpandableRunSerializer(RunSerializer):
         view_name='run-detail',
         lookup_field='uuid'
     )
-    datetime_created = serializers.CharField(read_only=True)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
 
     class Meta:
         model = Run
@@ -112,8 +112,8 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     interpreter = serializers.CharField()
     type = serializers.CharField()
     tasks = ExpandableTaskSerializer(many=True)
-#    run_request = RunRequestSerializer(required=False)
-    datetime_created = serializers.CharField(read_only=True)
+    # run_request = RunRequestSerializer(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
     status = serializers.CharField(read_only=True)
@@ -157,7 +157,7 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
                                         allow_null=True)
     outputs = WorkflowRunOutputSerializer(many=True)
     #run_request = RunRequestSerializer(required=False)
-    datetime_created = serializers.CharField(read_only=True)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
     status = serializers.CharField(read_only=True)
