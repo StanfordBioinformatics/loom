@@ -2,39 +2,60 @@
 Getting started
 ###############
 
-This guide walks you through installing the Loom client onto a local machine. Once you have the client set up, you can use it to create a Loom server, either locally or in Google Cloud. Then, we show you how to run a workflow on the newly-created server.
+This guide walks you through installing the Loom client, using it to launch a Loom server either on your local machine or on Google Cloud Platform, and running a workflow.
 
-******************
-Available branches
-******************
+********************************************
+Installing the Loom client
+********************************************
 
-The GitHub branch or tag you choose should have a corresponding build in DockerHub, listed here: https://hub.docker.com/r/loomengine/loom/tags/
-
-For now, we recommend the "development" branch for most users.
-
-*************
 Prerequisites
-*************
+=============
 
+Required
+--------
 * python >= 2.7 < 3.x
 * `pip <http://pip.readthedocs.org/en/stable/installing/>`_
-* `virtualenv <https://virtualenv.pypa.io/en/stable/>`_ (use 'pip install virtualenv' to install)
 * `Docker <https://www.docker.com/products/overview>`_
 * gcc (Comes with XCode on Mac)
 * MySQL
-* git
+
+Optional
+--------
+* `git <https://git-scm.com/downloads>`_
+* `virtualenv <https://virtualenv.pypa.io/en/stable/>`_ (use 'pip install virtualenv' to install)
 * `Google Cloud SDK <https://cloud.google.com/sdk/>`_ (for Google Cloud deployment only)
 
-*****************************************
-Installing the development branch of Loom
-*****************************************
+Releases
+========
+
+You can see all available releases here: https://github.com/StanfordBioinformatics/loom/releases. 
+
+If cloning from github, the `master branch <https://github.com/StanfordBioinformatics/loom/tree/master>`_ contains the latest stable release.
+
+Download the source code
+========================
+You can download and extract Loom as a \*.tar.gz or \*.zip file from the `Loom releases page <https://github.com/StanfordBioinformatics/loom/releases>`_.
+
+Alternatively, you can clone the Loom repository using git::
+
+    git clone https://github.com/StanfordBioinformatics/loom.git
+
+Virtualenv setup (recommended)
+==============================
+Create an isolated python environment for Loom using virtualenv. This creates a folder called "loom-env" in your current directory. This can be done anywhere convenient, e.g. inside the Loom root directory.
+
 ::
 
-    unset PYTHONPATH        # because PYTHONPATH takes precedence over virtualenv
-    git clone -b development https://github.com/StanfordBioinformatics/loom.git
+    unset PYTHONPATH
     virtualenv loom-env
     source loom-env/bin/activate
-    cd loom/
+
+Refer to the virtualenv `user guide <https://virtualenv.pypa.io/en/stable/userguide/>`_ for instructions on activating and deactivating the environment.
+    
+Install Loom
+============
+Change directories to the loom root directory where the "LICENSE" file is located and run this command to install Loom and its dependencies::
+
     pip install -r requirements.txt
 
 Tests
@@ -42,8 +63,6 @@ Tests
 
 Run tests to verify installation::
 
-    sudo mkdir /var/log/loom
-    sudo chmod a+w /var/log/loom
     loom test unit
 
 Starting a server
@@ -51,53 +70,65 @@ Starting a server
 
 Local server
 ------------
-
 To start a local server with default settings::
 
     loom server start --settings-file local.conf
 
+Skip to "Running a workflow" to run an analysis on the local server.
+
 Google Cloud server
 -------------------
 
+SECURITY WARNING: Running on Google Cloud is not currently secure with default firewall settings. By default, the Loom server accepts requests on port 443 from any source. Unless you restrict access, anyone in the world can access data or cause jobs to be run with your service account key. At present, Loom should only be run in Google Cloud if it is in a secured private network.
+
+Unless you have read and understand the warning above, do not proceed with the instructions below.
+
 First, create a directory that will store files needed to administer the Loom server::
 
-    mkdir ~/admin
+    mkdir ~/loom-admin-files
 
-Second, create a service account credential: https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys
+Second, create a service account credential. Refer to the `instructions <https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys>`_ in Google Cloud documentation.
 
-Save the JSON credential to `~/admin/key.json`.
+
+Save the JSON credential to "~/loom-admin-files/key.json".
 
 Third, make sure your Google Cloud SDK is initialized and authenticated::
 
     gcloud init
+    gcloud auth application-defaul
 
-Fourth, copy the settings file template at `loom/loomengine/client/settings/gcloud.conf` and fill in values specific to your project. Make sure these settings are defined::
+Fourth, copy the settings file template from "loom/loomengine/client/settings/gcloud.conf" to "~/loom-gcloud.conf" and fill in values specific to your project in the copied version. Make sure these settings are defined::
 
     LOOM_GCE_EMAIL:                 # service account email whose key you provided
+    LOOM_GCE_PEM_FILE: key.json
     LOOM_GCE_PROJECT:
     LOOM_GOOGLE_STORAGE_BUCKET:
 
-Save the config file as ~/gcloud.conf.
-
 Finally, create and start the server::
 
-    loom server start --settings-file ~/gcloud.conf --admin-files ~/admin
-
-Making sure the server is running and reachable
-===============================================
-::
-
-    loom server status
+    loom server start --settings-file ~/loom-gcloud.conf --admin-files-dir ~/loom-admin-files
 
 Running a workflow
 ==================
 
-Once you have a server up and running, you can run a workflow!
+Verify that the server is running
+---------------------------------
+::
+
+    loom server status
+
+Import the workflow template and input files
+--------------------------------------------
 ::
 
     loom import file loom/doc/examples/hello_world/hello.txt
     loom import file loom/doc/examples/hello_world/world.txt
     loom import template loom/doc/examples/hello_world/hello_world.json
+
+Start a workflow run
+--------------------
+::
+
     loom run hello_world hello=hello.txt world=world.txt
 
 Listing entities in Loom's database
@@ -108,6 +139,15 @@ Listing entities in Loom's database
     loom show templates
     loom show runs
 
+Using unique identifiers
+========================
+
+Note that a unique identifier (a UUID) has been appended to the file, template, and run names. If you have multiple objects with the same name, it is good practice to use all or part of the UUID along with the human 
+readable name, e.g.
+::
+
+    loom run hello_world@37fa721e hello=hello.txt@17c73d43 world=world.txt@f2fc4af5
+
 Viewing run progress in a web browser
 =====================================
 ::
@@ -116,9 +156,12 @@ Viewing run progress in a web browser
 
 Deleting the Loom server
 ========================
+Warning! This may result in permanent loss of data.
 ::
 
     loom server delete
+
+You will be prompted to confirm the server name in order to delete (default "loom-local" or "loom-gcloud")
 
 ****************
 Additional notes
@@ -162,21 +205,3 @@ Installing prerequisites on CentOS 7
 
     # Then follow Loom setup instructions above, but after activating virtualenv, add the selinux package:
     cp -r /usr/lib64/python2.7/site-packages/selinux $VIRTUAL_ENV/lib/python2.7/site-packages
-
-Production installation
-=======================
-
-Make sure to review the `Django deployment checklist <https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/>`_.
-
-High-memory Docker containers on Mac OS
-=======================================
-
-When running on a Mac, docker-machine uses a default memory size of 2024 MB for VirtualBox. When you run out of memory, you will see "Killed" in the program output. If you need Docker containers with higher memory, create it like this::
-
-    docker-machine create -d virtualbox --virtualbox-memory 8192 highmem
-
-Then you can load the necessary environment variables like this::
-
-    eval "$(docker-machine env highmem)"
-
-After this the docker client should be able to connect to the high memory machine. Launch the Loom server from a terminal where the highmem env settings are set.
