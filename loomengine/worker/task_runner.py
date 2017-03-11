@@ -519,22 +519,22 @@ class TaskRunner(object):
     @classmethod
     def get_parser(self):
         parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('--task_attempt_id',
-                            '-i',
+        parser.add_argument('-i',
+                            '--task_attempt_id',
                             required=True,
                             help='ID of TaskAttempt to be processed')
-        parser.add_argument('--master_url',
-                            '-u',
+        parser.add_argument('-u',
+                            '--master_url',
                             required=True,
                             help='URL of the Loom master server')
-        parser.add_argument('--log_level',
-                            '-l',
+        parser.add_argument('-l',
+                            '--log_level',
                             required=False,
                             choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                             default='WARNING',
                             help='Log level')
-        parser.add_argument('--log_file',
-                            '-f',
+        parser.add_argument('-f',
+                            '--log_file',
                             required=False,
                             default=None,
                             help='Log file')

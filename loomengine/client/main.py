@@ -48,7 +48,7 @@ class Main(object):
 
     def get_parser(cls):
         parser = argparse.ArgumentParser('loom')
-        parser.add_argument('--version', '-v', nargs=0, action=Version)
+        parser.add_argument('-v', '--version', nargs=0, action=Version)
 
         subparsers = parser.add_subparsers(help='select a subcommand')
 

@@ -131,7 +131,7 @@ class Importer:
         file_subparser = subparsers.add_parser('file', help='import a file or list files')
         FileImporter.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileImporter)
-        file_subparser.add_argument('--force-duplicates', '-d', action='store_true',
+        file_subparser.add_argument('-d', '--force-duplicates', action='store_true',
                                     default=False,
                                     help='Force upload even if another file with '\
                                     'the same md5 exists')
