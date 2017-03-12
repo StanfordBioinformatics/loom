@@ -201,11 +201,16 @@ class TemplateLookupSerializer(serializers.Serializer):
         template_id = validated_data.get('_template_id')
         matches = Template.filter_by_name_or_id(template_id)
         if matches.count() < 1:
-            raise Exception(
-                'No match found for id %s' % template_id)
+            raise serializers.ValidationError(
+                'ERROR! No template found that matches value "%s"' % template_id)
         elif matches.count() > 1:
-            raise Exception(
-                'Multiple workflows match id %s' % template_id)
+            match_id_list = ['%s@%s' % (match.name, match.uuid)
+                             for match in matches]
+            match_id_string = ('", "'.join(match_id_list))
+            raise serializers.ValidationError(
+                'ERROR! Multiple templates were found matching value "%s": "%s". '\
+                'Use a more precise identifier to select just one template.' % (
+                    template_id, match_id_string))
         return  matches.first()
 
 

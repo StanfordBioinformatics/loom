@@ -7,6 +7,7 @@ import os
 from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
+from api.exceptions import NoFileMatchError, MultipleFileMatchesError
 
 class TypeMismatchError(Exception):
     pass
@@ -21,10 +22,6 @@ class RelativePathError(Exception):
 class RelativeFileRootError(Exception):
     pass
 class InvalidSourceTypeError(Exception):
-    pass
-class NoMatchError(Exception):
-    pass
-class MultipleMatchesError(Exception):
     pass
 
 
@@ -52,12 +49,16 @@ class FileDataObjectManager(DataObjectManager):
     def get_by_value(cls, value):
         matches = FileDataObject.filter_by_name_or_id_or_hash(value)
         if matches.count() == 0:
-            raise NoMatchError(
-                'No matching file found for value "%s"' % value)
+            raise NoFileMatchError(
+                'ERROR! No file found that matches value "%s"' % value)
         elif matches.count() > 1:
-            raise MultipleMatchesError(
-                'Found multiple (%s) files matching value "%s"' % (
-                    matches.count(), value))
+            match_id_list = ['%s@%s' % (match.filename, match.uuid)
+                             for match in matches]
+            match_id_string = ('", "'.join(match_id_list))
+            raise MultipleFileMatchesError(
+                'ERROR! Multiple files were found matching value "%s": "%s". '\
+                'Use a more precise identifier to select just one file.' % (
+                    value, match_id_string))
         return matches.first()
 
     def get_substitution_value(self):

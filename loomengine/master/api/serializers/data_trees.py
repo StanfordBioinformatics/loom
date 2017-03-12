@@ -7,6 +7,7 @@ from .data_objects import DataObjectSerializer
 from api.models.data_trees import *
 from api.models.data_objects import DataObject
 from api.validation_schemas.data_trees import data_tree_schema
+from api.exceptions import NoFileMatchError, MultipleFileMatchesError
 
 class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
 
@@ -150,9 +151,14 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
                 s.is_valid(raise_exception=True)
                 data_object = s.save()
             else:
-                data_object = DataObject.get_by_value(
-                    contents,
-                    data_type)
+                try:
+                    data_object = DataObject.get_by_value(
+                        contents,
+                        data_type)
+                except NoFileMatchError as e:
+                    raise serializers.ValidationError(e.message)
+                except MultipleFileMatchesError as e:
+                    raise serializers.ValidationError(e.message)
             data_node.add_data_object(path, data_object)
             return
         elif len(contents) == 0:

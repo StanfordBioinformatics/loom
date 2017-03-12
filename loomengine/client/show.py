@@ -218,8 +218,8 @@ class ShowRun(AbstractShow):
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
             text += '  - Created: %s\n' % render_time(run['datetime_created'])
+            text += '  - Status: %s\n' % run.get('status')
             if run.get('steps'):
-                text += '  - Status: %s\n' % run.get('status')
                 text += '  - Steps:\n'
                 for step in run['steps']:
                     text += '    - %s@%s \n' % (step['name'], step['uuid'])

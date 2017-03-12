@@ -45,3 +45,6 @@ class IdDoesNotMatchError(Error):
 
 class ServerConnectionError(Error):
     pass
+
+class NoFileFoundError(Error):
+    pass

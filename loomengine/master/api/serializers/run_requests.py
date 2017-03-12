@@ -9,7 +9,8 @@ from api.models.signals import post_save_children
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 from api.serializers.templates import TemplateSerializer, ExpandableTemplateSerializer
 from api import tasks
-
+from api.exceptions import NoTemplateInputMatchError, \
+    ChannelNameCollisionError
 
 class RunRequestInputSerializer(InputOutputNodeSerializer):
 
@@ -45,13 +46,16 @@ class RunRequestSerializer(serializers.ModelSerializer):
         validated_data['template'] = template
 
         run_request = RunRequest.objects.create(**validated_data)
-        
+
         if inputs is not None:
             for input_data in inputs:
                 # We need to know the data type to find or create the
                 # data object from the value given. Get that from the
                 # corresponding workflow input.
-                type = template.get_input(input_data['channel']).get('type')
+                try:
+                    type = template.get_input(input_data['channel']).get('type')
+                except NoTemplateInputMatchError as e:
+                    raise serializers.ValidationError(e.message)
                 input_data.update({'type': type})
                 s = RunRequestInputSerializer(
                     data=input_data,
@@ -61,6 +65,9 @@ class RunRequestSerializer(serializers.ModelSerializer):
                 s.is_valid(raise_exception=True)
                 s.save()
 
-        run_request.initialize_run()
-        
+        try:
+            run_request.initialize_run()
+        except ChannelNameCollisionError as e:
+            raise serializers.ValidationError(e.message)
+            
         return run_request

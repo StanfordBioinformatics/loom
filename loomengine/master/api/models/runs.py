@@ -1,6 +1,6 @@
 from django.db import models, IntegrityError
 from django.dispatch import receiver
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils import timezone
 import jsonfield
 
@@ -226,6 +226,11 @@ class Run(BaseModel):
                 parent_connector.connect(input)
             except ObjectDoesNotExist:
                 self.parent.downcast()._create_connector(input)
+            except MultipleObjectsReturned:
+                raise ChannelNameCollisionError(
+                    'ERROR! There is more than one run input named "%s". '\
+                    'Channel names must be unique within a run.' % input.channel)
+            
 
     def _connect_input_to_run_request(self, input):
         try:
@@ -233,7 +238,12 @@ class Run(BaseModel):
         except ObjectDoesNotExist:
             # No run request here
             return
-        run_request_input = run_request.inputs.get(channel=input.channel)
+        try:
+            run_request_input = run_request.inputs.get(channel=input.channel)
+        except MultipleObjectsReturned:
+            raise ChannelNameCollisionError(
+                'ERROR! There is more than one run input named "%s". '\
+                'Channel names must be unique within a run.' % input.channel)
         run_request_input.connect(input)
 
     def _connect_output_to_parent(self, output):
@@ -241,6 +251,10 @@ class Run(BaseModel):
             try:
                 parent_connector = self.parent.connectors.get(channel=output.channel)
                 parent_connector.connect(output)
+            except MultipleObjectsReturned:
+                raise ChannelNameCollisionError(
+                    'ERROR! There is more than one run output named "%s". '\
+                    'Channel names must be unique within a run.' % output.channel)
             except ObjectDoesNotExist:
                 self.parent.downcast()._create_connector(output)
 
@@ -290,7 +304,6 @@ class WorkflowRun(Run):
 
     @classmethod
     def postprocess(cls, run_uuid):
-
         # There are two paths to get here:
         # 1. user calls "run" on a template that is already ready, and
         #    run is postprocessed right away.

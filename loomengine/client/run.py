@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import requests.exceptions
 
 from loomengine.client.importer import TemplateImporter
 from loomengine.client.common import get_server_url, read_as_json_or_yaml, \
@@ -53,7 +54,19 @@ class TemplateRunner(object):
         run_request_data = {
             'template': self.args.template,
             'inputs': self._get_inputs()}
-        run_request = self.connection.post_run_request(run_request_data)
+        try:
+            run_request = self.connection.post_run_request(run_request_data)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code >= 400:
+                try:
+                    message = e.response.json()
+                except:
+                    message = e.response.text
+                if isinstance(message, list):
+                    message = '; '.join(message)
+                raise SystemExit(message)
+            else:
+                raise e
 
         print 'Created run %s@%s' % (
             run_request['template']['name'],

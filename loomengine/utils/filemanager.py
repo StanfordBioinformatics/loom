@@ -487,10 +487,10 @@ class FileManager:
                 matches = []
                 for file in files:
                     matches.append('%s@%s' % (file.get('filename'), file.get('uuid')))
-                raise Exception(
-                    'One or more files with md5 %s already exist: "%s". '\
-                    'Use --force-duplicates if you want to create another copy.'
-                    % (md5, ', '.join(matches)))
+                raise DuplicateFileError(
+                    'ERROR! One or more files with md5 %s already exist: "%s". '\
+                    'Use "--force-duplicates" if you want to create another copy.'
+                    % (md5, '", "'.join(matches)))
         
         return self.connection.post_data_object({
             'type': 'file',

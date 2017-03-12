@@ -56,11 +56,11 @@ class TestFileDataObject(TestCase):
         self.assertEqual(file.filename, self.filename)
 
     def testGetByValueNoMatchError(self):
-        with self.assertRaises(NoMatchError):
+        with self.assertRaises(NoFileMatchError):
             file = DataObject.get_by_value('nonexistent_filename', 'file')
 
     def testGetByValueMultipleMatchesError(self):
-        with self.assertRaises(MultipleMatchesError):
+        with self.assertRaises(MultipleFileMatchesError):
             file = DataObject.get_by_value(self.filename2, 'file')
 
     def testGetByValue_Name(self):

@@ -10,8 +10,7 @@ from .base import BaseModel
 from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
 from .signals import post_save_children
-from api.exceptions import *
-
+from api.exceptions import NoTemplateInputMatchError
 
 """
 This module defines Templates. A Template is either 
@@ -127,15 +126,22 @@ class Template(BaseModel):
 
     def get_fixed_input(self, channel):
         inputs = self.fixed_inputs.filter(channel=channel)
-        assert inputs.count() == 1, \
-            'Found %s fixed inputs for channel %s' %(inputs.count(), channel)
+        if inputs.count() == 0:
+            raise Exception('No fixed input matching %s' % channel)
+        if inputs.count() > 1:
+            raise Exception('Found %s fixed inputs for channel %s' \
+                            % (inputs.count(), channel))
         return inputs.first()
 
     def get_input(self, channel):
         inputs = filter(lambda i: i.get('channel')==channel,
                         self.inputs)
-        assert len(inputs) == 1, \
-            'Found %s inputs for channel %s' %(inputs.count(), channel)
+        if len(inputs) == 0:
+            raise NoTemplateInputMatchError(
+                'ERROR! No input named "%s" in template "%s"' % (channel, self.name))
+        if len(inputs) > 1:
+            raise Exception('Found %s inputs for channel %s' \
+                            % (len(inputs), channel))
         return inputs[0]
 
     def get_output(self, channel):
