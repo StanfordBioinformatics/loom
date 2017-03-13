@@ -13,7 +13,7 @@ function DataService($http, $q) {
     this.setActiveTemplate = setActiveTemplate;
     this.setActiveFile = setActiveFile;
     this.getAllActive = getAllActive;
-    this.getRunRequests = getRunRequests;
+    this.getRuns = getRuns;
     this.getTemplates = getTemplates;
     this.getImportedFiles = getImportedFiles;
     this.getResultFiles = getResultFiles;
@@ -27,7 +27,7 @@ function DataService($http, $q) {
     };
 
     function setActiveRun(runId) {
-	return $http.get('/api/abstract-workflow-runs/' + runId + '/')
+	return $http.get('/api/runs/' + runId + '/')
             .then(function(response) {
 		activeData.run = response.data;
 		if (response.data.task_runs) {
@@ -42,7 +42,7 @@ function DataService($http, $q) {
     };
 
     function setActiveTemplate(templateId) {
-	return $http.get('/api/abstract-workflows/' + templateId + '/')
+	return $http.get('/api/templates/' + templateId + '/')
             .then(function(response) {
 		activeData.template = response.data;
             });
@@ -62,34 +62,34 @@ function DataService($http, $q) {
 	    });
     };
 
-    function getRunRequests() {
-	return $http.get('/api/run-requests/')
+    function getRuns() {
+	return $http.get('/api/runs/?parent_only')
 	    .then(function(response) {
 		return response.data;
 	    });
     };
 
     function getTemplates() {
-	return $http.get('/api/imported-workflows/')
+	return $http.get('/api/templates/?imported')
 	    .then(function(response) {
 		return response.data;
 	    });
     };
 
     function getImportedFiles() {
-	return $http.get('/api/imported-files/')
+	return $http.get('/api/files/?source_type=imported')
 	    .then(function(response) {
 		return response.data;
 	    });
     };
     function getResultFiles() {
-	return $http.get('/api/result-files/')
+	return $http.get('/api/files/?source_type=result')
 	    .then(function(response) {
 		return response.data;
 	    });
     };
     function getLogFiles() {
-	return $http.get('/api/log-files/')
+	return $http.get('/api/files/?source_type=log')
 	    .then(function(response) {
 		return response.data;
 	    });

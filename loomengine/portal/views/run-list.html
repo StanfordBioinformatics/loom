@@ -1,29 +1,31 @@
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
 <div ng-hide="loading">
   <div class="table-responsive" >
-    <table class="table table-striped" ng-show="run_requests.length">
+    <table class="table table-striped" ng-show="runs.length">
       <thead>
         <tr>
-          <th>Name</th>
-	  <th>ID</th>
+          <th>Run</th>
+	  <th>Status</th>
           <th>Started</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="run_request in run_requests">
+        <tr ng-repeat="run in runs">
           <td>
-              {{run_request.run.name}}
+	    <a ng-href="#/runs/{{run.uuid}}">
+              {{run.template.name}}@{{run.template.uuid | limitTo: 8}}
+            </a>
 	  </td>
-          <td><a ng-href="#/runs/{{run_request.run.id}}">
-              {{run_request.run.id}}
-          </a></td>
+	  <td>
+	    {{run.status}}
+	  </td>
           <td>
-            {{run_request.datetime_created | date:'medium'}}
+            {{run.datetime_created | date:'medium'}}
           </td>
         </tr>
       </tbody>
     </table>
-    <div ng-hide="run_requests.length">no runs</div>
+    <div ng-hide="runs.length">no runs</div>
   </div>
 </div>
 

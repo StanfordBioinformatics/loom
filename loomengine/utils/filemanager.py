@@ -14,12 +14,10 @@ import requests
 from loomengine.utils import md5calc
 from loomengine.utils.exceptions import *
 from loomengine.utils.connection import Connection
-from loomengine.utils.logger import StreamToLogger
 
 # Google Storage JSON API imports
-from apiclient.http import MediaIoBaseDownload
-from oauth2client.client import GoogleCredentials
 from oauth2client.client import HttpAccessTokenRefreshError
+from oauth2client.client import ApplicationDefaultCredentialsError
 import apiclient.discovery
 
 
@@ -138,7 +136,7 @@ class AbstractSource:
         copier.move()
 
     @abc.abstractmethod
-    def calculate_hash_value(self, hash_function):
+    def calculate_md5(self):
         pass
 
     @abc.abstractmethod
@@ -159,9 +157,7 @@ class LocalSource(AbstractSource):
     def __init__(self, url, settings):
         self.url = _urlparse(url)
 
-    def calculate_hash_value(self, hash_function):
-        if not hash_function == 'md5':
-            raise Exception('Unsupported hash function %s' % hash_function)
+    def calculate_md5(self):
         return md5calc.calculate_md5sum(self.get_path())
 
     def get_url(self):
@@ -200,7 +196,14 @@ class GoogleStorageSource(AbstractSource):
         
         self.settings = settings
 
-        self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])    
+        try:
+            self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])
+        except ApplicationDefaultCredentialsError as e:
+            raise SystemExit(
+                'ERROR! '\
+                'Google Cloud application default credentials are not set. '\
+                'Please run "gcloud auth application-default login"')
+
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
@@ -211,20 +214,11 @@ class GoogleStorageSource(AbstractSource):
                             % (self.url.geturl()))
         self.blob.chunk_size = self.CHUNK_SIZE
 
-    def calculate_hash_value(self, hash_function):
-        if hash_function == 'md5':
-            return self._get_md5_hash_value()
-        elif hash_function == 'crcmod32c':
-            return self._get_crc32c_hash_value()
-        
-    def _get_md5_hash_value(self):
+    def calculate_md5(self):
         md5_base64 = self.blob.md5_hash
         md5_hex = md5_base64.decode('base64').encode('hex').strip()
         return md5_hex
 
-    def _get_crc32c_hash_value(self):
-        return self.blob.crc32c
-        
     def get_url(self):
         return self.url.geturl()
 
@@ -324,7 +318,7 @@ class GoogleStorageDestination(AbstractDestination):
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
-        self.client = gcloud.storage.client.Client(self.settings['PROJECT_ID'])
+        self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
@@ -453,126 +447,162 @@ class FileManager:
         self.settings = self.connection.get_filemanager_settings()
         self.logger = logging.getLogger(__name__)
 
-    def import_from_patterns(self, patterns, note):
+    def import_from_patterns(self, patterns, note, force_duplicates=False):
         files = []
         for pattern in patterns:
-            files.extend(self.import_from_pattern(pattern, note))
+            files.extend(self.import_from_pattern(
+                pattern, note, force_duplicates=force_duplicates))
         return files
 
-    def import_from_pattern(self, pattern, note):
+    def import_from_pattern(self, pattern, note, force_duplicates=False):
         files = []
         for source in SourceSet(pattern, self.settings):
             files.append(self.import_file(
                 source.get_url(),
-                note
+                note,
+                force_duplicates=force_duplicates
             ))
         return files
 
-    def import_file(self, source_url, note):
+    def import_file(self, source_url, note, force_duplicates=False):
         return self._execute_file_import(
-            self._create_file_data_object_for_import(source_url, note),
-            source_url
+            self._create_file_data_object_for_import(
+                source_url, note, force_duplicates=force_duplicates),
+            source_url,
         )
 
-    def _create_file_data_object_for_import(self, source_url, note):
-        return self.connection.post_file_data_object({
-            'source_type': 'imported',
+    def _create_file_data_object_for_import(self, source_url, note,
+                                            force_duplicates=True):
+        source = Source(source_url, self.settings)
+        filename = source.get_filename()
+
+        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        md5 = source.calculate_md5()
+
+        if not force_duplicates:
+            files = self.connection.get_file_data_object_index(
+                query_string='%%%s' % md5)
+            if len(files) > 0:
+                md5 = files[0].get('md5')
+                matches = []
+                for file in files:
+                    matches.append('%s@%s' % (file.get('filename'), file.get('uuid')))
+                raise DuplicateFileError(
+                    'ERROR! One or more files with md5 %s already exist: "%s". '\
+                    'Use "--force-duplicates" if you want to create another copy.'
+                    % (md5, '", "'.join(matches)))
+        
+        return self.connection.post_data_object({
+            'type': 'file',
+            'filename': filename,
+            'md5': md5,
             'file_import': {
-                'note': note,
-                'source_url': Source(source_url, self.settings).get_url(),
-                }
+                'source_url': source.get_url(),
+                'note': note },
+            'source_type': 'imported',
         })
 
-    def import_result_file(self, task_run_attempt_output, source_url):
+    def import_result_file(self, task_attempt_output, source_url):
+        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        source = Source(source_url, self.settings)
+        md5 = source.calculate_md5()
+
         file_data_object = self._execute_file_import(
-            self._create_task_run_attempt_output_file(task_run_attempt_output),
+            self._create_task_attempt_output_file(task_attempt_output, md5),
             source_url
         )
         return file_data_object
 
-    def _create_task_run_attempt_output_file(self, task_run_attempt_output):
-        updated_task_run_attempt_output = self.connection.update_task_run_attempt_output(
-            task_run_attempt_output['id'],
+    def _create_task_attempt_output_file(self, task_attempt_output, md5):
+        updated_task_attempt_output = self.connection.update_task_attempt_output(
+            task_attempt_output['id'],
             {
                 'data_object': {
+                    'type': 'file',
+                    'filename': task_attempt_output['source']['filename'],
                     'source_type': 'result',
+                    'md5': md5,
                 }})
-        return updated_task_run_attempt_output['data_object']
+        return self.connection.get_data_object(
+            updated_task_attempt_output['data_object']['uuid'])
 
-    def import_log_file(self, task_run_attempt, source_url):
+    def import_log_file(self, task_attempt, source_url):
         log_name = os.path.basename(source_url)
-        log_file = self.connection.post_task_run_attempt_log_file(task_run_attempt['id'], {'log_name': log_name})
+        log_file = self.connection.post_task_attempt_log_file(
+            task_attempt['uuid'], {'log_name': log_name})
+
+        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        source = Source(source_url, self.settings)
+        md5 = source.calculate_md5()
+
+        file_data_object = self.connection.get_data_object(log_file['file']['uuid'])
+
+        assert not file_data_object.get('md5')
+        file_data_object.update({'md5': md5,
+                                 'filename': log_name})
+        file_data_object['file_resource'].update({'md5': md5})
+        
+        # update file_data_object with md5 and other missing info
+        file_data_object = self.connection.update_data_object(
+            log_file['file']['uuid'], file_data_object)
+        
         return self._execute_file_import(
-            log_file['file_data_object'],
+            file_data_object,
             source_url
         )
 
     def _execute_file_import(self, file_data_object, source_url):
-        # Prior to import, file_data_object should have no content and no
-        # location
-        assert file_data_object.get('file_location') is None
-        assert file_data_object.get('file_content') is None
+        # A new file_data_object will typically have a file_resource with 
+        # status=incomplete
+        # If the server is configured not to save multiple files with
+        # identical content, the data_object.file_resource may have
+        # status=complete, indicating that no re-upload is needed.
+        #
+        assert file_data_object.get('file_resource') is not None
 
         source = Source(source_url, self.settings)
         self.logger.info('Importing file from %s...' % source.get_url())
 
-        hash_function = self.settings['HASH_FUNCTION']
-        self.logger.info('   calculating %s hash...' % hash_function)
-        hash_value = source.calculate_hash_value(hash_function)
-
-        # Adding file_content will cause a file_location with status=incomplete
-        # to be added to file_data_object
-        # If the server is configured not to save multiple files with
-        # identical content, the data_object.file_location may have
-        # status=complete, indicating that no re-upload is needed.
-        #
-        file_data_object = self._add_file_content_to_data_object(
-            file_data_object,
-            source.get_filename(),
-            hash_value,
-            hash_function
-        )
-
-        if file_data_object['file_location']['status'] == 'complete':
-            self.logger.info('   server already has the file. Skipping upload.')
-        else:
+        if file_data_object['file_resource']['upload_status'] == 'complete':
+            self.logger.info(
+                '   server already has the file. Skipping upload.')
+            return file_data_object
+        
+        try:
             destination = Destination(
-                file_data_object['file_location']['url'],
+                file_data_object['file_resource']['file_url'],
                 self.settings)
-            self.logger.info('   copying to destination %s...' % destination.get_url())
+            self.logger.info(
+                '   copying to destination %s ...' % destination.get_url())
             source.copy_to(destination)
+        except ApplicationDefaultCredentialsError as e:
+            self._set_upload_status(file_data_object, 'failed')
+            raise SystemExit(
+                'ERROR! '\
+                'Google Cloud application default credentials are not set. '\
+                'Please run "gcloud auth application-default login"')
+        except Exception as e:
+            self._set_upload_status(file_data_object, 'failed')
+            raise e
 
         # Signal that the upload completed successfully
-        file_data_object = self._flag_upload_as_complete(file_data_object)
+        file_data_object = self._set_upload_status(
+            file_data_object, 'complete')
         self.logger.info('   imported file %s@%s' % (
-            file_data_object['file_content']['filename'],
-            file_data_object['id']))
+            file_data_object['filename'],
+            file_data_object['uuid']))
         return file_data_object
 
-    def _add_file_content_to_data_object(self, file_data_object, filename, hash_value, hash_function):
-        return self.connection.update_file_data_object(
-            file_data_object['id'],
-            {
-                'file_content': {
-                    'filename': filename,
-                    'unnamed_file_content': {
-                        'hash_function': hash_function,
-                        'hash_value': hash_value
-                    }
-                }
-            }
-        )
-
-    def _flag_upload_as_complete(self, file_data_object):
-        """ Mark upload location as "complete".
+    def _set_upload_status(self, file_data_object, upload_status):
+        """ Set file_data_object.file_resource.upload_status
         """
-        file_location = file_data_object['file_location']
-        file_location['status'] = 'complete'
-        file_location = self.connection.update_file_location(
-            file_location['id'],
-            file_location
+        file_resource = file_data_object['file_resource']
+        file_resource['upload_status'] = upload_status
+        file_resource = self.connection.update_file_resource(
+            file_resource['uuid'],
+            file_resource
         )
-        file_data_object['file_location'] = file_location
+        file_data_object['file_resource'] = file_resource
         return file_data_object
 
     def export_files(self, file_ids, destination_url=None):
@@ -591,14 +621,14 @@ class FileManager:
 
         if not destination_url:
             destination_url = os.getcwd()
-        default_name = file_data_object['file_content']['filename']
+        default_name = file_data_object['filename']
         destination_url = self.get_destination_file_url(destination_url, default_name)
         destination = Destination(destination_url, self.settings)
 
-        self.logger.info('Exporting file %s@%s to %s...' % (file_data_object['file_content']['filename'], file_data_object['id'], destination.get_url()))
+        self.logger.info('Exporting file %s@%s to %s...' % (file_data_object['filename'], file_data_object['uuid'], destination.get_url()))
 
         # Copy from the first file location
-        source_url = file_data_object['file_location']['url']
+        source_url = file_data_object['file_resource']['file_url']
         Source(source_url, self.settings).copy_to(destination)
 
         self.logger.info('...finished exporting file')

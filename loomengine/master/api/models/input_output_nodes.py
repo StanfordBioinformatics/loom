@@ -1,12 +1,8 @@
-import copy
-import json
-import jsonschema
-
-from .base import BaseModel, BasePolymorphicModel
+from .base import BaseModel
 from django.db import models
-from django.core.exceptions import ObjectDoesNotExist
 
 from api.models.data_objects import DataObject
+from api.models.data_trees import DataNode
 
 """
 InputOutputNodes are connected to facilitate the flow of data in a workflow, e.g. from 
@@ -17,48 +13,28 @@ InputOutputNode is inherited by all input/output classes that may need to handle
 data trees with height > 1 (RunRequestInput, WorkflowRunInput/Output, 
 StepRunInput/Output) but not by TaskRuns, TaskRunAttempts, or TaskDefinitions since 
 these only contain data as scalars or 1-dimensional arrays.
-
-Data under each InputOutputNode is represented as a tree of DataNodes. This
-lets us represent multidimensional data to allow for nested scatter-gather,
-e.g. scatter-scatter-gather-gather, where the layers of scatter are maintained as 
-distinct.
 """
 
-class IndexOutOfRangeError(Exception):
-    pass
-class DegreeOutOfRangeError(Exception):
-    pass
-class DegreeMismatchError(Exception):
-    pass
-class UnknownDegreeError(Exception):
-    pass
-class LeafDataAlreadyExistsError(Exception):
-    pass
-class RootDataAlreadyExistsError(Exception):
-    pass
-class UnexpectedLeafNodeError(Exception):
-    pass
 class ConnectError(Exception):
     pass
 
-
-# value to be rendered for missing branches
-PLACEHOLDER_VALUE = ''
-
-
-class InputOutputNode(BasePolymorphicModel):
+class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
     data_root = models.ForeignKey('DataNode',
-                                  related_name='input_output_nodes',
                                   null=True)
+
+    type = models.CharField(
+        max_length=255,
+        choices=DataObject.TYPE_CHOICES)
 
     @property
     def data(self):
-        # Return a string representation of the data tree
-        if self.data_root is None:
-            return PLACEHOLDER_VALUE
-        else:
-            return self.data_root.render()
+        # Dummy attribute required by serializers.
+        # DataNodeSerializer is needed to render this field.
+        # We don't implement that as a model method here to avoid
+        # circular dependencies between models and serializers.
+        # To access data directly use the data_root field instead.
+        return
 
     def get_data_as_scalar(self):
         # This function is a temporary patch to run without parallel
@@ -66,13 +42,20 @@ class InputOutputNode(BasePolymorphicModel):
         if not self.data_root:
             return None
         return self.data_root.data_object
-        
-    #def get_data_object(self, path):
+
+    def add_data_as_scalar(self, data_object):
+        self.add_data_object([], data_object)
+
+    def has_scalar(self):
+        return self.data_root.has_data_object([])
+
+    def get_data_object(self, path):
         # Get the data object at the given path.
-    #    return self.data_root.get_data_object(path)
+        return self.data_root.get_data_object(path)
 
     def _initialize_data_root(self):
         self.data_root = DataNode.objects.create()
+        self.data_root.root_node = self.data_root
         self.save()
 
     def add_data_object(self, path, data_object):
@@ -85,17 +68,6 @@ class InputOutputNode(BasePolymorphicModel):
         if self.data_root is None:
             self._initialize_data_root()
         self.data_root.add_data_object(path, data_object)
-
-    def add_data_objects(self, data, data_type):
-        # data can be a string representation of a single value,
-        # a list of strings, or a list of (lists of)^n strings. This
-        # function will add each leaf data object at its corresponding path.
-        # e.g. if data is ["10", "20"], for data_type 'integer',
-        # we will add two data objects, with value 10 at path (0,2),
-        # and value 20 at path (1,2)
-        if self.data_root is None:
-            self._initialize_data_root()
-        self.data_root.add_data_objects(data, data_type)
 
     def is_connected(self, connected_node):
         if self.data_root is None or connected_node.data_root is None:
@@ -128,168 +100,10 @@ class InputOutputNode(BasePolymorphicModel):
             connected_node.data_root = self.data_root
             connected_node.save()
 
+    class Meta:
+        abstract = True
+        app_label = 'api'
 
-class DataNode(BaseModel):
-    parent = models.ForeignKey(
-        'DataNode',
-        null=True,
-        related_name = 'children')
-    index = models.IntegerField(null=True) # 0 <= index < self.parent.degree; null if no parent
-    degree = models.IntegerField(null=True) # expected number of children; null if leaf
-    data_object = models.ForeignKey('DataObject',
-                                    related_name = 'data_nodes',
-                                    null=True) # null except on leaves
-
-    def add_leaf(self, index, data_object):
-        self._check_index(index)
-        try:
-            existing_leaf = self.children.get(index=index)
-        except ObjectDoesNotExist:
-            existing_leaf = None
-        if existing_leaf is not None:
-            raise LeafDataAlreadyExistsError(
-                'Leaf data node already exists at this index')
-        else:
-            return DataNode.objects.create(
-                parent=self,
-                index=index,
-                data_object=data_object)
-
-    def add_branch(self, index, degree):
-        self._check_index(index)
-        if degree < 0:
-            raise DegreeOutOfRangeError(
-                'Degree %s is not allowed. Degree must be >= 0' % degree)
-        try:
-            existing_branch = self.children.get(index=index)
-        except ObjectDoesNotExist:
-            existing_branch = None
-        if existing_branch is not None:
-            if existing_branch.data_object is not None:
-                raise UnexpectedLeafNodeError('Expected branch but found leaf')
-            if existing_branch.degree != degree:
-                raise DegreeMismatchError(
-                    'Degree of branch conflicts with a value set previously')
-            return existing_branch
-        else:
-            return DataNode.objects.create(
-                parent=self,
-                index=index,
-                degree=degree)
-
-    def add_data_object(self, path, data_object):
-        if len(path) == 0:
-            self._add_scalar_data_object(data_object)
-        else:
-            if self.degree is None:
-                self.degree = path[0][1]
-                self.save()
-            self._extend_path_and_add_data_at_leaf(path, data_object)
-
-    def _add_scalar_data_object(self, data_object):
-        if not self._is_uninitialized():
-            raise RootDataAlreadyExistsError(
-                "Failed to add scalar data since the root DataNode is "\
-                "already initialized")
-        self.data_object = data_object
-        self.save()
-
-    def _is_uninitialized(self):
-        return (self.degree is None
-                and self.index is None
-                and self.data_object is None)
-
-    def _extend_path_and_add_data_at_leaf(self, path, data_object):
-        index, degree = path.pop(0)
-        assert self.degree == degree
-        if len(path) == 0:
-            self.add_leaf(index, data_object)
-            return
-        child_degree = path[0][1]
-        child = self.add_branch(index, child_degree)
-        child._extend_path_and_add_data_at_leaf(path, data_object)
-
-    def _check_index(self, index):
-        if self.degree is None:
-            raise UnknownDegreeError(
-                'Cannot add DataNode child to a parent with degree of None. '\
-                'Set the degree on the parent first.')
-        if index < 0 or index >= self.degree:
-            raise IndexOutOfRangeError(
-                'Out of range index %s. DataNode parent has degree %s, so index '\
-                'should be in the range 0 to %s' % (
-                    index, self.degree, self.degree-1))
-
-    def _is_leaf(self):
-        return self.degree is None and self.data_object is not None
-
-    def add_data_objects(self, data, data_type):
-        self._validate_data(data)
-        path = []
-        self._extend_all_paths_and_add_data_at_leaves(data, path, data_type)
-
-    def _validate_data(self, data):
-        nested_lists_of_strings_schema = {
-            # schema used to verify that data contains only a string,
-            # a list of strings, or a list of (lists of)^n strings.
-            # These are the only valid structures for user-provided data values,
-            # e.g. 'file.txt@id',
-            # '["file1.txt@id1", "file2.txt@id2"]', or
-            # '[["file1.txt@id1", "file2.txt@id2"], ["file3.txt@id3"]]'.
-            'oneOf': [
-                { 'type': [ 'string' ] },
-                { 'type': 'array', 'items': {'type': 'string'}},
-                { 'type': 'array', 'items': {
-                    'type': 'array', 'items': {'$ref': '#'}}},
-            ]
-        }
-        try:
-            jsonschema.validate(data, nested_lists_of_strings_schema)
-        except jsonschema.exceptions.ValidationError:
-            raise jsonschema.exceptions.ValidationError(
-                "Data must be a string, list of strings, "\
-                "or nested lists of strings with uniform depth. "\
-                "Invalid data: '%s'" % data)
-        return data
-
-    def _extend_all_paths_and_add_data_at_leaves(self, data, path, data_type):
-        # Recursive function that extends 'path' until reaching a leaf node,
-        # where data is finally added.
-        # 'path' is the partial path to some intermediate
-        # node, while 'data' is the representation of all branches and leaves
-        # beyond that path.
-        # For example, given path (0,2) and data [['10','20']['30','40']],
-        # the function places all data under (0,2) and ignores the other
-        # root-level branch (1,2).
-        # The function adds these four data objects at
-        # their corresponding paths:
-        # 10 at [(0,2), (0,2), (0,2)]
-        # 20 at [(0,2), (0,2), (1,2)]
-        # 30 at [(0,2), (1,2), (0,2)]
-        # 40 at [(0,2), (1,2), (1,2)]
-        if not isinstance(data, list):
-            data_object = DataObject.get_by_value(
-                data,
-                data_type)
-            self.add_data_object(path, data_object)
-            return
-        else:
-            for i in range(len(data)):
-                path_i = copy.deepcopy(path)
-                path_i.append((i, len(data)))
-                self._extend_all_paths_and_add_data_at_leaves(
-                    data[i], path_i, data_type)
-
-    def render(self):
-        if self._is_uninitialized():
-            return PLACEHOLDER_VALUE
-        if self._is_leaf():
-            return self.data_object.get_display_value()
-        else:
-            data = [PLACEHOLDER_VALUE] * self.degree
-            for child in self.children.all():
-                data[child.index] = child.render()
-            return data
 
 class InputNodeSet(object):
     """Set of nodes acting as inputs for one step.
@@ -320,6 +134,7 @@ class InputItem(object):
 
     def __init__(self, input_node):
         self.data_object = input_node.get_data_as_scalar()
+        self.type = self.data_object.type
         self.channel = input_node.channel
 
 

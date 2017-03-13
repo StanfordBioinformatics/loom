@@ -1,0 +1,9 @@
+---
+- name: Delete the Loom server.
+  hosts: localhost
+  connection: local
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_server.yml
+  tasks:
+  - include: tasks/gcloud_delete_instance.yml

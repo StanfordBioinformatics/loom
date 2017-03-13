@@ -89,17 +89,21 @@ setup(
     install_requires=[
                         'ansible==2.2.0.0',
                         'apache-libcloud==1.3.0',
+                        'celery==4.0.0',
                         'Django==1.10.3',
+                        'django-celery-results==1.0.1',
                         'django-cors-headers==1.2.2',
+                        'django-debug-toolbar==1.7',
                         'django-extensions==1.7.4',
-                        'django-polymorphic==1.0.2',
                         'djangorestframework==3.5.1',
                         'docker-py==1.10.5',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
+                        'eventlet==0.20.0',
                         'gcloud==0.18.3',
                         'google-api-python-client==1.5.4',
                         'google-apitools>=0.5.5',
                         'gunicorn>=19.6.0',
                         'Jinja2==2.8',
+                        'jsonfield==1.0.1',
                         'jsonschema==2.5.1',
                         'MySQL-python==1.2.5',
                         'oauth2client==3.0.0',
@@ -108,6 +112,7 @@ setup(
                         'requests==2.11.1',            # match docker-py dependency
                         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git==1.1',
+                        'SQLAlchemy==1.1.4',
     ],
 
     # List additional groups of dependencies here (e.g. development

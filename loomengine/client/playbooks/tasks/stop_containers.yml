@@ -1,0 +1,29 @@
+- name: Stop the MySQL database container
+  docker_container:
+    name: "{{ mysql_container_name }}"
+    state: stopped
+
+- name: Stop the rabbitmq container
+  docker_container:
+    name: "{{ rabbitmq_container_name }}"
+    state: stopped
+
+- name: Stop the container with celery workers
+  docker_container:
+    name: "{{ worker_container_name }}"
+    state: stopped
+
+- name: Stop the container with celery scheduler
+  docker_container:
+    name: "{{ scheduler_container_name }}"
+    state: stopped
+
+- name: Stop the container with the Loom Master webserver
+  docker_container:
+    name: "{{ master_container_name }}"
+    state: stopped
+
+- name: Stop the NGINX server container
+  docker_container:
+    name: "{{ nginx_container_name }}"
+    state: stopped

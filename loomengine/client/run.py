@@ -2,15 +2,17 @@
 
 import argparse
 import os
+import requests.exceptions
 
-from loomengine.client.importer import WorkflowImporter
-from loomengine.client.common import get_server_url, read_as_json_or_yaml
+from loomengine.client.importer import TemplateImporter
+from loomengine.client.common import get_server_url, read_as_json_or_yaml, \
+    verify_has_connection_settings, verify_server_is_running
 from loomengine.client.exceptions import *
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
 
-class WorkflowRunner(object):
+class TemplateRunner(object):
     """Run a workflow on the server.
     """
 
@@ -18,9 +20,11 @@ class WorkflowRunner(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.master_url = get_server_url()
-        self.connection = Connection(self.master_url)
-        self.filemanager = FileManager(self.master_url)
+        verify_has_connection_settings()
+        server_url = get_server_url()
+        verify_server_is_running(url=server_url)
+        self.connection = Connection(server_url)
+        self.filemanager = FileManager(server_url)
 
     @classmethod
     def _get_args(cls):
@@ -33,7 +37,7 @@ class WorkflowRunner(object):
     def get_parser(cls, parser=None):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('workflow', metavar='WORKFLOW', help='ID of workflow to run')
+        parser.add_argument('template', metavar='TEMPLATE', help='ID of template to run')
         parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*', help='ID of data inputs')
         return parser
 
@@ -47,28 +51,39 @@ class WorkflowRunner(object):
                 raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
 
     def run(self):
-        run_request = self.connection.post_run_request(
-            {
-                'template': self.args.workflow,
-                'inputs': self._get_inputs()
-            }
-        )
+        run_request_data = {
+            'template': self.args.template,
+            'inputs': self._get_inputs()}
+        try:
+            run_request = self.connection.post_run_request(run_request_data)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code >= 400:
+                try:
+                    message = e.response.json()
+                except:
+                    message = e.response.text
+                if isinstance(message, list):
+                    message = '; '.join(message)
+                raise SystemExit(message)
+            else:
+                raise e
 
-        print 'Created run request %s@%s' % (
-            run_request['name'],
-            run_request['id'])
-        return run_request
+        print 'Created run %s@%s' % (
+            run_request['template']['name'],
+            run_request['uuid'])
 
     def _get_inputs(self):
-        """Converts command line args into a list of workflow inputs
+        """Converts command line args into a list of template inputs
         """
         inputs = []
         if self.args.inputs:
             for kv_pair in self.args.inputs:
                 (channel, input_id) = kv_pair.split('=')
-                inputs.append({'channel': channel, 'data': input_id})
+                inputs.append({'channel': channel, 'data': 
+                               {'contents': input_id}
+                           })
         return inputs
 
 
 if __name__=='__main__':
-    WorkflowRunner().run()
+    TemplateRunner().run()

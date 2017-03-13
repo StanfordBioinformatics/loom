@@ -1,0 +1,40 @@
+---
+name: integration_test
+inputs:
+- type: file
+  hint: Enter the 'message' file
+  channel: message
+outputs:
+- type: file
+  channel: lowercase_message
+steps:
+- name: capitalize
+  command: cat {{ message }} | tr '[a-z]' '[A-Z]' > {{ uppercase_message }}
+  environment:
+    docker_image: ubuntu
+  resources:
+    cores: '1'
+    memory: '1'
+  inputs:
+  - type: file
+    channel: message
+  outputs:
+  - type: file
+    channel: uppercase_message
+    source:
+      filename: uppercase_message.txt
+- name: uncapitalize
+  command: cat {{ uppercase_message }} | tr '[A-Z]' '[a-z]' > {{ lowercase_message }}
+  environment:
+    docker_image: ubuntu
+  resources:
+    cores: '1'
+    memory: '1'
+  inputs:
+  - type: file
+    channel: uppercase_message
+  outputs:
+  - type: file
+    channel: lowercase_message
+    source:
+      filename: lowercase_message.txt

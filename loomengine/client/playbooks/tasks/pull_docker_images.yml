@@ -1,0 +1,9 @@
+  - name: Pull Loom image.
+    docker_image: name={{loom_docker_image}} api_version=auto force=True
+  - name: Pull NGINX image.
+    docker_image: name={{nginx_image}} api_version=auto force=True
+  - name: Pull RabbitMQ image.
+    docker_image: name={{rabbitmq_image}} api_version=auto force=True
+  - name: Pull MySQL image when needed.
+    docker_image: name={{mysql_image}} api_version=auto force=True
+    when: mysql_create_docker_container

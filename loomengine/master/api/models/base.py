@@ -1,6 +1,5 @@
 from django.db import models
 import jinja2
-from polymorphic.models import PolymorphicModel, PolymorphicManager
 import re
 
 from api.exceptions import *
@@ -67,31 +66,34 @@ class FilterHelper(object):
         self.Model = Model
 
     def filter_by_name_or_id_or_hash(self, query_string):
-        assert self.Model.NAME_FIELD, 'NAME_FIELD is missing on model %s' % self.Model.__name__
-        assert self.Model.HASH_FIELD, 'HASH_FIELD is missing on model %s' % self.Model.__name__
+        assert self.Model.NAME_FIELD, \
+            'NAME_FIELD is missing on model %s' % self.Model.__name__
+        assert self.Model.HASH_FIELD, \
+            'HASH_FIELD is missing on model %s' % self.Model.__name__
         
-        kwargs = {}
+        filter_args = {}
         name, id, hash_value = self._parse_as_name_or_id_or_hash(query_string)
         if name is not None:
-            kwargs[self.Model.NAME_FIELD] = name
+            filter_args[self.Model.NAME_FIELD] = name
         if hash_value is not None:
-            kwargs[self.Model.HASH_FIELD+'__startswith'] = hash_value
+            filter_args[self.Model.HASH_FIELD+'__startswith'] = hash_value
         if id is not None:
-            kwargs['id__startswith'] = id
-        return self.Model.objects.filter(**kwargs)
+            filter_args['uuid__startswith'] = id
+        return self.Model.objects.filter(**filter_args)
 
     def filter_by_name_or_id(self, query_string):
         """Find objects that match the identifier of form {name}@{ID}, {name},
         or @{ID}, where ID may be truncated
         """
-        assert self.Model.NAME_FIELD, 'NAME_FIELD is missing on model %s' % self.Model.__name__
+        assert self.Model.NAME_FIELD, \
+            'NAME_FIELD is missing on model %s' % self.Model.__name__
         
         kwargs = {}
         name, id = self._parse_as_name_or_id(query_string)
         if name:
             kwargs[self.Model.NAME_FIELD] = name
         if id:
-            kwargs['id__startswith'] = id
+            kwargs['uuid__startswith'] = id
         return self.Model.objects.filter(**kwargs)
 
     def _parse_as_name_or_id_or_hash(self, query_string):
@@ -99,16 +101,16 @@ class FilterHelper(object):
         id = None
         hash_value = None
 
-        # Name comes at the beginning and ends with $, @, or end of string
-        name_match = re.match('^(?!\$|@)(.+?)($|\$|@)', query_string)
+        # Name comes at the beginning and ends with %, @, or end of string
+        name_match = re.match('^(?!%|@)(.+?)($|%|@)', query_string)
         if name_match is not None:
             name = name_match.groups()[0]
-        # id starts with @ and ends with $ or end of string
-        id_match = re.match('^.*?@(.*?)($|\$)', query_string)
+        # id starts with @ and ends with % or end of string
+        id_match = re.match('^.*?@(.*?)($|%)', query_string)
         if id_match is not None:
             id = id_match.groups()[0]
-        # hash starts with $ and ends with @ or end of string
-        hash_match = re.match('^.*?\$(.*?)($|@)', query_string)
+        # hash starts with % and ends with @ or end of string
+        hash_match = re.match('^.*?%(.*?)($|@)', query_string)
         if hash_match is not None:
             hash_value = hash_match.groups()[0]
         return name, id, hash_value
@@ -120,10 +122,6 @@ class FilterHelper(object):
         return name, id
 
 class _FilterMixin(object):
-
-    # This functionality logically belongs in a Manager class,
-    # instead of on the Model, but custom managers conflict with
-    # django-polymorphic
 
     NAME_FIELD = None
 
@@ -137,20 +135,22 @@ class _FilterMixin(object):
         helper = FilterHelper(cls)
         return helper.filter_by_name_or_id(filter_string)
 
-    @classmethod
-    def query(cls, filter_string):
-        return cls.filter_by_name_or_id(filter_string)
-
 
 class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):
 
-    class Meta:
-        abstract = True
-        app_label = 'api'
-
-
-class BasePolymorphicModel(PolymorphicModel, _ModelNameMixin, _FilterMixin):
+    _change = models.IntegerField(default=0)
 
     class Meta:
         abstract = True
         app_label = 'api'
+
+    def save(self, *args, **kwargs):
+        cls = self.__class__
+        if self.pk:
+            rows = cls.objects.filter(
+                pk=self.pk, _change=self._change).update(
+                _change=self._change + 1)
+            if not rows:
+                raise ConcurrentModificationError(cls.__name__, self.pk)
+            self._change += 1
+        super(BaseModel, self).save(*args, **kwargs)

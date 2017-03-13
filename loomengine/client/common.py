@@ -9,23 +9,86 @@ import oauth2client.client
 import os
 import re
 import requests
+from StringIO import StringIO
 import subprocess
 import sys
 import time
 import yaml
 
-import loomengine.client.settings_manager
 import loomengine.utils.connection
 from loomengine.client import exceptions
 from loomengine.utils.exceptions import ServerConnectionError
 
-LOOM_HOME_SUBDIR = '.loom'
-LOOM_SETTINGS_PATH = os.path.join('~', LOOM_HOME_SUBDIR)
-SERVER_LOCATION_FILE = os.path.join(LOOM_SETTINGS_PATH, 'server.ini')
-SSL_CERT_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.crt'))
-SSL_KEY_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'ssl.key'))
-GCE_INI_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce.ini')
-GCE_JSON_PATH = os.path.join(LOOM_SETTINGS_PATH, 'gce_key.json')
+LOOM_SETTINGS_SUBDIR = '.loom'
+LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/'+LOOM_SETTINGS_SUBDIR))
+LOOM_CONNECTION_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'connection-files')
+LOOM_CONNECTION_SETTINGS_FILE = 'connection-settings.conf'
+
+def parse_settings_file(settings_file):
+    PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
+    parser = ConfigParser.SafeConfigParser()
+    # preserve uppercase in settings names
+    parser.optionxform = lambda option: option.upper()
+    try:
+        with open(settings_file) as stream:
+            # Add a section, since ConfigParser requires it
+            stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
+            parser.readfp(stream)
+    except IOError:
+        raise SystemExit('ERROR! Could not open file to read settings at "%s".'
+                         % settings_file)
+    except ConfigParser.ParsingError as e:
+        raise SystemExit('ERROR! Could not parse settings in file "%s".\n %s'
+                         % (settings_file, e.message))
+    if parser.sections() != [PARSER_SECTION]:
+        raise SystemExit('ERROR! Found extra sections in settings file: "%s". '\
+                         'Sections are not needed.' % parser.sections())
+    return dict(parser.items(PARSER_SECTION))
+
+def write_settings_file(settings_file, settings):
+    with open(settings_file, 'w') as f:
+        for key, value in sorted(settings.items()):
+            f.write('%s=%s\n' % (key, value))
+
+def has_connection_settings():
+    return os.path.exists(os.path.join(
+        LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
+
+def verify_has_connection_settings():
+    if not has_connection_settings():
+        raise SystemExit(
+            'ERROR! Not connected to any server. First start a new server '\
+            'or connect to an existing server.')
+
+def get_server_url():
+    connection_settings = parse_settings_file(
+        os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
+    return connection_settings.get('LOOM_SERVER_URL')
+
+def is_server_running(url=None):
+    if not url:
+        url = get_server_url()
+
+    try:
+        loomengine.utils.connection.disable_insecure_request_warning()
+        response = requests.get(url + '/api/status/', verify=False)
+    except requests.exceptions.ConnectionError:
+        return False
+
+    if response.status_code == 200:
+        return True
+    else:
+        raise SystemExit(
+	    'ERROR! Unexpected status code "%s" from server' % response.status_code)
+
+def verify_server_is_running(url=None):
+    if not is_server_running(url=url):
+        raise SystemExit('ERROR! No response from server at %s' % url)
+
+SSL_CERT_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_HOME, 'ssl.crt'))
+SSL_KEY_PATH = os.path.expanduser(os.path.join(LOOM_SETTINGS_HOME, 'ssl.key'))
+GCE_INI_PATH = os.path.join(LOOM_SETTINGS_HOME, 'gce.ini')
+GCE_JSON_PATH = os.path.join(LOOM_SETTINGS_HOME, 'gce_key.json')
 GCE_PY_PATH = os.path.join(imp.find_module('loomengine')[1], 'utils', 'gce.py')
 SERVER_PATH = os.path.join(imp.find_module('loomengine')[1], 'master')
 
@@ -119,39 +182,6 @@ def get_gcloud_hosts():
     inv = get_inventory()
     inv_hosts = inv['_meta']['hostvars']
     return inv_hosts
-
-def get_server_url():
-    # TODO: add PROTOCOL and EXTERNAL PORT to server.ini since they are required to construct a URL to reach the server
-    # Consider how to keep in sync with user-provided settings, default_settings.ini, and _deploy_settings.ini
-    # Would remove dependency on settings_manager from other components
-    try:
-        settings = loomengine.client.settings_manager.read_deploy_settings_file()
-    except:
-        raise Exception("Could not open server deploy settings. Do you need to run \"loom server create\" first?")
-    protocol = settings['PROTOCOL']
-    if settings.get('CLIENT_USES_SERVER_INTERNAL_IP') == 'True':
-        ip = get_server_private_ip()
-    else:
-        ip = get_server_public_ip()
-    port = settings['EXTERNAL_PORT']
-    return '%s://%s:%s' % (protocol, ip, port)
-
-def is_server_running():
-    try:
-        loomengine.utils.connection.disable_insecure_request_warning()
-        #response = requests.get(get_server_url() + '/api/status/', cert=(SSL_CERT_PATH, SSL_KEY_PATH)) 
-        response = requests.get(get_server_url() + '/api/status/', verify=False)
-    except requests.exceptions.ConnectionError:
-        return False
-
-    if response.status_code == 200:
-        return True
-    else:
-        raise Exception("Unexpected status code %s from server" % response.status_code)
-
-def verify_server_is_running():
-    if not is_server_running():
-        raise exceptions.ServerConnectionError('The Loom server is not currently running at %s. Try launching the web server with "loom server start".' % get_server_url())
 
 def get_gcloud_project():
     """Queries gcloud CLI for current project."""
@@ -355,7 +385,7 @@ def grant_roles(roles, email=None):
 
     # Set policy on project
     policy = get_project_policy(project)
-    jsonfilename = os.path.expanduser(os.path.join(LOOM_SETTINGS_PATH, 'policy-%s.json' % time.strftime("%Y%m%d-%H%M%S")))
+    jsonfilename = os.path.expanduser(os.path.join(LOOM_SETTINGS_HOME, 'policy-%s.json' % time.strftime("%Y%m%d-%H%M%S")))
     with open(jsonfilename, 'w') as jsonfile:
         json.dump(policy, jsonfile)
     print 'Current project policy saved to %s' % jsonfilename
@@ -426,3 +456,4 @@ def read_as_json_or_yaml(file):
         return parse_as_json_or_yaml(text)
     except exceptions.InvalidFormatError:
         raise exceptions.InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
+

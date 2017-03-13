@@ -1,0 +1,9 @@
+  - name: Delete the named instance.
+    local_action:
+      module: gce
+      state: 'absent'
+      instance_names: "{{instance_name}}"
+      zone: "{{zone}}"
+      credentials_file: "{{gce_credential}}"
+      project_id: "{{gce_project}}"
+      service_account_email: "{{gce_email}}"

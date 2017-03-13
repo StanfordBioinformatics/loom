@@ -10,7 +10,8 @@ inputs:
 fixed_inputs:
 - type: string
   channel: final_punc
-  data: "!!"
+  data:
+    contents: "!!"
 outputs:
 - type: string
   channel: hello_world

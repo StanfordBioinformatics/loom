@@ -26,7 +26,7 @@ Loom remembers anything you ever run and can tell you exactly how each result wa
 Portability between platforms
 -----------------------------
 
-Exactly the same workflow can be run on your laptop or on a public cloud service.
+Exactly the same workflow can be run on your laptop or on a cloud service.
 
 Open architecture
 -----------------
@@ -40,17 +40,10 @@ Not only is Loom open source and free to use, it uses an inside-out architecture
 - Connect Loom to multiple file stores without creating redundant copies
 - Efficient re-use of results for redundant analysis steps
 
-How many times do you really need to run the same analysis on the same inputs? Loom knows which steps in your workflow have already been run and seamlessly integrates previous results with the current run, while still maintaining data provenance and traceability.
-
-Graphical user interface
+Browser interface
 ------------------------
 
-While you may want to automate your analysis from the command line, a graphical user interface is invaluable for browsing workflows and results and keeping an eye on current runs.
-
-Security and compliance
------------------------
-
-Loom is designed with clinical compliance in mind.
+While you may want to automate your analysis from the command line, a browser interface is invaluable for exploring your workflow templates and keeping an eyeon current analysis runs.
 
 Who needs Loom?
 ===============
@@ -58,13 +51,6 @@ Who needs Loom?
 Loom is built for the kind of workflows that bioinformaticians run -- multi-step analyses with large data files passed between steps. But nothing about Loom is specific to bioinformatics.
 
 Loom is scalable and supports individual analysts or large institutions.
-
-Get started
-===========
-
-Check out our Getting Started Guide and give Loom a try.
-
-https://github.com/StanfordBioinformatics/loom/wiki/Getting-Started
 
 What is the current status?
 ===========================

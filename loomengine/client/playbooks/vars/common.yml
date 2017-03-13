@@ -1,0 +1,102 @@
+# General settings
+debug: "{{lookup('env', 'LOOM_DEBUG') | bool}}"
+
+settings_home: "{{ lookup('env', 'LOOM_SETTINGS_HOME')}}"
+container_settings_home: /loom-settings
+
+server_name: "{{lookup('env', 'LOOM_SERVER_NAME')}}"
+log_level: "{{lookup('env', 'LOOM_LOG_LEVEL')|upper}}"
+loom_docker_image: "{{lookup('env', 'LOOM_DOCKER_IMAGE')}}"
+
+admin_files_dir: "{{lookup('env', 'LOOM_ADMIN_FILES_DIR')}}"
+loom_playbook_dir: "{{lookup('env', 'LOOM_PLAYBOOK_DIR')}}"
+loom_inventory_dir: "{{lookup('env', 'LOOM_INVENTORY_DIR')}}"
+admin_settings_file: "{{lookup('env', 'LOOM_ADMIN_SETTINGS_FILE')}}"
+connection_settings_file: "{{lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE')}}"
+
+http_port: "{{lookup('env', 'LOOM_HTTP_PORT')}}"
+https_port: "{{lookup('env', 'LOOM_HTTPS_PORT')}}"
+http_port_enabled: "{{lookup('env', 'LOOM_HTTP_PORT_ENABLED') | bool}}"
+https_port_enabled: "{{lookup('env', 'LOOM_HTTPS_PORT_ENABLED') | bool}}"
+http_redirect_to_https: "{{lookup('env', 'LOOM_HTTP_REDIRECT_TO_HTTPS') | bool}}"
+
+server_port: "{{https_port if https_port_enabled else http_port}}"
+server_protocol: "{{'https' if https_port_enabled else 'http'}}"
+
+ssl_cert_create_new: "{{lookup('env', 'LOOM_SSL_CERT_CREATE_NEW') | bool}}"
+ssl_cert_key_file: "{{lookup('env', 'LOOM_SSL_CERT_KEY_FILE')}}"
+ssl_cert_file: "{{lookup('env', 'LOOM_SSL_CERT_FILE')}}"
+ssl_cert_subj: "/C={{lookup('env', 'LOOM_SSL_CERT_C')}}/ST={{lookup('env', 'LOOM_SSL_CERT_ST')}}/L={{lookup('env', 'LOOM_SSL_CERT_L')}}/O={{lookup('env', 'LOOM_SSL_CERT_O')}}/CN={{ansible_hostname}}"
+
+storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"
+storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
+
+# MySQL container settings
+mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER') | bool}}"
+mysql_image: "{{lookup('env', 'LOOM_MYSQL_IMAGE')}}"
+mysql_container_name: "{{server_name}}\
+                       {{lookup('env', 'LOOM_MYSQL_CONTAINER_NAME_SUFFIX')}}"
+
+mysql_random_root_password: >
+  {{lookup('env', 'LOOM_MYSQL_RANDOM_ROOT_PASSWORD')}}
+mysql_database: "{{lookup('env', 'LOOM_MYSQL_DATABASE')}}"
+mysql_user: "{{lookup('env', 'LOOM_MYSQL_USER')}}"
+mysql_password: "{{lookup('env', 'LOOM_MYSQL_PASSWORD')}}"
+mysql_host: "{{mysql_container_name if mysql_create_docker_container \
+             else lookup('env', 'LOOM_MYSQL_HOST')}}"
+
+cert_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CA_CERT_FILE')}}"
+client_cert_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CLIENT_CERT_FILE')}}"
+client_key_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CLIENT_KEY_FILE')}}"
+
+container_mysql_ssl_ca_cert_path: "{{container_settings_home+'/'+admin_files_dir+'/'+cert_file if cert_file else none}}"
+container_mysql_ssl_client_cert_path: "{{container_settings_home+'/'+admin_files_dir+'/'+client_cert_file if client_cert_file else none}}"
+container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+admin_files_dir+'/'+client_key_file if client_key_file else none}}"
+
+# Rabbitmq container settings
+rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_IMAGE')}}"
+rabbitmq_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_RABBITMQ_CONTAINER_NAME_SUFFIX')}}"
+rabbitmq_user: "{{lookup('env', 'LOOM_RABBITMQ_USER')}}"
+rabbitmq_password: "{{lookup('env', 'LOOM_RABBITMQ_PASSWORD')}}"
+rabbitmq_host: "{{lookup('env', 'LOOM_RABBITMQ_HOST')}}"
+rabbitmq_port: "{{lookup('env', 'LOOM_RABBITMQ_PORT')}}"
+rabbitmq_vhost: "{{lookup('env', 'LOOM_RABBITMQ_VHOST')}}"
+
+# Celery worker container settings
+worker_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_WORKER_CONTAINER_NAME_SUFFIX')}}"
+
+# Celery scheduler container settings
+scheduler_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_SCHEDULER_CONTAINER_NAME_SUFFIX')}}"
+
+# NGINX container settings
+nginx_image: "{{lookup('env', 'LOOM_NGINX_IMAGE')}}"
+nginx_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_NGINX_CONTAINER_NAME_SUFFIX')}}"
+nginx_conf_file: nginx.conf
+nginx_server_name: "{{lookup('env', 'LOOM_NGINX_SERVER_NAME')}}"
+nginx_webportal_root: "{{lookup('env', 'LOOM_NGINX_WEBPORTAL_ROOT')}}"
+nginx_access_log: "{{lookup('env', 'LOOM_NGINX_ACCESS_LOG')}}"
+nginx_error_log: "{{lookup('env', 'LOOM_NGINX_ERROR_LOG')}}"
+
+# Loom master container settings
+master_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_MASTER_CONTAINER_NAME_SUFFIX')}}"
+master_internal_port: "{{lookup('env', 'LOOM_MASTER_INTERNAL_PORT')}}"
+master_static_root: "{{lookup('env', 'LOOM_MASTER_STATIC_ROOT')}}"
+
+# Loom taskrunner container settings
+taskrunner_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_TASKRUNNER_CONTAINER_NAME_SUFFIX')}}"
+
+# Google Cloud storage settings
+google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
+gce_project: "{{lookup('env','GCE_PROJECT')}}"

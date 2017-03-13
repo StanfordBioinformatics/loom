@@ -5,8 +5,8 @@ import json
 import os
 import sys
 import yaml
-from loomengine.client.common import get_server_url
-from loomengine.client.common import verify_server_is_running
+from loomengine.client.common import get_server_url, verify_server_is_running, \
+    verify_has_connection_settings
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
 
@@ -19,10 +19,11 @@ class AbstractExporter(object):
         """Common init tasks for all Export classes
         """
         self.args = args
-        master_url = get_server_url()
+        verify_has_connection_settings()
+        server_url = get_server_url()
         verify_server_is_running()
-        self.connection = Connection(master_url)
-        self.filemanager = FileManager(master_url)
+        self.connection = Connection(server_url)
+        self.filemanager = FileManager(server_url)
 
 
 class FileExporter(AbstractExporter):
@@ -47,13 +48,13 @@ class FileExporter(AbstractExporter):
         )
 
 
-class WorkflowExporter(AbstractExporter):
+class TemplateExporter(AbstractExporter):
 
     @classmethod
     def get_parser(cls, parser):
         parser.add_argument(
-            'workflow_id',
-            metavar='WORKFLOW_ID', help='Workflow to be downloaded.')
+            'template_id',
+            metavar='TEMPLATE_ID', help='Template to be downloaded.')
         parser.add_argument(
             '--destination',
             metavar='DESTINATION',
@@ -61,29 +62,29 @@ class WorkflowExporter(AbstractExporter):
         parser.add_argument(
             '--format',
             choices=['json', 'yaml'],
-            default='json',
-            help='Data format for downloaded workflow')
+            default='yaml',
+            help='Data format for downloaded template')
         return parser
 
     def run(self):
-        workflow = self.connection.get_abstract_workflow_index(query_string=self.args.workflow_id, min=1, max=1)[0]
-        destination_url = self._get_destination_url(workflow)
-        self._save_workflow(workflow, destination_url)
+        template = self.connection.get_template_index(query_string=self.args.template_id, min=1, max=1)[0]
+        destination_url = self._get_destination_url(template)
+        self._save_template(template, destination_url)
 
-    def _get_destination_url(self, workflow):
-        default_name = '%s.%s' % (workflow['name'], self.args.format)
+    def _get_destination_url(self, template):
+        default_name = '%s.%s' % (template['name'], self.args.format)
         return self.filemanager.get_destination_file_url(self.args.destination, default_name)
 
-    def _save_workflow(self, workflow, destination):
-        print 'Exporting workflow %s@%s to %s...' % (workflow.get('name'), workflow.get('_id'), destination)
+    def _save_template(self, template, destination):
+        print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('_id'), destination)
         if self.args.format == 'json':
-            workflow_text = json.dumps(workflow)
+            template_text = json.dumps(template, indent=4, separators=(',', ': '))
         elif self.args.format == 'yaml':
-            workflow_text = yaml.safe_dump(workflow)
+            template_text = yaml.safe_dump(template, default_flow_style=False)
         else:
             raise Exception('Invalid format type %s' % self.args.format)
-        self.filemanager.write_to_file(destination, workflow_text)
-        print '...finished exporting workflow'
+        self.filemanager.write_to_file(destination, template_text)
+        print '...finished exporting template'
 
 class Exporter:
     """Sets up and executes commands under "download" on the main parser.
@@ -109,7 +110,7 @@ class Exporter:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select a data type to download', metavar='{file,workflow}')
+        subparsers = parser.add_subparsers(help='select a data type to download', metavar='{file,template}')
 
         file_subparser = subparsers.add_parser('file', help='download a file or an array of files')
         FileExporter.get_parser(file_subparser)
@@ -119,13 +120,13 @@ class Exporter:
         FileExporter.get_parser(hidden_file_subparser)
         hidden_file_subparser.set_defaults(SubSubcommandClass=FileExporter)
 
-        workflow_subparser = subparsers.add_parser('workflow', help='download a workflow')
-        WorkflowExporter.get_parser(workflow_subparser)
-        workflow_subparser.set_defaults(SubSubcommandClass=WorkflowExporter)
+        template_subparser = subparsers.add_parser('template', help='download a template')
+        TemplateExporter.get_parser(template_subparser)
+        template_subparser.set_defaults(SubSubcommandClass=TemplateExporter)
 
-        hidden_workflow_subparser = subparsers.add_parser('workflows')
-        WorkflowExporter.get_parser(hidden_workflow_subparser)
-        hidden_workflow_subparser.set_defaults(SubSubcommandClass=WorkflowExporter)
+        hidden_template_subparser = subparsers.add_parser('templates')
+        TemplateExporter.get_parser(hidden_template_subparser)
+        hidden_template_subparser.set_defaults(SubSubcommandClass=TemplateExporter)
 
         return parser
 

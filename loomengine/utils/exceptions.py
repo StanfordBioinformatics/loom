@@ -31,11 +31,14 @@ class NoFilesMatchError(Error):
 class MultipleFilesMatchError(Error):
     pass
 
-class IdMatchedTooFewFileDataObjectsError(Error):
+class IdMatchedTooFewDataObjectsError(Error):
     pass
 
-class IdMatchedTooManyFileDataObjectsError(Error):
+class IdMatchedTooManyDataObjectsError(Error):
     pass
     
 class ValidationError(Error):
+    pass
+
+class DuplicateFileError(Error):
     pass

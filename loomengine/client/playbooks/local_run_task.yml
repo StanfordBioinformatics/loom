@@ -1,0 +1,11 @@
+---
+- name: Run the Loom task runner on localhost.
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars/common.yml
+    - vars/local.yml
+  vars:
+    task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
+  tasks:
+    - include: tasks/run_task.yml

@@ -7,15 +7,15 @@
 	  Name
 	</th>
 	<td>
-	  {{activeData.run.name}}
+	  {{activeData.run.template.name}}
 	</td>
       </tr>
-      <tr ng-show="activeData.run.errors.length>0">
+      <tr>
 	<th>
-	  Errors
+	  Run ID
 	</th>
 	<td>
-	  {{activeData.run.errors}}
+	  {{activeData.run.uuid}}
 	</td>
       </tr>
       <tr ng-show="activeData.run.status">
@@ -28,19 +28,19 @@
       </tr>
       <tr>
 	<th>
-	  Run ID
+	  Created
 	</th>
 	<td>
-	  {{activeData.run.id}}
-	</td>
+          {{activeData.run.datetime_created | date:'medium'}}
+        </td>
       </tr>
       <tr>
 	<th>
 	  Template ID
 	</th>
 	<td>
-	  <a ng-href="#/templates/{{activeData.run.template | parseId:'id'}}">
-	    {{activeData.run.template | parseId:'id'}}
+	  <a ng-href="#/templates/{{activeData.run.template.uuid}}">
+	    {{activeData.run.template.uuid}}
 	  </a>
 	</td>
       </tr>
@@ -52,7 +52,7 @@
 	  {{activeData.run.command}}
 	</td>
       </tr>
-      <tr ng-show="activeData.run.interpretercommand">
+      <tr ng-show="activeData.run.interpreter">
 	<th>
 	  Interpreter
 	</th>
@@ -60,40 +60,44 @@
 	  {{activeData.run.interpreter}}
 	</td>
       </tr>
-      <tr ng-show="activeData.run.environment.docker_image">
+      <tr ng-show="activeData.run.template.environment.docker_image">
 	<th>Docker Image</th>
 	<td>
-	  {{activeData.run.environment.docker_image}}
+	  {{activeData.run.template.environment.docker_image}}
 	</td>
       </tr>
-      <tr ng-show="activeData.run.resources.cores">
+      <tr ng-show="activeData.run.template.resources.cores">
 	<th>Cores</th>
 	<td>
-	  {{activeData.run.resources.cores}}
+	  {{activeData.run.template.resources.cores}}
 	</td>
       </tr>
-      <tr ng-show="activeData.run.resources.memory">
+      <tr ng-show="activeData.run.template.resources.memory">
 	<th>Memory</th>
 	<td>
-	  {{activeData.run.resources.memory}}
+	  {{activeData.run.template.resources.memory}}
 	</td>
       </tr>
     </table>
   </div>
-  <div ng-show="activeData.run.step_runs.length">
+  <div ng-show="activeData.run.steps.length">
     <h4>Steps</h4>
     <div class="table-responsive" >
       <table class="table table-striped">
 	<thead>
           <tr>
-            <th>Name</th>
+            <th>Run</th>
+	    <th>Status</th>
+	    <th>Started</th>
           </tr>
 	</thead>
 	<tbody>
-          <tr ng-repeat="step_run in activeData.run.step_runs">
-            <td><a ng-href="#/runs/{{step_run.id}}">
-		{{step_run.name}}
+          <tr ng-repeat="step in activeData.run.steps">
+            <td><a ng-href="#/runs/{{step.uuid}}">
+		{{step.name}}@{{step.uuid | limitTo: 8}}
             </a></td>
+	    <td>{{step.status}}</td>
+	    <td>{{step.datetime_created | date:'medium'}}</td>
           </tr>
 	</tbody>
       </table>
@@ -113,12 +117,12 @@
 	    <td>{{input.channel}}</td>
 	    <td>{{input.type}}</td>
 	    <td ng-show="input.type=='file'">
-	      <a ng-href="#/files/{{input.data | parseId:'id'}}" ng-show="input.data">
-		{{input.data | parseId:'name'}}
+	      <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data">
+		{{input.data.contents.filename}}
 	      </a>
 	    </td>
 	    <td ng-hide="input.type=='file'">
-	      {{input.data}}
+	      {{input.data.contents.value}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -131,15 +135,9 @@
       <table class="table table-striped">
 	<thead>
 	  <tr>
-	    <th>
-	      Channel
-	    </th>
-	    <th>
-	      Type
-	    </th>
-	    <th>
-	      Data
-	    </th>
+	    <th>Channel</th>
+	    <th>Type</th>
+	    <th>Data</th>
 	  </tr>
 	</thead>
 	<tbody>
@@ -151,12 +149,12 @@
 	      {{input.type}}
 	    </td>
 	    <td ng-show="input.type=='file'">
-	      <a ng-href="#/files/{{input.data | parseId:'id'}}" ng-show="input.data">
-		{{input.data | parseId:'name'}}
+	      <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data">
+		{{input.data.contents.filename}}
 	      </a>
 	    </td>
 	    <td ng-hide="input.type=='file'">
-	      {{input.data}}
+	      {{input.data.contents.value}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -174,39 +172,60 @@
       <tbody>
 	<tr ng-repeat="output in activeData.run.outputs">
 	  <td>{{output.channel}}</td>
-	  <td>
-	    {{output.type}}
-	  </td>
+	  <td>{{output.type}}</td>
 	  <td ng-show="output.type=='file'">
-	    <a ng-href="#/files/{{output.data | parseId:'id'}}" ng-show="output.data">
-	      {{output.data | parseId:'name'}}
+	    <a ng-href="#/files/{{output.data.contents.uuid}}" ng-show="output.data">
+	      {{output.data.contents.filename}}
 	    </a>
 	  </td>
 	  <td ng-hide="output.type=='file'">
-	    {{output.data}}
+	    {{output.data.contents.value}}
 	  </td>
 	</tr>
       </tbody>
     </table>
   </div>
-  <div ng-show="activeData.run.task_runs">
-    <h4>Log Files</h4>
+  <div ng-show="activeData.run.tasks">
+    <h4>Tasks</h4>
     <div class="table-responsive" >
       <table class="table table-striped">
 	<thead>
-	  <th>Log</th>
+	  <th>Task ID</th>
+	  <th>Status</th>
 	  <th>Created</th>
 	</thead>
-	<tbody ng-repeat="attempt in activeData.run.task_runs[0].task_run_attempts">
-	  <tr ng-repeat="log in attempt.log_files">
+	<tbody>
+	  <tr ng-repeat="task in activeData.run.tasks">
 	    <td>
-	      <a ng-href="#/files/{{log.file_data_object.id}}">
-		{{log.log_name}}
+	      <a href="{{task.url}}">
+		{{task.uuid}}
 	      </a>
 	    </td>
+	    <td>{{task.status_message}}</td>
+	    <td>{{task.datetime_created}}</td>
+	  </tr>
+	</tbody>
+      </table>
+    </div>
+  </div>
+  <div ng-show="activeData.run.timepoints.length>0">
+    <h4>Timepoints</h4>
+    <div class="table-responsive" >
+      <table class="table table-striped">
+	<thead>
+	  <th>Timestamp</th>
+	  <th>Message</th>
+	  <th>Is error</th>
+	  <th>Detail</th>
+	</thead>
+	<tbody>
+	  <tr ng-repeat="timepoint in activeData.run.timepoints">
 	    <td>
-	      {{log.file_data_object.datetime_created | date:'medium'}}
+	      {{timepoint.timestamp | date:'medium'}}
 	    </td>
+	    <td>{{timepoint.message}}</td>
+	    <td>{{timepoint.is_error}}</td>
+	    <td>{{timepoint.detail}}</td>
 	  </tr>
 	</tbody>
       </table>

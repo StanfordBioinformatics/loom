@@ -21,3 +21,24 @@ class IdNotFoundError(Error):
 
 class TooManyMatchesError(Error):
     pass
+
+class ConcurrentModificationError(Exception):
+    pass
+
+class NoFileMatchError(Exception):
+    pass
+
+class MultipleFileMatchesError(Exception):
+    pass
+
+class NoTemplateMatchError(Exception):
+    pass
+
+class MultipleTemplateMatchesError(Exception):
+    pass
+
+class NoTemplateInputMatchError(Exception):
+    pass
+
+class ChannelNameCollisionError(Exception):
+    pass

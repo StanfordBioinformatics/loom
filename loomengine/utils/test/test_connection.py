@@ -10,6 +10,8 @@ class MockResponse:
 
 
 class MockConnection(connection.Connection):
+    # Overrides connection.Connection methods that need a server
+    # with mock methods
 
     def _get(self, relative_url):
         self.method = 'GET'
@@ -42,9 +44,9 @@ class TestConnection(unittest.TestCase):
     def setUp(self):
         self.connection = MockConnection('root_url')
 
-    def test_post_file_data_object(self):
-        self.connection.post_file_data_object(self.data)
-        self.assertEqual(self.connection.url, 'files/')
+    def test_post_data_object(self):
+        self.connection.post_data_object(self.data)
+        self.assertEqual(self.connection.url, 'data-objects/')
         self.assertEqual(self.connection.method, 'POST')
         self.assertEqual(self.connection.data, self.data)
 

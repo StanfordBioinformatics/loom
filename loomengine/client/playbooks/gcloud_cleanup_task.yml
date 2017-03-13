@@ -1,0 +1,10 @@
+---
+- name: Delete the worker instance specified by LOOM_TASK_ATTEMPT_STEP_NAME and LOOM_TASK_ATTEMPT_ID env vars.
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars/common.yml
+    - vars/gcloud_worker.yml
+  tasks:
+    - include: tasks/gcloud_get_worker_instance_name.yml
+    - include: tasks/gcloud_delete_instance.yml
