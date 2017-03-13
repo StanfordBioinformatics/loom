@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from api.serializers.data_objects import *
 from . import fixtures
+from . import get_mock_context
 
 
 class TestStringDataObjectSerializer(TestCase):
@@ -149,15 +150,17 @@ class TestDataObjectSerializer(TestCase):
         s1.is_valid(raise_exception=True)
         m = s1.save()
 
-        s2 = DataObjectSerializer(m)
+        s2 = DataObjectSerializer(m, context=get_mock_context())
         d = s2.data
         self.assertEqual(
             d['md5'],
             fixtures.data_objects.file_data_object['md5'])
 
     def testGetDataFromData(self):
-        s = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object)
+        s = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object,
+                                     context=get_mock_context())
         s.is_valid()
+        s.save()
         d = s.data
         self.assertEqual(
             d['md5'],
@@ -195,6 +198,6 @@ class TestFileDataObjectSerializer(TestCase):
         m = s.save()
 
         do = DataObject.objects.get(id=m.id)
-        s2 = DataObjectSerializer(do)
+        s2 = DataObjectSerializer(do, context=get_mock_context())
         self.assertEqual(s2.data['filename'],
                          fixtures.data_objects.file_data_object['filename'])

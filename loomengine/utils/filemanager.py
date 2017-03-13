@@ -487,10 +487,10 @@ class FileManager:
                 matches = []
                 for file in files:
                     matches.append('%s@%s' % (file.get('filename'), file.get('uuid')))
-                raise Exception(
-                    'One or more files with md5 %s already exist: "%s". '\
-                    'Use --force-duplicates if you want to create another copy.'
-                    % (md5, ', '.join(matches)))
+                raise DuplicateFileError(
+                    'ERROR! One or more files with md5 %s already exist: "%s". '\
+                    'Use "--force-duplicates" if you want to create another copy.'
+                    % (md5, '", "'.join(matches)))
         
         return self.connection.post_data_object({
             'type': 'file',
@@ -514,8 +514,6 @@ class FileManager:
         return file_data_object
 
     def _create_task_attempt_output_file(self, task_attempt_output, md5):
-
-        
         updated_task_attempt_output = self.connection.update_task_attempt_output(
             task_attempt_output['id'],
             {

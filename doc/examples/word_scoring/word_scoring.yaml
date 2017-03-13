@@ -1,0 +1,99 @@
+---
+name: word_scoring
+inputs:
+- channel: wordfile
+  type: file
+  hint: Input text file to be broken into words and letters
+outputs:
+- channel: sentence_value
+  type: integer
+steps:
+- name: split_into_words
+  command: cat {{ wordfile }}
+  inputs:
+  - channel: wordfile
+    type: file
+  outputs:
+  - channel: word
+    mode: scatter
+    type: string
+    source:
+      stream: stdout
+    parser:
+      type: delimited
+      delimiter: " "
+  environment:
+    docker_image: ubuntu
+  resources:
+    cores: '1'
+    memory: '1'
+- name: split_into_letters
+  interpreter: python
+  command: print ' '.join([letter for letter in '{{ word }}'])
+  inputs:
+  - channel: word
+    type: string
+  outputs:
+  - channel: letter
+    type: string
+    mode: scatter
+    source:
+      stream: stdout
+    parser:
+      type: delimited
+      delimiter: " "
+  environment:
+    docker_image: ubuntu
+  resources:
+    cores: '1'
+    memory: '1'
+- name: letter_to_integer
+  interpreter: python
+  command: ord( {{ letter }} )
+  inputs:
+  - channel: letter
+    type: string
+  outputs:
+  - channel: letter_value
+    type: integer
+    source:
+      stream: stdout
+  environment:
+    docker_image: ubuntu
+  resources:
+    cores: '1'
+    memory: '1'
+- name: sum_word
+  interpreter: python
+  command: print {{ letter_value|join(' + ') }}
+  inputs:
+  - channel: letter_value
+    type: integer
+    mode: gather
+  outputs:
+  - channel: word_value
+    type: integer
+    source:
+      stream: stdout
+  environment:
+    docker_image: ubuntu
+  resources:
+    cores: '1'
+    memory: '1'
+- name: multiply_sentence
+  interpreter: python
+  command: print {{ word_value|join(' * ') }}
+  inputs:
+  - channel: word_value
+    type: integer
+    mode: gather
+  outputs:
+  - channel: sentence_value
+    type: integer
+    source:
+      stream: stdout
+  environment:
+    docker_image: ubuntu
+  resources:
+    cores: '1'
+    memory: '1'

@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime
 import dateutil.parser
+from dateutil import tz
 import json
 import os
 import sys
@@ -15,6 +16,11 @@ from loomengine.utils.connection import Connection
 
 
 DATETIME_FORMAT = '%b %d, %Y %-I:%M:%S %p'
+
+def render_time(timestr):
+    time_gmt = dateutil.parser.parse(timestr)
+    time_local = time_gmt.astimezone(tz.tzlocal())
+    return format(time_local, DATETIME_FORMAT)
 
 class AbstractShow(object):
     """Common functions for the various subcommands under 'show'
@@ -47,6 +53,13 @@ class ShowFile(AbstractShow):
             '--detail',
             action='store_true',
             help='Show detailed view of files')
+        parser.add_argument(
+            '--type',
+            choices=['imported', 'result', 'log', 'all'],
+            default='imported',
+            help='Show only files of the specified type. '\
+            '(ignored when FILE_IDENTIFIER is given)')
+
         parser = super(ShowFile, cls).get_parser(parser)
         return parser
 
@@ -55,8 +68,12 @@ class ShowFile(AbstractShow):
         self._show_files()
 
     def _get_files(self):
+        if self.args.file_id:
+            source_type=None
+        else:
+            source_type=self.args.type
         self.files = self.connection.get_file_data_object_index(
-            self.args.file_id)
+            query_string=self.args.file_id, source_type=source_type)
 
     def _show_files(self):
         print '[showing %s files]' % len(self.files)
@@ -75,9 +92,8 @@ class ShowFile(AbstractShow):
             text = '---------------------------------------\n'
             text += 'File: %s\n' % file_identifier
             try:
-                text += '  - Imported: %s\n' % format(
-                    dateutil.parser.parse(
-                        file_data_object['datetime_created']), DATETIME_FORMAT)
+                text += '  - Imported: %s\n' % \
+                        render_time(file_data_object['datetime_created'])
                 text += '  - md5: %s\n' % file_data_object['md5']
                 if file_data_object.get('file_import'):
                     if file_data_object['file_import'].get('source_url'):
@@ -106,6 +122,11 @@ class ShowTemplate(AbstractShow):
             '--detail',
             action='store_true',
             help='Show detailed view of templates')
+        parser.add_argument(
+            '--all',
+            action='store_true',
+            help='Show all templates, including nested children. '\
+            '(ignored when TEMPLATE_IDENTIFIER is given)')
         parser = super(ShowTemplate, cls).get_parser(parser)
         return parser
 
@@ -114,7 +135,13 @@ class ShowTemplate(AbstractShow):
         self._show_templates()
 
     def _get_templates(self):
-        self.templates = self.connection.get_template_index(self.args.template_id)
+        if self.args.template_id:
+            imported = False
+        else:
+            imported = not self.args.all
+        self.templates = self.connection.get_template_index(
+            query_string=self.args.template_id,
+            imported=imported)
 
     def _show_templates(self):
         print '[showing %s templates]' % len(self.templates)
@@ -126,7 +153,8 @@ class ShowTemplate(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Template: %s\n' % template_identifier
-            text += '  - Imported: %s\n' % format(dateutil.parser.parse(template['datetime_created']), DATETIME_FORMAT)
+            text += '  - Imported: %s\n' % \
+                    render_time(template['datetime_created'])
             if template.get('inputs'):
                 text += '  - Inputs\n'
                 for input in template['inputs']:
@@ -159,6 +187,11 @@ class ShowRun(AbstractShow):
             '--detail',
             action='store_true',
             help='Show detailed view of runs')
+        parser.add_argument(
+            '--all',
+            action='store_true',
+            help='Show all runs, including nested children '\
+            '(ignored when RUN_IDENTIFIER is given)')
         parser = super(ShowRun, cls).get_parser(parser)
         return parser
 
@@ -167,7 +200,12 @@ class ShowRun(AbstractShow):
         self._show_runs(runs)
 
     def _get_runs(self):
-        return self.connection.get_run_index(self.args.run_id)
+        if self.args.run_id:
+            parent_only = False
+        else:
+            parent_only = not self.args.all
+        return self.connection.get_run_index(query_string=self.args.run_id,
+                                             parent_only=parent_only)
 
     def _show_runs(self, runs):
         print '[showing %s runs]' % len(runs)
@@ -179,12 +217,13 @@ class ShowRun(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
-            text += '  - Created: %s\n' % format(dateutil.parser.parse(run['datetime_created']), DATETIME_FORMAT)
+            text += '  - Created: %s\n' % render_time(run['datetime_created'])
+            text += '  - Status: %s\n' % run.get('status')
             if run.get('steps'):
-                text += '  - Status: %s\n' % run.get('status')
                 text += '  - Steps:\n'
                 for step in run['steps']:
-                    text += '    - %s@%s \n' % (step['name'], step['uuid'])
+                    text += '    - %s@%s (%s)\n' % (
+                        step['name'], step['uuid'], step.get('status'))
         else:
             text = "Run: %s (%s)" % (run_identifier, run.get('status'))
         return text

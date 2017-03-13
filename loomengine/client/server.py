@@ -90,9 +90,9 @@ class ServerControls:
     def status(self):
         verify_has_connection_settings()
         if is_server_running():
-            print 'OK, the server is up.'
+            print 'OK, the server is up at %s' % get_server_url()
         else:
-            raise SystemExit('No response from server at "%s".' % get_server_url())
+            raise SystemExit('No response from server at %s' % get_server_url())
 
     @loom_settings_transaction
     def start(self):
@@ -491,13 +491,13 @@ def get_parser(parser=None):
     start_parser.add_argument('--playbook-dir', '-p', metavar='PLAYBOOK_DIR')
     start_parser.add_argument('--inventory-dir', '-i', metavar='INVENTORY_DIR')
     start_parser.add_argument('--admin-files-dir', '-f', metavar='ADMIN_FILES_DIR')
-    start_parser.add_argument('--verbose', '-v', action='store_true',
+    start_parser.add_argument('-v', '--verbose', action='store_true',
                               help='Provide more feedback to console.')
 
     stop_parser = subparsers.add_parser(
         'stop',
         help='Stop execution of a Loom server. (It can be started again.)')
-    stop_parser.add_argument('--verbose', '-v', action='store_true',
+    stop_parser.add_argument('-v', '--verbose', action='store_true',
                              help='Provide more feedback to console.')
 
     connect_parser = subparsers.add_parser(
@@ -520,7 +520,7 @@ def get_parser(parser=None):
     delete_parser.add_argument('--confirm-server-name', '-n', metavar='SERVER_NAME',
                                help='Provide server name to skip confirmation prompt '\
                                'when deleting the server')
-    delete_parser.add_argument('--verbose', '-v', action='store_true',
+    delete_parser.add_argument('-v', '--verbose', action='store_true',
                                help='Provide more feedback to console.')
 
     return parser

@@ -10,4 +10,13 @@ urlpatterns = [
 ]
 
 # For development only. This works when LOOM_DEBUG = True
-urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns.append(url(r'^portal/$', RedirectView.as_view(url='/portal/index.html', permanent=False), name='api'))
+    urlpatterns += static(r'portal/', document_root=settings.PORTAL_ROOT)
+    
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns += [
+        url(r'^__debug__/', include(debug_toolbar.urls)),
+    ]

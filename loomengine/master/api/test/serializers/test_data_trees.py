@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from api.serializers.data_objects import *
 from api.serializers.data_trees import *
-
+from . import get_mock_context, get_mock_request
 
 class TestDataNodeSerializer(TestCase):
 
@@ -109,7 +109,7 @@ class TestDataNodeSerializer(TestCase):
             context={'type': 'string'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents']['value'], raw_data)
 
     def testCreateInteger(self):
@@ -119,7 +119,7 @@ class TestDataNodeSerializer(TestCase):
             context={'type': 'integer'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents']['value'], raw_data)
 
     def testCreateFloat(self):
@@ -129,7 +129,7 @@ class TestDataNodeSerializer(TestCase):
             context={'type': 'float'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents']['value'], raw_data)
 
     def testCreateBoolean(self):
@@ -139,7 +139,7 @@ class TestDataNodeSerializer(TestCase):
             context={'type': 'boolean'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents']['value'], raw_data)
 
     def testCreateList(self):
@@ -148,7 +148,7 @@ class TestDataNodeSerializer(TestCase):
                                context={'type': 'string'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents'][0]['value'], raw_data[0])
 
     def testCreateListOfLists(self):
@@ -163,7 +163,7 @@ class TestDataNodeSerializer(TestCase):
                                context={'type': 'string'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents'], [])
 
 
@@ -174,7 +174,7 @@ class TestDataNodeSerializer(TestCase):
             context={'type': 'integer'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents']['value'], raw_data['value'])
 
     def testCreateListOfDicts(self):
@@ -185,7 +185,7 @@ class TestDataNodeSerializer(TestCase):
             context={'type': 'integer'})
         s.is_valid(raise_exception=True)
         m = s.save()
-        data = DataNodeSerializer(m).data
+        data = DataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents'][0]['value'], raw_data[0]['value'])
         self.assertEqual(data['contents'][1]['value'], raw_data[1]['value'])
 
@@ -193,6 +193,8 @@ class TestDataNodeSerializer(TestCase):
         raw_data = "something"
         s = DataNodeSerializer(
             data={'contents': raw_data}, 
-            context={'type': 'string'})
+            context={'type': 'string',
+                     'request': get_mock_request()})
         s.is_valid(raise_exception=True)
-        self.assertEqual(s.data['contents'], raw_data)
+        s.save()
+        self.assertEqual(s.data['contents']['value'], raw_data)

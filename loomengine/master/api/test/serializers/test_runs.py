@@ -3,6 +3,7 @@ from django.test import TestCase, TransactionTestCase, override_settings
 
 import loomengine.utils.helper
 from . import fixtures
+from . import get_mock_context
 from api.serializers.templates import *
 from api.serializers.runs import *
 from api.models.runs import Run
@@ -19,21 +20,24 @@ class TestStepRunSerializer(TransactionTestCase):
 
         self.assertEqual(
             m.uuid,
-            StepRunSerializer(run).data['template']['uuid'])
+            StepRunSerializer(run, context=get_mock_context()).data[
+                'template']['uuid'])
 
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestWorkflowRunSerializer(TransactionTestCase):
 
     def testRenderFlat(self):
-        s = TemplateSerializer(data=fixtures.templates.flat_workflow)
+        s = TemplateSerializer(data=fixtures.templates.flat_workflow,
+                               context=get_mock_context())
         s.is_valid()
         m = s.save()
         run = Run.create_from_template(m)
 
         self.assertEqual(
             m.uuid,
-            WorkflowRunSerializer(run).data['template']['uuid'])
+            WorkflowRunSerializer(run, context=get_mock_context()).data[
+                'template']['uuid'])
 
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
@@ -49,7 +53,10 @@ class TestRunSerializer(TransactionTestCase):
 
         self.assertEqual(
             m.uuid,
-            RunSerializer(run).data['template']['uuid'])
+            RunSerializer(run, context=get_mock_context()).data[
+                'template']['uuid'])
+            
+            
 
     def testRenderFlat(self):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)
@@ -59,7 +66,8 @@ class TestRunSerializer(TransactionTestCase):
 
         self.assertEqual(
             m.uuid,
-            RunSerializer(run).data['template']['uuid'])
+            RunSerializer(run, context=get_mock_context()).data[
+                'template']['uuid'])
 
     def testRenderNested(self):
         s = TemplateSerializer(data=fixtures.templates.nested_workflow)
@@ -69,4 +77,5 @@ class TestRunSerializer(TransactionTestCase):
 
         self.assertEqual(
             m.uuid,
-            RunSerializer(run).data['template']['uuid'])
+            RunSerializer(run, context=get_mock_context()).data[
+                'template']['uuid'])

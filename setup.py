@@ -93,6 +93,7 @@ setup(
                         'Django==1.10.3',
                         'django-celery-results==1.0.1',
                         'django-cors-headers==1.2.2',
+                        'django-debug-toolbar==1.7',
                         'django-extensions==1.7.4',
                         'djangorestframework==3.5.1',
                         'docker-py==1.10.5',                 # used by Ansible to run Docker modules and Loom server to run NGINX container

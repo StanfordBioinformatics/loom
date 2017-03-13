@@ -79,7 +79,7 @@ def postprocess_workflow_run(*args, **kwargs):
 @periodic_task(run_every=datetime.timedelta(seconds=30))
 def process_active_step_runs():
     from api.models.runs import StepRun
-    if get_setting('TEST_NO_AUTO_START_RUNS'):
+    if get_setting('TEST_NO_AUTOSTART_RUNS'):
         return
     for step_run in StepRun.objects.filter(status_is_running=True):
         args = [step_run.uuid]

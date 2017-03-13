@@ -1,16 +1,14 @@
 from rest_framework import serializers
 from django.core.exceptions import ObjectDoesNotExist
 
-from .base import SuperclassModelSerializer, CreateWithParentModelSerializer, \
-    NameAndUuidSerializer
+from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.runs import Run, StepRun, \
     StepRunInput, StepRunOutput, WorkflowRunInput, \
     WorkflowRunOutput, WorkflowRun, RunTimepoint
-from api.serializers.templates import TemplateNameAndUuidSerializer
-from api.serializers.tasks import TaskUuidSerializer
+from api.serializers.templates import ExpandableTemplateSerializer
+from api.serializers.tasks import ExpandableTaskSerializer
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
-from api.serializers.run_requests import RunRequestSerializer, \
-    RunRequestUuidSerializer
+from api.serializers.run_requests import RunRequestSerializer
 from api import tasks
 
 
@@ -48,8 +46,31 @@ class RunSerializer(SuperclassModelSerializer):
         return type
 
 
-class RunNameAndUuidSerializer(NameAndUuidSerializer, RunSerializer):
-    pass
+class ExpandableRunSerializer(RunSerializer):
+    # This serializer is used for display only
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='run-detail',
+        lookup_field='uuid'
+    )
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+
+    class Meta:
+        model = Run
+	fields = ('uuid',
+                  'url',
+                  'name',
+                  'status',
+                  'datetime_created',
+        )
+
+    def to_representation(self, instance):
+        if self.context.get('expand'):
+            return super(ExpandableRunSerializer, self).to_representation(instance)
+        else:
+            return serializers.HyperlinkedModelSerializer.to_representation(
+                self, instance)
 
 
 class RunTimepointSerializer(CreateWithParentModelSerializer):
@@ -82,7 +103,7 @@ class StepRunOutputSerializer(InputOutputNodeSerializer):
 class StepRunSerializer(CreateWithParentModelSerializer):
     
     uuid = serializers.CharField(required=False)
-    template = TemplateNameAndUuidSerializer()
+    template = ExpandableTemplateSerializer()
     inputs = StepRunInputSerializer(many=True,
                                     required=False,
                                     allow_null=True)
@@ -90,20 +111,25 @@ class StepRunSerializer(CreateWithParentModelSerializer):
     command = serializers.CharField()
     interpreter = serializers.CharField()
     type = serializers.CharField()
-    tasks = TaskUuidSerializer(many=True)
-    run_request = RunRequestUuidSerializer(required=False)
-    datetime_created = serializers.CharField(read_only=True)
+    tasks = ExpandableTaskSerializer(many=True)
+    # run_request = RunRequestSerializer(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
     status = serializers.CharField(read_only=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='run-detail',
+        lookup_field='uuid'
+    )
+
     
     class Meta:
         model = StepRun
         fields = ('uuid', 'template', 'inputs', 'outputs',
                   'command', 'interpreter', 'tasks',
-                  'run_request', 'postprocessing_status', 'type', 'datetime_created',
+                  'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'timepoints', 'status')
+                  'status_is_running', 'status', 'url', 'timepoints') #'run_request',
 
 
 class WorkflowRunInputSerializer(InputOutputNodeSerializer):
@@ -124,21 +150,25 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
 
     uuid = serializers.CharField(required=False)
     type = serializers.CharField(required=False)
-    template = TemplateNameAndUuidSerializer()
-    steps = RunNameAndUuidSerializer(many=True)
+    template = ExpandableTemplateSerializer()
+    steps = ExpandableRunSerializer(many=True)
     inputs = WorkflowRunInputSerializer(many=True,
                                         required=False,
                                         allow_null=True)
     outputs = WorkflowRunOutputSerializer(many=True)
-    run_request = RunRequestUuidSerializer(required=False)
-    datetime_created = serializers.CharField(read_only=True)
+    #run_request = RunRequestSerializer(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False)
     status = serializers.CharField(read_only=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='run-detail',
+        lookup_field='uuid'
+    )
 
     class Meta:
         model = WorkflowRun
         fields = ('uuid', 'template', 'steps', 'inputs', 'outputs',
-                  'run_request', 'postprocessing_status', 'type', 'datetime_created',
+                  'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'timepoints', 'status')
+                  'status_is_running', 'status', 'url', 'timepoints',) # 'run_request',

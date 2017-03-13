@@ -1,9 +1,21 @@
 Release Notes
 =============
 
+0.3.0
+-----------
+
+* User-configurable playbooks
+* Non-reverse-compatible simplifications to API
+* Reduced server response times
+* Dockerized deployment on local and google cloud
+* Optional dockerized MySQL server
+* Retry tasks if process stops responding
+
 0.2.1
 -----------
+
 * Use release-specific DOCKER_TAG in default settings
+
 0.2.0
 -----------
 

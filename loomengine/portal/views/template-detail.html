@@ -15,8 +15,15 @@
 	  Template ID
 	</th>
 	<td>
-	  {{activeData.template.id}}
+	  {{activeData.template.uuid}}
 	</td>
+      </tr>
+      <tr>
+	<th>
+	  Created
+	</th>
+	<td>
+	  {{activeData.template.datetime_created | date:'medium'}}
       </tr>
       <tr ng-show="activeData.template.command">
 	<th>
@@ -55,15 +62,24 @@
     </table>
   </div>
   <div ng-show="activeData.template.steps">
-    <h4>Step</h4>
+    <h4>Steps</h4>
     <div class="table-responsive">
       <table class="table table-striped">
+	<thead>
+	  <tr>
+	    <th>Template</th>
+	    <th>Created</th>
+	  </tr>
+	</thead>
 	<tbody>
 	  <tr ng-repeat="step in activeData.template.steps">
             <td>
-	      <a ng-href="#/templates/{{step.id}}">
-		{{step.name}}
+	      <a ng-href="#/templates/{{step.uuid}}">
+		{{step.name}}@{{step.uuid | limitTo: 8}}
 	      </a>
+	    </td>
+	    <td>
+	      {{step.datetime_created | date:'medium'}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -103,32 +119,22 @@
       <table class="table table-striped">
 	<thead>
 	  <tr>
-	    <th>
-	      Channel
-	    </th>
-	    <th>
-	      Type
-	    </th>
-	    <th>
-	      Value
-	    </th>
+	    <th>Channel</th>
+	    <th>Type</th>
+	    <th>Data</th>
 	  </tr>
 	</thead>
 	<tbody>
 	  <tr ng-repeat="input in activeData.template.fixed_inputs">
-            <td>
-	      {{input.channel}}
-	    </td>
-	    <td>
-	      {{input.type}}
-	    </td>
+            <td>{{input.channel}}</td>
+	    <td>{{input.type}}</td>
 	    <td ng-show="input.type=='file'">
-	      <a ng-href="#/files/{{input.data | parseId:'id'}}" ng-show="input.data">
-		{{input.data | parseId:'name'}}
+	      <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data">
+		{{input.data.contents.filename}}
 	      </a>
 	    </td>
 	    <td ng-hide="input.type=='file'">
-	      {{input.data}}
+	      {{input.data.contents.value}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -147,25 +153,12 @@
 	    <th>
 	      Type
 	    </th>
-	    <th>
-	      Filename
-	    </th>
 	  </tr>
 	</thead>
 	<tbody>
 	  <tr ng-repeat="output in activeData.template.outputs">
-            <td>
-	      {{output.channel}}
-	    </td>
-	    <td>
-	      {{output.type}}
-	    </td>
-	    <td ng-show="output.type=='file'">
-	      {{output.filename}}
-	    </td>
-	    <td ng-hide="output.type=='file'">
-	      -
-	    </td>
+            <td>{{output.channel}}</td>
+	    <td>{{output.type}}</td>
 	  </tr>
 	</tbody>
       </table>

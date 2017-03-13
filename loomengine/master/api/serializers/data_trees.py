@@ -3,13 +3,13 @@ import jsonschema
 
 from rest_framework import serializers
 
-from .base import UuidSerializer
 from .data_objects import DataObjectSerializer
 from api.models.data_trees import *
 from api.models.data_objects import DataObject
 from api.validation_schemas.data_trees import data_tree_schema
+from api.exceptions import NoFileMatchError, MultipleFileMatchesError
 
-class DataNodeSerializer(serializers.ModelSerializer):
+class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
 
     MISSING_BRANCH_VALUE = None
     EMPTY_BRANCH_VALUE = []
@@ -19,11 +19,17 @@ class DataNodeSerializer(serializers.ModelSerializer):
     # of a DataObject, or a list of [lists of]^n these representations.
     # Output is a dict or list of [lists of]^n dicts.
 
-    contents = serializers.JSONField()
+    # 'contents' is write_only so that HyperlinkedModelSerializer will skip.
+    # We render 'contents' in a custom way in to_representation
+    contents = serializers.JSONField(write_only=True) 
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-tree-detail',
+        lookup_field='uuid'
+    )
 
     class Meta:
         model = DataNode
-        fields = ('uuid', 'contents',)
+        fields = ('uuid', 'url', 'contents',)
 
     def create(self, validated_data):
         type = self.context.get('type')
@@ -41,8 +47,9 @@ class DataNodeSerializer(serializers.ModelSerializer):
                 self.initial_data)
         else:
             assert isinstance(instance, DataNode)
-            return {'uuid': instance.uuid, 
-                    'contents': self._data_tree_to_data_struct(instance)}
+            repr = super(DataNodeSerializer, self).to_representation(instance)
+            repr.update({'contents': self._data_tree_to_data_struct(instance)})
+            return repr
 
     def validate_contents(self, value):
         try:
@@ -114,7 +121,7 @@ class DataNodeSerializer(serializers.ModelSerializer):
         elif data_node._is_empty_branch():
             return self.EMPTY_BRANCH_VALUE
         if data_node._is_leaf():
-            s = DataObjectSerializer(data_node.data_object)
+            s = DataObjectSerializer(data_node.data_object, context=self.context)
             return s.data
         else:
             contents = [self.MISSING_BRANCH_VALUE] * data_node.degree
@@ -140,13 +147,18 @@ class DataNodeSerializer(serializers.ModelSerializer):
         # 40 at [(0,2), (1,2), (1,2)]
         if not isinstance(contents, list):
             if isinstance(contents, dict):
-                s = DataObjectSerializer(data=contents)
+                s = DataObjectSerializer(data=contents, context=self.context)
                 s.is_valid(raise_exception=True)
                 data_object = s.save()
             else:
-                data_object = DataObject.get_by_value(
-                    contents,
-                    data_type)
+                try:
+                    data_object = DataObject.get_by_value(
+                        contents,
+                        data_type)
+                except NoFileMatchError as e:
+                    raise serializers.ValidationError(e.message)
+                except MultipleFileMatchesError as e:
+                    raise serializers.ValidationError(e.message)
             data_node.add_data_object(path, data_object)
             return
         elif len(contents) == 0:
@@ -161,5 +173,23 @@ class DataNodeSerializer(serializers.ModelSerializer):
                     data_node, contents[i], path_i, data_type)
 
 
-class DataNodeUuidSerializer(UuidSerializer, DataNodeSerializer):
-    pass
+class ExpandableDataNodeSerializer(DataNodeSerializer):
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-tree-detail',
+        lookup_field='uuid'
+    )
+
+    class Meta:
+        model = DataNode
+        fields = ('uuid',
+                  'url',
+        )
+
+    def to_representation(self, instance):
+        if self.context.get('expand'):
+            return super(ExpandableDataNodeSerializer, self).to_representation(instance)
+        else:
+            return serializers.HyperlinkedModelSerializer.to_representation(
+                self, instance)

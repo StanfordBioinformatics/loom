@@ -7,7 +7,9 @@ def get_task():
     task = Task.objects.create(
         interpreter='/bin/bash',
         command='echo {{input1}}',
-        rendered_command='echo True'
+        rendered_command='echo True',
+        resources={'memory': '1', 'disk_size': '1', 'cores': '1'},
+        environment={'docker_image': 'ubuntu'},
     )
     input_data_object = BooleanDataObject.objects.create(
         type='boolean',
@@ -22,15 +24,6 @@ def get_task():
         channel='output1',
         type='string',
         source={'stream': 'stdout'}
-    )
-    resources = TaskResourceSet.objects.create(
-        task=task,
-        memory='1',
-        disk_size='1',
-        cores='1')
-    environment = TaskEnvironment.objects.create(
-        task=task,
-        docker_image='ubuntu'
     )
     return task
 

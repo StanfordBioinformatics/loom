@@ -52,13 +52,14 @@ class Connection(object):
                 headers={'content-type': 'application/json'},
                 verify=False))
 
-    def _get(self, relative_url, raise_for_status=True):
+    def _get(self, relative_url, raise_for_status=True, params=None):
         url = self.api_root_url + relative_url
         disable_insecure_request_warning()
         return self._make_request_to_server(
             lambda: requests.get(
                 url,
-                verify=False), # Don't fail on unrecognized SSL certificate
+                verify=False, # Don't fail on unrecognized SSL certificate
+                params=params), 
             raise_for_status=raise_for_status)
 
     def _make_request_to_server(self, query_function, raise_for_status=True):
@@ -75,11 +76,7 @@ class Connection(object):
             try:
                 response = query_function()
                 if raise_for_status:
-                    try:
-                        response.raise_for_status()
-                    except Exception as e:
-                        print response.text
-                        raise
+                    response.raise_for_status()
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError("No response from server.\n%s" % e.message)
             if error:
@@ -108,8 +105,8 @@ class Connection(object):
         else:
             raise BadResponseError("Status code %s. %s" % (response.status_code, response.text))
 
-    def _get_object_index(self, relative_url):
-        response = self._get(relative_url)
+    def _get_object_index(self, relative_url, params=None):
+        response = self._get(relative_url, params=params)
         return response.json()
 
     # ---- Post/Put/Get [object_type] methods ----
@@ -145,11 +142,15 @@ class Connection(object):
 
     
     def get_file_data_object_index(
-            self, query_string='', min=0, max=float('inf')):
+            self, query_string=None, source_type='all',
+            min=0, max=float('inf')):
         url = 'files/'
+        params = {}
         if query_string:
-            url += '?q=' + urllib.quote(query_string)
-        file_data_objects =  self._get_object_index(url)
+            params['q'] = query_string
+        if source_type and source_type!='all':
+            params['source_type'] = source_type
+        file_data_objects =  self._get_object_index(url, params=params)
         if len(file_data_objects) < min:
             raise IdMatchedTooFewDataObjectsError(
                 'Found %s FileDataObjects, expected at least %s' \
@@ -159,16 +160,6 @@ class Connection(object):
                 'Found %s FilDataObjects, expected at most %s' \
                 % (len(file_data_objects), max))
         return file_data_objects
-
-#    def get_file_resources_by_file(self, file_id):
-#        return self._get_object(
-#            'files/'+file_id+'/file-resources/'
-#        )
-
-#    def post_file_resource(self, file_resource):
-#        return self._post_object(
-#            file_resource,
-#            'file-resources/')
 
     def update_file_resource(self, file_resource_id, file_resource_update):
         return self._patch_object(
@@ -185,11 +176,15 @@ class Connection(object):
             'templates/%s/' % template_id
         )
 
-    def get_template_index(self, query_string='', min=0, max=float('inf')):
+    def get_template_index(self, query_string='', imported=False,
+                           min=0, max=float('inf')):
         url = 'templates/'
+        params = {}
         if query_string:
-            url += '?q='+urllib.quote(query_string)
-        templates = self._get_object_index(url)
+            params['q'] = query_string
+        if imported:
+            params['imported'] = '1'
+        templates = self._get_object_index(url, params=params)
         if len(templates) < min:
             raise Error('Found %s templates, expected at least %s' %(len(templates), min))
         if len(templates) > max:
@@ -206,11 +201,15 @@ class Connection(object):
             'runs/%s/' % run_id
         )
 
-    def get_run_index(self, query_string='', min=0, max=float('inf')):
+    def get_run_index(self, query_string=None, parent_only=False,
+                      min=0, max=float('inf')):
         url = 'runs/'
+        params = {}
         if query_string:
-            url += '?q='+urllib.quote(query_string)
-        runs = self._get_object_index(url)
+            params['q'] = query_string
+        if parent_only:
+            params['parent_only'] = '1'
+        runs = self._get_object_index(url, params=params)
         if len(runs) < min:
             raise Error('Found %s template runs, expected at least %s' %(len(runs), min))
         if len(runs) > max:

@@ -7,12 +7,15 @@ from api.models.tasks import *
 from api.models.data_objects import BooleanDataObject, StringDataObject, \
     FileResource, FileDataObject
 from . import fixtures
+from . import get_mock_context
 
 def get_task():
     task = Task.objects.create(
         interpreter='/bin/bash',
         command='echo {{input1}}',
-        rendered_command='echo True'
+        rendered_command='echo True',
+        resources={'memory': '1', 'disk_size': '1', 'cores': '1'},
+        environment={'docker_image': 'ubuntu'},
     )
     input_data_object = BooleanDataObject.objects.create(
         type='boolean',
@@ -34,16 +37,6 @@ def get_task():
         type='string',
         data_object=output_data_object,
         source={'stream': 'stdout'}
-    )
-    task_resources = TaskResourceSet.objects.create(
-        task=task,
-        memory='1',
-        disk_size='1',
-        cores='1'
-    )
-    task_environment = TaskEnvironment.objects.create(
-        task=task,
-        docker_image='ubuntu'
     )
     task_attempt = TaskAttempt.objects.create(task=task)
     task_attempt_output = TaskAttemptOutput.objects.create(
@@ -76,17 +69,17 @@ class TestTaskSerializer(TestCase):
 
     def testRender(self):
         task = get_task()
-        s = TaskSerializer(task)
+        s = TaskSerializer(task, context=get_mock_context())
         task_data = s.data
         self.assertEqual(task_data['command'],
                          task.command)
 
 
-class TestTaskSerializerIdOnly(TestCase):
+class TestExpandableTaskSerializer(TestCase):
 
     def testRender(self):
         task = get_task()
-        s = TaskUuidSerializer(task)
+        s = ExpandableTaskSerializer(task, context=get_mock_context())
         task_data = s.data
         self.assertEqual(task_data['uuid'],
                          task.uuid)

@@ -10,8 +10,7 @@ from .base import BaseModel
 from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
 from .signals import post_save_children
-from api.exceptions import *
-
+from api.exceptions import NoTemplateInputMatchError
 
 """
 This module defines Templates. A Template is either 
@@ -40,9 +39,6 @@ class WorkflowManager(object):
     def get_outputs(self):
         return self.template.workflow.outputs
 
-    def get_template_import(self):
-        return self.template.workflow.template_import
-
     def get_resources(self):
         raise Exception('No resources on template of type "workflow"')
 
@@ -63,9 +59,6 @@ class StepManager(object):
 
     def get_outputs(self):
         return self.template.step.outputs
-
-    def get_template_import(self):
-        return self.template.step.template_import
 
     def get_resources(self):
         return self.template.step.resources
@@ -91,7 +84,6 @@ class Template(BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     name = models.CharField(max_length=255)
-
     postprocessing_status = models.CharField(
         max_length=255,
         default='saving',
@@ -100,6 +92,7 @@ class Template(BaseModel):
                  ('done', 'Done'),
                  ('error', 'Error'))
     )
+    template_import = jsonfield.JSONField(null=True)
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -120,9 +113,6 @@ class Template(BaseModel):
     def outputs(self):
         return self._get_manager().get_outputs()
 
-    def template_import(self):
-        return self._get_manager().get_template_import()
-
     @property
     def resources(self):
         return self._get_manager().get_resources()
@@ -136,15 +126,22 @@ class Template(BaseModel):
 
     def get_fixed_input(self, channel):
         inputs = self.fixed_inputs.filter(channel=channel)
-        assert inputs.count() == 1, \
-            'Found %s fixed inputs for channel %s' %(inputs.count(), channel)
+        if inputs.count() == 0:
+            raise Exception('No fixed input matching %s' % channel)
+        if inputs.count() > 1:
+            raise Exception('Found %s fixed inputs for channel %s' \
+                            % (inputs.count(), channel))
         return inputs.first()
 
     def get_input(self, channel):
         inputs = filter(lambda i: i.get('channel')==channel,
                         self.inputs)
-        assert len(inputs) == 1, \
-            'Found %s inputs for channel %s' %(inputs.count(), channel)
+        if len(inputs) == 0:
+            raise NoTemplateInputMatchError(
+                'ERROR! No input named "%s" in template "%s"' % (channel, self.name))
+        if len(inputs) > 1:
+            raise Exception('Found %s inputs for channel %s' \
+                            % (len(inputs), channel))
         return inputs[0]
 
     def get_output(self, channel):
@@ -165,7 +162,6 @@ class Workflow(Template):
     outputs = jsonfield.JSONField(null=True)
     inputs = jsonfield.JSONField(null=True)
     raw_data = jsonfield.JSONField(null=True)
-    template_import = jsonfield.JSONField(null=True)
 
     def add_step(self, step):
         WorkflowMembership.add_step_to_workflow(step, self)
@@ -197,7 +193,6 @@ class Step(Template):
     inputs = jsonfield.JSONField(null=True)
     resources = jsonfield.JSONField(null=True)
     raw_data = jsonfield.JSONField(null=True)
-    template_import = jsonfield.JSONField(null=True)
 
 
 class FixedStepInput(InputOutputNode):

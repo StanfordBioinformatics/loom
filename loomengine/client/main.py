@@ -4,6 +4,10 @@ import argparse
 import os
 import sys
 
+from loomengine.client.common import get_server_url, has_connection_settings, is_server_running
+import loomengine.utils.version
+from loomengine.utils.connection import Connection
+
 if __name__ == "__main__" and __package__ is None:
     rootdir=os.path.abspath('../..')
     sys.path.append(rootdir)
@@ -18,6 +22,22 @@ from loomengine.client import test_runner
 from loomengine.client import version
 
 
+class Version(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string):
+        if not has_connection_settings():
+            server_version = 'not connected'
+        else:
+            url = get_server_url()
+            if not is_server_running(url=url):
+                server_version = 'no response'
+            else:
+                connection = Connection(url)
+                server_version = connection.get_version()
+
+        print "client version: %s" % loomengine.utils.version.version()
+        print "server version: %s" % server_version
+        exit(0)
+
 class Main(object):
 
     def __init__(self, args=None):
@@ -28,6 +48,8 @@ class Main(object):
 
     def get_parser(cls):
         parser = argparse.ArgumentParser('loom')
+        parser.add_argument('-v', '--version', nargs=0, action=Version)
+
         subparsers = parser.add_subparsers(help='select a subcommand')
 
         run_subparser = subparsers.add_parser('run', help='run a template')
@@ -57,10 +79,6 @@ class Main(object):
         test_subparser = subparsers.add_parser('test', help='run tests')
         test_runner.get_parser(test_subparser)
         test_subparser.set_defaults(SubcommandClass=test_runner.TestRunner)
-
-        version_subparser = subparsers.add_parser('version', help='display current version of Loom')
-        version.Version.get_parser(version_subparser)
-        version_subparser.set_defaults(SubcommandClass=version.Version)
 
         return parser
 

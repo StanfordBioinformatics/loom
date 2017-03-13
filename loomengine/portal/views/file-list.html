@@ -3,26 +3,23 @@
   <table class="table table-striped" ng-show="files.length">
     <thead>
       <tr>
-        <th>Filename</th>
-	<th>ID</th>
-        <th>Hash function</th>
-	<th>Hash value</th>
+        <th>File</th>
+        <th>md5</th>
+	<th>Created</th>
       </tr>
     </thead>
     <tbody>
       <tr ng-repeat="file in files">
-        <td>
-	    {{file.file_content.filename}}
+	<td>
+	  <a ng-href="#/files/{{file.uuid}}">
+	    {{file.filename}}@{{file.uuid}}
+	  </a>
 	</td>
-        <td><a ng-href="#/files/{{file.id}}">
-	    {{file.id}}
-	</a></td>
         <td>
-          {{file.file_content.unnamed_file_content.hash_function}}
+          {{file.md5}}
         </td>
 	<td>
-	  {{file.file_content.unnamed_file_content.hash_value}}
-	</td>
+	  {{file.datetime_created | date:'medium'}}
       </tr>
     </tbody>
   </table>

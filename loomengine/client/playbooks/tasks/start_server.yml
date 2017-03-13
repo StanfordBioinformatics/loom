@@ -4,6 +4,9 @@
     state: directory
   when: storage_type == "local"
 
+- name: Verify Docker is running
+  shell: "docker ps"
+
 - name: Start a MySQL database container
   docker_container:
     name: "{{mysql_container_name}}"

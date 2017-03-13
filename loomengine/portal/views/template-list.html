@@ -3,19 +3,17 @@
   <table class="table table-striped" ng-show="templates.length">
     <thead>
       <tr>
-	<th>Name</th>
-	<th>ID</th>
+	<th>Template</th>
 	<th>Created</th>
       </tr>
     </thead>
     <tbody>
       <tr ng-repeat="template in templates">
         <td>
-	    {{template.name}}
+	  <a ng-href="#/templates/{{template.uuid}}">
+	    {{template.name}}@{{template.uuid}}
+	  </a>
         </td>
-        <td><a ng-href="#/templates/{{template.id}}">
-	    {{template.id}}
-        </a></td>
         <td>
 	    {{template.datetime_created | date:'medium'}}
         </td>
@@ -24,4 +22,3 @@
   </table>
   <div ng-hide="templates.length">no templates</div>
 </div>
-

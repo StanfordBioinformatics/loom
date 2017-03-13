@@ -7,7 +7,7 @@ from loomengine.client.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, parse_as_json_or_yaml
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-
+from loomengine.utils.exceptions import DuplicateFileError
 
 class AbstractImporter(object):
     """Common functions for the various subcommands under 'loom import'
@@ -40,13 +40,17 @@ class FileImporter(AbstractImporter):
         return parser
 
     def run(self):
-        files_imported = self.filemanager.import_from_patterns(
-            self.args.files,
-            self.args.note,
-            force_duplicates=self.args.force_duplicates,
-        )
+        try:
+            files_imported = self.filemanager.import_from_patterns(
+                self.args.files,
+                self.args.note,
+                force_duplicates=self.args.force_duplicates,
+            )
+        except DuplicateFileError as e:
+            raise SystemExit(e.message)
         if len(files_imported) == 0:
-            raise Exception('No files found')
+            raise SystemExit('ERROR! Did not find any files matching "%s"'
+                             % '", "'.join(self.args.files))
 
 
 class TemplateImporter(AbstractImporter):
@@ -131,7 +135,7 @@ class Importer:
         file_subparser = subparsers.add_parser('file', help='import a file or list files')
         FileImporter.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileImporter)
-        file_subparser.add_argument('--force-duplicates', '-d', action='store_true',
+        file_subparser.add_argument('-d', '--force-duplicates', action='store_true',
                                     default=False,
                                     help='Force upload even if another file with '\
                                     'the same md5 exists')

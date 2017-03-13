@@ -25,7 +25,7 @@ class RecursiveField(serializers.Serializer):
         return serializer.data
 
 
-class CreateWithParentModelSerializer(serializers.ModelSerializer):
+class CreateWithParentModelSerializer(serializers.HyperlinkedModelSerializer):
     """Use this when a child has a required ForeignKey or OneToOne pointer 
     to the parent such that the parent has to be saved before creating 
     the child.
@@ -49,45 +49,7 @@ class CreateWithParentModelSerializer(serializers.ModelSerializer):
         return self.Meta.model.objects.create(**validated_data)
 
 
-class UuidSerializer(object):
-
-    """Renders only data object "uuid" for deferred lookup
-    """
-
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            # If the Serializer was instantiated with data instead of a model,
-            # "instance" is an OrderedDict. It may be missing data in fields
-            # that are on the subclass but not on the superclass, so we go
-            # back to initial_data.
-            return { 'uuid': instance.get('uuid') }
-        else:
-            assert isinstance(instance, self.Meta.model)
-            # Execute "to_representation" on the correct subclass serializer
-            return { 'uuid': instance.uuid }
-
-
-class NameAndUuidSerializer(object):
-
-    """Renders only data object "name" and "uuid" for deferred lookup
-    """
-
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            # If the Serializer was instantiated with data instead of a model,
-            # "instance" is an OrderedDict. It may be missing data in fields
-            # that are on the subclass but not on the superclass, so we go
-            # back to initial_data.
-            return { 'uuid': instance.get('uuid'),
-                     'name': instance.get('name') }
-        else:
-            assert isinstance(instance, self.Meta.model)
-            # Execute "to_representation" on the correct subclass serializer
-            return { 'uuid': instance.uuid,
-                     'name': instance.name }
-
-
-class SuperclassModelSerializer(serializers.ModelSerializer):
+class SuperclassModelSerializer(serializers.HyperlinkedModelSerializer):
     """This class helps to ser/deserialize a base model with
     several subclasses. It selects the correct subclass serializer
     and delegates critical functions to it.
@@ -148,7 +110,8 @@ class SuperclassModelSerializer(serializers.ModelSerializer):
             type = self._get_type(data=instance)
             SubclassSerializer = self._get_subclass_serializer_class(
                 type)
-            serializer = SubclassSerializer(data=self.initial_data)
+            serializer = SubclassSerializer(data=self.initial_data,
+                                            context=self.context)
             return super(self.__class__, serializer).to_representation(
                 self.initial_data)
         else:

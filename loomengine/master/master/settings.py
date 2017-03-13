@@ -3,6 +3,7 @@
 
 import datetime
 import json
+import logging
 import os
 import random
 import socket
@@ -29,6 +30,7 @@ def to_list(value):
 SETTINGS_DIR = os.path.dirname(__file__)
 BASE_DIR = (os.path.join(SETTINGS_DIR, '..'))
 sys.path.append(BASE_DIR)
+PORTAL_ROOT = os.path.join(BASE_DIR, '..', 'portal')
 
 # Security settings
 DEBUG = to_boolean(os.getenv('LOOM_DEBUG'))
@@ -54,7 +56,7 @@ LOOM_STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-da
 FILE_ROOT_FOR_WORKER = os.path.expanduser(
     os.getenv('FILE_ROOT_FOR_WORKER', LOOM_STORAGE_ROOT))
 
-LOG_DIR = os.path.expanduser(os.getenv('LOG_DIR', '/var/log/loom'))
+LOG_DIR = os.path.expanduser(os.getenv('LOOM_LOG_DIR', '/var/log/loom/'))
 LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))
 TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60')
 TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', '300')
@@ -124,7 +126,7 @@ FORCE_RERUN = True
 
 # For testing only
 TEST_DISABLE_TASK_DELAY = to_boolean(os.getenv('TEST_DISABLE_TASK_DELAY', False))
-TEST_NO_AUTO_START_RUNS = to_boolean(os.getenv('TEST_NO_AUTOSTART_RUNS'))
+TEST_NO_AUTOSTART_RUNS = to_boolean(os.getenv('TEST_NO_AUTOSTART_RUNS'))
 TEST_NO_POSTPROCESS = to_boolean(os.getenv('TEST_NO_POSTPROCESS', False))
 
 # Fixed settings
@@ -143,7 +145,7 @@ CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
                        LOOM_RABBITMQ_HOST, LOOM_RABBITMQ_PORT,
                        LOOM_RABBITMQ_VHOST)
 
-INSTALLED_APPS = (
+INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django_extensions',
@@ -154,9 +156,9 @@ INSTALLED_APPS = (
     'rest_framework',
     'django_celery_results',
     'api',
-)
+]
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE_CLASSES = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -165,7 +167,7 @@ MIDDLEWARE_CLASSES = (
 #    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-)
+]
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -261,8 +263,14 @@ else:
     DATABASES = _get_sqlite_databases()
 
 # Logging
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    DISABLE_LOGGING = True
+else:
+    DISABLE_LOGGING = False
+
+if not DISABLE_LOGGING:
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
 
 def _get_django_handler():
     django_logfile = os.path.join(LOG_DIR, 'loom_django.log')
@@ -282,33 +290,40 @@ def _get_loomengine_handler():
     }
     return handler
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'default': {
-            'format': '%(levelname)s [%(asctime)s] %(message)s'
+if DISABLE_LOGGING:
+    LOGGING = {}
+else:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'default': {
+                'format': '%(levelname)s [%(asctime)s] %(message)s'
             },
         },
-    'handlers': {
-        'django_handler': _get_django_handler(),
-        'loomengine_handler': _get_loomengine_handler(),
+        'handlers': {
+            'django_handler': _get_django_handler(),
+            'loomengine_handler': _get_loomengine_handler(),
         },
-    'loggers': {
-        'django': {
-            'handlers': ['django_handler'],
-            'level': LOG_LEVEL,
+        'loggers': {
+            'django': {
+                'handlers': ['django_handler'],
+                'level': LOG_LEVEL,
             },
-        'loomengine': {
-            'handlers': ['loomengine_handler'],
-            'level': LOG_LEVEL,
+            'loomengine': {
+                'handlers': ['loomengine_handler'],
+                'level': LOG_LEVEL,
             },
-        'api': {
-            'handlers': ['loomengine_handler'],
-            'level': LOG_LEVEL,
+            'api': {
+                'handlers': ['loomengine_handler'],
+                'level': LOG_LEVEL,
             },
         },
     }
+
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    LOGGING = False
+    #logging.disable(logging.CRITICAL)
 
 STATIC_URL = '/%s/' % os.path.basename(STATIC_ROOT)
 STATICFILES_DIRS = [
@@ -317,3 +332,20 @@ STATICFILES_DIRS = [
 
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE_CLASSES.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+
+    def custom_show_toolbar(request):
+        return True
+
+    DEBUG_TOOLBAR_CONFIG = {
+        "INTERCEPT_REDIRECTS": False,
+        'MEDIA_URL': '/__debug__/m/',
+        'SHOW_TOOLBAR_CALLBACK': custom_show_toolbar,
+    }

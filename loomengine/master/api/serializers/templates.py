@@ -1,8 +1,7 @@
 from rest_framework import serializers
 from django.db import transaction
 
-from .base import CreateWithParentModelSerializer, SuperclassModelSerializer,\
-    NameAndUuidSerializer
+from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.templates import *
 from api.models.input_output_nodes import InputOutputNode
 from api.models.signals import post_save_children
@@ -76,14 +75,37 @@ class TemplateSerializer(SuperclassModelSerializer):
             return data
 
 
-class TemplateNameAndUuidSerializer(NameAndUuidSerializer, TemplateSerializer):
-
-    pass
-
-
-class StepSerializer(serializers.ModelSerializer):
+class ExpandableTemplateSerializer(TemplateSerializer):
+    # A shortened set of fields for display only
 
     uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='template-detail',
+        lookup_field='uuid'
+    )
+
+    class Meta:
+        model = Template
+        fields = ('uuid',
+                  'url',
+                  'name',
+        )
+
+    def to_representation(self, instance):
+        if self.context.get('expand'):
+            return super(ExpandableTemplateSerializer, self).to_representation(instance)
+        else:
+            return serializers.HyperlinkedModelSerializer.to_representation(
+                self, instance)
+
+
+class StepSerializer(serializers.HyperlinkedModelSerializer):
+    
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='template-detail',
+        lookup_field='uuid'
+    )
     type = serializers.CharField(required=False)
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
@@ -96,6 +118,7 @@ class StepSerializer(serializers.ModelSerializer):
     class Meta:
         model = Step
         fields = ('uuid',
+                  'url',
                   'type',
                   'name',
                   'command',
@@ -178,17 +201,26 @@ class TemplateLookupSerializer(serializers.Serializer):
         template_id = validated_data.get('_template_id')
         matches = Template.filter_by_name_or_id(template_id)
         if matches.count() < 1:
-            raise Exception(
-                'No match found for id %s' % template_id)
+            raise serializers.ValidationError(
+                'ERROR! No template found that matches value "%s"' % template_id)
         elif matches.count() > 1:
-            raise Exception(
-                'Multiple workflows match id %s' % template_id)
+            match_id_list = ['%s@%s' % (match.name, match.uuid)
+                             for match in matches]
+            match_id_string = ('", "'.join(match_id_list))
+            raise serializers.ValidationError(
+                'ERROR! Multiple templates were found matching value "%s": "%s". '\
+                'Use a more precise identifier to select just one template.' % (
+                    template_id, match_id_string))
         return  matches.first()
 
 
-class WorkflowSerializer(serializers.ModelSerializer):
+class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='template-detail',
+        lookup_field='uuid'
+    )
     type = serializers.CharField(required=False)
     inputs = serializers.JSONField(required=False)
     fixed_inputs = FixedWorkflowInputSerializer(
@@ -196,13 +228,14 @@ class WorkflowSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True)
     outputs = serializers.JSONField(required=False)
-    steps = TemplateNameAndUuidSerializer(many=True)
+    steps = ExpandableTemplateSerializer(many=True)
     template_import = serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
 
     class Meta:
         model = Workflow
         fields = ('uuid',
+                  'url',
                   'type',
                   'name',
                   'steps',
@@ -211,7 +244,9 @@ class WorkflowSerializer(serializers.ModelSerializer):
                   'outputs',
                   'datetime_created',
                   'template_import',
-                  'postprocessing_status',)
+                  'postprocessing_status',
+        )
+        
 
     def create(self, validated_data):
 
