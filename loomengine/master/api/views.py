@@ -89,8 +89,7 @@ class DataTreeViewSet(ExpandableViewSet):
                    .prefetch_related('descendants__data_object__booleandataobject')\
                    .prefetch_related('descendants__data_object__integerdataobject')\
                    .prefetch_related('descendants__data_object__floatdataobject')
-        queryset.order_by('-datetime_created')
-        return queryset.order_by('-datetime_created')
+        return queryset
 
 
 class FileResourceViewSet(viewsets.ModelViewSet):

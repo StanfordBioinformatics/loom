@@ -2,6 +2,7 @@ import json
 from rest_framework import serializers
 
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
+from django.core.exceptions import ValidationError
 from api.models.data_objects import DataObject
 from api.models.runs import Run
 from api.models.run_requests import RunRequest, RunRequestInput
@@ -65,6 +66,10 @@ class RunRequestSerializer(serializers.ModelSerializer):
                 s.is_valid(raise_exception=True)
                 s.save()
 
+        try:
+            run_request.validate_inputs()
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message)
         try:
             run_request.initialize_run()
         except ChannelNameCollisionError as e:

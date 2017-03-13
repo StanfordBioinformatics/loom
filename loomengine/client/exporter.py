@@ -62,7 +62,7 @@ class TemplateExporter(AbstractExporter):
         parser.add_argument(
             '--format',
             choices=['json', 'yaml'],
-            default='json',
+            default='yaml',
             help='Data format for downloaded template')
         return parser
 
@@ -80,7 +80,7 @@ class TemplateExporter(AbstractExporter):
         if self.args.format == 'json':
             template_text = json.dumps(template, indent=4, separators=(',', ': '))
         elif self.args.format == 'yaml':
-            template_text = yaml.safe_dump(template)
+            template_text = yaml.safe_dump(template, default_flow_style=False)
         else:
             raise Exception('Invalid format type %s' % self.args.format)
         self.filemanager.write_to_file(destination, template_text)

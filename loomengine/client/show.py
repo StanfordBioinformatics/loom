@@ -222,7 +222,8 @@ class ShowRun(AbstractShow):
             if run.get('steps'):
                 text += '  - Steps:\n'
                 for step in run['steps']:
-                    text += '    - %s@%s \n' % (step['name'], step['uuid'])
+                    text += '    - %s@%s (%s)\n' % (
+                        step['name'], step['uuid'], step.get('status'))
         else:
             text = "Run: %s (%s)" % (run_identifier, run.get('status'))
         return text
