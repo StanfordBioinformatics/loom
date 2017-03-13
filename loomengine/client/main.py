@@ -19,7 +19,6 @@ from loomengine.client import run
 from loomengine.client import server
 from loomengine.client import show
 from loomengine.client import test_runner
-from loomengine.client import version
 
 
 class Version(argparse.Action):
