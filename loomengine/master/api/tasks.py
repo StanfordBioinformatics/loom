@@ -98,7 +98,7 @@ def _create_tasks_from_step_run(step_run_uuid):
 @periodic_task(run_every=datetime.timedelta(seconds=60))
 def process_active_tasks():
     from api.models.tasks import Task
-    if get_setting('TEST_NO_AUTO_START_RUNS'):
+    if get_setting('TEST_NO_AUTOSTART_RUNS'):
         return
     for task in Task.objects.filter(status_is_running=True):
         if not task.has_been_run():
