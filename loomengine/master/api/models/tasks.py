@@ -167,19 +167,21 @@ class Task(BaseModel):
                                             .substitution_value
         return context
 
-    def get_output_context(self):
+    def get_output_context(self, input_context):
         context = {}
         for output in self.outputs.all():
             # This returns a value only for Files, where the filename
             # is known beforehand and may be used in the command.
             # For other types, nothing is added to the context.
             if output.source.get('filename'):
-                context[output.channel] = output.source.get('filename')
+                context[output.channel] = render_from_template(
+                    output.source.get('filename'),
+                    input_context)
         return context
 
     def get_full_context(self):
         context = self.get_input_context()
-        context.update(self.get_output_context())
+        context.update(self.get_output_context(context))
         return context
 
     def render_command(self):
@@ -345,12 +347,25 @@ class TaskAttempt(BaseModel):
                 data_object=input.data_object)
 
     def _initialize_outputs(self):
-        for output in self.task.outputs.all():
-            TaskAttemptOutput.objects.create(
+        for task_output in self.task.outputs.all():
+            task_attempt_output = TaskAttemptOutput.objects.create(
                 task_attempt=self,
-                type=output.type,
-                channel=output.channel,
-                source=output.source)
+                type=task_output.type,
+                channel=task_output.channel,
+                source=self._render_output_source(task_output.source)
+            )
+
+    def _render_output_source(self, task_output_source):
+        stream=task_output_source.get('stream')
+        if task_output_source.get('filename'):
+            filename = render_from_template(
+                task_output_source.get('filename'),
+                self.task.get_input_context())
+        else:
+            filename = None
+
+        return {'filename': filename,
+                'stream': stream}
 
     def get_working_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),

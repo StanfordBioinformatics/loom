@@ -19,11 +19,19 @@ def get_task():
                                      data_object=input_data_object,
                                      channel='input1',
                                      type='boolean')
+    input_data_object2 = StringDataObject.objects.create(
+        type='string',
+        value='mydata',
+    )
+    input2 = TaskInput.objects.create(task=task,
+                                     data_object=input_data_object2,
+                                     channel='input2',
+                                     type='string')
     output = TaskOutput.objects.create(
         task=task,
         channel='output1',
         type='string',
-        source={'stream': 'stdout'}
+        source={'filename': '{{input2}}.txt'}
     )
     return task
 
@@ -53,3 +61,5 @@ class TestTaskAttempt(TestCase):
                          self.task.outputs.first().type)
         self.assertEqual(self.task_attempt.outputs.first().source.get('stream'),
                          self.task.outputs.first().source.get('stream'))
+        self.assertEqual(self.task_attempt.outputs.first().source.get('filename'),
+                         'mydata.txt')
