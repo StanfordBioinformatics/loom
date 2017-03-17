@@ -24,7 +24,6 @@ class FixedStepInputSerializer(InputOutputNodeSerializer):
 
 
 class TemplateSerializer(SuperclassModelSerializer):
-
     type = serializers.CharField(required=False)
 
     class Meta:
@@ -179,15 +178,16 @@ class StepSerializer(serializers.HyperlinkedModelSerializer):
                 s.is_valid(raise_exception=True)
                 s.save()
 
-            step.postprocessing_status='done'
+            step.postprocessing_status='complete'
             step.save()
         except Exception as e:
-            step.postprocessing_status='error'
+            step.postprocessing_status='failed'
             step.save
             raise e
 
         # The user may have already submitted a run request before this
         # template finished postprocessing. If runs exist, postprocess them now.
+        step = Step.objects.get(uuid=step.uuid)
         for step_run in step.runs.all():
             tasks.postprocess_step_run(step_run.uuid)
 
@@ -287,18 +287,19 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
                 step = s.save()
                 workflow.add_step(step)
 
-            workflow.postprocessing_status = 'done'
+            workflow.postprocessing_status = 'complete'
             workflow.save()
 
             # There are only runs if the user submitted a run with this
             # template before we finished postprocessing the template. The run's
             # postprocessing is skipped if its template is not
-            # postprocessing_status==done.
+            # postprocessing_status==complete.
 
+            workflow = Workflow.objects.get(uuid=workflow.uuid)
             for workflow_run in workflow.runs.all():
                 tasks.postprocess_workflow_run(workflow_run.uuid)
 
         except Exception as e:
-            workflow.postprocessing_status = 'error'
+            workflow.postprocessing_status = 'failed'
             workflow.save()
             raise e

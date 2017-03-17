@@ -13,7 +13,7 @@
         <tr ng-repeat="run in runs">
           <td>
 	    <a ng-href="#/runs/{{run.uuid}}">
-              {{run.template.name}}@{{run.template.uuid | limitTo: 8}}
+              {{run.template.name}}@{{run.uuid | limitTo: 8}}
             </a>
 	  </td>
 	  <td>

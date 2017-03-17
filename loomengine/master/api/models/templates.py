@@ -86,11 +86,10 @@ class Template(BaseModel):
     name = models.CharField(max_length=255)
     postprocessing_status = models.CharField(
         max_length=255,
-        default='saving',
-        choices=(('waiting', 'Waiting'),
-                 ('in_progress', 'In progress'),
-                 ('done', 'Done'),
-                 ('error', 'Error'))
+        default='incomplete',
+        choices=(('incomplete', 'Incomplete'),
+                 ('complete', 'Complete'),
+                 ('failed', 'Failed'))
     )
     template_import = jsonfield.JSONField(null=True)
 
