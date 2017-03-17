@@ -99,7 +99,8 @@ class Task(BaseModel):
     def restart(self):
         old_task_attempt = self.selected_task_attempt
         old_task_attempt.kill('TaskAttempt killed because it was unresponsive.')
-        old_task_attempt.cleanup()
+        if not get_setting('PRESERVE_ON_FAILURE'):
+            old_task_attempt.cleanup()
 
         max_retries = int(get_setting('MAXIMUM_TASK_RETRIES'))
         if self.attempt_number - 1 < max_retries:

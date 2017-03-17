@@ -60,6 +60,7 @@ LOG_DIR = os.path.expanduser(os.getenv('LOOM_LOG_DIR', '/var/log/loom/'))
 LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))
 TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60')
 TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', '300')
+PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'True'))
 MAXIMUM_TASK_RETRIES = os.getenv('LOOM_MAXIMUM_TASK_RETRIES', '2')
 
 # GCP settings
@@ -222,7 +223,7 @@ def _get_mysql_databases():
             'NAME': LOOM_MYSQL_DATABASE,
             'USER': LOOM_MYSQL_USER,
             'PORT': LOOM_MYSQL_PORT,
-            'CONN_MAX_AGE': 60,
+            'CONN_MAX_AGE': 600,
         }
     }
 
