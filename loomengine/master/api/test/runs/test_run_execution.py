@@ -55,9 +55,9 @@ class AbstractRunTest(object):
         with self.settings(WORKER_TYPE='MOCK'):
             run_request = s.save()
         loomengine.utils.helper.wait_for_true(
-            lambda: RunRequest.objects.get(id=run_request.id).run.postprocessing_status == 'done', timeout_seconds=120, sleep_interval=1)
+            lambda: RunRequest.objects.get(id=run_request.id).run.postprocessing_status == 'complete', timeout_seconds=120, sleep_interval=1)
         loomengine.utils.helper.wait_for_true(
-            lambda: all([step.postprocessing_status=='done'
+            lambda: all([step.postprocessing_status=='complete'
                          for step
                          in RunRequest.objects.get(
                              id=run_request.id).run.workflowrun.steps.all()]),
