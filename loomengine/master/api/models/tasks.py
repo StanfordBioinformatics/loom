@@ -398,6 +398,9 @@ class TaskAttempt(BaseModel):
     def cleanup(self):
         if self.status_is_cleaned_up:
             return
+        if get_setting('PRESERVE_ALL'):
+            self.add_timepoint('Skipping cleanup')
+            return
         tasks.cleanup_task_attempt(self.uuid)
         self.status_is_cleaned_up = True
         self.save()
