@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+0.3.1
+----------
+* Allow substitution in template output filenames
+* Added LOOM_PRESERVE_ON_FAILURE and LOOM_PRESERVE_ALL flags for debugging
+* Several bugfixes
+
 0.3.0
 -----------
 
