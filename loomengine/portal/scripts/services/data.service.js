@@ -30,14 +30,30 @@ function DataService($http, $q) {
 	return $http.get('/api/runs/' + runId + '/')
             .then(function(response) {
 		activeData.run = response.data;
-		if (response.data.task_runs) {
-		    if (response.data.task_runs.length > 0) {
-			return $http.get('/api/task-runs/' + activeData.run.task_runs[0].id + '/')
-			    .then(function(response) {
-				activeData.run.task_runs[0] = response.data;
-			    });
-		    };
-		};
+		expandRunInputsOutputs();
+	    });
+    };
+
+    function expandRunInputsOutputs() {
+	for (var i=0; i < activeData.run.inputs.length; i++) {
+	    expandRunInput(i);
+	}
+	for (var i=0; i < activeData.run.outputs.length; i++) {
+	    expandRunOutput(i);
+	}
+    };
+
+    function expandRunInput(i) {
+	return $http.get('/api/data-trees/'+activeData.run.inputs[i].data.uuid)
+	    .then(function(response) {
+		activeData.run.inputs[i].data = response.data;
+	    });
+    };
+
+    function expandRunOutput(i) {
+	return $http.get('/api/data-trees/'+activeData.run.outputs[i].data.uuid)
+	    .then(function(response) {
+		activeData.run.outputs[i].data = response.data;
 	    });
     };
 
@@ -45,7 +61,21 @@ function DataService($http, $q) {
 	return $http.get('/api/templates/' + templateId + '/')
             .then(function(response) {
 		activeData.template = response.data;
+		expandTemplateInputs();
             });
+    };
+
+    function expandTemplateInputs() {
+	for (var i=0; i < activeData.template.fixed_inputs.length; i++) {
+	    expandTemplateFixedInput(i);
+	}
+    };
+
+    function expandTemplateFixedInput(i) {
+	return $http.get('/api/data-trees/'+activeData.template.fixed_inputs[i].data.uuid)
+	    .then(function(response) {
+		activeData.template.fixed_inputs[i].data = response.data;
+	    });
     };
 
     function setActiveFile(fileId) {
