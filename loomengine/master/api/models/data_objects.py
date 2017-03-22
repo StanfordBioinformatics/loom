@@ -107,7 +107,7 @@ class StringDataObjectManager(DataObjectManager):
         return True
 
 
-class DataObjectArrayManager(DataObjectManager):
+class ArrayDataObjectManager(DataObjectManager):
 
     def get_substitution_value(self):
         return [member.substitution_value
@@ -128,7 +128,7 @@ class DataObject(BaseModel):
         'string': StringDataObjectManager,
     }
 
-    _ARRAY_MANAGER_CLASS = DataObjectArrayManager
+    _ARRAY_MANAGER_CLASS = ArrayDataObjectManager
 
     TYPE_CHOICES = (
         ('boolean', 'Boolean'),
@@ -170,7 +170,7 @@ class DataObject(BaseModel):
         if not array.is_array:
             raise NonArrayError('Cannot add members when is_array=False')
         if self.is_array:
-            raise NestedArraysError('Cannot nest DataObjectArrays')
+            raise NestedArraysError('Cannot nest ArrayDataObjects')
         ArrayMembership.objects.create(
             array=array, member=self, order=array.prefetch_members.count())
 
@@ -242,7 +242,7 @@ class StringDataObject(DataObject):
     value = models.TextField(max_length=10000)
 
 
-class DataObjectArray(DataObject):
+class ArrayDataObject(DataObject):
 
     @property
     def members(self):
@@ -261,7 +261,7 @@ class DataObjectArray(DataObject):
     @classmethod
     def create_from_list(cls, data_object_list, type):
         cls._validate_list(data_object_list, type)
-        array = DataObjectArray.objects.create(is_array=True, type=type)
+        array = ArrayDataObject.objects.create(is_array=True, type=type)
         for data_object in data_object_list:
             data_object.add_to_array(array)
         return array
@@ -274,13 +274,13 @@ class DataObjectArray(DataObject):
                     'Expected type "%s", but DataObject %s is type %s' \
                     % (type, data_object.uuid, data_object.type))
             if data_object.is_array:
-                raise NestedArraysError('Cannot nest DataObjectArrays')
+                raise NestedArraysError('Cannot nest ArrayDataObjects')
 
 
 class ArrayMembership(BaseModel):
 
     # ManyToMany relationship between arrays and their items
-    array = models.ForeignKey('DataObjectArray', related_name='has_array_members_membership')
+    array = models.ForeignKey('ArrayDataObject', related_name='has_array_members_membership')
     member = models.ForeignKey('DataObject', related_name='in_array_membership')
     order = models.IntegerField()
 

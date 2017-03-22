@@ -30,6 +30,10 @@ class ExpandableViewSet(viewsets.ModelViewSet):
 
 
 class DataObjectViewSet(viewsets.ModelViewSet):
+    """
+    Data Objects of any type, including arrays
+    """
+
     lookup_field = 'uuid'
     serializer_class = serializers.DataObjectSerializer
 
@@ -57,6 +61,9 @@ class DataObjectViewSet(viewsets.ModelViewSet):
 
 
 class FileDataObjectViewSet(viewsets.ModelViewSet):
+    """
+    Data Objects of type 'file'
+    """
     lookup_field = 'uuid'
     serializer_class = serializers.FileDataObjectSerializer
 
@@ -73,7 +80,71 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-datetime_created')
 
 
+class StringDataObjectViewSet(viewsets.ModelViewSet):
+    """
+    Data Objects of type 'string'
+    """
+    lookup_field = 'uuid'
+    serializer_class = serializers.StringDataObjectSerializer
+
+    def get_queryset(self):
+        queryset = models.StringDataObject.objects.all()
+        return queryset.order_by('-datetime_created')
+
+
+class BooleanDataObjectViewSet(viewsets.ModelViewSet):
+    """
+    Data Objects of type 'boolean'
+    """
+    lookup_field = 'uuid'
+    serializer_class = serializers.BooleanDataObjectSerializer
+
+    def get_queryset(self):
+        queryset = models.BooleanDataObject.objects.all()
+        return queryset.order_by('-datetime_created')
+
+
+class IntegerDataObjectViewSet(viewsets.ModelViewSet):
+    """
+    Data Objects of type 'integer'
+    """
+    lookup_field = 'uuid'
+    serializer_class = serializers.IntegerDataObjectSerializer
+
+    def get_queryset(self):
+        queryset = models.IntegerDataObject.objects.all()
+        return queryset.order_by('-datetime_created')
+
+
+class FloatDataObjectViewSet(viewsets.ModelViewSet):
+    """
+    Data Objects of type 'float'
+    """
+    lookup_field = 'uuid'
+    serializer_class = serializers.FloatDataObjectSerializer
+
+    def get_queryset(self):
+        queryset = models.FloatDataObject.objects.all()
+        return queryset.order_by('-datetime_created')
+
+
+class ArrayDataObjectViewSet(viewsets.ModelViewSet):
+    """
+    Array Data Objects of any type
+    """
+    lookup_field = 'uuid'
+    serializer_class = serializers.ArrayDataObjectSerializer
+
+    def get_queryset(self):
+        queryset = models.DataObject.objects.all()
+        queryset = queryset.filter(is_array=True)
+        return queryset.order_by('-datetime_created')
+
+
 class DataTreeViewSet(ExpandableViewSet):
+    """
+    A tree whose nodes represent DataObjects, all of the same type
+    """
     lookup_field = 'uuid'
     serializer_class = serializers.DataNodeSerializer
 

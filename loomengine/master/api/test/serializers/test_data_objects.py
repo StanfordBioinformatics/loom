@@ -93,10 +93,10 @@ class TestFloatDataObjectSerializer(TestCase):
             m.value,
             fixtures.data_objects.float_data_object['value'])
 
-class TestDataObjectArraySerializer(TestCase):
+class TestArrayDataObjectSerializer(TestCase):
 
     def testCreateArray(self):
-        s = DataObjectArraySerializer(
+        s = ArrayDataObjectSerializer(
             data=fixtures.data_objects.string_data_object_array)
         s.is_valid()
         m = s.save()

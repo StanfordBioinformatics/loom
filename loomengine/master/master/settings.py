@@ -156,6 +156,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework_swagger',
     'django_celery_results',
     'api',
 ]
