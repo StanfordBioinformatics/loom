@@ -130,7 +130,7 @@ class DataObject(BaseModel):
 
     _ARRAY_MANAGER_CLASS = ArrayDataObjectManager
 
-    TYPE_CHOICES = (
+    DATA_TYPE_CHOICES = (
         ('boolean', 'Boolean'),
         ('file', 'File'),
         ('float', 'Float'),
@@ -138,15 +138,15 @@ class DataObject(BaseModel):
         ('string', 'String'),
     )
 
-    uuid = models.CharField(default=uuidstr, editable=False,
+    uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     type = models.CharField(
         max_length=255,
-        choices=TYPE_CHOICES)
+        choices=DATA_TYPE_CHOICES)
     is_array = models.BooleanField(
         default=False)
     datetime_created = models.DateTimeField(
-        default=timezone.now, editable=False)
+        default=timezone.now)
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -179,24 +179,27 @@ class DataObject(BaseModel):
 
 class BooleanDataObject(DataObject):
 
-    value = models.BooleanField()
+    value = models.BooleanField(null=False)
 
 
 class FileDataObject(DataObject):
 
     NAME_FIELD = 'filename'
     HASH_FIELD = 'md5'
-    
+
+    FILE_SOURCE_TYPE_CHOICES = (('imported', 'Imported'),
+                                ('result', 'Result'),
+                                ('log', 'Log'))
+
     filename = models.CharField(max_length=1024)
-    file_resource = models.ForeignKey('FileResource', null=True,
-                                      related_name='file_data_objects')
+    file_resource = models.ForeignKey('FileResource',
+                                      null=True,
+                                      related_name='file_data_objects',
+                                      on_delete=models.PROTECT)
     md5 = models.CharField(max_length=255)
     source_type = models.CharField(
         max_length=255,
-        choices=(('imported', 'Imported'),
-                 ('result', 'Result'),
-                 ('log', 'Log'))
-    )
+        choices=FILE_SOURCE_TYPE_CHOICES)
     file_import = jsonfield.JSONField(null=True)
 
     def initialize(self):
@@ -280,8 +283,12 @@ class ArrayDataObject(DataObject):
 class ArrayMembership(BaseModel):
 
     # ManyToMany relationship between arrays and their items
-    array = models.ForeignKey('ArrayDataObject', related_name='has_array_members_membership')
-    member = models.ForeignKey('DataObject', related_name='in_array_membership')
+    array = models.ForeignKey('ArrayDataObject',
+                              related_name='has_array_members_membership',
+                              on_delete=models.CASCADE)
+    member = models.ForeignKey('DataObject',
+                               related_name='in_array_membership',
+                               on_delete=models.CASCADE)
     order = models.IntegerField()
 
     class Meta:
@@ -290,18 +297,21 @@ class ArrayMembership(BaseModel):
 
 class FileResource(BaseModel):
 
-    uuid = models.CharField(default=uuidstr, editable=False,
+    FILE_RESOURCE_UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
+                                           ('complete', 'Complete'),
+                                           ('failed', 'Failed'))
+    FILE_RESOURCE_UPLOAD_STATUS_DEFAULT = 'incomplete'
+    
+    uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(
-        default=timezone.now, editable=False)
+        default=timezone.now)
     file_url = models.CharField(max_length=1000)
     md5 = models.CharField(max_length=255)
     upload_status = models.CharField(
         max_length=255,
-        default='incomplete',
-        choices=(('incomplete', 'Incomplete'),
-                 ('complete', 'Complete'),
-                 ('failed', 'Failed')))
+        default=FILE_RESOURCE_UPLOAD_STATUS_DEFAULT,
+        choices=FILE_RESOURCE_UPLOAD_STATUS_CHOICES)
 
     def is_ready(self):
         return self.upload_status == 'complete'

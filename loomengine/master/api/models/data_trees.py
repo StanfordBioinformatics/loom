@@ -30,15 +30,17 @@ class MissingBranchError(Exception):
     pass
 
 class DataNode(BaseModel):
-    uuid = models.CharField(default=uuidstr, editable=False,
+    uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     root_node = models.ForeignKey('DataNode',
                                   null=True, 
-                                  related_name='descendants')
+                                  related_name='descendants',
+                                  on_delete=models.SET_NULL)
     parent = models.ForeignKey(
         'DataNode',
         null=True,
-        related_name = 'children')
+        related_name = 'children',
+        on_delete=models.PROTECT)
     index = models.IntegerField(null=True) # 0 <= index < self.parent.degree; null if no parent
     degree = models.IntegerField(null=True) # expected number of children; null if leaf, 0 if empty
     data_object = models.ForeignKey('DataObject',

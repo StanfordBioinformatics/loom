@@ -207,7 +207,7 @@ class TaskInput(BaseModel):
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
 
 
 class TaskOutput(BaseModel):
@@ -217,7 +217,7 @@ class TaskOutput(BaseModel):
                              on_delete=models.CASCADE)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
     source = jsonfield.JSONField(null=True)
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT, null=True)
 
@@ -437,7 +437,7 @@ class TaskAttemptInput(BaseModel):
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
 
 class TaskAttemptOutput(BaseModel):
 
@@ -457,7 +457,7 @@ class TaskAttemptOutput(BaseModel):
         on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
     source = jsonfield.JSONField(null=True)
 
 

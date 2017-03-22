@@ -45,17 +45,17 @@ class DataObjectViewSet(viewsets.ModelViewSet):
                            .select_related('booleandataobject')\
                            .select_related('integerdataobject')\
                            .select_related('floatdataobject')\
-                           .select_related('dataobjectarray')\
+                           .select_related('arraydataobject')\
                            .prefetch_related(
-                               'dataobjectarray__prefetch_members__stringdataobject')\
+                               'arraydataobject__prefetch_members__stringdataobject')\
                            .prefetch_related(
-                               'dataobjectarray__prefetch_members__booleandataobject')\
+                               'arraydataobject__prefetch_members__booleandataobject')\
                            .prefetch_related(
-                               'dataobjectarray__prefetch_members__integerdataobject')\
+                               'arraydataobject__prefetch_members__integerdataobject')\
                            .prefetch_related(
-                               'dataobjectarray__prefetch_members__floatdataobject')\
+                               'arraydataobject__prefetch_members__floatdataobject')\
                            .prefetch_related(
-                               'dataobjectarray__prefetch_members__filedataobject__'\
+                               'arraydataobject__prefetch_members__filedataobject__'\
                                'file_resource')
         return queryset.order_by('-datetime_created')
 
@@ -143,7 +143,12 @@ class ArrayDataObjectViewSet(viewsets.ModelViewSet):
 
 class DataTreeViewSet(ExpandableViewSet):
     """
-    A tree whose nodes represent DataObjects, all of the same type
+    A tree whose nodes represent DataObjects, all of the same type.
+    The 'contents' field is a JSON that may be a DataObject, a list of
+    DataObjects, or nested lists of DataObjects representing a tree structure.
+    Each DataObject representation may be a complete object, the value from which
+    a new object will be created, or the ID string from which an existing object
+    can be looked up.
     """
     lookup_field = 'uuid'
     serializer_class = serializers.DataNodeSerializer
@@ -189,21 +194,21 @@ class TaskViewSet(ExpandableViewSet):
                    .prefetch_related('inputs__data_object__booleandataobject')\
                    .prefetch_related('inputs__data_object__integerdataobject')\
                    .prefetch_related('inputs__data_object__floatdataobject')\
-                   .prefetch_related('inputs__data_object__dataobjectarray')\
+                   .prefetch_related('inputs__data_object__arraydataobject')\
                    .prefetch_related(
-                       'inputs__data_object__dataobjectarray__'\
+                       'inputs__data_object__arraydataobject__'\
                        'prefetch_members__stringdataobject')\
                    .prefetch_related(
-                       'inputs__data_object__dataobjectarray__'\
+                       'inputs__data_object__arraydataobject__'\
                        'prefetch_members__booleandataobject')\
                    .prefetch_related(
-                       'inputs__data_object__dataobjectarray__'\
+                       'inputs__data_object__arraydataobject__'\
                        'prefetch_members__integerdataobject')\
                    .prefetch_related(
-                       'inputs__data_object__dataobjectarray__'\
+                       'inputs__data_object__arraydataobject__'\
                        'prefetch_members__floatdataobject')\
                    .prefetch_related(
-                       'inputs__data_object__dataobjectarray__'\
+                       'inputs__data_object__arraydataobject__'\
                        'prefetch_members__filedataobject__'\
                        'file_resource')\
                    .prefetch_related('outputs')\
@@ -215,21 +220,21 @@ class TaskViewSet(ExpandableViewSet):
                    .prefetch_related('outputs__data_object__booleandataobject')\
                    .prefetch_related('outputs__data_object__integerdataobject')\
                    .prefetch_related('outputs__data_object__floatdataobject')\
-                   .prefetch_related('outputs__data_object__dataobjectarray')\
+                   .prefetch_related('outputs__data_object__arraydataobject')\
                    .prefetch_related(
-                       'outputs__data_object__dataobjectarray__'\
+                       'outputs__data_object__arraydataobject__'\
                        'prefetch_members__stringdataobject')\
                    .prefetch_related(
-                       'outputs__data_object__dataobjectarray__'\
+                       'outputs__data_object__arraydataobject__'\
                        'prefetch_members__booleandataobject')\
                    .prefetch_related(
-                       'outputs__data_object__dataobjectarray__'\
+                       'outputs__data_object__arraydataobject__'\
                        'prefetch_members__integerdataobject')\
                    .prefetch_related(
-                       'outputs__data_object__dataobjectarray__'\
+                       'outputs__data_object__arraydataobject__'\
                        'prefetch_members__floatdataobject')\
                    .prefetch_related(
-                       'outputs__data_object__dataobjectarray__'\
+                       'outputs__data_object__arraydataobject__'\
                        'prefetch_members__filedataobject__'\
                        'file_resource')\
                    .prefetch_related('timepoints')
@@ -252,21 +257,21 @@ class TaskAttemptViewSet(ExpandableViewSet):
                            .prefetch_related('inputs__data_object__booleandataobject')\
                            .prefetch_related('inputs__data_object__integerdataobject')\
                            .prefetch_related('inputs__data_object__floatdataobject')\
-                           .prefetch_related('inputs__data_object__dataobjectarray')\
+                           .prefetch_related('inputs__data_object__arraydataobject')\
                            .prefetch_related(
-                               'inputs__data_object__dataobjectarray__'\
+                               'inputs__data_object__arraydataobject__'\
                                'prefetch_members__stringdataobject')\
                            .prefetch_related(
-                               'inputs__data_object__dataobjectarray__'\
+                               'inputs__data_object__arraydataobject__'\
                                'prefetch_members__booleandataobject')\
                            .prefetch_related(
-                               'inputs__data_object__dataobjectarray__'\
+                               'inputs__data_object__arraydataobject__'\
                                'prefetch_members__integerdataobject')\
                            .prefetch_related(
-                               'inputs__data_object__dataobjectarray__'\
+                               'inputs__data_object__arraydataobject__'\
                                'prefetch_members__floatdataobject')\
                            .prefetch_related(
-                               'inputs__data_object__dataobjectarray__'\
+                               'inputs__data_object__arraydataobject__'\
                                'prefetch_members__filedataobject__'\
                                'file_resource')\
                            .prefetch_related('outputs')\
@@ -286,22 +291,22 @@ class TaskAttemptViewSet(ExpandableViewSet):
                            .prefetch_related('outputs__'\
                                              'data_object__floatdataobject')\
                            .prefetch_related('outputs__'\
-                                             'data_object__dataobjectarray')\
+                                             'data_object__arraydataobject')\
                            .prefetch_related(
                                'outputs__data_object__'\
-                               'dataobjectarray__prefetch_members__stringdataobject')\
+                               'arraydataobject__prefetch_members__stringdataobject')\
                            .prefetch_related(
                                'outputs__data_object__'\
-                               'dataobjectarray__prefetch_members__booleandataobject')\
+                               'arraydataobject__prefetch_members__booleandataobject')\
                            .prefetch_related(
                                'outputs__data_object__'\
-                               'dataobjectarray__prefetch_members__integerdataobject')\
+                               'arraydataobject__prefetch_members__integerdataobject')\
                            .prefetch_related(
                                'outputs__data_object__'\
-                               'dataobjectarray__prefetch_members__floatdataobject')\
+                               'arraydataobject__prefetch_members__floatdataobject')\
                            .prefetch_related(
                                'outputs__data_object__'\
-                               'dataobjectarray__prefetch_members__filedataobject__'\
+                               'arraydataobject__prefetch_members__filedataobject__'\
                                'file_resource')\
                            .prefetch_related('log_files__file')\
                            .prefetch_related('log_files__file__'\
@@ -471,21 +476,21 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
                            .select_related('data_object__booleandataobject')\
                            .select_related('data_object__integerdataobject')\
                            .select_related('data_object__floatdataobject')\
-                           .select_related('data_object__dataobjectarray')\
+                           .select_related('data_object__arraydataobject')\
                            .prefetch_related(
-                               'data_object__dataobjectarray__'\
+                               'data_object__arraydataobject__'\
                                'prefetch_members__stringdataobject')\
                            .prefetch_related(
-                               'data_object__dataobjectarray__'\
+                               'data_object__arraydataobject__'\
                                'prefetch_members__booleandataobject')\
                            .prefetch_related(
-                               'data_object__dataobjectarray__'\
+                               'data_object__arraydataobject__'\
                                'prefetch_members__integerdataobject')\
                            .prefetch_related(
-                               'data_object__dataobjectarray__'\
+                               'data_object__arraydataobject__'\
                                'prefetch_members__floatdataobject')\
                            .prefetch_related(
-                               'data_object__dataobjectarray__'\
+                               'data_object__arraydataobject__'\
                                'prefetch_members__filedataobject__'\
                                'file_resource')
         return queryset.order_by('-datetime_created')

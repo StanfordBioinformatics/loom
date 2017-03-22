@@ -19,6 +19,7 @@ class BooleanDataObjectSerializer(serializers.HyperlinkedModelSerializer):
         view_name='data-object-detail',
         lookup_field='uuid'
     )
+    value = serializers.BooleanField(required=True)
     
     class Meta:
         model = BooleanDataObject
@@ -71,10 +72,14 @@ class FileResourceSerializer(serializers.HyperlinkedModelSerializer):
         view_name='file-resource-detail',
         lookup_field='uuid'
     )
+    upload_status = serializers.ChoiceField(
+        choices=FileResource.FILE_RESOURCE_UPLOAD_STATUS_CHOICES,
+        required=True)
 
     class Meta:
         model = FileResource
         fields = ('uuid', 'url', 'datetime_created', 'file_url', 'md5', 'upload_status')
+
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
 
@@ -85,7 +90,9 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         view_name='data-object-detail',
         lookup_field='uuid'
     )
-    
+    datetime_created = serializers.CharField(required=False)
+    source_type=serializers.ChoiceField(choices=FileDataObject.FILE_SOURCE_TYPE_CHOICES)
+
     class Meta:
         model = FileDataObject
         fields = ('uuid', 'url', 'file_resource', 'file_import', 'type',

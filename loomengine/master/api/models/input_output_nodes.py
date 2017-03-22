@@ -25,7 +25,7 @@ class InputOutputNode(BaseModel):
 
     type = models.CharField(
         max_length=255,
-        choices=DataObject.TYPE_CHOICES)
+        choices=DataObject.DATA_TYPE_CHOICES)
 
     @property
     def data(self):
