@@ -80,6 +80,29 @@
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
 
+- name: Start a container running flower to monitor celery workers
+  when: debug
+  docker_container:
+    name: "{{flower_container_name}}"
+    hostname: "{{flower_container_name}}"
+    image: "{{loom_docker_image}}"
+    command: /loomengine/bin/run_flower.sh
+    restart_policy: always
+    api_version: auto
+    env_file: "{{server_settings_home}}/{{admin_settings_file}}"
+    env:
+      C_FORCE_ROOT: true
+      LOOM_SETTINGS_HOME: "{{container_settings_home}}"
+      LOOM_MYSQL_HOST: "{{mysql_host}}"
+      LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
+      LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
+    volumes:
+      - "{{server_settings_home}}:{{container_settings_home}}"
+    links: "{{[mysql_container_name if mysql_create_docker_container else none,\
+            rabbitmq_container_name] | reject('none') | list}}"
+
 - name: Start a container with the Loom Master webserver
   docker_container:
     name: "{{master_container_name}}"
@@ -123,9 +146,11 @@
       - "{{server_settings_home}}/{{admin_files_dir}}/:{{container_settings_home}}/{{admin_files_dir}}"
     volumes_from:
       - "{{master_container_name}}"
-    links:
-      - "{{master_container_name}}"
+    links: "{{[master_container_name,\
+            flower_container_name if debug else none,\
+            rabbitmq_container_name if debug else none]\
+	    | reject('none') | list}}"
     ports: "{{[ http_port~':'~http_port if \
             (http_port_enabled or http_redirect_to_https) else none,\
-            https_port~':'~https_port if https_port_enabled else none]\
+            https_port~':'~https_port if https_port_enabled else none]
             | reject('none') | list}}"
