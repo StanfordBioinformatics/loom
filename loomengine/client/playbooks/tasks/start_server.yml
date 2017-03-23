@@ -4,8 +4,30 @@
     state: directory
   when: storage_type == "local"
 
+- name: Create the logfile directory
+  file:
+    path: "{{server_settings_home}}/log"
+    state: directory
+
 - name: Verify Docker is running
   shell: "docker ps"
+
+- name: Create a config file for the Fluentd logging server
+  template:
+    src: templates/fluent.conf
+    dest: "{{server_settings_home}}/fluent.conf"
+
+- name: Start a Fluentd logging container
+  docker_container:
+    name: "{{fluentd_container_name}}"
+    hostname: "{{fluentd_container_name}}"
+    image: "{{fluentd_image}}"
+    restart_policy: always
+    api_version: auto
+    volumes:
+      - "{{server_settings_home}}/fluent.conf:/fluentd/etc/fluent.conf"
+      - "{{server_settings_home}}/log/:/fluentd/log/"
+    ports: "{{[ fluentd_port~':'~fluentd_port ]}}"
 
 - name: Start a MySQL database container
   docker_container:
@@ -19,6 +41,11 @@
       MYSQL_DATABASE: "{{mysql_database}}"
       MYSQL_USER: "{{mysql_user}}"
       MYSQL_PASSWORD: "{{mysql_password}}"
+    log_driver: fluentd
+    log_options:
+      fluentd-address: localhost:{{fluentd_port}}
+      fluentd-async-connect: "false"
+      tag: "{{server_name}}{%raw%}/{{.Name}}/{{.ID}}{%endraw%}"
   when: mysql_create_docker_container
 
 - name: Start a rabbitmq container to handle message passing for asynchronous tasks
@@ -110,7 +137,7 @@
 - name: Create a config file for the NGINX web server
   template:
     src: templates/nginx.conf
-    dest: "{{server_settings_home}}/{{nginx_conf_file}}"
+    dest: "{{server_settings_home}}/nginx.conf"
 
 - name: Start an NGINX server container
   docker_container:
@@ -119,7 +146,7 @@
     restart_policy: always
     api_version: auto
     volumes:
-      - "{{server_settings_home}}/{{nginx_conf_file}}:/etc/nginx/conf.d/default.conf"
+      - "{{server_settings_home}}/nginx.conf:/etc/nginx/conf.d/default.conf"
       - "{{server_settings_home}}/{{admin_files_dir}}/:{{container_settings_home}}/{{admin_files_dir}}"
     volumes_from:
       - "{{master_container_name}}"
