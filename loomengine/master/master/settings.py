@@ -146,6 +146,7 @@ CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
                     % (LOOM_RABBITMQ_USER, LOOM_RABBITMQ_PASSWORD,
                        LOOM_RABBITMQ_HOST, LOOM_RABBITMQ_PORT,
                        LOOM_RABBITMQ_VHOST)
+CELERY_BROKER_POOL_LIMIT = None
 
 INSTALLED_APPS = [
     'django.contrib.auth',
