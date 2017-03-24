@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.conf.urls import include, url
 from rest_framework import routers
 
@@ -40,3 +41,8 @@ urlpatterns = [
     url(r'^filemanager-settings/$', api.views.filemanager_settings),
     #    url(r'^files/(?P<pk>[a-zA-Z0-9]+)/provenance/$', file_provenance_detail, name='file_provenance_detail'),
 ]
+
+if settings.DEBUG:
+    urlpatterns.append(
+        url('^error/$', api.views.raise_server_error)
+    )
