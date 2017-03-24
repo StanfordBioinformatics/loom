@@ -54,7 +54,8 @@ container_mysql_ssl_client_cert_path: "{{container_settings_home+'/'+admin_files
 container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+admin_files_dir+'/'+client_key_file if client_key_file else none}}"
 
 # Rabbitmq container settings
-rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_IMAGE')}}"
+rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_MANAGEMENT_IMAGE') if debug else \
+                 lookup('env', 'LOOM_RABBITMQ_IMAGE')}}"
 rabbitmq_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_RABBITMQ_CONTAINER_NAME_SUFFIX')}}"
@@ -73,6 +74,12 @@ worker_container_name: "\
 scheduler_container_name: "\
   {{server_name}}\
   {{lookup('env', 'LOOM_SCHEDULER_CONTAINER_NAME_SUFFIX')}}"
+
+# Flower container settings
+flower_container_name: "\
+  {{server_name}}\
+  {{lookup('env', 'LOOM_FLOWER_CONTAINER_NAME_SUFFIX')}}"
+flower_internal_port: "{{lookup('env', 'LOOM_FLOWER_INTERNAL_PORT')}}"
 
 # NGINX container settings
 nginx_image: "{{lookup('env', 'LOOM_NGINX_IMAGE')}}"

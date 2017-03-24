@@ -19,6 +19,9 @@ This module defines WorkflowRun and other classes related to
 running an analysis
 """
 
+class RunAlreadyClaimedForPostprocessing(Exception):
+    pass
+
 class WorkflowRunManager(object):
 
     def __init__(self, run):
@@ -235,7 +238,6 @@ class Run(BaseModel):
                 raise ChannelNameCollisionError(
                     'ERROR! There is more than one run input named "%s". '\
                     'Channel names must be unique within a run.' % input.channel)
-            
 
     def _connect_input_to_run_request(self, input):
         try:
@@ -281,6 +283,40 @@ class Run(BaseModel):
             message=message, run=self, detail=detail, is_error=is_error)
         timepoint.save()
 
+    def _claim_for_postprocessing(self):
+        # There are two paths to get Run.postprocess():
+        # 1. user calls "run" on a template that is already ready, and
+        #    run is postprocessed right away.
+        # 2. user calls "run" on a template that is not ready, and run
+        #    is postprocessed only after template is ready.
+        # There is a chance of both paths being executed, so we have to
+        # protect against that
+
+        assert self.template.postprocessing_status == 'complete', \
+            'Template not ready, cannot postprocess run %s' % run.uuid
+
+        if not self.postprocessing_status == 'not_started':
+            # Don't postprocess twice
+            raise RunAlreadyClaimedForPostprocessing
+        self.postprocessing_status = 'in_progress'
+        try:
+            self.save()
+        except ConcurrentModificationError:
+            # The "save" method is overridden in our base model to have concurrency
+            # protection. This error implies that the run was modified since
+            # it was loaded.
+            # Let's make sure it's being postprocessed by another
+            # process, and we will defer to that process.
+            run = Run.objects.get(uuid=run_uuid)
+            if run.postprocessing_status == 'not_started':
+                # Don't know why this run was modified. Raise an error
+                raise Exception('Postprocessing failed due to unexplained '\
+                                'concurrent modification')
+            else:
+                # Good, looks like another worker is postprocessing this run,
+                # so we're done here
+                raise RunAlreadyClaimedForPostprocessing
+
 
 class RunTimepoint(BaseModel):
     run = models.ForeignKey(
@@ -309,27 +345,11 @@ class WorkflowRun(Run):
 
     @classmethod
     def postprocess(cls, run_uuid):
-        # There are two paths to get here:
-        # 1. user calls "run" on a template that is already ready, and
-        #    run is postprocessed right away.
-        # 2. user calls "run" on a template that is not ready, and run
-        #    is postprocessed only after template is ready.
-
         run = WorkflowRun.objects.get(uuid=run_uuid)
 
-        assert run.template.postprocessing_status == 'complete', \
-            'Template not ready, cannot postprocess run %s' % run.uuid
-
-        # Don't postprocess twice
-        # The "save" method is overridden in our base model to have concurrency
-        # protection
-
-        if not run.postprocessing_status == 'not_started':
-            return
-        run.postprocessing_status = 'in_progress'
         try:
-            run.save()
-        except ConcurrentModificationError:
+            run._claim_for_postprocessing()
+        except RunAlreadyClaimedForPostprocessing:
             return
 
         try:
@@ -342,6 +362,7 @@ class WorkflowRun(Run):
         except Exception as e:
             run.postprocessing_status = 'failed'
             run.save()
+            run.fail('Postprocessing failed', detail=e.message)
             raise e
 
     def _initialize_inputs(self):
@@ -475,28 +496,11 @@ class StepRun(Run):
 
     @classmethod
     def postprocess(cls, run_uuid):
-        # There are two paths to get here:
-        # 1. user calls "run" on a template that is already ready, and
-        #    run is postprocessed right away.
-        # 2. user calls "run" on a template that is not ready, and run
-        #    is postprocessed only after template is ready.
-
         run = StepRun.objects.get(uuid=run_uuid)
 
-        assert run.template.postprocessing_status == 'complete', \
-            'Template not ready, cannot postprocess run %s' % run.uuid
-
-        # Don't postprocess twice
-        # The "save" method is overridden in our base model to have concurrency
-        # protection
-
-        if not run.postprocessing_status == 'not_started':
-            return
-        run.postprocessing_status = 'in_progress'
         try:
-            run.save()
-        except ConcurrentModificationError:
-            # Already being processed. Nothing to do.
+            run._claim_for_postprocessing()
+        except RunAlreadyClaimedForPostprocessing:
             return
 
         try:
@@ -505,8 +509,10 @@ class StepRun(Run):
             run.postprocessing_status = 'complete'
             run.save()
         except Exception as e:
+            run = StepRun.objects.get(uuid=run_uuid)
             run.postprocessing_status = 'failed'
             run.save()
+            run.fail('Postprocessing failed', detail=e.message)
             raise e
 
     def _initialize_inputs(self):
