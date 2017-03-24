@@ -18,4 +18,4 @@ class TestWorkflowRun(TestCase):
             .inputs.get(channel='one')\
             .is_connected(
                 workflow_run.inputs.get(channel='one')))
-        
+

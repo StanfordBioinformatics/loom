@@ -153,12 +153,17 @@ class Task(BaseModel):
 
     def create_and_activate_attempt(self):
         task_attempt = TaskAttempt.create_from_task(self)
-        self.selected_task_attempt = task_attempt
-        self.save()
-
-        self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
+        try:
+            self.selected_task_attempt = task_attempt
+            self.save()
+            self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
+        except ConcurrentModificationError as e:
+            task_attempt.add_timepoint(
+                'Failed to update task with newly created task_attempt',
+                detaul=e.message,
+                is_error=True)
+            task_attempt.fail()
         task_attempt.add_timepoint('TaskAttempt %s was created' % task_attempt.uuid)
-
         return task_attempt
 
     def get_input_context(self):
