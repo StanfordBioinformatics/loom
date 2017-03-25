@@ -44,8 +44,8 @@
     log_driver: fluentd
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
-      fluentd-async-connect: "false"
-      tag: "{{server_name}}{%raw%}/{{.Name}}/{{.ID}}{%endraw%}"
+      fluentd-async-connect: "true"
+      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
   when: mysql_create_docker_container
 
 - name: Start a rabbitmq container to handle message passing for asynchronous tasks
@@ -61,6 +61,11 @@
       RABBITMQ_HOST: "{{rabbitmq_host}}"
       RABBITMQ_PORT: "{{rabbitmq_port}}"
       RABBITMQ_VHOST: "{{rabbitmq_vhost}}"
+    log_driver: fluentd
+    log_options:
+      fluentd-address: localhost:{{fluentd_port}}
+      fluentd-async-connect: "true"
+      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Start a container with celery workers to run asynchronous tasks
   docker_container:
@@ -85,6 +90,11 @@
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
+    log_driver: fluentd
+    log_options:
+      fluentd-address: localhost:{{fluentd_port}}
+      fluentd-async-connect: "true"
+      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Start a container with a celery scheduler to run scheduled tasks
   docker_container:
@@ -106,6 +116,11 @@
       - "{{server_settings_home}}:{{container_settings_home}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
+    log_driver: fluentd
+    log_options:
+      fluentd-address: localhost:{{fluentd_port}}
+      fluentd-async-connect: "true"
+      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Start a container with the Loom Master webserver
   docker_container:
@@ -129,6 +144,11 @@
       - "{{server_settings_home}}:{{container_settings_home}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
+    log_driver: fluentd
+    log_options:
+      fluentd-address: localhost:{{fluentd_port}}
+      fluentd-async-connect: "true"
+      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Create self-signed SSL certificate and key.
   command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{server_settings_home}}/{{admin_files_dir}}/{{ssl_cert_key_file}} -out {{server_settings_home}}/{{admin_files_dir}}/{{ssl_cert_file}} -subj "{{ssl_cert_subj}}"
@@ -156,3 +176,8 @@
             (http_port_enabled or http_redirect_to_https) else none,\
             https_port~':'~https_port if https_port_enabled else none]\
             | reject('none') | list}}"
+    log_driver: fluentd
+    log_options:
+      fluentd-address: localhost:{{fluentd_port}}
+      fluentd-async-connect: "true"
+      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
