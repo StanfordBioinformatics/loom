@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.conf.urls import include, url
 from rest_framework import routers
 from rest_framework_swagger.views import get_swagger_view
@@ -65,3 +66,8 @@ urlpatterns = [
     url('^doc/$', get_swagger_view(title='Loom API')),
     #    url(r'^files/(?P<pk>[a-zA-Z0-9]+)/provenance/$', file_provenance_detail, name='file_provenance_detail'),
 ]
+
+if settings.DEBUG:
+    urlpatterns.append(
+        url('^error/$', api.views.raise_server_error)
+    )

@@ -535,3 +535,7 @@ def info(request):
         'version': version.version()
     }
     return JsonResponse(data, status=200)
+
+@require_http_methods(["GET"])
+def raise_server_error(request):
+    raise Exception('Server error intentionally raised for debugging')
