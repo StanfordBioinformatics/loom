@@ -13,7 +13,8 @@ django-cors-headers==1.2.2
 django-debug-toolbar==1.7
 django-extensions==1.7.4
 django-jsonfield==1.0.1
-djangorestframework==3.5.1
+djangorestframework==3.5.4
+django-rest-swagger==2.1.2
 docker-py==1.10.5
 docker-pycreds==0.2.1
 enum-compat==0.0.2

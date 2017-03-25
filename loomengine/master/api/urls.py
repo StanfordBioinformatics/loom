@@ -6,9 +6,9 @@ import api.views
 
 router = routers.DefaultRouter()
 
-router.register('data-any-type',
+router.register('data-objects',
                 api.views.DataObjectViewSet,
-                base_name='data-any-type')
+                base_name='data-object')
 router.register('data-files',
                 api.views.FileDataObjectViewSet,
                 base_name='data-file')
@@ -62,6 +62,6 @@ urlpatterns = [
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
     url(r'^filemanager-settings/$', api.views.filemanager_settings),
-    url('^docs/$', get_swagger_view(title='Loom API')),
+    url('^doc/$', get_swagger_view(title='Loom API')),
     #    url(r'^files/(?P<pk>[a-zA-Z0-9]+)/provenance/$', file_provenance_detail, name='file_provenance_detail'),
 ]

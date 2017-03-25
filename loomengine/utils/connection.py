@@ -140,11 +140,10 @@ class Connection(object):
             data_update,
             'data-objects/%s/' % data_object_id)
 
-    
     def get_file_data_object_index(
             self, query_string=None, source_type='all',
             min=0, max=float('inf')):
-        url = 'files/'
+        url = 'data-files/'
         params = {}
         if query_string:
             params['q'] = query_string
@@ -168,7 +167,7 @@ class Connection(object):
 
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
-            'files/' + file_id + '/file-imports/'
+            'data-files/' + file_id + '/file-imports/'
         )
     
     def get_template(self, template_id):

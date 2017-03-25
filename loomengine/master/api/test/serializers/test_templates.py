@@ -1,7 +1,6 @@
 from rest_framework.test import RequestsClient
 import datetime
 from django.test import TestCase, TransactionTestCase, override_settings
-import loomengine.utils.helper
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 

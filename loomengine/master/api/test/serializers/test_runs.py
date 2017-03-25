@@ -1,7 +1,6 @@
 import datetime
 from django.test import TestCase, TransactionTestCase, override_settings
 
-import loomengine.utils.helper
 from . import fixtures
 from . import get_mock_context
 from api.serializers.templates import *
