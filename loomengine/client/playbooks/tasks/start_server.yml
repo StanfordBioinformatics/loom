@@ -45,7 +45,7 @@
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
       fluentd-async-connect: "true"
-      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
+      tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
   when: mysql_create_docker_container
 
 - name: Start a rabbitmq container to handle message passing for asynchronous tasks
@@ -65,7 +65,7 @@
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
       fluentd-async-connect: "true"
-      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
+      tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Start a container with celery workers to run asynchronous tasks
   docker_container:
@@ -94,7 +94,7 @@
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
       fluentd-async-connect: "true"
-      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
+      tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Start a container with a celery scheduler to run scheduled tasks
   docker_container:
@@ -120,7 +120,7 @@
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
       fluentd-async-connect: "true"
-      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
+      tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Start a container with the Loom Master webserver
   docker_container:
@@ -148,7 +148,7 @@
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
       fluentd-async-connect: "true"
-      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
+      tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
 
 - name: Create self-signed SSL certificate and key.
   command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{server_settings_home}}/{{admin_files_dir}}/{{ssl_cert_key_file}} -out {{server_settings_home}}/{{admin_files_dir}}/{{ssl_cert_file}} -subj "{{ssl_cert_subj}}"
@@ -180,4 +180,4 @@
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
       fluentd-async-connect: "true"
-      tag: "loom.{{server_name}}{%raw%}.{{.Name}}.{{.ID}}{%endraw%}"
+      tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
