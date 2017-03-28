@@ -4,7 +4,7 @@ from rest_framework import serializers
 from .base import SuperclassModelSerializer, CreateWithParentModelSerializer
 from api.models.data_objects import StringDataObject, BooleanDataObject, \
     IntegerDataObject, FloatDataObject, FileDataObject, DataObject, \
-    FileResource, DataObjectArray
+    FileResource, ArrayDataObject
 
 
 class UpdateNotAllowedError(Exception):
@@ -19,6 +19,7 @@ class BooleanDataObjectSerializer(serializers.HyperlinkedModelSerializer):
         view_name='data-object-detail',
         lookup_field='uuid'
     )
+    value = serializers.BooleanField(required=True)
     
     class Meta:
         model = BooleanDataObject
@@ -71,10 +72,14 @@ class FileResourceSerializer(serializers.HyperlinkedModelSerializer):
         view_name='file-resource-detail',
         lookup_field='uuid'
     )
-    
+    upload_status = serializers.ChoiceField(
+        choices=FileResource.FILE_RESOURCE_UPLOAD_STATUS_CHOICES,
+        required=True)
+
     class Meta:
         model = FileResource
         fields = ('uuid', 'url', 'datetime_created', 'file_url', 'md5', 'upload_status')
+
 
 class FileDataObjectSerializer(serializers.ModelSerializer):
 
@@ -85,7 +90,9 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         view_name='data-object-detail',
         lookup_field='uuid'
     )
-    
+    datetime_created = serializers.CharField(required=False)
+    source_type=serializers.ChoiceField(choices=FileDataObject.FILE_SOURCE_TYPE_CHOICES)
+
     class Meta:
         model = FileDataObject
         fields = ('uuid', 'url', 'file_resource', 'file_import', 'type',
@@ -164,9 +171,9 @@ class DataObjectSerializer(SuperclassModelSerializer):
 
     def _get_subclass_serializer_class(self, type):
         # This has to be defined in a function due to circular dependency
-        # DataObjectArraySerializer.members uses DataObjectSerializer.
+        # ArrayDataObjectSerializer.members uses DataObjectSerializer.
         if type == 'array':
-            return DataObjectArraySerializer
+            return ArrayDataObjectSerializer
         elif not type:
             return DataObjectSerializer
         else:
@@ -206,7 +213,7 @@ class DataObjectUuidSerializer(serializers.HyperlinkedModelSerializer):
                   'url',)
 
 
-class DataObjectArraySerializer(serializers.HyperlinkedModelSerializer):
+class ArrayDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     members = DataObjectSerializer(many=True, required=False)
@@ -216,7 +223,7 @@ class DataObjectArraySerializer(serializers.HyperlinkedModelSerializer):
     )
 
     class Meta:
-        model = DataObjectArray
+        model = ArrayDataObject
         exclude = ('_change',)
 
     def create(self, validated_data):
@@ -238,7 +245,7 @@ class DataObjectArraySerializer(serializers.HyperlinkedModelSerializer):
     def validate_is_array(self, value):
         if value == False:
             raise serializers.ValidationError(
-                'DataObjectArraySerializer cannot be used if is_array=False')
+                'ArrayDataObjectSerializer cannot be used if is_array=False')
         return value
 
     def validate(self, data):

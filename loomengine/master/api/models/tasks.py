@@ -153,12 +153,17 @@ class Task(BaseModel):
 
     def create_and_activate_attempt(self):
         task_attempt = TaskAttempt.create_from_task(self)
-        self.selected_task_attempt = task_attempt
-        self.save()
-
-        self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
+        try:
+            self.selected_task_attempt = task_attempt
+            self.save()
+            self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
+        except ConcurrentModificationError as e:
+            task_attempt.add_timepoint(
+                'Failed to update task with newly created task_attempt',
+                detaul=e.message,
+                is_error=True)
+            task_attempt.fail()
         task_attempt.add_timepoint('TaskAttempt %s was created' % task_attempt.uuid)
-
         return task_attempt
 
     def get_input_context(self):
@@ -207,7 +212,7 @@ class TaskInput(BaseModel):
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
 
 
 class TaskOutput(BaseModel):
@@ -217,7 +222,7 @@ class TaskOutput(BaseModel):
                              on_delete=models.CASCADE)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
     source = jsonfield.JSONField(null=True)
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT, null=True)
 
@@ -437,7 +442,7 @@ class TaskAttemptInput(BaseModel):
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
 
 class TaskAttemptOutput(BaseModel):
 
@@ -457,7 +462,7 @@ class TaskAttemptOutput(BaseModel):
         on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
-                            choices=DataObject.TYPE_CHOICES)
+                            choices=DataObject.DATA_TYPE_CHOICES)
     source = jsonfield.JSONField(null=True)
 
 

@@ -6,6 +6,7 @@ from datetime import datetime
 import docker
 import errno
 import json
+import logging
 import os
 import requests
 import string
@@ -18,8 +19,6 @@ import uuid
 import loomengine.utils
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-from loomengine.utils.logger import get_file_logger, get_stdout_logger
-from loomengine.utils.helper import init_directory
 
 
 class WorkerSettingsError(Exception):
@@ -54,7 +53,6 @@ class TaskRunner(object):
             'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
-            'LOG_FILE': args.log_file,
         }
 
         # Errors here can't be reported since there is no server connection
@@ -96,12 +94,8 @@ class TaskRunner(object):
 
     def _init_loggers(self):
         log_level = self.settings['LOG_LEVEL']
-        #if self.settings['LOG_FILE'] is None:
         self.logger = get_stdout_logger(__name__, log_level)
         utils_logger = get_stdout_logger(loomengine.utils.__name__, log_level)
-        #else:
-        #    self.logger = get_file_logger(__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
-        #    utils_logger = get_file_logger(loomengine.utils.__name__, log_level, self.settings['LOG_FILE'], log_stdout_stderr=True)
 
     def _init_task_attempt(self):
         self.task_attempt = self.connection.get_task_attempt(self.settings['TASK_ATTEMPT_ID'])
@@ -541,11 +535,43 @@ class TaskRunner(object):
         return parser
 
 
+def init_directory(directory, new=False):
+    if new and os.path.exists(directory):
+        raise Exception('Directory %s already exists' % directory)
+    if os.path.exists(directory) and not os.path.isdir(directory):
+        raise Exception(
+            'Cannot initialize directory %s since a file exists with that name'
+            % directory)
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError as e:
+        raise Exception('Failed to create directory %s. %s' % (directory, e.strerror))
+
+LOG_LEVELS = {
+    'CRITICAL': logging.CRITICAL,
+    'ERROR': logging.ERROR,
+    'WARNING': logging.WARNING,
+    'INFO': logging.INFO,
+    'DEBUG': logging.DEBUG,
+}
+
+def get_stdout_logger(name, log_level_string):
+    log_level = LOG_LEVELS[log_level_string.upper()]
+    logger = logging.getLogger(name)
+    logger.setLevel(log_level)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(log_level)
+    logger.addHandler(stream_handler)
+    return logger
+
+    
 # pip entrypoint requires a function with no arguments
 def main():
 
     tr = TaskRunner()
     tr.run_with_heartbeats(tr.main)
+
 
 if __name__=='__main__':
     main()

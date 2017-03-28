@@ -107,7 +107,7 @@ class StringDataObjectManager(DataObjectManager):
         return True
 
 
-class DataObjectArrayManager(DataObjectManager):
+class ArrayDataObjectManager(DataObjectManager):
 
     def get_substitution_value(self):
         return [member.substitution_value
@@ -128,9 +128,9 @@ class DataObject(BaseModel):
         'string': StringDataObjectManager,
     }
 
-    _ARRAY_MANAGER_CLASS = DataObjectArrayManager
+    _ARRAY_MANAGER_CLASS = ArrayDataObjectManager
 
-    TYPE_CHOICES = (
+    DATA_TYPE_CHOICES = (
         ('boolean', 'Boolean'),
         ('file', 'File'),
         ('float', 'Float'),
@@ -138,15 +138,15 @@ class DataObject(BaseModel):
         ('string', 'String'),
     )
 
-    uuid = models.CharField(default=uuidstr, editable=False,
+    uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     type = models.CharField(
         max_length=255,
-        choices=TYPE_CHOICES)
+        choices=DATA_TYPE_CHOICES)
     is_array = models.BooleanField(
         default=False)
     datetime_created = models.DateTimeField(
-        default=timezone.now, editable=False)
+        default=timezone.now)
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -170,7 +170,7 @@ class DataObject(BaseModel):
         if not array.is_array:
             raise NonArrayError('Cannot add members when is_array=False')
         if self.is_array:
-            raise NestedArraysError('Cannot nest DataObjectArrays')
+            raise NestedArraysError('Cannot nest ArrayDataObjects')
         ArrayMembership.objects.create(
             array=array, member=self, order=array.prefetch_members.count())
 
@@ -179,24 +179,27 @@ class DataObject(BaseModel):
 
 class BooleanDataObject(DataObject):
 
-    value = models.BooleanField()
+    value = models.BooleanField(null=False)
 
 
 class FileDataObject(DataObject):
 
     NAME_FIELD = 'filename'
     HASH_FIELD = 'md5'
-    
+
+    FILE_SOURCE_TYPE_CHOICES = (('imported', 'Imported'),
+                                ('result', 'Result'),
+                                ('log', 'Log'))
+
     filename = models.CharField(max_length=1024)
-    file_resource = models.ForeignKey('FileResource', null=True,
-                                      related_name='file_data_objects')
+    file_resource = models.ForeignKey('FileResource',
+                                      null=True,
+                                      related_name='file_data_objects',
+                                      on_delete=models.PROTECT)
     md5 = models.CharField(max_length=255)
     source_type = models.CharField(
         max_length=255,
-        choices=(('imported', 'Imported'),
-                 ('result', 'Result'),
-                 ('log', 'Log'))
-    )
+        choices=FILE_SOURCE_TYPE_CHOICES)
     file_import = jsonfield.JSONField(null=True)
 
     def initialize(self):
@@ -242,7 +245,7 @@ class StringDataObject(DataObject):
     value = models.TextField(max_length=10000)
 
 
-class DataObjectArray(DataObject):
+class ArrayDataObject(DataObject):
 
     @property
     def members(self):
@@ -261,7 +264,7 @@ class DataObjectArray(DataObject):
     @classmethod
     def create_from_list(cls, data_object_list, type):
         cls._validate_list(data_object_list, type)
-        array = DataObjectArray.objects.create(is_array=True, type=type)
+        array = ArrayDataObject.objects.create(is_array=True, type=type)
         for data_object in data_object_list:
             data_object.add_to_array(array)
         return array
@@ -274,14 +277,18 @@ class DataObjectArray(DataObject):
                     'Expected type "%s", but DataObject %s is type %s' \
                     % (type, data_object.uuid, data_object.type))
             if data_object.is_array:
-                raise NestedArraysError('Cannot nest DataObjectArrays')
+                raise NestedArraysError('Cannot nest ArrayDataObjects')
 
 
 class ArrayMembership(BaseModel):
 
     # ManyToMany relationship between arrays and their items
-    array = models.ForeignKey('DataObjectArray', related_name='has_array_members_membership')
-    member = models.ForeignKey('DataObject', related_name='in_array_membership')
+    array = models.ForeignKey('ArrayDataObject',
+                              related_name='has_array_members_membership',
+                              on_delete=models.CASCADE)
+    member = models.ForeignKey('DataObject',
+                               related_name='in_array_membership',
+                               on_delete=models.CASCADE)
     order = models.IntegerField()
 
     class Meta:
@@ -290,18 +297,21 @@ class ArrayMembership(BaseModel):
 
 class FileResource(BaseModel):
 
-    uuid = models.CharField(default=uuidstr, editable=False,
+    FILE_RESOURCE_UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
+                                           ('complete', 'Complete'),
+                                           ('failed', 'Failed'))
+    FILE_RESOURCE_UPLOAD_STATUS_DEFAULT = 'incomplete'
+    
+    uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(
-        default=timezone.now, editable=False)
+        default=timezone.now)
     file_url = models.CharField(max_length=1000)
     md5 = models.CharField(max_length=255)
     upload_status = models.CharField(
         max_length=255,
-        default='incomplete',
-        choices=(('incomplete', 'Incomplete'),
-                 ('complete', 'Complete'),
-                 ('failed', 'Failed')))
+        default=FILE_RESOURCE_UPLOAD_STATUS_DEFAULT,
+        choices=FILE_RESOURCE_UPLOAD_STATUS_CHOICES)
 
     def is_ready(self):
         return self.upload_status == 'complete'
