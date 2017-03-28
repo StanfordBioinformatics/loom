@@ -5,6 +5,7 @@ from django.views.decorators.http import require_http_methods
 import json
 import logging
 import os
+import rest_framework
 from rest_framework import viewsets
 from rest_framework.decorators import detail_route
 
@@ -31,7 +32,8 @@ class ExpandableViewSet(viewsets.ModelViewSet):
 
 class DataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of any type, including arrays
+    Data Objects of any type, including arrays.
+    For documentation of each data type, see the respective /api/data-*/ endpoints.
     """
 
     lookup_field = 'uuid'
@@ -62,7 +64,10 @@ class DataObjectViewSet(viewsets.ModelViewSet):
 
 class FileDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of type 'file'
+    Data Objects of type 'file'. parameters: 
+    q = {file query string e.g. filename@uuid};
+    source_type = [ 'log' | 'imported' | 'result' ].
+    All Data Object types including 'file' may be managed at /api/data-objects/
     """
     lookup_field = 'uuid'
     serializer_class = serializers.FileDataObjectSerializer
@@ -82,7 +87,9 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
 
 class StringDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of type 'string'
+    Data Objects of type 'string'.
+    This endpoint is primarily for documentation. 
+    Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
     serializer_class = serializers.StringDataObjectSerializer
@@ -94,7 +101,9 @@ class StringDataObjectViewSet(viewsets.ModelViewSet):
 
 class BooleanDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of type 'boolean'
+    Data Objects of type 'boolean'. 
+    This endpoint is primarily for documentation. 
+    Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
     serializer_class = serializers.BooleanDataObjectSerializer
@@ -106,7 +115,9 @@ class BooleanDataObjectViewSet(viewsets.ModelViewSet):
 
 class IntegerDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of type 'integer'
+    Data Objects of type 'integer'.
+    This endpoint is primarily for documentation. 
+    Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
     serializer_class = serializers.IntegerDataObjectSerializer
@@ -118,7 +129,9 @@ class IntegerDataObjectViewSet(viewsets.ModelViewSet):
 
 class FloatDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of type 'float'
+    Data Objects of type 'float'.
+    This endpoint is primarily for documentation. 
+    Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
     serializer_class = serializers.FloatDataObjectSerializer
@@ -130,7 +143,13 @@ class FloatDataObjectViewSet(viewsets.ModelViewSet):
 
 class ArrayDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Array Data Objects of any type
+    Array Data Objects of any type. 
+    'members' contains a JSON formatted list of member data objects.
+    Each DataObject representation may be a complete object, the value from which
+    a new object will be created, or the identifier from which an existing 
+    FileDataObject can be looked up.
+    This endpoint is primarily for documentation. 
+    Use /api/data-objects/ instead, which accepts both array and non-array DataObjects.
     """
     lookup_field = 'uuid'
     serializer_class = serializers.ArrayDataObjectSerializer
@@ -147,8 +166,8 @@ class DataTreeViewSet(ExpandableViewSet):
     The 'contents' field is a JSON that may be a DataObject, a list of
     DataObjects, or nested lists of DataObjects representing a tree structure.
     Each DataObject representation may be a complete object, the value from which
-    a new object will be created, or the ID string from which an existing object
-    can be looked up.
+    a new object will be created, or the identifier from which an existing 
+    FileDataObject can be looked up.
     """
     lookup_field = 'uuid'
     serializer_class = serializers.DataNodeSerializer
@@ -169,6 +188,9 @@ class DataTreeViewSet(ExpandableViewSet):
 
 
 class FileResourceViewSet(viewsets.ModelViewSet):
+    """
+    FileResource represents the location where a file is stored.
+    """
     lookup_field = 'uuid'
     serializer_class = serializers.FileResourceSerializer
 
@@ -177,6 +199,10 @@ class FileResourceViewSet(viewsets.ModelViewSet):
 
         
 class TaskViewSet(ExpandableViewSet):
+    """
+    A Task represents a specific set of (runtime environment, command, inputs).
+    A step may contain many tasks if its inputs are parallel.
+    """
     lookup_field = 'uuid'
     serializer_class = serializers.TaskSerializer
 
@@ -242,6 +268,10 @@ class TaskViewSet(ExpandableViewSet):
 
 
 class TaskAttemptViewSet(ExpandableViewSet):
+    """
+    A TaskAttempt represents a single attempt at executing a Task.
+    A Task may have multiple TaskAttempts if retries are executed.
+    """
     lookup_field = 'uuid'
     serializer_class = serializers.TaskAttemptSerializer
 
@@ -314,7 +344,8 @@ class TaskAttemptViewSet(ExpandableViewSet):
                            .prefetch_related('timepoints')
         return queryset.order_by('-datetime_created')
 
-    @detail_route(methods=['post'], url_path='create-log-file')
+    @detail_route(methods=['post'], url_path='create-log-file',
+                  serializer_class=serializers.TaskAttemptLogFileSerializer)
     def create_log_file(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
@@ -333,7 +364,8 @@ class TaskAttemptViewSet(ExpandableViewSet):
         model = s.save()
         return JsonResponse(s.data, status=201)
 
-    @detail_route(methods=['post'], url_path='fail')
+    @detail_route(methods=['post'], url_path='fail',
+                  serializer_class=rest_framework.serializers.Serializer)
     def fail(self, request, uuid=None):
         try:
             task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
@@ -342,7 +374,8 @@ class TaskAttemptViewSet(ExpandableViewSet):
         task_attempt.fail()
         return JsonResponse({}, status=201)
 
-    @detail_route(methods=['post'], url_path='finish')
+    @detail_route(methods=['post'], url_path='finish',
+                  serializer_class=rest_framework.serializers.Serializer)
     def finish(self, request, uuid=None):
         try:
             task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
@@ -351,7 +384,8 @@ class TaskAttemptViewSet(ExpandableViewSet):
         task_attempt.finish()
         return JsonResponse({}, status=201)
     
-    @detail_route(methods=['post'], url_path='create-timepoint')
+    @detail_route(methods=['post'], url_path='create-timepoint',
+                  serializer_class=serializers.TaskAttemptTimepointSerializer)
     def create_timepoint(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
@@ -389,6 +423,12 @@ class TaskAttemptViewSet(ExpandableViewSet):
 
 
 class TemplateViewSet(ExpandableViewSet):
+    """
+    A Template is a pattern for analysis to be performed, but without necessarily
+    having inputs assigned. May be type 'step' or 'workflow'. 
+    For documentation of each Template type, 
+    see the respective /api/template-*/ endpoints.
+    """
     lookup_field = 'uuid'
     serializer_class = serializers.TemplateSerializer
 
@@ -409,7 +449,69 @@ class TemplateViewSet(ExpandableViewSet):
                        'step__fixed_inputs__data_root')
         return queryset.order_by('-datetime_created')
 
+
+class StepViewSet(ExpandableViewSet):
+    """
+    Templates of type 'step', which contain a command
+    and runtime environment.
+    This endpoint is primarily for documentation. 
+    Use /api/templates/ instead, which accepts all Template types.
+    """
+    lookup_field = 'uuid'
+    serializer_class = serializers.StepSerializer
+
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        imported = 'imported' in self.request.query_params
+        if query_string:
+            queryset = models.Step.filter_by_name_or_id(query_string)
+        else:
+            queryset = models.Step.objects.all()
+        if imported:
+            queryset = queryset.filter(template_import__isnull=False)
+        queryset = queryset\
+                   .prefetch_related(
+                       'fixed_inputs__data_root')
+        return queryset.order_by('-datetime_created')
+
+
+class WorkflowViewSet(ExpandableViewSet):
+    """
+    Templates of type 'workflow', which act as containers
+    for other Templates. 
+    'steps' is a JSON formatted list of child templates, where
+    each may be type 'step' or 'workflow'.
+    This endpoint is primarily for documentation. 
+    Use /api/templates/ instead, which accepts all Template types.
+    """
+
+    lookup_field = 'uuid'
+    serializer_class = serializers.WorkflowSerializer
+
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        imported = 'imported' in self.request.query_params
+        if query_string:
+            queryset = models.Workflow.filter_by_name_or_id(query_string)
+        else:
+            queryset = models.Workflow.objects.all()
+        if imported:
+            queryset = queryset.filter(template_import__isnull=False)
+        queryset = queryset\
+                   .prefetch_related('steps')\
+                   .prefetch_related(
+                       'fixed_inputs__data_root')
+        return queryset.order_by('-datetime_created')
+
+
 class RunViewSet(ExpandableViewSet):
+    """
+    A Run represents the execution of a Template on a specific set of inputs.
+    May be type 'step' or 'workflow'. 
+    For documentation of each Run type, 
+    see the respective /api/run-*/ endpoints.
+    """
+
     lookup_field = 'uuid'
     serializer_class = serializers.RunSerializer
 
@@ -444,7 +546,81 @@ class RunViewSet(ExpandableViewSet):
                            .prefetch_related('steprun__timepoints')
         return queryset.order_by('-datetime_created')
 
+
+class StepRunViewSet(ExpandableViewSet):
+    """
+    Runs of type 'step', which contain a command
+    and runtime environment.
+    This endpoint is primarily for documentation. 
+    Use /api/runs/ instead, which accepts all Run types.
+    """
+
+    lookup_field = 'uuid'
+    serializer_class = serializers.StepRunSerializer
+
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        parent_only = 'parent_only' in self.request.query_params
+        if query_string:
+            queryset = models.StepRun.filter_by_name_or_id(query_string)
+        else:
+            queryset = models.StepRun.objects.all()
+        if parent_only:
+            queryset = queryset.filter(parent__isnull=True)
+        queryset = queryset.select_related('template')\
+                           .prefetch_related('inputs')\
+                           .prefetch_related('inputs__data_root')\
+                           .prefetch_related('outputs')\
+                           .prefetch_related('outputs__data_root')\
+                           .prefetch_related('tasks')\
+                           .select_related(
+                               'run_request')\
+                           .prefetch_related('timepoints')
+        return queryset.order_by('-datetime_created')
+
+
+class WorkflowRunViewSet(ExpandableViewSet):
+    """
+    Runs of type 'workflow', which act as containers
+    for other Runs. 
+    'steps' is a JSON formatted list of child runs, where
+    each may be type 'step' or 'workflow'.
+    This endpoint is primarily for documentation. 
+    Use /api/runs/ instead, which accepts all Run types.
+    """
+
+    lookup_field = 'uuid'
+    serializer_class = serializers.WorkflowRunSerializer
+
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        parent_only = 'parent_only' in self.request.query_params
+        if query_string:
+            queryset = models.WorkflowRun.filter_by_name_or_id(query_string)
+        else:
+            queryset = models.WorkflowRun.objects.all()
+        if parent_only:
+            queryset = queryset.filter(parent__isnull=True)
+        queryset = queryset.select_related('template')\
+                           .prefetch_related('inputs')\
+                           .prefetch_related(
+                               'inputs__data_root')\
+                           .prefetch_related('outputs')\
+                           .prefetch_related(
+                               'outputs__data_root')\
+                           .prefetch_related('steps')\
+                           .select_related(
+                               'run_request')\
+                           .prefetch_related('timepoints')
+        return queryset.order_by('-datetime_created')
+
+    
 class RunRequestViewSet(ExpandableViewSet):
+    """
+    A RunRequest represents a user request to execute a given Template
+    with a particular set of Inputs. 'template' may be a Template object
+    or an identifier (e.g. template_name@uuid).
+    """
     lookup_field = 'uuid'
     serializer_class = serializers.RunRequestSerializer
 
