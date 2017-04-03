@@ -32,3 +32,8 @@
   docker_container:
     name: "{{ nginx_container_name }}"
     state: absent
+
+- name: Delete the Fluentd server container
+  docker_container:
+    name: "{{ fluentd_container_name }}"
+    state: absent
