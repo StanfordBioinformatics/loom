@@ -1,6 +1,6 @@
 from django.test import TransactionTestCase, override_settings
 
-from api import tasks
+from api import async
 from api.models import *
 from .test_templates import get_workflow
 
@@ -16,7 +16,7 @@ class TestRunRequest(TransactionTestCase):
             type='string', value='one')
         input_one.add_data_as_scalar(data_object)
         run_request.initialize_run()
-        tasks.postprocess_workflow_run(run_request.run.uuid)
+        async.postprocess_workflow_run(run_request.run.uuid)
         return run_request
 
     def testInitialize(self):

@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-from django.dispatch import receiver
 import jsonfield
 import os
 
@@ -8,6 +7,7 @@ from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
 from api.exceptions import NoFileMatchError, MultipleFileMatchesError
+
 
 class TypeMismatchError(Exception):
     pass
@@ -26,7 +26,7 @@ class InvalidSourceTypeError(Exception):
 
 
 class DataObjectManager():
-    
+
     def __init__(self, model):
         self.model = model
 
@@ -42,6 +42,7 @@ class BooleanDataObjectManager(DataObjectManager):
 
     def is_ready(self):
         return True
+
 
 class FileDataObjectManager(DataObjectManager):
 
@@ -67,6 +68,7 @@ class FileDataObjectManager(DataObjectManager):
     def is_ready(self):
         resource = self.model.filedataobject.file_resource
         return resource is not None and resource.is_ready()
+
 
 class FloatDataObjectManager(DataObjectManager):
 
@@ -177,6 +179,7 @@ class DataObject(BaseModel):
     def is_ready(self):
         return self._get_manager().is_ready()
 
+
 class BooleanDataObject(DataObject):
 
     value = models.BooleanField(null=False)
@@ -202,11 +205,7 @@ class FileDataObject(DataObject):
         choices=FILE_SOURCE_TYPE_CHOICES)
     file_import = jsonfield.JSONField(null=True)
 
-    def initialize(self):
-        if not self.file_resource:
-            self._initialize_file_resource()
-
-    def _initialize_file_resource(self):
+    def initialize_file_resource(self):
         # Based on settings, choose the path where the
         # file should be stored and create a FileResource
         # with upload_status=incomplete.

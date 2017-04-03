@@ -1,16 +1,14 @@
-from django.db import models
-from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
-from django.dispatch import receiver
+from django.db import models
 from django.utils import timezone
-import os
 import jsonfield
+import os
 
-from api import tasks
-from api.models import uuidstr
 from .base import BaseModel, render_from_template
-from api.models.data_objects import DataObject, FileDataObject
 from api import get_setting
+from api import async
+from api.models import uuidstr
+from api.models.data_objects import DataObject, FileDataObject
 
 
 class Task(BaseModel):
@@ -116,7 +114,7 @@ class Task(BaseModel):
                     'Task failed to start. '\
                     'Restarting task with retry %s of %s'
                     % (self.attempt_number, max_retries))
-                tasks.run_task(self.uuid)            
+                async.run_task(self.uuid)            
         else:
             self.fail('TaskAttempt %s failed' % old_task_attempt.uuid,
                       detail='TaskAttempt %s was unresponsive, '\
@@ -268,7 +266,6 @@ class TaskAttempt(BaseModel):
     task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
-    # container_id = models.CharField(max_length=255, null=True)
     interpreter = models.CharField(max_length=1024)
     rendered_command = models.TextField()
     environment = jsonfield.JSONField()
@@ -415,32 +412,10 @@ class TaskAttempt(BaseModel):
         if get_setting('PRESERVE_ALL'):
             self.add_timepoint('Skipping cleanup')
             return
-        tasks.cleanup_task_attempt(self.uuid)
+        async.cleanup_task_attempt(self.uuid)
         self.status_is_cleaned_up = True
         self.save()
         self.add_timepoint('Cleaning up')
-        
-#    def get_provenance_data(self, files=None, tasks=None, edges=None):
-#        if files is None:
-#            files = set()
-#        if tasks is None:
-#            tasks = set()
-#        if edges is None:
-#            edges = set()
-
-#        tasks.add(self)
-
-#        for input in self.task.inputs.all():
-#            data = input.data_object
-#            if data.type == 'file':
-#                files.add(data)
-#                edges.add((data.id.hex, self.id.hex))
-#                data.get_provenance_data(files, tasks, edges)
-#            else:
-                # TODO - nonfile data types
-#                pass
-
-#        return files, tasks, edges
 
 
 class TaskAttemptInput(BaseModel):
@@ -452,6 +427,7 @@ class TaskAttemptInput(BaseModel):
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
                             choices=DataObject.DATA_TYPE_CHOICES)
+
 
 class TaskAttemptOutput(BaseModel):
 
@@ -488,18 +464,16 @@ class TaskAttemptLogFile(BaseModel):
         related_name='task_attempt_log_file',
         on_delete=models.PROTECT)
 
-    def _post_save(self):
+    def initialize_file(self):
         # Create a blank file_data_object on save.
         # The client will upload the file to this object.
-        if self.file is None:
-            self.file = FileDataObject.objects.create(
-                source_type='log', type='file', filename=self.log_name)
-            self.file.initialize()
-            self.save()
-
-@receiver(models.signals.post_save, sender=TaskAttemptLogFile)
-def _post_save_task_attempt_log_file_signal_receiver(sender, instance, **kwargs):
-    instance._post_save()
+        if self.file is not None:
+            raise Exception('FileDataObject already exists')
+        self.file = FileDataObject.objects.create(
+            source_type='log', type='file', filename=self.log_name)
+        self.file.initialize()
+        self.save()
+        return self.file
 
 
 class TaskAttemptTimepoint(BaseModel):

@@ -113,7 +113,7 @@ class TestFileDataObject(TestCase):
     def testIsReady(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=True):
-            self.file.initialize()
+            self.file.initialize_file_resource()
 
         self.assertFalse(self.file.is_ready())
         self.file.file_resource.upload_status = 'complete'
@@ -124,8 +124,8 @@ class TestFileDataObject(TestCase):
     def testCreateIncompleteResourceForImportKeepDuplicateTrue(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=True):
-            self.file.initialize()
-            self.file_copy.initialize()
+            self.file.initialize_file_resource()
+            self.file_copy.initialize_file_resource()
 
         # Files should have separate resources, even if contents match
         self.assertNotEqual(self.file.file_resource.uuid,
@@ -134,8 +134,8 @@ class TestFileDataObject(TestCase):
     def testCreateIncompleteResourceForImportKeepDuplicateFalseUploadIncomplete(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=False):
-            self.file.initialize()
-            self.file_copy.initialize()
+            self.file.initialize_file_resource()
+            self.file_copy.initialize_file_resource()
 
         # Files with matching content should not share a resource
         # unless upload is complete
@@ -145,10 +145,10 @@ class TestFileDataObject(TestCase):
     def testCreateIncompleteResourceForImportKeepDuplicateFalseUploadComplete(self):
         with self.settings(
                 KEEP_DUPLICATE_FILES=False):
-            self.file.initialize()
+            self.file.initialize_file_resource()
             self.file.file_resource.upload_status = 'complete'
             self.file.file_resource.save()
-            self.file_copy.initialize()
+            self.file_copy.initialize_file_resource()
 
         # Files with matching content should share a resource
         # provided upload on first resource was complete

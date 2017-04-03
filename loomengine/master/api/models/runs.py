@@ -1,26 +1,29 @@
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import models, IntegrityError
 from django.dispatch import receiver
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils import timezone
 import jsonfield
 
 from .base import BaseModel
 from api import get_setting
+from api import async
 from api.exceptions import *
-from api.models.input_output_nodes import InputOutputNode, InputNodeSet
+from api.models import uuidstr
 from api.models.data_objects import DataObject
+from api.models.input_output_nodes import InputOutputNode, InputNodeSet
 from api.models.tasks import Task, TaskInput, TaskOutput
 from api.models.templates import Template
-from api.models import uuidstr
-from api import tasks
+
 
 """
-This module defines WorkflowRun and other classes related to
+This module defines Run and other classes related to
 running an analysis
 """
 
+
 class RunAlreadyClaimedForPostprocessing(Exception):
     pass
+
 
 class WorkflowRunManager(object):
 
@@ -104,8 +107,6 @@ class Run(BaseModel):
     status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
     status_is_running = models.BooleanField(default=True)
-    # True if ANY input ports have not received all inputs
-    # status_waiting_for_inputs = models.BooleanField(default=False)
 
     @property
     def status(self):
@@ -119,7 +120,7 @@ class Run(BaseModel):
             return 'Finished'
         else:
             return 'Unknown'
-    
+
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]
@@ -130,7 +131,7 @@ class Run(BaseModel):
     @property
     def inputs(self):
         return self._get_manager().get_inputs()
-    
+
     @property
     def outputs(self):
         return self._get_manager().get_outputs()
@@ -184,7 +185,7 @@ class Run(BaseModel):
             # is ready
             template = Template.objects.get(uuid=template.uuid)
             if template.postprocessing_status == 'complete':
-                tasks.postprocess_step_run(run.uuid)
+                async.postprocess_step_run(run.uuid)
         else:
             assert template.type == 'workflow', \
                 'Invalid template type "%s"' % template.type
@@ -203,7 +204,7 @@ class Run(BaseModel):
             # is ready
             template = Template.objects.get(uuid=template.uuid)
             if template.postprocessing_status == 'complete':
-                tasks.postprocess_workflow_run(run.uuid)
+                async.postprocess_workflow_run(run.uuid)
 
         run.add_timepoint("Run %s@%s was created" % (run.name, run.uuid))
         if run.parent:
@@ -328,16 +329,9 @@ class RunTimepoint(BaseModel):
     message = models.CharField(max_length=255)
     detail = models.TextField(null=True, blank=True)
     is_error = models.BooleanField(default=False)
-    
+
 
 class WorkflowRun(Run):
-
-    # True if ANY steps are running
-    # status_running = models.BooleanField(default=False)
-
-    # status_steps_waiting = models.IntegerField(default=0)
-    # status_steps_running = models.IntegerField(default=0)
-    # status_steps_finished = models.IntegerField(default=0)
 
     def add_step(self, step_run):
         step_run.parent = self
@@ -599,6 +593,7 @@ class AbstractStepRunInput(InputOutputNode):
     class Meta:
         abstract=True
 
+
 class StepRunInput(AbstractStepRunInput):
 
     step_run = models.ForeignKey('StepRun',
@@ -633,6 +628,7 @@ class WorkflowRunConnectorNode(InputOutputNode):
 
     class Meta:
         unique_together = (("workflow_run", "channel"),)
+
 
 class WorkflowRunInput(InputOutputNode):
 

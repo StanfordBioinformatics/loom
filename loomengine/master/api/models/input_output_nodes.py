@@ -1,8 +1,9 @@
-from .base import BaseModel
 from django.db import models
 
+from .base import BaseModel
 from api.models.data_objects import DataObject
 from api.models.data_trees import DataNode
+
 
 """
 InputOutputNodes are connected to facilitate the flow of data in a workflow, e.g. from 
@@ -15,8 +16,10 @@ StepRunInput/Output) but not by TaskRuns, TaskRunAttempts, or TaskDefinitions si
 these only contain data as scalars or 1-dimensional arrays.
 """
 
+
 class ConnectError(Exception):
     pass
+
 
 class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
@@ -140,7 +143,7 @@ class InputItem(object):
 
 class InputSet(object):
     """An InputNodeSet can produce one or more InputSets, and each
-    InputSet corresponds to a single TaskRun.
+    InputSet corresponds to a single Task.
     """
 
     def __init__(self, input_nodes):

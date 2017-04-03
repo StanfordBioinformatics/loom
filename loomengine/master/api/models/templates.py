@@ -1,15 +1,16 @@
-from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
-from django.dispatch import receiver
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.dispatch import receiver
 from django.utils import timezone
 import jsonfield
 
-from api.models import uuidstr
 from .base import BaseModel
 from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
 from api.exceptions import NoTemplateInputMatchError
+from api.models import uuidstr
+
 
 """
 This module defines Templates. A Template is either 
@@ -19,9 +20,11 @@ environment, while Workflows are collections of other Steps
 or Workflows.
 """
 
+
 DEFAULT_INPUT_GROUP = 0
 DEFAULT_INPUT_MODE = 'no_gather'
 DEFAULT_OUTPUT_MODE = 'no_scatter'
+
 
 class WorkflowManager(object):
 
@@ -211,7 +214,7 @@ class FixedStepInput(InputOutputNode):
         return
 
 
-class WorkflowMembership(models.Model):
+class WorkflowMembership(BaseModel):
 
     parent_template = models.ForeignKey('Workflow', related_name='children')
     child_template = models.ForeignKey('Template', related_name='parents', 
@@ -222,6 +225,3 @@ class WorkflowMembership(models.Model):
             WorkflowMembership.objects.create(
                 parent_template=parent,
                 child_template=step)
-
-    class Meta:
-        app_label = 'api'

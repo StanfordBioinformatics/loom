@@ -1,9 +1,10 @@
-from .base import BaseModel
-from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import models
 
+from .base import BaseModel
 from api.models.data_objects import DataObject
 from api.models import uuidstr
+
 
 """
 Data under each InputOutputNode is represented as a tree of DataNodes. This
@@ -11,6 +12,7 @@ lets us represent multidimensional data to allow for nested scatter-gather,
 e.g. scatter-scatter-gather-gather, where the layers of scatter are maintained
 as distinct.
 """
+
 
 class IndexOutOfRangeError(Exception):
     pass
@@ -29,6 +31,7 @@ class UnexpectedLeafNodeError(Exception):
 class MissingBranchError(Exception):
     pass
 
+
 class DataNode(BaseModel):
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
@@ -41,8 +44,10 @@ class DataNode(BaseModel):
         null=True,
         related_name = 'children',
         on_delete=models.PROTECT)
-    index = models.IntegerField(null=True) # 0 <= index < self.parent.degree; null if no parent
-    degree = models.IntegerField(null=True) # expected number of children; null if leaf, 0 if empty
+    # 0 <= index < self.parent.degree; null if no parent
+    index = models.IntegerField(null=True)
+    # degree is expected number of children; null if leaf, 0 if empty branch
+    degree = models.IntegerField(null=True)
     data_object = models.ForeignKey('DataObject',
                                     related_name = 'data_nodes',
                                     null=True) # null except on leaves

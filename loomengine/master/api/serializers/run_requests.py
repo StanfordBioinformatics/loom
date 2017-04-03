@@ -8,7 +8,6 @@ from api.models.runs import Run
 from api.models.run_requests import RunRequest, RunRequestInput
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 from api.serializers.templates import TemplateSerializer, ExpandableTemplateSerializer
-from api import tasks
 from api.exceptions import NoTemplateInputMatchError, \
     ChannelNameCollisionError
 

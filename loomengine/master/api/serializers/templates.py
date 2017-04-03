@@ -4,7 +4,7 @@ from django.db import transaction
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.templates import *
 from api.models.input_output_nodes import InputOutputNode
-from api import tasks
+from api import async
 from .input_output_nodes import InputOutputNodeSerializer
 
 
@@ -152,7 +152,7 @@ class StepSerializer(serializers.HyperlinkedModelSerializer):
         with transaction.atomic():
             step = super(StepSerializer, self).create(validated_data)
 
-        tasks.postprocess_step(step.uuid)
+        async.postprocess_step(step.uuid)
 
         return step
 
@@ -188,7 +188,7 @@ class StepSerializer(serializers.HyperlinkedModelSerializer):
         # template finished postprocessing. If runs exist, postprocess them now.
         step = Step.objects.get(uuid=step.uuid)
         for step_run in step.runs.all():
-            tasks.postprocess_step_run(step_run.uuid)
+            async.postprocess_step_run(step_run.uuid)
 
 
 class TemplateLookupSerializer(serializers.Serializer):
@@ -260,7 +260,7 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
         with transaction.atomic():
             workflow = super(WorkflowSerializer, self).create(validated_data)
 
-        tasks.postprocess_workflow(workflow.uuid)
+        async.postprocess_workflow(workflow.uuid)
 
         return workflow
 
@@ -296,7 +296,7 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
 
             workflow = Workflow.objects.get(uuid=workflow.uuid)
             for workflow_run in workflow.runs.all():
-                tasks.postprocess_workflow_run(workflow_run.uuid)
+                async.postprocess_workflow_run(workflow_run.uuid)
 
         except Exception as e:
             workflow.postprocessing_status = 'failed'

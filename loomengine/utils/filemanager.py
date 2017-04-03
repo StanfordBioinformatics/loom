@@ -492,7 +492,7 @@ class FileManager:
                     'Use "--force-duplicates" if you want to create another copy.'
                     % (md5, '", "'.join(matches)))
         
-        return self.connection.post_data_object({
+        file_data_object = self.connection.post_data_object({
             'type': 'file',
             'filename': filename,
             'md5': md5,
@@ -501,6 +501,9 @@ class FileManager:
                 'note': note },
             'source_type': 'imported',
         })
+        file_data_object = self.connection.file_data_object_initialize_file_resource(
+            file_data_object.get('uuid'))
+        return file_data_object
 
     def import_result_file(self, task_attempt_output, source_url):
         self.logger.info('Calculating md5 on file "%s"...' % source_url)
@@ -523,8 +526,9 @@ class FileManager:
                     'source_type': 'result',
                     'md5': md5,
                 }})
-        return self.connection.get_data_object(
+        file_data_object = self.connection.file_data_object_initialize_file_resource(
             updated_task_attempt_output['data_object']['uuid'])
+        return file_data_object
 
     def import_log_file(self, task_attempt, source_url):
         log_name = os.path.basename(source_url)
@@ -535,17 +539,20 @@ class FileManager:
         source = Source(source_url, self.settings)
         md5 = source.calculate_md5()
 
-        file_data_object = self.connection.get_data_object(log_file['file']['uuid'])
+        task_attempt_log_file = self.\
+                           connection.task_attempt_log_file_initialize_file_data_object(
+                               log_file['uuid'])
+        file_data_object = task_attempt_log_file.get('file')
 
         assert not file_data_object.get('md5')
         file_data_object.update({'md5': md5,
                                  'filename': log_name})
-        file_data_object['file_resource'].update({'md5': md5})
-        
         # update file_data_object with md5 and other missing info
         file_data_object = self.connection.update_data_object(
             log_file['file']['uuid'], file_data_object)
-        
+        file_data_object = self.connection.file_data_object_initialize_file_resource(
+            file_data_object['uuid'])
+
         return self._execute_file_import(
             file_data_object,
             source_url

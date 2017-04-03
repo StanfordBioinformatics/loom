@@ -2,7 +2,7 @@ from django.db import models
 import jinja2
 import re
 
-from api.exceptions import *
+from api.exceptions import ConcurrentModificationError
 
 
 def render_from_template(raw_text, context):
@@ -10,54 +10,6 @@ def render_from_template(raw_text, context):
     env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)
     template = env.get_template('template')
     return template.render(**context)
-
-
-class _ModelNameMixin(object):
-
-    _class_name = None
-    _class_name_plural = None
-
-    # Used for CamelCase to underscore conversions
-    first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-    all_cap_re = re.compile('([a-z0-9])([A-Z])')
-    
-    @classmethod
-    def get_class_name(cls, plural=False, hyphen=False):
-        
-        if plural:
-            name = cls._get_plural_name()
-        else:
-            name = cls._get_singular_name()
-        if hyphen:
-            name = name.replace('_','-')
-            
-        return name
-
-    @classmethod
-    def _get_singular_name(cls):
-        if cls._class_name is not None:
-            return cls._class_name
-        else:
-            return cls._camel_to_underscore(cls.__name__)
-        
-    @classmethod
-    def _get_plural_name(cls):
-        if cls._class_name_plural is not None:
-            return cls._class_name_plural
-        else:
-            return cls._pluralize(cls._get_singular_name())
-
-    @classmethod
-    def _pluralize(cls, text):
-        if text.endswith(('s', 'x')):
-            return text + 'es'
-        else:
-            return text + 's'
-
-    @classmethod
-    def _camel_to_underscore(cls, text):
-        s1 = cls.first_cap_re.sub(r'\1_\2', text)
-        return cls.all_cap_re.sub(r'\1_\2', s1).lower()
 
 
 class FilterHelper(object):
@@ -121,6 +73,7 @@ class FilterHelper(object):
         id = '@'.join(parts[1:])
         return name, id
 
+
 class _FilterMixin(object):
 
     NAME_FIELD = None
@@ -136,7 +89,7 @@ class _FilterMixin(object):
         return helper.filter_by_name_or_id(filter_string)
 
 
-class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):
+class BaseModel(models.Model, _FilterMixin):
 
     _change = models.IntegerField(default=0)
 
@@ -145,6 +98,11 @@ class BaseModel(models.Model, _ModelNameMixin, _FilterMixin):
         app_label = 'api'
 
     def save(self, *args, **kwargs):
+        """
+        This save method protects against two processesses concurrently modifying
+        the same object. Normally the second save would silently overwrite the
+        changes from the first. Instead we raise a ConcurrentModificationError.
+        """
         cls = self.__class__
         if self.pk:
             rows = cls.objects.filter(

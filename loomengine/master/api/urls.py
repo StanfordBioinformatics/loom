@@ -68,18 +68,17 @@ router.register('run-requests',
                 api.views.RunRequestViewSet,
                 base_name='run-request')
 
-# file_provenance_detail = api.views.FileProvenanceViewSet.as_view({'get':'retrieve'})
-
 urlpatterns = [
     url(r'^', include(router.urls)),
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
     url(r'^filemanager-settings/$', api.views.filemanager_settings),
     url('^doc/$', get_swagger_view(title='Loom API')),
-    #    url(r'^files/(?P<pk>[a-zA-Z0-9]+)/provenance/$', file_provenance_detail, name='file_provenance_detail'),
 ]
 
 if settings.DEBUG:
+    # This view is for testing response to a server error, e.g. where
+    # server errors are logged.
     urlpatterns.append(
         url('^error/$', api.views.raise_server_error)
     )

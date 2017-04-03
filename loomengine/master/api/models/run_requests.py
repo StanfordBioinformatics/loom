@@ -6,6 +6,7 @@ from .base import BaseModel
 from .input_output_nodes import InputOutputNode
 from .runs import Run
 
+
 class RunRequest(BaseModel):
 
     """RunRequest contains information submitted by a user

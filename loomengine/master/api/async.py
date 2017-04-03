@@ -74,40 +74,6 @@ def postprocess_workflow_run(*args, **kwargs):
         return
     return _run_with_delay(_postprocess_workflow_run, args, kwargs)
 
-@periodic_task(run_every=datetime.timedelta(seconds=30))
-def process_active_step_runs():
-    from api.models.runs import StepRun
-    if get_setting('TEST_NO_AUTOSTART_RUNS'):
-        return
-    for step_run in StepRun.objects.filter(status_is_running=True):
-        args = [step_run.uuid]
-        kwargs = {}
-        _run_with_delay(_create_tasks_from_step_run, args, kwargs)
-
-@shared_task
-def _create_tasks_from_step_run(step_run_uuid):
-    from api.models.runs import StepRun
-    step_run = StepRun.objects.get(uuid=step_run_uuid)
-    for task in step_run.create_ready_tasks():
-        args = [task.uuid]
-        kwargs = {}
-        _run_with_delay(_run_task, args, kwargs)
-
-#@periodic_task(run_every=datetime.timedelta(seconds=60))
-#def process_active_tasks():
-#    from api.models.tasks import Task
-#    if get_setting('TEST_NO_AUTOSTART_RUNS'):
-#        return
-#    for task in Task.objects.filter(status_is_running=True):
-#        if not task.has_been_run():
-#            args = [task.uuid]
-#            kwargs = {}
-#            _run_with_delay(_run_task, args, kwargs)
-        # elif task.is_unresponsive():
-        #    task.restart()
-        # Else task is running ok. Nothing to do.
-        # State changes will be driven by the active TaskAttempt
-
 @shared_task
 def _run_task(task_uuid):
     # If task has been run before, old TaskAttempt will be rendered inactive
