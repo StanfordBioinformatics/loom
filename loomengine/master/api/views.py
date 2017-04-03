@@ -12,6 +12,7 @@ from rest_framework.decorators import detail_route
 from api import get_setting
 from api import models
 from api import serializers
+from api import tasks
 from loomengine.utils import version
 
 
@@ -67,7 +68,8 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
     Data Objects of type 'file'. parameters: 
     q = {file query string e.g. filename@uuid};
     source_type = [ 'log' | 'imported' | 'result' ].
-    All Data Object types including 'file' may be managed at /api/data-objects/
+    All Data Object types including 'file' may be managed at /api/data-objects/,
+    but file-specific parameters are processed only at /api/data-files/
     """
     lookup_field = 'uuid'
     serializer_class = serializers.FileDataObjectSerializer
@@ -381,7 +383,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
             task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
-        task_attempt.finish()
+        tasks.finish_task_attempt(task_attempt.uuid)
         return JsonResponse({}, status=201)
     
     @detail_route(methods=['post'], url_path='create-timepoint',

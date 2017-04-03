@@ -5,6 +5,7 @@ import copy
 import datetime
 from django import db
 from django.utils import timezone
+import logging
 from api import get_setting
 import kombu.exceptions
 import os
@@ -13,21 +14,18 @@ import sys
 import threading
 import time
 
+from api.exceptions import ConcurrentModificationError
+
+logger = logging.getLogger(__name__)
+
 def _run_with_delay(task_function, args, kwargs):
     if get_setting('TEST_DISABLE_TASK_DELAY'):
         # Delay disabled, run synchronously
         return task_function(*args, **kwargs)
 
     db.connections.close_all()
-    try:
-        task_function.delay(*args, **kwargs)
-    except kombu.exceptions.OperationalError as e:
-        if e.message.startswith('[Errno 8]'):
-            raise Exception(
-                "Message passing service for asynchronous tasks not found. "
-                "Have you configured RabbitMQ correctly?")
-        else:
-            raise e
+    time.sleep(0.0001) # Release the GIL
+    task_function.delay(*args, **kwargs)
 
 @shared_task
 def _postprocess_workflow(workflow_uuid):
@@ -95,18 +93,18 @@ def _create_tasks_from_step_run(step_run_uuid):
         kwargs = {}
         _run_with_delay(_run_task, args, kwargs)
 
-@periodic_task(run_every=datetime.timedelta(seconds=60))
-def process_active_tasks():
-    from api.models.tasks import Task
-    if get_setting('TEST_NO_AUTOSTART_RUNS'):
-        return
-    for task in Task.objects.filter(status_is_running=True):
-        if not task.has_been_run():
-            args = [task.uuid]
-            kwargs = {}
-            _run_with_delay(_run_task, args, kwargs)
-        elif task.is_unresponsive():
-            task.restart()
+#@periodic_task(run_every=datetime.timedelta(seconds=60))
+#def process_active_tasks():
+#    from api.models.tasks import Task
+#    if get_setting('TEST_NO_AUTOSTART_RUNS'):
+#        return
+#    for task in Task.objects.filter(status_is_running=True):
+#        if not task.has_been_run():
+#            args = [task.uuid]
+#            kwargs = {}
+#            _run_with_delay(_run_task, args, kwargs)
+        # elif task.is_unresponsive():
+        #    task.restart()
         # Else task is running ok. Nothing to do.
         # State changes will be driven by the active TaskAttempt
 
@@ -122,20 +120,31 @@ def run_task(*args, **kwargs):
     return _run_with_delay(_run_task, args, kwargs)
 
 def _run_with_heartbeats(task_attempt, function, args=None, kwargs=None):
-        heartbeat_interval = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
-        polling_interval = 1
+    from api.models.tasks import TaskAttempt
+    heartbeat_interval = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
+    polling_interval = 1
 
-	t = threading.Thread(target=function, args=args, kwargs=kwargs)
-        t.start()
+    t = threading.Thread(target=function, args=args, kwargs=kwargs)
+    t.start()
 
-        task_attempt.heartbeat()
-        last_heartbeat = timezone.now()
+    last_heartbeat = datetime.datetime(datetime.MINYEAR,1,1,0,0, tzinfo=timezone.UTC())
 
-	while t.is_alive():
-            time.sleep(polling_interval)
-            if (timezone.now() - last_heartbeat).total_seconds() > heartbeat_interval:
-                task_attempt.heartbeat()
-                last_heartbeat = timezone.now()
+    while t.is_alive():
+        if (timezone.now() - last_heartbeat).total_seconds() > heartbeat_interval:
+            save_tries_left = 3
+            while save_tries_left > 0:
+                try:
+                    task_attempt = TaskAttempt.objects.get(uuid=task_attempt.uuid)
+                    task_attempt.heartbeat()
+                    break
+                except ConcurrentModificationError:
+                    if save_tries_left == 0:
+                        logger.warn('Failed to send heartbeat for TaskAttemp %s' %
+                                     task_attempt.uuid)
+                        break
+                save_tries_left -= 1
+            last_heartbeat = timezone.now()
+        time.sleep(polling_interval)
 
 def _run_task_runner_playbook(task_attempt):
     env = copy.copy(os.environ)
@@ -215,3 +224,15 @@ def _run_cleanup_task_playbook(task_attempt):
     env.update(new_vars)
 
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
+
+@shared_task
+def _finish_task_attempt(task_attempt_uuid):
+    from api.models.tasks import TaskAttempt
+    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
+    task_attempt.finish()
+
+def finish_task_attempt(task_attempt_uuid):
+    args = [task_attempt_uuid]
+    kwargs = {}
+    return _run_with_delay(_finish_task_attempt, args, kwargs)
+

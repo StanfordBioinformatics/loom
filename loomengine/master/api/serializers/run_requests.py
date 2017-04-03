@@ -6,7 +6,6 @@ from django.core.exceptions import ValidationError
 from api.models.data_objects import DataObject
 from api.models.runs import Run
 from api.models.run_requests import RunRequest, RunRequestInput
-from api.models.signals import post_save_children
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 from api.serializers.templates import TemplateSerializer, ExpandableTemplateSerializer
 from api import tasks

@@ -4,7 +4,6 @@ from django.db import transaction
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.templates import *
 from api.models.input_output_nodes import InputOutputNode
-from api.models.signals import post_save_children
 from api import tasks
 from .input_output_nodes import InputOutputNodeSerializer
 

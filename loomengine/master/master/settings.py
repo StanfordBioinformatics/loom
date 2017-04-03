@@ -150,7 +150,8 @@ CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
                     % (LOOM_RABBITMQ_USER, LOOM_RABBITMQ_PASSWORD,
                        LOOM_RABBITMQ_HOST, LOOM_RABBITMQ_PORT,
                        LOOM_RABBITMQ_VHOST)
-CELERY_BROKER_POOL_LIMIT = None
+CELERY_BROKER_POOL_LIMIT = 50
+CELERYD_TASK_SOFT_TIME_LIMIT = 60
 
 INSTALLED_APPS = [
     'django.contrib.auth',
@@ -230,7 +231,6 @@ def _get_mysql_databases():
             'NAME': LOOM_MYSQL_DATABASE,
             'USER': LOOM_MYSQL_USER,
             'PORT': LOOM_MYSQL_PORT,
-            'CONN_MAX_AGE': 600,
         }
     }
 

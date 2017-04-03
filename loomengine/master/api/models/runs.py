@@ -351,7 +351,7 @@ class WorkflowRun(Run):
             run._claim_for_postprocessing()
         except RunAlreadyClaimedForPostprocessing:
             return
-
+        
         try:
             run._initialize_inputs()
             run._initialize_outputs()
@@ -360,10 +360,11 @@ class WorkflowRun(Run):
             run.postprocessing_status = 'complete'
             run.save()
         except Exception as e:
+            run = WorkflowRun.objects.get(uuid=run_uuid)
             run.postprocessing_status = 'failed'
             run.save()
             run.fail('Postprocessing failed', detail=e.message)
-            raise e
+            raise
 
     def _initialize_inputs(self):
         run = self.downcast()
@@ -513,7 +514,7 @@ class StepRun(Run):
             run.postprocessing_status = 'failed'
             run.save()
             run.fail('Postprocessing failed', detail=e.message)
-            raise e
+            raise
 
     def _initialize_inputs(self):
         visited_channels = set()

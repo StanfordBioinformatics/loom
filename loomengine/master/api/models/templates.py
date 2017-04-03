@@ -9,7 +9,6 @@ from api.models import uuidstr
 from .base import BaseModel
 from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
-from .signals import post_save_children
 from api.exceptions import NoTemplateInputMatchError
 
 """

@@ -98,17 +98,25 @@ class Task(BaseModel):
 
     def restart(self):
         old_task_attempt = self.selected_task_attempt
-        old_task_attempt.kill('TaskAttempt killed because it was unresponsive.')
-        if not get_setting('PRESERVE_ON_FAILURE'):
-            old_task_attempt.cleanup()
+        if old_task_attempt:
+            old_task_attempt.kill('TaskAttempt killed because it was unresponsive.')
+            if not get_setting('PRESERVE_ON_FAILURE'):
+                old_task_attempt.cleanup()
 
         max_retries = int(get_setting('MAXIMUM_TASK_RETRIES'))
         if self.attempt_number - 1 < max_retries:
-            self.add_timepoint(
-                'TaskAttempt %s was unresponsive. Restarting task with retry %s of %s'
-                % (old_task_attempt.uuid, self.attempt_number, max_retries),
-                is_error=True)
-            tasks.run_task(self.uuid)            
+            if old_task_attempt:
+                self.add_timepoint(
+                    'TaskAttempt %s was unresponsive. '\
+                    'Restarting task with retry %s of %s'
+                    % (old_task_attempt.uuid, self.attempt_number, max_retries),
+                    is_error=True)
+            else:
+                self.add_timepoint(
+                    'Task failed to start. '\
+                    'Restarting task with retry %s of %s'
+                    % (self.attempt_number, max_retries))
+                tasks.run_task(self.uuid)            
         else:
             self.fail('TaskAttempt %s failed' % old_task_attempt.uuid,
                       detail='TaskAttempt %s was unresponsive, '\
@@ -152,17 +160,18 @@ class Task(BaseModel):
         return task
 
     def create_and_activate_attempt(self):
-        task_attempt = TaskAttempt.create_from_task(self)
         try:
+            task_attempt = TaskAttempt.create_from_task(self)
             self.selected_task_attempt = task_attempt
             self.save()
             self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
         except ConcurrentModificationError as e:
             task_attempt.add_timepoint(
                 'Failed to update task with newly created task_attempt',
-                detaul=e.message,
+                detail=e.message,
                 is_error=True)
             task_attempt.fail()
+            raise
         task_attempt.add_timepoint('TaskAttempt %s was created' % task_attempt.uuid)
         return task_attempt
 
