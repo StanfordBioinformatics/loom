@@ -198,12 +198,13 @@ class FileDataObject(DataObject):
     file_resource = models.ForeignKey('FileResource',
                                       null=True,
                                       related_name='file_data_objects',
-                                      on_delete=models.PROTECT)
+                                      on_delete=models.PROTECT,
+                                      blank=True)
     md5 = models.CharField(max_length=255)
     source_type = models.CharField(
         max_length=255,
         choices=FILE_SOURCE_TYPE_CHOICES)
-    file_import = jsonfield.JSONField(null=True)
+    file_import = jsonfield.JSONField(null=True, blank=True)
 
     def initialize_file_resource(self):
         # Based on settings, choose the path where the

@@ -19,6 +19,7 @@ class RunRequest(BaseModel):
     template = models.ForeignKey('Template', on_delete=models.PROTECT)
     run = models.OneToOneField('Run',
                                null=True,
+                               blank=True,
                                related_name='run_request',
                                on_delete=models.PROTECT)
 

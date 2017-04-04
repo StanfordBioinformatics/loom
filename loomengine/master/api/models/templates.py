@@ -21,11 +21,6 @@ or Workflows.
 """
 
 
-DEFAULT_INPUT_GROUP = 0
-DEFAULT_INPUT_MODE = 'no_gather'
-DEFAULT_OUTPUT_MODE = 'no_scatter'
-
-
 class WorkflowManager(object):
 
     def __init__(self, template):
@@ -93,7 +88,7 @@ class Template(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
-    template_import = jsonfield.JSONField(null=True)
+    template_import = jsonfield.JSONField(null=True, blank=True)
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -160,9 +155,9 @@ class Workflow(Template):
         through='WorkflowMembership',
         through_fields=('parent_template', 'child_template'),
         related_name='workflows')
-    outputs = jsonfield.JSONField(null=True)
-    inputs = jsonfield.JSONField(null=True)
-    raw_data = jsonfield.JSONField(null=True)
+    outputs = jsonfield.JSONField(null=True, blank=True)
+    inputs = jsonfield.JSONField(null=True, blank=True)
+    raw_data = jsonfield.JSONField(null=True, blank=True)
 
     def add_step(self, step):
         WorkflowMembership.add_step_to_workflow(step, self)
@@ -189,11 +184,11 @@ class Step(Template):
 
     command = models.TextField()
     interpreter = models.CharField(max_length=1024, default='/bin/bash -euo pipefail')
-    environment = jsonfield.JSONField(null=True)
-    outputs = jsonfield.JSONField(null=True)
-    inputs = jsonfield.JSONField(null=True)
-    resources = jsonfield.JSONField(null=True)
-    raw_data = jsonfield.JSONField(null=True)
+    environment = jsonfield.JSONField(null=True, blank=True)
+    outputs = jsonfield.JSONField(null=True, blank=True)
+    inputs = jsonfield.JSONField(null=True, blank=True)
+    resources = jsonfield.JSONField(null=True, blank=True)
+    raw_data = jsonfield.JSONField(null=True, blank=True)
 
 
 class FixedStepInput(InputOutputNode):
@@ -202,8 +197,8 @@ class FixedStepInput(InputOutputNode):
         'Step',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, default=DEFAULT_INPUT_MODE)
-    group = models.IntegerField(default=DEFAULT_INPUT_GROUP)
+    mode = models.CharField(max_length=255)
+    group = models.IntegerField()
 
     class Meta:
         app_label = 'api'
@@ -218,7 +213,7 @@ class WorkflowMembership(BaseModel):
 
     parent_template = models.ForeignKey('Workflow', related_name='children')
     child_template = models.ForeignKey('Template', related_name='parents', 
-                                       null=True)
+                                       null=True, blank=True)
 
     @classmethod
     def add_step_to_workflow(cls, step, parent):

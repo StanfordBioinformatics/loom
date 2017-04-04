@@ -36,21 +36,24 @@ class DataTreeNode(BaseModel):
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     root_node = models.ForeignKey('DataTreeNode',
-                                  null=True, 
+                                  null=True,
+                                  blank=True,
                                   related_name='descendants',
                                   on_delete=models.SET_NULL)
     parent = models.ForeignKey(
         'DataTreeNode',
         null=True,
+        blank=True,
         related_name = 'children',
         on_delete=models.PROTECT)
     # 0 <= index < self.parent.degree; null if no parent
-    index = models.IntegerField(null=True)
+    index = models.IntegerField(null=True, blank=True)
     # degree is expected number of children; null if leaf, 0 if empty branch
-    degree = models.IntegerField(null=True)
+    degree = models.IntegerField(null=True, blank=True)
     data_object = models.ForeignKey('DataObject',
                                     related_name = 'data_tree_nodes',
-                                    null=True) # null except on leaves
+                                    null=True, # null except on leaves
+                                    blank=True)
 
     EMPTY_BRANCH_VALUE = []
 

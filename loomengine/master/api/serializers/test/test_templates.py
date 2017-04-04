@@ -13,7 +13,9 @@ from api.serializers.templates import *
 class TestFixedStepInputSerializer(TestCase):
 
     def testCreate(self):
-        step = Step(command='test command')
+        step = Step(command='test command',
+                    type='step',
+                    name='test')
         step.save()
 
         s = FixedStepInputSerializer(
@@ -29,14 +31,15 @@ class TestFixedStepInputSerializer(TestCase):
 
 
     def testRender(self):
-        step = Step(command='test command')
+        step = Step(command='test command',
+                    type='step',
+                    name='test')
         step.save()
 
         s = FixedStepInputSerializer(
             data=fixtures.templates.fixed_step_input,
             context={'parent_field': 'step',
                      'parent_instance': step})
-            
         s.is_valid(raise_exception=True)
         fixed_input = s.save()
 
@@ -51,7 +54,7 @@ class TestStepSerializer(TransactionTestCase):
         with self.settings(TEST_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
             s = StepSerializer(data=fixtures.templates.step_a)
-            s.is_valid()
+            s.is_valid(raise_exception=True)
             m = s.save()
 
         self.assertEqual(m.command, fixtures.templates.step_a['command'])
@@ -64,7 +67,7 @@ class TestStepSerializer(TransactionTestCase):
                            WORKER_TYPE='MOCK'):
             s = StepSerializer(data=fixtures.templates.step_a,
                                context=get_mock_context())
-            s.is_valid()
+            s.is_valid(raise_exception=True)
             m = s.save()
 
         self.assertEqual(m.command, s.data['command'])
@@ -76,7 +79,7 @@ class TestWorkflowSerializer(TransactionTestCase):
     def testCreateFlatWorkflow(self):
         s = WorkflowSerializer(data=fixtures.templates.flat_workflow,
                                context=get_mock_context())
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
 
         self.assertEqual(
@@ -88,7 +91,7 @@ class TestWorkflowSerializer(TransactionTestCase):
 
     def testCreateNestedWorkflow(self):
         s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
 
         self.assertEqual(
@@ -102,7 +105,7 @@ class TestWorkflowSerializer(TransactionTestCase):
     def testRender(self):
         s = WorkflowSerializer(data=fixtures.templates.nested_workflow,
                                context=get_mock_context())
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
 
         self.assertEqual(s.data['name'], 'nested')
@@ -114,7 +117,7 @@ class TestTemplateSerializer(TransactionTestCase):
         with self.settings(TEST_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
             s = TemplateSerializer(data=fixtures.templates.step_a)
-            s.is_valid()
+            s.is_valid(raise_exception=True)
             m = s.save()
 
         self.assertEqual(m.step.command, fixtures.templates.step_a['command'])
@@ -126,7 +129,7 @@ class TestTemplateSerializer(TransactionTestCase):
         with self.settings(TEST_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
             s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-            s.is_valid()
+            s.is_valid(raise_exception=True)
             m = s.save()
 
         self.assertEqual(
@@ -140,7 +143,7 @@ class TestTemplateSerializer(TransactionTestCase):
         with self.settings(TEST_DISABLE_TASK_DELAY=True,
                            WORKER_TYPE='MOCK'):
             s = TemplateSerializer(data=fixtures.templates.nested_workflow)
-            s.is_valid()
+            s.is_valid(raise_exception=True)
             m = s.save()
 
         self.assertEqual(
@@ -153,7 +156,7 @@ class TestTemplateSerializer(TransactionTestCase):
 
     def testRender(self):
         s = TemplateSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
 
         s2 = TemplateSerializer(m, context=get_mock_context())

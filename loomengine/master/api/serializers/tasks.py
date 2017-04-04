@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from django.db import transaction
 
 from api.exceptions import *
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
@@ -108,7 +107,6 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
                   'rendered_command', 'environment', 'resources', 'timepoints')
 
 
-    @transaction.atomic
     def update(self, instance, validated_data):
         instance = self.Meta.model.objects.get(uuid=instance.uuid)
         # Only updates to status message fields,
@@ -198,6 +196,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     attempt_number = serializers.IntegerField(read_only=True)
     timepoints = TaskTimepointSerializer(
         many=True, allow_null=True, required=False)
+    index = serializers.JSONField(required=True)
 
     class Meta:
         model = Task
@@ -223,6 +222,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'status_is_running',
             'attempt_number',
             'timepoints',
+            'index',
         )
 
 

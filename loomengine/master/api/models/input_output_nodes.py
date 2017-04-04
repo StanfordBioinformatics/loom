@@ -24,7 +24,8 @@ class ConnectError(Exception):
 class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
     data_root = models.ForeignKey('DataTreeNode',
-                                  null=True)
+                                  null=True,
+                                  blank=True)
 
     type = models.CharField(
         max_length=255,

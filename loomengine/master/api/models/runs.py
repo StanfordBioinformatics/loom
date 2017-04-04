@@ -85,15 +85,17 @@ class Run(BaseModel):
                                        ('workflow', 'Workflow')))
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    datetime_finished = models.DateTimeField(null=True)
+    datetime_finished = models.DateTimeField(null=True, blank=True)
     parent = models.ForeignKey('WorkflowRun',
                                related_name='steps',
                                null=True,
+                               blank=True,
                                on_delete=models.CASCADE)
     template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT,
-                                 null=True) # For testing only
+                                 null=True, # For testing only
+                                 blank=True)
     postprocessing_status = models.CharField(
         max_length=255,
         default='not_started',
@@ -373,7 +375,8 @@ class WorkflowRun(Run):
                 run_input = WorkflowRunInput.objects.create(
                     workflow_run=run,
                     channel=input.get('channel'),
-                    type=input.get('type'))
+                    type=input.get('type'),
+                )
 
                 # One of these two should always take effect. The other is ignored.
                 self._connect_input_to_parent(run_input)
@@ -537,8 +540,9 @@ class StepRun(Run):
                 step_run=self,
                 type=output.get('type'),
                 channel=output.get('channel'),
-                source=output.get('source'))
-                
+                source=output.get('source'),
+                mode=output.get('mode'))
+
             self._connect_output_to_parent(run_output)
 
     def get_output(self, channel):
@@ -589,9 +593,10 @@ class StepRunOutput(InputOutputNode):
     step_run = models.ForeignKey('StepRun',
                                  related_name='outputs',
                                  on_delete=models.CASCADE,
-                                 null=True) # for testing only
+                                 null=True, # for testing only
+                                 blank=True)
     mode = models.CharField(max_length=255)
-    source = jsonfield.JSONField(null=True)
+    source = jsonfield.JSONField(null=True, blank=True)
 
 
 class WorkflowRunConnectorNode(InputOutputNode):

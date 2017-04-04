@@ -13,7 +13,7 @@ class TestStepRunSerializer(TransactionTestCase):
 
     def testRender(self):
         s = TemplateSerializer(data=fixtures.templates.step_a)
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
         run = Run.create_from_template(m)
 
@@ -29,7 +29,7 @@ class TestWorkflowRunSerializer(TransactionTestCase):
     def testRenderFlat(self):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow,
                                context=get_mock_context())
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
         run = Run.create_from_template(m)
 
@@ -44,7 +44,7 @@ class TestRunSerializer(TransactionTestCase):
 
     def testRender(self):
         s = TemplateSerializer(data=fixtures.templates.step_a)
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
         # Refresh to update postprocessing_status
         m = Template.objects.get(id=m.id)
@@ -59,7 +59,7 @@ class TestRunSerializer(TransactionTestCase):
 
     def testRenderFlat(self):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
         run = Run.create_from_template(m)
 
@@ -70,7 +70,7 @@ class TestRunSerializer(TransactionTestCase):
 
     def testRenderNested(self):
         s = TemplateSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         m = s.save()
         run = Run.create_from_template(m)
 

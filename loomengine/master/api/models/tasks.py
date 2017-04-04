@@ -1,4 +1,4 @@
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.utils import timezone
 import jsonfield
@@ -11,6 +11,15 @@ from api.models import uuidstr
 from api.models.data_objects import DataObject, FileDataObject
 
 
+def validate_list_of_ints(value):
+    try:
+        are_ints = [isinstance(i, int) for i in value]
+    except TypeError:
+        raise ValidationError('Value must be a list of ints')
+    if not all(are_ints):
+        raise ValidationError('Value must be a list of ints')
+    
+
 class Task(BaseModel):
 
     """A Task is a Step executed on a particular set of inputs.
@@ -22,7 +31,7 @@ class Task(BaseModel):
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    datetime_finished = models.DateTimeField(null=True)
+    datetime_finished = models.DateTimeField(null=True, blank=True)
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     rendered_command = models.TextField()
@@ -32,13 +41,15 @@ class Task(BaseModel):
     step_run = models.ForeignKey('StepRun',
                                  related_name='tasks',
                                  on_delete=models.CASCADE,
-                                 null=True) # null for testing only
+                                 null=True, # null for testing only
+                                 blank=True)
 
     selected_task_attempt = models.OneToOneField('TaskAttempt',
-                                               related_name='task_as_selected',
-                                               on_delete=models.CASCADE,
-                                               null=True)
-    index = jsonfield.JSONField()
+                                                 related_name='task_as_selected',
+                                                 on_delete=models.CASCADE,
+                                                 null=True,
+                                                 blank=True)
+    index = jsonfield.JSONField(validators=[validate_list_of_ints])
     
     # While status_is_running, Loom will continue trying to complete the task
     status_is_running = models.BooleanField(default=True)
@@ -231,8 +242,9 @@ class TaskOutput(BaseModel):
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
                             choices=DataObject.DATA_TYPE_CHOICES)
-    source = jsonfield.JSONField(null=True)
-    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT, null=True)
+    source = jsonfield.JSONField(null=True, blank=True)
+    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT,
+                                    null=True, blank=True)
 
     def pull_data_object(self):
         attempt_output = self.task.selected_task_attempt.get_output(self.channel)
@@ -265,7 +277,7 @@ class TaskAttempt(BaseModel):
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    datetime_finished = models.DateTimeField(null=True)
+    datetime_finished = models.DateTimeField(null=True, blank=True)
     task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
@@ -446,12 +458,13 @@ class TaskAttemptOutput(BaseModel):
     data_object = models.OneToOneField(
         'DataObject',
         null=True,
+        blank=True,
         related_name='task_attempt_output',
         on_delete=models.PROTECT)
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
                             choices=DataObject.DATA_TYPE_CHOICES)
-    source = jsonfield.JSONField(null=True)
+    source = jsonfield.JSONField(null=True, blank=True)
 
 
 class TaskAttemptLogFile(BaseModel):
@@ -464,6 +477,7 @@ class TaskAttemptLogFile(BaseModel):
     file = models.OneToOneField(
         'DataObject',
         null=True,
+        blank=True,
         related_name='task_attempt_log_file',
         on_delete=models.PROTECT)
 

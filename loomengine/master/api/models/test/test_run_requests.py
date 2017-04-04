@@ -12,7 +12,7 @@ class TestRunRequest(TransactionTestCase):
         template = get_workflow()
         run_request = RunRequest.objects.create(template=template)
         input_one = RunRequestInput.objects.create(
-            run_request=run_request, channel='one')
+            run_request=run_request, channel='one', type='string')
         data_object = StringDataObject.objects.create(
             type='string', value='one')
         input_one.add_data_as_scalar(data_object)

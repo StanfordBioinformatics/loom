@@ -26,7 +26,7 @@ class AbstractRunTest(object):
             input = template.get_input(channel)
             if input.get('type') == 'file':
                 # Files have to be pre-imported.
-                # Other data types can be 
+                # Other data types can be given in the template
                 file_path = value
                 hash_value = loomengine.utils.md5calc\
                                              .calculate_md5sum(file_path)
