@@ -1,8 +1,9 @@
 from django.test import TransactionTestCase, override_settings
 
+from .test_templates import get_workflow
 from api import async
 from api.models import *
-from .test_templates import get_workflow
+
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
 class TestRunRequest(TransactionTestCase):

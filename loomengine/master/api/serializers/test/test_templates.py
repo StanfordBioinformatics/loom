@@ -6,7 +6,7 @@ from rest_framework.test import APIRequestFactory
 
 from . import fixtures
 from . import get_mock_request, get_mock_context
-import fixtures.run_fixtures.many_steps.generator
+import fixtures.many_steps.generator
 from api.serializers.templates import *
 
 @override_settings(TEST_DISABLE_TASK_DELAY=True)
@@ -163,8 +163,8 @@ class TestTemplateSerializer(TransactionTestCase):
 
         STEP_COUNT=2
         
-        data = fixtures.run_fixtures.many_steps\
-                                    .generator.make_many_steps(STEP_COUNT)
+        data = fixtures.many_steps\
+                       .generator.make_many_steps(STEP_COUNT)
 
         s = TemplateSerializer(data=data)
         s.is_valid(raise_exception=True)

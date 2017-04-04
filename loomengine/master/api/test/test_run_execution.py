@@ -72,8 +72,8 @@ class TestHelloWorld(TransactionTestCase, AbstractRunTest):
 
     def setUp(self):
         workflow_dir = os.path.join(
-            os.path.dirname(__file__),'..','serializers','fixtures',
-            'run_fixtures','hello_world')
+            os.path.dirname(__file__), '..', 'serializers',
+            'test', 'fixtures', 'hello_world')
         workflow_file = os.path.join(workflow_dir, 'hello_world.json')
         hello_file = os.path.join(workflow_dir, 'hello.txt')
         world_file = os.path.join(workflow_dir, 'world.txt')
@@ -104,8 +104,9 @@ class TestManySteps(TransactionTestCase, AbstractRunTest):
 
     def setUp(self):
         workflow_dir = os.path.join(
-            os.path.dirname(__file__),'..','serializers','fixtures',
-            'run_fixtures','many_steps')
+            os.path.dirname(__file__), '..', 'serializers',
+            'test', 'fixtures', 'many_steps')
+
         workflow_file = os.path.join(workflow_dir, 'many_steps.json')
 
         self.run_request = self.run_template(workflow_file)

@@ -38,7 +38,8 @@ class Task(BaseModel):
                                                related_name='task_as_selected',
                                                on_delete=models.CASCADE,
                                                null=True)
-
+    index = jsonfield.JSONField()
+    
     # While status_is_running, Loom will continue trying to complete the task
     status_is_running = models.BooleanField(default=True)
     status_is_failed = models.BooleanField(default=False)
@@ -81,7 +82,7 @@ class Task(BaseModel):
         self.step_run.update_status()
         for output in self.outputs.all():
             output.pull_data_object()
-            output.push_data_object()
+            output.push_data_object(self.index)
         for task_attempt in self.task_attempts.all():
             task_attempt.cleanup()
 
@@ -238,10 +239,12 @@ class TaskOutput(BaseModel):
         self.data_object = attempt_output.data_object
         self.save()
 
-    def push_data_object(self):
+    def push_data_object(self, index):
         step_run_output = self.task.step_run.get_output(self.channel)
-        if not step_run_output.has_scalar():
-            step_run_output.add_data_object([], self.data_object)
+        if self.data_object.is_array:
+            raise Exception('TODO: Handle array data objects')
+        else:
+            step_run_output.add_data_object(index, self.data_object)
 
 
 class TaskTimepoint(BaseModel):

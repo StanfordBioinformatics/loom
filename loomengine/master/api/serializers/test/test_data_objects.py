@@ -3,9 +3,8 @@ from django.db import IntegrityError
 from django.test import TestCase
 from rest_framework import serializers
 
+from . import fixtures, get_mock_context
 from api.serializers.data_objects import *
-from . import fixtures
-from . import get_mock_context
 
 
 class TestStringDataObjectSerializer(TestCase):

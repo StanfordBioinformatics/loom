@@ -2,7 +2,6 @@ from django.test import TestCase
 from rest_framework import serializers
 
 from api.serializers.tasks import *
-from api.serializers.data_trees import DataNodeSerializer
 from api.models.tasks import *
 from api.models.data_objects import BooleanDataObject, StringDataObject, \
     FileResource, FileDataObject

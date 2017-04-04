@@ -2,7 +2,7 @@ from django.db import models
 
 from .base import BaseModel
 from api.models.data_objects import DataObject
-from api.models.data_trees import DataNode
+from api.models.data_trees import DataTreeNode
 
 
 """
@@ -23,7 +23,7 @@ class ConnectError(Exception):
 
 class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
-    data_root = models.ForeignKey('DataNode',
+    data_root = models.ForeignKey('DataTreeNode',
                                   null=True)
 
     type = models.CharField(
@@ -33,7 +33,7 @@ class InputOutputNode(BaseModel):
     @property
     def data(self):
         # Dummy attribute required by serializers.
-        # DataNodeSerializer is needed to render this field.
+        # DataTreeNodeSerializer is needed to render this field.
         # We don't implement that as a model method here to avoid
         # circular dependencies between models and serializers.
         # To access data directly use the data_root field instead.
@@ -57,7 +57,7 @@ class InputOutputNode(BaseModel):
         return self.data_root.get_data_object(path)
 
     def _initialize_data_root(self):
-        self.data_root = DataNode.objects.create()
+        self.data_root = DataTreeNode.objects.create()
         self.data_root.root_node = self.data_root
         self.save()
 

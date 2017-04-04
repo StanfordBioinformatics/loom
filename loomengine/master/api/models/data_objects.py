@@ -25,13 +25,13 @@ class InvalidSourceTypeError(Exception):
     pass
 
 
-class DataObjectManager():
+class AbstractDataObjectManager():
 
     def __init__(self, model):
         self.model = model
 
 
-class BooleanDataObjectManager(DataObjectManager):
+class BooleanDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -44,7 +44,7 @@ class BooleanDataObjectManager(DataObjectManager):
         return True
 
 
-class FileDataObjectManager(DataObjectManager):
+class FileDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -70,7 +70,7 @@ class FileDataObjectManager(DataObjectManager):
         return resource is not None and resource.is_ready()
 
 
-class FloatDataObjectManager(DataObjectManager):
+class FloatDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -83,7 +83,7 @@ class FloatDataObjectManager(DataObjectManager):
         return True
 
 
-class IntegerDataObjectManager(DataObjectManager):
+class IntegerDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -96,7 +96,7 @@ class IntegerDataObjectManager(DataObjectManager):
         return True
 
 
-class StringDataObjectManager(DataObjectManager):
+class StringDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -109,7 +109,7 @@ class StringDataObjectManager(DataObjectManager):
         return True
 
 
-class ArrayDataObjectManager(DataObjectManager):
+class ArrayDataObjectManager(AbstractDataObjectManager):
 
     def get_substitution_value(self):
         return [member.substitution_value

@@ -7,7 +7,7 @@ from api.models import uuidstr
 
 
 """
-Data under each InputOutputNode is represented as a tree of DataNodes. This
+Data under each InputOutputNode is represented as a tree of DataTreeNodes. This
 lets us represent multidimensional data to allow for nested scatter-gather,
 e.g. scatter-scatter-gather-gather, where the layers of scatter are maintained
 as distinct.
@@ -32,15 +32,15 @@ class MissingBranchError(Exception):
     pass
 
 
-class DataNode(BaseModel):
+class DataTreeNode(BaseModel):
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
-    root_node = models.ForeignKey('DataNode',
+    root_node = models.ForeignKey('DataTreeNode',
                                   null=True, 
                                   related_name='descendants',
                                   on_delete=models.SET_NULL)
     parent = models.ForeignKey(
-        'DataNode',
+        'DataTreeNode',
         null=True,
         related_name = 'children',
         on_delete=models.PROTECT)
@@ -49,19 +49,19 @@ class DataNode(BaseModel):
     # degree is expected number of children; null if leaf, 0 if empty branch
     degree = models.IntegerField(null=True)
     data_object = models.ForeignKey('DataObject',
-                                    related_name = 'data_nodes',
+                                    related_name = 'data_tree_nodes',
                                     null=True) # null except on leaves
 
     EMPTY_BRANCH_VALUE = []
 
     @classmethod
     def create_from_scalar(self, data_object):
-        data_node = DataNode.objects.create()
-        data_node.root_node = data_node
-        data_node.data_object = data_object
-        data_node.index = 0
-        data_node.save()
-        return data_node
+        data_tree_node = DataTreeNode.objects.create()
+        data_tree_node.root_node = data_tree_node
+        data_tree_node.data_object = data_object
+        data_tree_node.index = 0
+        data_tree_node.save()
+        return data_tree_node
 
     def add_leaf(self, index, data_object):
         self._check_index(index)
@@ -70,7 +70,7 @@ class DataNode(BaseModel):
             raise LeafDataAlreadyExistsError(
                 'Leaf data node already exists at this index')
         else:
-            return DataNode.objects.create(
+            return DataTreeNode.objects.create(
                 parent=self,
                 root_node=self.root_node,
                 index=index,
@@ -93,7 +93,7 @@ class DataNode(BaseModel):
                     'Degree of branch conflicts with a value set previously')
             return existing_branch
         else:
-            return DataNode.objects.create(
+            return DataTreeNode.objects.create(
                 parent=self,
                 root_node=self.root_node,
                 index=index,
@@ -150,7 +150,7 @@ class DataNode(BaseModel):
     def _add_scalar_data_object(self, data_object):
         if not self._is_missing_branch():
             raise RootDataAlreadyExistsError(
-                "Failed to add scalar data since the root DataNode is "\
+                "Failed to add scalar data since the root DataTreeNode is "\
                 "already initialized")
         self.data_object = data_object
         self.save()
@@ -175,11 +175,11 @@ class DataNode(BaseModel):
     def _check_index(self, index):
         if self.degree is None:
             raise UnknownDegreeError(
-                'Cannot access child DataNode on a parent with degree of None. '\
+                'Cannot access child DataTreeNode on a parent with degree of None. '\
                 'Set the degree on the parent first.')
         if index < 0 or index >= self.degree:
             raise IndexOutOfRangeError(
-                'Out of range index %s. DataNode parent has degree %s, so index '\
+                'Out of range index %s. DataTreeNode parent has degree %s, so index '\
                 'should be in the range 0 to %s' % (
                     index, self.degree, self.degree-1))
 

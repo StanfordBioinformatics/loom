@@ -5,7 +5,7 @@ from . import fixtures
 from . import get_mock_request, get_mock_context
 from api.serializers.run_requests import *
 from api.serializers.templates import TemplateSerializer
-from api.models.data_trees import DataNode
+from api.models.data_trees import DataTreeNode
 
 
 class TestRunRequestSerializer(TransactionTestCase):
@@ -36,7 +36,7 @@ class TestRunRequestSerializer(TransactionTestCase):
 
         uuid = RunRequestSerializer(rr, context=get_mock_context()).data[
             'inputs'][0]['data']['uuid']
-        data_tree = DataNode.objects.get(uuid=uuid)
+        data_tree = DataTreeNode.objects.get(uuid=uuid)
 
         self.assertEqual(
             data_tree.data_object.substitution_value,

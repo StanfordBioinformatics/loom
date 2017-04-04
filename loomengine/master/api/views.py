@@ -189,10 +189,10 @@ class DataTreeViewSet(ExpandableViewSet):
     FileDataObject can be looked up.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.DataNodeSerializer
+    serializer_class = serializers.DataTreeNodeSerializer
 
     def get_queryset(self):
-        queryset = models.DataNode.objects.filter(parent__isnull=True)
+        queryset = models.DataTreeNode.objects.filter(parent__isnull=True)
         queryset = queryset\
                    .select_related('data_object')\
                    .prefetch_related('descendants__data_object')\

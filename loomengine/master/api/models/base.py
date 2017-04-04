@@ -13,6 +13,13 @@ def render_from_template(raw_text, context):
 
 
 class FilterHelper(object):
+    """
+    Many object types are queryable by a user input string that gives name,
+    uuid, and/or hash value, 
+    e.g. myfile.dat, myfile.data@1ca14b82-df57-437f-b296-dfd6118132ab, 
+    or myfile.dat$3c0e6b886ea83d2895fd64fd6619a99f
+    This class parses those query strings and searches for matches.
+    """
 
     def __init__(self, Model):
         self.Model = Model
@@ -22,15 +29,15 @@ class FilterHelper(object):
             'NAME_FIELD is missing on model %s' % self.Model.__name__
         assert self.Model.HASH_FIELD, \
             'HASH_FIELD is missing on model %s' % self.Model.__name__
-        
+        ID_FIELD = 'uuid'
         filter_args = {}
-        name, id, hash_value = self._parse_as_name_or_id_or_hash(query_string)
+        name, uuid, hash_value = self._parse_as_name_or_id_or_hash(query_string)
         if name is not None:
             filter_args[self.Model.NAME_FIELD] = name
         if hash_value is not None:
             filter_args[self.Model.HASH_FIELD+'__startswith'] = hash_value
-        if id is not None:
-            filter_args['uuid__startswith'] = id
+        if uuid is not None:
+            filter_args[ID_FIELD+'__startswith'] = uuid
         return self.Model.objects.filter(**filter_args)
 
     def filter_by_name_or_id(self, query_string):
@@ -39,18 +46,19 @@ class FilterHelper(object):
         """
         assert self.Model.NAME_FIELD, \
             'NAME_FIELD is missing on model %s' % self.Model.__name__
-        
+        ID_FIELD = 'uuid'
+
         kwargs = {}
-        name, id = self._parse_as_name_or_id(query_string)
+        name, uuid = self._parse_as_name_or_id(query_string)
         if name:
             kwargs[self.Model.NAME_FIELD] = name
-        if id:
-            kwargs['uuid__startswith'] = id
+        if uuid:
+            kwargs[ID_FIELD+'__startswith'] = uuid
         return self.Model.objects.filter(**kwargs)
 
     def _parse_as_name_or_id_or_hash(self, query_string):
         name = None
-        id = None
+        uuid = None
         hash_value = None
 
         # Name comes at the beginning and ends with $, @, or end of string
@@ -58,25 +66,29 @@ class FilterHelper(object):
         if name_match is not None:
             name = name_match.groups()[0]
         # id starts with @ and ends with $ or end of string
-        id_match = re.match('^.*?@(.*?)($|\$)', query_string)
-        if id_match is not None:
-            id = id_match.groups()[0]
+        uuid_match = re.match('^.*?@(.*?)($|\$)', query_string)
+        if uuid_match is not None:
+            uuid = uuid_match.groups()[0]
         # hash starts with $ and ends with @ or end of string
         hash_match = re.match('^.*?\$(.*?)($|@)', query_string)
         if hash_match is not None:
             hash_value = hash_match.groups()[0]
-        return name, id, hash_value
+        return name, uuid, hash_value
 
     def _parse_as_name_or_id(self, query_string):
-        parts = query_string.split('@')
-        name = parts[0]
-        id = '@'.join(parts[1:])
-        return name, id
+        name, uuid, hash_value = self._parse_as_name_or_id_or_hash(query_string)
+        if hash_value is not None:
+            raise Exception('Invalid input "%s". '\
+                            'Hash not accepted for models of type "%s"' %
+                            (query_string, self.Model.__name__))
+        return name, uuid
 
 
 class _FilterMixin(object):
 
     NAME_FIELD = None
+    HASH_FIELD = None
+    ID_FIELD = None
 
     @classmethod
     def filter_by_name_or_id_or_hash(cls, filter_string):

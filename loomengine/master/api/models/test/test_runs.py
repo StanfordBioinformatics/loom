@@ -1,7 +1,9 @@
 from django.test import TestCase
+
+from .test_templates import get_workflow
 from api.models.data_objects import *
 from api.models.runs import *
-from api.test.models.test_templates import get_workflow
+
 
 def get_workflow_run():
     wf = get_workflow()
