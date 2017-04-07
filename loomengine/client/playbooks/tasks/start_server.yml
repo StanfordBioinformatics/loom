@@ -82,6 +82,8 @@
       - "{{server_settings_home}}/fluent.conf:/fluentd/etc/fluent.conf"
       - "{{server_settings_home}}/log/:/fluentd/log/"
     ports: "{{[ fluentd_port~':'~fluentd_port ]}}"
+    links:
+      - "{{elasticsearch_container_name}}"
 
 - name: Start a MySQL database container
   docker_container:
