@@ -37,3 +37,13 @@
   docker_container:
     name: "{{ fluentd_container_name }}"
     state: absent
+
+- name: Delete the Elasticsearch server container
+  docker_container:
+    name: "{{ elasticsearch_container_name }}"
+    state: absent
+
+- name: Delete the Kibana server container
+  docker_container:
+    name: "{{ kibana_container_name }}"
+    state: absent
