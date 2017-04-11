@@ -16,7 +16,7 @@ class BooleanDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-boolean-detail',
         lookup_field='uuid'
     )
     value = serializers.BooleanField(required=True)
@@ -30,7 +30,7 @@ class IntegerDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-integer-detail',
         lookup_field='uuid'
     )
     
@@ -43,7 +43,7 @@ class FloatDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-float-detail',
         lookup_field='uuid'
     )
     
@@ -56,7 +56,7 @@ class StringDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-string-detail',
         lookup_field='uuid'
     )
     
@@ -87,7 +87,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
     file_resource = FileResourceSerializer(allow_null=True, required=False)
     file_import = serializers.JSONField(required=False, allow_null=True)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-file-detail',
         lookup_field='uuid'
     )
     datetime_created = serializers.CharField(required=False)
@@ -217,7 +217,7 @@ class ArrayDataObjectSerializer(serializers.HyperlinkedModelSerializer):
     uuid = serializers.CharField(required=False)
     members = DataObjectSerializer(many=True, required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-array-detail',
         lookup_field='uuid'
     )
 

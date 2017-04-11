@@ -8,7 +8,8 @@ from api.serializers.runs import *
 from api.models.runs import Run
 
 
-@override_settings(TEST_DISABLE_TASK_DELAY=True)
+@override_settings(TEST_DISABLE_ASYNC_DELAY=True,
+                   TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
 class TestStepRunSerializer(TransactionTestCase):
 
     def testRender(self):
@@ -23,7 +24,8 @@ class TestStepRunSerializer(TransactionTestCase):
                 'template']['uuid'])
 
 
-@override_settings(TEST_DISABLE_TASK_DELAY=True)
+@override_settings(TEST_DISABLE_ASYNC_DELAY=True,
+                   TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
 class TestWorkflowRunSerializer(TransactionTestCase):
 
     def testRenderFlat(self):
@@ -39,7 +41,8 @@ class TestWorkflowRunSerializer(TransactionTestCase):
                 'template']['uuid'])
 
 
-@override_settings(TEST_DISABLE_TASK_DELAY=True)
+@override_settings(TEST_DISABLE_ASYNC_DELAY=True,
+                   TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
 class TestRunSerializer(TransactionTestCase):
 
     def testRender(self):

@@ -52,7 +52,6 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
                     instance.data_object = FileDataObject.objects.create(
                         **data_object_data)
                     instance.save()
-                    instance.data_object.initialize()
                 else:
                     s = DataObjectSerializer(data=data_object_data)
                     s.is_valid(raise_exception=True)
@@ -68,11 +67,15 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
 
 class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
 
+    uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='task-attempt-log-file-detail',
+        lookup_field='uuid')
     file = DataObjectSerializer(allow_null=True, required=False)
 
     class Meta:
         model = TaskAttemptLogFile
-        fields = ('log_name', 'file',)
+        fields = ('uuid', 'url', 'log_name', 'file', 'datetime_created')
 
 
 class TaskAttemptTimepointSerializer(CreateWithParentModelSerializer):

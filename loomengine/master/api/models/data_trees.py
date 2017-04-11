@@ -188,3 +188,19 @@ class DataTreeNode(BaseModel):
 
     def _is_leaf(self):
         return self.degree is None and self.data_object is not None
+
+    def push_all(self):
+        self.push_by_index(index=[])
+    
+    def push_by_index(self, index):
+        """Notify downstream steps that data is available
+        Push all data at or below given index.
+        """
+        if self.index is not None:
+            index.append(self.index)
+        if self._is_leaf():
+            for input in self.root_node.stepruninput_set.all():
+                input.push(index)
+        else:
+            for child in self.children.all():
+                child.push_all(index=index)

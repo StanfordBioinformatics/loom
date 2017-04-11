@@ -11,6 +11,10 @@ from api.models import uuidstr
 from api.models.data_objects import DataObject, FileDataObject
 
 
+class TaskAlreadyExistsException(Exception):
+    pass
+
+
 def validate_list_of_ints(value):
     try:
         are_ints = [isinstance(i, int) for i in value]
@@ -34,7 +38,7 @@ class Task(BaseModel):
     datetime_finished = models.DateTimeField(null=True, blank=True)
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
-    rendered_command = models.TextField()
+    rendered_command = models.TextField(null=True, blank=True)
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
     
@@ -49,8 +53,9 @@ class Task(BaseModel):
                                                  on_delete=models.CASCADE,
                                                  null=True,
                                                  blank=True)
-    index = jsonfield.JSONField(validators=[validate_list_of_ints])
-    
+    index = jsonfield.JSONField(validators=[validate_list_of_ints],
+                                null=True, blank=True)
+
     # While status_is_running, Loom will continue trying to complete the task
     status_is_running = models.BooleanField(default=True)
     status_is_failed = models.BooleanField(default=False)
@@ -144,12 +149,16 @@ class Task(BaseModel):
 
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
+        index = input_set.index
+        if step_run.tasks.filter(index=index).count() > 0:
+            raise TaskAlreadyExistsException
         task = Task.objects.create(
             step_run=step_run,
             command=step_run.command,
             interpreter=step_run.interpreter,
             environment=step_run.template.environment,
             resources=step_run.template.resources,
+            index=index,
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -256,7 +265,7 @@ class TaskOutput(BaseModel):
         if self.data_object.is_array:
             raise Exception('TODO: Handle array data objects')
         else:
-            step_run_output.add_data_object(index, self.data_object)
+            step_run_output.push(index, self.data_object)
 
 
 class TaskTimepoint(BaseModel):
@@ -469,6 +478,8 @@ class TaskAttemptOutput(BaseModel):
 
 class TaskAttemptLogFile(BaseModel):
 
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     task_attempt = models.ForeignKey(
         'TaskAttempt',
         related_name='log_files',
@@ -480,6 +491,8 @@ class TaskAttemptLogFile(BaseModel):
         blank=True,
         related_name='task_attempt_log_file',
         on_delete=models.PROTECT)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
 
     def initialize_file(self):
         # Create a blank file_data_object on save.
@@ -488,7 +501,6 @@ class TaskAttemptLogFile(BaseModel):
             raise Exception('FileDataObject already exists')
         self.file = FileDataObject.objects.create(
             source_type='log', type='file', filename=self.log_name)
-        self.file.initialize()
         self.save()
         return self.file
 

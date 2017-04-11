@@ -125,4 +125,26 @@ class BaseModel(models.Model, _FilterMixin):
                 raise ConcurrentModificationError(cls.__name__, self.pk)
             self._change += 1
         super(BaseModel, self).save(*args, **kwargs)
+
+    def setattrs_and_save_with_retries(self, assignments, retries=5):
+        """
+        If the object is being edited by other processes,
+        save may fail due to concurrent modification.
+        This method recovers and retries the edit.
         
+        assignments is a dict of {attribute: value}
+        """
+        count = 0
+        while count < retries:
+            obj = self.__class__.objects.get(id=self.id)
+            for attribute, value in assignments.iteritems():
+                setattr(obj, attribute, value)
+            try:
+                obj.save()
+                return obj
+            except ConcurrentModificationError:
+                count += 1
+                continue
+        raise Exception(
+            'Exceeded retries when saving "%s" of id "%s" with assigned values "%s"' %
+            (self.__class__, self.id, assignments))

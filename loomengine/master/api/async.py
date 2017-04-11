@@ -19,7 +19,7 @@ from api.exceptions import ConcurrentModificationError
 logger = logging.getLogger(__name__)
 
 def _run_with_delay(task_function, args, kwargs):
-    if get_setting('TEST_DISABLE_TASK_DELAY'):
+    if get_setting('TEST_DISABLE_ASYNC_DELAY'):
         # Delay disabled, run synchronously
         return task_function(*args, **kwargs)
 
@@ -80,6 +80,8 @@ def _run_task(task_uuid):
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
     task_attempt = task.create_and_activate_attempt()
+    if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
+        return
     _run_with_heartbeats(task_attempt, _run_task_runner_playbook, args=[task_attempt])
 
 def run_task(*args, **kwargs):

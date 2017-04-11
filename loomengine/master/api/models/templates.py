@@ -20,6 +20,27 @@ environment, while Workflows are collections of other Steps
 or Workflows.
 """
 
+def template_import_validator(value):
+    pass
+
+def workflow_outputs_validator(value):
+    pass
+
+def workflow_inputs_validator(value):
+    pass
+
+def step_environment_validator(value):
+    pass
+
+def step_outputs_validator(value):
+    pass
+
+def step_inputs_validator(value):
+    pass
+
+def step_resources_validator(value):
+    pass
+
 
 class WorkflowManager(object):
 
@@ -88,7 +109,8 @@ class Template(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
-    template_import = jsonfield.JSONField(null=True, blank=True)
+    template_import = jsonfield.JSONField(validators=[template_import_validator],
+                                          null=True, blank=True)
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -155,8 +177,10 @@ class Workflow(Template):
         through='WorkflowMembership',
         through_fields=('parent_template', 'child_template'),
         related_name='workflows')
-    outputs = jsonfield.JSONField(null=True, blank=True)
-    inputs = jsonfield.JSONField(null=True, blank=True)
+    outputs = jsonfield.JSONField(validators=[workflow_outputs_validator],
+                                  null=True, blank=True)
+    inputs = jsonfield.JSONField(validators=[workflow_inputs_validator],
+                                 null=True, blank=True)
     raw_data = jsonfield.JSONField(null=True, blank=True)
 
     def add_step(self, step):
@@ -184,10 +208,14 @@ class Step(Template):
 
     command = models.TextField()
     interpreter = models.CharField(max_length=1024, default='/bin/bash -euo pipefail')
-    environment = jsonfield.JSONField(null=True, blank=True)
-    outputs = jsonfield.JSONField(null=True, blank=True)
-    inputs = jsonfield.JSONField(null=True, blank=True)
-    resources = jsonfield.JSONField(null=True, blank=True)
+    environment = jsonfield.JSONField(validators=[step_environment_validator],
+                                      null=True, blank=True)
+    outputs = jsonfield.JSONField(validators=[step_outputs_validator],
+                                  null=True, blank=True)
+    inputs = jsonfield.JSONField(validators=[step_inputs_validator],
+                                 null=True, blank=True)
+    resources = jsonfield.JSONField(validators=[step_resources_validator],
+                                    null=True, blank=True)
     raw_data = jsonfield.JSONField(null=True, blank=True)
 
 

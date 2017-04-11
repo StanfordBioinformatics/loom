@@ -24,6 +24,7 @@ class ConnectError(Exception):
 class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
     data_root = models.ForeignKey('DataTreeNode',
+                                  # related_name would cause conflicts on children
                                   null=True,
                                   blank=True)
 
@@ -60,6 +61,7 @@ class InputOutputNode(BaseModel):
     def _initialize_data_root(self):
         self.data_root = DataTreeNode.objects.create()
         self.data_root.root_node = self.data_root
+        self.data_root.save()
         self.save()
 
     def add_data_object(self, path, data_object):
@@ -107,48 +109,3 @@ class InputOutputNode(BaseModel):
     class Meta:
         abstract = True
         app_label = 'api'
-
-
-class InputNodeSet(object):
-    """Set of nodes acting as inputs for one step.
-    Each input node may have more than one DataObject,
-    and DataObjects may arrive to the node at different times.
-    An InputNodeSet corresponds to a single StepRun.
-    """
-    def __init__(self, input_nodes):
-        self.input_nodes = input_nodes
-
-    def get_ready_input_sets(self):
-        # This is simplified and only handles scalar inputs
-        for input_node in self.input_nodes:
-            if not input_node.is_ready():
-                return []
-        return [InputSet(self.input_nodes)]
-
-    def get_missing_inputs(self):
-        missing = []
-        for input_node in self.input_nodes:
-            if not input_node.is_ready():
-                missing.append(input_node)
-        return missing
-
-
-class InputItem(object):
-    """A DataObject and its channel name"""
-
-    def __init__(self, input_node):
-        self.data_object = input_node.get_data_as_scalar()
-        self.type = self.data_object.type
-        self.channel = input_node.channel
-
-
-class InputSet(object):
-    """An InputNodeSet can produce one or more InputSets, and each
-    InputSet corresponds to a single Task.
-    """
-
-    def __init__(self, input_nodes):
-        self.input_items = [InputItem(i) for i in input_nodes]
-
-    def __iter__(self):
-        return self.input_items.__iter__()

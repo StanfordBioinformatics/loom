@@ -90,18 +90,20 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
     @detail_route(methods=['post'], url_path='initialize-file-resource',
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
+
     def initialize_file_resource(self, request, uuid=None):
         try:
             file_data_object = models.FileDataObject.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
         if file_data_object.file_resource:
-            return JsonResponse({'message': 'FileResource already exists'},
-                                status=403)
+            s = serializers.FileResourceSerializer(
+                file_data_object.file_resource, context={'request': request})
+            return JsonResponse(s.data, status=200)
         file_data_object.initialize_file_resource()
-        file_data_object_serializer = serializers.FileDataObjectSerializer(
-            file_data_object, context={'request': request})
-        return JsonResponse(file_data_object_serializer.data, status=201)
+        s = serializers.FileResourceSerializer(
+            file_data_object.file_resource, context={'request': request})
+        return JsonResponse(s.data, status=201)
 
 
 class StringDataObjectViewSet(viewsets.ModelViewSet):
@@ -653,6 +655,7 @@ class RunRequestViewSet(ExpandableViewSet):
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptLogFileSerializer
+    lookup_field = 'uuid'
 
     def get_queryset(self):
         queryset = models.TaskAttemptLogFile.objects.all()
@@ -668,10 +671,14 @@ class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
             task_attempt_log_file = models.TaskAttemptLogFile.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
+        if task_attempt_log_file.file:
+            s = serializers.DataObjectSerializer(
+                task_attempt_log_file.file, context={'request': request})
+            return JsonResponse(s.data, status=200)
         task_attempt_log_file.initialize_file()
-        task_attempt_log_file_serializer = serializers.TaskAttemptLogFile(
-            task_attempt_log_file, context={'request': request})
-        return JsonResponse(task_attempt_log_file_serializer.data, status=201)
+        s = serializers.DataObjectSerializer(
+            task_attempt_log_file.file, context={'request': request})
+        return JsonResponse(s.data, status=201)
 
 
 class TaskAttemptOutputViewSet(viewsets.ModelViewSet):

@@ -1,80 +1,16 @@
 from django.test import TransactionTestCase, override_settings
-import json
 import os
-from api.models import RunRequest
-from api.serializers import FileDataObjectSerializer, \
-    RunRequestSerializer, TemplateSerializer
 
-import loomengine.utils.md5calc
+from .helper import AbstractRunTest, wait_for_true
 
 
-class AbstractRunTest(object):
-
-    def run_template(self, template_path, **kwargs):
-        run_request = {}
-
-        with open(template_path) as f:
-            template_data = json.load(f)
-        s = TemplateSerializer(data=template_data)
-        s.is_valid(raise_exception=True)
-        template = s.save()
-
-        run_request['template'] = '@%s' % str(template.uuid)
-        run_request['inputs'] = []
-
-        for (channel, value) in kwargs.iteritems():
-            input = template.get_input(channel)
-            if input.get('type') == 'file':
-                # Files have to be pre-imported.
-                # Other data types can be given in the template
-                file_path = value
-                hash_value = loomengine.utils.md5calc\
-                                             .calculate_md5sum(file_path)
-                file_data = {
-                    'type': 'file',
-                    'filename': os.path.basename(file_path),
-                    'md5': hash_value,
-                    'source_type': 'imported',
-                    'file_resourcelocation':{
-                        'upload_status': 'complete',
-                        'file_url': 'file://' + os.path.abspath(file_path),
-                        'md5': hash_value,
-                    }
-                }
-                s = FileDataObjectSerializer(data=file_data)
-                s.is_valid(raise_exception=True)
-                fdo = s.save()
-                value = '@%s' % fdo.uuid
-            run_request['inputs'].append({
-                'channel': channel,
-                'data': {'contents': value,},
-            })
-
-        s = RunRequestSerializer(data=run_request)
-        s.is_valid(raise_exception=True)
-        with self.settings(WORKER_TYPE='MOCK'):
-            run_request = s.save()
-        wait_for_true(
-            lambda: RunRequest.objects.get(id=run_request.id).run.postprocessing_status == 'complete', timeout_seconds=120, sleep_interval=1)
-        wait_for_true(
-            lambda: all([step.postprocessing_status=='complete'
-                         for step
-                         in RunRequest.objects.get(
-                             id=run_request.id).run.workflowrun.steps.all()]),
-            timeout_seconds=120,
-            sleep_interval=1)
-
-        return run_request
-
-
-@override_settings(TEST_DISABLE_TASK_DELAY=True)
+@override_settings(TEST_DISABLE_ASYNC_DELAY=True, TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
 class TestHelloWorld(TransactionTestCase, AbstractRunTest):
 
     def setUp(self):
         workflow_dir = os.path.join(
-            os.path.dirname(__file__), '..', 'serializers',
-            'test', 'fixtures', 'hello_world')
-        workflow_file = os.path.join(workflow_dir, 'hello_world.json')
+            os.path.dirname(__file__), 'fixtures', 'hello_world')
+        workflow_file = os.path.join(workflow_dir, 'hello_world.yaml')
         hello_file = os.path.join(workflow_dir, 'hello.txt')
         world_file = os.path.join(workflow_dir, 'world.txt')
 
@@ -83,46 +19,29 @@ class TestHelloWorld(TransactionTestCase, AbstractRunTest):
                                              world=world_file)
 
     def testRun(self):
-
         # Verify that all StepRuns have been created
         self.assertIsNotNone(
             self.run_request.run.downcast().steps.filter(name='hello_step'))
         self.assertIsNotNone(
             self.run_request.run.downcast().steps.filter(name='world_step'))
 
+        #wait_for_true(lambda: self.run_request.run.status=='finished')
         
         # Verify that output data objects have been created
-        #self.assertIsNotNone(self.run_request.run.steps.first().task_runs\
-        #                     .first().task_run_attempts.first()\
-        #                     .outputs.first().data_object)
         #self.assertIsNotNone(
         #    self.run_request.outputs.first()\
-        #    .indexed_data_objects.first().data_object)
+        #    .data_root.data_object)
 
-@override_settings(TEST_DISABLE_TASK_DELAY=True)
+@override_settings(TEST_DISABLE_ASYNC_DELAY=True, TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
 class TestManySteps(TransactionTestCase, AbstractRunTest):
 
     def setUp(self):
         workflow_dir = os.path.join(
-            os.path.dirname(__file__), '..', 'serializers',
-            'test', 'fixtures', 'many_steps')
+            os.path.dirname(__file__), 'fixtures', 'many_steps')
 
-        workflow_file = os.path.join(workflow_dir, 'many_steps.json')
+        workflow_file = os.path.join(workflow_dir, 'many_steps.yaml')
 
         self.run_request = self.run_template(workflow_file)
 
     def testRun(self):
         pass
-
-def wait_for_true(test_method, timeout_seconds=20, sleep_interval=None):
-    from datetime import datetime
-    import time
-
-    if sleep_interval is None:
-        sleep_interval = timeout_seconds/10.0
-    start_time = datetime.now()
-    while not test_method():
-        time.sleep(sleep_interval)
-        time_running = datetime.now() - start_time
-        if time_running.seconds > timeout_seconds:
-            raise Exception("Timeout")

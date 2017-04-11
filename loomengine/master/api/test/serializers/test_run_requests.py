@@ -11,7 +11,8 @@ from api.models.data_trees import DataTreeNode
 class TestRunRequestSerializer(TransactionTestCase):
 
     def testCreate(self):
-        with self.settings(TEST_DISABLE_TASK_DELAY=True,
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
+                           TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True,
                            WORKER_TYPE='MOCK'):
             s = TemplateSerializer(data=fixtures.templates.flat_workflow)
             s.is_valid(raise_exception=True)
@@ -50,7 +51,8 @@ class TestRunRequestSerializer(TransactionTestCase):
         self.assertEqual(rr.run.template.uuid, rr.template.uuid)
 
     def testCreateNested(self):
-        with self.settings(TEST_DISABLE_TASK_DELAY=True,
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
+                           TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True,
                            WORKER_TYPE='MOCK'):
             s = TemplateSerializer(data=fixtures.templates.nested_workflow)
             s.is_valid(raise_exception=True)

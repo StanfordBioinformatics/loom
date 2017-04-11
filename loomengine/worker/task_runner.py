@@ -70,7 +70,7 @@ class TaskRunner(object):
             except Exception as e:
                 self.logger.error(
                     'Failed to initialize server connection: "%s"' % str(e))
-                raise e
+                raise
 
         # Errors here can be both logged and reported to server
 
@@ -90,7 +90,7 @@ class TaskRunner(object):
             except:
                 # Raise original error, not status change error
                 pass
-            raise e
+            raise
 
     def _init_loggers(self):
         log_level = self.settings['LOG_LEVEL']
@@ -169,16 +169,19 @@ class TaskRunner(object):
             self._try_to_get_returncode()
         except Exception as e:
             self.logger.error('Exiting run with error: %s' % str(e))
-            raise e
+            raise
 
     def _cleanup(self):
         # Never raise errors, so cleanup can continue
         self._timepoint('Saving outputs')
 
-        self._try_to_save_process_logs()
+        try:
+            self._save_process_logs()
+        except Exception as e:
+            self._fail('Failed to save process logs', detail=str(e))
 
         try:
-            self._try_to_save_outputs()
+            self._save_outputs()
         except Exception as e:
             self._fail('Failed to save outputs', detail=str(e))
 
@@ -197,7 +200,7 @@ class TaskRunner(object):
         except Exception as e:
             self._fail('Failed to copy inputs to workspace',
                        detail=str(e))
-            raise e
+            raise
 
     def _copy_inputs(self):
         if self.task_attempt.get('inputs') is None:
@@ -222,7 +225,7 @@ class TaskRunner(object):
             self._create_run_script()
         except Exception as e:
             self._fail('Failed to create run script', detail=str(e))
-            raise e
+            raise
 
     def _create_run_script(self):
         user_command = self.task_attempt['rendered_command']
@@ -246,7 +249,7 @@ class TaskRunner(object):
             self._fail(
                 'Failed to fetch image for runtime environment',
                 detail=str(e))
-            raise e
+            raise
 
 
     def _pull_image(self):
@@ -276,7 +279,7 @@ class TaskRunner(object):
             self._fail(
                 'Failed to create container for runtime environment',
                 detail=str(e))
-            raise e
+            raise
 
     def _create_container(self):
         docker_image = self._get_docker_image()
@@ -306,7 +309,7 @@ class TaskRunner(object):
             self._verify_container_started_running()
         except Exception as e:
             self._fail('Failed to start analysis', detail=str(e))
-            raise e
+            raise
 
     def _verify_container_started_running(self):
         status = self.docker_client.inspect_container(
@@ -357,15 +360,8 @@ class TaskRunner(object):
                           container_data['State'].get('Status')
                 raise Exception(message)
 
-    def _try_to_save_process_logs(self):
-        self.logger.debug('Saving process logs')
-        try:
-            self._save_process_logs()
-        except Exception as e:
-            self._fail('Failed to save process logs', detail=str(e))
-            # Don't raise error. Continue cleanup
-
     def _save_process_logs(self):
+        self.logger.debug('Saving process logs')
         try:
             self.container
         except AttributeError:
@@ -398,7 +394,7 @@ class TaskRunner(object):
             self.logger.error(message)
             raise FileImportError(message)
 
-    def _try_to_save_outputs(self):
+    def _save_outputs(self):
         try:
             self.container
         except AttributeError:
@@ -406,13 +402,7 @@ class TaskRunner(object):
             return # Never ran. No outputs to save
 
         self.logger.debug('Saving outputs')
-        try:
-            self._save_outputs()
-        except Exception as e:
-            self._fail('Failed to save outputs', detail=str(e))
-            # Don't raise error. Continue cleanup
 
-    def _save_outputs(self):
         for output in self.task_attempt['outputs']:
             if output['type'] == 'file':
                 filename = output['source']['filename']
@@ -426,6 +416,7 @@ class TaskRunner(object):
                     self._fail(
                         'Failed to save output file %s' % filename,
                         detail=str(e))
+                    raise
             else:
                 if output['source'].get('filename'):
                     with open(

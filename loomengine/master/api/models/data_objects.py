@@ -200,7 +200,7 @@ class FileDataObject(DataObject):
                                       related_name='file_data_objects',
                                       on_delete=models.PROTECT,
                                       blank=True)
-    md5 = models.CharField(max_length=255)
+    md5 = models.CharField(max_length=255, null=True, blank=True)
     source_type = models.CharField(
         max_length=255,
         choices=FILE_SOURCE_TYPE_CHOICES)
@@ -307,7 +307,7 @@ class FileResource(BaseModel):
     datetime_created = models.DateTimeField(
         default=timezone.now)
     file_url = models.CharField(max_length=1000)
-    md5 = models.CharField(max_length=255)
+    md5 = models.CharField(max_length=255, null=True, blank=True)
     upload_status = models.CharField(
         max_length=255,
         default=FILE_RESOURCE_UPLOAD_STATUS_DEFAULT,

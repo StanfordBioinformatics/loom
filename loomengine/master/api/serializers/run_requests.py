@@ -73,4 +73,4 @@ class RunRequestSerializer(serializers.ModelSerializer):
         except ChannelNameCollisionError as e:
             raise serializers.ValidationError(e.message)
             
-        return run_request
+        return RunRequest.objects.get(id=run_request.id)
