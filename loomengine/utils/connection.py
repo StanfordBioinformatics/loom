@@ -160,6 +160,12 @@ class Connection(object):
                 % (len(file_data_objects), max))
         return file_data_objects
 
+    def file_data_object_initialize_file_resource(self, file_data_object_id):
+        url = 'data-files/%s/initialize-file-resource/' % file_data_object_id
+        data = {}
+        file_data_object = self._post_object(data, url)
+        return file_data_object
+    
     def update_file_resource(self, file_resource_id, file_resource_update):
         return self._patch_object(
             file_resource_update,
@@ -268,6 +274,13 @@ class Connection(object):
             task_attempt_log_file,
             'task-attempts/%s/create-log-file/' % task_attempt_id
         )
+
+    def task_attempt_log_file_initialize_file_data_object(
+            self, task_attempt_log_file_id):
+        url = 'task-attempt-log-files/%s/initialize-file/' % task_attempt_log_file_id
+        data = {}
+        task_attempt_log_file = self._post_object(data, url)
+        return task_attempt_log_file
 
     def post_task_attempt_timepoint(self, task_attempt_id, task_attempt_timepoint):
         return self._post_object(

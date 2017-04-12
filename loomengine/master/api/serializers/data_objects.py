@@ -16,7 +16,7 @@ class BooleanDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-boolean-detail',
         lookup_field='uuid'
     )
     value = serializers.BooleanField(required=True)
@@ -30,7 +30,7 @@ class IntegerDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-integer-detail',
         lookup_field='uuid'
     )
     
@@ -43,7 +43,7 @@ class FloatDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-float-detail',
         lookup_field='uuid'
     )
     
@@ -56,7 +56,7 @@ class StringDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-string-detail',
         lookup_field='uuid'
     )
     
@@ -87,7 +87,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
     file_resource = FileResourceSerializer(allow_null=True, required=False)
     file_import = serializers.JSONField(required=False, allow_null=True)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-file-detail',
         lookup_field='uuid'
     )
     datetime_created = serializers.CharField(required=False)
@@ -103,7 +103,6 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             validated_data['file_resource'] = self._create_file_resource(
                 self.initial_data.get('file_resource'))
         file_data_object = self.Meta.model.objects.create(**validated_data)
-        file_data_object.initialize()
         return file_data_object
 
     def _create_file_resource(self, resource_data):
@@ -114,7 +113,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         return s.save()
 
     def update(self, instance, validated_data):
-        instance = instance.filedataobject
+        instance = instance.filedataobject # downcast
         if self.initial_data.get('file_resource'):
             if instance.file_resource:
                 validated_data['file_resource'] = self._update_file_resource(
@@ -123,9 +122,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             else:
                 validated_data['file_resource'] = self._create_file_resource(
                     self.initial_data.get('file_resource'))
-        for field, value in validated_data.iteritems():
-            setattr(instance, field, value)
-        instance.save()
+        instance = instance.setattrs_and_save_with_retries(validated_data)
         return instance
 
     def _update_file_resource(self, instance, resource_data):
@@ -218,7 +215,7 @@ class ArrayDataObjectSerializer(serializers.HyperlinkedModelSerializer):
     uuid = serializers.CharField(required=False)
     members = DataObjectSerializer(many=True, required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='data-object-detail',
+        view_name='data-array-detail',
         lookup_field='uuid'
     )
 

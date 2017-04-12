@@ -8,7 +8,6 @@ from api.models.runs import Run
 from api.models.run_requests import RunRequest, RunRequestInput
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
 from api.serializers.templates import TemplateSerializer, ExpandableTemplateSerializer
-from api import tasks
 from api.exceptions import NoTemplateInputMatchError, \
     ChannelNameCollisionError
 
@@ -74,4 +73,4 @@ class RunRequestSerializer(serializers.ModelSerializer):
         except ChannelNameCollisionError as e:
             raise serializers.ValidationError(e.message)
             
-        return run_request
+        return RunRequest.objects.get(id=run_request.id)

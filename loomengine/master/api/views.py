@@ -12,7 +12,7 @@ from rest_framework.decorators import detail_route
 from api import get_setting
 from api import models
 from api import serializers
-from api import tasks
+from api import async
 from loomengine.utils import version
 
 
@@ -23,6 +23,7 @@ DATA_CLASSES = {'file': models.FileDataObject,
                 'boolean': models.BooleanDataObject,
                 'float': models.FloatDataObject,
                 'integer': models.IntegerDataObject}
+
 
 class ExpandableViewSet(viewsets.ModelViewSet):
 
@@ -85,6 +86,24 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(source_type=source_type)
         queryset = queryset.select_related('file_resource')
         return queryset.order_by('-datetime_created')
+
+    @detail_route(methods=['post'], url_path='initialize-file-resource',
+                  # Use base serializer since request has no data. Used by API doc.
+                  serializer_class=rest_framework.serializers.Serializer)
+
+    def initialize_file_resource(self, request, uuid=None):
+        try:
+            file_data_object = models.FileDataObject.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            return JsonResponse({"message": "Not Found"}, status=404)
+        if file_data_object.file_resource:
+            s = serializers.FileResourceSerializer(
+                file_data_object.file_resource, context={'request': request})
+            return JsonResponse(s.data, status=200)
+        file_data_object.initialize_file_resource()
+        s = serializers.FileResourceSerializer(
+            file_data_object.file_resource, context={'request': request})
+        return JsonResponse(s.data, status=201)
 
 
 class StringDataObjectViewSet(viewsets.ModelViewSet):
@@ -172,10 +191,10 @@ class DataTreeViewSet(ExpandableViewSet):
     FileDataObject can be looked up.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.DataNodeSerializer
+    serializer_class = serializers.DataTreeNodeSerializer
 
     def get_queryset(self):
-        queryset = models.DataNode.objects.filter(parent__isnull=True)
+        queryset = models.DataTreeNode.objects.filter(parent__isnull=True)
         queryset = queryset\
                    .select_related('data_object')\
                    .prefetch_related('descendants__data_object')\
@@ -367,6 +386,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
         return JsonResponse(s.data, status=201)
 
     @detail_route(methods=['post'], url_path='fail',
+                  # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
     def fail(self, request, uuid=None):
         try:
@@ -383,7 +403,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
             task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
-        tasks.finish_task_attempt(task_attempt.uuid)
+        async.finish_task_attempt(task_attempt.uuid)
         return JsonResponse({}, status=201)
     
     @detail_route(methods=['post'], url_path='create-timepoint',
@@ -635,12 +655,31 @@ class RunRequestViewSet(ExpandableViewSet):
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptLogFileSerializer
+    lookup_field = 'uuid'
 
     def get_queryset(self):
         queryset = models.TaskAttemptLogFile.objects.all()
         queryset = queryset.select_related('file')\
                    .select_related('file__filedataobject__file_resource')
         return queryset.order_by('-datetime_created')
+
+    @detail_route(methods=['post'], url_path='initialize-file',
+                  # Use base serializer since request has no data. Used by API doc.
+                  serializer_class=rest_framework.serializers.Serializer)
+    def initialize_file(self, request, uuid=None):
+        try:
+            task_attempt_log_file = models.TaskAttemptLogFile.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            return JsonResponse({"message": "Not Found"}, status=404)
+        if task_attempt_log_file.file:
+            s = serializers.DataObjectSerializer(
+                task_attempt_log_file.file, context={'request': request})
+            return JsonResponse(s.data, status=200)
+        task_attempt_log_file.initialize_file()
+        s = serializers.DataObjectSerializer(
+            task_attempt_log_file.file, context={'request': request})
+        return JsonResponse(s.data, status=201)
+
 
 class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptOutputSerializer
@@ -674,29 +713,6 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-datetime_created')
 
 
-"""
-class FileProvenanceViewSet(viewsets.ModelViewSet):
-    queryset = models.FileDataObject.objects.all()
-    serializer_class = serializers.FileProvenanceSerializer
-
-class ImportedFileDataObjectViewSet(viewsets.ModelViewSet):
-    queryset = models.FileDataObject.objects.filter(source_type='imported').order_by('-datetime_created')
-    serializer_class = serializers.FileDataObjectSerializer
-
-class ResultFileDataObjectViewSet(viewsets.ModelViewSet):
-    queryset = models.FileDataObject.objects.filter(source_type='result').order_by('-datetime_created')
-    serializer_class = serializers.FileDataObjectSerializer
-
-class LogFileDataObjectViewSet(viewsets.ModelViewSet):
-    queryset = models.FileDataObject.objects.filter(source_type='log').order_by('-datetime_created')
-    serializer_class = serializers.FileDataObjectSerializer
-
-class AbstractWorkflowRunViewSet(viewsets.ModelViewSet):
-    queryset = models.AbstractWorkflowRun.objects.all()
-    serializer_class = serializers.AbstractWorkflowRunSerializer
-
-"""
-
 @require_http_methods(["GET"])
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
@@ -716,4 +732,5 @@ def info(request):
 
 @require_http_methods(["GET"])
 def raise_server_error(request):
+    logger.error('Server error intentionally logged for debugging.')
     raise Exception('Server error intentionally raised for debugging')

@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-from django.dispatch import receiver
 import jsonfield
 import os
 
@@ -8,6 +7,7 @@ from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
 from api.exceptions import NoFileMatchError, MultipleFileMatchesError
+
 
 class TypeMismatchError(Exception):
     pass
@@ -25,13 +25,13 @@ class InvalidSourceTypeError(Exception):
     pass
 
 
-class DataObjectManager():
-    
+class AbstractDataObjectManager():
+
     def __init__(self, model):
         self.model = model
 
 
-class BooleanDataObjectManager(DataObjectManager):
+class BooleanDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -43,7 +43,8 @@ class BooleanDataObjectManager(DataObjectManager):
     def is_ready(self):
         return True
 
-class FileDataObjectManager(DataObjectManager):
+
+class FileDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -68,7 +69,8 @@ class FileDataObjectManager(DataObjectManager):
         resource = self.model.filedataobject.file_resource
         return resource is not None and resource.is_ready()
 
-class FloatDataObjectManager(DataObjectManager):
+
+class FloatDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -81,7 +83,7 @@ class FloatDataObjectManager(DataObjectManager):
         return True
 
 
-class IntegerDataObjectManager(DataObjectManager):
+class IntegerDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -94,7 +96,7 @@ class IntegerDataObjectManager(DataObjectManager):
         return True
 
 
-class StringDataObjectManager(DataObjectManager):
+class StringDataObjectManager(AbstractDataObjectManager):
 
     @classmethod
     def get_by_value(cls, value):
@@ -107,7 +109,7 @@ class StringDataObjectManager(DataObjectManager):
         return True
 
 
-class ArrayDataObjectManager(DataObjectManager):
+class ArrayDataObjectManager(AbstractDataObjectManager):
 
     def get_substitution_value(self):
         return [member.substitution_value
@@ -177,6 +179,7 @@ class DataObject(BaseModel):
     def is_ready(self):
         return self._get_manager().is_ready()
 
+
 class BooleanDataObject(DataObject):
 
     value = models.BooleanField(null=False)
@@ -195,18 +198,15 @@ class FileDataObject(DataObject):
     file_resource = models.ForeignKey('FileResource',
                                       null=True,
                                       related_name='file_data_objects',
-                                      on_delete=models.PROTECT)
-    md5 = models.CharField(max_length=255)
+                                      on_delete=models.PROTECT,
+                                      blank=True)
+    md5 = models.CharField(max_length=255, null=True, blank=True)
     source_type = models.CharField(
         max_length=255,
         choices=FILE_SOURCE_TYPE_CHOICES)
-    file_import = jsonfield.JSONField(null=True)
+    file_import = jsonfield.JSONField(null=True, blank=True)
 
-    def initialize(self):
-        if not self.file_resource:
-            self._initialize_file_resource()
-
-    def _initialize_file_resource(self):
+    def initialize_file_resource(self):
         # Based on settings, choose the path where the
         # file should be stored and create a FileResource
         # with upload_status=incomplete.
@@ -219,14 +219,15 @@ class FileDataObject(DataObject):
                 upload_status='complete')
             if matching_file_resources.count() > 0:
                 # First match is as good as any
-                self.file_resource = matching_file_resources.first()
-                self.save()
+                file_resource = matching_file_resources.first()
+                self.setattrs_and_save_with_retries({
+                    'file_resource': file_resource})
                 return self.file_resource
         # No existing file to use. Create a new resource for upload.
-        self.file_resource  = FileResource\
-            .create_incomplete_resource_for_import(self)
-        self.save()
-
+        file_resource  = FileResource\
+                         .create_incomplete_resource_for_import(self)
+        self.setattrs_and_save_with_retries({
+            'file_resource': file_resource})
         return self.file_resource
 
 
@@ -307,7 +308,7 @@ class FileResource(BaseModel):
     datetime_created = models.DateTimeField(
         default=timezone.now)
     file_url = models.CharField(max_length=1000)
-    md5 = models.CharField(max_length=255)
+    md5 = models.CharField(max_length=255, null=True, blank=True)
     upload_status = models.CharField(
         max_length=255,
         default=FILE_RESOURCE_UPLOAD_STATUS_DEFAULT,
