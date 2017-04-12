@@ -1,10 +1,11 @@
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
+from .input_output_nodes import InputOutputNodeSerializer
+from api import async
+from api.exceptions import MultipleTemplateMatchesError, NoTemplateMatchError
 from api.models.templates import *
 from api.models.input_output_nodes import InputOutputNode
-from api import async
-from .input_output_nodes import InputOutputNodeSerializer
 
 
 DEFAULT_INPUT_GROUP = 0
@@ -291,11 +292,14 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
                 s.save()
 
             for step_data in steps:
-                s = TemplateSerializer(data=step_data)
+                if not hasattr(step_data, 'get'):
+                    s = TemplateLookupSerializer(data={'_template_id': step_data})
+                else:
+                    s = TemplateSerializer(data=step_data)
+
                 s.is_valid(raise_exception=True)
                 step = s.save()
                 workflow.add_step(step)
-
             workflow.postprocessing_status = 'complete'
             workflow.save()
 

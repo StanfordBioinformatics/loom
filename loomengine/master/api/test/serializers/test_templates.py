@@ -1,4 +1,5 @@
 from rest_framework.test import RequestsClient
+import copy
 import datetime
 from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.request import Request
@@ -51,8 +52,7 @@ class TestFixedStepInputSerializer(TestCase):
 class TestStepSerializer(TransactionTestCase):
 
     def testCreate(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
-                           WORKER_TYPE='MOCK'):
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
             s = StepSerializer(data=fixtures.templates.step_a)
             s.is_valid(raise_exception=True)
             m = s.save()
@@ -63,8 +63,7 @@ class TestStepSerializer(TransactionTestCase):
             fixtures.templates.step_a['fixed_inputs'][0]['data']['contents'])
 
     def testRender(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
-                           WORKER_TYPE='MOCK'):
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
             s = StepSerializer(data=fixtures.templates.step_a,
                                context=get_mock_context())
             s.is_valid(raise_exception=True)
@@ -114,8 +113,7 @@ class TestWorkflowSerializer(TransactionTestCase):
 class TestTemplateSerializer(TransactionTestCase):
 
     def testCreateStep(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
-                           WORKER_TYPE='MOCK'):
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
             s = TemplateSerializer(data=fixtures.templates.step_a)
             s.is_valid(raise_exception=True)
             m = s.save()
@@ -126,8 +124,7 @@ class TestTemplateSerializer(TransactionTestCase):
             fixtures.templates.step_a['fixed_inputs'][0]['data']['contents'])
 
     def testCreateFlatWorkflow(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
-                           WORKER_TYPE='MOCK'):
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
             s = TemplateSerializer(data=fixtures.templates.flat_workflow)
             s.is_valid(raise_exception=True)
             m = s.save()
@@ -140,8 +137,7 @@ class TestTemplateSerializer(TransactionTestCase):
             fixtures.templates.flat_workflow['fixed_inputs'][0]['data']['contents'])
 
     def testCreateNestedWorkflow(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
-                           WORKER_TYPE='MOCK'):
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
             s = TemplateSerializer(data=fixtures.templates.nested_workflow)
             s.is_valid(raise_exception=True)
             m = s.save()
@@ -153,6 +149,24 @@ class TestTemplateSerializer(TransactionTestCase):
         self.assertEqual(
             m.fixed_inputs.first().data_root.data_object.substitution_value,
             fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
+
+    def testCreateNestedWorkflowByReference(self):
+        """Create a step first, then define a workflow that references
+        that step by its ID
+        """
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
+            workflow = copy.deepcopy(fixtures.templates.nested_workflow)
+            step = workflow['steps'].pop()
+            s = TemplateSerializer(data=step)
+            s.is_valid(raise_exception=True)
+            step_obj = s.save()
+            step_id = '%s@%s' % (step_obj.name, step_obj.uuid)
+            workflow['steps'].append(step_id)
+            s = TemplateSerializer(data=workflow)
+            s.is_valid()
+            workflow_obj = s.save()
+
+            self.assertEqual(workflow_obj.steps.count(), len(workflow['steps']))
 
     def testRender(self):
         s = TemplateSerializer(data=fixtures.templates.nested_workflow)
