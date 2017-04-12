@@ -49,9 +49,10 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
                     # We can't use the serializer because it fails to initialize
                     # the file data object when it isn't attached to a
                     # task_attempt_output
-                    instance.data_object = FileDataObject.objects.create(
+                    data_object = FileDataObject.objects.create(
                         **data_object_data)
-                    instance.save()
+                    instance = instance.setattrs_and_save_with_retries(
+                        {'data_object': data_object})
                 else:
                     s = DataObjectSerializer(data=data_object_data)
                     s.is_valid(raise_exception=True)
@@ -118,13 +119,14 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         status_is_failed = validated_data.pop('status_is_failed', None)
         status_is_running = validated_data.pop('status_is_running', None)
 
+        attributes = {}
         if status_is_finished is not None:
-            instance.status_is_finished = status_is_finished
+            attributes['status_is_finished'] = status_is_finished
         if status_is_failed is not None:
-            instance.status_is_failed = status_is_failed
+            attributes['status_is_failed'] = status_is_failed
         if status_is_running is not None:
-            instance.status_is_running = status_is_running
-        instance.save()
+            attributes['status_is_running'] = status_is_running
+        instance = instance.setattrs_and_save_with_retries(attributes)
         return instance
 
 

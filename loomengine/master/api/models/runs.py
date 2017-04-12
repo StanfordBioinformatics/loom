@@ -1,5 +1,5 @@
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from django.db import models, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
+from django.db import models
 from django.dispatch import receiver
 from django.utils import timezone
 import jsonfield
@@ -177,7 +177,7 @@ class Run(BaseModel):
                 interpreter=template.step.interpreter,
                 parent=parent).run_ptr
             if run_request:
-                run_request = run_request.setattrs_and_save_with_retries({'run': run})
+                run_request.setattrs_and_save_with_retries({'run': run})
 
             # Postprocess run only if postprocessing of template is done.
             # It is possible for the run to be completed before the template
@@ -195,7 +195,6 @@ class Run(BaseModel):
                                              type=template.type,
                                              parent=parent).run_ptr
             if run_request:
-                run_request.run = run
                 run_request.setattrs_and_save_with_retries({'run': run})
 
             # Postprocess run only if postprocessing of template is done.
@@ -436,7 +435,7 @@ class WorkflowRun(Run):
                 channel = io_node.channel,
                 type = io_node.type
             )
-        except IntegrityError:
+        except ValidationError:
             # connector already exists. Just use it.
             connector = self.connectors.get(channel=io_node.channel)
         connector.connect(io_node)

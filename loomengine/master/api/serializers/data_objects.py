@@ -113,7 +113,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
         return s.save()
 
     def update(self, instance, validated_data):
-        instance = instance.filedataobject
+        instance = instance.filedataobject # downcast
         if self.initial_data.get('file_resource'):
             if instance.file_resource:
                 validated_data['file_resource'] = self._update_file_resource(
@@ -122,9 +122,7 @@ class FileDataObjectSerializer(serializers.ModelSerializer):
             else:
                 validated_data['file_resource'] = self._create_file_resource(
                     self.initial_data.get('file_resource'))
-        for field, value in validated_data.iteritems():
-            setattr(instance, field, value)
-        instance.save()
+        instance = instance.setattrs_and_save_with_retries(validated_data)
         return instance
 
     def _update_file_resource(self, instance, resource_data):

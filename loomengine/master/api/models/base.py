@@ -2,7 +2,7 @@ from django.db import models
 import jinja2
 import re
 
-from api.exceptions import ConcurrentModificationError
+from api.exceptions import ConcurrentModificationError, SaveRetriesExceededError
 
 
 def render_from_template(raw_text, context):
@@ -126,7 +126,7 @@ class BaseModel(models.Model, _FilterMixin):
             self._change += 1
         super(BaseModel, self).save(*args, **kwargs)
 
-    def setattrs_and_save_with_retries(self, assignments, retries=5):
+    def setattrs_and_save_with_retries(self, assignments, max_retries=5):
         """
         If the object is being edited by other processes,
         save may fail due to concurrent modification.
@@ -135,16 +135,19 @@ class BaseModel(models.Model, _FilterMixin):
         assignments is a dict of {attribute: value}
         """
         count = 0
-        while count < retries:
-            obj = self.__class__.objects.get(id=self.id)
+        obj=self
+        while True:
             for attribute, value in assignments.iteritems():
                 setattr(obj, attribute, value)
             try:
                 obj.save()
-                return obj
             except ConcurrentModificationError:
+                if  count >= max_retries:
+                    raise SaveRetriesExceededError(
+                        'Exceeded retries when saving "%s" of id "%s" '\
+                        'with assigned values "%s"' %
+                        (self.__class__, self.id, assignments))
                 count += 1
+                obj = self.__class__.objects.get(id=self.id)
                 continue
-        raise Exception(
-            'Exceeded retries when saving "%s" of id "%s" with assigned values "%s"' %
-            (self.__class__, self.id, assignments))
+            return obj

@@ -219,14 +219,15 @@ class FileDataObject(DataObject):
                 upload_status='complete')
             if matching_file_resources.count() > 0:
                 # First match is as good as any
-                self.file_resource = matching_file_resources.first()
-                self.save()
+                file_resource = matching_file_resources.first()
+                self.setattrs_and_save_with_retries({
+                    'file_resource': file_resource})
                 return self.file_resource
         # No existing file to use. Create a new resource for upload.
-        self.file_resource  = FileResource\
-            .create_incomplete_resource_for_import(self)
-        self.save()
-
+        file_resource  = FileResource\
+                         .create_incomplete_resource_for_import(self)
+        self.setattrs_and_save_with_retries({
+            'file_resource': file_resource})
         return self.file_resource
 
 
