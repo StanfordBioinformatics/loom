@@ -10,6 +10,7 @@
       name: epel
       description: EPEL YUM repo
       baseurl: "{{resolved_mirror.url}}$basearch/"
+    retries: 10
   - name: Install pip, which is needed to install docker-py.
     yum: name=python-pip disable_gpg_check=yes update_cache=yes
     register: pipinstallresult
