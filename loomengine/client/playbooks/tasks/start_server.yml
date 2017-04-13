@@ -250,6 +250,7 @@
     volumes_from:
       - "{{master_container_name}}"
     links: "{{[master_container_name,\
+            kibana_container_name,\
             flower_container_name if debug else none,\
             rabbitmq_container_name if debug else none]\
 	    | reject('none') | list}}"
