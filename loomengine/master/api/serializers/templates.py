@@ -194,7 +194,7 @@ class StepSerializer(serializers.HyperlinkedModelSerializer):
         except Exception as e:
             step.postprocessing_status='failed'
             step.save
-            raise e
+            raise
 
         # The user may have already submitted a run request before this
         # template finished postprocessing. If runs exist, postprocess them now.
@@ -241,6 +241,7 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
     outputs = serializers.JSONField(required=False)
     steps = ExpandableTemplateSerializer(many=True)
     template_import = serializers.JSONField(required=False)
+    channel_bindings = serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
 
     class Meta:
@@ -255,9 +256,9 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
                   'outputs',
                   'datetime_created',
                   'template_import',
+                  'channel_bindings',
                   'postprocessing_status',
         )
-        
 
     def create(self, validated_data):
 
@@ -315,4 +316,4 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
         except Exception as e:
             workflow.postprocessing_status = 'failed'
             workflow.save()
-            raise e
+            raise

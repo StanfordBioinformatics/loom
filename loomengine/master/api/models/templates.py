@@ -41,6 +41,12 @@ def step_inputs_validator(value):
 def step_resources_validator(value):
     pass
 
+def channel_bindings_validator(value):
+    # channel_bindings is a list of dicts the form
+    # [{'step': String, 'bindings': ListOfBindings},...]
+    # ListOfBindings is a list of internal:external channel names, e.g.
+    # ["internal_channel1:external_channel1","internal_channel2:external_channel2"]
+    pass
 
 class WorkflowManager(object):
 
@@ -63,6 +69,10 @@ class WorkflowManager(object):
     def get_environment(self):
         raise Exception('No environment on template of type "workflow"')
 
+    def get_bound_channel(self, step_name, channel_name):
+        return self.template.workflow.get_bound_channel(step_name, channel_name)
+        
+
 class StepManager(object):
 
     def __init__(self, template):
@@ -83,6 +93,9 @@ class StepManager(object):
 
     def get_environment(self):
         return self.template.step.environment
+
+    def get_bound_channel(self, step_name, channel_name):
+        raise Exception('No method get_bound_channel on template of type "step"')
 
 
 class Template(BaseModel):
@@ -169,6 +182,9 @@ class Template(BaseModel):
             'Found %s outputs for channel %s' %(outputs.count(), channel)
         return outputs.first()
 
+    def get_bound_channel(self, step_name, channel_name):
+        return self._get_manager().get_bound_channel(step_name, channel_name)
+
 
 class Workflow(Template):
 
@@ -181,6 +197,8 @@ class Workflow(Template):
                                   null=True, blank=True)
     inputs = jsonfield.JSONField(validators=[workflow_inputs_validator],
                                  null=True, blank=True)
+    channel_bindings = jsonfield.JSONField(validators=[channel_bindings_validator],
+                                           null=True, blank=True)
     raw_data = jsonfield.JSONField(null=True, blank=True)
 
     def add_step(self, step):
@@ -189,6 +207,30 @@ class Workflow(Template):
     def add_steps(self, step_list):
         for step in step_list:
             self.add_step(step)
+
+    def get_bound_channel(self, step_name, channel_name):
+        # By default the channel_name on this parent_workflow is
+        # the same as that on the child step. If a different name
+        # is assigned in channel_bindings, return that instead.
+        if not self.channel_bindings:
+	    return channel_name
+        # Get bindings that match the requested step_name
+        this_channel_bindings = filter(lambda x: x.get('step')==step_name,
+                          self.channel_bindings)
+        if len(this_channel_bindings) == 0:
+            return channel_name
+        assert len(this_channel_bindings) == 1
+	# Bindings are in the form
+        # ['internal_channel_name:external_channel_name',...]
+        # Convert this to a dict of {internal:external}
+        bindings = {}
+        for pair in this_channel_bindings[0].get('bindings'):
+            internal, external = pair.split(':')
+            bindings[internal] = external
+	bound_channel = bindings.get(channel_name)
+        if not bound_channel:
+            return channel_name
+        return bound_channel
 
 
 class FixedWorkflowInput(InputOutputNode):
