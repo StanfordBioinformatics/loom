@@ -94,6 +94,7 @@
   become: yes
   vars_files:
   - vars/common.yml
+  - vars/gcloud_worker.yml
   tasks:
   - include: tasks/gcloud_docker_login.yml
 
