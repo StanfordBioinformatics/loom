@@ -88,6 +88,16 @@
   tasks:
   - include: tasks/gcloud_create_docker_group.yml
 
+- name: Log into Google Container Registry.
+  hosts: new_instances
+  remote_user: "{{remote_user}}"
+  become: yes
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+  - include: tasks/gcloud_docker_login.yml
+
 - name: Pull Docker images on the new instance.
   hosts: new_instances
   remote_user: "{{remote_user}}"

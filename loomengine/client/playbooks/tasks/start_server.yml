@@ -12,6 +12,60 @@
 - name: Verify Docker is running
   shell: "docker ps"
 
+- name: Configure Elasticsearch
+  sysctl:
+    name: vm.max_map_count
+    value: 262144
+  become: true
+  when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"
+
+- name: Create a config file for Elasticsearch
+  template:
+    src: templates/elasticsearch.yml
+    dest: "{{server_settings_home}}/elasticsearch.yml"
+
+- name: Start an Elasticsearch container
+  docker_container:
+    name: "{{elasticsearch_container_name}}"
+    hostname: "{{elasticsearch_container_name}}"
+    image: "{{elasticsearch_image}}"
+    restart_policy: always
+    api_version: auto
+    volumes:
+      - "{{server_settings_home}}/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+      - "{{elasticsearch_data_volume}}:/usr/share/elasticsearch/data"
+    ports: "{{[ elasticsearch_port~':'~elasticsearch_port ]}}"
+    capabilities: ['IPC_LOCK']
+    ulimits: ['memlock:-1:-1','nofile:65536:65536']
+    env:
+      ES_JAVA_OPTS: "{{elasticsearch_java_opts}}"
+      http.host: 0.0.0.0
+      transport.host: 127.0.0.1
+
+- name: Check for custom Kibana config file
+  stat: path=templates/kibana.yml
+  register: kibana_config
+
+- name: Create a custom config file for Kibana if needed
+  template:
+    src: templates/kibana.yml
+    dest: "{{server_settings_home}}/kibana.yml"
+  when: kibana_config.stat.exists|bool
+
+- name: Start a Kibana container
+  docker_container:
+    name: "{{kibana_container_name}}"
+    hostname: "{{kibana_container_name}}"
+    image: "{{kibana_image}}"
+    restart_policy: always
+    api_version: auto
+    volumes: "{{ [server_settings_home~'/kibana.yml:/usr/share/kibana/config/kibana.yml'] if kibana_config.stat.exists|bool else omit}}"
+    ports: "{{[ kibana_port~':'~kibana_port ]}}"
+    env:
+      ELASTICSEARCH_URL: http://{{elasticsearch_container_name}}:{{elasticsearch_port}}
+    links:
+      - "{{elasticsearch_container_name}}"
+
 - name: Create a config file for the Fluentd logging server
   template:
     src: templates/fluent.conf
@@ -28,6 +82,8 @@
       - "{{server_settings_home}}/fluent.conf:/fluentd/etc/fluent.conf"
       - "{{server_settings_home}}/log/:/fluentd/log/"
     ports: "{{[ fluentd_port~':'~fluentd_port ]}}"
+    links:
+      - "{{elasticsearch_container_name}}"
 
 - name: Start a MySQL database container
   docker_container:
@@ -194,6 +250,7 @@
     volumes_from:
       - "{{master_container_name}}"
     links: "{{[master_container_name,\
+            kibana_container_name,\
             flower_container_name if debug else none,\
             rabbitmq_container_name if debug else none]\
 	    | reject('none') | list}}"

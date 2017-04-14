@@ -32,3 +32,13 @@
   docker_container:
     name: "{{ fluentd_container_name }}"
     state: stopped
+
+- name: Stop the Elasticsearch server container
+  docker_container:
+    name: "{{ elasticsearch_container_name }}"
+    state: stopped
+
+- name: Stop the Kibana server container
+  docker_container:
+    name: "{{ kibana_container_name }}"
+    state: stopped
