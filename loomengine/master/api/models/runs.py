@@ -231,11 +231,14 @@ class Run(BaseModel):
     def _connect_input_to_parent(self, input):
         if self.parent:
             try:
+                parent_channel = self.parent.get_bound_channel(
+                    self.name, input.channel)
                 parent_connector = self.parent.connectors.get(
-                    channel=input.channel)
+                    channel=parent_channel)
                 parent_connector.connect(input)
             except ObjectDoesNotExist:
-                self.parent.downcast()._create_connector(input)
+                self.parent.downcast()._create_connector(
+                    input, channel_name=parent_channel)
             except MultipleObjectsReturned:
                 raise ChannelNameCollisionError(
                     'ERROR! There is more than one run input named "%s". '\
@@ -258,14 +261,18 @@ class Run(BaseModel):
     def _connect_output_to_parent(self, output):
         if self.parent:
             try:
-                parent_connector = self.parent.connectors.get(channel=output.channel)
+                parent_channel = self.parent.get_bound_channel(
+                    self.name, output.channel)
+                parent_connector = self.parent.connectors.get(
+                    channel=parent_channel)
                 parent_connector.connect(output)
             except MultipleObjectsReturned:
                 raise ChannelNameCollisionError(
                     'ERROR! There is more than one run output named "%s". '\
                     'Channel names must be unique within a run.' % output.channel)
             except ObjectDoesNotExist:
-                self.parent.downcast()._create_connector(output)
+                self.parent.downcast()._create_connector(
+                    output, channel_name=parent_channel)
 
     def fail(self, message, detail=''):
         self.setattrs_and_save_with_retries({
@@ -428,11 +435,13 @@ class WorkflowRun(Run):
         for step in run.template.workflow.steps.all():
             self.create_from_template(step, parent=run)
 
-    def _create_connector(self, io_node):
+    def _create_connector(self, io_node, channel_name=None):
+        if channel_name is None:
+            channel_name = io_node.channel
         try:
             connector = WorkflowRunConnectorNode.objects.create(
                 workflow_run = self,
-                channel = io_node.channel,
+                channel = channel_name,
                 type = io_node.type
             )
         except ValidationError:
@@ -462,6 +471,9 @@ class WorkflowRun(Run):
              'status_is_running': False})
         for step in self.downcast().steps.all():
             step.kill(kill_message)
+
+    def get_bound_channel(self, step_name, channel_name):
+        return self.template.get_bound_channel(step_name, channel_name)
 
 
 class StepRun(Run):
@@ -511,7 +523,7 @@ class StepRun(Run):
         for fixed_input in self.template.fixed_inputs.all():
             assert fixed_input.channel not in visited_channels, \
                 "steprun has multiple inputs or fixed inputs for channel "\
-                "'%s'" % input.channel
+                "'%s'" % fixed_input.channel
             visited_channels.add(fixed_input.channel)
 
             run_input = StepRunInput.objects.create(
