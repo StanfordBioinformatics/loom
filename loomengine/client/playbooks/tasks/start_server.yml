@@ -60,7 +60,6 @@
     restart_policy: always
     api_version: auto
     volumes: "{{ [server_settings_home~'/kibana.yml:/usr/share/kibana/config/kibana.yml'] if kibana_config.stat.exists|bool else omit}}"
-    ports: "{{[ kibana_port~':'~kibana_port ]}}"
     env:
       ELASTICSEARCH_URL: http://{{elasticsearch_container_name}}:{{elasticsearch_port}}
     links:
