@@ -50,7 +50,7 @@ elasticsearch_java_opts: "{{lookup('env', 'LOOM_ELASTICSEARCH_JAVA_OPTS')}}"
 kibana_image: "{{lookup('env', 'LOOM_KIBANA_IMAGE')}}"
 kibana_container_name: "{{server_name}}\
                         {{lookup('env', 'LOOM_KIBANA_CONTAINER_NAME_SUFFIX')}}"
-kibana_internal_port: "{{lookup('env', 'LOOM_KIBANA_INTERNAL_PORT')}}"
+kibana_port: "{{lookup('env', 'LOOM_KIBANA_PORT')}}"
 
 # MySQL container settings
 mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER') | bool}}"
