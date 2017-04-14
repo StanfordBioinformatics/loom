@@ -87,34 +87,34 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-                        'ansible==2.2.0.0',
-                        'apache-libcloud==1.3.0',
+                        'ansible==2.3.0.0',
+                        'apache-libcloud==1.5.0',
                         'celery==4.0.2',
-                        'Django==1.10.3',
+                        'Django==1.11',
                         'django-celery-results==1.0.1',
-                        'django-cors-headers==1.2.2',
+                        'django-cors-headers==2.0.2',
                         'django-debug-toolbar==1.7',
-                        'django-extensions==1.7.4',
-                        'djangorestframework==3.5.4',
+                        'django-extensions==1.7.8',
+                        'djangorestframework==3.6.2',
                         'django-rest-swagger==2.1.2',
-                        'docker-py==1.10.5',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
-                        'eventlet==0.20.0',
+                        'docker-py==1.10.6',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
+                        'eventlet==0.21.0',
                         'flower==0.9.1',
                         'gcloud==0.18.3',
-                        'google-api-python-client==1.5.4',
-                        'google-apitools>=0.5.5',
-                        'gunicorn>=19.6.0',
-                        'Jinja2==2.8',
-                        'jsonfield==1.0.1',
-                        'jsonschema==2.5.1',
+                        'google-api-python-client==1.6.2',
+                        'google-apitools>=0.5.8',
+                        'gunicorn>=19.7.1',
+                        'Jinja2==2.9.6',
+                        'jsonfield==2.0.1',
+                        'jsonschema==2.6.0',
                         'MySQL-python==1.2.5',
                         'oauth2client==3.0.0',
-                        'python-dateutil==2.5.3',
+                        'python-dateutil==2.6.0',
                         'PyYAML==3.12',
-                        'requests==2.11.1',            # match docker-py dependency
+                        'requests==2.13.0',            # match docker-py dependency
                         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
-                        'setuptools-git==1.1',
-                        'SQLAlchemy==1.1.4',
+                        'setuptools-git==1.2',
+                        'SQLAlchemy==1.1.9',
     ],
 
     # List additional groups of dependencies here (e.g. development

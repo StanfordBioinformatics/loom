@@ -231,7 +231,7 @@
 
 - name: Create self-signed SSL certificate and key.
   command: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{server_settings_home}}/{{admin_files_dir}}/{{ssl_cert_key_file}} -out {{server_settings_home}}/{{admin_files_dir}}/{{ssl_cert_file}} -subj "{{ssl_cert_subj}}"
-  when: "{{https_port_enabled and ssl_cert_create_new}}"
+  when: "https_port_enabled and ssl_cert_create_new"
 
 - name: Create a config file for the NGINX web server
   template:
@@ -250,7 +250,6 @@
     volumes_from:
       - "{{master_container_name}}"
     links: "{{[master_container_name,\
-            kibana_container_name,\
             flower_container_name if debug else none,\
             rabbitmq_container_name if debug else none]\
 	    | reject('none') | list}}"
