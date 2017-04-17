@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+0.3.2
+----------
+* Fluentd for logging, with kibana+elasticsearch for log viewing
+* Nested templates by reference
+* API documentation with swagger
+* Reduced lag time in running tasks
+
 0.3.1
 ----------
 * Allow substitution in template output filenames

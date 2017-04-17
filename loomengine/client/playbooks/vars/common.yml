@@ -38,6 +38,20 @@ fluentd_container_name: "{{server_name}}\
 fluentd_port: "{{lookup('env', 'LOOM_FLUENTD_PORT')}}"
 fluentd_output_plugin: "{{lookup('env', 'LOOM_FLUENTD_OUTPUT_PLUGIN')}}"
 
+# Elasticsearch container settings
+elasticsearch_image: "{{lookup('env', 'LOOM_ELASTICSEARCH_IMAGE')}}"
+elasticsearch_container_name: "{{server_name}}\
+                        {{lookup('env', 'LOOM_ELASTICSEARCH_CONTAINER_NAME_SUFFIX')}}"
+elasticsearch_port: "{{lookup('env', 'LOOM_ELASTICSEARCH_PORT')}}"
+elasticsearch_data_volume: "{{lookup('env', 'LOOM_ELASTICSEARCH_DATA_VOLUME')}}"
+elasticsearch_java_opts: "{{lookup('env', 'LOOM_ELASTICSEARCH_JAVA_OPTS')}}"
+
+# Kibana container settings
+kibana_image: "{{lookup('env', 'LOOM_KIBANA_IMAGE')}}"
+kibana_container_name: "{{server_name}}\
+                        {{lookup('env', 'LOOM_KIBANA_CONTAINER_NAME_SUFFIX')}}"
+kibana_port: "{{lookup('env', 'LOOM_KIBANA_PORT')}}"
+
 # MySQL container settings
 mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER') | bool}}"
 mysql_image: "{{lookup('env', 'LOOM_MYSQL_IMAGE')}}"

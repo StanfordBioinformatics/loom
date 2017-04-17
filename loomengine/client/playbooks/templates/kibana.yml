@@ -1,0 +1,8 @@
+xpack.security.enabled: false
+server.host: 0.0.0.0
+
+{% if https_port_enabled %}
+server.ssl.enabled: true
+server.ssl.key: {{container_settings_home}}/{{admin_files_dir}}/{{ssl_cert_key_file}}
+server.ssl.certificate: {{container_settings_home}}/{{admin_files_dir}}/{{ssl_cert_file}}
+{% endif %}

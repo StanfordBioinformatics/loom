@@ -1,0 +1,8 @@
+- name: Get password for GCR login.
+  command: gcloud auth print-access-token
+  register: gcrpassword
+- name: Authenticate with GCR.
+  docker_login:
+    registry_url: https://gcr.io
+    username: oauth2accesstoken
+    password: "{{gcrpassword.stdout}}"

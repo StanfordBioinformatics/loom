@@ -7,3 +7,9 @@
   - name: Pull MySQL image when needed.
     docker_image: name={{mysql_image}} api_version=auto force=True
     when: mysql_create_docker_container
+  - name: Pull Fluentd image.
+    docker_image: name={{fluentd_image}} api_version=auto force=True
+  - name: Pull Elasticsearch image.
+    docker_image: name={{elasticsearch_image}} api_version=auto force=True
+  - name: Pull Kibana image.
+    docker_image: name={{kibana_image}} api_version=auto force=True
