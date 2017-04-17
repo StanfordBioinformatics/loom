@@ -83,8 +83,8 @@
   - vars/common.yml
   - vars/gcloud_worker.yml
   roles:
-  - {role: docker, when: "not lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')"}
-  - {role: docker-py, when: "not lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS')"}
+  - {role: docker, when: "not lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS') | bool"}
+  - {role: docker-py, when: "not lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS') | bool"}
   tasks:
   - include: tasks/gcloud_create_docker_group.yml
 
