@@ -15,13 +15,13 @@ class TaskAlreadyExistsException(Exception):
     pass
 
 
-def validate_list_of_ints(value):
+def validate_data_path(value):
     try:
-        are_ints = [isinstance(i, int) for i in value]
+        for (index, degree) in value:
+            if not (isinstance(index, int) and isinstance(degree, int)):
+                raise ValidationError('Value must be a list of (int, int) tuples')
     except TypeError:
-        raise ValidationError('Value must be a list of ints')
-    if not all(are_ints):
-        raise ValidationError('Value must be a list of ints')
+        raise ValidationError('Value must be a list of (int, int) tuples')
     
 
 class Task(BaseModel):
@@ -53,8 +53,8 @@ class Task(BaseModel):
                                                  on_delete=models.CASCADE,
                                                  null=True,
                                                  blank=True)
-    index = jsonfield.JSONField(validators=[validate_list_of_ints],
-                                null=True, blank=True)
+    data_path = jsonfield.JSONField(validators=[validate_data_path],
+                                    null=True, blank=True)
 
     # While status_is_running, Loom will continue trying to complete the task
     status_is_running = models.BooleanField(default=True)
@@ -98,7 +98,7 @@ class Task(BaseModel):
         self.step_run.update_status()
         for output in self.outputs.all():
             output.pull_data_object()
-            output.push_data_object(self.index)
+            output.push_data_object(self.data_path)
         for task_attempt in self.task_attempts.all():
             task_attempt.cleanup()
 
@@ -113,8 +113,8 @@ class Task(BaseModel):
 
     @classmethod
     def create_from_input_set(cls, input_set, step_run):
-        index = input_set.index
-        if step_run.tasks.filter(index=index).count() > 0:
+        data_path = input_set.data_path
+        if step_run.tasks.filter(data_path=data_path).count() > 0:
             raise TaskAlreadyExistsException
         task = Task.objects.create(
             step_run=step_run,
@@ -122,7 +122,7 @@ class Task(BaseModel):
             interpreter=step_run.interpreter,
             environment=step_run.template.environment,
             resources=step_run.template.resources,
-            index=index,
+            data_path=data_path,
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -223,12 +223,12 @@ class TaskOutput(BaseModel):
         self.setattrs_and_save_with_retries({
             'data_object': attempt_output.data_object })
 
-    def push_data_object(self, index):
+    def push_data_object(self, data_path):
         step_run_output = self.task.step_run.get_output(self.channel)
         if self.data_object.is_array:
             raise Exception('TODO: Handle array data objects')
         else:
-            step_run_output.push(index, self.data_object)
+            step_run_output.push(data_path, self.data_object)
 
 
 class TaskTimepoint(BaseModel):

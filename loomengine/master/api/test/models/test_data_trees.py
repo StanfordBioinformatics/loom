@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from api.models.data_objects import StringDataObject
@@ -26,15 +27,15 @@ class TestDataTreeNode(TestCase):
         
         root = DataTreeNode.objects.create()
         
-        for path, letter in input_data:
+        for data_path, letter in input_data:
             data_object = _get_string_data_object(letter)
-            root.add_data_object(path, data_object)
+            root.add_data_object(data_path, data_object)
 
         # spot check [['i'],['a','m'],['r','o','b','o','t']]
-        self.assertEqual(root.get_data_object([0,0]).substitution_value, 'i')
-        self.assertEqual(root.get_data_object([1,0]).substitution_value, 'a')
-        self.assertEqual(root.get_data_object([1,1]).substitution_value, 'm')
-        self.assertEqual(root.get_data_object([2,4]).substitution_value, 't')
+        self.assertEqual(root.get_data_object([(0,3),(0,1)]).substitution_value, 'i')
+        self.assertEqual(root.get_data_object([(1,3),(0,2)]).substitution_value, 'a')
+        self.assertEqual(root.get_data_object([(1,3),(1,2)]).substitution_value, 'm')
+        self.assertEqual(root.get_data_object([(2,3),(4,5)]).substitution_value, 't')
 
     def testMissingData(self):
         input_data=(
@@ -50,34 +51,34 @@ class TestDataTreeNode(TestCase):
 
         root = DataTreeNode.objects.create()
         
-        for path, letter in input_data:
+        for data_path, letter in input_data:
             data_object = _get_string_data_object(letter)
-            root.add_data_object(path, data_object)
+            root.add_data_object(data_path, data_object)
 
         # spot check [['i'],['a','m'],['r','o','b','o','t']]
-        self.assertEqual(root.get_data_object([0,0]).substitution_value, 'i')
+        self.assertEqual(root.get_data_object([(0,3),(0,1)]).substitution_value, 'i')
         with self.assertRaises(MissingBranchError):
-            root.get_data_object([1,])
+            root.get_data_object([(1,3),])
         with self.assertRaises(MissingBranchError):
-            root.get_data_object([2,1])
-        self.assertEqual(root.get_data_object([2,4]).substitution_value, 't')
+            root.get_data_object([(2,3),(1,5)])
+        self.assertEqual(root.get_data_object([(2,3),(4,5)]).substitution_value, 't')
 
     def testAddScalarDataObject(self):
         root = DataTreeNode.objects.create()
         text = 'text'
         data_object = _get_string_data_object(text)
-        path = []
-        root.add_data_object(path, data_object)
-        self.assertEqual(root.get_data_object(path).substitution_value, text)
+        data_path = []
+        root.add_data_object(data_path, data_object)
+        self.assertEqual(root.get_data_object(data_path).substitution_value, text)
         
     def testAddScalarDataObjectTwice(self):
         root = DataTreeNode.objects.create()
         text = 'text'
         data_object = _get_string_data_object(text)
-        path = []
-        root.add_data_object(path, data_object)
-        with self.assertRaises(RootDataAlreadyExistsError):
-            root.add_data_object(path, data_object)
+        data_path = []
+        root.add_data_object(data_path, data_object)
+        with self.assertRaises(DataAlreadyExistsError):
+            root.add_data_object(data_path, data_object)
         
     def testAddBranchTwice(self):
         root = DataTreeNode.objects.create(degree=2)
@@ -103,7 +104,7 @@ class TestDataTreeNode(TestCase):
         root = DataTreeNode.objects.create(degree=1)
         data_object = _get_string_data_object('text')
         root.add_leaf(0, data_object)
-        with self.assertRaises(LeafDataAlreadyExistsError):
+        with self.assertRaises(LeafAlreadyExistsError):
             root.add_leaf(0, data_object)
 
     def testIndexOutOfRangeError(self):
@@ -118,7 +119,7 @@ class TestDataTreeNode(TestCase):
     def testDegreeOutOfRangeError(self):
         data_object = _get_string_data_object('text')
         root = DataTreeNode.objects.create(degree=2)
-        with self.assertRaises(DegreeOutOfRangeError):
+        with self.assertRaises(ValidationError):
             root.add_branch(1, -1)
 
     def testDegreeMismatchError(self):
@@ -133,3 +134,40 @@ class TestDataTreeNode(TestCase):
         root = DataTreeNode.objects.create()
         with self.assertRaises(UnknownDegreeError):
             root.add_leaf(0, data_object)
+
+    def testIsReady(self):
+        some_of_the_data=(
+            ([(0,3),(0,1)], 'i'),
+            ([(1,3),(0,2)], 'a'),
+            ([(2,3),(0,5)], 'r'),
+            ([(2,3),(1,5)], 'o'),
+            ([(2,3),(2,5)], 'b'),
+            ([(2,3),(4,5)], 't'),
+        )
+
+        the_rest_of_the_data = (
+            ([(2,3),(3,5)], 'o'),
+            ([(1,3),(1,2)], 'm'),
+        )
+        
+        root = DataTreeNode.objects.create()
+        
+        for data_path, letter in some_of_the_data:
+            data_object = _get_string_data_object(letter)
+            root.add_data_object(data_path, data_object)
+
+        self.assertFalse(root.is_ready([]))
+        self.assertFalse(root.is_ready([(2,3),]))
+        self.assertFalse(root.is_ready([(2,3),(3,5)]))
+        self.assertTrue(root.is_ready([(0,3),]))
+        self.assertTrue(root.is_ready([(0,3),(0,1)]))
+
+        for data_path, letter in the_rest_of_the_data:
+            data_object = _get_string_data_object(letter)
+            root.add_data_object(data_path, data_object)
+            
+        self.assertTrue(root.is_ready([]))
+        self.assertTrue(root.is_ready([(2,3),]))
+        self.assertTrue(root.is_ready([(2,3),(3,5)]))
+        self.assertTrue(root.is_ready([(0,3),]))
+        self.assertTrue(root.is_ready([(0,3),(0,1)]))

@@ -12,7 +12,7 @@ from api.exceptions import NoFileMatchError, MultipleFileMatchesError
 
 class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
 
-    MISSING_BRANCH_VALUE = None
+    BLANK_NODE_VALUE = None
     EMPTY_BRANCH_VALUE = []
 
     # Serializes/deserializers a tree of DataObjects.
@@ -117,15 +117,15 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
             data_tree_node, contents, path, data_type)
 
     def _data_tree_to_data_struct(self, data_tree_node):
-        if data_tree_node._is_missing_branch():
-            return self.MISSING_BRANCH_VALUE
+        if data_tree_node._is_blank_node():
+            return self.BLANK_NODE_VALUE
         elif data_tree_node._is_empty_branch():
             return self.EMPTY_BRANCH_VALUE
         if data_tree_node._is_leaf():
             s = DataObjectSerializer(data_tree_node.data_object, context=self.context)
             return s.data
         else:
-            contents = [self.MISSING_BRANCH_VALUE] * data_tree_node.degree
+            contents = [self.BLANK_NODE_VALUE] * data_tree_node.degree
             for child in data_tree_node.children.all():
                 contents[child.index] = self._data_tree_to_data_struct(child)
             return contents

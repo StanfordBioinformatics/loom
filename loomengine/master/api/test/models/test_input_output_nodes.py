@@ -22,12 +22,12 @@ class TestInputOutputNode(TestCase):
         data_object = _get_string_data_object(string_value)
         io_node.add_data_object(path, data_object)
         with self.assertRaises(MissingBranchError):
-            io_node.get_data_object([0,0])
+            io_node.get_data_object([(0,2),(0,1)])
         self.assertEqual(
-            io_node.get_data_object([1,0]).substitution_value,
+            io_node.get_data_object([(1,2),(0,1)]).substitution_value,
             string_value)
         self.assertEqual(io_node.data_root.id,
-                         io_node.data_root.get_node([1,0]).root_node.id)
+                         io_node.data_root.get_node([(1,2),(0,1)]).root_node.id)
                          
 
     def testConnect(self):

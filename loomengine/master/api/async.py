@@ -126,7 +126,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
     t.start()
 
     last_heartbeat = datetime.datetime(datetime.MINYEAR,1,1,0,0,
-                                       tzinfo=timezone.UTC())
+                                       tzinfo=timezone.utc)
     max_retries = 5
     
     while t.is_alive():
@@ -265,7 +265,8 @@ def finish_task_attempt(task_attempt_uuid):
 @shared_task
 def _kill_task_attempt(task_attempt_uuid, kill_message):
     logger.debug('Entering async._kill_task_attempt(%s)' % task_attempt_uuid)
-    task_attempt = TaskAttempt.get(uuid=task_attempt_uuid)
+    from api.models import TaskAttempt
+    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     try:
         task_attempt.kill(kill_message)
     except Exception as e:

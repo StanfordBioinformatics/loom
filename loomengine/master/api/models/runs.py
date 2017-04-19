@@ -13,6 +13,7 @@ from api.models.data_objects import DataObject
 from api.models.input_output_nodes import InputOutputNode
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.templates import Template
+from api.models.task_input_manager import TaskInputManager
 
 
 """
@@ -572,14 +573,16 @@ class StepRun(Run):
         for task in self.downcast().tasks.all():
             task.kill(kill_message)
             
-    def push(self, channel, index):
-        """Indicates that new data is available at the given index 
-        on the given channel. This may trigger creation of new tasks.
+    def push(self, channel, data_path):
+        """Called when new data is available at the given data_path 
+        on the given channel. This will trigger creation of new tasks if 1)
+        other input data for those tasks is available, and 2) the task with
+        that data_path was not already created previously.
         """
+        if get_setting('TEST_NO_TASK_CREATION'):
+            return
         for input_set in TaskInputManager(
-                self.inputs.all(), channel, index).get_ready_input_sets():
-            if get_setting('TEST_NO_TASK_CREATION'):
-                return
+                self.inputs.all()).get_ready_input_sets(channel, data_path):
             try:
                 task = Task.create_from_input_set(input_set, self)
                 async.run_task(task.uuid)
@@ -591,29 +594,28 @@ class StepRunInput(InputOutputNode):
 
     step_run = models.ForeignKey('StepRun',
                                  related_name='inputs',
-                                 on_delete=models.CASCADE)
+                                 on_delete=models.CASCADE,
+                                 null=True, # for testing only
+                                 blank=True)
     mode = models.CharField(max_length=255)
     group = models.IntegerField()
 
-    def is_ready(self):
-        if self.get_data_as_scalar() is None:
+    def is_ready(self, data_path=None):
+        if self.data_root:
+            return self.data_root.is_ready(data_path=data_path)
+        else:
             return False
-        return self.get_data_as_scalar().is_ready()
 
     def push_all(self):
         """Notify steps that input data is available.
-        This method triggers a separate call to push(index) on the StepRunInput
-        for each available DataObject.
         """
-        if self.data_root is None:
-            return
-	self.data_root.push_all()
+	self.push([])
 
-    def push(self, index):
-        """Indicates that new data is available at the given index.
+    def push(self, data_path):
+        """Indicates that new data is available at the given data_path.
         Notify StepRun.
         """
-        self.step_run.push(self.channel, index)
+        self.step_run.push(self.channel, data_path)
 
 
 class StepRunOutput(InputOutputNode):
@@ -626,9 +628,9 @@ class StepRunOutput(InputOutputNode):
     mode = models.CharField(max_length=255)
     source = jsonfield.JSONField(null=True, blank=True)
 
-    def push(self, index, data_object):
-        self.add_data_object(index, data_object)
-        self.data_root.push_by_index(index)
+    def push(self, data_path, data_object):
+        self.add_data_object(data_path, data_object)
+        self.data_root.push(data_path)
 
 
 class WorkflowRunConnectorNode(InputOutputNode):
@@ -660,46 +662,3 @@ class WorkflowRunOutput(InputOutputNode):
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='outputs',
                                      on_delete=models.CASCADE)
-
-
-class TaskInputManager(object):
-    """Manages the set of nodes acting as inputs for one step.
-    Each input node may have more than one DataObject,
-    and DataObjects may arrive to the node at different times.
-    """
-    def __init__(self, input_nodes, channel, index):
-        self.input_nodes = input_nodes
-        self.channel = channel
-        self.index = index
-
-    def get_ready_input_sets(self):
-        """New data is available at the given channel and index. See whether 
-        any new tasks can be created with this data.
-        """
-        for input_node in self.input_nodes:
-            if not input_node.is_ready():
-                return []
-        return [InputSet(self.input_nodes, self.index)]
-
-
-class InputItem(object):
-    """Info needed by the Task to construct a TaskInput
-    """
-
-    def __init__(self, input_node, index):
-        self.data_object = input_node.get_data_object(index)
-        self.type = self.data_object.type
-        self.channel = input_node.channel
-
-
-class InputSet(object):
-    """A TaskInputManager can produce one or more InputSets, where each
-    InputSet corresponds to a single Task.
-    """
-
-    def __init__(self, input_nodes, index):
-        self.index = index
-        self.input_items = [InputItem(i, index) for i in input_nodes]
-
-    def __iter__(self):
-        return self.input_items.__iter__()

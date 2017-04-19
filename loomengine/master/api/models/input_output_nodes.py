@@ -54,9 +54,9 @@ class InputOutputNode(BaseModel):
     def has_scalar(self):
         return self.data_root.has_data_object([])
 
-    def get_data_object(self, path):
-        # Get the data object at the given path.
-        return self.data_root.get_data_object(path)
+    def get_data_object(self, data_path):
+        # Get the data object at the given data_path.
+        return self.data_root.get_data_object(data_path)
 
     def _initialize_data_root(self):
         self.data_root = DataTreeNode.objects.create()
@@ -64,16 +64,17 @@ class InputOutputNode(BaseModel):
         self.data_root.save()
         self.save()
 
-    def add_data_object(self, path, data_object):
-        # 'path' is a list of (index, degree) pairs that define a path from root to
-        # leaf. For example, in this data
+    def add_data_object(self, data_path, data_object):
+        # 'data_path' is a list of (index, degree) pairs that define a path
+        # from root to leaf. For example, in this data
         # '[["file1.txt@id1", "file2.txt@id2"], ["file3.txt@id3", "file4.txt@id4"]]'
-        # the path [(0, 2),(1, 2)], corresponds with the first (index 0) of 2 branches,
+        # the data_path [(0, 2),(1, 2)], corresponds with the first
+        # (index 0) of 2 branches,
         # and the second of 2 leaves on that branch, i.e. 'file2.txt@id2'.
-        # If path is length 0, data is assumed to be scalar
+        # If data_path is length 0, data is scalar
         if self.data_root is None:
             self._initialize_data_root()
-        self.data_root.add_data_object(path, data_object)
+        self.data_root.add_data_object(data_path, data_object)
 
     def is_connected(self, connected_node):
         if self.data_root is None or connected_node.data_root is None:

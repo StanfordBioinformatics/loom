@@ -11,7 +11,7 @@ def get_task():
         rendered_command='echo True',
         resources={'memory': '1', 'disk_size': '1', 'cores': '1'},
         environment={'docker_image': 'ubuntu'},
-        index = [0],
+        data_path = [(0,1),],
     )
     input_data_object = BooleanDataObject.objects.create(
         type='boolean',

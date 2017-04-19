@@ -201,7 +201,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     attempt_number = serializers.IntegerField(read_only=True)
     timepoints = TaskTimepointSerializer(
         many=True, allow_null=True, required=False)
-    index = serializers.JSONField(required=True)
+    data_path = serializers.JSONField(required=True)
 
     class Meta:
         model = Task
@@ -227,7 +227,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'status_is_running',
             'attempt_number',
             'timepoints',
-            'index',
+            'data_path',
         )
 
 
