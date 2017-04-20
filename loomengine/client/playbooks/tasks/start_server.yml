@@ -12,7 +12,7 @@
 - name: Verify Docker is running
   shell: "docker ps"
 
-- name: Configure Elasticsearch
+- name: Configure Elasticsearch on Linux host
   sysctl:
     name: vm.max_map_count
     value: 262144
@@ -42,15 +42,10 @@
       http.host: 0.0.0.0
       transport.host: 127.0.0.1
 
-- name: Check for custom Kibana config file
-  stat: path=templates/kibana.yml
-  register: kibana_config
-
-- name: Create a custom config file for Kibana if needed
+- name: Create a config file for Kibana
   template:
     src: templates/kibana.yml
     dest: "{{server_settings_home}}/kibana.yml"
-  when: kibana_config.stat.exists|bool
 
 - name: Start a Kibana container
   docker_container:
@@ -59,7 +54,8 @@
     image: "{{kibana_image}}"
     restart_policy: always
     api_version: auto
-    volumes: "{{ [server_settings_home~'/kibana.yml:/usr/share/kibana/config/kibana.yml'] if kibana_config.stat.exists|bool else omit}}"
+    volumes:
+      - "{{server_settings_home}}/kibana.yml:/usr/share/kibana/config/kibana.yml"
     ports: "{{[ kibana_port~':'~kibana_port ]}}"
     env:
       ELASTICSEARCH_URL: http://{{elasticsearch_container_name}}:{{elasticsearch_port}}

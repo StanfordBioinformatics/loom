@@ -1,5 +1,5 @@
 # General settings
-debug: lookup('env', 'LOOM_DEBUG') | bool
+debug: "{{ lookup('env', 'LOOM_DEBUG') | bool }}"
 
 settings_home: "{{ lookup('env', 'LOOM_SETTINGS_HOME')}}"
 container_settings_home: /loom-settings
@@ -17,7 +17,7 @@ connection_settings_file: "{{lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE')}}"
 http_port: "{{lookup('env', 'LOOM_HTTP_PORT')}}"
 https_port: "{{lookup('env', 'LOOM_HTTPS_PORT')}}"
 http_port_enabled: "{{lookup('env', 'LOOM_HTTP_PORT_ENABLED') | bool}}"
-https_port_enabled: lookup('env', 'LOOM_HTTPS_PORT_ENABLED') | bool
+https_port_enabled: "{{lookup('env', 'LOOM_HTTPS_PORT_ENABLED') | bool}}"
 http_redirect_to_https: "{{lookup('env', 'LOOM_HTTP_REDIRECT_TO_HTTPS') | bool}}"
 
 server_port: "{{https_port if https_port_enabled else http_port}}"
@@ -38,8 +38,8 @@ fluentd_container_name: "{{server_name}}\
 fluentd_outputs: "{{lookup('env', 'LOOM_FLUENTD_OUTPUTS')}}"
 fluentd_port: "{{lookup('env', 'LOOM_FLUENTD_PORT')}}"
 fluentd_address: "{{server_url | regex_replace('^.*://([^:]+)(?::.+)?$', '\\1')}}:{{fluentd_port}}"
-fluentd_tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
-fluentd_async_connect: "true"
+fluentd_tag: loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}
+fluentd_async_connect: true
 fluentd_log_opts: "{{ {'tag':fluentd_tag, 'fluentd-async-connect':fluentd_async_connect, 'fluentd-address':fluentd_address} |tojson|safe }}"
 
 # Elasticsearch container settings
