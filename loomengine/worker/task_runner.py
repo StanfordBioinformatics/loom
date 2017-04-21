@@ -10,6 +10,7 @@ import logging
 import os
 import requests
 import string
+import subprocess
 import sys
 import threading
 import time
@@ -52,7 +53,6 @@ class TaskRunner(object):
             'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
-            'LOG_OPTS': args.log_opts,
         }
 
         # Errors here can't be reported since there is no server connection
@@ -289,21 +289,17 @@ class TaskRunner(object):
 
         command = interpreter.split(' ')
         command.append(self.LOOM_RUN_SCRIPT_NAME)
-
-        log_cfg = docker.utils.LogConfig(type=LogConfig.types.FLUENTD, config=json.loads(self.settings['LOG_OPTS']))
-
+        
         self.container = self.docker_client.create_container(
             image=docker_image,
             command=command,
             volumes=[container_dir],
             host_config=self.docker_client.create_host_config(
-                log_config=log_cfg,
                 binds={host_dir: {
                     'bind': container_dir,
                     'mode': 'rw',
                 }}),
             working_dir=container_dir,
-            name='loom-task-'+self.settings['TASK_ATTEMPT_ID'],
         )
 
     def _try_to_run_container(self):
@@ -522,11 +518,11 @@ class TaskRunner(object):
                             choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                             default='WARNING',
                             help='Log level')
-        parser.add_argument('-o',
-                            '--log_opts',
+        parser.add_argument('-f',
+                            '--log_file',
                             required=False,
                             default=None,
-                            help='JSON dict of Docker log driver options')
+                            help='Log file')
         return parser
 
 
@@ -560,7 +556,7 @@ def get_stdout_logger(name, log_level_string):
     logger.addHandler(stream_handler)
     return logger
 
-
+    
 # pip entrypoint requires a function with no arguments
 def main():
 
