@@ -290,7 +290,7 @@ class TaskRunner(object):
         command = interpreter.split(' ')
         command.append(self.LOOM_RUN_SCRIPT_NAME)
 
-        log_cfg = docker.utils.LogConfig(type=LogConfig.types.FLUENTD, config=json.loads(self.settings['LOG_OPTS']))
+        log_cfg = docker.utils.LogConfig(type=docker.utils.LogConfig.types.FLUENTD, config=json.loads(self.settings['LOG_OPTS']))
 
         self.container = self.docker_client.create_container(
             image=docker_image,

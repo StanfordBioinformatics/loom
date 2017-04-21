@@ -40,7 +40,7 @@ fluentd_port: "{{lookup('env', 'LOOM_FLUENTD_PORT')}}"
 fluentd_address: "{{server_url | regex_replace('^.*://([^:]+)(?::.+)?$', '\\1')}}:{{fluentd_port}}"
 fluentd_tag: loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}
 fluentd_async_connect: "true"
-fluentd_log_opts: "{{ {'tag':fluentd_tag, 'fluentd-async-connect':fluentd_async_connect, 'fluentd-address':fluentd_address} |tojson|safe }}"
+fluentd_log_opts: "{{ {'tag':fluentd_tag,'fluentd-async-connect':fluentd_async_connect,'fluentd-address':fluentd_address} | to_json }}"
 
 # Elasticsearch container settings
 elasticsearch_image: "{{lookup('env', 'LOOM_ELASTICSEARCH_IMAGE')}}"
