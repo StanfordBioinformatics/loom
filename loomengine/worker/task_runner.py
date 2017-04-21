@@ -4,6 +4,7 @@ import argparse
 import copy
 from datetime import datetime
 import docker
+from docker.utils import LogConfig
 import errno
 import json
 import logging
