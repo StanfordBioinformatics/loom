@@ -55,12 +55,18 @@ class RunRequestSerializer(serializers.ModelSerializer):
                     type = template.get_input(input_data['channel']).get('type')
                 except NoTemplateInputMatchError as e:
                     raise serializers.ValidationError(e.message)
-                input_data.update({'type': type})
+                if input_data.get('type'):
+                    if input_data.get('type') != type:
+                        raise serializers.ValidationError(
+                            'Type mismatch on RunRequest input channel "%s". '\
+                            '"%s" != "%s"' \
+                            % (input_data['channel'], type, input_data.get('type')))
+                else:
+                    input_data.update({'type': type})
                 s = RunRequestInputSerializer(
                     data=input_data,
                     context={'parent_field': 'run_request',
-                             'parent_instance': run_request
-                         })
+                             'parent_instance': run_request})
                 s.is_valid(raise_exception=True)
                 s.save()
 

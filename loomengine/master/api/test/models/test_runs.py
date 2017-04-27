@@ -3,7 +3,8 @@ import yaml
 
 from .test_templates import get_workflow
 from api.models.data_objects import *
-from api.models.runs import *
+from api.models.runs import Run
+from api.models.input_manager import InputManager
 from api.serializers import RunRequestSerializer
 from api.test.helper import make_run_request_from_template_file
 
@@ -25,7 +26,7 @@ class TestWorkflowRun(TestCase):
                 workflow_run.inputs.get(channel='one')))
 
 
-class TestTaskInputManager(TestCase):
+class TestInputManager(TestCase):
 
     def testSimple(self):
         with self.settings(TEST_DISABLE_ASYNC_DELAY=True, TEST_NO_TASK_CREATION=True):
@@ -34,13 +35,12 @@ class TestTaskInputManager(TestCase):
                              'fixtures', 'simple', 'simple.yaml'),
                 word_in='puppy')
 
-        sets = TaskInputManager(run_request.run.inputs.all())\
-               .get_ready_input_sets( 'word_in', [])
+        sets = InputManager(run_request.run.inputs.all(), 'word_in', [])\
+               .get_input_sets()
 
-        sets = [set for set in sets]
         self.assertEqual(len(sets), 1)
         self.assertEqual(sets[0].data_path, [])
-        
-        input_items = [item for item in sets[0]]
+
+        input_items = sets[0].input_items
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, 'word_in')

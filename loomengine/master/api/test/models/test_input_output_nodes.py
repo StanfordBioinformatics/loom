@@ -1,16 +1,11 @@
 from django.test import TestCase
 
+from . import _get_string_data_object
 from api.models.data_objects import *
 from api.models.input_output_nodes import *
-from api.models.data_trees import MissingBranchError
+from api.models.data_tree_nodes import MissingBranchError
 from api.models.runs import StepRunOutput
 
-
-def _get_string_data_object(text):
-    return StringDataObject.objects.create(
-        type='string',
-        value=text
-    )
 
 class TestInputOutputNode(TestCase):
 

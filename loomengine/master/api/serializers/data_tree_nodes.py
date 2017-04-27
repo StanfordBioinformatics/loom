@@ -4,9 +4,9 @@ import jsonschema
 from rest_framework import serializers
 
 from .data_objects import DataObjectSerializer
-from api.models.data_trees import DataTreeNode
+from api.models.data_tree_nodes import DataTreeNode
 from api.models.data_objects import DataObject
-from api.validation_schemas.data_trees import data_tree_schema
+from api.validation_schemas.data_tree_nodes import data_tree_node_schema
 from api.exceptions import NoFileMatchError, MultipleFileMatchesError
 
 
@@ -54,7 +54,7 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
 
     def validate_contents(self, value):
         try:
-            jsonschema.validate(value, data_tree_schema)
+            jsonschema.validate(value, data_tree_node_schema)
         except jsonschema.exceptions.ValidationError:
             raise serializers.ValidationError(
                 "Data must be a string, number, boolean, or object, a list "\
@@ -105,7 +105,7 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
         return minheight + 1
 
     def _create_data_tree_from_data_objects(self, contents, data_type):
-        data_tree_node = DataTreeNode.objects.create()
+        data_tree_node = DataTreeNode.objects.create(type=data_type)
         data_tree_node.root_node = data_tree_node
         data_tree_node.save()
         self._add_data_objects(data_tree_node, contents, data_type)
@@ -121,7 +121,7 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
             return self.BLANK_NODE_VALUE
         elif data_tree_node._is_empty_branch():
             return self.EMPTY_BRANCH_VALUE
-        if data_tree_node._is_leaf():
+        if data_tree_node.is_leaf():
             s = DataObjectSerializer(data_tree_node.data_object, context=self.context)
             return s.data
         else:

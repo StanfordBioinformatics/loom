@@ -251,7 +251,8 @@ class ArrayDataObject(DataObject):
     @property
     def members(self):
         return [m.member for m in 
-                self.has_array_members_membership.all().select_related('member')]
+                self.has_array_members_membership.order_by('order')\
+                .select_related('member')]
 
     prefetch_members = models.ManyToManyField('DataObject',
                                      through='ArrayMembership',

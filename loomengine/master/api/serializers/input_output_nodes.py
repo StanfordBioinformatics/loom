@@ -3,7 +3,7 @@ from django.db import models
 
 from .base import CreateWithParentModelSerializer
 from api.models.input_output_nodes import InputOutputNode
-from .data_trees import ExpandableDataTreeNodeSerializer
+from .data_tree_nodes import ExpandableDataTreeNodeSerializer
 
 
 class InputOutputNodeSerializer(CreateWithParentModelSerializer):

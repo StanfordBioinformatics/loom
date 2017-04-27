@@ -13,7 +13,7 @@ from api.models.data_objects import DataObject
 from api.models.input_output_nodes import InputOutputNode
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.templates import Template
-from api.models.task_input_manager import TaskInputManager
+from api.models.input_manager import InputManager
 
 
 """
@@ -581,8 +581,8 @@ class StepRun(Run):
         """
         if get_setting('TEST_NO_TASK_CREATION'):
             return
-        for input_set in TaskInputManager(
-                self.inputs.all()).get_ready_input_sets(channel, data_path):
+        for input_set in InputManager(self.inputs.all(), channel, data_path)\
+            .get_input_sets():
             try:
                 task = Task.create_from_input_set(input_set, self)
                 async.run_task(task.uuid)

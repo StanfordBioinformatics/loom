@@ -1,4 +1,4 @@
-data_tree_schema = {
+data_tree_node_schema = {
     # schema used to verify that data contains only a X,
     # a list of X, or a list of (lists of)^n X,
     # where X is string, integer, float, boolean, or object.

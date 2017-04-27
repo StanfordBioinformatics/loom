@@ -18,7 +18,7 @@ class TaskAlreadyExistsException(Exception):
 def validate_data_path(value):
     try:
         for (index, degree) in value:
-            if not (isinstance(index, int) and isinstance(degree, int)):
+            if not (isinstance(index, (int,long)) and isinstance(degree, (int,long))):
                 raise ValidationError('Value must be a list of (int, int) tuples')
     except TypeError:
         raise ValidationError('Value must be a list of (int, int) tuples')
@@ -124,12 +124,12 @@ class Task(BaseModel):
             resources=step_run.template.resources,
             data_path=data_path,
         )
-        for input in input_set:
+        for input_item in input_set:
             TaskInput.objects.create(
                 task=task,
-                channel=input.channel,
-                type=input.type,
-                data_object = input.data_object)
+                channel=input_item.channel,
+                type=input_item.get_type(),
+                data_object = input_item.get_data_object())
         for step_run_output in step_run.outputs.all():
             task_output = TaskOutput.objects.create(
                 channel = step_run_output.channel,

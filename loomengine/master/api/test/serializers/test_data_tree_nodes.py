@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework import serializers
 
 from . import get_mock_context, get_mock_request
-from api.serializers.data_trees import DataTreeNodeSerializer
+from api.serializers.data_tree_nodes import DataTreeNodeSerializer
 
 
 class TestDataTreeNodeSerializer(TestCase):

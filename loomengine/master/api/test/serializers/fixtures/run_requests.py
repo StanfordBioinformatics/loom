@@ -7,3 +7,8 @@ run_request_input = {
     'channel': flat_workflow['inputs'][0]['channel']
 }
 
+run_request_parallel_inputs = {
+    'data': {'contents': ['some', 'text']},
+    'type': 'string',
+    'channel': flat_workflow['inputs'][0]['channel']
+}

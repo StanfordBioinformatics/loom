@@ -2,7 +2,7 @@ from django.db import models
 
 from .base import BaseModel
 from api.models.data_objects import DataObject
-from api.models.data_trees import DataTreeNode
+from api.models.data_tree_nodes import DataTreeNode
 
 
 """
@@ -58,8 +58,14 @@ class InputOutputNode(BaseModel):
         # Get the data object at the given data_path.
         return self.data_root.get_data_object(data_path)
 
+    def get_data_subtree(self, data_path):
+        return self.data_root.get_node(data_path)
+
+    def get_ready_data_nodes(self, seed_path, gather_depth):
+        return self.data_root.get_ready_data_nodes(seed_path, gather_depth)
+    
     def _initialize_data_root(self):
-        self.data_root = DataTreeNode.objects.create()
+        self.data_root = DataTreeNode.objects.create(type=self.type)
         self.data_root.root_node = self.data_root
         self.data_root.save()
         self.save()
