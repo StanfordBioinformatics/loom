@@ -1,6 +1,10 @@
 Release Notes
 =============
 
+0.3.3
+----------
+* Critical bugfix for 0.3.2 that prevented use on Google Cloud
+
 0.3.2
 ----------
 * Fluentd for logging, with kibana+elasticsearch for log viewing
