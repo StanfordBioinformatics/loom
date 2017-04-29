@@ -7,7 +7,7 @@ from api.models.tasks import *
 def get_task():
     task = Task.objects.create(
         interpreter='/bin/bash',
-        command='echo {{input1}}',
+        command='echo {{input1}}; echo {{ input3|join(", ") }}',
         rendered_command='echo True',
         resources={'memory': '1', 'disk_size': '1', 'cores': '1'},
         environment={'docker_image': 'ubuntu'},
@@ -21,13 +21,26 @@ def get_task():
                                      data_object=input_data_object,
                                      channel='input1',
                                      type='boolean')
+
     input_data_object2 = StringDataObject.objects.create(
         type='string',
         value='mydata',
     )
     input2 = TaskInput.objects.create(task=task,
-                                     data_object=input_data_object2,
-                                     channel='input2',
+                                      data_object=input_data_object2,
+                                      channel='input2',
+                                      type='string')
+    
+    input3_data_object_list = [
+        StringDataObject.objects.create(
+            type='string',
+            value=value) for value in ['salud','amor','dinero']]
+    input3_array_data_object = ArrayDataObject.create_from_list(
+        input3_data_object_list, 'string')
+
+    input3 = TaskInput.objects.create(task=task,
+                                     data_object=input3_array_data_object,
+                                     channel='input3',
                                      type='string')
     output = TaskOutput.objects.create(
         task=task,
@@ -48,6 +61,14 @@ class TestTask(TestCase):
         task = get_task()
         task_attempt = task.create_and_activate_attempt()
         self.assertEqual(task_attempt.rendered_command, task.rendered_command)
+
+    def testGetInputContext(self):
+        task = get_task()
+        context = task.get_input_context()
+        self.assertEqual(context['input3'][2], 'dinero')
+        self.assertEqual(str(context['input3']), 'salud amor dinero')
+        command = task.render_command()
+        self.assertEqual(command, 'echo True; echo salud, amor, dinero')
 
 
 class TestTaskAttempt(TestCase):

@@ -176,8 +176,7 @@ class ArrayDataObjectViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.ArrayDataObjectSerializer
 
     def get_queryset(self):
-        queryset = models.DataObject.objects.all()
-        queryset = queryset.filter(is_array=True)
+        queryset = models.ArrayDataObject.objects.all()
         return queryset.order_by('-datetime_created')
 
 

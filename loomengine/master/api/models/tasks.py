@@ -7,6 +7,7 @@ import os
 from .base import BaseModel, render_from_template
 from api import get_setting
 from api import async
+from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileDataObject
 
@@ -161,8 +162,13 @@ class Task(BaseModel):
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
-            context[input.channel] = input.data_object\
-                                            .substitution_value
+            if not input.data_object.is_array:
+                context[input.channel] = input.data_object\
+                                              .substitution_value
+            else:
+                context[input.channel] = ArrayInputContext(
+                    input.data_object\
+                    .substitution_value)
         return context
 
     def get_output_context(self, input_context):
@@ -475,3 +481,17 @@ class TaskAttemptTimepoint(BaseModel):
     message = models.CharField(max_length=255)
     detail = models.TextField(null=True, blank=True)
     is_error = models.BooleanField(default=False)
+
+
+class ArrayInputContext(object):
+    def __init__(self, items):
+        self.items = items
+
+    def __iter(self):
+        return self.items.iter()
+
+    def __getitem__(self, i):
+        return self.items[i]
+
+    def __str__(self):
+        return ' '.join([str(item) for item in self.items])

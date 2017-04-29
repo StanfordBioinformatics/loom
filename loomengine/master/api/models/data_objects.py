@@ -111,9 +111,33 @@ class StringDataObjectManager(AbstractDataObjectManager):
 
 class ArrayDataObjectManager(AbstractDataObjectManager):
 
+    def _rename_duplicate(self, filename, count):
+        if count == 0:
+            return filename
+        parts = filename.split('.')
+        assert len(parts) > 0, 'missing filename'
+        if len(parts) == 1:
+            return parts[0] + '(%s)' % count
+        else:
+            return '.'.join(parts[0:len(parts)-1]) + '__%s__.' % count + parts[-1]
+
     def get_substitution_value(self):
-        return [member.substitution_value
-                for member in self.model.members]
+        if self.model.type == 'file' and self.model.is_array:
+            # Increment filenames if there are duplicates in an array,
+            # e.g. file.txt, file__1__.txt, file__2__.txt
+            values = []
+            filename_count = {}
+            for member in self.model.arraydataobject.members:
+                filename = member.substitution_value
+                duplicates = filename_count.setdefault(filename, 0)
+                filename_count[filename] += 1
+                if duplicates > 0:
+                    filename = self._rename_duplicate(filename, duplicates)
+                values.append(filename)
+            return values
+        else:
+            return [member.substitution_value
+                    for member in self.model.arraydataobject.members]
 
     def is_ready(self):
         return all([member.is_ready()

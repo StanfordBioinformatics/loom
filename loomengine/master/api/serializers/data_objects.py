@@ -158,7 +158,7 @@ class DataObjectSerializer(SuperclassModelSerializer):
     # its subclasses, to transform a base class instance
     # into the derived class
     subclass_fields = {
-        'array': 'dataobjectarray',
+        'array': 'arraydataobject',
         'string': 'stringdataobject',
         'integer': 'integerdataobject',
         'boolean': 'booleandataobject',
@@ -221,7 +221,7 @@ class ArrayDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = ArrayDataObject
-        exclude = ('_change',)
+        fields = ('uuid', 'url', 'type', 'is_array', 'datetime_created', 'members')
 
     def create(self, validated_data):
         member_instances = self._create_member_instances()

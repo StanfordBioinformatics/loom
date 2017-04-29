@@ -206,16 +206,46 @@ class TaskRunner(object):
         if self.task_attempt.get('inputs') is None:
             self.logger.info('No inputs.')
             return
-        file_data_object_ids = []
-        for input in self.task_attempt['inputs']:
+
+        for input in self.task_attempt['inputs']:            
             data_object = self.connection.get_data_object(input['data_object']['uuid'])
             if data_object['type'] == 'file':
-                file_data_object_ids.append('@'+data_object['uuid'])
-        self.logger.debug('Copying inputs %s to %s.' % ( file_data_object_ids,
-                                                         self.settings['WORKING_DIR']))
-        self.filemanager.export_files(
-            file_data_object_ids,
-            destination_url=self.settings['WORKING_DIR'])
+                if data_object['is_array']:
+                    filename_count = {}
+                    for member_data_object in data_object['members']:
+                        filename = member_data_object['filename']
+                        
+                        # Increment filenames if there are duplicates in an array,
+                        # e.g. file.txt, file__1__.txt, file__2__.txt
+                        duplicates = filename_count.setdefault(filename, 0)
+                        filename_count[filename] += 1
+                        if duplicates > 0:
+                            filename = self._rename_duplicate(
+                                filename, duplicates)
+                        self._copy_file_input(member_data_object,
+                                              destination_filename=filename)
+                else:
+                    self._copy_file_input(data_object)
+
+    def _rename_duplicate(self, filename, count):
+        if count == 0:
+            return filename
+        parts = filename.split('.')
+	assert len(parts) > 0, 'missing filename'
+        if len(parts) == 1:
+            return parts[0] + '(%s)' % count
+        else:
+            return '.'.join(parts[0:len(parts)-1]) + '__%s__.' % count + parts[-1]
+
+    def _copy_file_input(self, data_object, destination_filename=None):
+        file_data_object_id = '@'+data_object['uuid']
+        self.logger.debug('Copying input %s to %s.' % (
+            file_data_object_id,
+            self.settings['WORKING_DIR']))
+        self.filemanager.export_file(
+            file_data_object_id,
+            destination_url=self.settings['WORKING_DIR'],
+            destination_filename=destination_filename)
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
@@ -406,17 +436,7 @@ class TaskRunner(object):
         for output in self.task_attempt['outputs']:
             if output['type'] == 'file':
                 filename = output['source']['filename']
-                try:
-                    data_object = self.filemanager.import_result_file(
-                        output,
-                        os.path.join(self.settings['WORKING_DIR'], filename)
-                    )
-                    self.logger.debug('Saved file output "%s"' % data_object['uuid'])
-                except IOError as e:
-                    self._fail(
-                        'Failed to save output file %s' % filename,
-                        detail=str(e))
-                    raise
+                data_object = self._save_file_output(output, filename)
             else:
                 if output['source'].get('filename'):
                     with open(
@@ -444,6 +464,20 @@ class TaskRunner(object):
                 data_object = self._save_nonfile_output(output, output_text)
                 self.logger.debug(
                     'Saved %s output "%s"' % (output['type'], data_object['id']))
+
+    def _save_file_output(self, output, filename):
+        try:
+            data_object = self.filemanager.import_result_file(
+                output,
+                os.path.join(self.settings['WORKING_DIR'], filename)
+            )
+            self.logger.debug('Saved file output "%s"' % data_object['uuid'])
+        except IOError as e:
+            self._fail(
+                'Failed to save output file %s' % filename,
+                detail=str(e))
+            raise
+        return data_object
 
     def _save_nonfile_output(self, output, output_text):
         data_type = output['type']

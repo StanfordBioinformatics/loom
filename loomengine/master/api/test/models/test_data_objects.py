@@ -405,3 +405,22 @@ class TestArrayDataObject(TestCase):
         with self.assertRaises(NestedArraysError):
             array2 = ArrayDataObject.create_from_list(
                 list2, 'integer')
+
+    def testDuplicateFilenames(self):
+        file_data_object_list = []
+        for i in range(3):
+            file_data_object_list.append(
+                FileDataObject.objects.create(
+                    type='file',
+                    filename='same.txt',
+                    source_type='imported',
+                    file_import={'source_url': 'file:///data/somewhere.txt',
+                                 'note': 'Test data'},
+                    md5='abcde'
+                )
+            )
+
+        array = ArrayDataObject.create_from_list(file_data_object_list, 'file')
+        
+        self.assertEqual(array.substitution_value,
+                         ['same.txt','same__1__.txt','same__2__.txt'])

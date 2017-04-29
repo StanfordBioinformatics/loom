@@ -336,8 +336,9 @@ class GoogleStorageDestination(AbstractDestination):
         return self.blob.exists()
 
     def is_dir(self):
-        # No dirs in Google Storage, just blobs
-        return False
+        # No dirs in Google Storage, just blobs.
+        # Call it a dir if it ends in /
+        self.url.geturl().endswith('/')
 
     def write(self, content):
         with tempfile.NamedTemporaryFile('w') as f:
@@ -611,54 +612,54 @@ class FileManager:
             # destination must be a directory
             if not Destination(destination_url, self.settings).is_dir():
                 raise Exception(
-                    'Destination must be a directory if multiple files are exported. "%s" is not a directory.'
+                    'Destination must be a directory if multiple files '\
+                    'are exported. "%s" is not a directory.'
                     % destination_url)
         for file_id in file_ids:
             self.export_file(file_id, destination_url=destination_url)
 
-    def export_file(self, file_id, destination_url=None):
+    def export_file(self, file_id, destination_url=None, destination_filename=None):
+        """Export a file from Loom to some file storage location.
+        Default destination_url is cwd. Default destination_filename is the 
+        filename from the file data object associated with the given file_id.
+        destination_url may be for a file or a directory. If destination_filename
+        is given, destination_url must be a directory.
+        """
         # Error raised if there is not exactly one matching file.
-        file_data_object = self.connection.get_file_data_object_index(query_string=file_id, max=1, min=1)[0]
+        file_data_object = self.connection.get_file_data_object_index(
+            query_string=file_id, max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()
-        default_name = file_data_object['filename']
-        destination_url = self.get_destination_file_url(destination_url, default_name)
-        destination = Destination(destination_url, self.settings)
+        if Destination(destination_url, self.settings).is_dir():
+            # Filename not given with destination_url. We get it from inputs
+            # or from the object specified by file_id
+            if not destination_filename:
+                destination_filename = file_data_object['filename']
+            destination_file_url = os.path.join(destination_url,
+                                                destination_filename)
+        else:
+            if destination_filename:
+                raise Exception('Conflicting args: cannot give both destination_url '
+                                ' and destination_filename unless destination_url '
+                                ' is a directory')
+            # Filename is included with destination_url
+            destination_file_url = destination_url   
 
-        self.logger.info('Exporting file %s@%s to %s...' % (file_data_object['filename'], file_data_object['uuid'], destination.get_url()))
+        destination = Destination(destination_file_url, self.settings)
+        if destination.exists():
+            raise FileAlreadyExistsError('File already exists at %s' % destination_url)
+
+        self.logger.info('Exporting file %s@%s to %s...' % (
+            file_data_object['filename'],
+            file_data_object['uuid'],
+            destination.get_url()))
 
         # Copy from the first file location
         source_url = file_data_object['file_resource']['file_url']
         Source(source_url, self.settings).copy_to(destination)
 
         self.logger.info('...finished exporting file')
-
-    def get_destination_file_url(self, requested_destination, default_name):
-        """destination may be a file, a directory, or None
-        This function accepts the specified file desitnation, 
-        or creates a sensible default that will not overwrite an existing file.
-        """
-        if requested_destination is None:
-            auto_destination = os.path.join(os.getcwd(), default_name)
-            destination = self._rename_to_avoid_overwrite(auto_destination)
-        elif Destination(requested_destination, self.settings).is_dir():
-            auto_destination = os.path.join(requested_destination, default_name)
-            destination = self._rename_to_avoid_overwrite(auto_destination)
-        else:
-            # Don't modify a file destination specified by the user, even if it overwrites something.
-            destination = requested_destination
-        return self.normalize_url(destination)
-
-    def _rename_to_avoid_overwrite(self, destination_path):
-        root = destination_path
-        destination = Destination(root, self.settings)
-        counter = 0
-        while destination.exists():
-            counter += 1
-            destination_path = '%s(%s)' % (root, counter)
-            destination = Destination(destination_path, self.settings)
-        return destination_path
 
     def read_file(self, url):
         source = Source(url, self.settings)
