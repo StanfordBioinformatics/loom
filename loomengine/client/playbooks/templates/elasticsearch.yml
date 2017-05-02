@@ -1,6 +1,9 @@
 node.name: ${HOSTNAME}
 bootstrap.memory_lock: true
 xpack.security.enabled: false
+xpack.monitoring.enabled: false
+xpack.graph.enabled: false
+xpack.watcher.enabled: false
 
 ### Settings below here from base config file
 
