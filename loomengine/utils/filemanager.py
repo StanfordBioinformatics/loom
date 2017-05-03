@@ -441,7 +441,10 @@ class GoogleStorage2LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise e
+                raise Exception(
+                    'Failed to create local directory "%s": "%s"' %
+                    (os.path.dirname(self.destination.get_path()),
+                     e))
         self.source.blob.download_to_filename(self.destination.get_path())
 
     def move(self):
@@ -593,7 +596,7 @@ class FileManager:
                 'Please run "gcloud auth application-default login"')
         except Exception as e:
             self._set_upload_status(file_data_object, 'failed')
-            raise e
+            raise
 
         # Signal that the upload completed successfully
         file_data_object = self._set_upload_status(
