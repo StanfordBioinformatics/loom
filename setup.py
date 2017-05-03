@@ -100,9 +100,9 @@ setup(
                         'docker-py==1.10.6',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
                         'eventlet==0.21.0',
                         'flower==0.9.1',
-                        'gcloud==0.18.3',
                         'google-api-python-client==1.6.2',
                         'google-apitools>=0.5.8',
+                        'google-cloud==0.25.0',
                         'gunicorn>=19.7.1',
                         'Jinja2==2.9.6',
                         'jsonfield==2.0.1',
