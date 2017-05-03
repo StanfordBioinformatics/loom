@@ -43,5 +43,16 @@ env.update({
     'GCE_EMAIL': GCE_EMAIL,
 })
 
-print subprocess.check_output([inventory_file], env=env)
-sys.exit(0)
+retries = 3
+while True:
+    try:
+        print subprocess.check_output([inventory_file], env=env)
+        sys.exit(0)
+    except Exception as e:
+        print 'Error executing inventory file %s: %s' % (inventory_file, e)
+        print '%s retries remaining' % retries
+        if retries == 0:
+            raise
+        retries -= 1
+            
+

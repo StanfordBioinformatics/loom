@@ -15,6 +15,9 @@
       tags: "{{tags if tags|trim else omit}}"
       external_ip: "{{external_ip if external_ip|trim else omit}}"
     register: gce_result
+    until: gce_result.state == "present"
+    retries: 5
+    delay: 5
   - name: Add host IP to new_instances for downstream plays. Use internal or external IP depending on setting.
     add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'

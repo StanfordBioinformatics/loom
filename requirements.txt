@@ -26,11 +26,11 @@ future==0.16.0
 futures==3.0.5
 gax-google-logging-v2==0.8.3
 gax-google-pubsub-v1==0.8.3
-gcloud==0.18.3
 google-api-python-client==1.6.2
 google-apitools==0.5.8
+google-cloud==0.25.0
 google-compute-engine==2.3.5
-google-gax==0.12.5
+google-gax==0.15.9
 googleapis-common-protos==1.5.2
 greenlet==0.4.12
 grpc-google-logging-v2==0.8.1
