@@ -260,18 +260,3 @@
       fluentd-async-connect: "true"
       tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
 
-- name: Set Kibana timestamp field.
-  uri:
-    url: http://127.0.0.1:9200/.kibana/index-pattern/*
-    method: PUT
-    body_format: json
-    body: '{"title" : "*",  "timeFieldName": "@timestamp"}'
-    status_code: 200,201
-
-- name: Set Kibana default index.
-  uri:
-    url: http://127.0.0.1:9200/.kibana/config/{{kibana_version}}
-    method: PUT
-    body_format: json
-    body: '{"defaultIndex" : "*"}'
-    status_code: 200,201
