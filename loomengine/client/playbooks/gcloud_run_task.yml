@@ -58,12 +58,6 @@
       - scratch_disk_name is defined
       - scratch_disk_type is defined
       - scratch_disk_size_gb is defined
-    - name: Set scratch disk to be deleted with the instance.
-      shell: gcloud compute instances set-disk-auto-delete {{instance_name}} --auto-delete --disk {{scratch_disk_name}} --zone {{zone}}
-      when:
-      - scratch_disk_name is defined
-      - scratch_disk_type is defined
-      - scratch_disk_size_gb is defined
 
 - name: Format and mount the scratch disk on the Loom worker.
   hosts: new_instances
