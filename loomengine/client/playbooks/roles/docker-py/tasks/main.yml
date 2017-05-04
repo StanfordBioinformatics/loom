@@ -26,7 +26,7 @@
     until: requestsinstallresult['state'] == 'present'
 
   - name: Install docker-py, which is required by Ansible to use Docker modules.
-    pip: name=docker-py version=1.9.0
+    pip: name=docker-py version=1.10.6
     register: dockerpyinstallresult
     retries: 10
     until: dockerpyinstallresult['state'] == 'present'

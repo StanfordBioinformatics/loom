@@ -56,6 +56,7 @@
     api_version: auto
     volumes:
       - "{{server_settings_home}}/kibana.yml:/usr/share/kibana/config/kibana.yml"
+      - "{{server_settings_home}}:{{container_settings_home}}"
     ports: "{{[ kibana_port~':'~kibana_port ]}}"
     env:
       ELASTICSEARCH_URL: http://{{elasticsearch_container_name}}:{{elasticsearch_port}}
@@ -258,3 +259,27 @@
       fluentd-address: localhost:{{fluentd_port}}
       fluentd-async-connect: "true"
       tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
+
+- name: Wait for Kibana to initialize. (retry messages are normal)
+  uri:
+    url: http://127.0.0.1:9200/.kibana
+  register: response
+  until: response.status == 200
+  retries: 30
+  delay: 10
+
+- name: Set Kibana timestamp field.
+  uri:
+    url: http://127.0.0.1:9200/.kibana/index-pattern/*
+    method: PUT
+    body_format: json
+    body: '{"title" : "*",  "timeFieldName": "@timestamp"}'
+    status_code: 200,201
+
+- name: Set Kibana default index.
+  uri:
+    url: http://127.0.0.1:9200/.kibana/config/{{kibana_version}}
+    method: PUT
+    body_format: json
+    body: '{"defaultIndex" : "*"}'
+    status_code: 200,201

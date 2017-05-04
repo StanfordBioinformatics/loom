@@ -1,5 +1,9 @@
-xpack.security.enabled: false
 server.host: 0.0.0.0
+
+xpack.security.enabled: false
+xpack.monitoring.enabled: false
+xpack.graph.enabled: false
+xpack.reporting.enabled: false
 
 {% if https_port_enabled %}
 server.ssl.enabled: true

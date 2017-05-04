@@ -47,3 +47,6 @@
   docker_container:
     name: "{{ kibana_container_name }}"
     state: absent
+
+- name: Delete any remaining unattached Docker volumes.
+  command: docker volume prune -f
