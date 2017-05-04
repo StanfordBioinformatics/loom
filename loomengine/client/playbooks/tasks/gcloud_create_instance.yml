@@ -8,7 +8,6 @@
   - name: Boot up a new instance using the just-created boot disk.
     gce:
       name: "{{instance_name}}"
-      delete_on_termination: yes
       disks: "{{instance_name}}"
       zone: "{{zone}}"
       machine_type: "{{instance_type if instance_type|trim else omit}}"
@@ -24,6 +23,7 @@
     until: gce_result.state == "present"
     retries: 5
     delay: 5
+
   - name: Add host IP to new_instances for downstream plays. Use internal or external IP depending on setting.
     add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
