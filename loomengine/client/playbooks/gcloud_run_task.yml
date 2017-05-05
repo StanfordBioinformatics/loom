@@ -59,7 +59,7 @@
       - scratch_disk_type is defined
       - scratch_disk_size_gb is defined
       register: gce_pd
-      until: gce_pd.state == "present"
+      until: gce_pd['state'] is defined and gce_pd['state'] == "present"
       retries: 5
       delay: 5
 
