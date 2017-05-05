@@ -8,8 +8,9 @@ DataService.$inject = ['$http', '$q'];
 
 function DataService($http, $q) {
     /* DataService retrieves and caches data from the server. */
-    
+
     this.setActiveRun = setActiveRun;
+    this.setActiveTaskAttempt = setActiveTaskAttempt;
     this.setActiveTemplate = setActiveTemplate;
     this.setActiveFile = setActiveFile;
     this.getAllActive = getAllActive;
@@ -21,7 +22,7 @@ function DataService($http, $q) {
     this.getFileProvenance = getFileProvenance;
 
     var activeData = {};
-    
+
     function getAllActive() {
 	return activeData;
     };
@@ -31,6 +32,14 @@ function DataService($http, $q) {
             .then(function(response) {
 		activeData.run = response.data;
 		expandRunInputsOutputs();
+        expandRunTasks();
+	    });
+    };
+
+    function setActiveTaskAttempt(taskAttemptId) {
+	return $http.get('/api/task-attempts/' + taskAttemptId + '/')
+            .then(function(response) {
+		activeData.taskAttempt = response.data;
 	    });
     };
 
@@ -55,6 +64,14 @@ function DataService($http, $q) {
 	    .then(function(response) {
 		activeData.run.outputs[i].data = response.data;
 	    });
+    };
+
+    function expandRunTasks() {
+	for (var i=0; i < activeData.run.tasks.length; i++) {
+        return $http.get('/api/tasks/'+activeData.run.tasks[i].uuid)
+            .then(function(response) {
+            activeData.run.tasks[i] = response.data;
+            });
     };
 
     function setActiveTemplate(templateId) {
