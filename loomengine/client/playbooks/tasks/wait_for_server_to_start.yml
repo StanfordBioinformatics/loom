@@ -9,6 +9,6 @@
 - name: Wait for Loom server to start. (retry messages are normal)
   uri: "url={{server_url}}/api/status/ validate_certs=False"
   register: response
-  until: response.status == 200
+  until: response['status'] is defined and response['status'] == 200
   retries: 30
   delay: 10

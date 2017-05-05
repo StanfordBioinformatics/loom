@@ -23,10 +23,10 @@
     pip: name=requests version=2.12.1
     register: requestsinstallresult
     retries: 10
-    until: requestsinstallresult['state'] == 'present'
+    until: requestsinstallresult['state'] is defined and requestsinstallresult['state'] == 'present'
 
   - name: Install docker-py, which is required by Ansible to use Docker modules.
     pip: name=docker-py version=1.10.6
     register: dockerpyinstallresult
     retries: 10
-    until: dockerpyinstallresult['state'] == 'present'
+    until: dockerpyinstallresult['state'] is defined and dockerpyinstallresult['state'] == 'present'
