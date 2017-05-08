@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+0.3.5
+---------
+
+Critical bugfix for 0.3.4
+
 0.3.4
 ---------
 * Pre-configure Kibana
