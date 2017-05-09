@@ -53,17 +53,15 @@
   - vars/gcloud_worker.yml
   tasks:
     - name: Create a scratch disk and attach it to the instance.
-      gce_pd: instance_name={{instance_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE service_account_email={{gce_email}} credentials_file={{gce_credential}} project_id={{gce_project}}
+      gce_pd: instance_name={{instance_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE service_account_email={{gce_email}} credentials_file={{gce_credential}} project_id={{gce_project}} delete_on_termination=yes
       when:
       - scratch_disk_name is defined
       - scratch_disk_type is defined
       - scratch_disk_size_gb is defined
-    - name: Set scratch disk to be deleted with the instance.
-      shell: gcloud compute instances set-disk-auto-delete {{instance_name}} --auto-delete --disk {{scratch_disk_name}} --zone {{zone}}
-      when:
-      - scratch_disk_name is defined
-      - scratch_disk_type is defined
-      - scratch_disk_size_gb is defined
+      register: gce_pd
+      until: gce_pd['state'] is defined and gce_pd['state'] == "present"
+      retries: 5
+      delay: 5
 
 - name: Format and mount the scratch disk on the Loom worker.
   hosts: new_instances

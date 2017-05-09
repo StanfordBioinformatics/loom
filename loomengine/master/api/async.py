@@ -264,6 +264,7 @@ def finish_task_attempt(task_attempt_uuid):
 
 @shared_task
 def _kill_task_attempt(task_attempt_uuid, kill_message):
+    from api.models.tasks import TaskAttempt
     logger.debug('Entering async._kill_task_attempt(%s)' % task_attempt_uuid)
     from api.models import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)

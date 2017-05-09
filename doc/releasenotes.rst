@@ -1,6 +1,23 @@
 Release Notes
 =============
 
+0.3.5
+---------
+
+Critical bugfix for 0.3.4
+
+0.3.4
+---------
+* Pre-configure Kibana
+* Disable X-Pack features in Kibana and Elasticsearch
+* Handle several sporadic failures from gcloud services
+* Handle gcloud gucket to bucket file copies longer than 30s
+* Prune docker data volumes
+
+0.3.3
+----------
+* Critical bugfix for 0.3.2 that prevented use on Google Cloud
+
 0.3.2
 ----------
 * Fluentd for logging, with kibana+elasticsearch for log viewing

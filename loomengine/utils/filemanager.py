@@ -8,7 +8,7 @@ import shutil
 import sys
 import tempfile
 import urlparse
-import gcloud.storage
+import google.cloud.storage
 import requests
 
 from loomengine.utils import md5calc
@@ -19,6 +19,9 @@ from loomengine.utils.connection import Connection
 from oauth2client.client import HttpAccessTokenRefreshError
 from oauth2client.client import ApplicationDefaultCredentialsError
 import apiclient.discovery
+
+
+logger = logging.getLogger(__name__)
 
 
 def _urlparse(pattern):
@@ -197,7 +200,7 @@ class GoogleStorageSource(AbstractSource):
         self.settings = settings
 
         try:
-            self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])
+            self.client = google.cloud.storage.client.Client(self.settings['GCE_PROJECT'])
         except ApplicationDefaultCredentialsError as e:
             raise SystemExit(
                 'ERROR! '\
@@ -318,7 +321,7 @@ class GoogleStorageDestination(AbstractDestination):
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
-        self.client = gcloud.storage.client.Client(self.settings['GCE_PROJECT'])
+        self.client = google.cloud.storage.client.Client(self.settings['GCE_PROJECT'])
         try:
             self.bucket = self.client.get_bucket(self.bucket_id)
             self.blob = self.bucket.get_blob(self.blob_id)
@@ -327,7 +330,7 @@ class GoogleStorageDestination(AbstractDestination):
         except HttpAccessTokenRefreshError:
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
         if self.blob is None:
-            self.blob = gcloud.storage.blob.Blob(self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
+            self.blob = google.cloud.storage.blob.Blob(self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
 
     def get_url(self):
         return self.url.geturl()
@@ -389,7 +392,7 @@ class LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise e
+                raise
         shutil.copy(self.source.get_path(), self.destination.get_path())
 
     def move(self):
@@ -399,14 +402,21 @@ class LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise e
+                raise
         shutil.move(self.source.get_path(), self.destination.get_path())
 
 
 class GoogleStorageCopier(AbstractCopier):
 
     def copy(self):
-        self.source.bucket.copy_blob(self.source.blob, self.destination.bucket, self.destination.blob_id)
+        rewrite_token = None
+        while True:
+            rewrite_token, rewritten, size = self.destination.blob.rewrite(
+                self.source.blob, token=rewrite_token)
+            logger.info("   copied %s of %s bytes ..." % (rewritten, size))
+            if not rewrite_token:
+                logger.info("   copy completed ...")
+                break
 
     def move(self):
         if not self.source.bucket_id == self.destination.bucket_id:
@@ -432,7 +442,10 @@ class GoogleStorage2LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise e
+                raise Exception(
+                    'Failed to create local directory "%s": "%s"' %
+                    (os.path.dirname(self.destination.get_path()),
+                     e))
         self.source.blob.download_to_filename(self.destination.get_path())
 
     def move(self):
@@ -446,7 +459,6 @@ class FileManager:
     def __init__(self, master_url):
         self.connection = Connection(master_url)
         self.settings = self.connection.get_filemanager_settings()
-        self.logger = logging.getLogger(__name__)
 
     def import_from_patterns(self, patterns, note, force_duplicates=False):
         files = []
@@ -477,7 +489,7 @@ class FileManager:
         source = Source(source_url, self.settings)
         filename = source.get_filename()
 
-        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        logger.info('Calculating md5 on file "%s"...' % source_url)
         md5 = source.calculate_md5()
 
         if not force_duplicates:
@@ -505,7 +517,7 @@ class FileManager:
         return file_data_object
 
     def import_result_file(self, task_attempt_output, source_url):
-        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        logger.info('Calculating md5 on file "%s"...' % source_url)
         source = Source(source_url, self.settings)
         md5 = source.calculate_md5()
 
@@ -532,7 +544,7 @@ class FileManager:
         log_file = self.connection.post_task_attempt_log_file(
             task_attempt['uuid'], {'log_name': log_name})
 
-        self.logger.info('Calculating md5 on file "%s"...' % source_url)
+        logger.info('Calculating md5 on file "%s"...' % source_url)
         source = Source(source_url, self.settings)
         md5 = source.calculate_md5()
 
@@ -563,10 +575,10 @@ class FileManager:
                                                 file_data_object['uuid'])
 
         source = Source(source_url, self.settings)
-        self.logger.info('Importing file from %s...' % source.get_url())
+        logger.info('Importing file from %s...' % source.get_url())
 
         if file_data_object['file_resource']['upload_status'] == 'complete':
-            self.logger.info(
+            logger.info(
                 '   server already has the file. Skipping upload.')
             return file_data_object
 
@@ -574,7 +586,7 @@ class FileManager:
             destination = Destination(
                 file_data_object['file_resource']['file_url'],
                 self.settings)
-            self.logger.info(
+            logger.info(
                 '   copying to destination %s ...' % destination.get_url())
             source.copy_to(destination)
         except ApplicationDefaultCredentialsError as e:
@@ -585,12 +597,12 @@ class FileManager:
                 'Please run "gcloud auth application-default login"')
         except Exception as e:
             self._set_upload_status(file_data_object, 'failed')
-            raise e
+            raise
 
         # Signal that the upload completed successfully
         file_data_object = self._set_upload_status(
             file_data_object, 'complete')
-        self.logger.info('   imported file %s@%s' % (
+        logger.info('   imported file %s@%s' % (
             file_data_object['filename'],
             file_data_object['uuid']))
         return file_data_object
@@ -631,6 +643,7 @@ class FileManager:
 
         if not destination_url:
             destination_url = os.getcwd()
+        
         if Destination(destination_url, self.settings).is_dir():
             # Filename not given with destination_url. We get it from inputs
             # or from the object specified by file_id
@@ -650,7 +663,7 @@ class FileManager:
         if destination.exists():
             raise FileAlreadyExistsError('File already exists at %s' % destination_url)
 
-        self.logger.info('Exporting file %s@%s to %s...' % (
+        logger.info('Exporting file %s@%s to %s...' % (
             file_data_object['filename'],
             file_data_object['uuid'],
             destination.get_url()))
@@ -659,7 +672,7 @@ class FileManager:
         source_url = file_data_object['file_resource']['file_url']
         Source(source_url, self.settings).copy_to(destination)
 
-        self.logger.info('...finished exporting file')
+        logger.info('...finished exporting file')
 
     def read_file(self, url):
         source = Source(url, self.settings)
