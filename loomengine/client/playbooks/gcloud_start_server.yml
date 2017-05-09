@@ -67,7 +67,7 @@
   - include: tasks/pull_docker_images.yml
   - include: tasks/create_user_and_ssh_key.yml ssh_private_key_path={{worker_ssh_private_key_path_on_server}}
 
-- name: Copy files to Loom server.
+- name: Create directories and copy files to Loom server.
   hosts: new_instances
   remote_user: "{{remote_user}}"
   vars_files:
@@ -77,6 +77,10 @@
   - name: Create a settings directory on the server
     file:
       path: "{{server_settings_home}}"
+      state: directory
+  - name: Create the logfile directory on the server
+    file:
+      path: "{{server_settings_home}}/log"
       state: directory
   - name: Copy inventory directory from client to server
     synchronize:

@@ -4,11 +4,6 @@
     state: directory
   when: storage_type == "local"
 
-- name: Create the logfile directory
-  file:
-    path: "{{server_settings_home}}/log"
-    state: directory
-
 - name: Verify Docker is running
   shell: "docker ps"
 
