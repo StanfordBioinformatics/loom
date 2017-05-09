@@ -35,7 +35,7 @@
 
 - name: Install Docker on the Loom server and add remote user to docker group.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml
@@ -48,7 +48,7 @@
 
 - name: Log into Google Container Registry.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml
@@ -58,7 +58,7 @@
 
 - name: Pull Docker images on the new instance. Create remote user and an SSH key that will be used to connect to workers.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml
@@ -69,7 +69,7 @@
 
 - name: Create directories and copy files to Loom server.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
@@ -107,7 +107,7 @@
 
 - name: Start the Loom server.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml

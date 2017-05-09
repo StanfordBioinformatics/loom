@@ -70,6 +70,7 @@
     image: "{{fluentd_image}}"
     restart_policy: always
     api_version: auto
+    user: root
     volumes:
       - "{{server_settings_home}}/fluent.conf:/fluentd/etc/fluent.conf"
       - "{{server_settings_home}}/log/:/fluentd/log/"
@@ -134,7 +135,7 @@
     volumes: "{{[
       server_settings_home+':'+container_settings_home,
       '/var/run/docker.sock:/var/run/docker.sock' if lookup('env', 'WORKER_TYPE') | lower == 'local',
-      '/home/'+remote_user+'/.ssh:/root/.ssh' if lookup('env', 'WORKER_TYPE') | lower == 'gcloud']
+      '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if lookup('env', 'WORKER_TYPE') | lower == 'gcloud']
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
