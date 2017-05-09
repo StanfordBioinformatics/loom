@@ -78,10 +78,6 @@
     file:
       path: "{{server_settings_home}}"
       state: directory
-  - name: Create the logfile directory on the server
-    file:
-      path: "{{server_settings_home}}/log"
-      state: directory
   - name: Copy inventory directory from client to server
     synchronize:
       src: "{{settings_home}}/{{loom_inventory_dir}}/"
