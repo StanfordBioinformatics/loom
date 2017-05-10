@@ -59,7 +59,7 @@ kibana_port: "{{lookup('env', 'LOOM_KIBANA_PORT')}}"
 kibana_version: "{{lookup('env', 'LOOM_KIBANA_VERSION')}}"
 
 # MySQL container settings
-mysql_create_docker_container: lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER') | bool
+mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER') | bool}}"
 mysql_image: "{{lookup('env', 'LOOM_MYSQL_IMAGE')}}"
 mysql_container_name: "{{server_name}}\
                        {{lookup('env', 'LOOM_MYSQL_CONTAINER_NAME_SUFFIX')}}"
