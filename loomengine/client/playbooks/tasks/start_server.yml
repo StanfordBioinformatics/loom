@@ -4,11 +4,6 @@
     state: directory
   when: storage_type == "local"
 
-- name: Create the logfile directory
-  file:
-    path: "{{server_settings_home}}/log"
-    state: directory
-
 - name: Verify Docker is running
   shell: "docker ps"
 
@@ -75,6 +70,7 @@
     image: "{{fluentd_image}}"
     restart_policy: always
     api_version: auto
+    user: root
     volumes:
       - "{{server_settings_home}}/fluent.conf:/fluentd/etc/fluent.conf"
       - "{{server_settings_home}}/log/:/fluentd/log/"
@@ -139,7 +135,7 @@
     volumes: "{{[
       server_settings_home+':'+container_settings_home,
       '/var/run/docker.sock:/var/run/docker.sock' if lookup('env', 'WORKER_TYPE') | lower == 'local',
-      '/home/'+remote_user+'/.ssh:/root/.ssh' if lookup('env', 'WORKER_TYPE') | lower == 'gcloud']
+      '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if lookup('env', 'WORKER_TYPE') | lower == 'gcloud']
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
@@ -260,3 +256,26 @@
       fluentd-async-connect: "true"
       tag: "loom.{%raw%}{{.Name}}.{{.ID}}{%endraw%}"
 
+- name: Wait for Kibana to initialize. (retry messages are normal)
+  uri:
+    url: http://127.0.0.1:9200/.kibana
+  register: response
+  until: response.status == 200
+  retries: 30
+  delay: 10
+
+- name: Set Kibana timestamp field.
+  uri:
+    url: http://127.0.0.1:9200/.kibana/index-pattern/*
+    method: PUT
+    body_format: json
+    body: '{"title" : "*",  "timeFieldName": "@timestamp"}'
+    status_code: 200,201
+
+- name: Set Kibana default index.
+  uri:
+    url: http://127.0.0.1:9200/.kibana/config/{{kibana_version}}
+    method: PUT
+    body_format: json
+    body: '{"defaultIndex" : "*"}'
+    status_code: 200,201

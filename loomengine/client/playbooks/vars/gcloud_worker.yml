@@ -1,4 +1,4 @@
-remote_user: loom
+loom_remote_user: loom
 worker_ssh_private_key_path_in_container: "/root/.ssh/{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')}}"
 ansible_ssh_private_key_file: "{{worker_ssh_private_key_path_in_container}}"
 worker_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_WORKER_USES_SERVER_INTERNAL_IP')}}"
@@ -21,7 +21,7 @@ scratch_disk_size_gb: "{{[lookup('env','LOOM_GCLOUD_WORKER_SCRATCH_DISK_MIN_SIZE
 scratch_disk_type: "{{lookup('env','LOOM_GCLOUD_WORKER_SCRATCH_DISK_TYPE')}}"
 step_name: "{{lookup('env','LOOM_TASK_ATTEMPT_STEP_NAME')}}"
 subnetwork: "{{lookup('env','LOOM_GCLOUD_WORKER_SUBNETWORK')}}"
-tags: "{{lookup('env','LOOM_GCLOUD_WORKER_TAGS')}}"
+loom_tags: "{{lookup('env','LOOM_GCLOUD_WORKER_TAGS')}}"
 task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
 task_attempt_docker_image: "{{lookup('env','LOOM_TASK_ATTEMPT_DOCKER_IMAGE')}}"
 worker_log_file: "{{lookup('env','WORKER_LOG_FILE')}}"

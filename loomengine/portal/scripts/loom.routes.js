@@ -17,7 +17,10 @@ function config($routeProvider) {
             templateUrl: 'views/run-detail.html',
             controller: 'RunDetailController'
         })
-
+        .when('/task-attempts/:taskAttemptId', {
+            templateUrl: 'views/task-attempt-detail.html',
+            controller: 'TaskAttemptDetailController'
+        })
         .when('/templates', {
             templateUrl: 'views/template-list.html',
             controller: 'TemplateListController'

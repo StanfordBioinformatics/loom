@@ -1,7 +1,7 @@
-remote_user: loom
-server_settings_home: "/home/{{remote_user}}/.loom"
+loom_remote_user: loom
+server_settings_home: "/home/{{loom_remote_user}}/.loom"
 server_ssh_private_key_path_on_client: "{{lookup('env', 'HOME')}}/.ssh/{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')}}"
-worker_ssh_private_key_path_on_server: "/home/{{remote_user}}/.ssh/{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')}}"
+worker_ssh_private_key_path_on_server: "/home/{{loom_remote_user}}/.ssh/{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')}}"
 ansible_ssh_private_key_file: "{{server_ssh_private_key_path_on_client}}"
 client_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_CLIENT_USES_SERVER_INTERNAL_IP')}}"
 worker_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_WORKER_USES_SERVER_INTERNAL_IP')}}"
@@ -18,6 +18,6 @@ instance_image: "{{lookup('env','LOOM_GCLOUD_SERVER_INSTANCE_IMAGE')}}"
 instance_type: "{{lookup('env','LOOM_GCLOUD_SERVER_INSTANCE_TYPE')}}"
 network: "{{lookup('env','LOOM_GCLOUD_SERVER_NETWORK')}}"
 subnetwork: "{{lookup('env','LOOM_GCLOUD_SERVER_SUBNETWORK')}}"
-tags: "{{lookup('env','LOOM_GCLOUD_SERVER_TAGS')}}"
+loom_tags: "{{lookup('env','LOOM_GCLOUD_SERVER_TAGS')}}"
 external_ip: "{{lookup('env','LOOM_GCLOUD_SERVER_EXTERNAL_IP')}}"
 zone: "{{lookup('env','LOOM_GCLOUD_SERVER_ZONE')}}"

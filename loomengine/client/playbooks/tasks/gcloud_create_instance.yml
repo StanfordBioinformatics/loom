@@ -17,7 +17,7 @@
       credentials_file: "{{gce_credential}}"
       project_id: "{{gce_project}}"
       service_account_permissions: cloud-platform
-      tags: "{{tags if tags|trim else omit}}"
+      tags: "{{loom_tags if loom_tags|trim else omit}}"
       external_ip: "{{external_ip if external_ip|trim else omit}}"
     register: gce_result
     until: gce_result['state'] is defined and gce_result['state'] == "present"
