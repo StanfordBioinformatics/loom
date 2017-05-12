@@ -1,30 +1,77 @@
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
 <div ng-hide="loading">
-  <div class="table-responsive" >
-    <table class="table table-striped" ng-show="runs.length">
-      <thead>
-        <tr>
-          <th>Run</th>
-	  <th>Status</th>
-          <th>Started</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="run in runs">
-          <td>
-	    <a ng-href="#/runs/{{run.uuid}}">
-              {{run.template.name}}@{{run.uuid | limitTo: 8}}
-            </a>
-	  </td>
-	  <td>
-	    {{run.status}}
-	  </td>
-          <td>
-            {{run.datetime_created | date:'medium'}}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <div ng-hide="runs.length">no runs</div>
-  </div>
+    <div class="table-responsive" >
+        <table class="table table-striped table-hover" ng-show="runs.length">
+            <thead>
+                <tr>
+                    <th>Run</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                </tr>
+            </thead>
+            <tbody ng-repeat="run in runs">
+                <tr>
+                    <td>
+                        <a ng-href="#/runs/{{run.uuid}}">
+                            {{run.template.name}}@{{run.uuid | limitTo: 8}}
+                        </a>
+                    </td>
+                    <td>
+                        {{run.status}}
+                    </td>
+                    <td>
+                        {{run.datetime_created | date:'medium'}}
+                    </td>
+                </tr>
+                <tr ng-repeat-start="step in run.steps">
+                    <td>
+                        <a ng-href="#/runs/{{step.uuid}}">
+                            {{step.template.name}}@{{step.uuid | limitTo: 8}}
+                        </a>
+                    </td>
+                    <td>
+                        {{step.status}}
+                    </td>
+                    <td>
+                        {{step.datetime_created | date:'medium'}}
+                    </td>
+                </tr>
+                <tr ng-repeat-end ng-repeat-start="task in step.tasks">
+                    <td>
+                        <a ng-href="api/tasks/{{task.uuid}}">
+                            Task {{task.uuid}}
+                        </a>
+                        <ol>
+                            <li ng-repeat="task_attempt in task.task_attempts">
+                            <a href="http://{{$location.host()}}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fd,mode:quick,to:now%2Fd))&_a=(columns:!(log,container_name),index:'container_name:&#34;{{task_attempt.uuid}}&#34;',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'*')),sort:!('@timestamp',desc))">
+                                {{task_attempt.uuid}}
+                            </a>
+                            </li>
+                        </ol>
+                    </td>
+                    <td>
+                        <!-- need a status property -->
+                    </td>
+                    <td>
+                        {{task.datetime_created | date:'medium'}}
+                    </td>
+                </tr>
+                <tr ng-repeat-end ng-repeat-start="task_attempt in task.task_attempts">
+                    <td>
+                        <a ng-href="api/task-attempts/{{task_attempt.uuid}}">
+                            Attempt {{task_attempt.uuid}}
+                        </a>
+                    </td>
+                    <td>
+                        <!-- need a status property -->
+                    </td>
+                    <td>
+                        {{task_attempt.datetime_created | date:'medium'}}
+                    </td>
+                </tr>
+                <tr ng-repeat-end></tr>
+            </tbody>
+        </table>
+        <div ng-hide="runs.length">no runs</div>
+    </div>
 </div>

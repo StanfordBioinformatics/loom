@@ -15,6 +15,7 @@ function DataService($http, $q) {
     this.setActiveFile = setActiveFile;
     this.getAllActive = getAllActive;
     this.getRuns = getRuns;
+    this.getRunWorkflowsExpanded = getRunWorkflowsExpanded;
     this.getTemplates = getTemplates;
     this.getImportedFiles = getImportedFiles;
     this.getResultFiles = getResultFiles;
@@ -134,6 +135,13 @@ function DataService($http, $q) {
 
     function getRuns() {
         return $http.get("/api/runs/?parent_only")
+        .then(function(response) {
+            return response.data;
+        });
+    }
+
+    function getRunWorkflowsExpanded() {
+        return $http.get("/api/run-workflows/?expand")
         .then(function(response) {
             return response.data;
         });

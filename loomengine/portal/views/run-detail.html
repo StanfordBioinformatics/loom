@@ -84,22 +84,24 @@
     <h4>Steps</h4>
     <div class="table-responsive" >
       <table class="table table-striped">
-	<thead>
+    	<thead>
           <tr>
             <th>Step</th>
-	    <th>Status</th>
-	    <th>Started</th>
+    	    <th>Status</th>
+    	    <th>Started</th>
           </tr>
-	</thead>
-	<tbody>
+    	</thead>
+    	<tbody>
           <tr ng-repeat="step in activeData.run.steps">
-            <td><a ng-href="#/runs/{{step.uuid}}">
-		{{step.name}}@{{step.uuid | limitTo: 8}}
-            </a></td>
-	    <td>{{step.status}}</td>
-	    <td>{{step.datetime_created | date:'medium'}}</td>
+            <td>
+              <a ng-href="#/runs/{{step.uuid}}">
+    		    {{step.name}}@{{step.uuid | limitTo: 8}}
+              </a>
+            </td>
+    	    <td>{{step.status}}</td>
+    	    <td>{{step.datetime_created | date:'medium'}}</td>
           </tr>
-	</tbody>
+    	</tbody>
       </table>
     </div>
   </div>
@@ -194,25 +196,25 @@
 	  <th>Status</th>
 	  <th>Created</th>
 	</thead>
-	<tbody>
-	  <tr ng-repeat="task in activeData.run.tasks">
+	<tbody ng-repeat="task in activeData.run.tasks">
+	  <tr>
 	    <td>
 	      <a href="{{task.url}}">
-		{{task.uuid}}
+		    Task {{task.uuid}}
 	      </a>
 	    </td>
-	    <td>{{task.status_message}}</td>
-	    <td>{{task.datetime_created}}</td>
+	    <td><!-- show task.status when supported --></td>
+	    <td>{{task.datetime_created | date:'medium'}}</td>
 	  </tr>
 
       <tr ng-repeat="task_attempt in task.task_attempts">
 	    <td style="padding-left:20px">
 	      <a href="{{task_attempt.url}}">
-		    {{task_attempt.uuid}}
+		    Attempt {{task_attempt.uuid}}
 	      </a>
 	    </td>
-	    <td><!-- add task_attempt.status_message when supported --></td>
-	    <td>{{task_attempt.datetime_created}}</td>
+	    <td><!-- show task_attempt.status when supported --></td>
+	    <td>{{task_attempt.datetime_created | date:'medium'}}</td>
 	  </tr>
 
 	</tbody>
