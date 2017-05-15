@@ -1,4 +1,5 @@
 from django.db import models
+from mptt.models import MPTTModel, TreeForeignKey
 import jinja2
 import re
 
@@ -15,8 +16,8 @@ def render_from_template(raw_text, context):
 class FilterHelper(object):
     """
     Many object types are queryable by a user input string that gives name,
-    uuid, and/or hash value, 
-    e.g. myfile.dat, myfile.data@1ca14b82-df57-437f-b296-dfd6118132ab, 
+    uuid, and/or hash value,
+    e.g. myfile.dat, myfile.data@1ca14b82-df57-437f-b296-dfd6118132ab,
     or myfile.dat$3c0e6b886ea83d2895fd64fd6619a99f
     This class parses those query strings and searches for matches.
     """
@@ -101,10 +102,13 @@ class _FilterMixin(object):
         return helper.filter_by_name_or_id(filter_string)
 
 
-class BaseModel(models.Model, _FilterMixin):
-
+class BaseModel(MPTTModel, _FilterMixin):
+    mptt_parent = TreeForeignKey('self', null=True, blank=True, related_name='mptt_children', db_index=True) # Required by MPTTModel
     _change = models.IntegerField(default=0)
 
+    class MPTTMeta:
+        parent_attr = 'mptt_parent'
+        
     class Meta:
         abstract = True
         app_label = 'api'
@@ -131,7 +135,7 @@ class BaseModel(models.Model, _FilterMixin):
         If the object is being edited by other processes,
         save may fail due to concurrent modification.
         This method recovers and retries the edit.
-        
+
         assignments is a dict of {attribute: value}
         """
         count = 0
