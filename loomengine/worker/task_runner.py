@@ -387,23 +387,29 @@ class TaskRunner(object):
         init_directory(
             os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
 
-        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stdout"'}
-        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
-        stdoutstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
         with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
-            stdoutlog.write(stdoutstring)
+            stdoutlog.write(self._get_stdout())
 
         init_directory(
             os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
 
-        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stderr"'}
-        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
-        stderrstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
         with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
-            stderrlog.write(stderrstring)
+            stderrlog.write(self._get_stderr())
 
         self._import_log_file(self.settings['STDOUT_LOG_FILE'])
         self._import_log_file(self.settings['STDERR_LOG_FILE'])
+
+    def _get_stdout(self):
+        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stdout"'}
+        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
+        stdoutstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
+        return stdoutstring
+
+    def _get_stderr(self):
+        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stderr"'}
+        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
+        stderrstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
+        return stderrstring
 
     def _import_log_file(self, filepath):
         try:
@@ -451,11 +457,9 @@ class TaskRunner(object):
                 elif output['source'].get('stream'):
                     # Get result from stream
                     if output['source'].get('stream') == 'stdout':
-                        output_text = self.docker_client.logs(
-                            self.container, stderr=False, stdout=True)
+                        output_text = self._get_stdout()
                     elif output['source'].get('stream') == 'stderr':
-                        output_text = self.docker_client.logs(
-                            self.container, stderr=True, stdout=False)
+                        output_text = self._get_stderr()
                     else:
                         raise Exception(
                             'Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
