@@ -180,15 +180,15 @@ class TaskRunner(object):
         # Never raise errors, so cleanup can continue
         self._timepoint('Saving outputs')
 
+        sleep_time = 10.0 - (time.time() - cleanup_start_time)
+        if sleep_time > 0:
+            self._timepoint('Pausing for outputs and logs to propagate to Elasticsearch')
+            time.sleep(sleep_time) # Pause to give stderr, stdout, and logs time to propagate to server
+            
         try:
             self._save_outputs()
         except Exception as e:
             self._fail('Failed to save outputs', detail=str(e))
-
-        sleep_time = 10.0 - (time.time() - cleanup_start_time)
-        if sleep_time > 0:
-            self._timepoint('Pausing for logs to propagate to Elasticsearch')
-            time.sleep(sleep_time) # Pause to give logs time to propagate to server
 
         self._timepoint('Saving logfiles')
 
