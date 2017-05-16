@@ -167,6 +167,7 @@ class TaskRunner(object):
             self._try_to_pull_image()
             self._try_to_create_container()
             self._try_to_run_container()
+            self._stream_docker_logs()
             self._try_to_get_returncode()
         except Exception as e:
             self.logger.error('Exiting run with error: %s' % str(e))
@@ -256,7 +257,6 @@ class TaskRunner(object):
                 detail=str(e))
             raise
 
-
     def _pull_image(self):
         pull_data = self._parse_docker_output(
             self.docker_client.pull(self._get_docker_image()))
@@ -324,6 +324,18 @@ class TaskRunner(object):
             return
         else:
             raise ContainerStartError('Unexpected container status "%s"' % status)
+
+    def _stream_docker_logs(self):
+        """Stream stdout and stderr from the task container to this process's stdout and stderr, respectively."""
+        thread = threading.Thread(target=self._stderr_stream_worker)
+        thread.start()
+        for line in self.docker_client.logs(self.container, stdout=True, stderr=False, stream=True):
+            print line
+        thread.join()
+
+    def _stderr_stream_worker(self):
+        for line in self.docker_client.logs(self.container, stdout=False, stderr=True, stream=True):
+            sys.stderr.write(line)
 
     def _try_to_get_returncode(self):
         self._timepoint('Running analysis')
