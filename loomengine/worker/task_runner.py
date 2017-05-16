@@ -53,8 +53,6 @@ class TaskRunner(object):
             'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
-            'LOG_OPTS': args.log_opts,
-            'ELASTICSEARCH_URL': args.elasticsearch_url,
             'TASK_ATTEMPT_CONTAINER_NAME': args.server_name+'-task-'+args.task_attempt_id,
         }
 
@@ -180,11 +178,6 @@ class TaskRunner(object):
         # Never raise errors, so cleanup can continue
         self._timepoint('Saving outputs')
 
-        sleep_time = 20.0 - (time.time() - cleanup_start_time)
-        if sleep_time > 0:
-            self._timepoint('Pausing for outputs and logs to propagate to Elasticsearch')
-            time.sleep(sleep_time) # Pause to give stderr, stdout, and logs time to propagate to server
-
         try:
             self._save_outputs()
         except Exception as e:
@@ -302,14 +295,11 @@ class TaskRunner(object):
         command = interpreter.split(' ')
         command.append(self.LOOM_RUN_SCRIPT_NAME)
 
-        log_cfg = docker.utils.LogConfig(type=docker.utils.LogConfig.types.FLUENTD, config=json.loads(self.settings['LOG_OPTS']))
-
         self.container = self.docker_client.create_container(
             image=docker_image,
             command=command,
             volumes=[container_dir],
             host_config=self.docker_client.create_host_config(
-                log_config=log_cfg,
                 binds={host_dir: {
                     'bind': container_dir,
                     'mode': 'rw',
@@ -400,16 +390,10 @@ class TaskRunner(object):
         self._import_log_file(self.settings['STDERR_LOG_FILE'])
 
     def _get_stdout(self):
-        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stdout"'}
-        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
-        stdoutstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
-        return stdoutstring
+        return self.docker_client.logs(self.container, stderr=False, stdout=True)
 
     def _get_stderr(self):
-        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stderr"'}
-        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
-        stderrstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
-        return stderrstring
+        return self.docker_client.logs(self.container, stderr=True, stdout=False)
 
     def _import_log_file(self, filepath):
         try:
@@ -542,21 +526,12 @@ class TaskRunner(object):
                             '--master_url',
                             required=True,
                             help='URL of the Loom master server')
-        parser.add_argument('-e',
-                    '--elasticsearch_url',
-                    required=True,
-                    help='URL of the Elasticsearch server')
         parser.add_argument('-l',
                             '--log_level',
                             required=False,
                             choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                             default='WARNING',
                             help='Log level')
-        parser.add_argument('-o',
-                            '--log_opts',
-                            required=False,
-                            default=None,
-                            help='JSON dict of Docker log driver options')
         return parser
 
 

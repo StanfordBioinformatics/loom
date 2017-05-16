@@ -103,12 +103,12 @@ class _FilterMixin(object):
 
 
 class BaseModel(MPTTModel, _FilterMixin):
-    mptt_parent = TreeForeignKey('self', null=True, blank=True, related_name='mptt_children', db_index=True) # Required by MPTTModel
     _change = models.IntegerField(default=0)
 
+    mptt_parent = TreeForeignKey('self', null=True, blank=True, related_name='mptt_children', db_index=True)
     class MPTTMeta:
         parent_attr = 'mptt_parent'
-        
+
     class Meta:
         abstract = True
         app_label = 'api'
