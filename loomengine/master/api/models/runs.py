@@ -5,6 +5,7 @@ from django.utils import timezone
 import jsonfield
 
 from .base import BaseModel
+from .mptt_node import MPTTNode
 from api import get_setting
 from api import async
 from api.exceptions import *
@@ -13,6 +14,7 @@ from api.models.data_objects import DataObject
 from api.models.input_output_nodes import InputOutputNode
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.templates import Template
+from api.exceptions import ConcurrentModificationError
 
 
 """
@@ -65,7 +67,7 @@ class StepRunManager(object):
         return self.run.steprun._kill(kill_message)
 
 
-class Run(BaseModel):
+class Run(MPTTNode):
     """AbstractWorkflowRun represents the process of executing a Workflow on
     a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
@@ -175,8 +177,8 @@ class Run(BaseModel):
                 type=template.type,
                 command=template.step.command,
                 interpreter=template.step.interpreter,
-                #mptt_parent=parent,
                 parent=parent).run_ptr
+            run.set_mptt_parent(parent)
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})
 

@@ -153,7 +153,7 @@ class DataObject(BaseModel):
     @classmethod
     def _get_manager_class(cls, type):
         return cls._MANAGER_CLASSES[type]
-        
+
     def _get_manager(self):
         if self.is_array:
             return self._ARRAY_MANAGER_CLASS(self)
@@ -163,7 +163,7 @@ class DataObject(BaseModel):
     @classmethod
     def get_by_value(cls, value, type):
         return cls._MANAGER_CLASSES[type].get_by_value(value)
- 
+
     @property
     def substitution_value(self):
         return self._get_manager().get_substitution_value()
@@ -212,7 +212,7 @@ class FileDataObject(DataObject):
         # with upload_status=incomplete.
         #
         # If a file with identical content has already been uploaded,
-        # re-use it if permitted by settings. 
+        # re-use it if permitted by settings.
         if not get_setting('KEEP_DUPLICATE_FILES'):
             matching_file_resources = FileResource.objects.filter(
                 md5=self.md5,
@@ -250,7 +250,7 @@ class ArrayDataObject(DataObject):
 
     @property
     def members(self):
-        return [m.member for m in 
+        return [m.member for m in
                 self.has_array_members_membership.all().select_related('member')]
 
     prefetch_members = models.ManyToManyField('DataObject',
@@ -302,7 +302,7 @@ class FileResource(BaseModel):
                                            ('complete', 'Complete'),
                                            ('failed', 'Failed'))
     FILE_RESOURCE_UPLOAD_STATUS_DEFAULT = 'incomplete'
-    
+
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(
@@ -316,7 +316,7 @@ class FileResource(BaseModel):
 
     def is_ready(self):
         return self.upload_status == 'complete'
-    
+
     @classmethod
     def create_incomplete_resource_for_import(cls, file_data_object):
 
@@ -329,7 +329,7 @@ class FileResource(BaseModel):
         resource = cls.objects.create(file_url=file_url,
                                       upload_status='incomplete',
                                       md5=file_data_object.md5)
-        
+
         return resource
 
     @classmethod
@@ -397,7 +397,7 @@ class FileResource(BaseModel):
         """
         if file_data_object.source_type == 'imported':
             return 'imported'
-        
+
         if file_data_object.source_type == 'log':
             subdir = 'logs'
             task_attempt \
@@ -410,7 +410,7 @@ class FileResource(BaseModel):
             raise InvalidSourceTypeError('Invalid source_type %s'
                             % file_data_object.source_type)
 
-        task = task_attempt.task
+        task = task_attempt.parent_task
         step_run = task.step_run
 
         path = os.path.join(

@@ -5,10 +5,12 @@ import jsonfield
 import os
 
 from .base import BaseModel, render_from_template
+from .mptt_node import MPTTNode
 from api import get_setting
 from api import async
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileDataObject
+from api.exceptions import ConcurrentModificationError
 
 
 class TaskAlreadyExistsException(Exception):
@@ -24,7 +26,7 @@ def validate_list_of_ints(value):
         raise ValidationError('Value must be a list of ints')
 
 
-class Task(BaseModel):
+class Task(MPTTNode):
 
     """A Task is a Step executed on a particular set of inputs.
     For non-parallel steps, each StepRun will have one task. For parallel,
@@ -123,8 +125,8 @@ class Task(BaseModel):
             environment=step_run.template.environment,
             resources=step_run.template.resources,
             index=index,
-            #mptt_parent=step_run,
         )
+        task.set_mptt_parent(step_run)
         for input in input_set:
             TaskInput.objects.create(
                 task=task,
@@ -244,14 +246,14 @@ class TaskTimepoint(BaseModel):
     is_error = models.BooleanField(default=False)
 
 
-class TaskAttempt(BaseModel):
+class TaskAttempt(MPTTNode):
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
-    task = models.ForeignKey('Task',
+    parent_task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
     interpreter = models.CharField(max_length=1024)
@@ -318,13 +320,13 @@ class TaskAttempt(BaseModel):
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls.objects.create(
-            task=task,
+            parent_task=task,
             interpreter=task.interpreter,
             rendered_command=task.rendered_command,
             environment=task.environment,
             resources=task.resources,
-            #mptt_parent=task,
         )
+        task_attempt.set_mptt_parent(task)
         task_attempt.initialize()
         return task_attempt
 
@@ -336,7 +338,7 @@ class TaskAttempt(BaseModel):
             self._initialize_outputs()
 
     def _initialize_inputs(self):
-        for input in self.task.inputs.all():
+        for input in self.parent_task.inputs.all():
             TaskAttemptInput.objects.create(
                 task_attempt=self,
                 type=input.type,
@@ -344,7 +346,7 @@ class TaskAttempt(BaseModel):
                 data_object=input.data_object)
 
     def _initialize_outputs(self):
-        for task_output in self.task.outputs.all():
+        for task_output in self.parent_task.outputs.all():
             task_attempt_output = TaskAttemptOutput.objects.create(
                 task_attempt=self,
                 type=task_output.type,
@@ -357,7 +359,7 @@ class TaskAttempt(BaseModel):
         if task_output_source.get('filename'):
             filename = render_from_template(
                 task_output_source.get('filename'),
-                self.task.get_input_context())
+                self.parent_task.get_input_context())
         else:
             filename = None
 
