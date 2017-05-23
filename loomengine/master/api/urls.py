@@ -67,6 +67,9 @@ router.register('run-steps',
 router.register('run-requests',
                 api.views.RunRequestViewSet,
                 base_name='run-request')
+router.register('processes',
+                api.views.ProcessViewSet,
+                base_name='process')
 
 urlpatterns = [
     url(r'^', include(router.urls)),

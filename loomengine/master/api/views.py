@@ -637,6 +637,32 @@ class WorkflowRunViewSet(ExpandableViewSet):
         return queryset.order_by('-datetime_created')
 
 
+class ProcessViewSet(viewsets.ModelViewSet):
+
+    lookup_field = 'uuid'
+    serializer_class = serializers.ProcessSerializer
+
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        parent_only = 'parent_only' in self.request.query_params
+        if query_string:
+            queryset = models.StepRun.filter_by_name_or_id(query_string)
+        else:
+            queryset = models.StepRun.objects.all()
+        if parent_only:
+            queryset = queryset.filter(parent__isnull=True)
+        queryset = queryset.select_related('template')\
+                           .prefetch_related('inputs')\
+                           .prefetch_related('inputs__data_root')\
+                           .prefetch_related('outputs')\
+                           .prefetch_related('outputs__data_root')\
+                           .prefetch_related('tasks')\
+                           .select_related(
+                               'run_request')\
+                           .prefetch_related('timepoints')
+        return queryset.order_by('-datetime_created')
+
+
 class RunRequestViewSet(ExpandableViewSet):
     """
     A RunRequest represents a user request to execute a given Template
