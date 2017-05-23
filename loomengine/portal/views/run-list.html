@@ -23,53 +23,6 @@
                         {{run.datetime_created | date:'medium'}}
                     </td>
                 </tr>
-                <tr ng-repeat-start="step in run.steps">
-                    <td class="step-indent">
-                        <a ng-href="#/runs/{{step.uuid}}">
-                            {{step.template.name}}@{{step.uuid | limitTo: 8}}
-                        </a>
-                    </td>
-                    <td>
-                        {{step.status}}
-                    </td>
-                    <td>
-                        {{step.datetime_created | date:'medium'}}
-                    </td>
-                </tr>
-                <tr ng-repeat-start="task in step.tasks">
-                    <td class="task-indent">
-                        Task
-                        <a ng-href="api/tasks/{{task.uuid}}">
-                            {{task.uuid}}
-                        </a>
-                    </td>
-                    <td>
-                        <!-- need a status property -->
-                    </td>
-                    <td>
-                        {{task.datetime_created | date:'medium'}}
-                    </td>
-                </tr>
-                <tr ng-repeat-start="task_attempt in task.task_attempts">
-                    <td class="task-attempt-indent">
-                        Attempt
-                        <a ng-href="api/task-attempts/{{task_attempt.uuid}}">
-                            {{task_attempt.uuid}}
-                        </a>
-                        (<a target="_blank" ng-href="http://{{$location.host()}}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fd,mode:quick,to:now%2Fd))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:{{task_attempt.uuid}}')),sort:!('@timestamp',desc))">
-                            logs &nbsp;<span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
-                        </a>)
-                    </td>
-                    <td>
-                        <!-- need a status property -->
-                    </td>
-                    <td>
-                        {{task_attempt.datetime_created | date:'medium'}}
-                    </td>
-                </tr>
-                <tr ng-repeat-end></tr>
-                <tr ng-repeat-end></tr>
-                <tr ng-repeat-end ng-hide="true"></tr>
             </tbody>
         </table>
         <div ng-hide="runs.length">no runs</div>
