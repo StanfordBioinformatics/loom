@@ -9,11 +9,14 @@ from api import get_setting
 from api import async
 from api.exceptions import *
 from api.models import uuidstr
+from api.models import validators
 from api.models.data_objects import DataObject
 from api.models.input_output_nodes import InputOutputNode
+from api.models.input_manager import InputManager
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.templates import Template
-from api.models.input_manager import InputManager
+
+
 
 
 """
@@ -549,6 +552,7 @@ class StepRun(Run):
                 type=output.get('type'),
                 channel=output.get('channel'),
                 source=output.get('source'),
+                parser=output.get('parser'),
                 mode=output.get('mode'))
 
             self._connect_output_to_parent(run_output)
@@ -625,8 +629,13 @@ class StepRunOutput(InputOutputNode):
                                  on_delete=models.CASCADE,
                                  null=True, # for testing only
                                  blank=True)
-    mode = models.CharField(max_length=255)
+    mode = models.CharField(max_length=255,
+                            choices = (('scatter', 'Scatter'),
+                                       ('no_scatter', 'No Scatter')))
     source = jsonfield.JSONField(null=True, blank=True)
+    parser = jsonfield.JSONField(
+	validators=[validators.task_output_parser_validator],
+        null=True, blank=True)
 
     def push(self, data_path, data_object):
         self.add_data_object(data_path, data_object)

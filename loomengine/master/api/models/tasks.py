@@ -10,20 +10,11 @@ from api import async
 from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileDataObject
-
+from api.models import validators
 
 class TaskAlreadyExistsException(Exception):
     pass
 
-
-def validate_data_path(value):
-    try:
-        for (index, degree) in value:
-            if not (isinstance(index, (int,long)) and isinstance(degree, (int,long))):
-                raise ValidationError('Value must be a list of (int, int) tuples')
-    except TypeError:
-        raise ValidationError('Value must be a list of (int, int) tuples')
-    
 
 class Task(BaseModel):
 
@@ -54,8 +45,9 @@ class Task(BaseModel):
                                                  on_delete=models.CASCADE,
                                                  null=True,
                                                  blank=True)
-    data_path = jsonfield.JSONField(validators=[validate_data_path],
-                                    null=True, blank=True)
+    data_path = jsonfield.JSONField(
+        validators=[validators.task_data_path_validator],
+        null=True, blank=True)
 
     # While status_is_running, Loom will continue trying to complete the task
     status_is_running = models.BooleanField(default=True)
@@ -133,10 +125,11 @@ class Task(BaseModel):
                 data_object = input_item.get_data_object())
         for step_run_output in step_run.outputs.all():
             task_output = TaskOutput.objects.create(
-                channel = step_run_output.channel,
+                channel=step_run_output.channel,
                 type=step_run_output.type,
                 task=task,
-                source=step_run_output.source)
+                source=step_run_output.source,
+                parser=step_run_output.parser)
         task = task.setattrs_and_save_with_retries(
             { 'rendered_command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
@@ -221,6 +214,9 @@ class TaskOutput(BaseModel):
     type = models.CharField(max_length = 255,
                             choices=DataObject.DATA_TYPE_CHOICES)
     source = jsonfield.JSONField(null=True, blank=True)
+    parser = jsonfield.JSONField(
+	validators=[validators.task_output_parser_validator],
+        null=True, blank=True)
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT,
                                     null=True, blank=True)
 
@@ -263,6 +259,9 @@ class TaskAttempt(BaseModel):
     rendered_command = models.TextField()
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
+    parser = jsonfield.JSONField(
+	validators=[validators.task_output_parser_validator],
+        null=True, blank=True)
     last_heartbeat = models.DateTimeField(auto_now=True)
     status_is_failed = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
@@ -353,7 +352,8 @@ class TaskAttempt(BaseModel):
                 task_attempt=self,
                 type=task_output.type,
                 channel=task_output.channel,
-                source=self._render_output_source(task_output.source)
+                source=self._render_output_source(task_output.source),
+                parser=task_output.parser
             )
 
     def _render_output_source(self, task_output_source):
@@ -439,6 +439,9 @@ class TaskAttemptOutput(BaseModel):
     type = models.CharField(max_length = 255,
                             choices=DataObject.DATA_TYPE_CHOICES)
     source = jsonfield.JSONField(null=True, blank=True)
+    parser = jsonfield.JSONField(
+	validators=[validators.task_output_parser_validator],
+        null=True, blank=True)
 
 
 class TaskAttemptLogFile(BaseModel):

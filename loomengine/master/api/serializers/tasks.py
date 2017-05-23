@@ -33,11 +33,11 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = serializers.JSONField(required=False)
-    # parser = TaskDefinitionOutputParserSerializer(read_only=True)
+    parser = serializers.JSONField(required=False)
 
     class Meta:
         model = TaskAttemptOutput
-        fields = ('id', 'type', 'channel', 'source', 'data_object')
+        fields = ('id', 'type', 'channel', 'source', 'data_object', 'parser')
 
     def update(self, instance, validated_data):
         data_object_data = self.initial_data.get('data_object', None)
@@ -169,10 +169,11 @@ class TaskOutputSerializer(CreateWithParentModelSerializer):
     type = serializers.CharField(read_only=True)
     channel = serializers.CharField(read_only=True)
     source = serializers.JSONField(required=False)
+    parser = serializers.JSONField(required=False)
 
     class Meta:
         model = TaskOutput
-        fields = ('data_object', 'source', 'type', 'channel')
+        fields = ('data_object', 'source', 'type', 'channel', 'parser')
 
 
 class TaskSerializer(serializers.HyperlinkedModelSerializer):

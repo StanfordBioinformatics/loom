@@ -21,7 +21,8 @@ steps:
       stream: stdout
     parser:
       type: delimited
-      delimiter: " "
+      options:
+      - delimiter: " "
   environment:
     docker_image: ubuntu
   resources:
@@ -41,7 +42,8 @@ steps:
       stream: stdout
     parser:
       type: delimited
-      delimiter: " "
+      options:
+      - delimiter: " "
   environment:
     docker_image: ubuntu
   resources:

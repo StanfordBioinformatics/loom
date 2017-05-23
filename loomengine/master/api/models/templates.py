@@ -10,7 +10,7 @@ from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
 from api.exceptions import NoTemplateInputMatchError
 from api.models import uuidstr
-
+from api.models import validators
 
 """
 This module defines Templates. A Template is either 
@@ -19,34 +19,6 @@ Steps have execution details such as command and runtime
 environment, while Workflows are collections of other Steps
 or Workflows.
 """
-
-def template_import_validator(value):
-    pass
-
-def workflow_outputs_validator(value):
-    pass
-
-def workflow_inputs_validator(value):
-    pass
-
-def step_environment_validator(value):
-    pass
-
-def step_outputs_validator(value):
-    pass
-
-def step_inputs_validator(value):
-    pass
-
-def step_resources_validator(value):
-    pass
-
-def channel_bindings_validator(value):
-    # channel_bindings is a list of dicts the form
-    # [{'step': String, 'bindings': ListOfBindings},...]
-    # ListOfBindings is a list of internal:external channel names, e.g.
-    # ["internal_channel1:external_channel1","internal_channel2:external_channel2"]
-    pass
 
 class WorkflowManager(object):
 
@@ -122,8 +94,9 @@ class Template(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
-    template_import = jsonfield.JSONField(validators=[template_import_validator],
-                                          null=True, blank=True)
+    template_import = jsonfield.JSONField(
+        validators=[validators.template_import_validator],
+        null=True, blank=True)
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -193,12 +166,15 @@ class Workflow(Template):
         through='WorkflowMembership',
         through_fields=('parent_template', 'child_template'),
         related_name='workflows')
-    outputs = jsonfield.JSONField(validators=[workflow_outputs_validator],
-                                  null=True, blank=True)
-    inputs = jsonfield.JSONField(validators=[workflow_inputs_validator],
-                                 null=True, blank=True)
-    channel_bindings = jsonfield.JSONField(validators=[channel_bindings_validator],
-                                           null=True, blank=True)
+    outputs = jsonfield.JSONField(
+        validators=[validators.workflow_outputs_validator],
+        null=True, blank=True)
+    inputs = jsonfield.JSONField(
+        validators=[validators.workflow_inputs_validator],
+        null=True, blank=True)
+    channel_bindings = jsonfield.JSONField(
+        validators=[validators.channel_bindings_validator],
+        null=True, blank=True)
     raw_data = jsonfield.JSONField(null=True, blank=True)
 
     def add_step(self, step):
@@ -250,15 +226,34 @@ class Step(Template):
 
     command = models.TextField()
     interpreter = models.CharField(max_length=1024, default='/bin/bash -euo pipefail')
-    environment = jsonfield.JSONField(validators=[step_environment_validator],
-                                      null=True, blank=True)
-    outputs = jsonfield.JSONField(validators=[step_outputs_validator],
-                                  null=True, blank=True)
-    inputs = jsonfield.JSONField(validators=[step_inputs_validator],
-                                 null=True, blank=True)
-    resources = jsonfield.JSONField(validators=[step_resources_validator],
-                                    null=True, blank=True)
+    environment = jsonfield.JSONField(
+        validators=[validators.step_environment_validator],
+        null=True, blank=True)
+    outputs = jsonfield.JSONField(
+        validators=[validators.step_outputs_validator],
+        null=True, blank=True)
+    inputs = jsonfield.JSONField(
+        validators=[validators.step_inputs_validator],
+        null=True, blank=True)
+    resources = jsonfield.JSONField(
+        validators=[validators.step_resources_validator],
+        null=True, blank=True)
     raw_data = jsonfield.JSONField(null=True, blank=True)
+
+    def clean(self):
+        if self.outputs:
+            for output in self.outputs:
+                if output.get('mode') == 'scatter' and output.get('type') != 'file':
+                    if not output.get('parser'):
+                        raise ValidationError(
+                            "No parser defined on output '%s'" % output.get('channel'))
+                if output.get('mode') == 'no_scatter':
+                    if output.get('parser'):
+                        raise ValidationError(
+                            'Parser not allowed on outputs with mode "no_scatter"')
+                if output.get('parser') and output.get('type') == 'file':
+                    raise ValidationError(
+                        'Parser not allowed on outputs with type "file"')
 
 
 class FixedStepInput(InputOutputNode):
