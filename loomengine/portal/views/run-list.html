@@ -44,7 +44,7 @@
                         </a>
                     </td>
                     <td>
-                        <!-- need a status property -->
+                        {{task.status}}
                     </td>
                     <td>
                         {{task.datetime_created | date:'medium'}}
@@ -61,7 +61,7 @@
                         </a>)
                     </td>
                     <td>
-                        <!-- need a status property -->
+                        {{task_attempt.status}}
                     </td>
                     <td>
                         {{task_attempt.datetime_created | date:'medium'}}

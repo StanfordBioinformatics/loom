@@ -5,7 +5,7 @@ from django.utils import timezone
 import jsonfield
 
 from .base import BaseModel
-from .mptt_node import MPTTNode
+from .process import Process
 from api import get_setting
 from api import async
 from api.exceptions import *
@@ -67,7 +67,7 @@ class StepRunManager(object):
         return self.run.steprun._kill(kill_message)
 
 
-class Run(MPTTNode):
+class Run(Process):
     """AbstractWorkflowRun represents the process of executing a Workflow on
     a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
@@ -79,15 +79,11 @@ class Run(MPTTNode):
         'step': StepRunManager,
         'workflow': WorkflowRunManager
     }
-    uuid = models.CharField(default=uuidstr, editable=False,
-                            unique=True, max_length=255)
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255,
                             choices = (('step', 'Step'),
                                        ('workflow', 'Workflow')))
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
+
     parent = models.ForeignKey('WorkflowRun',
                                related_name='steps',
                                null=True,
@@ -106,24 +102,6 @@ class Run(MPTTNode):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
-
-    status_is_finished = models.BooleanField(default=False)
-    status_is_failed = models.BooleanField(default=False)
-    status_is_killed = models.BooleanField(default=False)
-    status_is_running = models.BooleanField(default=True)
-
-    @property
-    def status(self):
-        if self.status_is_failed:
-            return 'Failed'
-        elif self.status_is_killed:
-            return 'Killed'
-        elif self.status_is_running:
-            return 'Running'
-        elif self.status_is_finished:
-            return 'Finished'
-        else:
-            return 'Unknown'
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -178,7 +156,7 @@ class Run(MPTTNode):
                 command=template.step.command,
                 interpreter=template.step.interpreter,
                 parent=parent).run_ptr
-            run.set_mptt_parent(parent)
+            run.set_process_parent(parent)
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})
 

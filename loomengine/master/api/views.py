@@ -713,9 +713,9 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-datetime_created')
 
 from django.shortcuts import render
-def show_mptt_nodes(request):
-    return render(request, "mpttnodes.html",
-        {'nodes':models.MPTTNode.objects.all()})
+def show_processes(request):
+    return render(request, "processes.html",
+        {'nodes':models.Process.objects.all()})
 
 @require_http_methods(["GET"])
 def status(request):

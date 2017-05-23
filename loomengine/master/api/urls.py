@@ -74,7 +74,7 @@ urlpatterns = [
     url(r'^info/$', api.views.info),
     url(r'^filemanager-settings/$', api.views.filemanager_settings),
     url('^doc/$', get_swagger_view(title='Loom API')),
-    url(r'^mptt-nodes/$', api.views.show_mptt_nodes),
+    url(r'^processes/$', api.views.show_processes),
 ]
 
 if settings.DEBUG:

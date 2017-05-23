@@ -5,7 +5,7 @@ import jsonfield
 import os
 
 from .base import BaseModel, render_from_template
-from .mptt_node import MPTTNode
+from .process import Process
 from api import get_setting
 from api import async
 from api.models import uuidstr
@@ -26,18 +26,12 @@ def validate_list_of_ints(value):
         raise ValidationError('Value must be a list of ints')
 
 
-class Task(MPTTNode):
-
+class Task(Process):
     """A Task is a Step executed on a particular set of inputs.
     For non-parallel steps, each StepRun will have one task. For parallel,
     each StepRun will have one task for each set of inputs.
     """
 
-    uuid = models.CharField(default=uuidstr, editable=False,
-                            unique=True, max_length=255)
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     rendered_command = models.TextField(null=True, blank=True)
@@ -57,12 +51,6 @@ class Task(MPTTNode):
                                                  blank=True)
     index = jsonfield.JSONField(validators=[validate_list_of_ints],
                                 null=True, blank=True)
-
-    # While status_is_running, Loom will continue trying to complete the task
-    status_is_running = models.BooleanField(default=True)
-    status_is_failed = models.BooleanField(default=False)
-    status_is_killed = models.BooleanField(default=False)
-    status_is_finished = models.BooleanField(default=False)
 
     @property
     def attempt_number(self):
@@ -126,7 +114,7 @@ class Task(MPTTNode):
             resources=step_run.template.resources,
             index=index,
         )
-        task.set_mptt_parent(step_run)
+        task.set_process_parent(step_run)
         for input in input_set:
             TaskInput.objects.create(
                 task=task,
@@ -246,13 +234,8 @@ class TaskTimepoint(BaseModel):
     is_error = models.BooleanField(default=False)
 
 
-class TaskAttempt(MPTTNode):
+class TaskAttempt(Process):
 
-    uuid = models.CharField(default=uuidstr, editable=False,
-                            unique=True, max_length=255)
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
     parent_task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
@@ -261,11 +244,6 @@ class TaskAttempt(MPTTNode):
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
     last_heartbeat = models.DateTimeField(auto_now=True)
-    status_is_failed = models.BooleanField(default=False)
-    status_is_finished = models.BooleanField(default=False)
-    status_is_killed = models.BooleanField(default=False)
-    status_is_running = models.BooleanField(default=True)
-    status_is_cleaned_up = models.BooleanField(default=False)
 
     def heartbeat(self):
         # Saving with an empty set of attributes will update
@@ -326,7 +304,7 @@ class TaskAttempt(MPTTNode):
             environment=task.environment,
             resources=task.resources,
         )
-        task_attempt.set_mptt_parent(task)
+        task_attempt.set_process_parent(task)
         task_attempt.initialize()
         return task_attempt
 
