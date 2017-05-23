@@ -101,6 +101,7 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         many=True, allow_null=True, required=False)
     resources = serializers.JSONField(required=False)
     environment = serializers.JSONField(required=False)
+    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = TaskAttempt
@@ -108,7 +109,8 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
                   'last_heartbeat', 'status_is_finished', 'status_is_failed',
                   'status_is_killed', 'status_is_running', 'status_is_cleaned_up',
                   'log_files', 'inputs', 'outputs', 'interpreter',
-                  'rendered_command', 'environment', 'resources', 'timepoints')
+                  'rendered_command', 'environment', 'resources', 'timepoints',
+                  'status',)
 
 
     def update(self, instance, validated_data):
@@ -202,6 +204,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     timepoints = TaskTimepointSerializer(
         many=True, allow_null=True, required=False)
     index = serializers.JSONField(required=True)
+    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = Task
@@ -228,6 +231,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'attempt_number',
             'timepoints',
             'index',
+            'status',
         )
 
 
