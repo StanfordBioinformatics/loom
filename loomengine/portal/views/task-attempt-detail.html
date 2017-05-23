@@ -196,30 +196,16 @@
 	</thead>
 	<tbody>
 	  <tr ng-repeat="task in activeData.run.tasks">
-	    <td>
-	      <a href="{{task.url}}">
-		{{task.uuid}}
-	      </a>
-	    </td>
+	    <td><a ng-href="#/tasks/{{task.uuid}}">
+          {{task.uuid}}
+        </a></td>
 	    <td>{{task.status_message}}</td>
 	    <td>{{task.datetime_created}}</td>
 	  </tr>
-
-      <tr ng-repeat="task_attempt in task.task_attempts">
-	    <td style="padding-left:20px">
-	      <a href="{{task_attempt.url}}">
-		    {{task_attempt.uuid}}
-	      </a>
-	    </td>
-	    <td><!-- add task_attempt.status_message when supported --></td>
-	    <td>{{task_attempt.datetime_created}}</td>
-	  </tr>
-
 	</tbody>
       </table>
     </div>
   </div>
-
   <div ng-show="activeData.run.timepoints.length>0">
     <h4>Timepoints</h4>
     <div class="table-responsive" >
