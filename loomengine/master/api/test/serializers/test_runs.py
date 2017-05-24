@@ -53,7 +53,6 @@ class TestRunSerializer(TransactionTestCase):
         m = Template.objects.get(id=m.id)
         run = Run.create_from_template(m)
 
-        import pdb; pdb.set_trace()
         self.assertEqual(
             m.uuid,
             RunSerializer(run, context=get_mock_context()).data[
