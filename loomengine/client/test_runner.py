@@ -108,7 +108,7 @@ class TestRunner:
                 if status == 'Finished':
                     # success
                     return
-                elif status != 'Running':
+                elif status not in ['Running', 'Waiting']:
                     raise IntegrationTestFailure('Unexpected run status: %s' % status)
             time.sleep(sleep_interval_seconds)
         raise IntegrationTestFailure('ERROR: Test timed out after %s seconds' % timeout)
