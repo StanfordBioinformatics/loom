@@ -63,6 +63,30 @@
         </table>
     </div>
 
+    <div ng-show="activeData.task.task_attempts">
+        <h4>Attempts</h4>
+        <div class="table-responsive" >
+            <table class="table table-striped">
+                <thead>
+                    <th>Attempt ID</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </thead>
+                <tbody ng-repeat="task_attempt in activeData.task.task_attempts">
+                    <tr>
+                        <td>
+                            <a ng-href="#/task-attempts/{{task_attempt.uuid}}">
+                                {{task_attempt.uuid}}
+                            </a>
+                        </td>
+                        <td><!-- show task.status when supported -->TODO</td>
+                        <td>{{task_attempt.datetime_created | date:'medium'}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div ng-show="activeData.task.inputs.length">
         <h4>Inputs</h4>
         <div class="table-responsive" >
@@ -113,29 +137,6 @@
                 </tr>
             </tbody>
         </table>
-    </div>
-    <div ng-show="activeData.task.task_attempts">
-        <h4>Attempts</h4>
-        <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <th>Attempt ID</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                </thead>
-                <tbody ng-repeat="task_attempt in activeData.task.task_attempts">
-                    <tr>
-                        <td>
-                            <a ng-href="#/task-attempts/{{task_attempt.uuid}}">
-                                {{task_attempt.uuid}}
-                            </a>
-                        </td>
-                        <td><!-- show task.status when supported -->TODO</td>
-                        <td>{{task_attempt.datetime_created | date:'medium'}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
     </div>
 
     <div ng-show="activeData.task.timepoints.length>0">

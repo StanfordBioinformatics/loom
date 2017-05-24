@@ -73,6 +73,30 @@
         </table>
     </div>
 
+    <div ng-show="activeData.taskAttempt.log_files">
+        <h4>Logfiles</h4>
+        <div class="table-responsive" >
+            <table class="table table-striped">
+                <thead>
+                    <th>Name</th>
+                    <th>ID</th>
+                    <th>Created</th>
+                </thead>
+                <tbody ng-repeat="log_file in activeData.taskAttempt.log_files">
+                    <tr>
+                        <td>
+                            <a href="{{log_file.file.url}}">
+                                {{log_file.log_name}}
+                            </a>
+                        </td>
+                        <td>{{log_file.uuid}}</td>
+                        <td>{{log_file.datetime_created | date:'medium'}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div ng-show="activeData.taskAttempt.inputs.length">
         <h4>Inputs</h4>
         <div class="table-responsive" >
@@ -143,30 +167,6 @@
                         <td>{{timepoint.message}}</td>
                         <td>{{timepoint.is_error}}</td>
                         <td>{{timepoint.detail}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div ng-show="activeData.taskAttempt.log_files">
-        <h4>Logfiles</h4>
-        <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <th>Name</th>
-                    <th>ID</th>
-                    <th>Created</th>
-                </thead>
-                <tbody ng-repeat="log_file in activeData.taskAttempt.log_files">
-                    <tr>
-                        <td>
-                            <a href="{{log_file.file.url}}">
-                                {{log_file.log_name}}
-                            </a>
-                        </td>
-                        <td>{{log_file.uuid}}</td>
-                        <td>{{log_file.datetime_created | date:'medium'}}</td>
                     </tr>
                 </tbody>
             </table>
