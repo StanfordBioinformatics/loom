@@ -128,7 +128,8 @@ class StepRunSerializer(CreateWithParentModelSerializer):
                   'command', 'interpreter', 'tasks',
                   'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'status', 'url', 'timepoints') #'run_request',
+                  'status_is_running', 'status_is_waiting', 'status', 'url',
+                  'timepoints') #'run_request',
 
 
 class WorkflowRunInputSerializer(InputOutputNodeSerializer):
@@ -170,4 +171,5 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
         fields = ('uuid', 'template', 'steps', 'inputs', 'outputs',
                   'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
-                  'status_is_running', 'status', 'url', 'timepoints',) # 'run_request',
+                  'status_is_running', 'status_is_waiting', 'status', 'url',
+                  'timepoints',) # 'run_request',
