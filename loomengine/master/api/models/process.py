@@ -33,11 +33,13 @@ class Process(MPTTModel, BaseModel):
     datetime_finished = models.DateTimeField(null=True, blank=True)
 
     # While status_is_running, Loom will continue trying to complete the task
-    status_is_running = models.BooleanField(default=True)
+    status_is_running = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
     status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
     status_is_cleaned_up = models.BooleanField(default=False)
+    status_is_waiting = models.BooleanField(default=True)
+
 
     @property
     def status(self):
@@ -51,5 +53,7 @@ class Process(MPTTModel, BaseModel):
             return 'Finished'
         elif self.status_is_cleaned_up:
             return 'Cleaned up'
+        elif self.status_is_waiting:
+            return 'Waiting'
         else:
             return 'Unknown'

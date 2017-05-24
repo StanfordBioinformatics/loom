@@ -72,7 +72,8 @@ class Task(Process):
     def fail(self, message, detail=''):
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
-             'status_is_running': False})
+             'status_is_running': False,
+             'status_is_waiting': False})
         self.add_timepoint(message, detail=detail, is_error=True)
         if not self.step_run.status_is_failed:
             self.step_run.fail(
@@ -83,7 +84,8 @@ class Task(Process):
         self.setattrs_and_save_with_retries(
             { 'datetime_finished': timezone.now(),
               'status_is_finished': True,
-              'status_is_running': False })
+              'status_is_running': False,
+              'status_is_waiting': False})
         self.step_run.add_timepoint('Child Task %s finished successfully' % self.uuid)
         self.step_run.update_status()
         for output in self.outputs.all():
@@ -94,6 +96,7 @@ class Task(Process):
 
     def kill(self, kill_message):
         self.setattrs_and_save_with_retries({
+            'status_is_waiting': False,
             'status_is_running': False,
             'status_is_killed': True
         })
@@ -131,13 +134,16 @@ class Task(Process):
             { 'rendered_command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
         step_run.add_timepoint('Child Task %s was created' % task.uuid)
+        step_run.set_running_status()
         return task
 
     def create_and_activate_attempt(self):
         try:
             task_attempt = TaskAttempt.create_from_task(self)
             self.setattrs_and_save_with_retries({
-                'selected_task_attempt': task_attempt })
+                'selected_task_attempt': task_attempt,
+                'status_is_running': True,
+                'status_is_waiting': False})
             self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
         except ConcurrentModificationError as e:
             task_attempt.add_timepoint(

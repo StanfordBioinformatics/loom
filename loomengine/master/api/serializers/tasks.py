@@ -200,6 +200,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     status_is_failed = serializers.BooleanField(read_only=True)
     status_is_killed = serializers.BooleanField(read_only=True)
     status_is_running = serializers.BooleanField(read_only=True)
+    status_is_waiting = serializers.BooleanField(read_only=True)
     attempt_number = serializers.IntegerField(read_only=True)
     timepoints = TaskTimepointSerializer(
         many=True, allow_null=True, required=False)
@@ -228,6 +229,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'status_is_failed',
             'status_is_killed',
             'status_is_running',
+            'status_is_waiting',
             'attempt_number',
             'timepoints',
             'index',

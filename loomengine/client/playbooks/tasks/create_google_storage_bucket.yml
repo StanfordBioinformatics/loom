@@ -3,6 +3,3 @@
   shell: gsutil mb -p {{gce_project}} gs://{{google_storage_bucket}}/
   ignore_errors: yes
   when: "storage_type == 'google_storage'"
-  register: result
-  retries: 30
-  until: result | succeeded

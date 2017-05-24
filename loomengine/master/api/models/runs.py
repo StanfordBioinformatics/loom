@@ -258,7 +258,8 @@ class Run(Process):
     def fail(self, message, detail=''):
         self.setattrs_and_save_with_retries({
             'status_is_failed': True,
-            'status_is_running': False})
+            'status_is_running': False,
+            'status_is_waiting': False})
         self.add_timepoint(message, detail=detail, is_error=True)
         if self.parent:
             self.parent.fail('Run %s failed' % self.uuid, detail=detail)
@@ -267,6 +268,15 @@ class Run(Process):
 
     def kill(self, kill_message):
         return self._get_manager().kill(kill_message)
+
+    def set_running_status(self):
+        if self.status_is_running and not self.status_is_waiting:
+            return
+        self.setattrs_and_save_with_retries({
+            'status_is_running': True,
+            'status_is_waiting': False})
+        if self.parent:
+            self.parent.set_running_status()
 
     def add_timepoint(self, message, detail='', is_error=False):
         timepoint = RunTimepoint.objects.create(
@@ -433,6 +443,7 @@ class WorkflowRun(Run):
     def update_workflow_status(self):
         if self._are_children_finished():
             self.setattrs_and_save_with_retries({'status_is_running': False,
+                                                 'status_is_waiting': False,
                                                  'status_is_finished': True})
             self.add_timepoint("Run %s@%s finished successfully" % (
                 self.name, self.uuid))
@@ -446,10 +457,14 @@ class WorkflowRun(Run):
         return all([step.status_is_finished for step in self.steps.all()])
 
     def _kill(self, kill_message):
+        if self.status_is_finished:
+            # Don't kill successfully completed runs
+            return
         self.add_timepoint('Run killed', detail=kill_message, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
-             'status_is_running': False})
+             'status_is_running': False,
+             'status_is_waiting': False})
         for step in self.downcast().steps.all():
             step.kill(kill_message)
 
@@ -538,6 +553,7 @@ class StepRun(Run):
 
     def update_status(self):
         self.setattrs_and_save_with_retries({'status_is_running': False,
+                                             'status_is_waiting': False,
                                              'status_is_finished': True})
         self.add_timepoint("Run %s@%s finished successfully" % (self.name, self.uuid))
         if self.parent:
@@ -546,10 +562,14 @@ class StepRun(Run):
             self.parent.update_workflow_status()
 
     def _kill(self, kill_message):
+        if self.status_is_finished:
+            # Don't kill successfully completed runs
+            return
         self.add_timepoint('Run killed', detail=kill_message, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
-             'status_is_running': False})
+             'status_is_running': False,
+             'status_is_waiting': False})
         for task in self.downcast().tasks.all():
             task.kill(kill_message)
 

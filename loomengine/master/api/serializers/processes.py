@@ -3,9 +3,8 @@ from rest_framework import serializers
 from api.exceptions import *
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
 from api.models.data_objects import FileDataObject
-from api.models.tasks import Task, TaskInput, TaskOutput, \
-    TaskAttempt, TaskAttemptOutput, TaskAttemptInput, \
-    TaskAttemptLogFile, TaskAttemptTimepoint, TaskTimepoint
+from api.models.tasks import *
+from api.models.process import *
 from api.serializers.data_objects import DataObjectSerializer
 
 
