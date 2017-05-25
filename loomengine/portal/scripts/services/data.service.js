@@ -10,11 +10,13 @@ function DataService($http, $q) {
     /* DataService retrieves and caches data from the server. */
 
     this.setActiveRun = setActiveRun;
+    this.setActiveTask = setActiveTask;
     this.setActiveTaskAttempt = setActiveTaskAttempt;
     this.setActiveTemplate = setActiveTemplate;
     this.setActiveFile = setActiveFile;
     this.getAllActive = getAllActive;
     this.getRuns = getRuns;
+    this.getRunWorkflowsExpanded = getRunWorkflowsExpanded;
     this.getTemplates = getTemplates;
     this.getImportedFiles = getImportedFiles;
     this.getResultFiles = getResultFiles;
@@ -32,9 +34,13 @@ function DataService($http, $q) {
         .then(function(response) {
             activeData.run = response.data;
             expandRunInputsOutputs();
-            if (activeData.run.tasks !== undefined) {
-                expandRunTasks();
-            }
+        });
+    }
+
+    function setActiveTask(taskId) {
+        return $http.get("/api/tasks/" + taskId + "/")
+        .then(function(response) {
+            activeData.task = response.data;
         });
     }
 
@@ -65,35 +71,6 @@ function DataService($http, $q) {
         return $http.get("/api/data-trees/"+activeData.run.outputs[i].data.uuid)
         .then(function(response) {
             activeData.run.outputs[i].data = response.data;
-        });
-    }
-
-    function expandRunTasks() {
-        for (var i=0; i < activeData.run.tasks.length; i++) {
-            expandRunTask(i);
-            if (activeData.run.tasks[i].task_attempts !== undefined) {
-                expandRunTaskTaskAttempts(i);
-            }
-        }
-    }
-
-    function expandRunTask(i) {
-        return $http.get("/api/tasks/"+activeData.run.tasks[i].uuid)
-        .then(function(response) {
-            activeData.run.tasks[i] = response.data;
-        });
-    }
-
-    function expandRunTaskTaskAttempts(i) {
-        for (var j=0; j < activeData.run.tasks[i].task_attempts.length; j++) {
-            expandRunTaskTaskAttempt(i, j);
-        }
-    }
-
-    function expandRunTaskTaskAttempt(i, j) {
-        return $http.get("/api/task-attempts/"+activeData.run.tasks[i].task_attempts[j].uuid)
-        .then(function(response) {
-            activeData.run.tasks[i].task_attempts[j] = response.data;
         });
     }
 
@@ -134,6 +111,13 @@ function DataService($http, $q) {
 
     function getRuns() {
         return $http.get("/api/runs/?parent_only")
+        .then(function(response) {
+            return response.data;
+        });
+    }
+
+    function getRunWorkflowsExpanded() {
+        return $http.get("/api/run-workflows/?expand")
         .then(function(response) {
             return response.data;
         });

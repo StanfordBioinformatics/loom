@@ -3,14 +3,22 @@
   when:
   - scratch_disk_mount_point is defined
   - scratch_disk_device_path is defined
+  register: result
   retries: 30
+  until: result | succeeded
 - name: Create the scratch disk mount point.
   file: path={{scratch_disk_mount_point}} state=directory
   when:
   - scratch_disk_mount_point is defined
   - scratch_disk_device_path is defined
+  register: result
+  retries: 30
+  until: result | succeeded
 - name: Mount the scratch disk at the mount point.
   mount: name={{scratch_disk_mount_point}} fstype=ext4 src={{scratch_disk_device_path}} state=mounted
   when:
   - scratch_disk_mount_point is defined
   - scratch_disk_device_path is defined
+  register: result
+  retries: 30
+  until: result | succeeded

@@ -22,7 +22,7 @@ def validate_list_of_ints(value):
         raise ValidationError('Value must be a list of ints')
     if not all(are_ints):
         raise ValidationError('Value must be a list of ints')
-    
+
 
 class Task(BaseModel):
 
@@ -41,7 +41,7 @@ class Task(BaseModel):
     rendered_command = models.TextField(null=True, blank=True)
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
-    
+
     step_run = models.ForeignKey('StepRun',
                                  related_name='tasks',
                                  on_delete=models.CASCADE,
@@ -77,7 +77,7 @@ class Task(BaseModel):
             last_heartbeat = self.datetime_created
         # Actual interval is expected to be slightly longer than setpoint,
         # depending on settings in TaskRunner. If 2.5 x heartbeat_interval
-        # has passed, we have probably missed 2 heartbeats 
+        # has passed, we have probably missed 2 heartbeats
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
     def fail(self, message, detail=''):
@@ -90,7 +90,7 @@ class Task(BaseModel):
             self.step_run.fail(
                 'Task %s failed' % self.uuid,
                 detail=detail)
-    
+
     def finish(self):
         self.setattrs_and_save_with_retries(
             { 'datetime_finished': timezone.now(),
@@ -127,6 +127,7 @@ class Task(BaseModel):
             environment=step_run.template.environment,
             resources=step_run.template.resources,
             index=index,
+            #mptt_parent=step_run,
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -328,7 +329,8 @@ class TaskAttempt(BaseModel):
             interpreter=task.interpreter,
             rendered_command=task.rendered_command,
             environment=task.environment,
-            resources=task.resources
+            resources=task.resources,
+            #mptt_parent=task,
         )
         task_attempt.initialize()
         return task_attempt

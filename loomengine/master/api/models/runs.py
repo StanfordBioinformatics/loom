@@ -43,7 +43,7 @@ class WorkflowRunManager(object):
 
     def kill(self, kill_message):
         return self.run.workflowrun._kill(kill_message)
-    
+
 
 class StepRunManager(object):
 
@@ -66,8 +66,8 @@ class StepRunManager(object):
 
 
 class Run(BaseModel):
-    """AbstractWorkflowRun represents the process of executing a Workflow on 
-    a particular set of inputs. The workflow may be either a Step or a 
+    """AbstractWorkflowRun represents the process of executing a Workflow on
+    a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
     """
 
@@ -178,6 +178,7 @@ class Run(BaseModel):
                 type=template.type,
                 command=template.step.command,
                 interpreter=template.step.interpreter,
+                #mptt_parent=parent,
                 parent=parent).run_ptr
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})
@@ -533,7 +534,7 @@ class StepRun(Run):
                 type=input.get('type'),
                 group=input.get('group'),
                 mode=input.get('mode'))
-            
+
             # One of these two should always take effect. The other is ignored.
             self._connect_input_to_parent(run_input)
             self._connect_input_to_run_request(run_input)
@@ -594,9 +595,9 @@ class StepRun(Run):
              'status_is_waiting': False})
         for task in self.downcast().tasks.all():
             task.kill(kill_message)
-            
+
     def push(self, channel, index):
-        """Indicates that new data is available at the given index 
+        """Indicates that new data is available at the given index
         on the given channel. This may trigger creation of new tasks.
         """
         for input_set in TaskInputManager(
@@ -662,7 +663,7 @@ class WorkflowRunConnectorNode(InputOutputNode):
     # input/output nodes of siblings since their creation order is uncertain.
     # Instead, connections between siblings always pass through a connector
     # in the parent workflow.
-    
+
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='connectors',
                                      on_delete=models.CASCADE)
@@ -696,7 +697,7 @@ class TaskInputManager(object):
         self.index = index
 
     def get_ready_input_sets(self):
-        """New data is available at the given channel and index. See whether 
+        """New data is available at the given channel and index. See whether
         any new tasks can be created with this data.
         """
         for input_node in self.input_nodes:
