@@ -22,7 +22,7 @@ def validate_list_of_ints(value):
         raise ValidationError('Value must be a list of ints')
     if not all(are_ints):
         raise ValidationError('Value must be a list of ints')
-    
+
 
 class Task(BaseModel):
 
@@ -41,7 +41,7 @@ class Task(BaseModel):
     rendered_command = models.TextField(null=True, blank=True)
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
-    
+
     step_run = models.ForeignKey('StepRun',
                                  related_name='tasks',
                                  on_delete=models.CASCADE,
@@ -57,7 +57,8 @@ class Task(BaseModel):
                                 null=True, blank=True)
 
     # While status_is_running, Loom will continue trying to complete the task
-    status_is_running = models.BooleanField(default=True)
+    status_is_waiting = models.BooleanField(default=True)
+    status_is_running = models.BooleanField(default=False)
     status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
@@ -76,24 +77,26 @@ class Task(BaseModel):
             last_heartbeat = self.datetime_created
         # Actual interval is expected to be slightly longer than setpoint,
         # depending on settings in TaskRunner. If 2.5 x heartbeat_interval
-        # has passed, we have probably missed 2 heartbeats 
+        # has passed, we have probably missed 2 heartbeats
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
     def fail(self, message, detail=''):
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
-             'status_is_running': False})
+             'status_is_running': False,
+             'status_is_waiting': False})
         self.add_timepoint(message, detail=detail, is_error=True)
         if not self.step_run.status_is_failed:
             self.step_run.fail(
                 'Task %s failed' % self.uuid,
                 detail=detail)
-    
+
     def finish(self):
         self.setattrs_and_save_with_retries(
             { 'datetime_finished': timezone.now(),
               'status_is_finished': True,
-              'status_is_running': False })
+              'status_is_running': False,
+              'status_is_waiting': False})
         self.step_run.add_timepoint('Child Task %s finished successfully' % self.uuid)
         self.step_run.update_status()
         for output in self.outputs.all():
@@ -104,6 +107,7 @@ class Task(BaseModel):
 
     def kill(self, kill_message):
         self.setattrs_and_save_with_retries({
+            'status_is_waiting': False,
             'status_is_running': False,
             'status_is_killed': True
         })
@@ -123,6 +127,7 @@ class Task(BaseModel):
             environment=step_run.template.environment,
             resources=step_run.template.resources,
             index=index,
+            #mptt_parent=step_run,
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -140,13 +145,16 @@ class Task(BaseModel):
             { 'rendered_command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
         step_run.add_timepoint('Child Task %s was created' % task.uuid)
+        step_run.set_running_status()
         return task
 
     def create_and_activate_attempt(self):
         try:
             task_attempt = TaskAttempt.create_from_task(self)
             self.setattrs_and_save_with_retries({
-                'selected_task_attempt': task_attempt })
+                'selected_task_attempt': task_attempt,
+                'status_is_running': True,
+                'status_is_waiting': False})
             self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
         except ConcurrentModificationError as e:
             task_attempt.add_timepoint(
@@ -321,7 +329,8 @@ class TaskAttempt(BaseModel):
             interpreter=task.interpreter,
             rendered_command=task.rendered_command,
             environment=task.environment,
-            resources=task.resources
+            resources=task.resources,
+            #mptt_parent=task,
         )
         task_attempt.initialize()
         return task_attempt

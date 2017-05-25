@@ -1,0 +1,165 @@
+<img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+<div ng-hide="loading">
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <tr>
+                <th>
+                    Task ID
+                </th>
+                <td>
+                    {{activeData.task.uuid}}
+                </td>
+            </tr>
+            <tr ng-show="activeData.task.status">
+                <th>
+                    Status
+                </th>
+                <td>
+                    <!-- need a status field -->
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    Created
+                </th>
+                <td>
+                    {{activeData.task.datetime_created | date:'medium'}}
+                </td>
+            </tr>
+            <tr ng-show="activeData.task.command">
+                <th>
+                    Command
+                </th>
+                <td>
+                    {{activeData.task.command}}
+                </td>
+            </tr>
+            <tr ng-show="activeData.task.interpreter">
+                <th>
+                    Interpreter
+                </th>
+                <td>
+                    {{activeData.task.interpreter}}
+                </td>
+            </tr>
+            <tr ng-show="activeData.task.environment.docker_image">
+                <th>Docker Image</th>
+                <td>
+                    {{activeData.task.environment.docker_image}}
+                </td>
+            </tr>
+            <tr ng-show="activeData.task.resources.cores">
+                <th>Cores</th>
+                <td>
+                    {{activeData.task.resources.cores}}
+                </td>
+            </tr>
+            <tr ng-show="activeData.task.resources.memory">
+                <th>Memory</th>
+                <td>
+                    {{activeData.task.resources.memory}}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div ng-show="activeData.task.task_attempts">
+        <h4>Attempts</h4>
+        <div class="table-responsive" >
+            <table class="table table-striped">
+                <thead>
+                    <th>Attempt ID</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </thead>
+                <tbody ng-repeat="task_attempt in activeData.task.task_attempts">
+                    <tr>
+                        <td>
+                            <a ng-href="#/task-attempts/{{task_attempt.uuid}}">
+                                {{task_attempt.uuid}}
+                            </a>
+                        </td>
+                        <td><!-- show task.status when supported -->TODO</td>
+                        <td>{{task_attempt.datetime_created | date:'medium'}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div ng-show="activeData.task.inputs.length">
+        <h4>Inputs</h4>
+        <div class="table-responsive" >
+            <table class="table table-striped">
+                <thead>
+                    <th>Channel</th>
+                    <th>Type</th>
+                    <th>Data</th>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="input in activeData.task.inputs">
+                        <td>{{input.channel}}</td>
+                        <td>{{input.type}}</td>
+                        <td ng-show="input.type=='file'">
+                            <a ng-href="#/files/{{input.data_object.uuid}}" ng-show="input.data_object">
+                                {{input.data_object.filename}}
+                            </a>
+                        </td>
+                        <td ng-hide="input.type=='file'">
+                            {{input.data_object.value}}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h4>Outputs</h4>
+    <div class="table-responsive" >
+        <table class="table table-striped">
+            <thead>
+                <th>Channel</th>
+                <th>Type</th>
+                <th>Data</th>
+            </thead>
+            <tbody>
+                <tr ng-repeat="output in activeData.task.outputs">
+                    <td>{{output.channel}}</td>
+                    <td>{{output.type}}</td>
+                    <td ng-show="output.type=='file'">
+                        <a ng-href="#/files/{{output.data_object.uuid}}" ng-show="output.data_object">
+                            {{output.data_object.filename}}
+                        </a>
+                    </td>
+                    <td ng-hide="output.type=='file'">
+                        {{output.data_object.value}}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div ng-show="activeData.task.timepoints.length>0">
+        <h4>Timepoints</h4>
+        <div class="table-responsive" >
+            <table class="table table-striped">
+                <thead>
+                    <th>Timestamp</th>
+                    <th>Message</th>
+                    <th>Is error</th>
+                    <th>Detail</th>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="timepoint in activeData.task.timepoints">
+                        <td>
+                            {{timepoint.timestamp | date:'medium'}}
+                        </td>
+                        <td>{{timepoint.message}}</td>
+                        <td>{{timepoint.is_error}}</td>
+                        <td>{{timepoint.detail}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

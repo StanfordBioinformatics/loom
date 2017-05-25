@@ -10,7 +10,6 @@ import logging
 import os
 import requests
 import string
-import subprocess
 import sys
 import threading
 import time
@@ -50,9 +49,11 @@ class TaskRunner(object):
         if args is None:
             args = self._get_args()
         self.settings = {
+            'SERVER_NAME': args.server_name,
             'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
+            'TASK_ATTEMPT_CONTAINER_NAME': args.server_name+'-task-'+args.task_attempt_id,
         }
 
         # Errors here can't be reported since there is no server connection
@@ -166,24 +167,29 @@ class TaskRunner(object):
             self._try_to_pull_image()
             self._try_to_create_container()
             self._try_to_run_container()
+            self._stream_docker_logs()
             self._try_to_get_returncode()
         except Exception as e:
             self.logger.error('Exiting run with error: %s' % str(e))
             raise
 
     def _cleanup(self):
+        cleanup_start_time = time.time()
+
         # Never raise errors, so cleanup can continue
         self._timepoint('Saving outputs')
-
-        try:
-            self._save_process_logs()
-        except Exception as e:
-            self._fail('Failed to save process logs', detail=str(e))
 
         try:
             self._save_outputs()
         except Exception as e:
             self._fail('Failed to save outputs', detail=str(e))
+
+        self._timepoint('Saving logfiles')
+
+        try:
+            self._save_process_logs()
+        except Exception as e:
+            self._fail('Failed to save process logs', detail=str(e))
 
         try:
             self._finish()
@@ -251,7 +257,6 @@ class TaskRunner(object):
                 detail=str(e))
             raise
 
-
     def _pull_image(self):
         pull_data = self._parse_docker_output(
             self.docker_client.pull(self._get_docker_image()))
@@ -289,7 +294,7 @@ class TaskRunner(object):
 
         command = interpreter.split(' ')
         command.append(self.LOOM_RUN_SCRIPT_NAME)
-        
+
         self.container = self.docker_client.create_container(
             image=docker_image,
             command=command,
@@ -300,6 +305,7 @@ class TaskRunner(object):
                     'mode': 'rw',
                 }}),
             working_dir=container_dir,
+            name=self.settings['SERVER_NAME']+'-task-'+self.settings['TASK_ATTEMPT_ID'],
         )
 
     def _try_to_run_container(self):
@@ -318,6 +324,18 @@ class TaskRunner(object):
             return
         else:
             raise ContainerStartError('Unexpected container status "%s"' % status)
+
+    def _stream_docker_logs(self):
+        """Stream stdout and stderr from the task container to this process's stdout and stderr, respectively."""
+        thread = threading.Thread(target=self._stderr_stream_worker)
+        thread.start()
+        for line in self.docker_client.logs(self.container, stdout=True, stderr=False, stream=True):
+            print line.strip('\n') # Remove starting and ending newlines but preserve indentation
+        thread.join()
+
+    def _stderr_stream_worker(self):
+        for line in self.docker_client.logs(self.container, stdout=False, stderr=True, stream=True):
+            sys.stderr.write(line.strip('\n')) # Remove starting and ending newlines but preserve indentation
 
     def _try_to_get_returncode(self):
         self._timepoint('Running analysis')
@@ -370,18 +388,24 @@ class TaskRunner(object):
 
         init_directory(
             os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
+
         with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
-            stdoutlog.write(
-                self.docker_client.logs(self.container, stderr=False, stdout=True)
-            )
+            stdoutlog.write(self._get_stdout())
+
         init_directory(
             os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
+
         with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
-            stderrlog.write(
-                self.docker_client.logs(self.container, stderr=True, stdout=False)
-            )
+            stderrlog.write(self._get_stderr())
+
         self._import_log_file(self.settings['STDOUT_LOG_FILE'])
         self._import_log_file(self.settings['STDERR_LOG_FILE'])
+
+    def _get_stdout(self):
+        return self.docker_client.logs(self.container, stderr=False, stdout=True)
+
+    def _get_stderr(self):
+        return self.docker_client.logs(self.container, stderr=True, stdout=False)
 
     def _import_log_file(self, filepath):
         try:
@@ -429,11 +453,9 @@ class TaskRunner(object):
                 elif output['source'].get('stream'):
                     # Get result from stream
                     if output['source'].get('stream') == 'stdout':
-                        output_text = self.docker_client.logs(
-                            self.container, stderr=False, stdout=True)
+                        output_text = self._get_stdout()
                     elif output['source'].get('stream') == 'stderr':
-                        output_text = self.docker_client.logs(
-                            self.container, stderr=True, stdout=False)
+                        output_text = self._get_stderr()
                     else:
                         raise Exception(
                             'Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
@@ -504,6 +526,10 @@ class TaskRunner(object):
     @classmethod
     def get_parser(self):
         parser = argparse.ArgumentParser(__file__)
+        parser.add_argument('-s',
+                            '--server_name',
+                            required=True,
+                            help='server name')
         parser.add_argument('-i',
                             '--task_attempt_id',
                             required=True,
@@ -518,11 +544,6 @@ class TaskRunner(object):
                             choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                             default='WARNING',
                             help='Log level')
-        parser.add_argument('-f',
-                            '--log_file',
-                            required=False,
-                            default=None,
-                            help='Log file')
         return parser
 
 
@@ -556,7 +577,7 @@ def get_stdout_logger(name, log_level_string):
     logger.addHandler(stream_handler)
     return logger
 
-    
+
 # pip entrypoint requires a function with no arguments
 def main():
 

@@ -34,7 +34,7 @@
 
 - name: Set facts on the worker instance.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   vars_files:
   - vars/common.yml
   - vars/gcloud_worker.yml
@@ -59,13 +59,13 @@
       - scratch_disk_type is defined
       - scratch_disk_size_gb is defined
       register: gce_pd
-      until: gce_pd.state == "present"
+      until: gce_pd['state'] is defined and gce_pd['state'] == "present"
       retries: 5
       delay: 5
 
 - name: Format and mount the scratch disk on the Loom worker.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml
@@ -75,7 +75,7 @@
 
 - name: Install Docker on the Loom worker and add remote user to docker group.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml
@@ -88,7 +88,7 @@
 
 - name: Log into Google Container Registry.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml
@@ -98,7 +98,7 @@
 
 - name: Pull Docker images on the new instance.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
   - vars/common.yml
@@ -108,7 +108,7 @@
 
 - name: Run the Loom task runner on the specified worker instance.
   hosts: new_instances
-  remote_user: "{{remote_user}}"
+  remote_user: "{{loom_remote_user}}"
   become: yes
   vars_files:
     - vars/common.yml

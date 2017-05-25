@@ -7,3 +7,6 @@
       credentials_file: "{{gce_credential}}"
       project_id: "{{gce_project}}"
       service_account_email: "{{gce_email}}"
+    register: result
+    retries: 30
+    until: result | succeeded

@@ -169,6 +169,7 @@ INSTALLED_APPS = [
     'rest_framework_swagger',
     'django_celery_results',
     'api',
+    'mptt',
 ]
 
 MIDDLEWARE_CLASSES = [

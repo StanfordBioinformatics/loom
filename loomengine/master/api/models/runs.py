@@ -43,7 +43,7 @@ class WorkflowRunManager(object):
 
     def kill(self, kill_message):
         return self.run.workflowrun._kill(kill_message)
-    
+
 
 class StepRunManager(object):
 
@@ -66,8 +66,8 @@ class StepRunManager(object):
 
 
 class Run(BaseModel):
-    """AbstractWorkflowRun represents the process of executing a Workflow on 
-    a particular set of inputs. The workflow may be either a Step or a 
+    """AbstractWorkflowRun represents the process of executing a Workflow on
+    a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
     """
 
@@ -108,18 +108,21 @@ class Run(BaseModel):
     status_is_finished = models.BooleanField(default=False)
     status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
-    status_is_running = models.BooleanField(default=True)
+    status_is_running = models.BooleanField(default=False)
+    status_is_waiting = models.BooleanField(default=True)
 
     @property
     def status(self):
         if self.status_is_failed:
             return 'Failed'
+        elif self.status_is_finished:
+            return 'Finished'
         elif self.status_is_killed:
             return 'Killed'
         elif self.status_is_running:
             return 'Running'
-        elif self.status_is_finished:
-            return 'Finished'
+        elif self.status_is_waiting:
+            return 'Waiting'
         else:
             return 'Unknown'
 
@@ -175,6 +178,7 @@ class Run(BaseModel):
                 type=template.type,
                 command=template.step.command,
                 interpreter=template.step.interpreter,
+                #mptt_parent=parent,
                 parent=parent).run_ptr
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})
@@ -277,7 +281,8 @@ class Run(BaseModel):
     def fail(self, message, detail=''):
         self.setattrs_and_save_with_retries({
             'status_is_failed': True,
-            'status_is_running': False})
+            'status_is_running': False,
+            'status_is_waiting': False})
         self.add_timepoint(message, detail=detail, is_error=True)
         if self.parent:
             self.parent.fail('Run %s failed' % self.uuid, detail=detail)
@@ -286,6 +291,15 @@ class Run(BaseModel):
 
     def kill(self, kill_message):
         return self._get_manager().kill(kill_message)
+
+    def set_running_status(self):
+        if self.status_is_running and not self.status_is_waiting:
+            return
+        self.setattrs_and_save_with_retries({
+            'status_is_running': True,
+            'status_is_waiting': False})
+        if self.parent:
+            self.parent.set_running_status()
 
     def add_timepoint(self, message, detail='', is_error=False):
         timepoint = RunTimepoint.objects.create(
@@ -452,6 +466,7 @@ class WorkflowRun(Run):
     def update_workflow_status(self):
         if self._are_children_finished():
             self.setattrs_and_save_with_retries({'status_is_running': False,
+                                                 'status_is_waiting': False,
                                                  'status_is_finished': True})
             self.add_timepoint("Run %s@%s finished successfully" % (
                 self.name, self.uuid))
@@ -465,10 +480,14 @@ class WorkflowRun(Run):
         return all([step.status_is_finished for step in self.steps.all()])
 
     def _kill(self, kill_message):
+        if self.status_is_finished:
+            # Don't kill successfully completed runs
+            return
         self.add_timepoint('Run killed', detail=kill_message, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
-             'status_is_running': False})
+             'status_is_running': False,
+             'status_is_waiting': False})
         for step in self.downcast().steps.all():
             step.kill(kill_message)
 
@@ -515,7 +534,7 @@ class StepRun(Run):
                 type=input.get('type'),
                 group=input.get('group'),
                 mode=input.get('mode'))
-            
+
             # One of these two should always take effect. The other is ignored.
             self._connect_input_to_parent(run_input)
             self._connect_input_to_run_request(run_input)
@@ -557,6 +576,7 @@ class StepRun(Run):
 
     def update_status(self):
         self.setattrs_and_save_with_retries({'status_is_running': False,
+                                             'status_is_waiting': False,
                                              'status_is_finished': True})
         self.add_timepoint("Run %s@%s finished successfully" % (self.name, self.uuid))
         if self.parent:
@@ -565,15 +585,19 @@ class StepRun(Run):
             self.parent.update_workflow_status()
 
     def _kill(self, kill_message):
+        if self.status_is_finished:
+            # Don't kill successfully completed runs
+            return
         self.add_timepoint('Run killed', detail=kill_message, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
-             'status_is_running': False})
+             'status_is_running': False,
+             'status_is_waiting': False})
         for task in self.downcast().tasks.all():
             task.kill(kill_message)
-            
+
     def push(self, channel, index):
-        """Indicates that new data is available at the given index 
+        """Indicates that new data is available at the given index
         on the given channel. This may trigger creation of new tasks.
         """
         for input_set in TaskInputManager(
@@ -639,7 +663,7 @@ class WorkflowRunConnectorNode(InputOutputNode):
     # input/output nodes of siblings since their creation order is uncertain.
     # Instead, connections between siblings always pass through a connector
     # in the parent workflow.
-    
+
     workflow_run = models.ForeignKey('WorkflowRun',
                                      related_name='connectors',
                                      on_delete=models.CASCADE)
@@ -673,7 +697,7 @@ class TaskInputManager(object):
         self.index = index
 
     def get_ready_input_sets(self):
-        """New data is available at the given channel and index. See whether 
+        """New data is available at the given channel and index. See whether
         any new tasks can be created with this data.
         """
         for input_node in self.input_nodes:

@@ -17,7 +17,7 @@ outputs:
   channel: hello_world
 steps:
 - name: hello_step
-  command: cat {{ hello }} | tr '[a-z]' '[A-Z]' > {{ hello_cap }}
+  command: cat {{ hello }} | tr '[a-z]' '[A-Z]' | tee {{ hello_cap }} | tee /dev/fd/2
   environment:
     docker_image: ubuntu
   resources:
@@ -32,7 +32,7 @@ steps:
     source:
       filename: hello_cap.txt
 - name: world_step
-  command: cat {{ world }} | tr '[a-z]' '[A-Z]' > {{ world_cap }}
+  command: cat {{ world }} | tr '[a-z]' '[A-Z]' | tee {{ world_cap }} | tee /dev/fd/2
   environment:
     docker_image: ubuntu
   resources:
@@ -47,8 +47,8 @@ steps:
     source:
       filename: world_cap.txt
 - name: hello_world_step
-  command: echo $(cat {{ hello_cap }} {{ world_cap }})'{{ final_punc}}' > {{ hello_world
-    }}
+  command: echo $(cat {{ hello_cap }} {{ world_cap }})'{{ final_punc}}' | tee {{ hello_world
+    }} | tee /dev/fd/2
   environment:
     docker_image: ubuntu
   resources:
