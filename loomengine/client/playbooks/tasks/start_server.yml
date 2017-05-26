@@ -7,12 +7,13 @@
 - name: Verify Docker is running
   shell: "docker ps"
 
-- name: Configure Elasticsearch on Linux host
+- name: Optimize Elasticsearch on Linux host. Ignore error if not root.
   sysctl:
     name: vm.max_map_count
     value: 262144
   become: true
   when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"
+  ignore_errors: yes
 
 - name: Create a config file for Elasticsearch
   template:
