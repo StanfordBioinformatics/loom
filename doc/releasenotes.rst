@@ -1,10 +1,15 @@
 Release Notes
 =============
 
+0.3.6
+---------
+* Runs have "waiting" status until they start
+* Runs are no longer changed to "killed" if they already completed
+* Input/output detail routes on runs
+
 0.3.5
 ---------
-
-Critical bugfix for 0.3.4
+* Critical bugfix for 0.3.4
 
 0.3.4
 ---------

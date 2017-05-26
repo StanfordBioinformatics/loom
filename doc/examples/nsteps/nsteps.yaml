@@ -1,0 +1,1510 @@
+fixed_inputs:
+- channel: maininput
+  data:
+    contents: '0'
+  type: string
+name: nsteps
+outputs:
+- channel: mainoutput
+  type: string
+steps:
+- command: echo 0
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step0
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 1
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step1
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 2
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step2
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 3
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step3
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 4
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step4
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 5
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step5
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 6
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step6
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 7
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step7
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 8
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step8
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 9
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step9
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 10
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step10
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 11
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step11
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 12
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step12
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 13
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step13
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 14
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step14
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 15
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step15
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 16
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step16
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 17
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step17
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 18
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step18
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 19
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step19
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 20
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step20
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 21
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step21
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 22
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step22
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 23
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step23
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 24
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step24
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 25
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step25
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 26
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step26
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 27
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step27
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 28
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step28
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 29
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step29
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 30
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step30
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 31
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step31
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 32
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step32
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 33
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step33
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 34
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step34
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 35
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step35
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 36
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step36
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 37
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step37
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 38
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step38
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 39
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step39
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 40
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step40
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 41
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step41
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 42
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step42
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 43
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step43
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 44
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step44
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 45
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step45
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 46
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step46
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 47
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step47
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 48
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step48
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 49
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step49
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 50
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step50
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 51
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step51
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 52
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step52
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 53
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step53
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 54
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step54
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 55
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step55
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 56
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step56
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 57
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step57
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 58
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step58
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 59
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step59
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 60
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step60
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 61
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step61
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 62
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step62
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 63
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step63
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 64
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step64
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 65
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step65
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 66
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step66
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 67
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step67
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 68
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step68
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 69
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step69
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 70
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step70
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 71
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step71
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 72
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step72
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 73
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step73
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 74
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step74
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 75
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step75
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 76
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step76
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 77
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step77
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 78
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step78
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 79
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step79
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 80
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step80
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 81
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step81
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 82
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step82
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 83
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step83
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 84
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step84
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 85
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step85
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 86
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step86
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 87
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step87
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 88
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step88
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 89
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step89
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 90
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step90
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 91
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step91
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 92
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step92
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 93
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step93
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 94
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step94
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 95
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step95
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 96
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step96
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 97
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step97
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 98
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step98
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'
+- command: echo 99
+  environment:
+    docker_image: ubuntu
+  inputs:
+  - channel: maininput
+    type: string
+  name: step99
+  outputs:
+  - channel: mainoutput
+    source:
+      stream: stdout
+    type: string
+  resources:
+    cores: '1'
+    memory: '1'

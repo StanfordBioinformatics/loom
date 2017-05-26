@@ -53,8 +53,6 @@ class TaskRunner(object):
             'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
-            'LOG_OPTS': args.log_opts,
-            'ELASTICSEARCH_URL': args.elasticsearch_url,
             'TASK_ATTEMPT_CONTAINER_NAME': args.server_name+'-task-'+args.task_attempt_id,
         }
 
@@ -169,6 +167,7 @@ class TaskRunner(object):
             self._try_to_pull_image()
             self._try_to_create_container()
             self._try_to_run_container()
+            self._stream_docker_logs()
             self._try_to_get_returncode()
         except Exception as e:
             self.logger.error('Exiting run with error: %s' % str(e))
@@ -184,11 +183,6 @@ class TaskRunner(object):
             self._save_outputs()
         except Exception as e:
             self._fail('Failed to save outputs', detail=str(e))
-
-        sleep_time = 10.0 - (time.time() - cleanup_start_time)
-        if sleep_time > 0:
-            self._timepoint('Pausing for logs to propagate to Elasticsearch')
-            time.sleep(sleep_time) # Pause to give logs time to propagate to server
 
         self._timepoint('Saving logfiles')
 
@@ -293,7 +287,6 @@ class TaskRunner(object):
                 detail=str(e))
             raise
 
-
     def _pull_image(self):
         pull_data = self._parse_docker_output(
             self.docker_client.pull(self._get_docker_image()))
@@ -332,14 +325,11 @@ class TaskRunner(object):
         command = interpreter.split(' ')
         command.append(self.LOOM_RUN_SCRIPT_NAME)
 
-        log_cfg = docker.utils.LogConfig(type=docker.utils.LogConfig.types.FLUENTD, config=json.loads(self.settings['LOG_OPTS']))
-
         self.container = self.docker_client.create_container(
             image=docker_image,
             command=command,
             volumes=[container_dir],
             host_config=self.docker_client.create_host_config(
-                log_config=log_cfg,
                 binds={host_dir: {
                     'bind': container_dir,
                     'mode': 'rw',
@@ -364,6 +354,18 @@ class TaskRunner(object):
             return
         else:
             raise ContainerStartError('Unexpected container status "%s"' % status)
+
+    def _stream_docker_logs(self):
+        """Stream stdout and stderr from the task container to this process's stdout and stderr, respectively."""
+        thread = threading.Thread(target=self._stderr_stream_worker)
+        thread.start()
+        for line in self.docker_client.logs(self.container, stdout=True, stderr=False, stream=True):
+            print line.strip('\n') # Remove starting and ending newlines but preserve indentation
+        thread.join()
+
+    def _stderr_stream_worker(self):
+        for line in self.docker_client.logs(self.container, stdout=False, stderr=True, stream=True):
+            sys.stderr.write(line.strip('\n')) # Remove starting and ending newlines but preserve indentation
 
     def _try_to_get_returncode(self):
         self._timepoint('Running analysis')
@@ -417,23 +419,23 @@ class TaskRunner(object):
         init_directory(
             os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
 
-        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stdout"'}
-        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
-        stdoutstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
         with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
-            stdoutlog.write(stdoutstring)
+            stdoutlog.write(self._get_stdout())
 
         init_directory(
             os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
 
-        paramsdict = {'q':'container_name:"'+self.settings['TASK_ATTEMPT_CONTAINER_NAME']+'" AND source:"stderr"'}
-        r = requests.get(self.settings['ELASTICSEARCH_URL']+'/_search', params=paramsdict)
-        stderrstring = '\n'.join([hit['_source']['log'] for hit in r.json()['hits']['hits']])
         with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
-            stderrlog.write(stderrstring)
+            stderrlog.write(self._get_stderr())
 
         self._import_log_file(self.settings['STDOUT_LOG_FILE'])
         self._import_log_file(self.settings['STDERR_LOG_FILE'])
+
+    def _get_stdout(self):
+        return self.docker_client.logs(self.container, stderr=False, stdout=True)
+
+    def _get_stderr(self):
+        return self.docker_client.logs(self.container, stderr=True, stdout=False)
 
     def _import_log_file(self, filepath):
         try:
@@ -471,11 +473,9 @@ class TaskRunner(object):
                 elif output['source'].get('stream'):
                     # Get result from stream
                     if output['source'].get('stream') == 'stdout':
-                        output_text = self.docker_client.logs(
-                            self.container, stderr=False, stdout=True)
+                        output_text = self._get_stdout()
                     elif output['source'].get('stream') == 'stderr':
-                        output_text = self.docker_client.logs(
-                            self.container, stderr=True, stdout=False)
+                        output_text = self._get_stderr()
                     else:
                         raise Exception(
                             'Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
@@ -572,21 +572,12 @@ class TaskRunner(object):
                             '--master_url',
                             required=True,
                             help='URL of the Loom master server')
-        parser.add_argument('-e',
-                    '--elasticsearch_url',
-                    required=True,
-                    help='URL of the Elasticsearch server')
         parser.add_argument('-l',
                             '--log_level',
                             required=False,
                             choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                             default='WARNING',
                             help='Log level')
-        parser.add_argument('-o',
-                            '--log_opts',
-                            required=False,
-                            default=None,
-                            help='JSON dict of Docker log driver options')
         return parser
 
 

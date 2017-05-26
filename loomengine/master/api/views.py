@@ -567,8 +567,40 @@ class RunViewSet(ExpandableViewSet):
                            .prefetch_related('steprun__timepoints')
         return queryset.order_by('-datetime_created')
 
+    @detail_route(methods=['get'], url_path='inputs')
+    def inputs(self, request, uuid=None):
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            return JsonResponse({"message": "Not Found"}, status=404)
+        if run.type == 'step':
+            RunInputSerializer = serializers.StepRunInputSerializer
+        else:
+            RunInputSerializer = serializers.WorkflowRunInputSerializer
+        run_input_serializer = RunInputSerializer(run.inputs.all(),
+                                          many=True,
+                                          context={'request': request,
+                                                   'expand': True})
+        return JsonResponse(run_input_serializer.data, status=200, safe=False)
 
-class StepRunViewSet(ExpandableViewSet):
+    @detail_route(methods=['get'], url_path='outputs')
+    def outputs(self, request, uuid=None):
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            return JsonResponse({"message": "Not Found"}, status=404)
+        if run.type == 'step':
+            RunOutputSerializer = serializers.StepRunOutputSerializer
+        else:
+            RunOutputSerializer = serializers.WorkflowRunOutputSerializer
+        run_output_serializer = RunOutputSerializer(run.outputs.all(),
+                                          many=True,
+                                          context={'request': request,
+                                                   'expand': True})
+        return JsonResponse(run_output_serializer.data, status=200, safe=False)
+
+
+class StepRunViewSet(RunViewSet):
     """
     Runs of type 'step', which contain a command
     and runtime environment.
@@ -600,7 +632,7 @@ class StepRunViewSet(ExpandableViewSet):
         return queryset.order_by('-datetime_created')
 
 
-class WorkflowRunViewSet(ExpandableViewSet):
+class WorkflowRunViewSet(RunViewSet):
     """
     Runs of type 'workflow', which act as containers
     for other Runs. 

@@ -83,7 +83,15 @@ body {
 .main .page-header {
   margin-top: 0;
 }
-
+td.step-indent {
+    padding-left: 20px !important;
+}
+td.task-indent {
+    padding-left: 40px !important;
+}
+td.task-attempt-indent {
+    padding-left: 60px !important;
+}
 
 /*
  * Placeholder dashboard ideas
