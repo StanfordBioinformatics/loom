@@ -43,11 +43,20 @@ class FixedStepInputSerializer(InputOutputNodeSerializer):
 
 
 class TemplateSerializer(SuperclassModelSerializer):
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='template-detail',
+        lookup_field='uuid'
+    )
     type = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    name = serializers.CharField(required=False)
+    postprocessing_status = serializers.CharField(required=False)
+    template_import =  serializers.JSONField(required=False)
 
     class Meta:
         model = Template
-        fields = '__all__'
+        fields = ('uuid', 'url', 'type', 'datetime_created', 'name', 'postprocessing_status', 'template_import')
 
     def _get_subclass_serializer_class(self, type):
         if type=='workflow':
@@ -130,6 +139,7 @@ class StepSerializer(serializers.HyperlinkedModelSerializer):
     inputs = serializers.JSONField(required=False)
     fixed_inputs = FixedStepInputSerializer(many=True, required=False)
     outputs = serializers.JSONField(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     template_import =  serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
 
@@ -239,10 +249,12 @@ class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
         required=False,
         allow_null=True)
     outputs = serializers.JSONField(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     steps = ExpandableTemplateSerializer(many=True)
     template_import = serializers.JSONField(required=False)
     channel_bindings = serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
+    
 
     class Meta:
         model = Workflow
