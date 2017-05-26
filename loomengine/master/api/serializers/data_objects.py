@@ -143,8 +143,8 @@ class DataObjectSerializer(SuperclassModelSerializer):
 
     class Meta:
         model = DataObject
-        exclude = ('_change',)
-
+        fields = ('uuid', 'url', 'type', 'is_array', 'datetime_created')
+        
     subclass_serializers = {
         # array type handled separately to avoid circular dependency
         'string': StringDataObjectSerializer,

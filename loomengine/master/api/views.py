@@ -741,7 +741,7 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
                                'data_object__arraydataobject__'\
                                'prefetch_members__filedataobject__'\
                                'file_resource')
-        return queryset.order_by('-datetime_created')
+        return queryset
 
 
 @require_http_methods(["GET"])
