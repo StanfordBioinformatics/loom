@@ -108,6 +108,7 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('uuid', 'url', 'datetime_created', 'datetime_finished',
                   'last_heartbeat', 'status_is_finished', 'status_is_failed',
                   'status_is_killed', 'status_is_running', 'status_is_cleaned_up',
+                  'status_is_waiting',
                   'log_files', 'inputs', 'outputs', 'interpreter',
                   'rendered_command', 'environment', 'resources', 'timepoints',
                   'status',)
