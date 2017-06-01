@@ -54,5 +54,9 @@ function config($routeProvider) {
             templateUrl: 'views/file-provenance.html',
             controller: 'FileProvenanceController'
         })
+        .when('/processes', {
+            templateUrl: 'api/process-list',
+            controller: 'ProcessListController'
+        })
 	.otherwise('/runs');
 };

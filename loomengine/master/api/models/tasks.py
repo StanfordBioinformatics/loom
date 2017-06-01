@@ -116,6 +116,7 @@ class Task(Process):
             environment=step_run.template.environment,
             resources=step_run.template.resources,
             index=index,
+            name=str(step_run.name)+str(index),
         )
         task.set_process_parent(step_run)
         for input in input_set:
@@ -309,6 +310,7 @@ class TaskAttempt(Process):
             rendered_command=task.rendered_command,
             environment=task.environment,
             resources=task.resources,
+            name=task.name+'attempt'
         )
         task_attempt.set_process_parent(task)
         task_attempt.initialize()

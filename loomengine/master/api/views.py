@@ -669,30 +669,14 @@ class WorkflowRunViewSet(RunViewSet):
         return queryset.order_by('-datetime_created')
 
 
-class ProcessViewSet(viewsets.ModelViewSet):
+class ProcessViewSet(ExpandableViewSet):
 
     lookup_field = 'uuid'
     serializer_class = serializers.ProcessSerializer
 
     def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        parent_only = 'parent_only' in self.request.query_params
-        if query_string:
-            queryset = models.StepRun.filter_by_name_or_id(query_string)
-        else:
-            queryset = models.StepRun.objects.all()
-        if parent_only:
-            queryset = queryset.filter(parent__isnull=True)
-        queryset = queryset.select_related('template')\
-                           .prefetch_related('inputs')\
-                           .prefetch_related('inputs__data_root')\
-                           .prefetch_related('outputs')\
-                           .prefetch_related('outputs__data_root')\
-                           .prefetch_related('tasks')\
-                           .select_related(
-                               'run_request')\
-                           .prefetch_related('timepoints')
-        return queryset.order_by('-datetime_created')
+        queryset = models.RunRequest.objects.all()
+        return queryset
 
 
 class RunRequestViewSet(ExpandableViewSet):
@@ -770,10 +754,6 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
                                'file_resource')
         return queryset
 
-from django.shortcuts import render
-def show_processes(request):
-    return render(request, "processes.html",
-        {'nodes':models.Process.objects.all()})
 
 @require_http_methods(["GET"])
 def status(request):

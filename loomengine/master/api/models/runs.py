@@ -79,7 +79,6 @@ class Run(Process):
         'step': StepRunManager,
         'workflow': WorkflowRunManager
     }
-    name = models.CharField(max_length=255)
     type = models.CharField(max_length=255,
                             choices = (('step', 'Step'),
                                        ('workflow', 'Workflow')))

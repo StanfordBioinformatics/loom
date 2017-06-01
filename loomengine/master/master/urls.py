@@ -3,6 +3,7 @@ from django.conf.urls import include, url
 from django.views.generic.base import RedirectView
 from django.conf.urls.static import static
 
+
 urlpatterns = [
     url(r'^api/', include('api.urls')),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
@@ -14,7 +15,7 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns.append(url(r'^portal/$', RedirectView.as_view(url='/portal/index.html', permanent=False), name='api'))
     urlpatterns += static(r'portal/', document_root=settings.PORTAL_ROOT)
-    
+
 if settings.DEBUG:
     import debug_toolbar
     urlpatterns += [

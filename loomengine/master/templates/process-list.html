@@ -1,0 +1,28 @@
+{% load mptt_tags %}
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Started</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% recursetree nodes %}
+        <tr>
+            <td>
+                {{node.uuid}}
+            </td>
+            <td>
+                {{node.datetime_created}}
+            </td>
+            <td>
+                {{node.status}}
+            </td>
+        </tr>
+    {% if not node.is_leaf_node %}
+        {{ children }}
+    {% endif %}
+    {% endrecursetree %}
+    </tbody>
+</table>

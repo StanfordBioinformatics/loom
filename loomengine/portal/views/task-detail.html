@@ -15,7 +15,7 @@
                     Status
                 </th>
                 <td>
-                    <!-- need a status field -->
+                    {{activeData.task.status}}
                 </td>
             </tr>
             <tr>
@@ -79,7 +79,7 @@
                                 {{task_attempt.uuid}}
                             </a>
                         </td>
-                        <td><!-- show task.status when supported -->TODO</td>
+                        <td>{{task_attempt.status}}</td>
                         <td>{{task_attempt.datetime_created | date:'medium'}}</td>
                     </tr>
                 </tbody>

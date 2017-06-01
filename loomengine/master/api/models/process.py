@@ -28,6 +28,8 @@ class Process(MPTTModel, BaseModel):
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
+    name = models.CharField(max_length=255)
+
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
