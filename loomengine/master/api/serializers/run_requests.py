@@ -25,13 +25,18 @@ class RunRequestSerializer(serializers.ModelSerializer):
     inputs = RunRequestInputSerializer(many=True, required=False)
     template = ExpandableTemplateSerializer()
     uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='run-request-detail',
+        lookup_field='uuid'
+    )
 
     class Meta:
         model = RunRequest
         fields = ('uuid',
                   'template',
                   'inputs',
-                  'datetime_created')
+                  'datetime_created',
+                  'url')
 
     def create(self, validated_data):
         inputs = self.initial_data.get('inputs', None)
