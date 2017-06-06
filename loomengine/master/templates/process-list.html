@@ -5,24 +5,40 @@
             <th>Run</th>
             <th>Status</th>
             <th>Started</th>
+            <th>Logs</th>
         </tr>
     </thead>
     <tbody>
     {% recursetree nodes %}
         <tr>
             <td>
-                {{node.uuid}}
-            </td>
-            <td>
-                {{node.datetime_created}}
+                {% if node.process_subclass == 'steprun' or node.process_subclass == 'workflowrun' %}
+                    <a href="#/runs/{{node.uuid}}">
+                {% elif node.process_subclass == 'task' %}
+                    <a href="#/tasks/{{node.uuid}}">
+                {% elif node.process_subclass == 'taskattempt' %}
+                    <a href="#/task-attempts/{{node.uuid}}">
+                {% endif %}
+                    {{node.name}}@{{node.uuid}}
+                </a>
             </td>
             <td>
                 {{node.status}}
             </td>
+            <td>
+                {{node.datetime_created | date:"r"}}
+            </td>
+            <td>
+                {% if node.process_subclass == 'taskattempt' %}
+                    <a target="_blank" ng-href="http://{% verbatim %}{{$location.host()}}{% endverbatim %}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:{{node.uuid}}')),sort:!('@timestamp',desc))">
+                        Logs &nbsp;<span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
+                    </a>
+                {% endif %}
+            </td>
         </tr>
-    {% if not node.is_leaf_node %}
-        {{ children }}
-    {% endif %}
+        {% if not node.is_leaf_node %}
+            {{ children }}
+        {% endif %}
     {% endrecursetree %}
     </tbody>
 </table>

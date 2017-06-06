@@ -111,7 +111,7 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
                   'status_is_waiting',
                   'log_files', 'inputs', 'outputs', 'interpreter',
                   'rendered_command', 'environment', 'resources', 'timepoints',
-                  'status',)
+                  'status', 'name')
 
 
     def update(self, instance, validated_data):
@@ -235,6 +235,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'timepoints',
             'index',
             'status',
+            'name'
         )
 
 

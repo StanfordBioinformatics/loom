@@ -148,12 +148,17 @@ class Run(Process):
     @classmethod
     def create_from_template(cls, template, parent=None, run_request=None):
         if template.type == 'step':
+            if parent:
+                name='.'.join([parent.name,template.name])
+            else:
+                name=template.name
             run = StepRun.objects.create(
                 template=template,
-                name=template.name,
+                name=name,
                 type=template.type,
                 command=template.step.command,
                 interpreter=template.step.interpreter,
+                process_subclass='steprun',
                 parent=parent).run_ptr
             run.set_process_parent(parent)
             if run_request:
@@ -173,6 +178,7 @@ class Run(Process):
             run = WorkflowRun.objects.create(template=template,
                                              name=template.name,
                                              type=template.type,
+                                             process_subclass='workflowrun',
                                              parent=parent).run_ptr
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})

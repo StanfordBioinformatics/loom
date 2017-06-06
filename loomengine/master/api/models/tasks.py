@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 import jsonfield
 import os
+import re
 
 from .base import BaseModel, render_from_template
 from .process import Process
@@ -109,6 +110,11 @@ class Task(Process):
         index = input_set.index
         if step_run.tasks.filter(index=index).count() > 0:
             raise TaskAlreadyExistsException
+
+        name='.'.join([step_run.name,'task'])
+        if re.match(r'[0-9]',str(index)):
+            name += str(index)
+
         task = Task.objects.create(
             step_run=step_run,
             command=step_run.command,
@@ -116,7 +122,8 @@ class Task(Process):
             environment=step_run.template.environment,
             resources=step_run.template.resources,
             index=index,
-            name=str(step_run.name)+str(index),
+            name=name,
+            process_subclass='task',
         )
         task.set_process_parent(step_run)
         for input in input_set:
@@ -310,7 +317,8 @@ class TaskAttempt(Process):
             rendered_command=task.rendered_command,
             environment=task.environment,
             resources=task.resources,
-            name=task.name+'attempt'
+            name='.'.join([task.name,'attempt']),
+            process_subclass='taskattempt',
         )
         task_attempt.set_process_parent(task)
         task_attempt.initialize()

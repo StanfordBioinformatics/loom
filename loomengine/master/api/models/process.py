@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from mptt.models import MPTTModel, TreeForeignKey
 from .base import BaseModel
@@ -24,11 +24,14 @@ class Process(MPTTModel, BaseModel):
         of Process. This should be called when an instance of a subclass is
         created, in order to add the newly created object to the MPTT tree.
         """
-        Process.objects.get(id=self.id).process_parent = Process.objects.get(id=parent.id)
+        with transaction.atomic():
+            Process.objects.get(id=self.id).process_parent = Process.objects.get(id=parent.id)
+            Process.objects.rebuild()
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     name = models.CharField(max_length=255)
+    process_subclass = models.CharField(max_length=255)
 
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
