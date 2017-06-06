@@ -149,18 +149,28 @@ class Run(Process):
     def create_from_template(cls, template, parent=None, run_request=None):
         if template.type == 'step':
             if parent:
-                name='.'.join([parent.name,template.name])
+                name = '.'.join([parent.name,template.name])
+                run = StepRun.objects.create(
+                    template=template,
+                    name=name,
+                    type=template.type,
+                    command=template.step.command,
+                    interpreter=template.step.interpreter,
+                    parent=parent,
+                    process_subclass='steprun',
+                    process_parent=Process.objects.get(uuid=parent.uuid),
+                    ).run_ptr
             else:
-                name=template.name
-            run = StepRun.objects.create(
-                template=template,
-                name=name,
-                type=template.type,
-                command=template.step.command,
-                interpreter=template.step.interpreter,
-                process_subclass='steprun',
-                parent=parent).run_ptr
-            run.set_process_parent(parent)
+                name = template.name
+                run = StepRun.objects.create(
+                    template=template,
+                    name=name,
+                    type=template.type,
+                    command=template.step.command,
+                    interpreter=template.step.interpreter,
+                    process_subclass='steprun',
+                    ).run_ptr
+
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})
 

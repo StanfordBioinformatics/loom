@@ -1,4 +1,4 @@
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 from mptt.models import MPTTModel, TreeForeignKey
 from .base import BaseModel
@@ -19,15 +19,6 @@ class Process(MPTTModel, BaseModel):
     class MPTTMeta:
         parent_attr = 'process_parent'
 
-    def set_process_parent(self, parent):
-        """ Sets this Process's parent, which must also be a Process or subclass
-        of Process. This should be called when an instance of a subclass is
-        created, in order to add the newly created object to the MPTT tree.
-        """
-        with transaction.atomic():
-            Process.objects.get(id=self.id).process_parent = Process.objects.get(id=parent.id)
-            Process.objects.rebuild()
-
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     name = models.CharField(max_length=255)
@@ -44,7 +35,6 @@ class Process(MPTTModel, BaseModel):
     status_is_killed = models.BooleanField(default=False)
     status_is_cleaned_up = models.BooleanField(default=False)
     status_is_waiting = models.BooleanField(default=True)
-
 
     @property
     def status(self):

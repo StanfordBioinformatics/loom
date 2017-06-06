@@ -124,8 +124,8 @@ class Task(Process):
             index=index,
             name=name,
             process_subclass='task',
+            process_parent=Process.objects.get(uuid=step_run.uuid),
         )
-        task.set_process_parent(step_run)
         for input in input_set:
             TaskInput.objects.create(
                 task=task,
@@ -319,8 +319,8 @@ class TaskAttempt(Process):
             resources=task.resources,
             name='.'.join([task.name,'attempt']),
             process_subclass='taskattempt',
+            process_parent=Process.objects.get(uuid=task.uuid),
         )
-        task_attempt.set_process_parent(task)
         task_attempt.initialize()
         return task_attempt
 

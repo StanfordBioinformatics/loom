@@ -6,12 +6,16 @@
             <th>Status</th>
             <th>Started</th>
             <th>Logs</th>
+            <th>Tree ID</th>
+            <th>Left</th>
+            <th>Right</th>
+            <th>Level</th>
         </tr>
     </thead>
     <tbody>
     {% recursetree nodes %}
         <tr>
-            <td>
+            <td style="padding-left:calc(8px + (20px * {{node.level}}))">
                 {% if node.process_subclass == 'steprun' or node.process_subclass == 'workflowrun' %}
                     <a href="#/runs/{{node.uuid}}">
                 {% elif node.process_subclass == 'task' %}
@@ -19,14 +23,14 @@
                 {% elif node.process_subclass == 'taskattempt' %}
                     <a href="#/task-attempts/{{node.uuid}}">
                 {% endif %}
-                    {{node.name}}@{{node.uuid}}
+                    {{ node.name }}@{{ node.uuid|truncatechars:11 }}
                 </a>
             </td>
             <td>
-                {{node.status}}
+                {{ node.status }}
             </td>
             <td>
-                {{node.datetime_created | date:"r"}}
+                {{ node.datetime_created|date:"r" }}
             </td>
             <td>
                 {% if node.process_subclass == 'taskattempt' %}
@@ -35,6 +39,10 @@
                     </a>
                 {% endif %}
             </td>
+            <td>{{node.tree_id}}</td>
+            <td>{{node.lft}}</td>
+            <td>{{node.rght}}</td>
+            <td>{{node.level}}</td>
         </tr>
         {% if not node.is_leaf_node %}
             {{ children }}
