@@ -83,14 +83,16 @@ body {
 .main .page-header {
   margin-top: 0;
 }
-td.step-indent {
-    padding-left: 20px !important;
+/*
+ * Process list
+ */
+a[aria-expanded=true] span.collapse-button:before {
+    font-family: 'Glyphicons Halflings';
+    content: "\e252";
 }
-td.task-indent {
-    padding-left: 40px !important;
-}
-td.task-attempt-indent {
-    padding-left: 60px !important;
+a[aria-expanded=false] span.collapse-button:before {
+    font-family: 'Glyphicons Halflings';
+    content: "\e250";
 }
 
 /*

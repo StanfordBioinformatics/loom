@@ -9,10 +9,6 @@ config.$inject = ['$routeProvider'];
 function config($routeProvider) {
 
     $routeProvider
-        .when('/runs', {
-            templateUrl: 'views/run-list.html',
-            controller: 'RunListController'
-        })
         .when('/runs/:runId', {
             templateUrl: 'views/run-detail.html',
             controller: 'RunDetailController'
@@ -54,7 +50,7 @@ function config($routeProvider) {
             templateUrl: 'views/file-provenance.html',
             controller: 'FileProvenanceController'
         })
-        .when('/processes', {
+        .when('/runs', {
             templateUrl: 'api/process-list',
             controller: 'ProcessListController'
         })

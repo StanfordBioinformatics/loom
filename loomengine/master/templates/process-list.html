@@ -1,21 +1,29 @@
 {% load mptt_tags %}
-<table class="table table-striped table-hover">
+<table class="table table-hover table-striped">
     <thead>
         <tr>
-            <th>Run</th>
+            <th>
+                Run
+                &nbsp;&nbsp;
+                <button type="button" class="btn btn-success btn-xs" onclick="expandAll();">Expand all</button>
+                <button type="button" class="btn btn-warning btn-xs" onclick="collapseAll();">Collapse all</button>
+            </th>
             <th>Status</th>
             <th>Started</th>
             <th>Logs</th>
-            <th>Tree ID</th>
-            <th>Left</th>
-            <th>Right</th>
-            <th>Level</th>
         </tr>
     </thead>
-    <tbody>
     {% recursetree nodes %}
         <tr>
-            <td style="padding-left:calc(8px + (20px * {{node.level}}))">
+            {% if node.is_root_node %}
+                <td style="padding-left:calc(8px)">
+                    <a role="button" data-toggle="collapse" data-target="#{{node.uuid}}" aria-expanded="true" class="processButton">
+                        <span class="collapse-button"></span>
+                    </a>
+            {% else %}
+                <td style="padding-left:calc(26px + (20px * {{node.level}}))">
+            {% endif %}
+
                 {% if node.process_subclass == 'steprun' or node.process_subclass == 'workflowrun' %}
                     <a href="#/runs/{{node.uuid}}">
                 {% elif node.process_subclass == 'task' %}
@@ -26,7 +34,15 @@
                     {{ node.name }}@{{ node.uuid|truncatechars:11 }}
                 </a>
             </td>
-            <td>
+            {% if node.status_is_finished %}
+                <td class="success">
+            {% elif node.status_is_failed or node.status_is_killed %}
+                <td class="danger">
+            {% elif node.status_is_running %}
+                <td class="warning">
+            {% else %}
+                <td>
+            {% endif %}
                 {{ node.status }}
             </td>
             <td>
@@ -39,14 +55,37 @@
                     </a>
                 {% endif %}
             </td>
-            <td>{{node.tree_id}}</td>
-            <td>{{node.lft}}</td>
-            <td>{{node.rght}}</td>
-            <td>{{node.level}}</td>
         </tr>
+        {% if node.is_root_node %}
+            <tbody id="{{node.uuid}}" class="processChildren collapse in">
+        {% endif %}
         {% if not node.is_leaf_node %}
             {{ children }}
         {% endif %}
+        {% if node.is_root_node %}
+            </tbody>
+        {% endif %}
     {% endrecursetree %}
-    </tbody>
 </table>
+<script>
+    function expandAll() {
+        var pChildren = document.getElementsByClassName("processChildren")
+        for (let c of pChildren) {
+            c.classList.add("in");
+        }
+        var pButtons = document.getElementsByClassName("processButton")
+        for (let b of pButtons) {
+            b.setAttribute("aria-expanded", "true");
+        }
+    }
+    function collapseAll() {
+        var pChildren = document.getElementsByClassName("processChildren")
+        for (let c of pChildren) {
+            c.classList.remove("in");
+        }
+        var pButtons = document.getElementsByClassName("processButton")
+        for (let b of pButtons) {
+            b.setAttribute("aria-expanded", "false");
+        }
+    }
+</script>
