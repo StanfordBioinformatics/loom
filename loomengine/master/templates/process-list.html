@@ -5,8 +5,8 @@
             <th>
                 Run
                 &nbsp;&nbsp;
-                <button type="button" class="btn btn-success btn-xs" onclick="expandAll();">Expand all</button>
                 <button type="button" class="btn btn-warning btn-xs" onclick="collapseAll();">Collapse all</button>
+                <button type="button" class="btn btn-success btn-xs" onclick="expandAll();">Expand all</button>
             </th>
             <th>Status</th>
             <th>Started</th>
@@ -34,10 +34,10 @@
                     {{ node.name }}@{{ node.uuid|truncatechars:11 }}
                 </a>
             </td>
-            {% if node.status_is_finished %}
-                <td class="success">
-            {% elif node.status_is_failed or node.status_is_killed %}
+            {% if node.status_is_failed or node.status_is_killed %}
                 <td class="danger">
+            {% elif node.status_is_finished %}
+                <td class="success">
             {% elif node.status_is_running %}
                 <td class="warning">
             {% else %}
