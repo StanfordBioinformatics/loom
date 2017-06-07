@@ -669,16 +669,6 @@ class WorkflowRunViewSet(RunViewSet):
         return queryset.order_by('-datetime_created')
 
 
-class ProcessViewSet(ExpandableViewSet):
-
-    lookup_field = 'uuid'
-    serializer_class = serializers.ProcessSerializer
-
-    def get_queryset(self):
-        queryset = models.RunRequest.objects.all()
-        return queryset
-
-
 class RunRequestViewSet(ExpandableViewSet):
     """
     A RunRequest represents a user request to execute a given Template

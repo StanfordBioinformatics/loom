@@ -38,6 +38,10 @@ def get_task():
         data_object=output_data_object,
         source={'stream': 'stdout'}
     )
+    print task.interpreter
+    print task.rendered_command
+    print task.environment
+    print task.resources
     task_attempt = TaskAttempt.objects.create(
         task=task,
         interpreter = task.interpreter,
@@ -90,6 +94,3 @@ class TestExpandableTaskSerializer(TestCase):
         task_data = s.data
         self.assertEqual(task_data['uuid'],
                          task.uuid)
-
-    
-    

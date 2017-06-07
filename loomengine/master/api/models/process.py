@@ -21,8 +21,8 @@ class Process(MPTTModel, BaseModel):
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    name = models.CharField(max_length=255)
-    process_subclass = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, blank=True)
+    process_subclass = models.CharField(max_length=255, blank=True)
 
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
