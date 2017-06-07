@@ -1,6 +1,10 @@
 Release Notes
 =============
 
+0.3.7
+---------
+* Retries for upload/download from Google Storage
+
 0.3.6
 ---------
 * Runs have "waiting" status until they start

@@ -4,11 +4,14 @@ import errno
 import glob
 import logging
 import os
+import random
 import shutil
 import sys
 import tempfile
+import time
 import urlparse
 import google.cloud.storage
+from google.cloud.exceptions import GoogleCloudError
 import requests
 
 from loomengine.utils import md5calc
@@ -23,6 +26,32 @@ import apiclient.discovery
 
 logger = logging.getLogger(__name__)
 
+def _execute_with_retries(retriable_function,
+                          human_readable_action_name='Action'):
+    """This attempts to execute "retriable_function" with exponential backoff 
+    on delay time.
+    10 retries adds up to about 34 minutes total delay before the last attempt.
+    "human_readable_action_name" is an option input to customize retry message.
+    """
+    max_retries = 10
+    attempt = 0
+    while True:
+        try:
+            retriable_function()
+            break
+        except GoogleCloudError as e:
+            attempt += 1
+            if attempt > max_retries:
+                raise
+            # Exponentional backoff on retry delay as suggested by
+            # https://cloud.google.com/storage/docs/exponential-backoff
+            delay = 2**attempt + random.random()
+            logger.info('%s failed with status code "%s". '\
+                        'Retry number %s of %s in %s seconds'
+                        % (human_readable_action_name, e.code,
+                           attempt, max_retries, delay))
+            time.sleep(delay)
+    return # successful exit
 
 def _urlparse(pattern):
     """Like urlparse except it assumes 'file://' if no scheme is specified
@@ -215,7 +244,8 @@ class GoogleStorageSource(AbstractSource):
         if self.blob is None:
             raise Exception('Could not find file %s'
                             % (self.url.geturl()))
-        self.blob.chunk_size = self.CHUNK_SIZE
+        if self.blob.size > self.CHUNK_SIZE:
+            self.blob.chunk_size = self.CHUNK_SIZE
 
     def calculate_md5(self):
         md5_base64 = self.blob.md5_hash
@@ -420,13 +450,13 @@ class GoogleStorageCopier(AbstractCopier):
     def move(self):
         if not self.source.bucket_id == self.destination.bucket_id:
             raise Exception('"move" operation is not supported between buckets.')
-        self.source.bucket.rename_blob(self.source.blob, self.destination.blob_id)
+        _execute_with_retries(lambda: self.source.bucket.rename_blob(self.source.blob, self.destination.blob_id), 'File move')
 
 
 class Local2GoogleStorageCopier(AbstractCopier):
 
     def copy(self):
-        self.destination.blob.upload_from_filename(self.source.get_path())
+        _execute_with_retries(lambda: self.destination.blob.upload_from_filename(self.source.get_path()), 'File upload')
 
     def move(self):
         raise Exception('"move" operation is not supported from local to Google Storage.')
@@ -445,7 +475,7 @@ class GoogleStorage2LocalCopier(AbstractCopier):
                     'Failed to create local directory "%s": "%s"' %
                     (os.path.dirname(self.destination.get_path()),
                      e))
-        self.source.blob.download_to_filename(self.destination.get_path())
+        _execute_with_retries(lambda: self.source.blob.download_to_filename(self.destination.get_path()), 'File download')
 
     def move(self):
         raise Exception('"move" operation is not supported from Google Storage to local.')
