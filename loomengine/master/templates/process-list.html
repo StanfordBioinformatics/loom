@@ -88,4 +88,6 @@
             b.setAttribute("aria-expanded", "false");
         }
     }
+    // Remove pause for collapse animation since it doesn't work on tbody anyway
+    $.fn.collapse.Constructor.TRANSITION_DURATION = 0
 </script>

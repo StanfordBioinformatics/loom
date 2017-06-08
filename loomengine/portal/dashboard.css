@@ -87,7 +87,7 @@ body {
 /*
  * Process list
  */
- 
+
 a[aria-expanded=true] span.collapse-button:before {
     font-family: 'Glyphicons Halflings';
     content: "\e252";
@@ -96,7 +96,6 @@ a[aria-expanded=false] span.collapse-button:before {
     font-family: 'Glyphicons Halflings';
     content: "\e250";
 }
-
 /*
  * Placeholder dashboard ideas
  */
