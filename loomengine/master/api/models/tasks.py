@@ -3,12 +3,15 @@ from django.db import models
 from django.utils import timezone
 import jsonfield
 import os
+import re
 
 from .base import BaseModel, render_from_template
+from .process import Process
 from api import get_setting
 from api import async
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileDataObject
+from api.exceptions import ConcurrentModificationError
 
 
 class TaskAlreadyExistsException(Exception):
@@ -24,18 +27,12 @@ def validate_list_of_ints(value):
         raise ValidationError('Value must be a list of ints')
 
 
-class Task(BaseModel):
-
+class Task(Process):
     """A Task is a Step executed on a particular set of inputs.
     For non-parallel steps, each StepRun will have one task. For parallel,
     each StepRun will have one task for each set of inputs.
     """
 
-    uuid = models.CharField(default=uuidstr, editable=False,
-                            unique=True, max_length=255)
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     rendered_command = models.TextField(null=True, blank=True)
@@ -55,13 +52,6 @@ class Task(BaseModel):
                                                  blank=True)
     index = jsonfield.JSONField(validators=[validate_list_of_ints],
                                 null=True, blank=True)
-
-    # While status_is_running, Loom will continue trying to complete the task
-    status_is_waiting = models.BooleanField(default=True)
-    status_is_running = models.BooleanField(default=False)
-    status_is_failed = models.BooleanField(default=False)
-    status_is_killed = models.BooleanField(default=False)
-    status_is_finished = models.BooleanField(default=False)
 
     @property
     def attempt_number(self):
@@ -120,6 +110,11 @@ class Task(BaseModel):
         index = input_set.index
         if step_run.tasks.filter(index=index).count() > 0:
             raise TaskAlreadyExistsException
+
+        name='.'.join([step_run.name,'task'])
+        if re.match(r'[0-9]',str(index)):
+            name += str(index)
+
         task = Task.objects.create(
             step_run=step_run,
             command=step_run.command,
@@ -127,7 +122,9 @@ class Task(BaseModel):
             environment=step_run.template.environment,
             resources=step_run.template.resources,
             index=index,
-            #mptt_parent=step_run,
+            name=name,
+            process_subclass='task',
+            process_parent=Process.objects.get(uuid=step_run.uuid),
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -251,14 +248,9 @@ class TaskTimepoint(BaseModel):
     is_error = models.BooleanField(default=False)
 
 
-class TaskAttempt(BaseModel):
+class TaskAttempt(Process):
 
-    uuid = models.CharField(default=uuidstr, editable=False,
-                            unique=True, max_length=255)
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
-    task = models.ForeignKey('Task',
+    parent_task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
     interpreter = models.CharField(max_length=1024)
@@ -266,11 +258,6 @@ class TaskAttempt(BaseModel):
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
     last_heartbeat = models.DateTimeField(auto_now=True)
-    status_is_failed = models.BooleanField(default=False)
-    status_is_finished = models.BooleanField(default=False)
-    status_is_killed = models.BooleanField(default=False)
-    status_is_running = models.BooleanField(default=True)
-    status_is_cleaned_up = models.BooleanField(default=False)
 
     def heartbeat(self):
         # Saving with an empty set of attributes will update
@@ -325,12 +312,14 @@ class TaskAttempt(BaseModel):
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls.objects.create(
-            task=task,
+            parent_task=task,
             interpreter=task.interpreter,
             rendered_command=task.rendered_command,
             environment=task.environment,
             resources=task.resources,
-            #mptt_parent=task,
+            name='.'.join([task.name,'attempt']),
+            process_subclass='taskattempt',
+            process_parent=Process.objects.get(uuid=task.uuid),
         )
         task_attempt.initialize()
         return task_attempt
@@ -343,7 +332,7 @@ class TaskAttempt(BaseModel):
             self._initialize_outputs()
 
     def _initialize_inputs(self):
-        for input in self.task.inputs.all():
+        for input in self.parent_task.inputs.all():
             TaskAttemptInput.objects.create(
                 task_attempt=self,
                 type=input.type,
@@ -351,7 +340,7 @@ class TaskAttempt(BaseModel):
                 data_object=input.data_object)
 
     def _initialize_outputs(self):
-        for task_output in self.task.outputs.all():
+        for task_output in self.parent_task.outputs.all():
             task_attempt_output = TaskAttemptOutput.objects.create(
                 task_attempt=self,
                 type=task_output.type,
@@ -364,7 +353,7 @@ class TaskAttempt(BaseModel):
         if task_output_source.get('filename'):
             filename = render_from_template(
                 task_output_source.get('filename'),
-                self.task.get_input_context())
+                self.parent_task.get_input_context())
         else:
             filename = None
 

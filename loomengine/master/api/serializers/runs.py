@@ -100,7 +100,7 @@ class StepRunOutputSerializer(InputOutputNodeSerializer):
 
 
 class StepRunSerializer(CreateWithParentModelSerializer):
-    
+
     uuid = serializers.CharField(required=False)
     template = ExpandableTemplateSerializer()
     inputs = StepRunInputSerializer(many=True,
@@ -121,7 +121,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
         lookup_field='uuid'
     )
 
-    
+
     class Meta:
         model = StepRun
         fields = ('uuid', 'template', 'inputs', 'outputs',
@@ -129,7 +129,7 @@ class StepRunSerializer(CreateWithParentModelSerializer):
                   'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'status_is_running', 'status_is_waiting', 'status', 'url',
-                  'timepoints') #'run_request',
+                  'timepoints', 'name') #'run_request',
 
 
 class WorkflowRunInputSerializer(InputOutputNodeSerializer):
@@ -172,4 +172,4 @@ class WorkflowRunSerializer(CreateWithParentModelSerializer):
                   'postprocessing_status', 'type', 'datetime_created',
                   'status_is_finished', 'status_is_failed', 'status_is_killed',
                   'status_is_running', 'status_is_waiting', 'status', 'url',
-                  'timepoints',) # 'run_request',
+                  'timepoints', 'name') # 'run_request',

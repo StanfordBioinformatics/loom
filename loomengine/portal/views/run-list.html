@@ -9,8 +9,8 @@
                     <th>Started</th>
                 </tr>
             </thead>
-            <tbody ng-repeat="run in runs">
-                <tr>
+            <tbody>
+                <tr ng-repeat="run in runs">
                     <td>
                         <a ng-href="#/runs/{{run.uuid}}">
                             {{run.template.name}}@{{run.uuid | limitTo: 8}}

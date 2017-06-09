@@ -5,6 +5,7 @@ from django.utils import timezone
 import jsonfield
 
 from .base import BaseModel
+from .process import Process
 from api import get_setting
 from api import async
 from api.exceptions import *
@@ -13,6 +14,7 @@ from api.models.data_objects import DataObject
 from api.models.input_output_nodes import InputOutputNode
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.templates import Template
+from api.exceptions import ConcurrentModificationError
 
 
 """
@@ -65,7 +67,7 @@ class StepRunManager(object):
         return self.run.steprun._kill(kill_message)
 
 
-class Run(BaseModel):
+class Run(Process):
     """AbstractWorkflowRun represents the process of executing a Workflow on
     a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
@@ -77,15 +79,10 @@ class Run(BaseModel):
         'step': StepRunManager,
         'workflow': WorkflowRunManager
     }
-    uuid = models.CharField(default=uuidstr, editable=False,
-                            unique=True, max_length=255)
-    name = models.CharField(max_length=255)
     type = models.CharField(max_length=255,
                             choices = (('step', 'Step'),
                                        ('workflow', 'Workflow')))
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
+
     parent = models.ForeignKey('WorkflowRun',
                                related_name='steps',
                                null=True,
@@ -104,27 +101,6 @@ class Run(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
-
-    status_is_finished = models.BooleanField(default=False)
-    status_is_failed = models.BooleanField(default=False)
-    status_is_killed = models.BooleanField(default=False)
-    status_is_running = models.BooleanField(default=False)
-    status_is_waiting = models.BooleanField(default=True)
-
-    @property
-    def status(self):
-        if self.status_is_failed:
-            return 'Failed'
-        elif self.status_is_finished:
-            return 'Finished'
-        elif self.status_is_killed:
-            return 'Killed'
-        elif self.status_is_running:
-            return 'Running'
-        elif self.status_is_waiting:
-            return 'Waiting'
-        else:
-            return 'Unknown'
 
     @classmethod
     def _get_manager_class(cls, type):
@@ -172,14 +148,29 @@ class Run(BaseModel):
     @classmethod
     def create_from_template(cls, template, parent=None, run_request=None):
         if template.type == 'step':
-            run = StepRun.objects.create(
-                template=template,
-                name=template.name,
-                type=template.type,
-                command=template.step.command,
-                interpreter=template.step.interpreter,
-                #mptt_parent=parent,
-                parent=parent).run_ptr
+            if parent:
+                name = '.'.join([parent.name,template.name])
+                run = StepRun.objects.create(
+                    template=template,
+                    name=name,
+                    type=template.type,
+                    command=template.step.command,
+                    interpreter=template.step.interpreter,
+                    parent=parent,
+                    process_subclass='steprun',
+                    process_parent=Process.objects.get(uuid=parent.uuid),
+                    ).run_ptr
+            else:
+                name = template.name
+                run = StepRun.objects.create(
+                    template=template,
+                    name=name,
+                    type=template.type,
+                    command=template.step.command,
+                    interpreter=template.step.interpreter,
+                    process_subclass='steprun',
+                    ).run_ptr
+
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})
 
@@ -197,6 +188,7 @@ class Run(BaseModel):
             run = WorkflowRun.objects.create(template=template,
                                              name=template.name,
                                              type=template.type,
+                                             process_subclass='workflowrun',
                                              parent=parent).run_ptr
             if run_request:
                 run_request.setattrs_and_save_with_retries({'run': run})

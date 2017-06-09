@@ -16,6 +16,8 @@ def get_task():
         resources={'memory': '1', 'disk_size': '1', 'cores': '1'},
         environment={'docker_image': 'ubuntu'},
         index=[0],
+        process_subclass='task',
+        name='my_task',
     )
     input_data_object = BooleanDataObject.objects.create(
         type='boolean',
@@ -39,11 +41,15 @@ def get_task():
         source={'stream': 'stdout'}
     )
     task_attempt = TaskAttempt.objects.create(
-        task=task,
+        parent_task=task,
         interpreter = task.interpreter,
         rendered_command=task.rendered_command,
         environment=task.environment,
-        resources=task.resources)
+        resources=task.resources,
+        process_subclass='taskattempt',
+        process_parent=Process.objects.get(uuid=task.uuid),
+        name='my_taskattempt'
+    )
     task_attempt_output = TaskAttemptOutput.objects.create(
         task_attempt=task_attempt,
         data_object=output_data_object,
@@ -90,6 +96,3 @@ class TestExpandableTaskSerializer(TestCase):
         task_data = s.data
         self.assertEqual(task_data['uuid'],
                          task.uuid)
-
-    
-    

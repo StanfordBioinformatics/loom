@@ -128,7 +128,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
     last_heartbeat = datetime.datetime(datetime.MINYEAR,1,1,0,0,
                                        tzinfo=timezone.utc)
     max_retries = 5
-    
+
     while t.is_alive():
         if (timezone.now() - last_heartbeat)\
            .total_seconds() > heartbeat_interval:
@@ -172,19 +172,20 @@ def _run_task_runner_playbook(task_attempt):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    disk_size = task_attempt.task.step_run.template.resources.get('disk_size')
+    task = task_attempt.parent_task
+    disk_size = task.step_run.template.resources.get('disk_size')
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_CORES':
-                task_attempt.task.step_run.template.resources.get('cores'),
+                task.step_run.template.resources.get('cores'),
                 'LOOM_TASK_ATTEMPT_MEMORY':
-                task_attempt.task.step_run.template.resources.get('memory'),
+                task.step_run.template.resources.get('memory'),
                 'LOOM_TASK_ATTEMPT_DISK_SIZE_GB':
                 disk_size if disk_size else '1', # guard against None value
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE':
-                task_attempt.task.step_run.template.environment.get(
+                task.step_run.template.environment.get(
                     'docker_image'),
                 'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task_attempt.task.step_run.template.name,
+                task.step_run.template.name,
                 }
     env.update(new_vars)
 
@@ -243,7 +244,7 @@ def _run_cleanup_task_playbook(task_attempt):
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task_attempt.task.step_run.template.name,
+                task_attempt.parent_task.step_run.template.name,
                 }
     env.update(new_vars)
 

@@ -68,12 +68,19 @@ router.register('run-requests',
                 api.views.RunRequestViewSet,
                 base_name='run-request')
 
+from django.shortcuts import render
+from . import models
+def show_process_list(request):
+    return render(request, "process-list.html",
+        context={'nodes':models.Process.objects.all()})
+
 urlpatterns = [
+    url(r'^process-list/$', show_process_list),
     url(r'^', include(router.urls)),
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
     url(r'^filemanager-settings/$', api.views.filemanager_settings),
-    url('^doc/$', get_swagger_view(title='Loom API')),
+    url(r'^doc/$', get_swagger_view(title='Loom API')),
 ]
 
 if settings.DEBUG:

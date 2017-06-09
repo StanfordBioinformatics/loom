@@ -1,0 +1,93 @@
+{% load mptt_tags %}
+<table class="table table-hover table-striped">
+    <thead>
+        <tr>
+            <th>
+                Run
+                &nbsp;&nbsp;
+                <button type="button" class="btn btn-warning btn-xs" onclick="collapseAll();">Collapse all</button>
+                <button type="button" class="btn btn-success btn-xs" onclick="expandAll();">Expand all</button>
+            </th>
+            <th>Status</th>
+            <th>Started</th>
+            <th>Logs</th>
+        </tr>
+    </thead>
+    {% recursetree nodes %}
+        <tr>
+            {% if node.is_root_node %}
+                <td style="padding-left:calc(8px)">
+                    <a role="button" data-toggle="collapse" data-target="#{{node.uuid}}" aria-expanded="true" class="processButton">
+                        <span class="collapse-button"></span>
+                    </a>
+            {% else %}
+                <td style="padding-left:calc(26px + (20px * {{node.level}}))">
+            {% endif %}
+
+                {% if node.process_subclass == 'steprun' or node.process_subclass == 'workflowrun' %}
+                    <a href="#/runs/{{node.uuid}}">
+                {% elif node.process_subclass == 'task' %}
+                    <a href="#/tasks/{{node.uuid}}">
+                {% elif node.process_subclass == 'taskattempt' %}
+                    <a href="#/task-attempts/{{node.uuid}}">
+                {% endif %}
+                    {{ node.name }}@{{ node.uuid|truncatechars:11 }}
+                </a>
+            </td>
+            {% if node.status_is_failed or node.status_is_killed %}
+                <td class="danger">
+            {% elif node.status_is_finished %}
+                <td class="success">
+            {% elif node.status_is_running %}
+                <td class="warning">
+            {% else %}
+                <td>
+            {% endif %}
+                {{ node.status }}
+            </td>
+            <td>
+                {{ node.datetime_created|date:"r" }}
+            </td>
+            <td>
+                {% if node.process_subclass == 'taskattempt' %}
+                    <a target="_blank" ng-href="{% verbatim %}{{$location.protocol()}}://{{$location.host()}}{% endverbatim %}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:{{node.uuid}}')),sort:!('@timestamp',desc))">
+                        Logs &nbsp;<span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
+                    </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% if node.is_root_node %}
+            <tbody id="{{node.uuid}}" class="processChildren collapse in">
+        {% endif %}
+        {% if not node.is_leaf_node %}
+            {{ children }}
+        {% endif %}
+        {% if node.is_root_node %}
+            </tbody>
+        {% endif %}
+    {% endrecursetree %}
+</table>
+<script>
+    function expandAll() {
+        var pChildren = document.getElementsByClassName("processChildren")
+        for (let c of pChildren) {
+            c.classList.add("in");
+        }
+        var pButtons = document.getElementsByClassName("processButton")
+        for (let b of pButtons) {
+            b.setAttribute("aria-expanded", "true");
+        }
+    }
+    function collapseAll() {
+        var pChildren = document.getElementsByClassName("processChildren")
+        for (let c of pChildren) {
+            c.classList.remove("in");
+        }
+        var pButtons = document.getElementsByClassName("processButton")
+        for (let b of pButtons) {
+            b.setAttribute("aria-expanded", "false");
+        }
+    }
+    // Remove pause for collapse animation since it doesn't work on tbody anyway
+    $.fn.collapse.Constructor.TRANSITION_DURATION = 0
+</script>
