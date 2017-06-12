@@ -1,5 +1,4 @@
 from django.db import models
-from mptt.models import MPTTModel, TreeForeignKey
 import jinja2
 import re
 
@@ -102,12 +101,8 @@ class _FilterMixin(object):
         return helper.filter_by_name_or_id(filter_string)
 
 
-class BaseModel(MPTTModel, _FilterMixin):
+class BaseModel(models.Model, _FilterMixin):
     _change = models.IntegerField(default=0)
-
-    mptt_parent = TreeForeignKey('self', null=True, blank=True, related_name='mptt_children', db_index=True)
-    class MPTTMeta:
-        parent_attr = 'mptt_parent'
 
     class Meta:
         abstract = True

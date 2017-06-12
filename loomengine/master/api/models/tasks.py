@@ -27,8 +27,8 @@ def validate_list_of_ints(value):
 class Task(BaseModel):
 
     """A Task is a Step executed on a particular set of inputs.
-    For non-parallel steps, each StepRun will have one task. For parallel,
-    each StepRun will have one task for each set of inputs.
+    For non-parallel steps, each Run will have one task. For parallel,
+    each Run will have one task for each set of inputs.
     """
 
     uuid = models.CharField(default=uuidstr, editable=False,
@@ -42,12 +42,12 @@ class Task(BaseModel):
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
 
-    step_run = models.ForeignKey('StepRun',
-                                 related_name='tasks',
-                                 on_delete=models.CASCADE,
-                                 null=True, # null for testing only
-                                 blank=True)
-
+    run = models.ForeignKey('Run',
+                            related_name='tasks',
+                            on_delete=models.CASCADE,
+                            null=True, # null for testing only
+                            blank=True)
+    
     selected_task_attempt = models.OneToOneField('TaskAttempt',
                                                  related_name='task_as_selected',
                                                  on_delete=models.CASCADE,
@@ -86,8 +86,8 @@ class Task(BaseModel):
              'status_is_running': False,
              'status_is_waiting': False})
         self.add_timepoint(message, detail=detail, is_error=True)
-        if not self.step_run.status_is_failed:
-            self.step_run.fail(
+        if not self.run.status_is_failed:
+            self.run.fail(
                 'Task %s failed' % self.uuid,
                 detail=detail)
 
@@ -97,8 +97,8 @@ class Task(BaseModel):
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.step_run.add_timepoint('Child Task %s finished successfully' % self.uuid)
-        self.step_run.update_status()
+        self.run.add_timepoint('Child Task %s finished successfully' % self.uuid)
+        self.run.set_status_is_finished()
         for output in self.outputs.all():
             output.pull_data_object()
             output.push_data_object(self.index)
@@ -116,18 +116,17 @@ class Task(BaseModel):
             async.kill_task_attempt(task_attempt.uuid, kill_message)
 
     @classmethod
-    def create_from_input_set(cls, input_set, step_run):
+    def create_from_input_set(cls, input_set, run):
         index = input_set.index
-        if step_run.tasks.filter(index=index).count() > 0:
+        if run.tasks.filter(index=index).count() > 0:
             raise TaskAlreadyExistsException
         task = Task.objects.create(
-            step_run=step_run,
-            command=step_run.command,
-            interpreter=step_run.interpreter,
-            environment=step_run.template.environment,
-            resources=step_run.template.resources,
+            run=run,
+            command=run.command,
+            interpreter=run.interpreter,
+            environment=run.template.environment,
+            resources=run.template.resources,
             index=index,
-            #mptt_parent=step_run,
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -135,17 +134,17 @@ class Task(BaseModel):
                 channel=input.channel,
                 type=input.type,
                 data_object = input.data_object)
-        for step_run_output in step_run.outputs.all():
+        for run_output in run.outputs.all():
             task_output = TaskOutput.objects.create(
-                channel = step_run_output.channel,
-                type=step_run_output.type,
+                channel = run_output.channel,
+                type=run_output.type,
                 task=task,
-                source=step_run_output.source)
+                source=run_output.source)
         task = task.setattrs_and_save_with_retries(
             { 'rendered_command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
-        step_run.add_timepoint('Child Task %s was created' % task.uuid)
-        step_run.set_running_status()
+        run.add_timepoint('Child Task %s was created' % task.uuid)
+        run.set_running_status()
         return task
 
     def create_and_activate_attempt(self):
@@ -232,11 +231,11 @@ class TaskOutput(BaseModel):
             'data_object': attempt_output.data_object })
 
     def push_data_object(self, index):
-        step_run_output = self.task.step_run.get_output(self.channel)
+        run_output = self.task.run.get_output(self.channel)
         if self.data_object.is_array:
             raise Exception('TODO: Handle array data objects')
         else:
-            step_run_output.push(index, self.data_object)
+            run_output.push(index, self.data_object)
 
 
 class TaskTimepoint(BaseModel):

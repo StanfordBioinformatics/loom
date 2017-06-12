@@ -32,73 +32,40 @@ def _run_with_delay(task_function, args, kwargs):
     task_function.delay(*args, **kwargs)
 
 @shared_task
-def _postprocess_workflow(workflow_uuid):
-    logger.debug('Entering async._postprocess_workflow(%s)' % workflow_uuid)
-    from api.models.templates import Workflow
-    from api.serializers.templates import WorkflowSerializer
+def _postprocess_template(template_uuid):
+    from api.models.templates import Template
+    from api.serializers.templates import TemplateSerializer
     try:
-        Workflow.objects.filter(uuid=workflow_uuid)
-        WorkflowSerializer.postprocess(workflow_uuid)
+        Template.objects.filter(uuid=template_uuid)
+        TemplateSerializer.postprocess(template_uuid)
     except db.DatabaseError:
         # Ignore this task since the same one is already running
-        logger.debug('Exiting async._postprocess_workflow(%s) with no action '\
-                     'because it is already running.' % workflow_uuid)
+        logger.debug('Exiting async._postprocess_template(%s) with no action '\
+                     'because it is already running.' % template_uuid)
         return
-    logger.debug('Exiting async._postprocess_workflow(%s)' % workflow_uuid)
 
-def postprocess_workflow(*args, **kwargs):
+def postprocess_template(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
-        logger.debug('Skipping async._postprocess_workflow because '\
+        logger.debug('Skipping async._postprocess_template because '\
                      'TEST_NO_POSTPROCESS is True')
         return
-    return _run_with_delay(_postprocess_workflow, args, kwargs)
+    return _run_with_delay(_postprocess_template, args, kwargs)
 
 @shared_task
-def _postprocess_step(step_uuid):
-    logger.debug('Entering async._postprocess_step(%s)' % step_uuid)
-    from api.serializers.templates import StepSerializer
-    StepSerializer.postprocess(step_uuid)
-    logger.debug('Exiting async._postprocess_step(%s)' % step_uuid)
+def _postprocess_run(run_uuid):
+    from api.models import Run
+    Run.postprocess(run_uuid)
 
-def postprocess_step(*args, **kwargs):
+def postprocess_run(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
-        logger.debug('Skipping async._postprocess_step because '\
+        logger.debug('Skipping async._postprocess_run because '\
                      'TEST_NO_POSTPROCESS is True')
         return
-    return _run_with_delay(_postprocess_step, args, kwargs)
-
-@shared_task
-def _postprocess_step_run(run_uuid):
-    logger.debug('Entering async._postprocess_step_run(%s)' % run_uuid)
-    from api.serializers.runs import StepRun
-    StepRun.postprocess(run_uuid)
-    logger.debug('Exiting async._postprocess_step_run(%s)' % run_uuid)
-
-def postprocess_step_run(*args, **kwargs):
-    if get_setting('TEST_NO_POSTPROCESS'):
-        logger.debug('Skipping async._postprocess_step_run because '\
-                     'TEST_NO_POSTPROCESS is True')
-        return
-    return _run_with_delay(_postprocess_step_run, args, kwargs)
-
-@shared_task
-def _postprocess_workflow_run(run_uuid):
-    logger.debug('Entering async._postprocess_workflow_run(%s)' % run_uuid)
-    from api.serializers.runs import WorkflowRun
-    WorkflowRun.postprocess(run_uuid)
-    logger.debug('Exiting async._postprocess_workflow_run(%s)' % run_uuid)
-
-def postprocess_workflow_run(*args, **kwargs):
-    if get_setting('TEST_NO_POSTPROCESS'):
-        logger.debug('Skipping async._postprocess_workflow_run because '\
-                     'TEST_NO_POSTPROCESS is True')
-        return
-    return _run_with_delay(_postprocess_workflow_run, args, kwargs)
+    return _run_with_delay(_postprocess_run, args, kwargs)
 
 @shared_task
 def _run_task(task_uuid):
     # If task has been run before, old TaskAttempt will be rendered inactive
-    logger.debug('Entering async._run_task(%s)' % task_uuid)
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
     task_attempt = task.create_and_activate_attempt()
@@ -108,15 +75,11 @@ def _run_task(task_uuid):
         return
     _run_with_heartbeats(_run_task_runner_playbook, task_attempt,
                          args=[task_attempt])
-    logger.debug('Exiting async._run_task(%s)' % task_uuid)
 
 def run_task(*args, **kwargs):
     return _run_with_delay(_run_task, args, kwargs)
 
 def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
-    logger.debug('Entering async._run_with_heartbeats with '\
-                 'function=%s, task_attempt.uuid=%s'
-                 % (function.__name__, task_attempt.uuid))
     from api.models.tasks import TaskAttempt
     heartbeat_interval = int(get_setting(
         'TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
@@ -150,13 +113,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
             last_heartbeat = timezone.now()
         time.sleep(polling_interval)
 
-    logger.debug('Exiting async._run_with_heartbeats with '\
-                 'task_attempt.uuid=%s, function=%s'
-                 % (task_attempt.uuid, function.__name__))
-
 def _run_task_runner_playbook(task_attempt):
-    logger.debug('Entering async._run_task_runner_playbook for '\
-                 'task_attempt.uuid=%s' % task_attempt.uuid)
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -172,19 +129,19 @@ def _run_task_runner_playbook(task_attempt):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    disk_size = task_attempt.task.step_run.template.resources.get('disk_size')
+    disk_size = task_attempt.task.run.template.resources.get('disk_size')
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_CORES':
-                task_attempt.task.step_run.template.resources.get('cores'),
+                task_attempt.task.run.template.resources.get('cores'),
                 'LOOM_TASK_ATTEMPT_MEMORY':
-                task_attempt.task.step_run.template.resources.get('memory'),
+                task_attempt.task.run.template.resources.get('memory'),
                 'LOOM_TASK_ATTEMPT_DISK_SIZE_GB':
                 disk_size if disk_size else '1', # guard against None value
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE':
-                task_attempt.task.step_run.template.environment.get(
+                task_attempt.task.run.template.environment.get(
                     'docker_image'),
                 'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task_attempt.task.step_run.template.name,
+                task_attempt.task.run.template.name,
                 }
     env.update(new_vars)
 
@@ -207,19 +164,12 @@ def _run_task_runner_playbook(task_attempt):
             detail=terminal_output,
             is_error=True)
         task_attempt.fail()
-    logger.debug('Exiting async._run_task_runner_playbook for '\
-                 'task_attempt.uuid=%s' % task_attempt.uuid)
-
 
 @shared_task
 def _cleanup_task_attempt(task_attempt_uuid):
-    logger.debug('Entering async._cleanup_task_attempt(%s)'
-                 % task_attempt_uuid)
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     _run_cleanup_task_playbook(task_attempt)
-    logger.debug('Exiting async._cleanup_task_attempt(%s)'
-                 % task_attempt_uuid)
 
 
 def cleanup_task_attempt(*args, **kwargs):
@@ -243,7 +193,7 @@ def _run_cleanup_task_playbook(task_attempt):
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task_attempt.task.step_run.template.name,
+                task_attempt.task.run.template.name,
                 }
     env.update(new_vars)
 
@@ -251,11 +201,9 @@ def _run_cleanup_task_playbook(task_attempt):
 
 @shared_task
 def _finish_task_attempt(task_attempt_uuid):
-    logger.debug('Entering async._finish_task_attempt(%s)' % task_attempt_uuid)
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     task_attempt.finish()
-    logger.debug('Exiting async._finish_task_attempt(%s)' % task_attempt_uuid)
 
 def finish_task_attempt(task_attempt_uuid):
     args = [task_attempt_uuid]
@@ -265,7 +213,6 @@ def finish_task_attempt(task_attempt_uuid):
 @shared_task
 def _kill_task_attempt(task_attempt_uuid, kill_message):
     from api.models.tasks import TaskAttempt
-    logger.debug('Entering async._kill_task_attempt(%s)' % task_attempt_uuid)
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     try:
         task_attempt.kill(kill_message)
@@ -275,7 +222,6 @@ def _kill_task_attempt(task_attempt_uuid, kill_message):
         raise
 
     task_attempt.cleanup()
-    logger.debug('Exiting async._kill_task_attempt(%s)' % task_attempt_uuid)
 
 def kill_task_attempt(*args, **kwargs):
     return _run_with_delay(_kill_task_attempt, args, kwargs)

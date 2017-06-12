@@ -199,7 +199,7 @@ class DataTreeNode(BaseModel):
         if self.index is not None:
             index.append(self.index)
         if self._is_leaf():
-            for input in self.root_node.stepruninput_set.all():
+            for input in self.root_node.runinput_set.all():
                 input.push(index)
         else:
             for child in self.children.all():

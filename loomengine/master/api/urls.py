@@ -49,21 +49,9 @@ router.register('task-attempt-log-files',
 router.register('templates',
                 api.views.TemplateViewSet,
                 base_name='template')
-router.register('template-steps',
-                api.views.StepViewSet,
-                base_name='step')
-router.register('template-workflows',
-                api.views.WorkflowViewSet,
-                base_name='workflow')
 router.register('runs',
                 api.views.RunViewSet,
                 base_name='run')
-router.register('run-workflows',
-                api.views.WorkflowRunViewSet,
-                base_name='workflow-run')
-router.register('run-steps',
-                api.views.StepRunViewSet,
-                base_name='step-run')
 router.register('run-requests',
                 api.views.RunRequestViewSet,
                 base_name='run-request')

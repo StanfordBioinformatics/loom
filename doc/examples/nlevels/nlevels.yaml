@@ -1,0 +1,178 @@
+fixed_inputs:
+- channel: maininput
+  data:
+    contents: '0'
+  type: string
+name: nlevels
+outputs:
+- channel: mainoutput
+  type: string
+steps:
+- inputs:
+  - channel: maininput
+    type: string
+  name: level2A
+  outputs:
+  - channel: mainoutput
+    type: string
+  steps:
+  - inputs:
+    - channel: maininput
+      type: string
+    name: level1A
+    outputs:
+    - channel: mainoutput
+      type: string
+    steps:
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: mainoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: lostoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
+  - inputs:
+    - channel: maininput
+      type: string
+    name: level1B
+    outputs:
+    - channel: mainoutput
+      type: string
+    steps:
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: mainoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: lostoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
+- inputs:
+  - channel: maininput
+    type: string
+  name: level2B
+  outputs:
+  - channel: mainoutput
+    type: string
+  steps:
+  - inputs:
+    - channel: maininput
+      type: string
+    name: level1A
+    outputs:
+    - channel: mainoutput
+      type: string
+    steps:
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: mainoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: lostoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
+  - inputs:
+    - channel: maininput
+      type: string
+    name: level1B
+    outputs:
+    - channel: mainoutput
+      type: string
+    steps:
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: mainoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
+    - command: echo 0
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: maininput
+        type: string
+      name: level0A
+      outputs:
+      - channel: lostoutput
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'

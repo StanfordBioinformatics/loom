@@ -411,26 +411,26 @@ class FileResource(BaseModel):
                             % file_data_object.source_type)
 
         task = task_attempt.task
-        step_run = task.step_run
+        run = task.run
 
         path = os.path.join(
             "%s-%s" % (
-                str(step_run.uuid)[0:8],
-                step_run.template.name,
+                str(run.uuid)[0:8],
+                run.template.name,
             ),
             "task-%s" % str(task.uuid)[0:8],
             "attempt-%s" % str(task_attempt.uuid)[0:8],
         )
-        while step_run.parent is not None:
-            step_run = step_run.parent
+        while run.parent is not None:
+            run = run.parent
             path = os.path.join(
                 "%s-%s" % (
-                    str(step_run.uuid)[0:8],
-                    step_run.template.name
+                    str(run.uuid)[0:8],
+                    run.template.name
                 ),
                 path
             )
-        path = "%s-%s" % (step_run.datetime_created.strftime(
+        path = "%s-%s" % (run.datetime_created.strftime(
             '%Y-%m-%dT%H.%M.%SZ'), path)
         return os.path.join('runs', path, subdir)
 
