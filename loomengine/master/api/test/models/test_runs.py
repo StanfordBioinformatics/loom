@@ -19,7 +19,7 @@ class TestWorkflowRun(TestCase):
             workflow_run = get_workflow_run()
         self.assertTrue(workflow_run.name == 'one_two')
         self.assertTrue(
-            workflow_run.steps.get(name='step_one')\
+            workflow_run.steps.get(name='one_two.step_one')\
             .inputs.get(channel='one')\
             .is_connected(
                 workflow_run.inputs.get(channel='one')))
@@ -41,7 +41,7 @@ class TestTaskInputManager(TestCase):
         sets = [set for set in sets]
         self.assertEqual(len(sets), 1)
         self.assertEqual(sets[0].index, [])
-        
+
         input_items = [item for item in sets[0]]
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, 'word_in')

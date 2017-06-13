@@ -1,0 +1,22 @@
+<tbody ng-show="loading">
+  <tr>
+    <td>
+      <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+    </td>
+  <tr>
+</tbody>
+<tbody ng-hide="loading">
+  <tr ng-repeat="run in expandedRun | flattenSteps">
+    <td style="padding-left:calc(26px + (20px * {{run.level}}))">
+      <a href="#/runs/{{run.uuid}}">
+	{{ run.name }}@{{run.uuid | limitTo:8 }}
+      </a>
+    </td>
+    <td>
+      {{run.status}}
+    </td>
+    <td>
+      {{run.datetime_created | date:'medium'}}
+    </td>
+  </tr>
+</tbody>

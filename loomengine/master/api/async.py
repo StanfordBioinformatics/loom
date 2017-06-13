@@ -91,7 +91,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
     last_heartbeat = datetime.datetime(datetime.MINYEAR,1,1,0,0,
                                        tzinfo=timezone.utc)
     max_retries = 5
-    
+
     while t.is_alive():
         if (timezone.now() - last_heartbeat)\
            .total_seconds() > heartbeat_interval:

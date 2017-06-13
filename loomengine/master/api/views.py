@@ -66,7 +66,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
 
 class FileDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of type 'file'. parameters: 
+    Data Objects of type 'file'. parameters:
     q = {file query string e.g. filename@uuid};
     source_type = [ 'log' | 'imported' | 'result' ].
     All Data Object types including 'file' may be managed at /api/data-objects/,
@@ -109,7 +109,7 @@ class FileDataObjectViewSet(viewsets.ModelViewSet):
 class StringDataObjectViewSet(viewsets.ModelViewSet):
     """
     Data Objects of type 'string'.
-    This endpoint is primarily for documentation. 
+    This endpoint is primarily for documentation.
     Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
@@ -122,8 +122,8 @@ class StringDataObjectViewSet(viewsets.ModelViewSet):
 
 class BooleanDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Data Objects of type 'boolean'. 
-    This endpoint is primarily for documentation. 
+    Data Objects of type 'boolean'.
+    This endpoint is primarily for documentation.
     Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
@@ -137,7 +137,7 @@ class BooleanDataObjectViewSet(viewsets.ModelViewSet):
 class IntegerDataObjectViewSet(viewsets.ModelViewSet):
     """
     Data Objects of type 'integer'.
-    This endpoint is primarily for documentation. 
+    This endpoint is primarily for documentation.
     Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
@@ -151,7 +151,7 @@ class IntegerDataObjectViewSet(viewsets.ModelViewSet):
 class FloatDataObjectViewSet(viewsets.ModelViewSet):
     """
     Data Objects of type 'float'.
-    This endpoint is primarily for documentation. 
+    This endpoint is primarily for documentation.
     Use /api/data-objects/ instead, which accepts all data object types.
     """
     lookup_field = 'uuid'
@@ -164,12 +164,12 @@ class FloatDataObjectViewSet(viewsets.ModelViewSet):
 
 class ArrayDataObjectViewSet(viewsets.ModelViewSet):
     """
-    Array Data Objects of any type. 
+    Array Data Objects of any type.
     'members' contains a JSON formatted list of member data objects.
     Each DataObject representation may be a complete object, the value from which
-    a new object will be created, or the identifier from which an existing 
+    a new object will be created, or the identifier from which an existing
     FileDataObject can be looked up.
-    This endpoint is primarily for documentation. 
+    This endpoint is primarily for documentation.
     Use /api/data-objects/ instead, which accepts both array and non-array DataObjects.
     """
     lookup_field = 'uuid'
@@ -187,7 +187,7 @@ class DataTreeViewSet(ExpandableViewSet):
     The 'contents' field is a JSON that may be a DataObject, a list of
     DataObjects, or nested lists of DataObjects representing a tree structure.
     Each DataObject representation may be a complete object, the value from which
-    a new object will be created, or the identifier from which an existing 
+    a new object will be created, or the identifier from which an existing
     FileDataObject can be looked up.
     """
     lookup_field = 'uuid'
@@ -218,7 +218,7 @@ class FileResourceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return models.FileResource.objects.all().order_by('-datetime_created')
 
-        
+
 class TaskViewSet(ExpandableViewSet):
     """
     A Task represents a specific set of (runtime environment, command, inputs).
@@ -298,7 +298,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
 
     def get_queryset(self):
         queryset = models.TaskAttempt.objects.all()
-        queryset = queryset.select_related('task')\
+        queryset = queryset.select_related('parent_task')\
                            .prefetch_related('inputs')\
                            .prefetch_related('inputs__data_object')\
                            .prefetch_related('inputs__data_object__stringdataobject')\
@@ -405,7 +405,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
             return JsonResponse({"message": "Not Found"}, status=404)
         async.finish_task_attempt(task_attempt.uuid)
         return JsonResponse({}, status=201)
-    
+
     @detail_route(methods=['post'], url_path='create-timepoint',
                   serializer_class=serializers.TaskAttemptTimepointSerializer)
     def create_timepoint(self, request, uuid=None):
@@ -447,8 +447,8 @@ class TaskAttemptViewSet(ExpandableViewSet):
 class TemplateViewSet(ExpandableViewSet):
     """
     A Template is a pattern for analysis to be performed, but without necessarily
-    having inputs assigned. May be type 'step' or 'workflow'. 
-    For documentation of each Template type, 
+    having inputs assigned. May be type 'step' or 'workflow'.
+    For documentation of each Template type,
     see the respective /api/template-*/ endpoints.
     """
     lookup_field = 'uuid'
@@ -473,8 +473,8 @@ class TemplateViewSet(ExpandableViewSet):
 class RunViewSet(ExpandableViewSet):
     """
     A Run represents the execution of a Template on a specific set of inputs.
-    May be type 'step' or 'workflow'. 
-    For documentation of each Run type, 
+    May be type 'step' or 'workflow'.
+    For documentation of each Run type,
     see the respective /api/run-*/ endpoints.
     """
 
@@ -518,7 +518,7 @@ class RunViewSet(ExpandableViewSet):
                      'expand': True})
         return JsonResponse(run_output_serializer.data, status=200, safe=False)
 
-    
+
 class RunRequestViewSet(ExpandableViewSet):
     """
     A RunRequest represents a user request to execute a given Template
@@ -534,6 +534,7 @@ class RunRequestViewSet(ExpandableViewSet):
                            .select_related('template')\
                            .prefetch_related('inputs__data_root')
         return queryset.order_by('-datetime_created')
+
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptLogFileSerializer
