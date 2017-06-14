@@ -88,6 +88,8 @@ body {
  * Run list
  */
 
+tbody.collapsing { transition-duration: 0.0125s;}
+
 a[aria-expanded=true] span.collapse-button:before {
     font-family: 'Glyphicons Halflings';
     content: "\e252";

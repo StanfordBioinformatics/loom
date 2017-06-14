@@ -101,17 +101,23 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         many=True, allow_null=True, required=False)
     resources = serializers.JSONField(required=False)
     environment = serializers.JSONField(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
     status = serializers.CharField(read_only=True)
+    status_is_finished = serializers.BooleanField(read_only=True)
+    status_is_failed = serializers.BooleanField(read_only=True)
+    status_is_killed = serializers.BooleanField(read_only=True)
+    status_is_running = serializers.BooleanField(read_only=True)
+    status_is_cleaned_up = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = TaskAttempt
         fields = ('uuid', 'url', 'datetime_created', 'datetime_finished',
                   'last_heartbeat', 'status_is_finished', 'status_is_failed',
                   'status_is_killed', 'status_is_running', 'status_is_cleaned_up',
-                  'status_is_waiting',
                   'log_files', 'inputs', 'outputs', 'interpreter',
                   'rendered_command', 'environment', 'resources', 'timepoints',
-                  'status', 'name')
+                  'status')
 
 
     def update(self, instance, validated_data):
@@ -195,8 +201,8 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     interpreter = serializers.CharField(read_only=True)
     datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
-    status_message = serializers.CharField(read_only=True)
-    status_detail = serializers.CharField(read_only=True)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
     status_is_finished = serializers.BooleanField(read_only=True)
     status_is_failed = serializers.BooleanField(read_only=True)
     status_is_killed = serializers.BooleanField(read_only=True)
@@ -224,8 +230,6 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'interpreter',
             'datetime_finished',
             'datetime_created',
-            'status_message',
-            'status_detail',
             'status_is_finished',
             'status_is_failed',
             'status_is_killed',
@@ -235,7 +239,6 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'timepoints',
             'index',
             'status',
-            'name'
         )
 
 
@@ -251,7 +254,6 @@ class ExpandableTaskSerializer(TaskSerializer):
         model = Task
         fields = ('uuid',
                   'url',
-                  'status_message',
                   'datetime_created',)
 
     def to_representation(self, instance):

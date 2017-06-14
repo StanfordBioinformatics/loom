@@ -21,9 +21,9 @@ class TestHelloWorld(TransactionTestCase, AbstractRunTest):
     def testRun(self):
         # Verify that all StepRuns have been created
         self.assertIsNotNone(
-            self.run_request.run.downcast().steps.filter(name='hello_step'))
+            self.run_request.run.steps.filter(name='hello_step'))
         self.assertIsNotNone(
-            self.run_request.run.downcast().steps.filter(name='world_step'))
+            self.run_request.run.steps.filter(name='world_step'))
 
         #wait_for_true(lambda: self.run_request.run.status=='finished')
         

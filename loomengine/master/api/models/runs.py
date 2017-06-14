@@ -6,7 +6,6 @@ from mptt.models import MPTTModel, TreeForeignKey
 import jsonfield
 
 from .base import BaseModel
-from .process import Process
 from api import get_setting
 from api import async
 from api.exceptions import *

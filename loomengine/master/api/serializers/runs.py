@@ -110,7 +110,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     run_request = RunRequestURLSerializer(required=False)
     steps = RunURLSerializer(many=True, read_only=True, required=False)
     tasks = ExpandableTaskSerializer(many=True)
-    
+
     def to_representation(self, instance):
         return strip_empty_values(
             super(RunSerializer, self).to_representation(instance))

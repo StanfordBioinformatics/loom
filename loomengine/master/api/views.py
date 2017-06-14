@@ -298,7 +298,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
 
     def get_queryset(self):
         queryset = models.TaskAttempt.objects.all()
-        queryset = queryset.select_related('parent_task')\
+        queryset = queryset.select_related('task')\
                            .prefetch_related('inputs')\
                            .prefetch_related('inputs__data_object')\
                            .prefetch_related('inputs__data_object__stringdataobject')\

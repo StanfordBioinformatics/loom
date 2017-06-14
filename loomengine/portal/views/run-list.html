@@ -1,35 +1,33 @@
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
 <div ng-hide="loading">
-  <div class="table-responsive" >
-    <table class="table table-striped table-hover" ng-show="runs.length">
-      <thead>
-        <tr>
-          <th>Run</th>
-          <th>Status</th>
-          <th>Started</th>
-        </tr>
-      </thead>
-    </table>
-    <table class="table table-striped table-hover" ng-show="runs.length" ng-repeat="run in runs">
-      <tbody>
-	<tr>
-	  <td style="padding-left:calc(8px)">
-	    <a role="button" data-toggle="collapse" data-target="#{{run.uuid}}" aria-expanded="false" ng-show="{{run.steps}}"><span class="collapse-button"></span></a>
-	    <a href="#/runs/{{run.uuid}}">
-	      {{ run.name }}@{{run.uuid | limitTo:8 }}
-	    </a>
-	  </td>
-          <td>
-            {{run.status}}
-          </td>
-          <td>
-            {{run.datetime_created | date:'medium'}}
-          </td>
-	</tr>
-      </tbody>
-      <tbody id="{{run.uuid}}" class="collapse" ng-show="{{run.steps}}" ng-include="'partials/run-contents.html'" ng-controller="RunContentsController">
-      </tbody>
-    </table>
-    <div ng-hide="runs.length">no runs</div>
+  <div  ng-show="runs.length">
+    <button type="button" class="btn btn-primary btn-xs expand-all">Expand all</button>
+    <button type="button" class="btn btn-basic btn-xs collapse-all" >Collapse all</button>
+    <div class="panel-group">
+      <div class="panel panel-default" ng-repeat="run in runs">
+	<div class="panel-body table-responsive">
+	  <table class="table table-hover table-striped" ng-show="runs.length">
+	    <thead>
+	      <tr>
+		<td style="padding-left:calc(8px)">
+		  <a role="button" data-toggle="collapse" data-target="#{{run.uuid}}" aria-expanded="true" ng-show="{{run.steps}}"><span class="collapse-button"></span></a>
+		  <a href="#/runs/{{run.uuid}}">
+		    {{ run.name }}@{{run.uuid | limitTo:8 }}
+		  </a>
+		</td>
+		<td ng-class="getColorClass(run.status)">
+		  {{run.status}}
+		</td>
+		<td>
+		  {{run.datetime_created | date:'medium'}}
+		</td>
+	      </tr>
+	    </thead>
+	    <tbody ng-include="'partials/run-contents.html'" id="{{run.uuid}}" class="panel-collapse collapse in" ng-show="{{run.steps}}" ng-controller="RunContentsController">
+	  </table>
+	</div>
+      </div>
+    </div>
   </div>
+  <div ng-hide="runs.length">no runs</div>
 </div>
