@@ -11,7 +11,7 @@ function RunListController($scope, DataService, $location) {
     $scope.loading = true;
     $scope.getColorClass = function(status){
 	if (status=='Killed' || status=='Failed'){
-	    return "error";
+	    return "danger";
 	}
 	else if (status=="Finished"){
 	    return "info";
