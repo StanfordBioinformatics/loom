@@ -22,7 +22,7 @@ steps:
     parser:
       type: delimited
       options:
-      - delimiter: " "
+        delimiter: " "
   environment:
     docker_image: ubuntu
   resources:
@@ -43,7 +43,7 @@ steps:
     parser:
       type: delimited
       options:
-      - delimiter: " "
+        delimiter: " "
   environment:
     docker_image: ubuntu
   resources:

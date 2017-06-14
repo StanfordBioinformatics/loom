@@ -34,10 +34,11 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
     channel = serializers.CharField(read_only=True)
     source = serializers.JSONField(required=False)
     parser = serializers.JSONField(required=False)
+    mode = serializers.CharField()
 
     class Meta:
         model = TaskAttemptOutput
-        fields = ('id', 'type', 'channel', 'source', 'data_object', 'parser')
+        fields = ('id', 'type', 'channel', 'source', 'data_object', 'parser', 'mode')
 
     def update(self, instance, validated_data):
         data_object_data = self.initial_data.get('data_object', None)

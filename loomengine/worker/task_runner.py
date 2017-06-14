@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 
+from loomengine.worker.output_parsers import parse_output
 import loomengine.utils
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
@@ -502,10 +503,18 @@ class TaskRunner(object):
         return data_object
 
     def _save_nonfile_output(self, output, output_text):
+        import pdb; pdb.set_trace()
         data_type = output['type']
+        if output.get('mode') == 'scatter':
+            data = parse_output(output.get('parser'), output_text)
+            is_array = True
+        else:
+            data = output_text
+            is_array = False
         data_object = {
             'type': data_type,
-            'value': output_text
+            'is_array': is_array,
+            'value': data
         }
         output.update({'data_object': data_object})
         return self.connection.update_task_attempt_output(output['id'], output)

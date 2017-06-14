@@ -245,7 +245,12 @@ class TaskOutput(BaseModel):
     def push_data_object(self, data_path):
         step_run_output = self.task.step_run.get_output(self.channel)
         if self.data_object.is_array:
-            raise Exception('TODO: Handle array data objects')
+            members = self.data_object.members
+            degree = len(self.data_object.members)
+            for i in range(0, degree):
+                new_data_path = copy.copy(data_path)
+                new_data_path.append((i, degree))
+                step_run_output.push(new_data_path, members[i])
         else:
             step_run_output.push(data_path, self.data_object)
 

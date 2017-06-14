@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError
+
 # TEMPLATES
 
 def template_import_validator(value):
