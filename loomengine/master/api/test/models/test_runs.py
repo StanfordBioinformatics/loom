@@ -39,8 +39,14 @@ class TestInputManager(TestCase):
                .get_input_sets()
 
         self.assertEqual(len(sets), 1)
+<<<<<<< HEAD
         self.assertEqual(sets[0].data_path, [])
 
         input_items = sets[0].input_items
+=======
+        self.assertEqual(sets[0].index, [])
+
+        input_items = [item for item in sets[0]]
+>>>>>>> mptt-backend
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, 'word_in')

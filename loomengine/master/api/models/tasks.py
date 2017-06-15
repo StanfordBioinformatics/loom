@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 import jsonfield
 import os
+import re
 
 from .base import BaseModel, render_from_template
 from api import get_setting
@@ -11,6 +12,7 @@ from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileDataObject
 from api.models import validators
+from api.exceptions import ConcurrentModificationError
 
 class TaskAlreadyExistsException(Exception):
     pass
@@ -26,29 +28,24 @@ def validate_list_of_ints(value):
 
 
 class Task(BaseModel):
-
     """A Task is a Step executed on a particular set of inputs.
-    For non-parallel steps, each StepRun will have one task. For parallel,
-    each StepRun will have one task for each set of inputs.
+    For non-parallel steps, each Run will have one task. For parallel,
+    each Run will have one task for each set of inputs.
     """
-
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     rendered_command = models.TextField(null=True, blank=True)
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
 
-    step_run = models.ForeignKey('StepRun',
-                                 related_name='tasks',
-                                 on_delete=models.CASCADE,
-                                 null=True, # null for testing only
-                                 blank=True)
-
+    run = models.ForeignKey('Run',
+                            related_name='tasks',
+                            on_delete=models.CASCADE,
+                            null=True, # null for testing only
+                            blank=True)
+    
     selected_task_attempt = models.OneToOneField('TaskAttempt',
                                                  related_name='task_as_selected',
                                                  on_delete=models.CASCADE,
@@ -57,13 +54,29 @@ class Task(BaseModel):
     data_path = jsonfield.JSONField(
         validators=[validators.task_data_path_validator],
         null=True, blank=True)
-
-    # While status_is_running, Loom will continue trying to complete the task
-    status_is_waiting = models.BooleanField(default=True)
-    status_is_running = models.BooleanField(default=False)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
+    datetime_finished = models.DateTimeField(null=True, blank=True)
+    status_is_finished = models.BooleanField(default=False)
     status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
-    status_is_finished = models.BooleanField(default=False)
+    status_is_running = models.BooleanField(default=False)
+    status_is_waiting = models.BooleanField(default=True)
+
+    @property
+    def status(self):
+        if self.status_is_failed:
+            return 'Failed'
+        elif self.status_is_finished:
+            return 'Finished'
+        elif self.status_is_killed:
+            return 'Killed'
+        elif self.status_is_running:
+            return 'Running'
+        elif self.status_is_waiting:
+            return 'Waiting'
+        else:
+            return 'Unknown'
 
     @property
     def attempt_number(self):
@@ -88,8 +101,8 @@ class Task(BaseModel):
              'status_is_running': False,
              'status_is_waiting': False})
         self.add_timepoint(message, detail=detail, is_error=True)
-        if not self.step_run.status_is_failed:
-            self.step_run.fail(
+        if not self.run.status_is_failed:
+            self.run.fail(
                 'Task %s failed' % self.uuid,
                 detail=detail)
 
@@ -99,8 +112,8 @@ class Task(BaseModel):
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.step_run.add_timepoint('Child Task %s finished successfully' % self.uuid)
-        self.step_run.update_status()
+        self.run.add_timepoint('Child Task %s finished successfully' % self.uuid)
+        self.run.set_status_is_finished()
         for output in self.outputs.all():
             output.pull_data_object()
             output.push_data_object(self.data_path)
@@ -118,18 +131,18 @@ class Task(BaseModel):
             async.kill_task_attempt(task_attempt.uuid, kill_message)
 
     @classmethod
-    def create_from_input_set(cls, input_set, step_run):
+    def create_from_input_set(cls, input_set, run):
         data_path = input_set.data_path
-        if step_run.tasks.filter(data_path=data_path).count() > 0:
+        if run.tasks.filter(data_path=data_path).count() > 0:
             raise TaskAlreadyExistsException
+
         task = Task.objects.create(
-            step_run=step_run,
-            command=step_run.command,
-            interpreter=step_run.interpreter,
-            environment=step_run.template.environment,
-            resources=step_run.template.resources,
+            run=run,
+            command=run.command,
+            interpreter=run.interpreter,
+            environment=run.template.environment,
+            resources=run.template.resources,
             data_path=data_path,
-            #mptt_parent=step_run,
         )
         for input_item in input_set:
             TaskInput.objects.create(
@@ -137,18 +150,19 @@ class Task(BaseModel):
                 channel=input_item.channel,
                 type=input_item.get_type(),
                 data_object = input_item.get_data_object())
-        for step_run_output in step_run.outputs.all():
+        for run_output in run.outputs.all():
             task_output = TaskOutput.objects.create(
-                channel=step_run_output.channel,
-                type=step_run_output.type,
+                channel=run_output.channel,
+                type=run_output.type,
                 task=task,
-                source=step_run_output.source,
-                parser=step_run_output.parser)
+                mode=run_output.mode,
+                source=run_output.source,
+                parser=run_output.parser)
         task = task.setattrs_and_save_with_retries(
             { 'rendered_command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
-        step_run.add_timepoint('Child Task %s was created' % task.uuid)
-        step_run.set_running_status()
+        run.add_timepoint('Child Task %s was created' % task.uuid)
+        run.set_running_status()
         return task
 
     def create_and_activate_attempt(self):
@@ -230,6 +244,7 @@ class TaskOutput(BaseModel):
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
                             choices=DataObject.DATA_TYPE_CHOICES)
+    mode = models.CharField(max_length=255, null=True, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(
 	validators=[validators.task_output_parser_validator],
@@ -243,16 +258,16 @@ class TaskOutput(BaseModel):
             'data_object': attempt_output.data_object })
 
     def push_data_object(self, data_path):
-        step_run_output = self.task.step_run.get_output(self.channel)
+        run_output = self.task.run.get_output(self.channel)
         if self.data_object.is_array:
             members = self.data_object.members
             degree = len(self.data_object.members)
             for i in range(0, degree):
                 new_data_path = copy.copy(data_path)
                 new_data_path.append((i, degree))
-                step_run_output.push(new_data_path, members[i])
+                run_output.push(new_data_path, members[i])
         else:
-            step_run_output.push(data_path, self.data_object)
+            run_output.push(data_path, self.data_object)
 
 
 class TaskTimepoint(BaseModel):
@@ -271,9 +286,6 @@ class TaskAttempt(BaseModel):
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-    datetime_finished = models.DateTimeField(null=True, blank=True)
     task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
@@ -285,11 +297,27 @@ class TaskAttempt(BaseModel):
 	validators=[validators.task_output_parser_validator],
         null=True, blank=True)
     last_heartbeat = models.DateTimeField(auto_now=True)
-    status_is_failed = models.BooleanField(default=False)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
+    datetime_finished = models.DateTimeField(null=True, blank=True)
     status_is_finished = models.BooleanField(default=False)
+    status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
     status_is_running = models.BooleanField(default=True)
     status_is_cleaned_up = models.BooleanField(default=False)
+
+    @property
+    def status(self):
+        if self.status_is_failed:
+            return 'Failed'
+        elif self.status_is_finished:
+            return 'Finished'
+        elif self.status_is_killed:
+            return 'Killed'
+        elif self.status_is_running:
+            return 'Running'
+        else:
+            return 'Unknown'
 
     def heartbeat(self):
         # Saving with an empty set of attributes will update
@@ -349,7 +377,6 @@ class TaskAttempt(BaseModel):
             rendered_command=task.rendered_command,
             environment=task.environment,
             resources=task.resources,
-            #mptt_parent=task,
         )
         task_attempt.initialize()
         return task_attempt
@@ -375,6 +402,7 @@ class TaskAttempt(BaseModel):
                 task_attempt=self,
                 type=task_output.type,
                 channel=task_output.channel,
+                mode=task_output.mode,
                 source=self._render_output_source(task_output.source),
                 parser=task_output.parser
             )
@@ -461,6 +489,7 @@ class TaskAttemptOutput(BaseModel):
     channel = models.CharField(max_length=255)
     type = models.CharField(max_length = 255,
                             choices=DataObject.DATA_TYPE_CHOICES)
+    mode = models.CharField(max_length=255, null=True, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(
 	validators=[validators.task_output_parser_validator],

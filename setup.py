@@ -111,7 +111,7 @@ setup(
                         'oauth2client==3.0.0',
                         'python-dateutil==2.6.0',
                         'PyYAML==3.12',
-                        'requests==2.13.0',            # match docker-py dependency
+                        'requests==2.17.3',            # match docker-py dependency
                         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git==1.2',
                         'SQLAlchemy==1.1.9',

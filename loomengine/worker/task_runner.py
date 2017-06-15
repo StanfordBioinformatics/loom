@@ -361,12 +361,12 @@ class TaskRunner(object):
         thread = threading.Thread(target=self._stderr_stream_worker)
         thread.start()
         for line in self.docker_client.logs(self.container, stdout=True, stderr=False, stream=True):
-            print line.strip('\n') # Remove starting and ending newlines but preserve indentation
+            sys.stdout.write(line)
         thread.join()
 
     def _stderr_stream_worker(self):
         for line in self.docker_client.logs(self.container, stdout=False, stderr=True, stream=True):
-            sys.stderr.write(line.strip('\n')) # Remove starting and ending newlines but preserve indentation
+            sys.stderr.write(line)
 
     def _try_to_get_returncode(self):
         self._timepoint('Running analysis')

@@ -18,11 +18,55 @@ def _get_class_from_string(kls):
         m = getattr(m, comp)
     return m
 
+def strip_empty_values(data):
+    return dict((k, v) for k, v in data.iteritems() if v not in [None, '', []])
+
 
 class RecursiveField(serializers.Serializer):
+
     def to_representation(self, value):
         serializer = self.parent.parent.__class__(value, context=self.context)
         return serializer.data
+
+
+class ProxyWriteSerializer(serializers.HyperlinkedModelSerializer):
+    """ProxyWriteSerializer acts as a pass-through for another serializer class
+    for all the methods used in deserialization. 
+    When is this useful? Consider that you have a recursive data type like 
+    'Template' and a corresponding TemplateSerializer that handles nested data. 
+    You may want a simplified serializer that renders just the URL of the child 
+    objects but not the full nested structure. So you create a 
+    TemplateURLSerializer that does not render the full nested structure. 
+    That works fine for serialization, but it would be nice to support recursive 
+    deserialization with the TemplateSerializer.
+    Letting TemplateURLSerializer inherit from TemplateSerializer doesn't work
+    because TemplateSerializer uses TemplateURLSerializer as a subfield, and this
+    creates a dependency loop. This ProxyWriteSerializer is our work-around. 
+    It lets TemplateURLSerializer send deserialization tasks to a TemplateSerializer
+    while avoiding the dependency loop.
+    """
+
+    def get_target_serializer(self):
+        raise Exception("Override get_target_serializer to "\
+                        "return the target serializer class")
+
+    def _get_serializer(self):
+        if not hasattr(self, '_cached_serializer'):
+            if self.instance is None:
+                self._cached_serializer = self.get_target_serializer()(
+                    data=self.initial_data, context=self.context)
+            else:
+                self._cached_serializer = self.get_target_serializer()(instance)
+        return self._cached_serializer
+    
+    def is_valid(self, *args, **kwargs):
+        return self._get_serializer().is_valid(*args, **kwargs)
+
+    def create(self, *args, **kwargs):
+        return self._get_serializer().create(*args, **kwargs)
+
+    def update(self, *args, **kwargs):
+        return self._get_serializer().update(*args, **kwargs)
 
 
 class CreateWithParentModelSerializer(serializers.HyperlinkedModelSerializer):
@@ -51,7 +95,7 @@ class CreateWithParentModelSerializer(serializers.HyperlinkedModelSerializer):
 
 class SuperclassModelSerializer(serializers.HyperlinkedModelSerializer):
     """This class helps to ser/deserialize a base model with
-    several subclasses. It selects the correct subclass serializer
+    several subclasses. It selects the correctbclass serializer
     and delegates critical functions to it.
     """
 

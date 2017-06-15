@@ -293,8 +293,8 @@ class DataTreeNode(BaseModel):
 
     def push(self, data_path):
         """Push any data at or below given path.
-        This instructs step_run_inputs to check if they can use the data.
+        This instructs run_inputs to check if they can use the data.
         """
         assert self.id == self.root_node.id, 'Cannot push from non-root node'
-        for input in self.stepruninput_set.all():
+        for input in self.runinput_set.all():
             input.push(data_path)

@@ -83,16 +83,21 @@ body {
 .main .page-header {
   margin-top: 0;
 }
-td.step-indent {
-    padding-left: 20px !important;
-}
-td.task-indent {
-    padding-left: 40px !important;
-}
-td.task-attempt-indent {
-    padding-left: 60px !important;
-}
 
+/*
+ * Run list
+ */
+
+tbody.collapsing { transition-duration: 0.0125s;}
+
+a[aria-expanded=true] span.collapse-button:before {
+    font-family: 'Glyphicons Halflings';
+    content: "\e252";
+}
+a[aria-expanded=false] span.collapse-button:before {
+    font-family: 'Glyphicons Halflings';
+    content: "\e250";
+}
 /*
  * Placeholder dashboard ideas
  */
