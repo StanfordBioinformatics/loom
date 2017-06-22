@@ -54,9 +54,14 @@ class DataTreeNode(BaseModel):
                                     related_name = 'data_tree_nodes',
                                     null=True, # null except on leaves
                                     blank=True)
-
+    
     EMPTY_BRANCH_VALUE = []
 
+    @property
+    def contents(self):
+        # Dummy placeholder for serializer
+        pass
+    
     @classmethod
     def create_from_scalar(self, data_object):
         data_tree_node = DataTreeNode.objects.create()

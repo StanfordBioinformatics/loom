@@ -38,8 +38,12 @@ class ExpandableViewSet(viewsets.ModelViewSet):
         if self.get_serializer_context()['expand']:
             return response.Response(
                 {"non_field_errors":
-                 "the 'expand' URL parameter is not allowed in a list view. '\
-                 'Only a single object can be expanded."},
+                 "'expand' mode is not allowed in a list view."},
+                status=rest_framework.status.HTTP_400_BAD_REQUEST)
+        if self.get_serializer_context()['summary']:
+            return response.Response(
+                {"non_field_errors":
+                 "'summary' mode is not allowed in a list view."},
                 status=rest_framework.status.HTTP_400_BAD_REQUEST)
         return super(ExpandableViewSet, self).list(self, request)
 

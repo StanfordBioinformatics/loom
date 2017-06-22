@@ -15,7 +15,7 @@ function DataService($http, $q) {
     this.setActiveTemplate = setActiveTemplate;
     this.setActiveFile = setActiveFile;
     this.getAllActive = getAllActive;
-    this.getNestedRun = getNestedRun;
+    this.getRunSummary = getRunSummary;
     this.getRuns = getRuns;
     this.getTemplates = getTemplates;
     this.getImportedFiles = getImportedFiles;
@@ -109,8 +109,8 @@ function DataService($http, $q) {
             });
     }
 
-    function getNestedRun(runId) {
-	return $http.get("/api/runs/" + runId + "/?expand")
+    function getRunSummary(runId) {
+	return $http.get("/api/runs/" + runId + "/?summary")
 	    .then(function(response) {
 		return response.data;
 	    });

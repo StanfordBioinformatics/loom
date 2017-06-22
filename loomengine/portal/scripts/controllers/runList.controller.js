@@ -11,16 +11,16 @@ function RunListController($scope, DataService, $location) {
     $scope.loading = true;
     $scope.getColorClass = function(status){
 	if (status=='Killed' || status=='Failed'){
-	    return "danger";
+	    return "bg-danger";
 	}
 	else if (status=="Finished"){
-	    return "info";
+	    return "bg-info";
 	}
 	else if (status=="Running"){
-	    return "success";
+	    return "bg-success";
 	}
 	else if (status=="Waiting"){
-	    return "warning";
+	    return "bg-warning";
 	}
 	else {
 	    return "";

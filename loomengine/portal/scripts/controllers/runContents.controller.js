@@ -10,7 +10,7 @@ RunContentsController.$inject = [
 
 function RunContentsController($scope, DataService, $routeParams) {
     $scope.loading = true;
-    $scope.expandedRun = DataService.getNestedRun($scope.run.uuid)
+    $scope.expandedRun = DataService.getRunSummary($scope.run.uuid)
 	.then(function(run) {
             $scope.loading = false;
             $scope.expandedRun = run;
