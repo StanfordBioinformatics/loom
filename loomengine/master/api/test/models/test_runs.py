@@ -19,7 +19,7 @@ class TestWorkflowRun(TestCase):
             workflow_run = get_workflow_run()
         self.assertTrue(workflow_run.name == 'one_two')
         self.assertTrue(
-            workflow_run.steps.get(name='one_two.step_one')\
+            workflow_run.steps.get(name='step_one')\
             .inputs.get(channel='one')\
             .is_connected(
                 workflow_run.inputs.get(channel='one')))

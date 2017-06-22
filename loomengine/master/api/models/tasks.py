@@ -6,7 +6,6 @@ import os
 import re
 
 from .base import BaseModel, render_from_template
-from .process import Process
 from api import get_setting
 from api import async
 from api.models import uuidstr
@@ -27,24 +26,25 @@ def validate_list_of_ints(value):
         raise ValidationError('Value must be a list of ints')
 
 
-class Task(Process):
+class Task(BaseModel):
     """A Task is a Step executed on a particular set of inputs.
-    For non-parallel steps, each StepRun will have one task. For parallel,
-    each StepRun will have one task for each set of inputs.
+    For non-parallel steps, each Run will have one task. For parallel,
+    each Run will have one task for each set of inputs.
     """
-
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     rendered_command = models.TextField(null=True, blank=True)
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
 
-    step_run = models.ForeignKey('StepRun',
-                                 related_name='tasks',
-                                 on_delete=models.CASCADE,
-                                 null=True, # null for testing only
-                                 blank=True)
-
+    run = models.ForeignKey('Run',
+                            related_name='tasks',
+                            on_delete=models.CASCADE,
+                            null=True, # null for testing only
+                            blank=True)
+    
     selected_task_attempt = models.OneToOneField('TaskAttempt',
                                                  related_name='task_as_selected',
                                                  on_delete=models.CASCADE,
@@ -52,6 +52,29 @@ class Task(Process):
                                                  blank=True)
     index = jsonfield.JSONField(validators=[validate_list_of_ints],
                                 null=True, blank=True)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
+    datetime_finished = models.DateTimeField(null=True, blank=True)
+    status_is_finished = models.BooleanField(default=False)
+    status_is_failed = models.BooleanField(default=False)
+    status_is_killed = models.BooleanField(default=False)
+    status_is_running = models.BooleanField(default=False)
+    status_is_waiting = models.BooleanField(default=True)
+
+    @property
+    def status(self):
+        if self.status_is_failed:
+            return 'Failed'
+        elif self.status_is_finished:
+            return 'Finished'
+        elif self.status_is_killed:
+            return 'Killed'
+        elif self.status_is_running:
+            return 'Running'
+        elif self.status_is_waiting:
+            return 'Waiting'
+        else:
+            return 'Unknown'
 
     @property
     def attempt_number(self):
@@ -76,8 +99,8 @@ class Task(Process):
              'status_is_running': False,
              'status_is_waiting': False})
         self.add_timepoint(message, detail=detail, is_error=True)
-        if not self.step_run.status_is_failed:
-            self.step_run.fail(
+        if not self.run.status_is_failed:
+            self.run.fail(
                 'Task %s failed' % self.uuid,
                 detail=detail)
 
@@ -87,8 +110,8 @@ class Task(Process):
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.step_run.add_timepoint('Child Task %s finished successfully' % self.uuid)
-        self.step_run.update_status()
+        self.run.add_timepoint('Child Task %s finished successfully' % self.uuid)
+        self.run.set_status_is_finished()
         for output in self.outputs.all():
             output.pull_data_object()
             output.push_data_object(self.index)
@@ -106,25 +129,18 @@ class Task(Process):
             async.kill_task_attempt(task_attempt.uuid, kill_message)
 
     @classmethod
-    def create_from_input_set(cls, input_set, step_run):
+    def create_from_input_set(cls, input_set, run):
         index = input_set.index
-        if step_run.tasks.filter(index=index).count() > 0:
+        if run.tasks.filter(index=index).count() > 0:
             raise TaskAlreadyExistsException
 
-        name='.'.join([step_run.name,'task'])
-        if re.match(r'[0-9]',str(index)):
-            name += str(index)
-
         task = Task.objects.create(
-            step_run=step_run,
-            command=step_run.command,
-            interpreter=step_run.interpreter,
-            environment=step_run.template.environment,
-            resources=step_run.template.resources,
+            run=run,
+            command=run.command,
+            interpreter=run.interpreter,
+            environment=run.template.environment,
+            resources=run.template.resources,
             index=index,
-            name=name,
-            process_subclass='task',
-            process_parent=Process.objects.get(uuid=step_run.uuid),
         )
         for input in input_set:
             TaskInput.objects.create(
@@ -132,17 +148,17 @@ class Task(Process):
                 channel=input.channel,
                 type=input.type,
                 data_object = input.data_object)
-        for step_run_output in step_run.outputs.all():
+        for run_output in run.outputs.all():
             task_output = TaskOutput.objects.create(
-                channel = step_run_output.channel,
-                type=step_run_output.type,
+                channel = run_output.channel,
+                type=run_output.type,
                 task=task,
-                source=step_run_output.source)
+                source=run_output.source)
         task = task.setattrs_and_save_with_retries(
             { 'rendered_command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
-        step_run.add_timepoint('Child Task %s was created' % task.uuid)
-        step_run.set_running_status()
+        run.add_timepoint('Child Task %s was created' % task.uuid)
+        run.set_running_status()
         return task
 
     def create_and_activate_attempt(self):
@@ -229,11 +245,11 @@ class TaskOutput(BaseModel):
             'data_object': attempt_output.data_object })
 
     def push_data_object(self, index):
-        step_run_output = self.task.step_run.get_output(self.channel)
+        run_output = self.task.run.get_output(self.channel)
         if self.data_object.is_array:
             raise Exception('TODO: Handle array data objects')
         else:
-            step_run_output.push(index, self.data_object)
+            run_output.push(index, self.data_object)
 
 
 class TaskTimepoint(BaseModel):
@@ -248,9 +264,11 @@ class TaskTimepoint(BaseModel):
     is_error = models.BooleanField(default=False)
 
 
-class TaskAttempt(Process):
+class TaskAttempt(BaseModel):
 
-    parent_task = models.ForeignKey('Task',
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
+    task = models.ForeignKey('Task',
                              related_name='task_attempts',
                              on_delete=models.CASCADE)
     interpreter = models.CharField(max_length=1024)
@@ -258,6 +276,27 @@ class TaskAttempt(Process):
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
     last_heartbeat = models.DateTimeField(auto_now=True)
+    datetime_created = models.DateTimeField(default=timezone.now,
+                                            editable=False)
+    datetime_finished = models.DateTimeField(null=True, blank=True)
+    status_is_finished = models.BooleanField(default=False)
+    status_is_failed = models.BooleanField(default=False)
+    status_is_killed = models.BooleanField(default=False)
+    status_is_running = models.BooleanField(default=True)
+    status_is_cleaned_up = models.BooleanField(default=False)
+
+    @property
+    def status(self):
+        if self.status_is_failed:
+            return 'Failed'
+        elif self.status_is_finished:
+            return 'Finished'
+        elif self.status_is_killed:
+            return 'Killed'
+        elif self.status_is_running:
+            return 'Running'
+        else:
+            return 'Unknown'
 
     def heartbeat(self):
         # Saving with an empty set of attributes will update
@@ -312,14 +351,11 @@ class TaskAttempt(Process):
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls.objects.create(
-            parent_task=task,
+            task=task,
             interpreter=task.interpreter,
             rendered_command=task.rendered_command,
             environment=task.environment,
             resources=task.resources,
-            name='.'.join([task.name,'attempt']),
-            process_subclass='taskattempt',
-            process_parent=Process.objects.get(uuid=task.uuid),
         )
         task_attempt.initialize()
         return task_attempt
@@ -332,7 +368,7 @@ class TaskAttempt(Process):
             self._initialize_outputs()
 
     def _initialize_inputs(self):
-        for input in self.parent_task.inputs.all():
+        for input in self.task.inputs.all():
             TaskAttemptInput.objects.create(
                 task_attempt=self,
                 type=input.type,
@@ -340,7 +376,7 @@ class TaskAttempt(Process):
                 data_object=input.data_object)
 
     def _initialize_outputs(self):
-        for task_output in self.parent_task.outputs.all():
+        for task_output in self.task.outputs.all():
             task_attempt_output = TaskAttemptOutput.objects.create(
                 task_attempt=self,
                 type=task_output.type,
@@ -353,7 +389,7 @@ class TaskAttempt(Process):
         if task_output_source.get('filename'):
             filename = render_from_template(
                 task_output_source.get('filename'),
-                self.parent_task.get_input_context())
+                self.task.get_input_context())
         else:
             filename = None
 

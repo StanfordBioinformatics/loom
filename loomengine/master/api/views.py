@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import rest_framework
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers, response, status
 from rest_framework.decorators import detail_route
 
 from api import get_setting
@@ -15,6 +15,7 @@ from api import serializers
 from api import async
 from loomengine.utils import version
 
+from django.http import HttpResponseBadRequest, Http404
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,22 @@ class ExpandableViewSet(viewsets.ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request,
-                'expand': 'expand' in self.request.query_params}
+                'expand': 'expand' in self.request.query_params,
+                'collapse': 'collapse' in self.request.query_params,
+                'summary': 'summary' in self.request.query_params}
+
+    def list(self, request):
+        if self.get_serializer_context()['expand']:
+            return response.Response(
+                {"non_field_errors":
+                 "'expand' mode is not allowed in a list view."},
+                status=rest_framework.status.HTTP_400_BAD_REQUEST)
+        if self.get_serializer_context()['summary']:
+            return response.Response(
+                {"non_field_errors":
+                 "'summary' mode is not allowed in a list view."},
+                status=rest_framework.status.HTTP_400_BAD_REQUEST)
+        return super(ExpandableViewSet, self).list(self, request)
 
 
 class DataObjectViewSet(viewsets.ModelViewSet):
@@ -225,66 +241,12 @@ class TaskViewSet(ExpandableViewSet):
     A step may contain many tasks if its inputs are parallel.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.TaskSerializer
+    serializer_class = serializers.ExpandableTaskSerializer
 
     def get_queryset(self):
         queryset = models.Task.objects.all()
-        queryset = queryset\
-                   .select_related('selected_task_attempt')\
-                   .prefetch_related('task_attempts')\
-                   .prefetch_related('inputs')\
-                   .prefetch_related('inputs__data_object')\
-                   .prefetch_related('inputs__data_object__stringdataobject')\
-                   .prefetch_related('inputs__data_object__filedataobject')\
-                   .prefetch_related('inputs__data_object__filedataobject__'\
-                                     'file_resource')\
-                   .prefetch_related('inputs__data_object__booleandataobject')\
-                   .prefetch_related('inputs__data_object__integerdataobject')\
-                   .prefetch_related('inputs__data_object__floatdataobject')\
-                   .prefetch_related('inputs__data_object__arraydataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__stringdataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__booleandataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__integerdataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__floatdataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__filedataobject__'\
-                       'file_resource')\
-                   .prefetch_related('outputs')\
-                   .prefetch_related('outputs__data_object')\
-                   .prefetch_related('outputs__data_object__stringdataobject')\
-                   .prefetch_related('outputs__data_object__filedataobject')\
-                   .prefetch_related('outputs__data_object__filedataobject__'\
-                                     'file_resource')\
-                   .prefetch_related('outputs__data_object__booleandataobject')\
-                   .prefetch_related('outputs__data_object__integerdataobject')\
-                   .prefetch_related('outputs__data_object__floatdataobject')\
-                   .prefetch_related('outputs__data_object__arraydataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__stringdataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__booleandataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__integerdataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__floatdataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__filedataobject__'\
-                       'file_resource')\
-                   .prefetch_related('timepoints')
+        queryset = self.serializer_class.apply_prefetch(
+            queryset, self.get_serializer_context())
         return queryset.order_by('-datetime_created')
 
 
@@ -294,75 +256,12 @@ class TaskAttemptViewSet(ExpandableViewSet):
     A Task may have multiple TaskAttempts if retries are executed.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.TaskAttemptSerializer
+    serializer_class = serializers.ExpandableTaskAttemptSerializer
 
     def get_queryset(self):
         queryset = models.TaskAttempt.objects.all()
-        queryset = queryset.select_related('parent_task')\
-                           .prefetch_related('inputs')\
-                           .prefetch_related('inputs__data_object')\
-                           .prefetch_related('inputs__data_object__stringdataobject')\
-                           .prefetch_related('inputs__data_object__filedataobject')\
-                           .prefetch_related('inputs__data_object__filedataobject__'\
-                                             'file_resource')\
-                           .prefetch_related('inputs__data_object__booleandataobject')\
-                           .prefetch_related('inputs__data_object__integerdataobject')\
-                           .prefetch_related('inputs__data_object__floatdataobject')\
-                           .prefetch_related('inputs__data_object__arraydataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__filedataobject__'\
-                               'file_resource')\
-                           .prefetch_related('outputs')\
-                           .prefetch_related('outputs__'\
-                                             'data_object')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__stringdataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__filedataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__filedataobject__'\
-                                             'file_resource')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__booleandataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__integerdataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__floatdataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__arraydataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__filedataobject__'\
-                               'file_resource')\
-                           .prefetch_related('log_files__file')\
-                           .prefetch_related('log_files__file__'\
-                                             'filedataobject__file_resource')\
-                           .prefetch_related('timepoints')
+        queryset = self.serializer_class.apply_prefetch(
+            queryset, self.get_serializer_context())
         return queryset.order_by('-datetime_created')
 
     @detail_route(methods=['post'], url_path='create-log-file',
@@ -452,7 +351,7 @@ class TemplateViewSet(ExpandableViewSet):
     see the respective /api/template-*/ endpoints.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.TemplateSerializer
+    serializer_class = serializers.ExpandableTemplateSerializer
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
@@ -461,62 +360,6 @@ class TemplateViewSet(ExpandableViewSet):
             queryset = models.Template.filter_by_name_or_id(query_string)
         else:
             queryset = models.Template.objects.all()
-        if imported:
-            queryset = queryset.filter(template_import__isnull=False)
-        queryset = queryset\
-                   .prefetch_related('workflow__steps')\
-                   .prefetch_related(
-                       'workflow__fixed_inputs__data_root')\
-                   .prefetch_related(
-                       'step__fixed_inputs__data_root')
-        return queryset.order_by('-datetime_created')
-
-
-class StepViewSet(ExpandableViewSet):
-    """
-    Templates of type 'step', which contain a command
-    and runtime environment.
-    This endpoint is primarily for documentation.
-    Use /api/templates/ instead, which accepts all Template types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.StepSerializer
-
-    def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        imported = 'imported' in self.request.query_params
-        if query_string:
-            queryset = models.Step.filter_by_name_or_id(query_string)
-        else:
-            queryset = models.Step.objects.all()
-        if imported:
-            queryset = queryset.filter(template_import__isnull=False)
-        queryset = queryset\
-                   .prefetch_related(
-                       'fixed_inputs__data_root')
-        return queryset.order_by('-datetime_created')
-
-
-class WorkflowViewSet(ExpandableViewSet):
-    """
-    Templates of type 'workflow', which act as containers
-    for other Templates.
-    'steps' is a JSON formatted list of child templates, where
-    each may be type 'step' or 'workflow'.
-    This endpoint is primarily for documentation.
-    Use /api/templates/ instead, which accepts all Template types.
-    """
-
-    lookup_field = 'uuid'
-    serializer_class = serializers.WorkflowSerializer
-
-    def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        imported = 'imported' in self.request.query_params
-        if query_string:
-            queryset = models.Workflow.filter_by_name_or_id(query_string)
-        else:
-            queryset = models.Workflow.objects.all()
         if imported:
             queryset = queryset.filter(template_import__isnull=False)
         queryset = queryset\
@@ -535,7 +378,7 @@ class RunViewSet(ExpandableViewSet):
     """
 
     lookup_field = 'uuid'
-    serializer_class = serializers.RunSerializer
+    serializer_class = serializers.ExpandableRunSerializer
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
@@ -546,26 +389,8 @@ class RunViewSet(ExpandableViewSet):
             queryset = models.Run.objects.all()
         if parent_only:
             queryset = queryset.filter(parent__isnull=True)
-        queryset = queryset.select_related('workflowrun__template')\
-                           .prefetch_related('workflowrun__inputs')\
-                           .prefetch_related(
-                               'workflowrun__inputs__data_root')\
-                           .prefetch_related('workflowrun__outputs')\
-                           .prefetch_related(
-                               'workflowrun__outputs__data_root')\
-                           .prefetch_related('workflowrun__steps')\
-                           .select_related(
-                               'workflowrun__run_request')\
-                           .prefetch_related('workflowrun__timepoints')\
-                           .select_related('steprun__template')\
-                           .prefetch_related('steprun__inputs')\
-                           .prefetch_related('steprun__inputs__data_root')\
-                           .prefetch_related('steprun__outputs')\
-                           .prefetch_related('steprun__outputs__data_root')\
-                           .prefetch_related('steprun__tasks')\
-                           .select_related(
-                               'steprun__run_request')\
-                           .prefetch_related('steprun__timepoints')
+        queryset = self.serializer_class.apply_prefetch(
+            queryset, self.get_serializer_context())
         return queryset.order_by('-datetime_created')
 
     @detail_route(methods=['get'], url_path='inputs')
@@ -574,11 +399,7 @@ class RunViewSet(ExpandableViewSet):
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
-        if run.type == 'step':
-            RunInputSerializer = serializers.StepRunInputSerializer
-        else:
-            RunInputSerializer = serializers.WorkflowRunInputSerializer
-        run_input_serializer = RunInputSerializer(run.inputs.all(),
+        run_input_serializer = serializers.RunInputSerializer(run.inputs.all(),
                                           many=True,
                                           context={'request': request,
                                                    'expand': True})
@@ -590,83 +411,12 @@ class RunViewSet(ExpandableViewSet):
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             return JsonResponse({"message": "Not Found"}, status=404)
-        if run.type == 'step':
-            RunOutputSerializer = serializers.StepRunOutputSerializer
-        else:
-            RunOutputSerializer = serializers.WorkflowRunOutputSerializer
-        run_output_serializer = RunOutputSerializer(run.outputs.all(),
-                                          many=True,
-                                          context={'request': request,
-                                                   'expand': True})
+        run_output_serializer = serializers.RunOutputSerializer(
+            run.outputs.all(),
+            many=True,
+            context={'request': request,
+                     'expand': True})
         return JsonResponse(run_output_serializer.data, status=200, safe=False)
-
-
-class StepRunViewSet(RunViewSet):
-    """
-    Runs of type 'step', which contain a command
-    and runtime environment.
-    This endpoint is primarily for documentation.
-    Use /api/runs/ instead, which accepts all Run types.
-    """
-
-    lookup_field = 'uuid'
-    serializer_class = serializers.StepRunSerializer
-
-    def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        parent_only = 'parent_only' in self.request.query_params
-        if query_string:
-            queryset = models.StepRun.filter_by_name_or_id(query_string)
-        else:
-            queryset = models.StepRun.objects.all()
-        if parent_only:
-            queryset = queryset.filter(parent__isnull=True)
-        queryset = queryset.select_related('template')\
-                           .prefetch_related('inputs')\
-                           .prefetch_related('inputs__data_root')\
-                           .prefetch_related('outputs')\
-                           .prefetch_related('outputs__data_root')\
-                           .prefetch_related('tasks')\
-                           .select_related(
-                               'run_request')\
-                           .prefetch_related('timepoints')
-        return queryset.order_by('-datetime_created')
-
-
-class WorkflowRunViewSet(RunViewSet):
-    """
-    Runs of type 'workflow', which act as containers
-    for other Runs.
-    'steps' is a JSON formatted list of child runs, where
-    each may be type 'step' or 'workflow'.
-    This endpoint is primarily for documentation.
-    Use /api/runs/ instead, which accepts all Run types.
-    """
-
-    lookup_field = 'uuid'
-    serializer_class = serializers.WorkflowRunSerializer
-
-    def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        parent_only = 'parent_only' in self.request.query_params
-        if query_string:
-            queryset = models.WorkflowRun.filter_by_name_or_id(query_string)
-        else:
-            queryset = models.WorkflowRun.objects.all()
-        if parent_only:
-            queryset = queryset.filter(parent__isnull=True)
-        queryset = queryset.select_related('template')\
-                           .prefetch_related('inputs')\
-                           .prefetch_related(
-                               'inputs__data_root')\
-                           .prefetch_related('outputs')\
-                           .prefetch_related(
-                               'outputs__data_root')\
-                           .prefetch_related('steps')\
-                           .select_related(
-                               'run_request')\
-                           .prefetch_related('timepoints')
-        return queryset.order_by('-datetime_created')
 
 
 class RunRequestViewSet(ExpandableViewSet):
@@ -684,6 +434,7 @@ class RunRequestViewSet(ExpandableViewSet):
                            .select_related('template')\
                            .prefetch_related('inputs__data_root')
         return queryset.order_by('-datetime_created')
+
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptLogFileSerializer

@@ -7,9 +7,21 @@ from api.models.data_objects import DataObject
 from api.models.runs import Run
 from api.models.run_requests import RunRequest, RunRequestInput
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
-from api.serializers.templates import TemplateSerializer, ExpandableTemplateSerializer
+from api.serializers.templates import TemplateSerializer, TemplateURLSerializer
 from api.exceptions import NoTemplateInputMatchError, \
     ChannelNameCollisionError
+
+class RunRequestURLSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = RunRequest
+        fields = ('uuid', 'url',)
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='run-request-detail',
+        lookup_field='uuid')
+    
 
 class RunRequestInputSerializer(InputOutputNodeSerializer):
 
@@ -23,7 +35,7 @@ class RunRequestInputSerializer(InputOutputNodeSerializer):
 class RunRequestSerializer(serializers.ModelSerializer):
 
     inputs = RunRequestInputSerializer(many=True, required=False)
-    template = ExpandableTemplateSerializer()
+    template = TemplateURLSerializer()
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='run-request-detail',

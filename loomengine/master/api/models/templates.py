@@ -23,98 +23,29 @@ or Workflows.
 def template_import_validator(value):
     pass
 
-def workflow_outputs_validator(value):
+def environment_validator(value):
     pass
 
-def workflow_inputs_validator(value):
+def outputs_validator(value):
     pass
 
-def step_environment_validator(value):
+def inputs_validator(value):
     pass
 
-def step_outputs_validator(value):
+def resources_validator(value):
     pass
-
-def step_inputs_validator(value):
-    pass
-
-def step_resources_validator(value):
-    pass
-
-def channel_bindings_validator(value):
-    # channel_bindings is a list of dicts the form
-    # [{'step': String, 'bindings': ListOfBindings},...]
-    # ListOfBindings is a list of internal:external channel names, e.g.
-    # ["internal_channel1:external_channel1","internal_channel2:external_channel2"]
-    pass
-
-class WorkflowManager(object):
-
-    def __init__(self, template):
-        assert template.type == 'workflow', 'expected template type "workflow"'
-        self.template = template
-
-    def get_inputs(self):
-        return self.template.workflow.inputs
-
-    def get_fixed_inputs(self):
-        return self.template.workflow.fixed_inputs
-
-    def get_outputs(self):
-        return self.template.workflow.outputs
-
-    def get_resources(self):
-        raise Exception('No resources on template of type "workflow"')
-
-    def get_environment(self):
-        raise Exception('No environment on template of type "workflow"')
-
-    def get_bound_channel(self, step_name, channel_name):
-        return self.template.workflow.get_bound_channel(step_name, channel_name)
-        
-
-class StepManager(object):
-
-    def __init__(self, template):
-        assert template.type == 'step', 'Expected template type "step"'
-        self.template = template
-
-    def get_inputs(self):
-        return self.template.step.inputs
-
-    def get_fixed_inputs(self):
-        return self.template.step.fixed_inputs
-
-    def get_outputs(self):
-        return self.template.step.outputs
-
-    def get_resources(self):
-        return self.template.step.resources
-
-    def get_environment(self):
-        return self.template.step.environment
-
-    def get_bound_channel(self, step_name, channel_name):
-        raise Exception('No method get_bound_channel on template of type "step"')
 
 
 class Template(BaseModel):
-
-    _MANAGER_CLASSES = {
-        'step': StepManager,
-        'workflow': WorkflowManager
-    }
 
     NAME_FIELD = 'name'
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    type = models.CharField(max_length=255,
-                            choices=(('workflow', 'Workflow'),
-                                     ('step', 'Step')))
+    name = models.CharField(max_length=255)
+    is_leaf = models.BooleanField()
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    name = models.CharField(max_length=255)
     postprocessing_status = models.CharField(
         max_length=255,
         default='incomplete',
@@ -122,35 +53,24 @@ class Template(BaseModel):
                  ('complete', 'Complete'),
                  ('failed', 'Failed'))
     )
+    command = models.TextField(blank=True)
+    interpreter = models.CharField(max_length=1024, blank=True)
+    environment = jsonfield.JSONField(validators=[environment_validator],
+                                      null=True, blank=True)
+    resources = jsonfield.JSONField(validators=[resources_validator],
+                                      null=True, blank=True)
     template_import = jsonfield.JSONField(validators=[template_import_validator],
                                           null=True, blank=True)
-
-    @classmethod
-    def _get_manager_class(cls, type):
-        return cls._MANAGER_CLASSES[type]
-
-    def _get_manager(self):
-        return self._get_manager_class(self.type)(self)
-
-    @property
-    def inputs(self):
-        return self._get_manager().get_inputs()
-
-    @property
-    def fixed_inputs(self):
-        return self._get_manager().get_fixed_inputs()
-
-    @property
-    def outputs(self):
-        return self._get_manager().get_outputs()
-
-    @property
-    def resources(self):
-        return self._get_manager().get_resources()
-
-    @property
-    def environment(self):
-        return self._get_manager().get_environment()
+    steps = models.ManyToManyField(
+        'Template',
+        through='TemplateMembership',
+        through_fields=('parent_template', 'child_template'),
+        related_name='templates')
+    outputs = jsonfield.JSONField(validators=[outputs_validator],
+                                  null=True, blank=True)
+    inputs = jsonfield.JSONField(validators=[inputs_validator],
+                                 null=True, blank=True)
+    raw_data = jsonfield.JSONField(null=True, blank=True)
 
     def get_name_and_id(self):
         return "%s@%s" % (self.name, self.id)
@@ -182,89 +102,18 @@ class Template(BaseModel):
             'Found %s outputs for channel %s' %(outputs.count(), channel)
         return outputs.first()
 
-    def get_bound_channel(self, step_name, channel_name):
-        return self._get_manager().get_bound_channel(step_name, channel_name)
-
-
-class Workflow(Template):
-
-    steps = models.ManyToManyField(
-        'Template',
-        through='WorkflowMembership',
-        through_fields=('parent_template', 'child_template'),
-        related_name='workflows')
-    outputs = jsonfield.JSONField(validators=[workflow_outputs_validator],
-                                  null=True, blank=True)
-    inputs = jsonfield.JSONField(validators=[workflow_inputs_validator],
-                                 null=True, blank=True)
-    channel_bindings = jsonfield.JSONField(validators=[channel_bindings_validator],
-                                           null=True, blank=True)
-    raw_data = jsonfield.JSONField(null=True, blank=True)
-
     def add_step(self, step):
-        WorkflowMembership.add_step_to_workflow(step, self)
+        TemplateMembership.add_step_to_workflow(step, self)
 
     def add_steps(self, step_list):
         for step in step_list:
             self.add_step(step)
 
-    def get_bound_channel(self, step_name, channel_name):
-        # By default the channel_name on this parent_workflow is
-        # the same as that on the child step. If a different name
-        # is assigned in channel_bindings, return that instead.
-        if not self.channel_bindings:
-	    return channel_name
-        # Get bindings that match the requested step_name
-        this_channel_bindings = filter(lambda x: x.get('step')==step_name,
-                          self.channel_bindings)
-        if len(this_channel_bindings) == 0:
-            return channel_name
-        assert len(this_channel_bindings) == 1
-	# Bindings are in the form
-        # ['internal_channel_name:external_channel_name',...]
-        # Convert this to a dict of {internal:external}
-        bindings = {}
-        for pair in this_channel_bindings[0].get('bindings'):
-            internal, external = pair.split(':')
-            bindings[internal] = external
-	bound_channel = bindings.get(channel_name)
-        if not bound_channel:
-            return channel_name
-        return bound_channel
 
+class FixedInput(InputOutputNode):
 
-class FixedWorkflowInput(InputOutputNode):
-
-    workflow = models.ForeignKey(
-        'Workflow',
-        related_name='fixed_inputs',
-        on_delete=models.CASCADE)
-
-
-class Step(Template):
-
-    """Steps are smaller units of processing within a Workflow. A Step can 
-    give rise to a single process, or it may iterate over an array to produce 
-    many parallel processing tasks.
-    """
-
-    command = models.TextField()
-    interpreter = models.CharField(max_length=1024, default='/bin/bash -euo pipefail')
-    environment = jsonfield.JSONField(validators=[step_environment_validator],
-                                      null=True, blank=True)
-    outputs = jsonfield.JSONField(validators=[step_outputs_validator],
-                                  null=True, blank=True)
-    inputs = jsonfield.JSONField(validators=[step_inputs_validator],
-                                 null=True, blank=True)
-    resources = jsonfield.JSONField(validators=[step_resources_validator],
-                                    null=True, blank=True)
-    raw_data = jsonfield.JSONField(null=True, blank=True)
-
-
-class FixedStepInput(InputOutputNode):
-
-    step = models.ForeignKey(
-        'Step',
+    template = models.ForeignKey(
+        'Template',
         related_name='fixed_inputs',
         on_delete=models.CASCADE)
     mode = models.CharField(max_length=255)
@@ -279,14 +128,14 @@ class FixedStepInput(InputOutputNode):
         return
 
 
-class WorkflowMembership(BaseModel):
+class TemplateMembership(BaseModel):
 
-    parent_template = models.ForeignKey('Workflow', related_name='children')
+    parent_template = models.ForeignKey('Template', related_name='children')
     child_template = models.ForeignKey('Template', related_name='parents', 
                                        null=True, blank=True)
 
     @classmethod
     def add_step_to_workflow(cls, step, parent):
-            WorkflowMembership.objects.create(
+            TemplateMembership.objects.create(
                 parent_template=parent,
                 child_template=step)

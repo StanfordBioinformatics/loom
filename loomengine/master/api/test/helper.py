@@ -78,7 +78,7 @@ class AbstractRunTest(object):
             lambda: all([step.postprocessing_status=='complete'
                          for step
                          in RunRequest.objects.get(
-                             id=run_request.id).run.workflowrun.steps.all()]),
+                             id=run_request.id).run.steps.all()]),
             timeout_seconds=120,
             sleep_interval=1)
 

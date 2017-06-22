@@ -195,6 +195,25 @@ class DataObjectSerializer(SuperclassModelSerializer):
             else:
                 return data.get('type')
 
+    @classmethod
+    def get_select_related_list(cls):
+        return ['stringdataobject',
+                'filedataobject',
+                'filedataobject__file_resource',
+                'booleandataobject',
+                'integerdataobject',
+                'floatdataobject',
+                'arraydataobject']
+
+    @classmethod
+    def get_prefetch_related_list(cls):
+        return [
+            'arraydataobject__prefetch_members__stringdataobject',
+            'arraydataobject__prefetch_members__booleandataobject',
+            'arraydataobject__prefetch_members__integerdataobject',
+            'arraydataobject__prefetch_members__floatdataobject',
+            'arraydataobject__prefetch_members__filedataobject__file_resource']
+
 
 class DataObjectUuidSerializer(serializers.HyperlinkedModelSerializer):
     # This serializer is used for display only                                           

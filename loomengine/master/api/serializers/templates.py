@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from .base import CreateWithParentModelSerializer, SuperclassModelSerializer
+from .base import CreateWithParentModelSerializer, RecursiveField, \
+    ProxyWriteSerializer, strip_empty_values
 from .input_output_nodes import InputOutputNodeSerializer
 from api import async
 from api.exceptions import MultipleTemplateMatchesError, NoTemplateMatchError
@@ -11,7 +12,7 @@ from api.models.input_output_nodes import InputOutputNode
 DEFAULT_INPUT_GROUP = 0
 DEFAULT_INPUT_MODE = 'no_gather'
 DEFAULT_OUTPUT_MODE = 'no_scatter'
-
+DEFAULT_INTERPRETER = '/bin/bash -euo pipefail'
 
 def _set_input_defaults(input):
     input.setdefault('group', DEFAULT_INPUT_GROUP)
@@ -20,206 +21,139 @@ def _set_input_defaults(input):
 def _set_output_defaults(output):
     output.setdefault('mode', DEFAULT_OUTPUT_MODE)
 
+def _set_template_defaults(data, is_leaf):
+    # Apply defaults for certain settings if missing
+    if data.get('inputs'):
+        for input in data.get('inputs'):
+            _set_input_defaults(input)
+    if data.get('fixed_inputs'):
+        for input in data.get('fixed_inputs'):
+            _set_input_defaults(input)
+    if data.get('outputs'):
+        for output in data.get('outputs'):
+            _set_output_defaults(output)
+    data['is_leaf'] = is_leaf
+    if is_leaf:
+        # Set defaults for leaf node
+        data.setdefault('interpreter', DEFAULT_INTERPRETER)
+        
+def _convert_template_id_to_dict(data):
+    # If data is a string instead of a dict value,
+    # set that as _template_id
+    if not isinstance(data, dict):
+        return {'_template_id': data}
+    else:
+        return data
 
-class FixedWorkflowInputSerializer(InputOutputNodeSerializer):
+
+class FixedInputSerializer(InputOutputNodeSerializer):
 
     class Meta:
-        model = FixedWorkflowInput
-        fields = ('type', 'channel', 'data')
-
-
-class FixedStepInputSerializer(InputOutputNodeSerializer):
+        model = FixedInput
+        fields = ('type', 'channel', 'data', 'mode', 'group')
 
     mode=serializers.CharField(required=False)
     group=serializers.IntegerField(required=False)
     
-    class Meta:
-        model = FixedStepInput
-        fields = ('type', 'channel', 'data', 'mode', 'group')
-
     def create(self, validated_data):
         _set_input_defaults(validated_data)
-        return super(FixedStepInputSerializer, self).create(validated_data)
+        return super(FixedInputSerializer, self).create(validated_data)
 
-
-class TemplateSerializer(SuperclassModelSerializer):
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='template-detail',
-        lookup_field='uuid'
-    )
-    type = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
-    name = serializers.CharField(required=False)
-    postprocessing_status = serializers.CharField(required=False)
-    template_import =  serializers.JSONField(required=False)
+class TemplateURLSerializer(ProxyWriteSerializer):
 
     class Meta:
         model = Template
-        fields = ('uuid', 'url', 'type', 'datetime_created', 'name', 'postprocessing_status', 'template_import')
+        fields = ('uuid',
+                  'url',
+                  'name',
+                  'datetime_created',
+                  'datetime_finished',
+                  'status')
 
-    def _get_subclass_serializer_class(self, type):
-        if type=='workflow':
-            return WorkflowSerializer
-        elif type=='step':
-            return StepSerializer
-        elif type=='lookup':
-            # No valid type. Serialize with the base class
-            return TemplateLookupSerializer
-
-    def _get_subclass_field(self, type):
-        if type == 'step':
-            return 'step'
-        elif type == 'workflow':
-            return 'workflow'
-        else:
-            return None
-
-    def _get_type(self, data=None, instance=None):
-        if instance:
-            return instance.type
-        else:
-            assert data, 'must provide either data or instance'
-            explicit_type = data.get('type')
-            if explicit_type:
-                return explicit_type
-
-            command = self.initial_data.get('command')
-            steps = self.initial_data.get('steps')
-            if steps and not command:
-                return 'workflow'
-            elif command and not steps:
-                return 'step'
-            elif data.get('_template_id'):
-                return 'lookup'
-            else:
-                raise Exception('Unable to determine template type')
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='template-detail',
+        lookup_field='uuid')
+    name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
+    status = serializers.CharField(read_only=True)
 
     def to_internal_value(self, data):
-        if not isinstance(data, dict):
-            return {'_template_id': data}
-        else:
-            return data
+        """Because we allow template ID string values, where
+        serializers normally expect a dict
+        """
+        return _convert_template_id_to_dict(data)
 
+    def get_target_serializer(self):
+        return TemplateSerializer
+        
 
-class ExpandableTemplateSerializer(TemplateSerializer):
-    # A shortened set of fields for display only
-
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='template-detail',
-        lookup_field='uuid'
-    )
+class TemplateSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Template
         fields = ('uuid',
                   'url',
                   'name',
-        )
-
-    def to_representation(self, instance):
-        if self.context.get('expand'):
-            return super(ExpandableTemplateSerializer, self).to_representation(instance)
-        else:
-            return serializers.HyperlinkedModelSerializer.to_representation(
-                self, instance)
-
-
-class StepSerializer(serializers.HyperlinkedModelSerializer):
-    
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='template-detail',
-        lookup_field='uuid'
-    )
-    type = serializers.CharField(required=False)
-    environment = serializers.JSONField(required=False)
-    resources = serializers.JSONField(required=False)
-    inputs = serializers.JSONField(required=False)
-    fixed_inputs = FixedStepInputSerializer(many=True, required=False)
-    outputs = serializers.JSONField(required=False)
-    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
-    template_import =  serializers.JSONField(required=False)
-    postprocessing_status = serializers.CharField(required=False)
-
-    class Meta:
-        model = Step
-        fields = ('uuid',
-                  'url',
-                  'type',
-                  'name',
+                  'datetime_created',
                   'command',
                   'interpreter',
                   'environment',
                   'resources',
-                  'inputs',
-                  'fixed_inputs',
-                  'outputs',
-                  'datetime_created',
-                  'template_import',
                   'postprocessing_status',
-        )
+                  'template_import',
+                  'inputs',
+                  'outputs',
+                  'fixed_inputs',
+                  'steps',)
 
-    def create(self, validated_data):
-        # Save fixed inputs for postprocessing
-        validated_data['raw_data'] = self.initial_data
-        validated_data.pop('fixed_inputs', None)
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+            view_name='template-detail',
+            lookup_field='uuid')
+    name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    command = serializers.CharField(required=False)
+    interpreter = serializers.CharField(required=False)
+    template_import =  serializers.JSONField(required=False)
+    environment = serializers.JSONField(required=False)
+    resources = serializers.JSONField(required=False)
+    postprocessing_status = serializers.CharField(required=False)
+    template_import = serializers.JSONField(required=False)
+    inputs = serializers.JSONField(required=False)
+    outputs  = serializers.JSONField(required=False)
+    fixed_inputs = FixedInputSerializer(many=True, required=False)
+    steps = TemplateURLSerializer(many=True, required=False)
 
-        # Apply defaults for certain settings if missing
-        inputs = validated_data.get('inputs')
-        outputs = validated_data.get('outputs')
-        if inputs:
-            for input in inputs:
-                _set_input_defaults(input)
-        if outputs:
-            for output in outputs:
-                _set_output_defaults(output)
+    def to_representation(self, instance):
+        return strip_empty_values(
+            super(TemplateSerializer, self).to_representation(instance))
 
-        # Type might not be explicitly declared
-        validated_data['type'] = 'step'
-
-        step = super(StepSerializer, self).create(validated_data)
-
-        async.postprocess_step(step.uuid)
-
-        return step
-
-    @classmethod
-    def postprocess(cls, step_uuid):
-        step = Step.objects.get(uuid=step_uuid)
-        try:
-            fixed_inputs = step.raw_data.get('fixed_inputs', [])
-            for fixed_input_data in fixed_inputs:
-                s = FixedStepInputSerializer(
-                    data=fixed_input_data,
-                    context={'parent_field': 'step',
-                             'parent_instance': step,
-                    })
-                s.is_valid(raise_exception=True)
-                s.save()
-
-            step.postprocessing_status='complete'
-            step.save()
-        except Exception as e:
-            step.postprocessing_status='failed'
-            step.save
-            raise
-
-        # The user may have already submitted a run request before this
-        # template finished postprocessing. If runs exist, postprocess them now.
-        step = Step.objects.get(uuid=step.uuid)
-        for step_run in step.runs.all():
-            async.postprocess_step_run(step_run.uuid)
-
-
-class TemplateLookupSerializer(serializers.Serializer):
-
-    _template_id = serializers.CharField(required=True)
+    def to_internal_value(self, data):
+        return _convert_template_id_to_dict(data)
 
     def create(self, validated_data):
         # If template_id is present, just look it up
         template_id = validated_data.get('_template_id')
+        if template_id:
+            return self._lookup_by_id(template_id)
+
+        # Save fixed_inputs and steps for postprocessing
+        validated_data['raw_data'] = self.initial_data
+        validated_data.pop('fixed_inputs', None)
+        steps = validated_data.pop('steps', None)
+        is_leaf = not steps
+        
+        _set_template_defaults(validated_data, is_leaf)
+
+        template = super(TemplateSerializer, self).create(validated_data)
+
+        async.postprocess_template(template.uuid)
+
+        return template
+
+    def _lookup_by_id(self, template_id):
         matches = Template.filter_by_name_or_id(template_id)
         if matches.count() < 1:
             raise serializers.ValidationError(
@@ -233,99 +167,67 @@ class TemplateLookupSerializer(serializers.Serializer):
                 'Use a more precise identifier to select just one template.' % (
                     template_id, match_id_string))
         return  matches.first()
-
-
-class WorkflowSerializer(serializers.HyperlinkedModelSerializer):
-
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='template-detail',
-        lookup_field='uuid'
-    )
-    type = serializers.CharField(required=False)
-    inputs = serializers.JSONField(required=False)
-    fixed_inputs = FixedWorkflowInputSerializer(
-        many=True,
-        required=False,
-        allow_null=True)
-    outputs = serializers.JSONField(required=False)
-    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
-    steps = ExpandableTemplateSerializer(many=True)
-    template_import = serializers.JSONField(required=False)
-    channel_bindings = serializers.JSONField(required=False)
-    postprocessing_status = serializers.CharField(required=False)
     
-
-    class Meta:
-        model = Workflow
-        fields = ('uuid',
-                  'url',
-                  'type',
-                  'name',
-                  'steps',
-                  'inputs',
-                  'fixed_inputs',
-                  'outputs',
-                  'datetime_created',
-                  'template_import',
-                  'channel_bindings',
-                  'postprocessing_status',
-        )
-
-    def create(self, validated_data):
-
-        # Ignore fixed_inputs and steps until postprocessing
-        validated_data['raw_data'] = self.initial_data
-        validated_data.pop('fixed_inputs', None)
-        validated_data.pop('steps', None)
-
-        # Type may not be explicitly set
-        validated_data['type'] = 'workflow'
-
-        workflow = super(WorkflowSerializer, self).create(validated_data)
-
-        async.postprocess_workflow(workflow.uuid)
-
-        return workflow
-
     @classmethod
-    def postprocess(cls, workflow_uuid):
-
-        workflow = Workflow.objects.get(uuid=workflow_uuid)
+    def postprocess(cls, template_uuid):
+        template = Template.objects.get(uuid=template_uuid)
         try:
-            fixed_inputs = workflow.raw_data.get('fixed_inputs', [])
-            steps = workflow.raw_data.get('steps', [])
-
+            fixed_inputs = template.raw_data.get('fixed_inputs', [])
+            steps = template.raw_data.get('steps', [])
             for fixed_input_data in fixed_inputs:
-                s = FixedWorkflowInputSerializer(
+                s = FixedInputSerializer(
                     data=fixed_input_data,
-                    context={'parent_field': 'workflow',
-                             'parent_instance': workflow})
+                    context={'parent_field': 'template',
+                             'parent_instance': template,
+                    })
                 s.is_valid(raise_exception=True)
                 s.save()
-
             for step_data in steps:
-                if not hasattr(step_data, 'get'):
-                    s = TemplateLookupSerializer(data={'_template_id': step_data})
-                else:
-                    s = TemplateSerializer(data=step_data)
+                s = TemplateSerializer(data=step_data)
+#                if not hasattr(step_data, 'get'):
+#                    raise Exception('TODO')
+                    # s = TemplateLookupSerializer(data={'_template_id': step_data})
+#                else:
+                
 
                 s.is_valid(raise_exception=True)
                 step = s.save()
-                workflow.add_step(step)
-            workflow.postprocessing_status = 'complete'
-            workflow.save()
-
-            # There are only runs if the user submitted a run with this
-            # template before we finished postprocessing the template. The run's
-            # postprocessing is skipped if its template is not
-            # postprocessing_status==complete.
-
-            workflow = Workflow.objects.get(uuid=workflow.uuid)
-            for workflow_run in workflow.runs.all():
-                async.postprocess_workflow_run(workflow_run.uuid)
-
+                template.add_step(step)
+            template.postprocessing_status='complete'
+            template.save()
         except Exception as e:
-            workflow.postprocessing_status = 'failed'
-            workflow.save()
+            template.postprocessing_status='failed'
+            template.save
             raise
+
+        # The user may have already submitted a run request before this
+        # template finished postprocessing. If runs exist, postprocess them now.
+        template = Template.objects.get(uuid=template.uuid)
+        for run in template.runs.all():
+            async.postprocess_run(run.uuid)
+
+class NestedTemplateSerializer(TemplateSerializer):
+
+    steps = RecursiveField(many=True, required=False)
+    
+    def to_representation(self, instance):
+        self.Meta = TemplateSerializer.Meta
+        self.steps = RecursiveField(many=True, required=False)
+        return super(NestedTemplateSerializer, self).to_representation(
+            instance)
+
+class ExpandableTemplateSerializer(TemplateSerializer):
+
+    def to_representation(self, instance):
+        if hasattr(instance, '_cached_representation'):
+            return instance._cached_representation
+
+        if self.context.get('expand'):
+            repr = NestedTemplateSerializer(
+                instance, context=self.context).to_representation(instance)
+        else:
+            repr = TemplateSerializer(
+                instance, context=self.context).to_representation(instance)
+
+        instance._cached_representation = repr
+        return repr

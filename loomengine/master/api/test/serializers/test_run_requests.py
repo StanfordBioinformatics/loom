@@ -69,6 +69,6 @@ class TestRunRequestSerializer(TransactionTestCase):
             rr = s.save()
 
         self.assertEqual(rr.run.template.name, workflow.name)
-        self.assertEqual(rr.run.downcast().steps.first().template.name,
+        self.assertEqual(rr.run.steps.first().template.name,
                          workflow.steps.first().name)
 
