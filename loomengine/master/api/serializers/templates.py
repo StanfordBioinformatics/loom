@@ -63,13 +63,21 @@ class TemplateURLSerializer(ProxyWriteSerializer):
 
     class Meta:
         model = Template
-        fields = ('uuid', 'url', 'name')
+        fields = ('uuid',
+                  'url',
+                  'name',
+                  'datetime_created',
+                  'datetime_finished',
+                  'status')
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='template-detail',
         lookup_field='uuid')
     name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
+    status = serializers.CharField(read_only=True)
 
     def to_internal_value(self, data):
         """Because we allow template ID string values, where

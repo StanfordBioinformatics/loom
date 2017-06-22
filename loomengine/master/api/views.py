@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import rest_framework
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers, response, status
 from rest_framework.decorators import detail_route
 
 from api import get_setting
@@ -15,6 +15,7 @@ from api import serializers
 from api import async
 from loomengine.utils import version
 
+from django.http import HttpResponseBadRequest, Http404
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,22 @@ class ExpandableViewSet(viewsets.ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request,
-                'expand': 'expand' in self.request.query_params}
+                'expand': 'expand' in self.request.query_params,
+                'collapse': 'collapse' in self.request.query_params,
+                'summary': 'summary' in self.request.query_params}
+
+    def list(self, request):
+        if self.get_serializer_context()['expand']:
+            return response.Response(
+                {"non_field_errors":
+                 "'expand' mode is not allowed in a list view."},
+                status=rest_framework.status.HTTP_400_BAD_REQUEST)
+        if self.get_serializer_context()['summary']:
+            return response.Response(
+                {"non_field_errors":
+                 "'summary' mode is not allowed in a list view."},
+                status=rest_framework.status.HTTP_400_BAD_REQUEST)
+        return super(ExpandableViewSet, self).list(self, request)
 
 
 class DataObjectViewSet(viewsets.ModelViewSet):
@@ -224,66 +240,12 @@ class TaskViewSet(ExpandableViewSet):
     A step may contain many tasks if its inputs are parallel.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.TaskSerializer
+    serializer_class = serializers.ExpandableTaskSerializer
 
     def get_queryset(self):
         queryset = models.Task.objects.all()
-        queryset = queryset\
-                   .select_related('selected_task_attempt')\
-                   .prefetch_related('task_attempts')\
-                   .prefetch_related('inputs')\
-                   .prefetch_related('inputs__data_object')\
-                   .prefetch_related('inputs__data_object__stringdataobject')\
-                   .prefetch_related('inputs__data_object__filedataobject')\
-                   .prefetch_related('inputs__data_object__filedataobject__'\
-                                     'file_resource')\
-                   .prefetch_related('inputs__data_object__booleandataobject')\
-                   .prefetch_related('inputs__data_object__integerdataobject')\
-                   .prefetch_related('inputs__data_object__floatdataobject')\
-                   .prefetch_related('inputs__data_object__arraydataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__stringdataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__booleandataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__integerdataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__floatdataobject')\
-                   .prefetch_related(
-                       'inputs__data_object__arraydataobject__'\
-                       'prefetch_members__filedataobject__'\
-                       'file_resource')\
-                   .prefetch_related('outputs')\
-                   .prefetch_related('outputs__data_object')\
-                   .prefetch_related('outputs__data_object__stringdataobject')\
-                   .prefetch_related('outputs__data_object__filedataobject')\
-                   .prefetch_related('outputs__data_object__filedataobject__'\
-                                     'file_resource')\
-                   .prefetch_related('outputs__data_object__booleandataobject')\
-                   .prefetch_related('outputs__data_object__integerdataobject')\
-                   .prefetch_related('outputs__data_object__floatdataobject')\
-                   .prefetch_related('outputs__data_object__arraydataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__stringdataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__booleandataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__integerdataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__floatdataobject')\
-                   .prefetch_related(
-                       'outputs__data_object__arraydataobject__'\
-                       'prefetch_members__filedataobject__'\
-                       'file_resource')\
-                   .prefetch_related('timepoints')
+        queryset = self.serializer_class.apply_prefetch(
+            queryset, self.get_serializer_context())
         return queryset.order_by('-datetime_created')
 
 
@@ -293,75 +255,12 @@ class TaskAttemptViewSet(ExpandableViewSet):
     A Task may have multiple TaskAttempts if retries are executed.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.TaskAttemptSerializer
+    serializer_class = serializers.ExpandableTaskAttemptSerializer
 
     def get_queryset(self):
         queryset = models.TaskAttempt.objects.all()
-        queryset = queryset.select_related('task')\
-                           .prefetch_related('inputs')\
-                           .prefetch_related('inputs__data_object')\
-                           .prefetch_related('inputs__data_object__stringdataobject')\
-                           .prefetch_related('inputs__data_object__filedataobject')\
-                           .prefetch_related('inputs__data_object__filedataobject__'\
-                                             'file_resource')\
-                           .prefetch_related('inputs__data_object__booleandataobject')\
-                           .prefetch_related('inputs__data_object__integerdataobject')\
-                           .prefetch_related('inputs__data_object__floatdataobject')\
-                           .prefetch_related('inputs__data_object__arraydataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'inputs__data_object__arraydataobject__'\
-                               'prefetch_members__filedataobject__'\
-                               'file_resource')\
-                           .prefetch_related('outputs')\
-                           .prefetch_related('outputs__'\
-                                             'data_object')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__stringdataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__filedataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__filedataobject__'\
-                                             'file_resource')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__booleandataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__integerdataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__floatdataobject')\
-                           .prefetch_related('outputs__'\
-                                             'data_object__arraydataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'outputs__data_object__'\
-                               'arraydataobject__prefetch_members__filedataobject__'\
-                               'file_resource')\
-                           .prefetch_related('log_files__file')\
-                           .prefetch_related('log_files__file__'\
-                                             'filedataobject__file_resource')\
-                           .prefetch_related('timepoints')
+        queryset = self.serializer_class.apply_prefetch(
+            queryset, self.get_serializer_context())
         return queryset.order_by('-datetime_created')
 
     @detail_route(methods=['post'], url_path='create-log-file',
@@ -489,7 +388,8 @@ class RunViewSet(ExpandableViewSet):
             queryset = models.Run.objects.all()
         if parent_only:
             queryset = queryset.filter(parent__isnull=True)
-        queryset = self.serializer_class.apply_prefetch(queryset)
+        queryset = self.serializer_class.apply_prefetch(
+            queryset, self.get_serializer_context())
         return queryset.order_by('-datetime_created')
 
     @detail_route(methods=['get'], url_path='inputs')

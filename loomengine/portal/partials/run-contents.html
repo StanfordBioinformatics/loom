@@ -1,31 +1,55 @@
-<tr ng-show="loading">
-  <td></td>
-  <td>
-    <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
-  </td>
-  <td></td>
-<tr>
-<tr ng-hide="loading" ng-repeat="run in expandedRun | flattenSteps">
-  <td style="padding-left:calc(26px + (20px * {{run.level}}))">
-    <a href="#/runs/{{run.uuid}}" ng-if="run.type=='run'">
+<div class="row">
+  <div class="col col-xs-5" style="padding-left:calc(8px)">
+    <a role="button" data-toggle="collapse" data-target="#{{run.uuid}}" aria-expanded="true" ng-show="{{run.steps}}">
+      <span class="collapse-button"></span>
+    </a>
+    <a href="#/runs/{{run.uuid}}">
       {{ run.name }}@{{run.uuid | limitTo:8 }}
     </a>
-    <a href="#/tasks/{{run.uuid}}" ng-if="run.type=='task'">
-      task {{run.uuid | limitTo:8 }}
-    </a>
-    <a href="#/task-attempts/{{run.uuid}}" ng-if="run.type=='task-attempt'">
-      attempt {{run.uuid | limitTo:8 }}
-    </a>
-  </td>
-  <td ng-class="getColorClass(run.status)">
-    {{run.status}}
-  </td>
-  <td>
+  </div>
+  <div class="col col-xs-2">
+    <span ng-class="getColorClass(run.status)">
+      {{run.status}}
+    </span>
+  </div>
+  <div class="col col-xs-3">
     {{run.datetime_created | date:'medium'}}
-  </td>
-  <td>
-    <a ng-if="run.type=='task-attempt'" target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:{{run.uuid}}')),sort:!('@timestamp',desc))">
-      Logs &nbsp;<span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
-    </a>
-  </td>
-</tr>
+  </div>
+  <div class="col col-xs-2"></div>
+</div>
+<div class="row" ng-show="loading">
+  <div class="col col-xs-3"></div>
+  <div class="col col-xs-3">
+    <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
+  </div>
+  <div class="col col-xs-3"></div>
+  <div class="col col-xs-3"></div>
+</div>
+<div id="{{run.uuid}}" class="collapse in" ng-hide="loading">
+  <div class="row" ng-repeat="process in expandedRun | flattenSteps">
+    <div class="col col-xs-5" style="padding-left:calc(26px + (20px * {{process.level}}))">
+      <a href="#/runs/{{process.uuid}}" ng-if="process.type=='run'">
+	{{ process.name }}@{{process.uuid | limitTo:8 }}
+      </a>
+      <a href="#/tasks/{{process.uuid}}" ng-if="process.type=='task'">
+	task {{process.uuid | limitTo:8 }}
+      </a>
+      <a ng-if="process.type=='task-attempt'" href="#/task-attempts/{{process.uuid}}">
+	attempt {{process.uuid | limitTo:8}}
+      </a>
+    </div>
+    <div class="col col-xs-2">
+      <span ng-class="getColorClass(process.status)">
+	{{process.status}}
+      </span>
+    </div>
+    <div class="col col-xs-3">
+      {{process.datetime_created | date:'medium'}}
+    </div>
+    <div class="col col-xs-2">
+      <a ng-if="process.type=='task-attempt'" target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:{{process.uuid}}')),sort:!('@timestamp',desc))">
+      <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
+      </a>
+    </div>
+  </div>
+</div>

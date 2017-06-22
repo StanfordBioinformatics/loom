@@ -176,3 +176,53 @@ class SuperclassModelSerializer(serializers.HyperlinkedModelSerializer):
                     .to_representation(instance)
             else:
                 return serializer.to_representation(instance)
+
+class ExpandableSerializerMixin(object):
+
+    """ExpandableSerializer works with ExpandableViewSet to provide a custom
+    level of rendering controlled by URL params. Objects may be rendered as
+    "?expand", "?collapse", "?summary", or default.
+
+    Serializers using the ExpandableSerializerMixin should implement these values
+    to indicate the serializer classes to be used in each case:
+
+    - DEFAULT_SERIALIZER
+    - COLLAPSE_SERIALIZER
+    - EXPAND_SERIALIZER
+    - SUMMARY_SERIALIZER
+    
+    Each of those serializer classes should also
+    implement this function to perform any calls to
+    select_related and prefetch_related on the queryset:
+
+    @classmethod
+    _apply_prefetch(cls, queryset):
+    ...
+
+    Always inherit from ExpandableSerializerMixin before any other serializers, e.g.
+
+    class ExpandableTaskSerializer(ExpandableSerializerMixin, TaskSerializer):
+    ...
+
+    """
+
+    def to_representation(self, instance):
+        Serializer = self._get_serializer_class(self.context)
+        return Serializer(
+            instance, context=self.context).to_representation(instance)
+
+    @classmethod
+    def apply_prefetch(cls, queryset, context):
+	Serializer = cls._get_serializer_class(context)
+        return Serializer._apply_prefetch(queryset)
+
+    @classmethod
+    def _get_serializer_class(cls, context):
+        if context.get('collapse'):
+            return cls.COLLAPSE_SERIALIZER
+        elif context.get('expand'):
+            return cls.EXPAND_SERIALIZER
+	elif context.get('summary'):
+            return cls.SUMMARY_SERIALIZER
+        else:
+            return cls.DEFAULT_SERIALIZER

@@ -4,13 +4,14 @@ import jsonschema
 from rest_framework import serializers
 
 from .data_objects import DataObjectSerializer
+from .base import ExpandableSerializerMixin
 from api.models.data_tree_nodes import DataTreeNode
 from api.models.data_objects import DataObject
 from api.validation_schemas.data_tree_nodes import data_tree_node_schema
 from api.exceptions import NoFileMatchError, MultipleFileMatchesError
 
 
-class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
+class CollapsedDataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
 
     BLANK_NODE_VALUE = None
     EMPTY_BRANCH_VALUE = []
@@ -22,11 +23,12 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
 
     # 'contents' is write_only so that HyperlinkedModelSerializer will skip.
     # We render 'contents' in a custom way in to_representation
-    contents = serializers.JSONField(write_only=True) 
+    uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='data-tree-detail',
         lookup_field='uuid'
     )
+    contents = serializers.JSONField(write_only=True)
 
     class Meta:
         model = DataTreeNode
@@ -41,16 +43,6 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
             raise Exception('no data contents. Cannot create DataTreeNode')
         return self._create_data_tree_from_data_objects(
                 contents, type)
-
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            return super(self.__class__, self).to_representation(
-                self.initial_data)
-        else:
-            assert isinstance(instance, DataTreeNode)
-            repr = super(DataTreeNodeSerializer, self).to_representation(instance)
-            repr.update({'contents': self._data_tree_to_data_struct(instance)})
-            return repr
 
     def validate_contents(self, value):
         try:
@@ -116,20 +108,6 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
         self._extend_all_paths_and_add_data_at_leaves(
             data_tree_node, contents, path, data_type)
 
-    def _data_tree_to_data_struct(self, data_tree_node):
-        if data_tree_node._is_blank_node():
-            return self.BLANK_NODE_VALUE
-        elif data_tree_node._is_empty_branch():
-            return self.EMPTY_BRANCH_VALUE
-        if data_tree_node.is_leaf():
-            s = DataObjectSerializer(data_tree_node.data_object, context=self.context)
-            return s.data
-        else:
-            contents = [self.BLANK_NODE_VALUE] * data_tree_node.degree
-            for child in data_tree_node.children.all():
-                contents[child.index] = self._data_tree_to_data_struct(child)
-            return contents
-
     def _extend_all_paths_and_add_data_at_leaves(
             self, data_tree_node, contents, path, data_type):
         # Recursive function that extends 'path' until reaching a leaf node,
@@ -173,25 +151,38 @@ class DataTreeNodeSerializer(serializers.HyperlinkedModelSerializer):
                 self._extend_all_paths_and_add_data_at_leaves(
                     data_tree_node, contents[i], path_i, data_type)
 
+class DataTreeNodeSerializer(CollapsedDataTreeNodeSerializer):
 
-class ExpandableDataTreeNodeSerializer(DataTreeNodeSerializer):
-
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='data-tree-detail',
-        lookup_field='uuid'
-    )
-
-    class Meta:
-        model = DataTreeNode
-        fields = ('uuid',
-                  'url',
-        )
+    contents = serializers.JSONField()
 
     def to_representation(self, instance):
-        if self.context.get('expand'):
-            return super(ExpandableDataTreeNodeSerializer, self)\
-                .to_representation(instance)
+        if not isinstance(instance, models.Model):
+            return super(self.__class__, self).to_representation(
+                self.initial_data)
         else:
-            return serializers.HyperlinkedModelSerializer.to_representation(
-                self, instance)
+            assert isinstance(instance, DataTreeNode)
+            repr = super(DataTreeNodeSerializer, self).to_representation(instance)
+            repr.update({'contents': self._data_tree_to_data_struct(instance)})
+            return repr
+
+    def _data_tree_to_data_struct(self, data_tree_node):
+        if data_tree_node._is_blank_node():
+            return self.BLANK_NODE_VALUE
+        elif data_tree_node._is_empty_branch():
+            return self.EMPTY_BRANCH_VALUE
+        if data_tree_node.is_leaf():
+            s = DataObjectSerializer(data_tree_node.data_object, context=self.context)
+            return s.data
+        else:
+            contents = [self.BLANK_NODE_VALUE] * data_tree_node.degree
+            for child in data_tree_node.children.all():
+                contents[child.index] = self._data_tree_to_data_struct(child)
+            return contents
+
+
+class ExpandableDataTreeNodeSerializer(ExpandableSerializerMixin,
+                                       DataTreeNodeSerializer):
+    DEFAULT_SERIALIZER = CollapsedDataTreeNodeSerializer
+    COLLAPSE_SERIALIZER = CollapsedDataTreeNodeSerializer
+    EXPAND_SERIALIZER = DataTreeNodeSerializer
+    SUMMARY_SERIALIZER = CollapsedDataTreeNodeSerializer

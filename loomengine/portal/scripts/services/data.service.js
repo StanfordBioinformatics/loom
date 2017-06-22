@@ -15,7 +15,7 @@ function DataService($http, $q) {
     this.setActiveTemplate = setActiveTemplate;
     this.setActiveFile = setActiveFile;
     this.getAllActive = getAllActive;
-    this.getNestedRun = getNestedRun;
+    this.getRunSummary = getRunSummary;
     this.getRuns = getRuns;
     this.getTemplates = getTemplates;
     this.getImportedFiles = getImportedFiles;
@@ -52,12 +52,16 @@ function DataService($http, $q) {
     }
 
     function expandRunInputsOutputs() {
-        for (var i=0; i < activeData.run.inputs.length; i++) {
-            expandRunInput(i);
-        }
-        for (var i=0; i < activeData.run.outputs.length; i++) {
-            expandRunOutput(i);
-        }
+	if (activeData.run.inputs) {
+            for (var i=0; i < activeData.run.inputs.length; i++) {
+		expandRunInput(i);
+            }
+	}
+	if (activeData.run.outputs) {
+            for (var i=0; i < activeData.run.outputs.length; i++) {
+		expandRunOutput(i);
+            }
+	}
     }
 
     function expandRunInput(i) {
@@ -83,9 +87,11 @@ function DataService($http, $q) {
     }
 
     function expandTemplateInputs() {
-        for (var i=0; i < activeData.template.fixed_inputs.length; i++) {
-            expandTemplateFixedInput(i);
-        }
+	if (activeData.template.fixed_inputs) {
+            for (var i=0; i < activeData.template.fixed_inputs.length; i++) {
+		expandTemplateFixedInput(i);
+            }
+	}
     }
 
     function expandTemplateFixedInput(i) {
@@ -109,8 +115,8 @@ function DataService($http, $q) {
             });
     }
 
-    function getNestedRun(runId) {
-	return $http.get("/api/runs/" + runId + "/?expand")
+    function getRunSummary(runId) {
+	return $http.get("/api/runs/" + runId + "/?summary")
 	    .then(function(response) {
 		return response.data;
 	    });

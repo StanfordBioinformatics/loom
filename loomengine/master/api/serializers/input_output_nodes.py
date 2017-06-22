@@ -5,7 +5,7 @@ from .base import CreateWithParentModelSerializer
 from api.models.input_output_nodes import InputOutputNode
 from .data_tree_nodes import ExpandableDataTreeNodeSerializer
 
-
+        
 class InputOutputNodeSerializer(CreateWithParentModelSerializer):
 
     data = serializers.JSONField()

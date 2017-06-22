@@ -54,5 +54,3 @@ while True:
         if retries == 0:
             raise
         retries -= 1
-            
-
