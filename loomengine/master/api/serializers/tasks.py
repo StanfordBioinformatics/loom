@@ -91,12 +91,15 @@ class TaskAttemptURLSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = TaskAttempt
-        fields = ('url', 'uuid')
+        fields = ('url', 'uuid', 'datetime_created', 'datetime_finished', 'status')
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='task-attempt-detail',
         lookup_field='uuid')
+    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(required=False, format='iso-8601')
+    status = serializers.CharField(read_only=True)
 
         
 class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
@@ -264,12 +267,15 @@ class TaskURLSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Task
-        fields = ('url', 'uuid')
+        fields = ('url', 'uuid', 'datetime_created', 'datetime_finished', 'status')
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='task-detail',
         lookup_field='uuid')
+    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(required=False, format='iso-8601')
+    status = serializers.CharField(read_only=True)
 
 
 class TaskSerializer(serializers.HyperlinkedModelSerializer):
@@ -377,7 +383,7 @@ class SummaryTaskSerializer(TaskSerializer):
     status_is_waiting = serializers.BooleanField(write_only=True, required=False)
     timepoints = TaskTimepointSerializer(
         write_only=True, many=True, allow_null=True, required=False)
-    index = serializers.JSONField(write_only=True, required=True)
+    data_path = serializers.JSONField(write_only=True, required=True)
 
     @classmethod
     def _apply_prefetch(cls, queryset):

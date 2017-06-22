@@ -23,7 +23,9 @@
                     Status
                 </th>
                 <td>
-                    {{activeData.run.status}}
+                  <span ng-class="'label label-'+(activeData.run.status|statusColor)">
+		    {{activeData.run.status}}
+		  </span>
                 </td>
             </tr>
             <tr>
@@ -98,7 +100,11 @@
                                 {{step.name}}@{{step.uuid | limitTo: 8}}
                             </a>
                         </td>
-                        <td>{{step.status}}</td>
+                        <td>
+			  <span ng-class="'label label-'+(step.status|statusColor)">
+			    {{step.status}}
+			  </span>
+			</td>
                         <td>{{step.datetime_created | date:'medium'}}</td>
                     </tr>
                 </tbody>
@@ -122,7 +128,11 @@
                                 Task {{task.uuid}}
                             </a>
                         </td>
-                        <td><!-- show task.status when supported --></td>
+                        <td>
+			  <span ng-class="'label label-'+(task.status|statusColor)">
+			    {{task.status}}
+			  </span>
+			</td>
                         <td>{{task.datetime_created | date:'medium'}}</td>
                     </tr>
                 </tbody>

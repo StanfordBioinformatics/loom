@@ -2,7 +2,7 @@
 
 angular
     .module('loom.filters')
-    .filter('flattenSteps', flattenSteps);
+    .filter('flattenRun', flattenRun);
 
 function recurseFlattenRun(run){
     if (run.steps){
@@ -38,7 +38,7 @@ function recurseFlattenRun(run){
     };
 };
 
-function flattenSteps(){
+function flattenRun(){
     return function(run){
 	if (!run){return []};
 	run.level = 0;

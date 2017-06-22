@@ -25,7 +25,9 @@
                     Status
                 </th>
                 <td>
+		  <span ng-class="'label label-'+(activeData.taskAttempt.status|statusColor)">
                     {{activeData.taskAttempt.status}}
+		  </span>
                 </td>
             </tr>
             <tr>

@@ -15,7 +15,9 @@
                     Status
                 </th>
                 <td>
+		  <span ng-class="'label label-'+(activeData.task.status|statusColor)">
                     {{activeData.task.status}}
+		  </span>
                 </td>
             </tr>
             <tr>
@@ -79,7 +81,11 @@
                                 {{task_attempt.uuid}}
                             </a>
                         </td>
-                        <td>{{task_attempt.status}}</td>
+                        <td>
+			  <span ng-class="'label label-'+(task_attempt.status|statusColor)">
+			    {{task_attempt.status}}
+			  </span>
+			</td>
                         <td>{{task_attempt.datetime_created | date:'medium'}}</td>
                     </tr>
                 </tbody>
