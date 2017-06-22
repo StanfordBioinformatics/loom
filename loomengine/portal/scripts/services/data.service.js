@@ -52,12 +52,16 @@ function DataService($http, $q) {
     }
 
     function expandRunInputsOutputs() {
-        for (var i=0; i < activeData.run.inputs.length; i++) {
-            expandRunInput(i);
-        }
-        for (var i=0; i < activeData.run.outputs.length; i++) {
-            expandRunOutput(i);
-        }
+	if (activeData.run.inputs) {
+            for (var i=0; i < activeData.run.inputs.length; i++) {
+		expandRunInput(i);
+            }
+	}
+	if (activeData.run.outputs) {
+            for (var i=0; i < activeData.run.outputs.length; i++) {
+		expandRunOutput(i);
+            }
+	}
     }
 
     function expandRunInput(i) {
@@ -83,9 +87,11 @@ function DataService($http, $q) {
     }
 
     function expandTemplateInputs() {
-        for (var i=0; i < activeData.template.fixed_inputs.length; i++) {
-            expandTemplateFixedInput(i);
-        }
+	if (activeData.template.fixed_inputs) {
+            for (var i=0; i < activeData.template.fixed_inputs.length; i++) {
+		expandTemplateFixedInput(i);
+            }
+	}
     }
 
     function expandTemplateFixedInput(i) {

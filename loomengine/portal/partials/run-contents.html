@@ -48,7 +48,7 @@
     </div>
     <div class="col col-xs-2">
       <a ng-if="process.type=='task-attempt'" target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:{{process.uuid}}')),sort:!('@timestamp',desc))">
-      Logs &nbsp;<span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
+      <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
       </a>
     </div>
   </div>
