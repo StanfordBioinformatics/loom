@@ -54,9 +54,14 @@ class DataTreeNode(BaseModel):
                                     related_name = 'data_tree_nodes',
                                     null=True, # null except on leaves
                                     blank=True)
-
+    
     EMPTY_BRANCH_VALUE = []
 
+    @property
+    def contents(self):
+        # Dummy placeholder for serializer
+        pass
+    
     @classmethod
     def create_from_scalar(self, data_object):
         data_tree_node = DataTreeNode.objects.create()
@@ -199,7 +204,7 @@ class DataTreeNode(BaseModel):
         if self.index is not None:
             index.append(self.index)
         if self._is_leaf():
-            for input in self.root_node.stepruninput_set.all():
+            for input in self.root_node.runinput_set.all():
                 input.push(index)
         else:
             for child in self.children.all():

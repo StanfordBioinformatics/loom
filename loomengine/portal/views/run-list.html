@@ -1,30 +1,21 @@
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
 <div ng-hide="loading">
-    <div class="table-responsive" >
-        <table class="table table-striped table-hover" ng-show="runs.length">
-            <thead>
-                <tr>
-                    <th>Run</th>
-                    <th>Status</th>
-                    <th>Started</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr ng-repeat="run in runs">
-                    <td>
-                        <a ng-href="#/runs/{{run.uuid}}">
-                            {{run.template.name}}@{{run.uuid | limitTo: 8}}
-                        </a>
-                    </td>
-                    <td>
-                        {{run.status}}
-                    </td>
-                    <td>
-                        {{run.datetime_created | date:'medium'}}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        <div ng-hide="runs.length">no runs</div>
+  <div class = "table-responsive" ng-show="runs.length">
+    <div class="table table-hover table-striped">
+      <div class="container-fluid">
+	<div class="row">
+	  <div class="col col-xs-5">
+	    <button type="button" class="btn btn-basic btn-xs collapse-all" >Collapse all</button>
+	    <button type="button" class="btn btn-primary btn-xs expand-all">Expand all</button>
+	  </div>
+	  <div class="col col-xs-2">Status</div>
+	  <div class="col col-xs-3">Started</div>
+	  <div class="col col-xs-2">Logs</div>
+	</div>
+	<div ng-repeat="run in runs" ng-include="'partials/run-contents.html'" ng-controller="RunContentsController">
+	</div>
+      </div>
     </div>
+  </div>
+  <div ng-hide="runs.length">no runs</div>
 </div>

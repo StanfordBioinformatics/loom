@@ -3,7 +3,7 @@ from django.test import TestCase
 from api.models.data_objects import *
 from api.models.input_output_nodes import *
 from api.models.data_trees import MissingBranchError
-from api.models.runs import StepRunOutput
+from api.models.runs import RunOutput
 
 
 def _get_string_data_object(text):
@@ -15,7 +15,7 @@ def _get_string_data_object(text):
 class TestInputOutputNode(TestCase):
 
     def testAddDataObject(self):
-        io_node = StepRunOutput.objects.create(channel='test',
+        io_node = RunOutput.objects.create(channel='test',
                                                mode='no_scatter', type='string')
         path = [(1,2), (0,1)]
         string_value = 'text'
@@ -31,18 +31,18 @@ class TestInputOutputNode(TestCase):
                          
 
     def testConnect(self):
-        io_node1 = StepRunOutput.objects.create(channel='test',
+        io_node1 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
-        io_node2 = StepRunOutput.objects.create(channel='test',
+        io_node2 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
 
         io_node1.connect(io_node2)
         self.assertEqual(io_node1.data_root.id, io_node2.data_root.id)
 
     def testIsConnected(self):
-        io_node1 = StepRunOutput.objects.create(channel='test',
+        io_node1 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
-        io_node2 = StepRunOutput.objects.create(channel='test',
+        io_node2 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
         self.assertFalse(io_node1.is_connected(io_node2))
 
@@ -50,9 +50,9 @@ class TestInputOutputNode(TestCase):
         self.assertTrue(io_node1.is_connected(io_node2))
 
     def testConnectError(self):
-        io_node1 = StepRunOutput.objects.create(channel='test',
+        io_node1 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
-        io_node2 = StepRunOutput.objects.create(channel='test',
+        io_node2 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
 
         io_node1._initialize_data_root()

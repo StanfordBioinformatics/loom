@@ -11,17 +11,17 @@ from api.test.fixtures.many_steps import generator
 from api.serializers.templates import *
 
 @override_settings(TEST_DISABLE_ASYNC_DELAY=True)
-class TestFixedStepInputSerializer(TestCase):
+class TestFixedInputSerializer(TestCase):
 
     def testCreate(self):
-        step = Step(command='test command',
-                    type='step',
-                    name='test')
+        step = Template(command='test command',
+                        name='test',
+                        is_leaf=True)
         step.save()
 
-        s = FixedStepInputSerializer(
+        s = FixedInputSerializer(
             data=fixtures.templates.fixed_step_input,
-            context={'parent_field': 'step',
+            context={'parent_field': 'template',
                      'parent_instance': step})
         s.is_valid(raise_exception=True)
         fixed_input = s.save()
@@ -32,82 +32,21 @@ class TestFixedStepInputSerializer(TestCase):
 
 
     def testRender(self):
-        step = Step(command='test command',
-                    type='step',
-                    name='test')
+        step = Template(command='test command',
+                        name='test',
+                        is_leaf=True)
         step.save()
 
-        s = FixedStepInputSerializer(
+        s = FixedInputSerializer(
             data=fixtures.templates.fixed_step_input,
-            context={'parent_field': 'step',
+            context={'parent_field': 'template',
                      'parent_instance': step})
         s.is_valid(raise_exception=True)
         fixed_input = s.save()
 
-        s2 = FixedStepInputSerializer(fixed_input, context=get_mock_context())
+        s2 = FixedInputSerializer(fixed_input, context=get_mock_context())
         self.assertTrue('uuid' in s2.data['data'].keys())
         
-
-@override_settings(TEST_DISABLE_ASYNC_DELAY=True)
-class TestStepSerializer(TransactionTestCase):
-
-    def testCreate(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
-            s = StepSerializer(data=fixtures.templates.step_a)
-            s.is_valid(raise_exception=True)
-            m = s.save()
-
-        self.assertEqual(m.command, fixtures.templates.step_a['command'])
-        self.assertEqual(
-            m.fixed_inputs.first().data_root.data_object.substitution_value,
-            fixtures.templates.step_a['fixed_inputs'][0]['data']['contents'])
-
-    def testRender(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
-            s = StepSerializer(data=fixtures.templates.step_a,
-                               context=get_mock_context())
-            s.is_valid(raise_exception=True)
-            m = s.save()
-
-        self.assertEqual(m.command, s.data['command'])
-
-
-@override_settings(TEST_DISABLE_ASYNC_DELAY=True)
-class TestWorkflowSerializer(TransactionTestCase):
-
-    def testCreateFlatWorkflow(self):
-        s = WorkflowSerializer(data=fixtures.templates.flat_workflow,
-                               context=get_mock_context())
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.steps.first().step.command,
-            fixtures.templates.flat_workflow['steps'][0]['command'])
-        self.assertEqual(
-            m.fixed_inputs.first().data_root.data_object.substitution_value,
-            fixtures.templates.flat_workflow['fixed_inputs'][0]['data']['contents'])
-
-    def testCreateNestedWorkflow(self):
-        s = WorkflowSerializer(data=fixtures.templates.nested_workflow)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.steps.first().workflow.steps.first().step.command,
-            fixtures.templates.nested_workflow[
-                'steps'][0]['steps'][0]['command'])
-        self.assertEqual(
-            m.fixed_inputs.first().data_root.data_object.substitution_value,
-            fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
-
-    def testRender(self):
-        s = WorkflowSerializer(data=fixtures.templates.nested_workflow,
-                               context=get_mock_context())
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(s.data['name'], 'nested')
 
 @override_settings(TEST_DISABLE_ASYNC_DELAY=True)
 class TestTemplateSerializer(TransactionTestCase):
@@ -118,7 +57,7 @@ class TestTemplateSerializer(TransactionTestCase):
             s.is_valid(raise_exception=True)
             m = s.save()
 
-        self.assertEqual(m.step.command, fixtures.templates.step_a['command'])
+        self.assertEqual(m.command, fixtures.templates.step_a['command'])
         self.assertEqual(
             m.fixed_inputs.first().data_root.data_object.substitution_value,
             fixtures.templates.step_a['fixed_inputs'][0]['data']['contents'])
@@ -130,7 +69,7 @@ class TestTemplateSerializer(TransactionTestCase):
             m = s.save()
 
         self.assertEqual(
-            m.steps.first().step.command, 
+            m.steps.first().command, 
             fixtures.templates.flat_workflow['steps'][0]['command'])
         self.assertEqual(
             m.fixed_inputs.first().data_root.data_object.substitution_value,
@@ -143,7 +82,7 @@ class TestTemplateSerializer(TransactionTestCase):
             m = s.save()
 
         self.assertEqual(
-            m.steps.first().workflow.steps.first().step.command,
+            m.steps.first().steps.first().command,
             fixtures.templates.nested_workflow[
                 'steps'][0]['steps'][0]['command'])
         self.assertEqual(
@@ -186,4 +125,4 @@ class TestTemplateSerializer(TransactionTestCase):
         s.is_valid(raise_exception=True)
         m = s.save()
 
-        self.assertTrue(m.workflow.steps.count() == STEP_COUNT+1)
+        self.assertTrue(m.steps.count() == STEP_COUNT+1)
