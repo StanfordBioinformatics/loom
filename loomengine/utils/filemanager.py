@@ -13,6 +13,7 @@ import urlparse
 import google.cloud.storage
 from google.cloud.exceptions import GoogleCloudError
 import requests
+from socket import error as SocketError
 
 from loomengine.utils import md5calc
 from loomengine.utils.exceptions import *
@@ -39,16 +40,16 @@ def _execute_with_retries(retriable_function,
         try:
             retriable_function()
             break
-        except GoogleCloudError as e:
+        except (ExceptionGoogleCloudError, SocketError) as e:
             attempt += 1
             if attempt > max_retries:
                 raise
             # Exponentional backoff on retry delay as suggested by
             # https://cloud.google.com/storage/docs/exponential-backoff
             delay = 2**attempt + random.random()
-            logger.info('%s failed with status code "%s". '\
+            logger.info('%s failed with error "%s". '\
                         'Retry number %s of %s in %s seconds'
-                        % (human_readable_action_name, e.code,
+                        % (human_readable_action_name, str(e),
                            attempt, max_retries, delay))
             time.sleep(delay)
     return # successful exit
