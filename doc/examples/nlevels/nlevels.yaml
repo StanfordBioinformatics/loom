@@ -45,7 +45,7 @@ steps:
       inputs:
       - channel: maininput
         type: string
-      name: level0A
+      name: level0B
       outputs:
       - channel: lostoutput
         source:
@@ -83,7 +83,7 @@ steps:
       inputs:
       - channel: maininput
         type: string
-      name: level0A
+      name: level0B
       outputs:
       - channel: lostoutput
         source:
@@ -129,7 +129,7 @@ steps:
       inputs:
       - channel: maininput
         type: string
-      name: level0A
+      name: level0B
       outputs:
       - channel: lostoutput
         source:
@@ -167,7 +167,7 @@ steps:
       inputs:
       - channel: maininput
         type: string
-      name: level0A
+      name: level0B
       outputs:
       - channel: lostoutput
         source:

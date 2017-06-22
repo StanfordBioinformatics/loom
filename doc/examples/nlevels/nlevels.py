@@ -19,7 +19,7 @@ def recursively_add_two_steps(template, level):
                  "resources":{"cores":"1","memory":"1"},
                  "inputs":[{"type":"string", "channel":"maininput"}],
                  "outputs":[{"type":"string", "channel":"mainoutput", "source":{"stream":"stdout"}}]}
-        stepB = {"name":"level%sA" % level,
+        stepB = {"name":"level%sB" % level,
                  "command":"echo %s" % level,
                  "environment":{"docker_image":"ubuntu"},
                  "resources":{"cores":"1","memory":"1"},

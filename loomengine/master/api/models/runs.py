@@ -43,7 +43,8 @@ class Run(MPTTModel, BaseModel):
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
     parent = TreeForeignKey('self', null=True, blank=True,
-                            related_name='steps', db_index=True)
+                            related_name='steps', db_index=True,
+                            on_delete=models.CASCADE)
     template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT,
