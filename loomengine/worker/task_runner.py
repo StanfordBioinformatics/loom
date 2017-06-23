@@ -503,7 +503,6 @@ class TaskRunner(object):
         return data_object
 
     def _save_nonfile_output(self, output, output_text):
-        import pdb; pdb.set_trace()
         data_type = output['type']
         if output.get('mode') == 'scatter':
             data = parse_output(output.get('parser'), output_text)

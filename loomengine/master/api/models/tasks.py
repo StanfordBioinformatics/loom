@@ -260,8 +260,8 @@ class TaskOutput(BaseModel):
     def push_data_object(self, data_path):
         run_output = self.task.run.get_output(self.channel)
         if self.data_object.is_array:
-            members = self.data_object.members
-            degree = len(self.data_object.members)
+            members = self.data_object.arraydataobject.members
+            degree = len(members)
             for i in range(0, degree):
                 new_data_path = copy.copy(data_path)
                 new_data_path.append((i, degree))

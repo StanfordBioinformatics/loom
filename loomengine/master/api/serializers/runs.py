@@ -29,10 +29,11 @@ class RunOutputSerializer(InputOutputNodeSerializer):
 
     class Meta:
         model = RunOutput
-        fields = ('type', 'channel', 'data', 'mode', 'source')
+        fields = ('type', 'channel', 'data', 'mode', 'source', 'parser')
 
     mode = serializers.CharField()
     source = serializers.JSONField(required=False)
+    parser = serializers.JSONField(required=False)
 
     def to_representation(self, instance):
         return strip_empty_values(

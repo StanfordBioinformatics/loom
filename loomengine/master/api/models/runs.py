@@ -365,6 +365,7 @@ class Run(MPTTModel, BaseModel):
                 type=output.get('type'),
                 channel=output.get('channel'),
                 source=output.get('source'),
+                parser = output.get('parser'),
                 mode=output.get('mode'))
 
             # This takes effect only if the WorkflowRun has a parent
