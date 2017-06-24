@@ -1,4 +1,4 @@
-import copy
+'''import copy
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 
@@ -303,3 +303,4 @@ class DataTreeNode(BaseModel):
         assert self.id == self.root_node.id, 'Cannot push from non-root node'
         for input in self.runinput_set.all():
             input.push(data_path)
+'''

@@ -21,7 +21,6 @@ function DataService($http, $q) {
     this.getImportedFiles = getImportedFiles;
     this.getResultFiles = getResultFiles;
     this.getLogFiles = getLogFiles;
-    this.getFileProvenance = getFileProvenance;
 
     var activeData = {};
 
@@ -105,13 +104,6 @@ function DataService($http, $q) {
         return $http.get("/api/data-files/" + fileId + "/")
             .then(function(response) {
 		activeData.file = response.data;
-            });
-    }
-
-    function getFileProvenance(fileId) {
-        return $http.get("/api/data-files/" + fileId + "/provenance/")
-            .then(function(response) {
-		return response.data.provenance;
             });
     }
 

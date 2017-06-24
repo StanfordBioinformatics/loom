@@ -1,12 +1,9 @@
-from django.core.exceptions import ObjectDoesNotExist
-from django.core.exceptions import ValidationError
 from django.db import models
-from django.dispatch import receiver
 from django.utils import timezone
 import jsonfield
+from mptt.models import MPTTModel, TreeForeignKey
 
 from .base import BaseModel
-from .data_objects import DataObject
 from .input_output_nodes import InputOutputNode
 from api.exceptions import NoTemplateInputMatchError
 from api.models import uuidstr
@@ -20,29 +17,16 @@ environment, while Workflows are collections of other Steps
 or Workflows.
 """
 
-def template_import_validator(value):
-    pass
-
-def environment_validator(value):
-    pass
-
-def outputs_validator(value):
-    pass
-
-def inputs_validator(value):
-    pass
-
-def resources_validator(value):
-    pass
-
 
 class Template(BaseModel):
 
     NAME_FIELD = 'name'
+    ID_FIELD = 'uuid'
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255,
+                            validators=[validators.TemplateValidator.validate_name])
     is_leaf = models.BooleanField()
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
@@ -55,45 +39,36 @@ class Template(BaseModel):
     )
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
-    environment = jsonfield.JSONField(validators=[environment_validator],
-                                      null=True, blank=True)
-    resources = jsonfield.JSONField(validators=[resources_validator],
-                                      null=True, blank=True)
-    template_import = jsonfield.JSONField(validators=[template_import_validator],
-                                          null=True, blank=True)
+    environment = jsonfield.JSONField(
+        null=True, blank=True,
+        validators=[validators.validate_environment])
+    resources = jsonfield.JSONField(
+        null=True, blank=True,
+        validators=[validators.validate_resources])
+    comments = models.TextField(null=True, blank=True)
+    import_comments = models.TextField(null=True, blank=True)
+    imported_from_url = models.TextField(
+        null=True, blank=True,
+	validators=[validators.validate_url])
     steps = models.ManyToManyField(
         'Template',
         through='TemplateMembership',
         through_fields=('parent_template', 'child_template'),
         related_name='templates')
-    outputs = jsonfield.JSONField(validators=[outputs_validator],
-                                  null=True, blank=True)
-    inputs = jsonfield.JSONField(validators=[inputs_validator],
-                                 null=True, blank=True)
+    outputs = jsonfield.JSONField(
+        validators=[validators.TemplateValidator.validate_outputs],
+        null=True, blank=True
+    )
     raw_data = jsonfield.JSONField(null=True, blank=True)
 
     def get_name_and_id(self):
         return "%s@%s" % (self.name, self.id)
 
-    def get_fixed_input(self, channel):
-        inputs = self.fixed_inputs.filter(channel=channel)
-        if inputs.count() == 0:
-            raise Exception('No fixed input matching %s' % channel)
-        if inputs.count() > 1:
-            raise Exception('Found %s fixed inputs for channel %s' \
-                            % (inputs.count(), channel))
-        return inputs.first()
-
     def get_input(self, channel):
-        inputs = filter(lambda i: i.get('channel')==channel,
-                        self.inputs)
-        if len(inputs) == 0:
-            raise NoTemplateInputMatchError(
-                'ERROR! No input named "%s" in template "%s"' % (channel, self.name))
-        if len(inputs) > 1:
-            raise Exception('Found %s inputs for channel %s' \
-                            % (len(inputs), channel))
-        return inputs[0]
+        inputs = self.inputs.filter(channel=channel)
+        assert inputs.count() == 1, \
+            'Found %s inputs for channel %s' % (inputs.count(), channel)
+        return inputs.first()
 
     def get_output(self, channel):
         outputs = filter(lambda o: o.get('channel')==channel,
@@ -110,12 +85,13 @@ class Template(BaseModel):
             self.add_step(step)
 
 
-class FixedInput(InputOutputNode):
+class TemplateInput(InputOutputNode):
 
     template = models.ForeignKey(
         'Template',
-        related_name='fixed_inputs',
+        related_name='inputs',
         on_delete=models.CASCADE)
+    hint = models.CharField(max_length=1000, blank=True)
     mode = models.CharField(max_length=255)
     group = models.IntegerField()
 
@@ -139,3 +115,13 @@ class TemplateMembership(BaseModel):
             TemplateMembership.objects.create(
                 parent_template=parent,
                 child_template=step)
+
+
+class TemplateNode(MPTTModel, BaseModel):
+
+    parent = TreeForeignKey('self', null=True, blank=True,
+                            related_name='children', db_index=True,
+                            on_delete=models.SET_NULL)
+    template = models.ForeignKey('Template', null=True,
+                                 related_name='template_nodes',
+                                 on_delete = models.PROTECT)

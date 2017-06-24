@@ -1,89 +1,231 @@
-from django.core.exceptions import ValidationError
+import re
+import urlparse
+import jsonschema
+import jsonschema.exceptions
 
-# TEMPLATES
 
-def template_import_validator(value):
-    pass
+class DataObjectValidator(object):
 
-def workflow_outputs_validator(value):
-    pass
+    @classmethod
+    def _validate_boolean_data(cls, value):
+        schema = {"type": "object",
+                  "properties": {"contents": {"type": "boolean"}},
+                  "required": ["contents"]}
+        try:
+            jsonschema.validate(value, schema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise ValidationError(e.message)
 
-def workflow_inputs_validator(value):
-    pass
+    @classmethod
+    def _validate_file_data(cls, value):
+        if value != '':
+            raise ValidationError(
+                '"value" field should be blank for "file" DataObjects. '\
+                'Instead found "%s".' % value)
 
-def step_environment_validator(value):
-    pass
+    @classmethod
+    def _validate_float_data(cls, value):
+        schema = {"type": "object",
+                  "properties": {"contents": {"type": "number"}},
+                  "required": ["contents"]}
+        try:
+            jsonschema.validate(value, schema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise ValidationError(e.message)
 
-def step_outputs_validator(value):
-    # TODO validate other fields
+    @classmethod
+    def _validate_integer_data(cls, value):
+        schema = {"type": "object",
+                  "properties": {"contents": {"type": "number"}},
+                  "required": ["contents"]}
+        try:
+            jsonschema.validate(value, schema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise ValidationError(e.message)
 
-    for output in value:
-        parser = output.get('parser')
-        task_output_parser_validator(parser)
+    @classmethod
+    def _validate_string_data(cls, value):
+        schema = {"type": "object",
+                  "properties": {"contents": {"type": "string"}},
+                  "required": ["contents"]}
+        try:
+            jsonschema.validate(value, schema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise ValidationError(e.message)
 
-def step_inputs_validator(value):
-    pass
+    @classmethod
+    def validate_model(cls, instance):
+        DATA_VALIDATORS = {
+            'boolean': cls._validate_boolean_data,
+            'file': cls._validate_file_data,
+            'float': cls._validate_float_data,
+            'integer': cls._validate_integer_data,
+            'string': cls._validate_string_data,
+        }
+        if not instance.type in DATA_VALIDATORS.keys():
+            # This should be caught in field validation
+            return
+        validate_data = DATA_VALIDATORS[instance.type]
+        validate_data(instance.data)
 
-def step_resources_validator(value):
-    pass
-
-def channel_bindings_validator(value):
-    # channel_bindings is a list of dicts the form
-    # [{'step': String, 'bindings': ListOfBindings},...]
-    # ListOfBindings is a list of internal:external channel names, e.g.
-    # ["internal_channel1:external_channel1","internal_channel2:external_channel2"]
-    pass
-
-# TASKS
-
-def _delimited_output_parser_validator(options):
-    if not options:
-        raise ValidationError("parser 'options' field is required for this type")
-    try:
-        delimiter = options.get('delimiter')
-    except AttributeError:
-        raise ValidationError("parser 'options' not a valid dict: '%s'" % options)
-    invalid_fields = set(options.keys()).difference(set(['delimiter', 'trim']))
-    if invalid_fields:
-        raise ValidationError("parser option(s) '%s' not allowed for this parser type"
-                              % "', '".join(invalid_fields))
-
-PARSER_TYPES = {
-    'delimited': _delimited_output_parser_validator
-}
-
-def task_output_parser_validator(value):
-    # Empty is ok
-    if not value:
-        return
-
-    # but otherwise it must be a dict and needs a valid type
-    try:
-        parser_type = value.get('type')
-    except AttributeError:
-        raise ValidationError("'%s' is not a valid JSON dict." % value)
-    if not parser_type:
-        raise ValidationError("Parser is missing 'type' field")
-    elif parser_type not in PARSER_TYPES.keys():
-        raise ValidationError("Invalid parser type '%s'. Valid types are '%s'"
-                              % (parser_type, "', '".join(PARSER_TYPES.keys())))
-    # It may have options
-    options = value.get('options')
-
-    # but no other fields are allowed
-    invalid_fields = set(value.keys()).difference(set(['type', 'options']))
-    if invalid_fields:
+def validate_filename(value):
+    pattern = r'^([a-zA-Z0-9_]|[a-zA-Z0-9._][a-zA-Z0-9.\-_]+)$'
+    if not re.match(pattern, value):
         raise ValidationError(
-            "Parser has invalid field(s) '%s'" % "', '".join(invalid_fields))
+            'Invalid filename "%s". Only alphanumberic characters, '
+            '".", "-", and "_" are allowed.' & value)
 
-    # Perform further validation specific to parser_type
-    type_specific_validator = PARSER_TYPES[parser_type]
-    type_specific_validator(options)
+def validate_md5(value):
+    pattern = r'^[0-9a-z]{32}$'
+    if not re.match(pattern, value):
+        raise ValidationError('Invalid md5 value "%s"' % value)
 
-def task_data_path_validator(value):
+def validate_url(value):
+    url = urlparse.urlparse(value)
+    if not re.match(r'[A-Za-z]+', url.scheme):
+        raise ValidationError(
+            'Invalid scheme "%s" in URL "%s"' % (url.scheme, value))
+    if not re.match(r'[0-9A-Za-z.\-_\/]+', url.path):
+        raise ValidationError(
+            'Invalid path "%s" in URL "%s"' % (url.path, value))
+
+def validate_environment(value):
+    schema = {
+        "type": "object",
+        "properties": {"docker_image": {"type": "string"}},
+        "required": ["docker_image"]
+    }
+
     try:
-        for (index, degree) in value:
-            if not (isinstance(index, (int,long)) and isinstance(degree, (int,long))):
-                raise ValidationError('Value must be a list of (int, int) tuples')
-    except TypeError:
-        raise ValidationError('Value must be a list of (int, int) tuples')
+        jsonschema.validate(value, schema)
+    except jsonschema.exceptions.ValidationError as e:
+        raise ValidationError(e.message)
+
+def validate_resources(value):
+    schema = {
+        "type": "object",
+        "properties": {
+            "cores": {"type" : "string"},
+            "disk_size": {"type" : "string"},
+            "memory": {"type" : "string"}
+        }
+    }
+    try:
+        jsonschema.validate(value, schema)
+    except jsonschema.exceptions.ValidationError as e:
+        raise ValidationError(e.message)
+    cores = value.get('cores')
+    if cores is not None:
+        if not re.match(r'^[0-9]*$', cores):
+            raise ValidationError(
+                'Invalid value for "cores: "%s". Expected an integer.')
+    disk_size = value.get('disk_size')
+    if disk_size is not None:
+        if not re.match(r'^[0-9]*$', disk_size):
+            raise ValidationError(
+                'Invalid value for "disk_size: "%s". Expected an integer (in GB).')
+    memory = value.get('memory')
+    if memory is not None:
+        if not re.match(r'^[0-9]*$', memory):
+            raise ValidationError(
+                'Invalid value for "memory: "%s". Expected an integer (in GB).')
+
+class OutputParserValidator(object):
+
+    @classmethod
+    def _validate_delimited_output_parser_options(cls, value):
+        schema = {
+            "type": "object",
+            "properties": {"delimiter": {"type": "string"},
+                           "trim": {"type": "string"}
+            }
+        }
+
+    OPTIONS_VALIDATORS = {
+        'delimited': _validate_delimited_output_parser_options
+    }
+
+    @classmethod
+    def validate_output_parser(cls, value):
+        schema = {
+            "type": "object",
+            "properties": {"type": {"type": "string",
+                                    "enum": "delimited"},
+                           "options": {"type": "object"}
+            },
+            "required": ["type"]
+        }
+        try:
+            jsonschema.validate(value, schema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise ValidationError(e.message)
+    
+        # Validate options specific to parser_type
+        if value.get('options'):
+            validate_options = cls.OPTIONS_VALIDATORS[value.get('type')]
+            validate_options(value.get('options'))
+
+
+def validate_data_path(value):
+    schema = {
+        "type":     "array",
+        "items": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "maxItems":     2,
+            "minItems":     2
+        }
+    }
+    try:
+        jsonschema.validate(value, schema)
+    except jsonschema.exceptions.ValidationError as e:
+        raise ValidationError(e.message)
+
+    
+class TemplateValidator(object):
+
+    @classmethod
+    def validate_name(cls, value):
+        # Template names are used in file paths,
+        # so we apply the same restrictions.
+        pattern = r'^([a-zA-Z0-9_]|[a-zA-Z0-9._][a-zA-Z0-9.\-_]+)$'
+        if not re.match(pattern, value):
+            raise ValidationError(
+                'Invalid template name "%s". Only alphanumberic characters, '
+                '".", "-", and "_" are allowed.' & value)
+
+    @classmethod
+    def validate_outputs(cls, value):
+        schema = {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "channel": {"type": "string"},
+                    "type": {
+                        "type": "string",
+                        "enum": ["file", "boolean", "string", "float", "integer"]},
+                    "mode": {"type": "string"},
+                    "source": {
+                        "type": "object",
+                        "properties": {
+                            "stream": {"type": "string",
+                                       "enum": ["stdout", "stderr"]},
+                            "filename": {"type": "string"},
+                        }
+                    },
+                    "parser": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string"},
+                            "options": {"type": "object"}
+                        }
+                    }
+                },
+                "required" : ["type", "channel"]
+            }
+        }
+        try:
+            jsonschema.validate(value, schema)
+	except jsonschema.exceptions.ValidationError as e:
+            raise ValidationError(e.message)

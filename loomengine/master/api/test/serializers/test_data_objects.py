@@ -1,203 +1,133 @@
 import copy
+import uuid
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.test import TestCase
-from rest_framework import serializers
 
 from . import fixtures, get_mock_context
-from api.serializers.data_objects import *
-
-
-class TestStringDataObjectSerializer(TestCase):
-
-    def testCreate(self):
-        s = StringDataObjectSerializer(
-            data=fixtures.data_objects.string_data_object)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.value,
-            fixtures.data_objects.string_data_object['value'])
-
-    def testUpdate(self):
-        s = StringDataObjectSerializer(
-            data=fixtures.data_objects.string_data_object)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        new_value = 'new value'
-        s2 = StringDataObjectSerializer(
-            m, data={'value': new_value}, partial=True)
-        s2.is_valid(raise_exception=True)
-        m2 = s2.save()
-        self.assertEqual(m2.value, new_value)
-
-    def testNegCreateWithDuplicateID(self):
-        data = copy.deepcopy(fixtures.data_objects.string_data_object)
-
-        s1 = StringDataObjectSerializer(data=data)
-        s1.is_valid(raise_exception=True)
-        m1 = s1.save()
-
-        data.update({'uuid': m1.uuid})
-        s2 = StringDataObjectSerializer(data=data)
-        s2.is_valid(raise_exception=True)
-        with self.assertRaises(ValidationError):
-            m2 = s2.save()
-
-    def testNegCreateWithBadData(self):
-        for baddata in [
-            {'value': 'x'}, # missing type
-            {'type': 'string'} # missing value
-            ]:
-            s = StringDataObjectSerializer(data=baddata)
-            self.assertFalse(s.is_valid())
-
-
-class TestBooleanDataObjectSerializer(TestCase):
-
-    def testCreate(self):
-        s = BooleanDataObjectSerializer(
-            data=fixtures.data_objects.boolean_data_object)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.value,
-            fixtures.data_objects.boolean_data_object['value'])
-
-
-class TestIntegerDataObjectSerializer(TestCase):
-
-    def testCreate(self):
-        s = IntegerDataObjectSerializer(
-            data=fixtures.data_objects.integer_data_object)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.value,
-            fixtures.data_objects.integer_data_object['value'])
-
-
-class TestFloatDataObjectSerializer(TestCase):
-
-    def testCreate(self):
-        s = FloatDataObjectSerializer(
-            data=fixtures.data_objects.float_data_object)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.value,
-            fixtures.data_objects.float_data_object['value'])
-
-class TestArrayDataObjectSerializer(TestCase):
-
-    def testCreateArray(self):
-        s = ArrayDataObjectSerializer(
-            data=fixtures.data_objects.string_data_object_array)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.prefetch_members.count(),
-            len(fixtures.data_objects.string_data_object_array['members'])
-            )
-
-    def testUpdate(self):
-        pass
-
-    def testValidate(self):
-        pass
+from api.serializers.data_objects import DataObjectSerializer, \
+    FileResourceSerializer
+from api.models.data_objects import DataObject
 
 
 class TestDataObjectSerializer(TestCase):
 
-    def testCreateStringDataObject(self):
-        s = StringDataObjectSerializer(
-            data=fixtures.data_objects.string_data_object)
+    def testCreate_file(self):
+        data = fixtures.data_objects.file_data_object
+        s = DataObjectSerializer(data=data)
         s.is_valid(raise_exception=True)
-        m = s.save()
+        data_object = s.save()
+        self.assertEqual(data_object.file_resource.filename,
+                         data['contents']['filename'])
 
-        self.assertEqual(
-            m.value,
-            fixtures.data_objects.string_data_object['value'])
+    def testRender_file(self):
+        file_data = fixtures.data_objects.file_data_object['contents']
+        data_object = DataObject.create_and_initialize_file_resource(**file_data)
+        s = DataObjectSerializer(data_object,
+                                 context=get_mock_context())
+        rendered_data = s.data
+        value = rendered_data['contents']
+        self.assertEqual(value['filename'], file_data['filename'])
+        self.assertEqual(value['md5'], file_data['md5'])
+        self.assertEqual(value['source_type'], file_data['source_type'])
+        self.assertEqual(value['comments'], file_data['comments'])
+        self.assertEqual(value['imported_from_url'], file_data['imported_from_url'])
 
-    def testNegCreateWithBadData(self):
-        for baddata in [
-            {'value': 'x'}, # missing type
-            {'type': 'string'} # missing value
-            ]:
-            s = DataObjectSerializer(data=baddata)
-            self.assertFalse(s.is_valid())
+    def testRoundTrip_file(self):
+        file_data = fixtures.data_objects.file_data_object['contents']
+        data_object = DataObject.create_and_initialize_file_resource(**file_data)
+        s = DataObjectSerializer(data_object,
+                                 context=get_mock_context())
+        rendered_1 = s.data
 
-    def testCreateArray(self):
-        s = DataObjectSerializer(
-            data=fixtures.data_objects.string_data_object_array)
+        # update UUID to avoid collision
+        input_2 = copy.deepcopy(rendered_1)
+        input_2['uuid'] = str(uuid.uuid4())
+        s = DataObjectSerializer(data=input_2)
         s.is_valid(raise_exception=True)
-        m = s.save()
+        data_object = s.save()
+        s = DataObjectSerializer(data_object,
+                                 context=get_mock_context())
+        rendered_2 = s.data
 
-        self.assertEqual(
-            m.prefetch_members.count(),
-            len(fixtures.data_objects.string_data_object_array['members'])
-        )
+        self.assertEqual(rendered_1['type'],
+                         rendered_2['type'])
+        self.assertEqual(rendered_1['datetime_created'],
+                         rendered_2['datetime_created'])
+        self.assertNotEqual(rendered_1['uuid'],
+                            rendered_2['uuid'])
+        self.assertNotEqual(rendered_1['url'],
+                            rendered_2['url'])
+        self.assertEqual(rendered_1['contents']['filename'],
+                         rendered_2['contents']['filename'])
+        self.assertEqual(rendered_1['contents']['md5'],
+                         rendered_2['contents']['md5'])
+        self.assertEqual(rendered_1['contents']['comments'],
+                         rendered_2['contents']['comments'])
+        self.assertEqual(rendered_1['contents']['imported_from_url'],
+                         rendered_2['contents']['imported_from_url'])
+        self.assertEqual(rendered_1['contents']['upload_status'],
+                         rendered_2['contents']['upload_status'])
+        self.assertEqual(rendered_1['contents']['source_type'],
+                         rendered_2['contents']['source_type'])
+        self.assertEqual(rendered_1['contents']['file_url'],
+                            rendered_2['contents']['file_url'])
 
-    def testGetDataFromModel(self):
-        s1 = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s1.is_valid(raise_exception=True)
-        m = s1.save()
+    def testCreate_errorUuidCollision(self):
+        file_data = copy.deepcopy(fixtures.data_objects.file_data_object)['contents']
+        data_object = DataObject.create_and_initialize_file_resource(**file_data)
+        s = DataObjectSerializer(data_object,
+                                 context=get_mock_context())
+        rendered_1 = s.data
 
-        s2 = DataObjectSerializer(m, context=get_mock_context())
-        d = s2.data
-        self.assertEqual(
-            d['md5'],
-            fixtures.data_objects.file_data_object['md5'])
-
-    def testGetDataFromData(self):
-        s = FileDataObjectSerializer(data=fixtures.data_objects.file_data_object,
-                                     context=get_mock_context())
+        # update UUID to avoid collision
+        s = DataObjectSerializer(data=rendered_1)
         s.is_valid(raise_exception=True)
-        s.save()
-        d = s.data
-        self.assertEqual(
-            d['md5'],
-            fixtures.data_objects.file_data_object['md5'])
+        with self.assertRaises(ValidationError):
+            data_object = s.save()
 
+    def testCreate_noDroolOnFail(self):
+        file_data = copy.deepcopy(fixtures.data_objects.file_data_object)
+        file_data['contents']['md5'] = 'invalid_md5'
+
+        data_object_count_before = DataObject.objects.count()
+        s = DataObjectSerializer(data=file_data)
+        s.is_valid(raise_exception=True)
+        with self.assertRaises(ValidationError):
+            s.save()
+        data_object_count_after = DataObject.objects.count()
+
+        self.assertEqual(data_object_count_before, data_object_count_after)
+
+    data_object_fixtures = [
+        copy.deepcopy(fixtures.data_objects.string_data_object),
+        copy.deepcopy(fixtures.data_objects.boolean_data_object),
+        copy.deepcopy(fixtures.data_objects.float_data_object),
+        copy.deepcopy(fixtures.data_objects.integer_data_object)
+    ]
         
-    
-class TestFileResourceSerializer(TestCase):
+    def testCreate_nonFileTypes(self):
+        for data in self.data_object_fixtures:
+            s = DataObjectSerializer(data=data)
+            s.is_valid(raise_exception=True)
+            data_object = s.save()
+            self.assertEqual(data_object.contents, data['contents'])
 
-    def testCreate(self):
-        s = FileResourceSerializer(data=fixtures.data_objects.file_resource)
-        s.is_valid(raise_exception=True)
-        m = s.save()
+            rendered_data = DataObjectSerializer(
+                data_object, context=get_mock_context()).data
+            self.assertEqual(data_object.contents, rendered_data['contents'])
 
-        self.assertEqual(m.file_url,
-                         fixtures.data_objects.file_resource['file_url'])
+    def testRoundTrip_nonFileTypes(self):
+        for data in self.data_object_fixtures:
+            s1 = DataObjectSerializer(data=data)
+            s1.is_valid(raise_exception=True)
+            data_object_1 = s1.save()
+            self.assertEqual(data_object_1.contents, data['contents'])
+            rendered_data = DataObjectSerializer(
+                data_object_1, context=get_mock_context()).data
 
-
-class TestFileDataObjectSerializer(TestCase):
-    
-    def testCreate(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertEqual(
-            m.filename,
-            fixtures.data_objects.file_data_object['filename'])
-
-    def testRender(self):
-        s = FileDataObjectSerializer(
-            data=fixtures.data_objects.file_data_object)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        do = DataObject.objects.get(id=m.id)
-        s2 = DataObjectSerializer(do, context=get_mock_context())
-        self.assertEqual(s2.data['filename'],
-                         fixtures.data_objects.file_data_object['filename'])
+            # Update UUID to avoid collision
+            rendered_data['uuid'] = uuid.uuid4()
+            s2 = DataObjectSerializer(data=rendered_data)
+            s2.is_valid(raise_exception=True)
+            data_object_2 = s2.save()
+            self.assertEqual(data_object_1.contents, data_object_2.contents)

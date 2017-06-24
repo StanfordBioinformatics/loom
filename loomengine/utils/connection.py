@@ -120,56 +120,32 @@ class Connection(object):
         return self._get_object(
             'data-objects/%s/' % data_object_id)
 
-    def get_data_object_index(self, query_string='', min=0, max=float('inf')):
-        url = 'data-objects/'
-        if query_string:
-            url += 'data-objects/?q='+urllib.quote(query_string)
-        data_objects =  self._get_object_index(url)
-        if len(data_objects) < min:
-            raise IdMatchedTooFewDataObjectsError(
-                'Found %s DataObjects, expected at least %s' \
-                % (len(data_objects), min))
-        if len(data_objects) > max:
-            raise IdMatchedTooManyDataObjectsError(
-                'Found %s DataObjects, expected at most %s' \
-                % (len(data_objects), max))
-        return data_objects
-
     def update_data_object(self, data_object_id, data_update):
         return self._patch_object(
             data_update,
             'data-objects/%s/' % data_object_id)
 
-    def get_file_data_object_index(
-            self, query_string=None, source_type='all',
-            min=0, max=float('inf')):
-        url = 'data-files/'
+    def get_data_object_index(
+            self, query_string=None, source_type=None,
+            type=None, min=0, max=float('inf')):
+        url = 'data-objects/'
         params = {}
         if query_string:
             params['q'] = query_string
-        if source_type and source_type!='all':
+        if source_type:
             params['source_type'] = source_type
-        file_data_objects =  self._get_object_index(url, params=params)
-        if len(file_data_objects) < min:
+        if type:
+            params['type'] = type
+        data_objects =  self._get_object_index(url, params=params)
+        if len(data_objects) < min:
             raise IdMatchedTooFewDataObjectsError(
                 'Found %s FileDataObjects, expected at least %s' \
                 % (len(file_data_objects), min))
-        if len(file_data_objects) > max:
+        if len(data_objects) > max:
             raise IdMatchedTooManyDataObjectsError(
                 'Found %s FilDataObjects, expected at most %s' \
-                % (len(file_data_objects), max))
-        return file_data_objects
-
-    def file_data_object_initialize_file_resource(self, file_data_object_id):
-        url = 'data-files/%s/initialize-file-resource/' % file_data_object_id
-        data = {}
-        file_data_object = self._post_object(data, url)
-        return file_data_object
-    
-    def update_file_resource(self, file_resource_id, file_resource_update):
-        return self._patch_object(
-            file_resource_update,
-            'file-resources/%s/' % file_resource_id)
+                % (len(data_objects), max))
+        return data_objects
 
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(

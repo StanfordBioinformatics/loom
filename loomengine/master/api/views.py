@@ -19,12 +19,6 @@ from django.http import HttpResponseBadRequest, Http404
 
 logger = logging.getLogger(__name__)
 
-DATA_CLASSES = {'file': models.FileDataObject,
-                'string': models.StringDataObject,
-                'boolean': models.BooleanDataObject,
-                'float': models.FloatDataObject,
-                'integer': models.IntegerDataObject}
-
 
 class ExpandableViewSet(viewsets.ModelViewSet):
 
@@ -55,31 +49,25 @@ class DataObjectViewSet(viewsets.ModelViewSet):
     """
 
     lookup_field = 'uuid'
-    serializer_class = serializers.DataObjectSerializer
+    serializer_class = serializers.data_objects.DataObjectSerializer
 
     def get_queryset(self):
-        queryset = models.DataObject.objects.all()
-        queryset = queryset.select_related('stringdataobject')\
-                           .select_related('filedataobject')\
-                           .select_related('filedataobject__file_resource')\
-                           .select_related('booleandataobject')\
-                           .select_related('integerdataobject')\
-                           .select_related('floatdataobject')\
-                           .select_related('arraydataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__filedataobject__'\
-                               'file_resource')
+        query_string = self.request.query_params.get('q', '')
+        type = self.request.query_params.get('type', '')
+        source_type = self.request.query_params.get('source_type', '')
+        if query_string:
+            queryset = models.DataObject.filter_by_name_or_id_or_hash(query_string)
+        else:
+            queryset = models.DataObject.objects.all()
+        if source_type and source_type != 'all':
+            queryset = queryset.filter(file_resource__source_type=source_type)
+        if type:
+            queryset = queryset.filter(type=type)
+        queryset = self.serializer_class.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
-
+    
+'''
 class FileDataObjectViewSet(viewsets.ModelViewSet):
     """
     Data Objects of type 'file'. parameters:
@@ -223,17 +211,6 @@ class DataTreeViewSet(ExpandableViewSet):
         return queryset
 
 
-class FileResourceViewSet(viewsets.ModelViewSet):
-    """
-    FileResource represents the location where a file is stored.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.FileResourceSerializer
-
-    def get_queryset(self):
-        return models.FileResource.objects.all().order_by('-datetime_created')
-
-
 class TaskViewSet(ExpandableViewSet):
     """
     A Task represents a specific set of (runtime environment, command, inputs).
@@ -341,7 +318,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
         except Exception as e:
             return JsonResponse({"message": e.message}, status=500)
 
-
+'''
 class TemplateViewSet(ExpandableViewSet):
     """
     A Template is a pattern for analysis to be performed, but without necessarily
@@ -350,7 +327,7 @@ class TemplateViewSet(ExpandableViewSet):
     see the respective /api/template-*/ endpoints.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.ExpandableTemplateSerializer
+    serializer_class = serializers.templates.ExpandableTemplateSerializer
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
@@ -364,9 +341,9 @@ class TemplateViewSet(ExpandableViewSet):
         queryset = queryset\
                    .prefetch_related('steps')\
                    .prefetch_related(
-                       'fixed_inputs__data_root')
+                       'inputs__data_object')
         return queryset.order_by('-datetime_created')
-
+'''
 
 class RunViewSet(ExpandableViewSet):
     """
@@ -493,7 +470,7 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
                                'prefetch_members__filedataobject__'\
                                'file_resource')
         return queryset
-
+'''
 
 @require_http_methods(["GET"])
 def status(request):

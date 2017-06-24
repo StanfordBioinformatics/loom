@@ -466,7 +466,7 @@ class RunOutput(InputOutputNode):
     mode = models.CharField(max_length=255, null=True, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(
-	validators=[validators.task_output_parser_validator],
+	validators=[validators.OutputParserValidator.validate_output_parser],
         null=True, blank=True)
 
     def push(self, data_path, data_object):

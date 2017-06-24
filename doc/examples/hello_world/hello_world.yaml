@@ -7,7 +7,6 @@ inputs:
 - type: file
   hint: Enter the 'world' file
   channel: world
-fixed_inputs:
 - type: string
   channel: final_punc
   data:

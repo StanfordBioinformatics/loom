@@ -29,7 +29,8 @@ class FilterHelper(object):
             'NAME_FIELD is missing on model %s' % self.Model.__name__
         assert self.Model.HASH_FIELD, \
             'HASH_FIELD is missing on model %s' % self.Model.__name__
-        ID_FIELD = 'uuid'
+        assert self.Model.ID_FIELD, \
+            'ID_FIELD is missing on model %s' % self.Model.__name__
         filter_args = {}
         name, uuid, hash_value = self._parse_as_name_or_id_or_hash(query_string)
         if name is not None:
@@ -37,7 +38,7 @@ class FilterHelper(object):
         if hash_value is not None:
             filter_args[self.Model.HASH_FIELD+'__startswith'] = hash_value
         if uuid is not None:
-            filter_args[ID_FIELD+'__startswith'] = uuid
+            filter_args[self.Model.ID_FIELD+'__startswith'] = uuid
         return self.Model.objects.filter(**filter_args)
 
     def filter_by_name_or_id(self, query_string):
@@ -46,14 +47,15 @@ class FilterHelper(object):
         """
         assert self.Model.NAME_FIELD, \
             'NAME_FIELD is missing on model %s' % self.Model.__name__
-        ID_FIELD = 'uuid'
+        assert self.Model.ID_FIELD, \
+            'ID_FIELD is missing on model %s' % self.Model.__name__
 
         kwargs = {}
         name, uuid = self._parse_as_name_or_id(query_string)
         if name:
             kwargs[self.Model.NAME_FIELD] = name
         if uuid:
-            kwargs[ID_FIELD+'__startswith'] = uuid
+            kwargs[self.Model.ID_FIELD+'__startswith'] = uuid
         return self.Model.objects.filter(**kwargs)
 
     def _parse_as_name_or_id_or_hash(self, query_string):

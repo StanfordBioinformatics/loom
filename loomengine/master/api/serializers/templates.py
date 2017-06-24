@@ -1,11 +1,10 @@
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, RecursiveField, \
-    ProxyWriteSerializer, strip_empty_values
+    ProxyWriteSerializer, strip_empty_values, ExpandableSerializerMixin
 from .input_output_nodes import InputOutputNodeSerializer
 from api import async
-from api.exceptions import MultipleTemplateMatchesError, NoTemplateMatchError
-from api.models.templates import *
+from api.models.templates import Template, TemplateInput
 from api.models.input_output_nodes import InputOutputNode
 
 
@@ -26,9 +25,6 @@ def _set_template_defaults(data, is_leaf):
     if data.get('inputs'):
         for input in data.get('inputs'):
             _set_input_defaults(input)
-    if data.get('fixed_inputs'):
-        for input in data.get('fixed_inputs'):
-            _set_input_defaults(input)
     if data.get('outputs'):
         for output in data.get('outputs'):
             _set_output_defaults(output)
@@ -46,18 +42,21 @@ def _convert_template_id_to_dict(data):
         return data
 
 
-class FixedInputSerializer(InputOutputNodeSerializer):
+class TemplateInputSerializer(InputOutputNodeSerializer):
 
     class Meta:
-        model = FixedInput
-        fields = ('type', 'channel', 'data', 'mode', 'group')
+        model = TemplateInput
+        fields = ('type', 'channel', 'data', 'hint', 'mode', 'group')
 
-    mode=serializers.CharField(required=False)
-    group=serializers.IntegerField(required=False)
-    
+    hint = serializers.CharField(required=False)
+    mode = serializers.CharField(required=False)
+    group = serializers.IntegerField(required=False)
+    data = serializers.JSONField(required=False) # Override to make non-required
+
     def create(self, validated_data):
         _set_input_defaults(validated_data)
-        return super(FixedInputSerializer, self).create(validated_data)
+        return super(TemplateInputSerializer, self).create(validated_data)
+
 
 class TemplateURLSerializer(ProxyWriteSerializer):
 
@@ -98,6 +97,9 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                   'name',
                   'datetime_created',
                   'command',
+                  'comments',
+                  'import_comments',
+                  'imported_from_url',
                   'interpreter',
                   'environment',
                   'resources',
@@ -105,7 +107,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                   'template_import',
                   'inputs',
                   'outputs',
-                  'fixed_inputs',
                   'steps',)
 
     uuid = serializers.UUIDField(required=False)
@@ -115,15 +116,17 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     name = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     command = serializers.CharField(required=False)
+    comments = serializers.CharField(required=False)
+    import_comments = serializers.CharField(required=False)
+    imported_from_url = serializers.CharField(required=False)
     interpreter = serializers.CharField(required=False)
     template_import =  serializers.JSONField(required=False)
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
     template_import = serializers.JSONField(required=False)
-    inputs = serializers.JSONField(required=False)
+    inputs = TemplateInputSerializer(many=True, required=False)
     outputs  = serializers.JSONField(required=False)
-    fixed_inputs = FixedInputSerializer(many=True, required=False)
     steps = TemplateURLSerializer(many=True, required=False)
 
     def to_representation(self, instance):
@@ -139,9 +142,9 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         if template_id:
             return self._lookup_by_id(template_id)
 
-        # Save fixed_inputs and steps for postprocessing
+        # Save inputs and steps for postprocessing
         validated_data['raw_data'] = self.initial_data
-        validated_data.pop('fixed_inputs', None)
+        validated_data.pop('inputs', None)
         steps = validated_data.pop('steps', None)
         is_leaf = not steps
         
@@ -157,13 +160,13 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         matches = Template.filter_by_name_or_id(template_id)
         if matches.count() < 1:
             raise serializers.ValidationError(
-                'ERROR! No template found that matches value "%s"' % template_id)
+                'No template found that matches value "%s"' % template_id)
         elif matches.count() > 1:
             match_id_list = ['%s@%s' % (match.name, match.uuid)
                              for match in matches]
             match_id_string = ('", "'.join(match_id_list))
             raise serializers.ValidationError(
-                'ERROR! Multiple templates were found matching value "%s": "%s". '\
+                'Multiple templates were found matching value "%s": "%s". '\
                 'Use a more precise identifier to select just one template.' % (
                     template_id, match_id_string))
         return  matches.first()
@@ -172,13 +175,13 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     def postprocess(cls, template_uuid):
         template = Template.objects.get(uuid=template_uuid)
         try:
-            fixed_inputs = template.raw_data.get('fixed_inputs', [])
+            inputs = template.raw_data.get('inputs', [])
             steps = template.raw_data.get('steps', [])
-            for fixed_input_data in fixed_inputs:
-                s = FixedInputSerializer(
-                    data=fixed_input_data,
+            for input_data in inputs:
+                s = TemplateInputSerializer(
+                    data=input_data,
                     context={'parent_field': 'template',
-                             'parent_instance': template,
+                             'parent_instance': template
                     })
                 s.is_valid(raise_exception=True)
                 s.save()
@@ -203,31 +206,17 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         # The user may have already submitted a run request before this
         # template finished postprocessing. If runs exist, postprocess them now.
         template = Template.objects.get(uuid=template.uuid)
-        for run in template.runs.all():
-            async.postprocess_run(run.uuid)
+#        for run in template.runs.all():
+#            async.postprocess_run(run.uuid)
 
 class NestedTemplateSerializer(TemplateSerializer):
 
     steps = RecursiveField(many=True, required=False)
-    
-    def to_representation(self, instance):
-        self.Meta = TemplateSerializer.Meta
-        self.steps = RecursiveField(many=True, required=False)
-        return super(NestedTemplateSerializer, self).to_representation(
-            instance)
 
-class ExpandableTemplateSerializer(TemplateSerializer):
 
-    def to_representation(self, instance):
-        if hasattr(instance, '_cached_representation'):
-            return instance._cached_representation
+class ExpandableTemplateSerializer(ExpandableSerializerMixin, TemplateSerializer):
 
-        if self.context.get('expand'):
-            repr = NestedTemplateSerializer(
-                instance, context=self.context).to_representation(instance)
-        else:
-            repr = TemplateSerializer(
-                instance, context=self.context).to_representation(instance)
-
-        instance._cached_representation = repr
-        return repr
+    DEFAULT_SERIALIZER = TemplateSerializer
+    COLLAPSE_SERIALIZER = TemplateSerializer
+    EXPAND_SERIALIZER = NestedTemplateSerializer
+    SUMMARY_SERIALIZER = NestedTemplateSerializer

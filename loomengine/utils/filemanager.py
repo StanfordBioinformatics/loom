@@ -490,31 +490,31 @@ class FileManager:
         self.connection = Connection(master_url)
         self.settings = self.connection.get_filemanager_settings()
 
-    def import_from_patterns(self, patterns, note, force_duplicates=False):
+    def import_from_patterns(self, patterns, comments, force_duplicates=False):
         files = []
         for pattern in patterns:
             files.extend(self.import_from_pattern(
-                pattern, note, force_duplicates=force_duplicates))
+                pattern, comments, force_duplicates=force_duplicates))
         return files
 
-    def import_from_pattern(self, pattern, note, force_duplicates=False):
+    def import_from_pattern(self, pattern, comments, force_duplicates=False):
         files = []
         for source in SourceSet(pattern, self.settings):
             files.append(self.import_file(
                 source.get_url(),
-                note,
+                comments,
                 force_duplicates=force_duplicates
             ))
         return files
 
-    def import_file(self, source_url, note, force_duplicates=False):
+    def import_file(self, source_url, comments, force_duplicates=False):
         return self._execute_file_import(
             self._create_file_data_object_for_import(
-                source_url, note, force_duplicates=force_duplicates),
+                source_url, comments, force_duplicates=force_duplicates),
             source_url,
         )
 
-    def _create_file_data_object_for_import(self, source_url, note,
+    def _create_file_data_object_for_import(self, source_url, comments,
                                             force_duplicates=True):
         source = Source(source_url, self.settings)
         filename = source.get_filename()
@@ -523,13 +523,18 @@ class FileManager:
         md5 = source.calculate_md5()
 
         if not force_duplicates:
-            files = self.connection.get_file_data_object_index(
-                query_string='%%%s' % md5)
+            files = self.connection.get_data_object_index(
+                query_string='$%s' % md5)
             if len(files) > 0:
                 md5 = files[0].get('md5')
                 matches = []
                 for file in files:
-                    matches.append('%s@%s' % (file.get('filename'), file.get('uuid')))
+                    contents = file.get('contents')
+                    try:
+                        filename = contents.get('filename')
+                    except AttributeError:
+                        filename = ''
+                    matches.append('%s@%s' % (filename, file.get('uuid')))
                 raise DuplicateFileError(
                     'ERROR! One or more files with md5 %s already exist: "%s". '\
                     'Use "--force-duplicates" if you want to create another copy.'
@@ -537,12 +542,13 @@ class FileManager:
         
         file_data_object = self.connection.post_data_object({
             'type': 'file',
-            'filename': filename,
-            'md5': md5,
-            'file_import': {
-                'source_url': source.get_url(),
-                'note': note },
-            'source_type': 'imported',
+            'contents': {
+                'filename': filename,
+                'md5': md5,
+                'imported_from_url': source.get_url(),
+                'import_comments': comments,
+                'source_type': 'imported',
+            }
         })
         return file_data_object
 
@@ -594,27 +600,17 @@ class FileManager:
         )
 
     def _execute_file_import(self, file_data_object, source_url):
-        # A new file_data_object will typically have a file_resource with 
-        # status=incomplete
-        # If the server is configured not to save multiple files with
-        # identical content, the data_object.file_resource may have
-        # status=complete, indicating that no re-upload is needed.
-        #
-        file_data_object['file_resource'] = self.connection.\
-                                            file_data_object_initialize_file_resource(
-                                                file_data_object['uuid'])
-
         source = Source(source_url, self.settings)
         logger.info('Importing file from %s...' % source.get_url())
 
-        if file_data_object['file_resource']['upload_status'] == 'complete':
+        if file_data_object['contents']['upload_status'] == 'complete':
             logger.info(
                 '   server already has the file. Skipping upload.')
             return file_data_object
 
         try:
             destination = Destination(
-                file_data_object['file_resource']['file_url'],
+                file_data_object['contents']['file_url'],
                 self.settings)
             logger.info(
                 '   copying to destination %s ...' % destination.get_url())
@@ -633,21 +629,17 @@ class FileManager:
         file_data_object = self._set_upload_status(
             file_data_object, 'complete')
         logger.info('   imported file %s@%s' % (
-            file_data_object['filename'],
+            file_data_object['contents']['filename'],
             file_data_object['uuid']))
         return file_data_object
 
     def _set_upload_status(self, file_data_object, upload_status):
         """ Set file_data_object.file_resource.upload_status
         """
-        file_resource = file_data_object['file_resource']
-        file_resource['upload_status'] = upload_status
-        file_resource = self.connection.update_file_resource(
-            file_resource['uuid'],
-            file_resource
-        )
-        file_data_object['file_resource'] = file_resource
-        return file_data_object
+        file_data_object['contents']['upload_status'] = upload_status
+        return self.connection.update_data_object(
+            file_data_object['uuid'],
+            file_data_object)
 
     def export_files(self, file_ids, destination_url=None):
         if destination_url is not None and len(file_ids) > 1:

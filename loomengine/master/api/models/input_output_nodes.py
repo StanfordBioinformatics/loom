@@ -2,32 +2,25 @@ from django.db import models
 
 from .base import BaseModel
 from api.models.data_objects import DataObject
-from api.models.data_tree_nodes import DataTreeNode
 
 
 """
-InputOutputNodes are connected to facilitate the flow of data in a workflow, e.g. from 
-a WorkflowRunInput to the StepRunInput of a StepRun nested in that Workflow, or from a 
-StepRunOutput to the StepRunInput of a subsequent Step.
+InputOutputNodes are connected to facilitate the flow of data in a run, e.g. 
+from one RunInput to the RunInput of a child Run, or from a 
+RunOutput to the RunInput of a subsequent Run.
 
-InputOutputNode is inherited by all input/output classes that may need to handle 
-data trees with height > 1 (RunRequestInput, WorkflowRunInput/Output, 
-StepRunInput/Output) but not by TaskRuns, TaskRunAttempts, or TaskDefinitions since 
-these only contain data as scalars or 1-dimensional arrays.
+InputOutputNode is inherited by Run input/output classes, 
+including RunRequest Input, but not by TaskRuns or TaskRunAttempts 
+since these do not share the full data tree.
 """
-
-
-class ConnectError(Exception):
-    pass
 
 
 class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
-    data_root = models.ForeignKey('DataTreeNode',
-                                  # related_name would cause conflicts on children
+    data_object = models.ForeignKey('DataObject',
+                                   # related_name would cause conflicts on children
                                   null=True,
                                   blank=True)
-
     type = models.CharField(
         max_length=255,
         choices=DataObject.DATA_TYPE_CHOICES)
@@ -38,39 +31,21 @@ class InputOutputNode(BaseModel):
         # DataTreeNodeSerializer is needed to render this field.
         # We don't implement that as a model method here to avoid
         # circular dependencies between models and serializers.
-        # To access data directly use the data_root field instead.
+        # To access data directly use the data_object field instead.
         return
 
-    def get_data_as_scalar(self):
-        # This function is a temporary patch to run without parallel
-        # workflows enabled.
-        if not self.data_root:
-            return None
-        return self.data_root.data_object
-
-    def add_data_as_scalar(self, data_object):
-        self.add_data_object([], data_object)
-
-    def has_scalar(self):
-        return self.data_root.has_data_object([])
-
-    def get_data_object(self, data_path):
+#    def get_data_object(self, data_path):
         # Get the data object at the given data_path.
-        return self.data_root.get_data_object(data_path)
+#        return self.data_object.get_data_object(data_path)
 
-    def get_data_subtree(self, data_path):
-        return self.data_root.get_node(data_path)
-
-    def get_ready_data_nodes(self, seed_path, gather_depth):
-        return self.data_root.get_ready_data_nodes(seed_path, gather_depth)
+#    def get_ready_data_objects(self, seed_path, gather_depth):
+#        return self.connector.get_ready_data_objects(seed_path, gather_depth)
     
-    def _initialize_data_root(self):
-        self.data_root = DataTreeNode.objects.create(type=self.type)
-        self.data_root.root_node = self.data_root
-        self.data_root.save()
-        self.save()
+    def _initialize_data_object(self):
+        self.setattrs_and_save_with_retries(
+            {'data_object': DataObject.objects.create(type=self.type)})
 
-    def add_data_object(self, data_path, data_object):
+#    def add_data_object(self, data_path, data_object):
         # 'data_path' is a list of (index, degree) pairs that define a path
         # from root to leaf. For example, in this data
         # '[["file1.txt@id1", "file2.txt@id2"], ["file3.txt@id3", "file4.txt@id4"]]'
@@ -78,39 +53,45 @@ class InputOutputNode(BaseModel):
         # (index 0) of 2 branches,
         # and the second of 2 leaves on that branch, i.e. 'file2.txt@id2'.
         # If data_path is length 0, data is scalar
-        if self.data_root is None:
-            self._initialize_data_root()
-        self.data_root.add_data_object(data_path, data_object)
+#        if self.connector is None:
+#            self._initialize_connector()
+#        self.connector.add_data_object(data_path, data_object)
 
     def is_connected(self, connected_node):
-        if self.data_root is None or connected_node.data_root is None:
+        # Nodes are connected by sharing a common DataObject
+        if self.data_object is None or connected_node.data_object is None:
             return False
-        return self.data_root.id == connected_node.data_root.id
+        return self.data_object.id == connected_node.data_object.id
 
     def connect(self, connected_node):
         # Nodes that share the same data should be connected,
-        # e.g. a StepOutput that feeds into the StepInput of a subsequent step.
+        # e.g. a RunOutput that feeds into the RunInput of a subsequent Run.
 
         if self.is_connected(connected_node):
             return
 
-        # Both nodes are already initialized
-        if connected_node.data_root is not None and self.data_root is not None:
-            raise ConnectError('Failed to connect because nodes are already '\
-                               'initialized with non-matching data')
+        # Types must match
+        assert connected_node.type == self.type, \
+            'Type mismatch, cannot connect nodes'
+
+        # Nodes should not both already be initialized
+        assert connected_node.data_object is None or self.data_object is None, \
+            'Cannot connect. Both nodes already '\
+            'initialized with non-matching data'
 
         # If neither is initialized, initialize and connect
-        if connected_node.data_root is None and self.data_root is None:
-            connected_node._initialize_data_root()
-            self.data_root = connected_node.data_root
+        if connected_node.data_object is None and self.data_object is None:
+            connected_node._initialize_data_object()
+            self.data_object = connected_node.data_object
             self.save()
+            return
 
         # If one is initialized, connect the other
-        if self.data_root is None:
-            self.data_root = connected_node.data_root
+        if self.data_object is None:
+            self.data_object = connected_node.data_object
             self.save()
-        elif connected_node.data_root is None:
-            connected_node.data_root = self.data_root
+        elif connected_node.data_object is None:
+            connected_node.data_object = self.data_object
             connected_node.save()
 
     class Meta:

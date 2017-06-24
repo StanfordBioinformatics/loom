@@ -10,21 +10,12 @@ from api import get_setting
 from api import async
 from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
-from api.models.data_objects import DataObject, FileDataObject
+from api.models.data_objects import DataObject
 from api.models import validators
 from api.exceptions import ConcurrentModificationError
 
 class TaskAlreadyExistsException(Exception):
     pass
-
-
-def validate_list_of_ints(value):
-    try:
-        are_ints = [isinstance(i, int) for i in value]
-    except TypeError:
-        raise ValidationError('Value must be a list of ints')
-    if not all(are_ints):
-        raise ValidationError('Value must be a list of ints')
 
 
 class Task(BaseModel):
@@ -46,13 +37,13 @@ class Task(BaseModel):
                             null=True, # null for testing only
                             blank=True)
     
-    selected_task_attempt = models.OneToOneField('TaskAttempt',
-                                                 related_name='task_as_selected',
-                                                 on_delete=models.CASCADE,
-                                                 null=True,
-                                                 blank=True)
+    task_attempt = models.OneToOneField('TaskAttempt',
+                                        related_name='acitve_task',
+                                        on_delete=models.CASCADE,
+                                        null=True,
+                                        blank=True)
     data_path = jsonfield.JSONField(
-        validators=[validators.task_data_path_validator],
+        validators=[validators.validate_data_path],
         null=True, blank=True)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
@@ -247,7 +238,7 @@ class TaskOutput(BaseModel):
     mode = models.CharField(max_length=255, null=True, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(
-	validators=[validators.task_output_parser_validator],
+	validators=[validators.OutputParserValidator.validate_output_parser],
         null=True, blank=True)
     data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT,
                                     null=True, blank=True)
@@ -287,15 +278,12 @@ class TaskAttempt(BaseModel):
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     task = models.ForeignKey('Task',
-                             related_name='task_attempts',
+                             related_name='task_attempt_set',
                              on_delete=models.CASCADE)
     interpreter = models.CharField(max_length=1024)
     rendered_command = models.TextField()
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
-    parser = jsonfield.JSONField(
-	validators=[validators.task_output_parser_validator],
-        null=True, blank=True)
     last_heartbeat = models.DateTimeField(auto_now=True)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
@@ -492,7 +480,7 @@ class TaskAttemptOutput(BaseModel):
     mode = models.CharField(max_length=255, null=True, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(
-	validators=[validators.task_output_parser_validator],
+        validators=[validators.OutputParserValidator.validate_output_parser],
         null=True, blank=True)
 
 

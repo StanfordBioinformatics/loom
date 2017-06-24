@@ -1,160 +1,21 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from mptt.models import MPTTModel, TreeForeignKey
 import jsonfield
 import os
 
 from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
-from api.exceptions import NoFileMatchError, MultipleFileMatchesError
-
-
-class TypeMismatchError(Exception):
-    pass
-class NestedArraysError(Exception):
-    pass
-class NonArrayError(Exception):
-    pass
-class InvalidFileServerTypeError(Exception):
-    pass
-class RelativePathError(Exception):
-    pass
-class RelativeFileRootError(Exception):
-    pass
-class InvalidSourceTypeError(Exception):
-    pass
-
-
-class AbstractDataObjectManager():
-
-    def __init__(self, model):
-        self.model = model
-
-
-class BooleanDataObjectManager(AbstractDataObjectManager):
-
-    @classmethod
-    def get_by_value(cls, value):
-        return BooleanDataObject.objects.create(value=value, type='boolean')
-
-    def get_substitution_value(self):
-        return self.model.booleandataobject.value
-
-    def is_ready(self):
-        return True
-
-
-class FileDataObjectManager(AbstractDataObjectManager):
-
-    @classmethod
-    def get_by_value(cls, value):
-        matches = FileDataObject.filter_by_name_or_id_or_hash(value)
-        if matches.count() == 0:
-            raise NoFileMatchError(
-                'ERROR! No file found that matches value "%s"' % value)
-        elif matches.count() > 1:
-            match_id_list = ['%s@%s' % (match.filename, match.uuid)
-                             for match in matches]
-            match_id_string = ('", "'.join(match_id_list))
-            raise MultipleFileMatchesError(
-                'ERROR! Multiple files were found matching value "%s": "%s". '\
-                'Use a more precise identifier to select just one file.' % (
-                    value, match_id_string))
-        return matches.first()
-
-    def get_substitution_value(self):
-        return self.model.filedataobject.filename
-
-    def is_ready(self):
-        resource = self.model.filedataobject.file_resource
-        return resource is not None and resource.is_ready()
-
-
-class FloatDataObjectManager(AbstractDataObjectManager):
-
-    @classmethod
-    def get_by_value(cls, value):
-        return FloatDataObject.objects.create(value=value, type='float')
-
-    def get_substitution_value(self):
-        return self.model.floatdataobject.value
-
-    def is_ready(self):
-        return True
-
-
-class IntegerDataObjectManager(AbstractDataObjectManager):
-
-    @classmethod
-    def get_by_value(cls, value):
-        return IntegerDataObject.objects.create(value=value, type='integer')
-
-    def get_substitution_value(self):
-        return self.model.integerdataobject.value
-
-    def is_ready(self):
-        return True
-
-
-class StringDataObjectManager(AbstractDataObjectManager):
-
-    @classmethod
-    def get_by_value(cls, value):
-        return StringDataObject.objects.create(value=value, type='string')
-
-    def get_substitution_value(self):
-        return self.model.stringdataobject.value
-
-    def is_ready(self):
-        return True
-
-
-class ArrayDataObjectManager(AbstractDataObjectManager):
-
-    def _rename_duplicate(self, filename, count):
-        if count == 0:
-            return filename
-        parts = filename.split('.')
-        assert len(parts) > 0, 'missing filename'
-        if len(parts) == 1:
-            return parts[0] + '(%s)' % count
-        else:
-            return '.'.join(parts[0:len(parts)-1]) + '__%s__.' % count + parts[-1]
-
-    def get_substitution_value(self):
-        if self.model.type == 'file' and self.model.is_array:
-            # Increment filenames if there are duplicates in an array,
-            # e.g. file.txt, file__1__.txt, file__2__.txt
-            values = []
-            filename_count = {}
-            for member in self.model.arraydataobject.members:
-                filename = member.substitution_value
-                duplicates = filename_count.setdefault(filename, 0)
-                filename_count[filename] += 1
-                if duplicates > 0:
-                    filename = self._rename_duplicate(filename, duplicates)
-                values.append(filename)
-            return values
-        else:
-            return [member.substitution_value
-                    for member in self.model.arraydataobject.members]
-
-    def is_ready(self):
-        return all([member.is_ready()
-                    for member in self.model.members])
+from api.models import validators
 
 
 class DataObject(BaseModel):
 
-    _MANAGER_CLASSES = {
-        'boolean': BooleanDataObjectManager,
-        'float': FloatDataObjectManager,
-        'file': FileDataObjectManager,
-        'integer': IntegerDataObjectManager,
-        'string': StringDataObjectManager,
-    }
-
-    _ARRAY_MANAGER_CLASS = ArrayDataObjectManager
+    NAME_FIELD = 'file_resource__filename'
+    HASH_FIELD = 'file_resource__md5'
+    ID_FIELD = 'uuid'
 
     DATA_TYPE_CHOICES = (
         ('boolean', 'Boolean'),
@@ -167,195 +28,153 @@ class DataObject(BaseModel):
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
     type = models.CharField(
-        max_length=255,
+        max_length=16,
         choices=DATA_TYPE_CHOICES)
-    is_array = models.BooleanField(
-        default=False)
     datetime_created = models.DateTimeField(
         default=timezone.now)
+    data = jsonfield.JSONField(blank=True)
+    parent = models.ForeignKey('self', null=True, blank=True,
+                               related_name='children',
+                               on_delete=models.SET_NULL)
 
-    @classmethod
-    def _get_manager_class(cls, type):
-        return cls._MANAGER_CLASSES[type]
-
-    def _get_manager(self):
-        if self.is_array:
-            return self._ARRAY_MANAGER_CLASS(self)
-        else:
-            return self._get_manager_class(self.type)(self)
-
+    def clean(self):
+        validators.DataObjectValidator.validate_model(self)
+        
     @classmethod
     def get_by_value(cls, value, type):
-        return cls._MANAGER_CLASSES[type].get_by_value(value)
+        """ Converts a value into a corresponding  data object.
+        For files, this looks up a file DataObject by name, uuid, and/or md5.
+        For other types, it creates a new DataObject.
+        """
+        if type == 'file':
+            return cls._get_file_by_value(value)
+        else:
+            return DataObject.objects.create(data={'contents': value}, type=type)
+
+    @classmethod
+    def _get_file_by_value(cls, value):
+        """Look up a file DataObject by name, uuid, and/or md5.
+        """
+        matches = FileResource.filter_by_name_or_id_or_hash(value)
+        if matches.count() == 0:
+            raise ValidationError(
+                'No file found that matches value "%s"' % value)
+        elif matches.count() > 1:
+            match_id_list = ['%s@%s' % (match.filename, match.get_uuid())
+                             for match in matches]
+            match_id_string = ('", "'.join(match_id_list))
+            raise ValidationError(
+                'Multiple files were found matching value "%s": "%s". '\
+                'Use a more precise identifier to select just one file.' % (
+                    value, match_id_string))
+        return matches.first().data_object
+
+    @property
+    def _contents_info(self):
+        return self.type, self.contents
+
+    @property
+    def contents(self):
+        if self.type == 'file':
+            return self.file_resource
+        else:
+            return self.data.get('contents')
 
     @property
     def substitution_value(self):
-        return self._get_manager().get_substitution_value()
-
-    def add_to_array(self, array):
-        if not array.is_array:
-            raise NonArrayError('Cannot add members when is_array=False')
-        if self.is_array:
-            raise NestedArraysError('Cannot nest ArrayDataObjects')
-        ArrayMembership.objects.create(
-            array=array, member=self, order=array.prefetch_members.count())
-
-    def is_ready(self):
-        return self._get_manager().is_ready()
-
-
-class BooleanDataObject(DataObject):
-
-    value = models.BooleanField(null=False)
-
-
-class FileDataObject(DataObject):
-
-    NAME_FIELD = 'filename'
-    HASH_FIELD = 'md5'
-
-    FILE_SOURCE_TYPE_CHOICES = (('imported', 'Imported'),
-                                ('result', 'Result'),
-                                ('log', 'Log'))
-
-    filename = models.CharField(max_length=1024)
-    file_resource = models.ForeignKey('FileResource',
-                                      null=True,
-                                      related_name='file_data_objects',
-                                      on_delete=models.PROTECT,
-                                      blank=True)
-    md5 = models.CharField(max_length=255, null=True, blank=True)
-    source_type = models.CharField(
-        max_length=255,
-        choices=FILE_SOURCE_TYPE_CHOICES)
-    file_import = jsonfield.JSONField(null=True, blank=True)
-
-    def initialize_file_resource(self):
-        # Based on settings, choose the path where the
-        # file should be stored and create a FileResource
-        # with upload_status=incomplete.
-        #
-        # If a file with identical content has already been uploaded,
-        # re-use it if permitted by settings.
-        if not get_setting('KEEP_DUPLICATE_FILES'):
-            matching_file_resources = FileResource.objects.filter(
-                md5=self.md5,
-                upload_status='complete')
-            if matching_file_resources.count() > 0:
-                # First match is as good as any
-                file_resource = matching_file_resources.first()
-                self.setattrs_and_save_with_retries({
-                    'file_resource': file_resource})
-                return self.file_resource
-        # No existing file to use. Create a new resource for upload.
-        file_resource  = FileResource\
-                         .create_incomplete_resource_for_import(self)
-        self.setattrs_and_save_with_retries({
-            'file_resource': file_resource})
-        return self.file_resource
-
-
-class FloatDataObject(DataObject):
-
-    value = models.FloatField()
-
-
-class IntegerDataObject(DataObject):
-
-    value = models.IntegerField()
-
-
-class StringDataObject(DataObject):
-
-    value = models.TextField(max_length=10000)
-
-
-class ArrayDataObject(DataObject):
+        if self.type == 'file':
+            return self.file_resource.filename
+        else:
+            return str(self.contents)
 
     @property
-    def members(self):
-        return [m.member for m in 
-                self.has_array_members_membership.order_by('order')\
-                .select_related('member')]
-
-    prefetch_members = models.ManyToManyField('DataObject',
-                                     through='ArrayMembership',
-                                     through_fields=('array', 'member'),
-                                     related_name='arrays')
-
-    def add_members(self, data_object_list):
-        for data_object in data_object_list:
-            data_object.add_to_array(self)
+    def is_ready(self):
+        if self.type == 'file':
+            return self.file_resource is not None \
+                and self.file_resource.is_ready
+        else:
+            return True
 
     @classmethod
-    def create_from_list(cls, data_object_list, type):
-        cls._validate_list(data_object_list, type)
-        array = ArrayDataObject.objects.create(is_array=True, type=type)
-        for data_object in data_object_list:
-            data_object.add_to_array(array)
-        return array
-
-    @classmethod
-    def _validate_list(cls, data_object_list, type):
-        for data_object in data_object_list:
-            if not data_object.type == type:
-                raise TypeMismatchError(
-                    'Expected type "%s", but DataObject %s is type %s' \
-                    % (type, data_object.uuid, data_object.type))
-            if data_object.is_array:
-                raise NestedArraysError('Cannot nest ArrayDataObjects')
+    def create_and_initialize_file_resource(cls, **kwargs):
+        data_object = cls.objects.create(type='file')
+        kwargs['data_object'] = data_object
+        FileResource.initialize(**kwargs)
+        return data_object
 
 
-class ArrayMembership(BaseModel):
+class DataNode(MPTTModel, BaseModel):
 
-    # ManyToMany relationship between arrays and their items
-    array = models.ForeignKey('ArrayDataObject',
-                              related_name='has_array_members_membership',
-                              on_delete=models.CASCADE)
-    member = models.ForeignKey('DataObject',
-                               related_name='in_array_membership',
-                               on_delete=models.CASCADE)
-    order = models.IntegerField()
-
-    class Meta:
-        ordering = ['order',]
+    parent = TreeForeignKey('self', null=True, blank=True,
+                            related_name='children', db_index=True,
+                            on_delete=models.CASCADE)
+    data_object = models.ForeignKey('DataObject', null=True,
+                                related_name='data_nodes',
+                                on_delete=models.PROTECT)
 
 
 class FileResource(BaseModel):
 
-    FILE_RESOURCE_UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
-                                           ('complete', 'Complete'),
-                                           ('failed', 'Failed'))
-    FILE_RESOURCE_UPLOAD_STATUS_DEFAULT = 'incomplete'
+    NAME_FIELD = 'filename'
+    HASH_FIELD = 'md5'
+    ID_FIELD = 'data_object__uuid'
 
-    uuid = models.CharField(default=uuidstr,
-                            unique=True, max_length=255)
-    datetime_created = models.DateTimeField(
-        default=timezone.now)
-    file_url = models.CharField(max_length=1000)
-    md5 = models.CharField(max_length=255, null=True, blank=True)
+    UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
+                             ('complete', 'Complete'),
+                             ('failed', 'Failed'))
+    SOURCE_TYPE_CHOICES = (('imported', 'Imported'),
+                           ('result', 'Result'),
+                           ('log', 'Log'))
+
+    data_object = models.OneToOneField(
+        'DataObject',
+        related_name='file_resource',
+        on_delete=models.PROTECT)
+    filename = models.CharField(
+        max_length=255, validators=[validators.validate_filename])
+    file_url = models.TextField(
+        validators=[validators.validate_url])
+    md5 = models.CharField(
+        max_length=32, validators=[validators.validate_md5])
+    import_comments = models.TextField(null=True, blank=True)
+    imported_from_url = models.TextField(
+        null=True, blank=True,
+        validators=[validators.validate_url])
     upload_status = models.CharField(
-        max_length=255,
-        default=FILE_RESOURCE_UPLOAD_STATUS_DEFAULT,
-        choices=FILE_RESOURCE_UPLOAD_STATUS_CHOICES)
+        max_length=16,
+        default='incomplete',
+        choices=UPLOAD_STATUS_CHOICES)
+    source_type = models.CharField(
+        max_length=16,
+        choices=SOURCE_TYPE_CHOICES)
 
+    @property
     def is_ready(self):
         return self.upload_status == 'complete'
 
+    def get_uuid(self):
+        if not self.data_object:
+            return ''
+        else:
+            return self.data_object.uuid
+
     @classmethod
-    def create_incomplete_resource_for_import(cls, file_data_object):
+    def initialize(cls, **kwargs):
+        if not kwargs.get('file_url'):
+            kwargs['file_url'] = cls._add_url_prefix(
+                cls._get_path_for_import(
+                    kwargs.get('filename'),
+                    kwargs.get('source_type'),
+                    kwargs.get('data_object')))
+        return cls.objects.create(**kwargs)
 
-        # Get path from root
-        path = cls._get_path_for_import(file_data_object)
-
-        # Add url prefix
-        file_url = cls._add_url_prefix(path)
-
-        resource = cls.objects.create(file_url=file_url,
-                                      upload_status='incomplete',
-                                      md5=file_data_object.md5)
-
-        return resource
+    @classmethod
+    def _get_path_for_import(cls, filename, source_type, data_object):
+        parts = [cls._get_file_root()]
+        parts.extend(cls._get_breadcrumbs(source_type, data_object))
+        parts.append(cls._get_subdir(source_type))
+        parts.append(cls._get_expanded_filename(filename, data_object.uuid))
+        return os.path.join(*parts)
 
     @classmethod
     def _get_file_root(cls):
@@ -363,115 +182,69 @@ class FileResource(BaseModel):
         # Allow '~/path' home dir notation on local file server
         if get_setting('LOOM_STORAGE_TYPE') == 'LOCAL':
             file_root = os.path.expanduser(file_root)
-        if not file_root.startswith('/'):
-            raise RelativeFileRootError(
-                'LOOM_STORAGE_ROOT setting must be an absolute path. '\
-                'Found "%s" instead.' % file_root)
+        assert file_root.startswith('/'), \
+            'LOOM_STORAGE_ROOT should be an absolute path, but it is "%s".' \
+            % file_root
         return file_root
 
     @classmethod
-    def _get_path_for_import(cls, file_data_object):
-        file_root = cls._get_file_root()
-        if get_setting('KEEP_DUPLICATE_FILES') and get_setting('FORCE_RERUN'):
-            # If both are True, we can organize the directory structure in
-            # a human browsable way
-            if file_data_object.source_type == 'imported':
-                filename = cls._get_filename(file_data_object, timestamp=True,
-                                             filename=True, uuid=True)
-            elif file_data_object.source_type == 'log':
-                filename = cls._get_filename(file_data_object, timestamp=False,
-                                             filename=True, uuid=False)
-            else: # result
-                filename = cls._get_filename(file_data_object, timestamp=False,
-                                             filename=True, uuid=True)
-            return os.path.join(
-                file_root,
-                cls._get_browsable_path(file_data_object),
-                filename)
-        elif get_setting('KEEP_DUPLICATE_FILES'):
-            # Separate dirs for imported, results, logs.
-            # Within each dir use a flat directory structure but give
-            # files with identical content distinctive names
-            return os.path.join(
-                file_root,
-                cls._get_path_by_source_type(file_data_object),
-                cls._get_filename(file_data_object, timestamp=True,
-                                  filename=True, uuid=True))
+    def _get_subdir(cls, source_type):
+        if source_type == 'imported':
+            return 'imported'
+        if source_type == 'log':
+            return 'logs'
+        elif source_type == 'result':
+            return 'work'
         else:
-            # Use a flat directory structure and use file names that
-            # reflect content
-            return os.path.join(
-                file_root,
-                '%s' % file_data_object.md5)
+            assert False, 'Invalid source_type %s' % source_type
 
     @classmethod
-    def _get_filename(cls, file_data_object, timestamp, filename, uuid):
-        parts = []
-        if timestamp:
-            parts.append(timezone.now().strftime('%Y-%m-%dT%H.%M.%SZ'))
-        if uuid:
-            parts.append(str(file_data_object.uuid)[0:8])
-        if filename:
-            parts.append(file_data_object.filename)
-        return '_'.join(parts)
-
-    @classmethod
-    def _get_browsable_path(cls, file_data_object):
+    def _get_breadcrumbs(cls, source_type, data_object):
         """Create a path for a given file, in such a way
         that files end up being organized and browsable by run
         """
-        if file_data_object.source_type == 'imported':
-            return 'imported'
 
-        if file_data_object.source_type == 'log':
-            subdir = 'logs'
+        # TODO reenable when connected to TaskAttempt
+        return []
+        
+        # We should only be here if the file is connected to a TaskAttempt
+        if not source_type in ['log', 'work']:
+            return []
+
+        if source_type == 'log':
             task_attempt \
-                = file_data_object.task_attempt_log_file.task_attempt
-        elif file_data_object.source_type == 'result':
-            subdir = 'work'
+                = data_object.task_attempt_log_file.task_attempt
+        elif source_type == 'result':
             task_attempt \
-                = file_data_object.task_attempt_output.task_attempt
-        else:
-            raise InvalidSourceTypeError('Invalid source_type %s'
-                            % file_data_object.source_type)
+                = data_object.task_attempt_output.task_attempt
 
         task = task_attempt.task
         run = task.run
-
-        path = os.path.join(
-            "%s-%s" % (
-                str(run.uuid)[0:8],
-                run.template.name,
-            ),
-            "task-%s" % str(task.uuid)[0:8],
-            "attempt-%s" % str(task_attempt.uuid)[0:8],
-        )
+        breadcrumbs = ["%s-%s" % (str(run.uuid)[0:8], run.template.name),
+                       "task-%s" % str(task.uuid)[0:8],
+                       "attempt-%s" % str(task_attempt.uuid)[0:8]]
         while run.parent is not None:
             run = run.parent
-            path = os.path.join(
-                "%s-%s" % (
-                    str(run.uuid)[0:8],
-                    run.template.name
-                ),
-                path
-            )
-        path = "%s-%s" % (run.datetime_created.strftime(
-            '%Y-%m-%dT%H.%M.%SZ'), path)
-        return os.path.join('runs', path, subdir)
+            breadcrumbs = [
+                "%s-%s" % (str(run.uuid)[0:8], run.template.name) \
+                + breadcrumbs]
+        # Prepend first run with datetime
+        breadcrumbs[0] = "%s-%s" % (
+            run.datetime_created.strftime('%Y-%m-%dT%H.%M.%SZ'),
+            breadcrumbs[0])
+        return breadcrumbs
 
     @classmethod
-    def _get_path_by_source_type(cls, file_data_object):
-        source_type_to_path = {
-            'imported': 'imported',
-            'result': 'results',
-            'log': 'logs'
-        }
-        return source_type_to_path[file_data_object.source_type]
+    def _get_expanded_filename(cls, filename, data_object_uuid):
+        return "%s_%s_%s" % (
+            timezone.now().strftime('%Y-%m-%dT%H.%M.%SZ'),
+            str(data_object_uuid)[0:8],
+            filename)
 
     @classmethod
     def _add_url_prefix(cls, path):
         if not path.startswith('/'):
-            raise RelativePathError(
+            raise ValidationError(
                 'Expected an absolute path but got path="%s"' % path)
         LOOM_STORAGE_TYPE = get_setting('LOOM_STORAGE_TYPE')
         if LOOM_STORAGE_TYPE == 'LOCAL':
@@ -479,6 +252,6 @@ class FileResource(BaseModel):
         elif LOOM_STORAGE_TYPE == 'GOOGLE_STORAGE':
             return 'gs://' + get_setting('GOOGLE_STORAGE_BUCKET') + path
         else:
-            raise InvalidFileServerTypeError(
+            raise ValidationError(
                 'Couldn\'t recognize value for setting LOOM_STORAGE_TYPE="%s"'\
                 % LOOM_STORAGE_TYPE)
