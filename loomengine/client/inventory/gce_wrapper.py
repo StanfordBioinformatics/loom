@@ -3,7 +3,9 @@ import os
 import subprocess
 import copy
 import json
+import random
 import sys
+import time
 
 inventory_file = os.path.join(os.path.dirname(
     os.path.abspath(__file__)),
@@ -43,14 +45,20 @@ env.update({
     'GCE_EMAIL': GCE_EMAIL,
 })
 
-retries = 3
+max_retries = 10
+attempt = 0
+
 while True:
     try:
         print subprocess.check_output([inventory_file], env=env)
         sys.exit(0)
     except Exception as e:
-        print 'Error executing inventory file %s: %s' % (inventory_file, e)
-        print '%s retries remaining' % retries
-        if retries == 0:
+        attempt += 1
+        if attempt > max_retries:
             raise
-        retries -= 1
+        # Exponential backoff on retry delay as suggested by
+        # https://cloud.google.com/storage/docs/exponential-backoff
+        delay = 2**attempt + random.random()
+        print 'Error executing inventory file %s: %s' % (inventory_file, str(e))
+        print 'Retry number %s of %s in %s seconds' % (attempt, max_retries, delay)
+        time.sleep(delay)

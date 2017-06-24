@@ -1,6 +1,10 @@
 Release Notes
 =============
 
+0.3.8
+---------
+* Run overview shows nested runs, tasks, and task-attempts
+
 0.3.7
 ---------
 * Retries for upload/download from Google Storage
