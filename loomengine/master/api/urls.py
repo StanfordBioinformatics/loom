@@ -13,13 +13,13 @@ router.register('data-objects',
 router.register('data-nodes',
                 api.views.DataNodeViewSet,
                 base_name='data-node')
-"""
 router.register('tasks',
                 api.views.TaskViewSet,
                 base_name='task')
 router.register('task-attempts',
                 api.views.TaskAttemptViewSet,
                 base_name='task-attempt')
+"""
 router.register('task-attempt-outputs',
                 api.views.TaskAttemptOutputViewSet,
                 base_name='task-attempt-output')

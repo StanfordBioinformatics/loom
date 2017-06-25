@@ -38,12 +38,12 @@
                     {{activeData.taskAttempt.datetime_created | date:'medium'}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.rendered_command">
+            <tr ng-show="activeData.taskAttempt.command">
                 <th>
-                    Rendered Command
+                    Command
                 </th>
                 <td>
-                    {{activeData.taskAttempt.rendered_command}}
+                    {{activeData.taskAttempt.command}}
                 </td>
             </tr>
             <tr ng-show="activeData.taskAttempt.interpreter">

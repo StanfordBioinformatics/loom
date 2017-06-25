@@ -84,7 +84,7 @@ class TemplateRunner(object):
                 inputs.append({
                     'channel': channel,
                     'data': {
-                        'data':
+                        'contents':
                         self._parse_string_to_nested_lists(input_id)}
                 })
         return inputs

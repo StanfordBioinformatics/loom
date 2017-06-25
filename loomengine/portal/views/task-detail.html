@@ -65,7 +65,7 @@
         </table>
     </div>
 
-    <div ng-show="activeData.task.task_attempts">
+    <div ng-show="activeData.task.all_task_attempts">
         <h4>Attempts</h4>
         <div class="table-responsive" >
             <table class="table table-striped">
@@ -74,7 +74,7 @@
                     <th>Status</th>
                     <th>Created</th>
                 </thead>
-                <tbody ng-repeat="task_attempt in activeData.task.task_attempts">
+                <tbody ng-repeat="task_attempt in activeData.task.all_task_attempts">
                     <tr>
                         <td>
                             <a ng-href="#/task-attempts/{{task_attempt.uuid}}">

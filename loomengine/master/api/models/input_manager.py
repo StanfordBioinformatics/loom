@@ -195,7 +195,7 @@ class InputSetGeneratorNode(object):
         return generator_A_cross_B
 
     def get_input_sets(self, seed_path):
-        if self._is_leaf():
+        if self._is_leaf:
             path = copy.deepcopy(seed_path)
             if not self.input_items:
                 return []
@@ -205,15 +205,16 @@ class InputSetGeneratorNode(object):
             input_sets = []
             for child in self.children.values():
                 path = copy.deepcopy(seed_path)
-                path.append((child.index, self.degree))
+                path.append([child.index, self.degree])
                 input_sets.extend(child.get_input_sets(path))
             return input_sets
-                
+
+    @property
     def _is_leaf(self):
         return self.degree == None
 
     def get_node(self, path):
-        if self._is_leaf():
+        if self._is_leaf:
             return self
         if len(path) == 0:
             return self
@@ -247,16 +248,9 @@ class InputItem(object):
     refrain from creating a new ArrayDataObject for no reason.
     """
 
-    def __init__(self, data_tree_node, channel):
+    def __init__(self, data_tree, channel):
         self.channel = channel
-        self.data_tree_node = data_tree_node
+        self.data_tree = data_tree
 
     def get_type(self):
-        return self.data_tree_node.type
-
-    def get_data_object(self):
-        if self.data_tree_node.is_leaf():
-            return self.data_tree_node.data_object
-        else:
-            raise Exception("TODO")
-        #return self.data_tree_node.render_as_array_data_object()
+        return self.data_tree.type

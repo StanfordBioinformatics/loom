@@ -419,8 +419,8 @@ class RunInput(InputOutputNode):
     group = models.IntegerField(blank=True, null=True)
 
     def is_ready(self, data_path=None):
-        if self.data_root:
-            return self.data_root.is_ready(data_path=data_path)
+        if self.data_tree:
+            return self.data_tree.is_ready(data_path=data_path)
         else:
             return False
 
@@ -456,7 +456,7 @@ class RunOutput(InputOutputNode):
 
     def push(self, data_path, data_object):
         self.add_data_object(data_path, data_object)
-        self.data_root.push(data_path)
+        self.data_tree.push(data_path)
 
 
 class RunConnectorNode(InputOutputNode):

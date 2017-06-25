@@ -530,9 +530,9 @@ class FileManager:
                 md5 = files[0].get('md5')
                 matches = []
                 for file in files:
-                    contents = file.get('contents')
+                    value = file.get('value')
                     try:
-                        filename = contents.get('filename')
+                        filename = value.get('filename')
                     except AttributeError:
                         filename = ''
                     matches.append('%s@%s' % (filename, file.get('uuid')))
@@ -543,7 +543,7 @@ class FileManager:
         
         file_data_object = self.connection.post_data_object({
             'type': 'file',
-            'contents': {
+            'value': {
                 'filename': filename,
                 'md5': md5,
                 'imported_from_url': source.get_url(),
@@ -604,14 +604,14 @@ class FileManager:
         source = Source(source_url, self.settings)
         logger.info('Importing file from %s...' % source.get_url())
 
-        if file_data_object['contents']['upload_status'] == 'complete':
+        if file_data_object['value']['upload_status'] == 'complete':
             logger.info(
                 '   server already has the file. Skipping upload.')
             return file_data_object
 
         try:
             destination = Destination(
-                file_data_object['contents']['file_url'],
+                file_data_object['value']['file_url'],
                 self.settings)
             logger.info(
                 '   copying to destination %s ...' % destination.get_url())
@@ -630,14 +630,14 @@ class FileManager:
         file_data_object = self._set_upload_status(
             file_data_object, 'complete')
         logger.info('   imported file %s@%s' % (
-            file_data_object['contents']['filename'],
+            file_data_object['value']['filename'],
             file_data_object['uuid']))
         return file_data_object
 
     def _set_upload_status(self, file_data_object, upload_status):
         """ Set file_data_object.file_resource.upload_status
         """
-        file_data_object['contents']['upload_status'] = upload_status
+        file_data_object['value']['upload_status'] = upload_status
         return self.connection.update_data_object(
             file_data_object['uuid'],
             file_data_object)

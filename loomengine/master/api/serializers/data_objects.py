@@ -5,17 +5,17 @@ from rest_framework import serializers
 
 from api.models.data_objects import DataObject, FileResource
 
-class DataContentsSerializer(serializers.Field):
+class DataValueSerializer(serializers.Field):
 
     def to_representation(self, value):
         data_type = value[0]
-        data_contents = value[1]
+        data_value = value[1]
         if data_type != 'file':
             # For all non-file types, data_value is the value
-            return data_contents
+            return data_value
         else:
             # For files, data_value is the FileResource instance
-            return FileResourceSerializer(data_contents).data
+            return FileResourceSerializer(data_value).data
 
     def to_internal_value(self, data):
         return data
@@ -29,7 +29,7 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
             'url',
             'type',
             'datetime_created',
-            'contents',
+            'value',
         )
 
     uuid = serializers.UUIDField(required=False)
@@ -39,10 +39,10 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
     )
     type = serializers.CharField(required=False) # Type can also come from context
     datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
-    contents = DataContentsSerializer(source='_contents_info')
+    value = DataValueSerializer(source='_value_info')
 
     def create(self, validated_data):
-        contents = validated_data.pop('_contents_info')
+        value = validated_data.pop('_value_info')
         if not validated_data.get('type'):
             if self.context.get('type'):
                 validated_data['type'] = self.context.get('type')
@@ -50,27 +50,27 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                 raise serializers.ValidationError(
                     '"type" not found in "type" field or in context')
         if validated_data.get('type') != 'file':
-            validated_data['data'] = {'contents': contents}
+            validated_data['data'] = {'value': value}
             return DataObjectSerializer\
                 .Meta.model.objects.create(**validated_data)
         else:
-            if not isinstance(contents, dict):
+            if not isinstance(value, dict):
                 # If it's a string, treat it as a template identifier.
                 # Look it up. 
-                data_objects = DataObject.filter_by_name_or_id(contents)
+                data_objects = DataObject.filter_by_name_or_id(value)
                 if data_objects.count() == 0:
                     raise serializers.ValidationError(
-                        'No matching DataObject found for "%s"' % contents)
+                        'No matching DataObject found for "%s"' % value)
                 elif data_objects.count() > 1:
                     raise serializers.ValidationError(
-                        'Multiple matching DataObjects found for "%s"' % contents)
+                        'Multiple matching DataObjects found for "%s"' % value)
                 return data_objects.first()
             else:
                 # Otherwise, create new.
                 data_object = self.Meta.model.objects.create(**validated_data)
                 try:
-                    contents['data_object'] = data_object
-                    FileResource.initialize(**contents)
+                    value['data_object'] = data_object
+                    FileResource.initialize(**value)
                     return data_object
                 except:
                     # Cleanup
@@ -78,8 +78,14 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                     raise
 
     @classmethod
+    def get_select_related_list(cls):
+        return ['file_resource']
+                
+    @classmethod
     def apply_prefetch(cls, queryset):
-        return queryset.select_related('file_resource')
+        for select_string in cls.get_select_related_list():
+            queryset = queryset.select_related(select_string)
+        return queryset
 
 
 class FileResourceSerializer(serializers.ModelSerializer):
@@ -108,7 +114,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
         
 class DataObjectUpdateSerializer(DataObjectSerializer):
 
-    # Override to make all fields except contents read-only
+    # Override to make all fields except value read-only
     uuid = serializers.UUIDField(read_only=True)
     url = serializers.HyperlinkedIdentityField(
         view_name='data-object-detail',
@@ -120,18 +126,18 @@ class DataObjectUpdateSerializer(DataObjectSerializer):
     def update(self, instance, validated_data):
         # The only time a DataObject should be updated by the client
         # is to change upload_status of a file.
-        contents_data = validated_data.get('_contents_info')
-        if contents_data:
+        value_data = validated_data.get('_value_info')
+        if value_data:
             if not instance.type == 'file':
                 raise serializers.ValidationError(
-                    'Updating contents is not allowed on DataObject '\
+                    'Updating value is not allowed on DataObject '\
                     'with type "%s"' % instance.type)
-            if not instance.contents:
+            if not instance.value:
                 raise serializers.ValidationError(
-                    "Failed to update DataObject because file contents are missing")
-            instance.contents.upload_status = contents_data.get('upload_status')
+                    "Failed to update DataObject because file value are missing")
+            instance.value.upload_status = value_data.get('upload_status')
             try:
-                instance.contents.save()
+                instance.value.save()
             except django.core.exceptions.ValidationError as e:
                 raise serializers.ValidationError(e.messages)
         return instance

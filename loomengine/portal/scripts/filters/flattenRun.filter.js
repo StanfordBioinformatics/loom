@@ -25,8 +25,8 @@ function recurseFlattenRun(run){
 	tasks = [].concat.apply([],tasks);
 	return [run].concat(tasks);
     }
-    else if (run.task_attempts){
-	var task_attempts = run.task_attempts.map(function(attempt){
+    else if (run.all_task_attempts){
+	var task_attempts = run.all_task_attempts.map(function(attempt){
 	    attempt.type='task-attempt';
 	    attempt.level=run.level+1;
 	    return attempt;

@@ -49,7 +49,6 @@ class DataObjectViewSet(viewsets.ModelViewSet):
     """
 
     lookup_field = 'uuid'
-    #serializer_class = serializers.DataObjectSerializer
 
     def get_serializer_class(self):
         if self.action == 'partial_update':
@@ -89,7 +88,6 @@ class DataNodeViewSet(ExpandableViewSet):
         queryset = models.DataNode.objects.filter(parent__isnull=True)
         return queryset
 
-'''
 class TaskViewSet(ExpandableViewSet):
     """
     A Task represents a specific set of (runtime environment, command, inputs).
@@ -197,7 +195,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
         except Exception as e:
             return JsonResponse({"message": e.message}, status=500)
 
-'''
+
 class TemplateViewSet(ExpandableViewSet):
     """
     A Template is a pattern for analysis to be performed, but without necessarily
@@ -220,7 +218,9 @@ class TemplateViewSet(ExpandableViewSet):
         queryset = queryset\
                    .prefetch_related('steps')\
                    .prefetch_related(
-                       'inputs__data_object')
+                       'inputs',
+                       'inputs__data_tree',
+                       'inputs__data_tree__data_object')
         return queryset.order_by('-datetime_created')
 
 

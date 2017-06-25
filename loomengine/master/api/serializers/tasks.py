@@ -120,7 +120,7 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
                   'inputs',
                   'outputs',
                   'interpreter',
-                  'rendered_command',
+                  'command',
                   'environment',
                   'resources',
                   'timepoints',
@@ -130,7 +130,7 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name='task-attempt-detail',
         lookup_field='uuid')
-    rendered_command = serializers.CharField(required=False)
+    command = serializers.CharField(required=False)
     interpreter = serializers.CharField(required=False)
     log_files = TaskAttemptLogFileSerializer(
         many=True, allow_null=True, required=False)
@@ -178,17 +178,16 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
     @classmethod
     def get_prefetch_related_list(cls):
         prefetch_list = ['inputs',
-                'inputs__data_object',
+                'inputs__data_tree__data_object',
                 'outputs',
-                'outputs__data_object',
+                'outputs__data_tree__data_object',
                 'log_files',
                 'log_files__file',
-                'log_files__file__filedataobject__file_resource',
+                'log_files__file__file_resource',
                 'timepoints']
-        for suffix in DataObjectSerializer.get_select_related_list()\
-            + DataObjectSerializer.get_prefetch_related_list():
-            prefetch_list.append('inputs__data_object__'+suffix)
-            prefetch_list.append('outputs__data_object__'+suffix)
+        for suffix in DataObjectSerializer.get_select_related_list():
+            prefetch_list.append('inputs__data_tree__data_object__'+suffix)
+            prefetch_list.append('outputs__data_tree__data_object__'+suffix)
         return prefetch_list
 
 
@@ -198,7 +197,7 @@ class SummaryTaskAttemptSerializer(TaskAttemptSerializer):
     TaskAttemptSerializer. Most fields are write_only.
     """
 
-    rendered_command = serializers.CharField(write_only=True, required=False)
+    command = serializers.CharField(write_only=True, required=False)
     interpreter = serializers.CharField(write_only=True, required=False)
     log_files = TaskAttemptLogFileSerializer(
         write_only=True, many=True, allow_null=True, required=False)
@@ -288,10 +287,10 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     environment = serializers.JSONField(required=False)
     inputs = TaskInputSerializer(many=True, read_only=True)
     outputs = TaskOutputSerializer(many=True, read_only=True)
-    task_attempts = TaskAttemptURLSerializer(many=True, read_only=True)
-    selected_task_attempt = TaskAttemptURLSerializer(required=False)
+    all_task_attempts = TaskAttemptURLSerializer(many=True, read_only=True)
+    task_attempt = TaskAttemptURLSerializer(required=False)
+    raw_command = serializers.CharField(required=False)
     command = serializers.CharField(required=False)
-    rendered_command = serializers.CharField(required=False)
     interpreter = serializers.CharField(required=False)
     datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
@@ -315,10 +314,10 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'environment',
             'inputs',
             'outputs',
-            'task_attempts',
-            'selected_task_attempt',
+            'all_task_attempts',
+            'task_attempt',
+            'raw_command',
             'command',
-            'rendered_command',
             'interpreter',
             'datetime_finished',
             'datetime_created',
@@ -343,21 +342,20 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
 
     @classmethod
     def get_select_related_list(cls):
-        return ['selected_task_attempt']
+        return ['task_attempt']
 
     @classmethod
     def get_prefetch_related_list(cls):
         prefetch_list = [
             'inputs',
-            'inputs__data_object',
+            'inputs__data_tree__data_object',
             'outputs',
-            'outputs__data_object',
-            'task_attempts',
+            'outputs__data_tree__data_object',
+            'all_task_attempts',
             'timepoints']
-        for suffix in DataObjectSerializer.get_select_related_list()\
-            + DataObjectSerializer.get_prefetch_related_list():
-            prefetch_list.append('inputs__data_object__'+suffix)
-            prefetch_list.append('outputs__data_object__'+suffix)
+        for suffix in DataObjectSerializer.get_select_related_list():
+            prefetch_list.append('inputs__data_tree__data_object__'+suffix)
+            prefetch_list.append('outputs__data_tree__data_object__'+suffix)
         return prefetch_list
 
 
@@ -371,10 +369,10 @@ class SummaryTaskSerializer(TaskSerializer):
     environment = serializers.JSONField(write_only=True, required=False)
     inputs = TaskInputSerializer(write_only=True, many=True)
     outputs = TaskOutputSerializer(write_only=True, many=True)
-    task_attempts = SummaryTaskAttemptSerializer(many=True)
-    selected_task_attempt = SummaryTaskAttemptSerializer(required=False)
+    all_task_attempts = SummaryTaskAttemptSerializer(many=True)
+    task_attempt = SummaryTaskAttemptSerializer(required=False)
+    raw_command = serializers.CharField(write_only=True, required=False)
     command = serializers.CharField(write_only=True, required=False)
-    rendered_command = serializers.CharField(write_only=True, required=False)
     interpreter = serializers.CharField(write_only=True, required=False)
     status_is_finished = serializers.BooleanField(write_only=True, required=False)
     status_is_failed = serializers.BooleanField(write_only=True, required=False)
@@ -395,17 +393,17 @@ class SummaryTaskSerializer(TaskSerializer):
 
     @classmethod
     def get_select_related_list(cls):
-        return ['selected_task_attempt']
+        return ['task_attempt']
 
     @classmethod
     def get_prefetch_related_list(cls):
-        return ['task_attempts']
+        return ['all_task_attempts']
 
 
 class ExpandedTaskSerializer(TaskSerializer):
 
-    task_attempts = TaskAttemptSerializer(many=True, read_only=True)
-    selected_task_attempt = TaskAttemptSerializer(read_only=True)
+    all_task_attempts = TaskAttemptSerializer(many=True, read_only=True)
+    task_attempt = TaskAttemptSerializer(read_only=True)
     
     @classmethod
     def _apply_prefetch(cls, queryset):
@@ -417,24 +415,23 @@ class ExpandedTaskSerializer(TaskSerializer):
 
     @classmethod
     def get_select_related_list(cls):
-        return ['selected_task_attempt']
+        return ['task_attempt']
 
     @classmethod
     def get_prefetch_related_list(cls):
         prefetch_list = [
             'inputs',
-            'inputs__data_object',
+            'inputs__data_tree__data_object',
             'outputs',
-            'outputs__data_object',
-            'task_attempts',
+            'outputs__data_tree__data_object',
+            'all_task_attempts',
             'timepoints']
-        for suffix in DataObjectSerializer.get_select_related_list()\
-            + DataObjectSerializer.get_prefetch_related_list():
-            prefetch_list.append('inputs__data_object__'+suffix)
-            prefetch_list.append('outputs__data_object__'+suffix)
+        for suffix in DataObjectSerializer.get_select_related_list():
+            prefetch_list.append('inputs__data_tree__data_object__'+suffix)
+            prefetch_list.append('outputs__data_tree__data_object__'+suffix)
         for suffix in TaskAttemptSerializer.get_prefetch_related_list():
-            prefetch_list.append('task_attempts__'+suffix)
-            prefetch_list.append('selected_task_attempt__'+suffix)
+            prefetch_list.append('all_task_attempts__'+suffix)
+            prefetch_list.append('task_attempt__'+suffix)
         return prefetch_list
 
 

@@ -45,7 +45,7 @@ class DataObject(BaseModel):
         if type == 'file':
             return cls._get_file_by_value(value)
         else:
-            return DataObject.objects.create(data={'contents': value}, type=type)
+            return DataObject.objects.create(data={'value': value}, type=type)
 
     @classmethod
     def _get_file_by_value(cls, value):
@@ -66,22 +66,22 @@ class DataObject(BaseModel):
         return matches.first().data_object
 
     @property
-    def _contents_info(self):
-        return self.type, self.contents
+    def _value_info(self):
+        return self.type, self.value
 
     @property
-    def contents(self):
+    def value(self):
         if self.type == 'file':
             return self.file_resource
         else:
-            return self.data.get('contents')
+            return self.data.get('value')
 
     @property
     def substitution_value(self):
         if self.type == 'file':
             return self.file_resource.filename
         else:
-            return str(self.contents)
+            return str(self.value)
 
     @property
     def is_ready(self):
@@ -89,7 +89,7 @@ class DataObject(BaseModel):
             return self.file_resource is not None \
                 and self.file_resource.is_ready
         else:
-            return self.data and 'contents' in self.data.keys()
+            return self.data and 'value' in self.data.keys()
 
     @classmethod
     def create_and_initialize_file_resource(cls, **kwargs):

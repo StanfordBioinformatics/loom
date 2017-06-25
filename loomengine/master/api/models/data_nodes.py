@@ -53,7 +53,7 @@ class DataNode(BaseModel):
     EMPTY_BRANCH_VALUE = []
 
     @property
-    def data(self):
+    def contents(self):
         # Dummy placeholder for serializer
         pass
 
@@ -124,7 +124,7 @@ class DataNode(BaseModel):
         return ready_data_nodes
 
     def _get_all_paths(self, seed_path, gather_depth):
-        if self.is_leaf():
+        if self.is_leaf:
             path = copy.copy(seed_path)
             # If depth exceeds height of tree, just gather to the tree height.
             if gather_depth > len(path):
@@ -158,7 +158,7 @@ class DataNode(BaseModel):
                 return False
             return node.is_ready()
         else:
-            if self.is_leaf():
+            if self.is_leaf:
                 # A leaf node is ready if it has data and that data is ready.
                 if self.data_object:
                     return self.data_object.is_ready
@@ -202,7 +202,7 @@ class DataNode(BaseModel):
     def _get_branch_by_index(self, index, degree):
         branch = self._get_child_by_index(index)
         if branch is not None:
-            if branch.is_leaf():
+            if branch.is_leaf:
                 raise UnexpectedLeafNodeError('Expected branch but found leaf')
             if branch.degree != degree:
                 raise DegreeMismatchError(
@@ -242,6 +242,7 @@ class DataNode(BaseModel):
                 'should be in the range 0 to %s' % (
                     index, self.degree, self.degree-1))
 
+    @property
     def is_leaf(self):
         return self.degree is None
 
@@ -250,7 +251,7 @@ class DataNode(BaseModel):
         return (self.degree is None is self.data_object is None)
 
     def _render_as_data_object_list(self):
-        if self.is_leaf():
+        if self.is_leaf:
             if self.data_object is None:
                 raise Exception(
                     'Failed to render as data object array because data is missing')
@@ -260,7 +261,15 @@ class DataNode(BaseModel):
             for child in self.children.order_by('index'):
                 data_object_list += child._render_as_data_object_list()
             return data_object_list
-       
+
+    @property
+    def substitution_value(self):
+        if self.is_leaf:
+            return self.data_object.substitution_value
+        else:
+            return [child.substitution_value for child
+                    in self.children.order_by('index')]
+
     def push_all(self):
         """Push data from all nodes
         """

@@ -178,12 +178,11 @@ class OutputParserValidator(object):
 
 def validate_data_path(value):
     schema = {
-        "type":     "array",
+        "type": "array",
         "items": {
             "type": "array",
-            "items": {"type": "integer"},
-            "maxItems":     2,
-            "minItems":     2
+            "items": [{"type": "integer"},
+                      {"type": "integer"}]
         }
     }
     try:

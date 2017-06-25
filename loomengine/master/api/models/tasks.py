@@ -27,8 +27,8 @@ class Task(BaseModel):
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     interpreter = models.CharField(max_length=1024)
-    command = models.TextField()
-    rendered_command = models.TextField(null=True, blank=True)
+    raw_command = models.TextField()
+    command = models.TextField(null=True, blank=True)
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
 
@@ -72,7 +72,7 @@ class Task(BaseModel):
 
     @property
     def attempt_number(self):
-        return self.task_attempts.count()
+        return self.all_task_attempts.count()
 
     def is_unresponsive(self):
         heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
@@ -109,7 +109,7 @@ class Task(BaseModel):
         for output in self.outputs.all():
             output.pull_data_object()
             output.push_data_object(self.data_path)
-        for task_attempt in self.task_attempts.all():
+        for task_attempt in self.all_task_attempts.all():
             task_attempt.cleanup()
 
     def kill(self, kill_message):
@@ -119,7 +119,7 @@ class Task(BaseModel):
             'status_is_killed': True
         })
         self.add_timepoint('Task killed', detail=kill_message, is_error=True)
-        for task_attempt in self.task_attempts.all():
+        for task_attempt in self.all_task_attempts.all():
             async.kill_task_attempt(task_attempt.uuid, kill_message)
 
     @classmethod
@@ -130,7 +130,7 @@ class Task(BaseModel):
 
         task = Task.objects.create(
             run=run,
-            command=run.command,
+            raw_command=run.command,
             interpreter=run.interpreter,
             environment=run.template.environment,
             resources=run.template.resources,
@@ -141,7 +141,7 @@ class Task(BaseModel):
                 task=task,
                 channel=input_item.channel,
                 type=input_item.get_type(),
-                data_object = input_item.get_data_object())
+                data_tree = input_item.data_tree)
         for run_output in run.outputs.all():
             task_output = TaskOutput.objects.create(
                 channel=run_output.channel,
@@ -151,7 +151,7 @@ class Task(BaseModel):
                 source=run_output.source,
                 parser=run_output.parser)
         task = task.setattrs_and_save_with_retries(
-            { 'rendered_command': task.render_command() })
+            { 'command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
         run.add_timepoint('Child Task %s was created' % task.uuid)
         run.set_running_status()
@@ -161,7 +161,7 @@ class Task(BaseModel):
         try:
             task_attempt = TaskAttempt.create_from_task(self)
             self.setattrs_and_save_with_retries({
-                'selected_task_attempt': task_attempt,
+                'task_attempt': task_attempt,
                 'status_is_running': True,
                 'status_is_waiting': False})
             self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
@@ -178,12 +178,12 @@ class Task(BaseModel):
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
-            if not input.data_object.is_array:
-                context[input.channel] = input.data_object\
+            if input.data_tree.is_leaf:
+                context[input.channel] = input.data_tree\
                                               .substitution_value
             else:
                 context[input.channel] = ArrayInputContext(
-                    input.data_object\
+                    input.data_tree\
                     .substitution_value)
         return context
 
@@ -206,7 +206,7 @@ class Task(BaseModel):
 
     def render_command(self):
         return render_from_template(
-            self.command,
+            self.raw_command,
             self.get_full_context())
 
     def get_output(self, channel):
@@ -270,10 +270,10 @@ class TaskAttempt(BaseModel):
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     task = models.ForeignKey('Task',
-                             related_name='task_attempt_set',
+                             related_name='all_task_attempts',
                              on_delete=models.CASCADE)
     interpreter = models.CharField(max_length=1024)
-    rendered_command = models.TextField()
+    command = models.TextField()
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
     last_heartbeat = models.DateTimeField(auto_now=True)
@@ -354,7 +354,7 @@ class TaskAttempt(BaseModel):
         task_attempt = cls.objects.create(
             task=task,
             interpreter=task.interpreter,
-            rendered_command=task.rendered_command,
+            command=task.command,
             environment=task.environment,
             resources=task.resources,
         )
@@ -374,7 +374,7 @@ class TaskAttempt(BaseModel):
                 task_attempt=self,
                 type=input.type,
                 channel=input.channel,
-                data_object=input.data_object)
+                data_tree=input.data_tree)
 
     def _initialize_outputs(self):
         for task_output in self.task.outputs.all():
@@ -446,11 +446,6 @@ class TaskAttemptInput(InputOutputNode):
 
 
 class TaskAttemptOutput(InputOutputNode):
-
-    # All info here is saved in the TaskOutput,
-    # except for the data_object. If multiple
-    # attempts are run, each may have a different
-    # data_object.
 
     task_attempt = models.ForeignKey(
         'TaskAttempt',

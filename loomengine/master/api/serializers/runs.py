@@ -101,7 +101,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                   'outputs',
                   'timepoints',
                   'steps',
-#                  'tasks',
+                  'tasks',
         )
 
     uuid = serializers.UUIDField(required=False)
@@ -127,7 +127,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     outputs = RunOutputSerializer(many=True, required=False)
     timepoints = RunTimepointSerializer(many=True, required=False)
     steps = RunURLSerializer(many=True, read_only=True, required=False)
-#    tasks = TaskURLSerializer(many=True, required=False)
+    tasks = TaskURLSerializer(many=True, required=False)
 
     def to_representation(self, instance):
         return strip_empty_values(
@@ -189,7 +189,11 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             'outputs',
             'requested_inputs__data_tree',
             'inputs__data_tree',
+            'inputs__data_tree__data_object',
+            'inputs__data_tree__data_object__file_resource',
             'outputs__data_tree',
+            'outputs__data_tree__data_object',
+            'outputs__data_tree__data_object__file_resource',
             'timepoints',
             'steps',
             'tasks']
@@ -224,7 +228,7 @@ class SummaryRunSerializer(RunSerializer):
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     steps = RecursiveField(many=True, source='_cached_children', required=False)
-#    tasks = SummaryTaskSerializer(many=True)
+    tasks = SummaryTaskSerializer(many=True)
 
     def to_representation(self, instance):
         instance = self._apply_prefetch_to_instance(instance)
@@ -240,8 +244,8 @@ class SummaryRunSerializer(RunSerializer):
         if not hasattr(instance, '_cached_children'):
             descendants = instance.get_descendants(include_self=True)\
                                   .prefetch_related('tasks')\
-                                  .prefetch_related('tasks__task_attempts')\
-                                  .prefetch_related('tasks__selected_task_attempt')
+                                  .prefetch_related('tasks__all_task_attempts')\
+                                  .prefetch_related('tasks__task_attempt')
             instance = get_cached_trees(descendants)[0]
         return instance
 
@@ -249,7 +253,7 @@ class SummaryRunSerializer(RunSerializer):
 class ExpandedRunSerializer(RunSerializer):
 
     steps = RecursiveField(many=True, source='_cached_children', required=False)
-#    tasks = ExpandedTaskSerializer(many=True)
+    tasks = ExpandedTaskSerializer(many=True)
 
     def to_representation(self, instance):
         instance = self._apply_prefetch_to_instance(instance)
@@ -277,8 +281,12 @@ class ExpandedRunSerializer(RunSerializer):
         prefetch_list = [
             'inputs',
             'outputs',
-            'inputs__data_root',
-            'outputs__data_root',
+            'inputs__data_tree',
+            'inputs__data_tree__data_object',
+            'inputs__data_tree__data_object__file_resource',
+            'outputs__data_tree',
+            'outputs__data_tree__data_object',
+            'outputs__data_tree__data_object__file_resource',
             'timepoints',
             'tasks']
         for suffix in ExpandedTaskSerializer.get_prefetch_related_list() + \
