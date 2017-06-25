@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from api.exceptions import *
 from .base import CreateWithParentModelSerializer, SuperclassModelSerializer, ExpandableSerializerMixin
-from api.models.data_objects import FileDataObject
+from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskAttempt, TaskAttemptOutput, TaskAttemptInput, \
     TaskAttemptLogFile, TaskAttemptTimepoint, TaskTimepoint
@@ -50,7 +50,7 @@ class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
                     # We can't use the serializer because it fails to initialize
                     # the file data object when it isn't attached to a
                     # task_attempt_output
-                    data_object = FileDataObject.objects.create(
+                    data_object = DataObject.objects.create(
                         **data_object_data)
                     instance = instance.setattrs_and_save_with_retries(
                         {'data_object': data_object})

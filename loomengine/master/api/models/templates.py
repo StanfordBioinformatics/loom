@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import jsonfield
 from mptt.models import MPTTModel, TreeForeignKey
@@ -50,6 +51,7 @@ class Template(BaseModel):
     imported_from_url = models.TextField(
         null=True, blank=True,
 	validators=[validators.validate_url])
+    imported = models.BooleanField(default=False)
     steps = models.ManyToManyField(
         'Template',
         through='TemplateMembership',
@@ -66,6 +68,8 @@ class Template(BaseModel):
 
     def get_input(self, channel):
         inputs = self.inputs.filter(channel=channel)
+        if inputs.count() == 0:
+            raise ObjectDoesNotExist('No input with channel "%s"' % channel)
         assert inputs.count() == 1, \
             'Found %s inputs for channel %s' % (inputs.count(), channel)
         return inputs.first()

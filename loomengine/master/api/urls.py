@@ -27,14 +27,9 @@ router.register('task-attempt-log-files',
 router.register('templates',
                 api.views.TemplateViewSet,
                 base_name='template')
-"""
 router.register('runs',
                 api.views.RunViewSet,
                 base_name='run')
-router.register('run-requests',
-                api.views.RunRequestViewSet,
-                base_name='run-request')
-"""
 
 urlpatterns = [
     url(r'^', include(router.urls)),

@@ -39,7 +39,8 @@ class TemplateRunner(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('template', metavar='TEMPLATE', help='ID of template to run')
-        parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*', help='ID of data inputs')
+        parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*',
+                            help='ID of data inputs')
         return parser
 
     @classmethod
@@ -52,11 +53,11 @@ class TemplateRunner(object):
                 raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
 
     def run(self):
-        run_request_data = {
+        run_data = {
             'template': self.args.template,
-            'inputs': self._get_inputs()}
+            'requested_inputs': self._get_inputs()}
         try:
-            run_request = self.connection.post_run_request(run_request_data)
+            run = self.connection.post_run(run_data)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code >= 400:
                 try:
@@ -70,8 +71,8 @@ class TemplateRunner(object):
                 raise e
 
         print 'Created run %s@%s' % (
-            run_request['template']['name'],
-            run_request['uuid'])
+            run['name'],
+            run['uuid'])
 
     def _get_inputs(self):
         """Converts command line args into a list of template inputs
@@ -80,10 +81,12 @@ class TemplateRunner(object):
         if self.args.inputs:
             for kv_pair in self.args.inputs:
                 (channel, input_id) = kv_pair.split('=')
-                inputs.append({'channel': channel, 'data': 
-                               {'contents':
-                                self._parse_string_to_nested_lists(input_id)}
-                           })
+                inputs.append({
+                    'channel': channel,
+                    'data': {
+                        'contents':
+                        self._parse_string_to_nested_lists(input_id)}
+                })
         return inputs
 
     def _parse_string_to_nested_lists(self, value):

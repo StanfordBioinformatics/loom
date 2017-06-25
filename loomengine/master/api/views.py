@@ -49,7 +49,13 @@ class DataObjectViewSet(viewsets.ModelViewSet):
     """
 
     lookup_field = 'uuid'
-    serializer_class = serializers.data_objects.DataObjectSerializer
+    #serializer_class = serializers.DataObjectSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'partial_update':
+            return serializers.DataObjectUpdateSerializer
+        else:
+            return serializers.DataObjectSerializer
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
@@ -63,7 +69,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(file_resource__source_type=source_type)
         if type:
             queryset = queryset.filter(type=type)
-        queryset = self.serializer_class.apply_prefetch(queryset)
+        queryset = self.get_serializer_class().apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
     
@@ -337,13 +343,13 @@ class TemplateViewSet(ExpandableViewSet):
         else:
             queryset = models.Template.objects.all()
         if imported:
-            queryset = queryset.filter(template_import__isnull=False)
+            queryset = queryset.exclude(imported=False)
         queryset = queryset\
                    .prefetch_related('steps')\
                    .prefetch_related(
                        'inputs__data_object')
         return queryset.order_by('-datetime_created')
-'''
+
 
 class RunViewSet(ExpandableViewSet):
     """
@@ -394,24 +400,7 @@ class RunViewSet(ExpandableViewSet):
                      'expand': True})
         return JsonResponse(run_output_serializer.data, status=200, safe=False)
 
-
-class RunRequestViewSet(ExpandableViewSet):
-    """
-    A RunRequest represents a user request to execute a given Template
-    with a particular set of Inputs. 'template' may be a Template object
-    or an identifier (e.g. template_name@uuid).
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.RunRequestSerializer
-
-    def get_queryset(self):
-        queryset = models.RunRequest.objects.all()
-        queryset = queryset.select_related('run')\
-                           .select_related('template')\
-                           .prefetch_related('inputs__data_root')
-        return queryset.order_by('-datetime_created')
-
-
+'''
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.TaskAttemptLogFileSerializer
     lookup_field = 'uuid'

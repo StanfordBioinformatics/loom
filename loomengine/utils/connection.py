@@ -202,23 +202,6 @@ class Connection(object):
             run,
             'runs/')
 
-    def post_run_request(self, run_request):
-        return self._post_object(
-            run_request,
-            'run-requests/')
-
-    def get_run_request_index(self, query_string='', min=0, max=float('inf')):
-        if query_string:
-            url = 'run-requests/?q='+urllib.quote(query_string)
-        else:
-            url = 'run-requests/'
-        run_requests = self._get_object_index(url)
-        if len(run_requests) < min:
-            raise Error('Found %s run requests, expected at least %s' %(len(run_requests), min))
-        if len(run_requests) > max:
-            raise Error('Found %s run requests, expected at most %s' %(len(run_requests), max))
-        return run_requests
-
     def post_task(self, task):
         return self._post_object(
             task,

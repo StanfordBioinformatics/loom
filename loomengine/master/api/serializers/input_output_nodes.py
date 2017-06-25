@@ -8,6 +8,8 @@ from api.serializers.data_objects import DataObjectSerializer
 class InputOutputNodeSerializer(CreateWithParentModelSerializer):
 
     data = serializers.JSONField()
+    type = serializers.CharField()
+    channel = serializers.CharField()
 
     def create(self, validated_data):
         data = validated_data.pop('data', None)

@@ -1,7 +1,8 @@
-import re
-import urlparse
+from django.core.exceptions import ValidationError
 import jsonschema
 import jsonschema.exceptions
+import re
+import urlparse
 
 
 class DataObjectValidator(object):

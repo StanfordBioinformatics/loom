@@ -4,11 +4,21 @@ from django.db.models import prefetch_related_objects
 from mptt.utils import get_cached_trees
 from .base import CreateWithParentModelSerializer, RecursiveField, strip_empty_values, \
     ExpandableSerializerMixin
-from api.models.runs import Run, RunInput, RunOutput, RunTimepoint
-from api.serializers.templates import TemplateURLSerializer
+from api.models.runs import Run, RequestedInput, RunInput, RunOutput, RunTimepoint
+from api.serializers.templates import TemplateSerializer, TemplateURLSerializer
 from api.serializers.tasks import SummaryTaskSerializer, TaskSerializer, TaskURLSerializer, ExpandedTaskSerializer
 from api.serializers.input_output_nodes import InputOutputNodeSerializer
-from api.serializers.run_requests import RunRequestURLSerializer
+from api import async
+
+
+class RequestedInputSerializer(InputOutputNodeSerializer):
+
+    # Type is inferred from template
+    type = serializers.CharField(required=False)
+    
+    class Meta:
+        model = RequestedInput
+        fields = ('type', 'channel', 'data')
 
 
 class RunInputSerializer(InputOutputNodeSerializer):
@@ -86,10 +96,10 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                   'status_is_waiting',
                   'command',
                   'interpreter',
+                  'requested_inputs',
                   'inputs',
                   'outputs',
                   'timepoints',
-                  'run_request',
                   'steps',
                   'tasks',
         )
@@ -98,7 +108,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name='run-detail',
         lookup_field='uuid')
-    name = serializers.CharField()
+    name = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
     template = TemplateURLSerializer()
@@ -110,21 +120,59 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     status_is_running = serializers.BooleanField(required=False)
     status_is_waiting = serializers.BooleanField(required=False)
     command = serializers.CharField(required=False)
-    interpreter = serializers.CharField()
+    interpreter = serializers.CharField(required=False)
+    requested_inputs = RequestedInputSerializer(many=True, required=False)
     inputs = RunInputSerializer(many=True,
-                                required=False,
-                                allow_null=True)
-    outputs = RunOutputSerializer(many=True)
-    timepoints = RunTimepointSerializer(
-        many=True, allow_null=True, required=False)
-    run_request = RunRequestURLSerializer(required=False)
+                                required=False)
+    outputs = RunOutputSerializer(many=True, required=False)
+    timepoints = RunTimepointSerializer(many=True, required=False)
     steps = RunURLSerializer(many=True, read_only=True, required=False)
-    tasks = TaskURLSerializer(many=True)
+    tasks = TaskURLSerializer(many=True, required=False)
 
     def to_representation(self, instance):
         return strip_empty_values(
             super(RunSerializer, self).to_representation(instance))
 
+    def create(self, validated_data):
+        requested_inputs = self.initial_data.get('requested_inputs', None)
+        validated_data.pop('requested_inputs', None)
+
+        s = TemplateSerializer(data=validated_data.pop('template'))
+        s.is_valid()
+        template = s.save()
+
+        run = Run.create_from_template(template)
+        if requested_inputs is not None:
+            for input_data in requested_inputs:
+                # The requested_input usually won't have data type specified.
+                # We need to know the data type to find or create the
+                # data object from the value given. We get the type from the
+                # corresponding template input.
+                if not input_data.get('channel'):
+                    raise serializers.ValidationError(
+                        'Missing required "channel" field on input: "%s"' % input_data)
+                try:
+                    input = template.get_input(input_data.get('channel'))
+                except ObjectDoesNotExist:
+                    raise serializers.ValidationError(
+                        'Input channel "%s" does not match any channel '\
+                        'on the template.' % input_data.get('channel'))
+                if input_data.get('type') and input_data.get('type') != input.type:
+                    raise serializers.ValidationError(
+                        'Type mismatch: Data with type "%s" does not match '
+                        'input channel "%s" with type "%s".' % (
+                            input_data.get('type'), input_data.get('channel'), type))
+                input_data.update({'type': input.type})
+                s = RequestedInputSerializer(
+                    data=input_data,
+                    context={'parent_field': 'run',
+                             'parent_instance': run
+                         })
+                s.is_valid(raise_exception=True)
+                s.save()
+        async.postprocess_run(run.uuid)
+        return run
+        
     @classmethod
     def _apply_prefetch(cls, queryset):
         for select_string in cls.get_select_related_list():
@@ -136,18 +184,19 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     @classmethod
     def get_prefetch_related_list(cls):
         return [
+            'requested_inputs',
             'inputs',
             'outputs',
-            'inputs__data_root',
-            'outputs__data_root',
+            'requested_inputs__data_object',
+            'inputs__data_object',
+            'outputs__data_object',
             'timepoints',
             'steps',
             'tasks']
 
     @classmethod
     def get_select_related_list(cls):
-        return ['template',
-                'run_request']
+        return ['template']
 
 
 class SummaryRunSerializer(RunSerializer):
@@ -174,7 +223,6 @@ class SummaryRunSerializer(RunSerializer):
     outputs = RunOutputSerializer(many=True, write_only=True)
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False, write_only=True)
-    run_request = RunRequestURLSerializer(required=False, write_only=True)
     steps = RecursiveField(many=True, source='_cached_children', required=False)
     tasks = SummaryTaskSerializer(many=True)
 
@@ -240,8 +288,7 @@ class ExpandedRunSerializer(RunSerializer):
 
     @classmethod
     def get_select_related_list(cls):
-        return ['template',
-                'run_request']
+        return ['template']
 
 
 class ExpandableRunSerializer(ExpandableSerializerMixin, RunSerializer):

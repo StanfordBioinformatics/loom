@@ -29,7 +29,7 @@ class TestWorkflowRun(TestCase):
 class TestInputManager(TestCase):
 
     def testSimple(self):
-        with self.settings(TEST_DISABLE_ASYNC_DELAY=True, TEST_NO_TASK_CREATION=True):
+        with self.settings(TEST_DISABLE_ASYNC_DELAY=True, TEST_NO_CREATE_TASK=True):
             run_request = make_run_request_from_template_file(
                 os.path.join(os.path.dirname(__file__), '..', '..', 'test',
                              'fixtures', 'simple', 'simple.yaml'),
@@ -39,14 +39,7 @@ class TestInputManager(TestCase):
                .get_input_sets()
 
         self.assertEqual(len(sets), 1)
-<<<<<<< HEAD
         self.assertEqual(sets[0].data_path, [])
-
-        input_items = sets[0].input_items
-=======
-        self.assertEqual(sets[0].index, [])
-
         input_items = [item for item in sets[0]]
->>>>>>> mptt-backend
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, 'word_in')

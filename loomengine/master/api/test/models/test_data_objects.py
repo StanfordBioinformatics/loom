@@ -49,11 +49,11 @@ class TestDataObject(TestCase):
         do = DataObject.create_and_initialize_file_resource(
             filename=filename_1, md5=md5_1, source_type='result',
             imported_from_url=imported_from_url,
-            comments=comments)
+            import_comments=comments)
         self.assertEqual(do.file_resource.md5, md5_1)
         self.assertEqual(do.file_resource.upload_status, 'incomplete')
         self.assertTrue('work' in do.file_resource.file_url)
-        self.assertEqual(do.file_resource.comments, comments)
+        self.assertEqual(do.file_resource.import_comments, comments)
         self.assertEqual(
             do.file_resource.imported_from_url, imported_from_url)
 

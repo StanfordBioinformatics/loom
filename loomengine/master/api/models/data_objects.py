@@ -1,4 +1,6 @@
-from django.core.exceptions import ValidationError
+import copy
+from django.core.exceptions import ValidationError, \
+    ObjectDoesNotExist
 from django.db import models
 from django.utils import timezone
 from mptt.models import MPTTModel, TreeForeignKey
@@ -9,6 +11,9 @@ from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
 from api.models import validators
+
+
+
 
 
 class DataObject(BaseModel):
@@ -93,7 +98,7 @@ class DataObject(BaseModel):
             return self.file_resource is not None \
                 and self.file_resource.is_ready
         else:
-            return True
+            return self.data and 'contents' in self.data.keys()
 
     @classmethod
     def create_and_initialize_file_resource(cls, **kwargs):

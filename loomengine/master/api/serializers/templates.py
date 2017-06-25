@@ -104,7 +104,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                   'environment',
                   'resources',
                   'postprocessing_status',
-                  'template_import',
                   'inputs',
                   'outputs',
                   'steps',)
@@ -120,11 +119,9 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     import_comments = serializers.CharField(required=False)
     imported_from_url = serializers.CharField(required=False)
     interpreter = serializers.CharField(required=False)
-    template_import =  serializers.JSONField(required=False)
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
-    template_import = serializers.JSONField(required=False)
     inputs = TemplateInputSerializer(many=True, required=False)
     outputs  = serializers.JSONField(required=False)
     steps = TemplateURLSerializer(many=True, required=False)
@@ -147,9 +144,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         validated_data.pop('inputs', None)
         steps = validated_data.pop('steps', None)
         is_leaf = not steps
-        
         _set_template_defaults(validated_data, is_leaf)
-
+        validated_data['imported'] = bool(validated_data.get('imported_from_url'))
         template = super(TemplateSerializer, self).create(validated_data)
 
         async.postprocess_template(template.uuid)
@@ -187,12 +183,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 s.save()
             for step_data in steps:
                 s = TemplateSerializer(data=step_data)
-#                if not hasattr(step_data, 'get'):
-#                    raise Exception('TODO')
-                    # s = TemplateLookupSerializer(data={'_template_id': step_data})
-#                else:
-                
-
                 s.is_valid(raise_exception=True)
                 step = s.save()
                 template.add_step(step)
@@ -206,8 +196,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         # The user may have already submitted a run request before this
         # template finished postprocessing. If runs exist, postprocess them now.
         template = Template.objects.get(uuid=template.uuid)
-#        for run in template.runs.all():
-#            async.postprocess_run(run.uuid)
+        for run in template.runs.all():
+            async.postprocess_run(run.uuid)
 
 class NestedTemplateSerializer(TemplateSerializer):
 

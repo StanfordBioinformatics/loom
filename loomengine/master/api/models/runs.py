@@ -19,8 +19,6 @@ from api.models.templates import Template
 from api.exceptions import ConcurrentModificationError
 
 
-
-
 """
 This module defines Run and other classes related to
 running an analysis
@@ -37,7 +35,8 @@ class Run(MPTTModel, BaseModel):
     Workflow composed of one or more Steps.
     """
 
-    NAME_FIELD = 'template__name'
+    NAME_FIELD = 'name'
+    ID_FIELD = 'uuid'
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
@@ -129,7 +128,7 @@ class Run(MPTTModel, BaseModel):
         return all([step.status_is_finished for step in self.steps.all()])
 
     @classmethod
-    def create_from_template(cls, template, parent=None, run_request=None):
+    def create_from_template(cls, template, parent=None):
         if template.is_leaf:
             run = Run.objects.create(
                 template=template,
@@ -143,24 +142,12 @@ class Run(MPTTModel, BaseModel):
                                      is_leaf=template.is_leaf,
                                      name=template.name,
                                      parent=parent)
-        if run_request:
-            run_request.setattrs_and_save_with_retries({'run': run})
-
-        # Postprocess run only if postprocessing of template is done.
-        # It is possible for the run to be completed before the template
-        # is postprocessing_status=='complete'. In that case, the run postprocessing
-        # will be triggered by the template postprocessing when the template
-        # is ready
-        template = Template.objects.get(uuid=template.uuid)
-        if template.postprocessing_status == 'complete':
-            async.postprocess_run(run.uuid)
-        if run_request:
-            run_request.setattrs_and_save_with_retries({'run': run})
 
         run.add_timepoint("Run %s@%s was created" % (run.name, run.uuid))
         if run.parent:
             run.parent.add_timepoint("Child run %s@%s was created" % (
                 run.name, run.uuid))
+
         return run
 
     def _connect_input_to_parent(self, input):
@@ -172,24 +159,24 @@ class Run(MPTTModel, BaseModel):
             except ObjectDoesNotExist:
                 self.parent._create_connector(
                     input, channel_name=input.channel)
-            except MultipleObjectsReturned:
-                raise ChannelNameCollisionError(
-                    'ERROR! There is more than one run input named "%s". '\
-                    'Channel names must be unique within a run.' % input.channel)
+            return True
+        else:
+            return False
 
-    def _connect_input_to_run_request(self, input):
+    def _connect_input_to_requested_input(self, input):
         try:
-            run_request = self.run_request
+            requested_input = self.requested_inputs.get(channel=input.channel)
         except ObjectDoesNotExist:
-            # No run request here
-            return
-        try:
-            run_request_input = run_request.inputs.get(channel=input.channel)
-        except MultipleObjectsReturned:
-            raise ChannelNameCollisionError(
-                'ERROR! There is more than one run input named "%s". '\
-                'Channel names must be unique within a run.' % input.channel)
-        run_request_input.connect(input)
+            return False
+        requested_input.connect(input)
+        return True
+
+    def _connect_input_to_template(self, input):
+        template_input = self.template.inputs.get(channel=input.channel)
+        if template_input.data_object is None:
+            return False
+        template_input.connect(input)
+        return True
 
     def _connect_output_to_parent(self, output):
         if self.parent:
@@ -283,6 +270,13 @@ class Run(MPTTModel, BaseModel):
     @classmethod
     def postprocess(cls, run_uuid):
         run = Run.objects.get(uuid=run_uuid)
+        if not run.template.postprocessing_status == 'complete':
+            # Never mind, we'll postprocess when the template is ready
+            return
+
+        if run.postprocessing_status == 'complete':
+            # Nothing more to do
+            return
 
         try:
             run._claim_for_postprocessing()
@@ -302,64 +296,35 @@ class Run(MPTTModel, BaseModel):
             raise
 
     def _initialize_inputs(self):
-        visited_channels = set()
-        if self.template.inputs:
-            for input in self.template.inputs:
-                assert input.get('channel') not in visited_channels, \
-                    'Encountered multiple inputs for channel "%s"' \
-                    % input.get('channel')
-                visited_channels.add(input.get('channel'))
+        deja_vu = set()
+        for input in self.template.inputs.all():
+            assert input.channel not in deja_vu, \
+                'Encountered multiple inputs for channel "%s"' \
+                % input.channel
+            deja_vu.add(input.channel)
 
-                run_input = RunInput.objects.create(
-                    run=self,
-                    channel=input.get('channel'),
-                    type=input.get('type'),
-                    group=input.get('group'),
-                    mode=input.get('mode'))
-
-                # One of these two should always take effect. The other is ignored.
-                self._connect_input_to_parent(run_input)
-                self._connect_input_to_run_request(run_input)
-
-                # Now create a connector on the current WorkflowRun so that
-                # children can connect on this channel
-                if not self.is_leaf:
-                    self._create_connector(run_input)
-
-        for fixed_input in self.template.fixed_inputs.all():
-            assert fixed_input.channel not in visited_channels, \
-                'Encountered multiple inputs/fixed_inputs for channel "%s"' \
-                % fixed_input.channel
-            visited_channels.add(fixed_input.channel)
-
-            if self.is_leaf:
-                group = fixed_input.group
-                mode = fixed_input.mode
-            else:
-                group = None
-                mode = None
             run_input = RunInput.objects.create(
                 run=self,
-                channel=fixed_input.channel,
-                type=fixed_input.type,
-                group=group,
-                mode=mode)
-            run_input.connect(fixed_input)
+                channel=input.channel,
+                type=input.type,
+                group=input.group,
+                mode=input.mode)
 
-            # Now create a connector on the current WorkflowRun so that
+            # One of these should always take effect.
+            if not self._connect_input_to_parent(run_input):
+                if not self._connect_input_to_requested_input(run_input):
+                    if not self._connect_input_to_template(run_input):
+                        raise Exception('No source for input "%s"' % run_input.channel)
+
+            # Now create a connector on the current Run so that
             # children can connect on this channel
             if not self.is_leaf:
                 self._create_connector(run_input)
 
     def _initialize_outputs(self):
-        visited_channels = set()
+        if not self.template.outputs:
+            return
         for output in self.template.outputs:
-            assert output.get('channel') not in visited_channels, \
-                "Run has multiple outputs for channel '%s'"\
-                % output.get('channel')
-
-            visited_channels.add(output.get('channel'))
-
             run_output = RunOutput.objects.create(
                 run=self,
                 type=output.get('type'),
@@ -381,7 +346,8 @@ class Run(MPTTModel, BaseModel):
             return
         run = Run.objects.get(id=self.id)
         for step in run.template.steps.all():
-            self.create_from_template(step, parent=run)
+            child_run = self.create_from_template(step, parent=run)
+            async.postprocess_run(child_run.uuid)
 
     def _create_connector(self, io_node, channel_name=None):
         if channel_name is None:
@@ -403,7 +369,7 @@ class Run(MPTTModel, BaseModel):
         other input data for those tasks is available, and 2) the task with
         that data_path was not already created previously.
         """
-        if get_setting('TEST_NO_TASK_CREATION'):
+        if get_setting('TEST_NO_CREATE_TASK'):
             return
         if not self.is_leaf:
             return
@@ -428,7 +394,22 @@ class RunTimepoint(BaseModel):
     is_error = models.BooleanField(default=False)
 
 
+class RequestedInput(InputOutputNode):
+
+    class Meta:
+        unique_together = (("run", "channel"),)
+
+    run = models.ForeignKey(
+        'Run',
+        related_name='requested_inputs',
+        on_delete=models.CASCADE)
+
+
 class RunInput(InputOutputNode):
+
+    class Meta:
+        unique_together = (("run", "channel"),)
+
     run = models.ForeignKey('Run',
                             related_name='inputs',
                             on_delete=models.CASCADE,
@@ -456,7 +437,11 @@ class RunInput(InputOutputNode):
         """
         self.run.push(self.channel, data_path)
 
+
 class RunOutput(InputOutputNode):
+
+    class Meta:
+        unique_together = (("run", "channel"),)
 
     run = models.ForeignKey('Run',
                             related_name='outputs',
