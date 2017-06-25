@@ -6,6 +6,7 @@ import os
 import re
 
 from .base import BaseModel, render_from_template
+from .input_output_nodes import InputOutputNode
 from api import get_setting
 from api import async
 from api.exceptions import ConcurrentModificationError
@@ -216,32 +217,23 @@ class Task(BaseModel):
             message=message, task=self, detail=detail, is_error=is_error)
 
 
-class TaskInput(BaseModel):
+class TaskInput(InputOutputNode):
 
     task = models.ForeignKey('Task',
                              related_name='inputs',
                              on_delete=models.CASCADE)
-    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
-    channel = models.CharField(max_length=255)
-    type = models.CharField(max_length = 255,
-                            choices=DataObject.DATA_TYPE_CHOICES)
 
 
-class TaskOutput(BaseModel):
+class TaskOutput(InputOutputNode):
 
     task = models.ForeignKey('Task',
                              related_name='outputs',
                              on_delete=models.CASCADE)
-    channel = models.CharField(max_length=255)
-    type = models.CharField(max_length = 255,
-                            choices=DataObject.DATA_TYPE_CHOICES)
     mode = models.CharField(max_length=255, null=True, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(
 	validators=[validators.OutputParserValidator.validate_output_parser],
         null=True, blank=True)
-    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT,
-                                    null=True, blank=True)
 
     def pull_data_object(self):
         attempt_output = self.task.selected_task_attempt.get_output(self.channel)
@@ -446,18 +438,14 @@ class TaskAttempt(BaseModel):
         self.add_timepoint('Cleaning up')
 
 
-class TaskAttemptInput(BaseModel):
+class TaskAttemptInput(InputOutputNode):
 
     task_attempt = models.ForeignKey('TaskAttempt',
                              related_name='inputs',
                              on_delete=models.CASCADE)
-    data_object = models.ForeignKey('DataObject', on_delete=models.PROTECT)
-    channel = models.CharField(max_length=255)
-    type = models.CharField(max_length = 255,
-                            choices=DataObject.DATA_TYPE_CHOICES)
 
 
-class TaskAttemptOutput(BaseModel):
+class TaskAttemptOutput(InputOutputNode):
 
     # All info here is saved in the TaskOutput,
     # except for the data_object. If multiple
@@ -468,15 +456,6 @@ class TaskAttemptOutput(BaseModel):
         'TaskAttempt',
         related_name='outputs',
         on_delete=models.CASCADE)
-    data_object = models.OneToOneField(
-        'DataObject',
-        null=True,
-        blank=True,
-        related_name='task_attempt_output',
-        on_delete=models.PROTECT)
-    channel = models.CharField(max_length=255)
-    type = models.CharField(max_length = 255,
-                            choices=DataObject.DATA_TYPE_CHOICES)
     mode = models.CharField(max_length=255, null=True, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(

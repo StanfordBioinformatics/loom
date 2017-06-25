@@ -1,10 +1,10 @@
 from django.test import TestCase
 
-from . import _get_string_data_object
+from api.test.models import _get_string_data_object
 from api.models.data_objects import DataObject
-from api.models.data_tree_nodes import DataTreeNode
+from api.models.data_nodes import DataNode
 from api.models.input_manager import InputManager, InputSetGeneratorNode
-from api.models.runs import StepRunInput
+from api.models.runs import RunInput
 
 scalar_input_text = 'scalar data'
 
@@ -23,39 +23,39 @@ partial_input_data = [full_input_data[i] for i in [0,3,7]]
 def getScalarInput(channel_name='channel1',
                    mode='no_gather',
                    group=0):
-    data_tree = DataTreeNode.objects.create(type='string')
+    data_tree = DataNode.objects.create(type='string')
     data_tree.add_data_object(
         [],
         _get_string_data_object(scalar_input_text))
-    step_run_input = StepRunInput.objects.create(
+    step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
-    step_run_input.data_root = data_tree
+    step_run_input.data_tree = data_tree
     step_run_input.save()
     return step_run_input
 
 def getInputWithPartialTree(channel_name='channel1',
                             mode='no_gather',
                             group=0):
-    data_tree = DataTreeNode.objects.create(type='string')
+    data_tree = DataNode.objects.create(type='string')
     for data_path, letter in partial_input_data:
         data_object = _get_string_data_object(letter)
         data_tree.add_data_object(data_path, data_object)
-    step_run_input = StepRunInput.objects.create(
+    step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
-    step_run_input.data_root = data_tree
+    step_run_input.data_tree = data_tree
     step_run_input.save()
     return step_run_input
 
 def getInputWithFullTree(channel_name='channel1',
                          mode='no_gather',
                          group=0):
-    data_tree = DataTreeNode.objects.create(type='string')
+    data_tree = DataNode.objects.create(type='string')
     for data_path, letter in full_input_data:
         data_object = _get_string_data_object(letter)
         data_tree.add_data_object(data_path, data_object)
-    step_run_input = StepRunInput.objects.create(
+    step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
-    step_run_input.data_root = data_tree
+    step_run_input.data_tree = data_tree
     step_run_input.save()
     return step_run_input
 
@@ -64,7 +64,7 @@ class TestInputManager(TestCase):
 
     def testGetTargetDataPathNoGather(self):
         channel = 'channel0'
-        input1 = StepRunInput.objects.create(
+        input1 = RunInput.objects.create(
             channel = channel,
             group = 0,
             mode = 'no_gather',
@@ -82,7 +82,7 @@ class TestInputManager(TestCase):
 
     def testGetTargetDataPathGather(self):
         channel = 'channel1'
-        input1 = StepRunInput.objects.create(
+        input1 = RunInput.objects.create(
             channel = channel,
             group = 0,
             mode = 'gather',
@@ -101,7 +101,7 @@ class TestInputManager(TestCase):
     def testGetTargetDataPathGatherN(self):
         gather_n = 2
         channel = 'channel1'
-        input1 = StepRunInput.objects.create(
+        input1 = RunInput.objects.create(
             channel = channel,
             group = 0,
             mode = 'gather(%s)' % gather_n,

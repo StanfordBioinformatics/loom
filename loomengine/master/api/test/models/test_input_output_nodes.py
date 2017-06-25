@@ -1,22 +1,17 @@
 from django.test import TestCase
 
-from . import _get_string_data_object
-from api.models.data_objects import *
+from api.test.models import _get_string_data_object
+from api.models.data_nodes import *
 from api.models.input_output_nodes import *
-<<<<<<< HEAD
-from api.models.data_tree_nodes import MissingBranchError
-from api.models.runs import StepRunOutput
-=======
-from api.models.data_trees import MissingBranchError
+
 from api.models.runs import RunOutput
->>>>>>> mptt-backend
 
 
 class TestInputOutputNode(TestCase):
 
     def testAddDataObject(self):
         io_node = RunOutput.objects.create(channel='test',
-                                               mode='no_scatter', type='string')
+                                           mode='no_scatter', type='string')
         path = [(1,2), (0,1)]
         string_value = 'text'
         data_object = _get_string_data_object(string_value)
@@ -26,10 +21,7 @@ class TestInputOutputNode(TestCase):
         self.assertEqual(
             io_node.get_data_object([(1,2),(0,1)]).substitution_value,
             string_value)
-        self.assertEqual(io_node.data_root.id,
-                         io_node.data_root.get_node([(1,2),(0,1)]).root_node.id)
-                         
-
+ 
     def testConnect(self):
         io_node1 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
@@ -37,7 +29,7 @@ class TestInputOutputNode(TestCase):
                                                 mode='no_scatter', type='string')
 
         io_node1.connect(io_node2)
-        self.assertEqual(io_node1.data_root.id, io_node2.data_root.id)
+        self.assertEqual(io_node1.data_tree.id, io_node2.data_tree.id)
 
     def testIsConnected(self):
         io_node1 = RunOutput.objects.create(channel='test',
@@ -55,8 +47,8 @@ class TestInputOutputNode(TestCase):
         io_node2 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
 
-        io_node1._initialize_data_root()
-        io_node2._initialize_data_root()
+        io_node1._initialize_data_tree()
+        io_node2._initialize_data_tree()
 
-        with self.assertRaises(ConnectError):
+        with self.assertRaises(AssertionError):
             io_node1.connect(io_node2)

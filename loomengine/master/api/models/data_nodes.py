@@ -1,18 +1,11 @@
-'''import copy
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+import copy
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 from .base import BaseModel
-from api.models.data_objects import DataObject, ArrayDataObject
+from .data_objects import DataObject
 from api.models import uuidstr
-
-
-"""
-Data under each InputOutputNode is represented as a tree of DataTreeNodes. This
-lets us represent multidimensional data to allow for nested scatter-gather,
-e.g. scatter-scatter-gather-gather, where the layers of scatter are maintained
-as distinct.
-"""
+from api.models import validators
 
 
 class IndexOutOfRangeError(Exception):
@@ -32,33 +25,27 @@ class MissingBranchError(Exception):
 class DataOnNonLeafError(Exception):
     pass
 
-def degree_validator(value):
-    if value < 0:
-        raise ValidationError('degree must be > 0. Invalid value "%s"' % value)
 
-class DataTreeNode(BaseModel):
+class DataNode(BaseModel):
+
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
-    root_node = models.ForeignKey('DataTreeNode',
-                                  null=True,
-                                  blank=True,
-                                  related_name='descendants',
-                                  on_delete=models.SET_NULL)
     parent = models.ForeignKey(
-        'DataTreeNode',
+        'self',
         null=True,
         blank=True,
         related_name = 'children',
-        on_delete=models.PROTECT)
+        on_delete=models.CASCADE)
     # 0 <= index < self.parent.degree; null if no parent
     index = models.IntegerField(null=True, blank=True)
     # degree is expected number of children; null if leaf, 0 if empty branch
     degree = models.IntegerField(null=True, blank=True,
-                                 validators=[degree_validator])
+                                 validators=[validators.validate_ge0])
     data_object = models.ForeignKey('DataObject',
-                                    related_name = 'data_tree_nodes',
+                                    related_name = 'data_nodes',
                                     null=True, # null except on leaves
-                                    blank=True)
+                                    blank=True,
+                                    on_delete=models.PROTECT)
     type = models.CharField(
         max_length=255,
         choices=DataObject.DATA_TYPE_CHOICES)
@@ -66,18 +53,9 @@ class DataTreeNode(BaseModel):
     EMPTY_BRANCH_VALUE = []
 
     @property
-    def contents(self):
+    def data(self):
         # Dummy placeholder for serializer
         pass
-
-    @classmethod
-    def create_from_scalar(self, data_object):
-        data_tree_node = DataTreeNode.objects.create(type=data_object.type)
-        data_tree_node.root_node = data_tree_node
-        data_tree_node.data_object = data_object
-        data_tree_node.index = 0
-        data_tree_node.save()
-        return data_tree_node
 
     def add_leaf(self, index, data_object):
         """Adds a new leaf node at the given index with the given data_object
@@ -87,9 +65,8 @@ class DataTreeNode(BaseModel):
             raise LeafAlreadyExistsError(
                 'Leaf data node already exists at this index')
         else:
-            return DataTreeNode.objects.create(
+            return DataNode.objects.create(
                 parent=self,
-                root_node=self.root_node,
                 index=index,
                 data_object=data_object,
                 type=self.type)
@@ -99,9 +76,8 @@ class DataTreeNode(BaseModel):
         if existing_branch is not None:
             return existing_branch
         else:
-            return DataTreeNode.objects.create(
+            return DataNode.objects.create(
                 parent=self,
-                root_node=self.root_node,
                 index=index,
                 degree=degree,
                 type=self.type)
@@ -185,7 +161,7 @@ class DataTreeNode(BaseModel):
             if self.is_leaf():
                 # A leaf node is ready if it has data and that data is ready.
                 if self.data_object:
-                    return self.data_object.is_ready()
+                    return self.data_object.is_ready
                 else:
                     return  False
             else:
@@ -258,11 +234,11 @@ class DataTreeNode(BaseModel):
         """
         if self.degree is None:
             raise UnknownDegreeError(
-                'Cannot access child DataTreeNode on a parent with degree of None. '\
+                'Cannot access child DataNode on a parent with degree of None. '\
                 'Set the degree on the parent first.')
         if index < 0 or index >= self.degree:
             raise IndexOutOfRangeError(
-                'Out of range index %s. DataTreeNode parent has degree %s, so index '\
+                'Out of range index %s. DataNode parent has degree %s, so index '\
                 'should be in the range 0 to %s' % (
                     index, self.degree, self.degree-1))
 
@@ -272,12 +248,6 @@ class DataTreeNode(BaseModel):
     def _is_blank_node(self):
         # Could be a leaf missing data, or a branch missing sub-nodes
         return (self.degree is None is self.data_object is None)
-
-    def render_as_array_data_object(self):
-        data_object_list = self._render_as_data_object_list()
-        do = ArrayDataObject.objects.create(is_array=True, type=self.type)
-        do.add_members(data_object_list)
-        return do
 
     def _render_as_data_object_list(self):
         if self.is_leaf():
@@ -300,7 +270,5 @@ class DataTreeNode(BaseModel):
         """Push any data at or below given path.
         This instructs run_inputs to check if they can use the data.
         """
-        assert self.id == self.root_node.id, 'Cannot push from non-root node'
         for input in self.runinput_set.all():
             input.push(data_path)
-'''

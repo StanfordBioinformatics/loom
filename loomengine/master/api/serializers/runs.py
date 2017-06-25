@@ -101,7 +101,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                   'outputs',
                   'timepoints',
                   'steps',
-                  'tasks',
+#                  'tasks',
         )
 
     uuid = serializers.UUIDField(required=False)
@@ -127,7 +127,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     outputs = RunOutputSerializer(many=True, required=False)
     timepoints = RunTimepointSerializer(many=True, required=False)
     steps = RunURLSerializer(many=True, read_only=True, required=False)
-    tasks = TaskURLSerializer(many=True, required=False)
+#    tasks = TaskURLSerializer(many=True, required=False)
 
     def to_representation(self, instance):
         return strip_empty_values(
@@ -187,9 +187,9 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             'requested_inputs',
             'inputs',
             'outputs',
-            'requested_inputs__data_object',
-            'inputs__data_object',
-            'outputs__data_object',
+            'requested_inputs__data_tree',
+            'inputs__data_tree',
+            'outputs__data_tree',
             'timepoints',
             'steps',
             'tasks']
@@ -224,7 +224,7 @@ class SummaryRunSerializer(RunSerializer):
     timepoints = RunTimepointSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     steps = RecursiveField(many=True, source='_cached_children', required=False)
-    tasks = SummaryTaskSerializer(many=True)
+#    tasks = SummaryTaskSerializer(many=True)
 
     def to_representation(self, instance):
         instance = self._apply_prefetch_to_instance(instance)
@@ -249,7 +249,7 @@ class SummaryRunSerializer(RunSerializer):
 class ExpandedRunSerializer(RunSerializer):
 
     steps = RecursiveField(many=True, source='_cached_children', required=False)
-    tasks = ExpandedTaskSerializer(many=True)
+#    tasks = ExpandedTaskSerializer(many=True)
 
     def to_representation(self, instance):
         instance = self._apply_prefetch_to_instance(instance)

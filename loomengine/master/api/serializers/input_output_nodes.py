@@ -3,7 +3,7 @@ from django.db import models
 
 from .base import CreateWithParentModelSerializer
 from api.models.input_output_nodes import InputOutputNode
-from api.serializers.data_objects import DataObjectSerializer
+from api.serializers.data_nodes import DataNodeSerializer
 
 class InputOutputNodeSerializer(CreateWithParentModelSerializer):
 
@@ -19,12 +19,12 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
             type = validated_data.get('type')
             if not type:
                 raise Exception('data type is required')
-            data_object_serializer = DataObjectSerializer(
+            data_node_serializer = DataNodeSerializer(
                 data=data,
                 context = {'type': type})
-            data_object_serializer.is_valid(raise_exception=True)
-            data_object = data_object_serializer.save()
-            io_node.data_object = data_object
+            data_node_serializer.is_valid(raise_exception=True)
+            data_tree = data_node_serializer.save()
+            io_node.data_tree = data_tree
             io_node.save()
         return io_node
 
@@ -38,9 +38,9 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
             assert isinstance(instance, InputOutputNode)
             representation = super(InputOutputNodeSerializer, self)\
                 .to_representation(instance)
-            if instance.data_object is not None:
-                data_object_serializer = DataObjectSerializer(
-                    instance.data_object,
+            if instance.data_tree is not None:
+                data_node_serializer = DataNodeSerializer(
+                    instance.data_tree,
                     context=self.context)
-                representation['data'] = data_object_serializer.data
+                representation['data'] = data_node_serializer.data
             return representation

@@ -106,9 +106,18 @@ def validate_resources(value):
     schema = {
         "type": "object",
         "properties": {
-            "cores": {"type" : "string"},
-            "disk_size": {"type" : "string"},
-            "memory": {"type" : "string"}
+            "cores": {"oneOf": [
+                {"type" : "string"},
+                {"type" : "integer"}
+            ]},
+            "disk_size": {"oneOf": [
+                {"type" : "string"},
+                {"type" : "integer"}
+            ]},
+            "memory": {"oneOf": [
+                {"type" : "string"},
+                {"type" : "integer"}
+            ]}
         }
     }
     try:
@@ -117,17 +126,17 @@ def validate_resources(value):
         raise ValidationError(e.message)
     cores = value.get('cores')
     if cores is not None:
-        if not re.match(r'^[0-9]*$', cores):
+        if not re.match(r'^[0-9]*$', str(cores)):
             raise ValidationError(
                 'Invalid value for "cores: "%s". Expected an integer.')
     disk_size = value.get('disk_size')
     if disk_size is not None:
-        if not re.match(r'^[0-9]*$', disk_size):
+        if not re.match(r'^[0-9]*$', str(disk_size)):
             raise ValidationError(
                 'Invalid value for "disk_size: "%s". Expected an integer (in GB).')
     memory = value.get('memory')
     if memory is not None:
-        if not re.match(r'^[0-9]*$', memory):
+        if not re.match(r'^[0-9]*$', str(memory)):
             raise ValidationError(
                 'Invalid value for "memory: "%s". Expected an integer (in GB).')
 
@@ -230,3 +239,93 @@ class TemplateValidator(object):
             jsonschema.validate(value, schema)
 	except jsonschema.exceptions.ValidationError as e:
             raise ValidationError(e.message)
+
+def validate_ge0(value):
+    if value < 0:
+        raise ValidationError('Must be >= 0. Invalid value "%s"' % value)
+
+data_tree_schema = {
+    # schema used to verify that data contains only a X,
+    # a list of X, or a list of (lists of)^n X,
+    # where X is string, integer, float, boolean, or object.
+    # These are the only valid structures for user-provided 
+    # data values, e.g. 'file.txt@id',
+    # '["file1.txt@id1", "file2.txt@id2"]', or
+    # '[["file1.txt@id1", "file2.txt@id2"], ["file3.txt@id3"]]'.
+    # A DataObject may be used rather than the primitive type.
+    'definitions': {
+        'stringschema': {
+            'oneOf': [
+                { 'type': [ 'string' ] },
+                { 'type': [ 'object' ],
+                  'properties': {
+                      'type': {'enum': ['string']}
+                  },
+                  'required': ['type']},
+                { 'type': ['array'], 
+                  'items': {
+                      '$ref': '#/definitions/stringschema'}}
+            ]
+        },
+        'integerschema': {
+            'oneOf': [
+                { 'type': [ 'integer' ] },
+                { 'type': [ 'object' ],
+                  'properties': {
+                      'type': {'enum': ['integer']}
+                  },
+                  'required': ['type']},
+                { 'type': ['array'], 
+                  'items': {
+                      '$ref': '#/definitions/integerschema'}}
+            ]
+        },
+        'floatschema': {
+            'oneOf': [
+                { 'type': [ 'number' ] },
+                { 'type': [ 'object' ],
+                  'properties': {
+                      'type': {'enum': ['float']}
+                  },
+                  'required': ['type']},
+                { 'type': ['array'], 
+                  'items': {
+                      '$ref': '#/definitions/floatschema'}}
+            ]
+        },
+        'booleanschema': {
+            'oneOf': [
+                { 'type': [ 'boolean' ] },
+                { 'type': [ 'object' ],
+                  'properties': {
+                      'type': {'enum': ['boolean']}
+                  },
+                  'required': ['type']},
+                { 'type': ['array'], 
+                  'items': {
+                      '$ref': '#/definitions/booleanschema'}}
+            ]
+        },
+        'fileschema': {
+            'oneOf': [
+                { 'type': [ 'string' ] },
+                { 'type': [ 'object' ],
+                  'properties': {
+                      'type': {'enum': ['file']}
+                  },
+                  'required': ['type']},
+                { 'type': ['array'], 
+                  'items': {
+                      '$ref': '#/definitions/fileschema'}}
+            ]
+        },
+
+    },
+    'anyOf': [
+        {'$ref': '#/definitions/stringschema'},
+        {'$ref': '#/definitions/integerschema'},
+        {'$ref': '#/definitions/floatschema'},
+        {'$ref': '#/definitions/booleanschema'},
+        {'$ref': '#/definitions/fileschema'},
+    ]
+}

@@ -1,17 +1,11 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from api.models.data_objects import StringDataObject
-from api.models.data_tree_nodes import *
+from api.test.models import _get_string_data_object
+from api.models.data_nodes import *
 
 
-def _get_string_data_object(text):
-    return StringDataObject.objects.create(
-        type='string',
-        value=text
-    )
-
-class TestDataTreeNode(TestCase):
+class TestDataNode(TestCase):
 
     def testAddDataObject(self):
         input_data=(
@@ -25,7 +19,7 @@ class TestDataTreeNode(TestCase):
             ([(2,3),(4,5)], 't'),
         )
         
-        root = DataTreeNode.objects.create(type='string')
+        root = DataNode.objects.create(type='string')
         
         for data_path, letter in input_data:
             data_object = _get_string_data_object(letter)
@@ -49,7 +43,7 @@ class TestDataTreeNode(TestCase):
             ([(2,3),(4,5)], 't'),
         )
 
-        root = DataTreeNode.objects.create(type='string')
+        root = DataNode.objects.create(type='string')
         
         for data_path, letter in input_data:
             data_object = _get_string_data_object(letter)
@@ -64,7 +58,7 @@ class TestDataTreeNode(TestCase):
         self.assertEqual(root.get_data_object([(2,3),(4,5)]).substitution_value, 't')
 
     def testAddScalarDataObject(self):
-        root = DataTreeNode.objects.create(type='string')
+        root = DataNode.objects.create(type='string')
         text = 'text'
         data_object = _get_string_data_object(text)
         data_path = []
@@ -72,7 +66,7 @@ class TestDataTreeNode(TestCase):
         self.assertEqual(root.get_data_object(data_path).substitution_value, text)
         
     def testAddScalarDataObjectTwice(self):
-        root = DataTreeNode.objects.create(type='string')
+        root = DataNode.objects.create(type='string')
         text = 'text'
         data_object = _get_string_data_object(text)
         data_path = []
@@ -81,27 +75,27 @@ class TestDataTreeNode(TestCase):
             root.add_data_object(data_path, data_object)
         
     def testAddBranchTwice(self):
-        root = DataTreeNode.objects.create(degree=2, type='string')
+        root = DataNode.objects.create(degree=2, type='string')
         branch1 = root.add_branch(1, 1)
         branch2 = root.add_branch(1, 1)
         self.assertEqual(branch1.id, branch2.id)
 
     def testAddBranchOverLeaf(self):
-        root = DataTreeNode.objects.create(degree=2, type='string')
+        root = DataNode.objects.create(degree=2, type='string')
         data_object = _get_string_data_object('text')
         root.add_leaf(1, data_object)
         with self.assertRaises(UnexpectedLeafNodeError):
             root.add_branch(1, 1)
 
     def testAddLeafOverBranch(self):
-        root = DataTreeNode.objects.create(degree=2, type='string')
+        root = DataNode.objects.create(degree=2, type='string')
         data_object = _get_string_data_object('text')
         root.add_leaf(1, data_object)
         with self.assertRaises(UnexpectedLeafNodeError):
             root.add_branch(1, 1)
 
     def testAddLeafTwice(self):
-        root = DataTreeNode.objects.create(degree=1, type='string')
+        root = DataNode.objects.create(degree=1, type='string')
         data_object = _get_string_data_object('text')
         root.add_leaf(0, data_object)
         with self.assertRaises(LeafAlreadyExistsError):
@@ -110,7 +104,7 @@ class TestDataTreeNode(TestCase):
     def testIndexOutOfRangeError(self):
         degree = 2
         data_object = _get_string_data_object('text')
-        root = DataTreeNode.objects.create(degree=degree, type='string')
+        root = DataNode.objects.create(degree=degree, type='string')
         with self.assertRaises(IndexOutOfRangeError):
             root.add_leaf(degree, data_object)
         with self.assertRaises(IndexOutOfRangeError):
@@ -118,20 +112,20 @@ class TestDataTreeNode(TestCase):
 
     def testDegreeOutOfRangeError(self):
         data_object = _get_string_data_object('text')
-        root = DataTreeNode.objects.create(degree=2, type='string')
+        root = DataNode.objects.create(degree=2, type='string')
         with self.assertRaises(ValidationError):
             root.add_branch(1, -1)
 
     def testDegreeMismatchError(self):
         data_object = _get_string_data_object('text')
-        root = DataTreeNode.objects.create(degree=2, type='string')
+        root = DataNode.objects.create(degree=2, type='string')
         root.add_branch(1, 2)
         with self.assertRaises(DegreeMismatchError):
             root.add_branch(1, 3)
         
     def testUnknownDegreeError(self):
         data_object = _get_string_data_object('text')
-        root = DataTreeNode.objects.create(type='string')
+        root = DataNode.objects.create(type='string')
         with self.assertRaises(UnknownDegreeError):
             root.add_leaf(0, data_object)
 
@@ -150,7 +144,7 @@ class TestDataTreeNode(TestCase):
             ([(1,3),(1,2)], 'm'),
         )
         
-        root = DataTreeNode.objects.create(type='string')
+        root = DataNode.objects.create(type='string')
         
         for data_path, letter in some_of_the_data:
             data_object = _get_string_data_object(letter)
@@ -171,26 +165,3 @@ class TestDataTreeNode(TestCase):
         self.assertTrue(root.is_ready([(2,3),(3,5)]))
         self.assertTrue(root.is_ready([(0,3),]))
         self.assertTrue(root.is_ready([(0,3),(0,1)]))
-
-    def testRenderArray(self):
-        input_data=(
-            ([(0,3),(0,1)], 'i'),
-            ([(1,3),(0,2)], 'a'),
-            ([(1,3),(1,2)], 'm'),
-            ([(2,3),(0,5)], 'r'),
-            ([(2,3),(1,5)], 'o'),
-            ([(2,3),(2,5)], 'b'),
-            # inverted order should not affect output array
-            ([(2,3),(4,5)], 't'),
-            ([(2,3),(3,5)], 'o'),
-        )
-
-        root = DataTreeNode.objects.create(type='string')
-
-        for data_path, letter in input_data:
-            data_object = _get_string_data_object(letter)
-            root.add_data_object(data_path, data_object)
-
-        do = root.render_as_array_data_object()
-        self.assertEqual(''.join([m.substitution_value for m in do.members]),
-                         'iamrobot')

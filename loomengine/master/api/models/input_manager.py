@@ -257,5 +257,6 @@ class InputItem(object):
     def get_data_object(self):
         if self.data_tree_node.is_leaf():
             return self.data_tree_node.data_object
-        else: 
-            return self.data_tree_node.render_as_array_data_object()
+        else:
+            raise Exception("TODO")
+        #return self.data_tree_node.render_as_array_data_object()

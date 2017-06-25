@@ -26,7 +26,7 @@ file_data_object = {
     'contents': {
         'filename': 'file1.txt',
         'md5': 'eed7ca1bba1c93a7fa5b5dba1307b791',
-        'comments': 'Here is where I got this',
+        'import_comments': 'Here is where I got this',
         'source_type': 'imported',
         'imported_from_url': 'file:///data/data/data/data.dat',
     }

@@ -72,125 +72,8 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         queryset = self.get_serializer_class().apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
-    
-'''
-class FileDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'file'. parameters:
-    q = {file query string e.g. filename@uuid};
-    source_type = [ 'log' | 'imported' | 'result' ].
-    All Data Object types including 'file' may be managed at /api/data-objects/,
-    but file-specific parameters are processed only at /api/data-files/
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.FileDataObjectSerializer
 
-    def get_queryset(self):
-        query_string = self.request.query_params.get('q', '')
-        source_type = self.request.query_params.get('source_type', '')
-        if query_string:
-            queryset = models.FileDataObject.filter_by_name_or_id_or_hash(query_string)
-        else:
-            queryset = models.FileDataObject.objects.all()
-        if source_type and source_type != 'all':
-            queryset = queryset.filter(source_type=source_type)
-        queryset = queryset.select_related('file_resource')
-        return queryset.order_by('-datetime_created')
-
-    @detail_route(methods=['post'], url_path='initialize-file-resource',
-                  # Use base serializer since request has no data. Used by API doc.
-                  serializer_class=rest_framework.serializers.Serializer)
-
-    def initialize_file_resource(self, request, uuid=None):
-        try:
-            file_data_object = models.FileDataObject.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        if file_data_object.file_resource:
-            s = serializers.FileResourceSerializer(
-                file_data_object.file_resource, context={'request': request})
-            return JsonResponse(s.data, status=200)
-        file_data_object.initialize_file_resource()
-        s = serializers.FileResourceSerializer(
-            file_data_object.file_resource, context={'request': request})
-        return JsonResponse(s.data, status=201)
-
-
-class StringDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'string'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.StringDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.StringDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class BooleanDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'boolean'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.BooleanDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.BooleanDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class IntegerDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'integer'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.IntegerDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.IntegerDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class FloatDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'float'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.FloatDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.FloatDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class ArrayDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Array Data Objects of any type.
-    'members' contains a JSON formatted list of member data objects.
-    Each DataObject representation may be a complete object, the value from which
-    a new object will be created, or the identifier from which an existing
-    FileDataObject can be looked up.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts both array and non-array DataObjects.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.ArrayDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.ArrayDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class DataTreeViewSet(ExpandableViewSet):
+class DataNodeViewSet(ExpandableViewSet):
     """
     A tree whose nodes represent DataObjects, all of the same type.
     The 'contents' field is a JSON that may be a DataObject, a list of
@@ -200,23 +83,13 @@ class DataTreeViewSet(ExpandableViewSet):
     FileDataObject can be looked up.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.DataTreeNodeSerializer
+    serializer_class = serializers.DataNodeSerializer
 
     def get_queryset(self):
-        queryset = models.DataTreeNode.objects.filter(parent__isnull=True)
-        queryset = queryset\
-                   .select_related('data_object')\
-                   .prefetch_related('descendants__data_object')\
-                   .prefetch_related('descendants__data_object__stringdataobject')\
-                   .prefetch_related('descendants__data_object__filedataobject')\
-                   .prefetch_related(
-                       'descendants__data_object__filedataobject__file_resource')\
-                   .prefetch_related('descendants__data_object__booleandataobject')\
-                   .prefetch_related('descendants__data_object__integerdataobject')\
-                   .prefetch_related('descendants__data_object__floatdataobject')
+        queryset = models.DataNode.objects.filter(parent__isnull=True)
         return queryset
 
-
+'''
 class TaskViewSet(ExpandableViewSet):
     """
     A Task represents a specific set of (runtime environment, command, inputs).

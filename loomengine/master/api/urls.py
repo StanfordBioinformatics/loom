@@ -10,6 +10,9 @@ router = routers.DefaultRouter()
 router.register('data-objects',
                 api.views.DataObjectViewSet,
                 base_name='data-object')
+router.register('data-nodes',
+                api.views.DataNodeViewSet,
+                base_name='data-node')
 """
 router.register('tasks',
                 api.views.TaskViewSet,

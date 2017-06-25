@@ -29,7 +29,7 @@ class TestDataObjectSerializer(TestCase):
         self.assertEqual(value['filename'], file_data['filename'])
         self.assertEqual(value['md5'], file_data['md5'])
         self.assertEqual(value['source_type'], file_data['source_type'])
-        self.assertEqual(value['comments'], file_data['comments'])
+        self.assertEqual(value['import_comments'], file_data['import_comments'])
         self.assertEqual(value['imported_from_url'], file_data['imported_from_url'])
 
     def testRoundTrip_file(self):
@@ -61,8 +61,8 @@ class TestDataObjectSerializer(TestCase):
                          rendered_2['contents']['filename'])
         self.assertEqual(rendered_1['contents']['md5'],
                          rendered_2['contents']['md5'])
-        self.assertEqual(rendered_1['contents']['comments'],
-                         rendered_2['contents']['comments'])
+        self.assertEqual(rendered_1['contents']['import_comments'],
+                         rendered_2['contents']['import_comments'])
         self.assertEqual(rendered_1['contents']['imported_from_url'],
                          rendered_2['contents']['imported_from_url'])
         self.assertEqual(rendered_1['contents']['upload_status'],

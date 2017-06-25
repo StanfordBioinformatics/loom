@@ -97,7 +97,7 @@ class TemplateInput(InputOutputNode):
         on_delete=models.CASCADE)
     hint = models.CharField(max_length=1000, blank=True)
     mode = models.CharField(max_length=255)
-    group = models.IntegerField()
+    group = models.IntegerField(null=True, blank=True)
 
     class Meta:
         app_label = 'api'

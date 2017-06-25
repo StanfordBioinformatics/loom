@@ -13,9 +13,9 @@ def get_task():
         environment={'docker_image': 'ubuntu'},
         data_path = [(0,1),],
     )
-    input_data_object = BooleanDataObject.objects.create(
+    input_data_object = DataObject.objects.create(
         type='boolean',
-        value=True
+        data={'contents': True}
     )
     input = TaskInput.objects.create(task=task,
                                      data_object=input_data_object,

@@ -1,9 +1,6 @@
-import copy
-from django.core.exceptions import ValidationError, \
-    ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
-from mptt.models import MPTTModel, TreeForeignKey
 import jsonfield
 import os
 
@@ -11,9 +8,6 @@ from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
 from api.models import validators
-
-
-
 
 
 class DataObject(BaseModel):
@@ -38,9 +32,6 @@ class DataObject(BaseModel):
     datetime_created = models.DateTimeField(
         default=timezone.now)
     data = jsonfield.JSONField(blank=True)
-    parent = models.ForeignKey('self', null=True, blank=True,
-                               related_name='children',
-                               on_delete=models.SET_NULL)
 
     def clean(self):
         validators.DataObjectValidator.validate_model(self)
@@ -106,16 +97,6 @@ class DataObject(BaseModel):
         kwargs['data_object'] = data_object
         FileResource.initialize(**kwargs)
         return data_object
-
-
-class DataNode(MPTTModel, BaseModel):
-
-    parent = TreeForeignKey('self', null=True, blank=True,
-                            related_name='children', db_index=True,
-                            on_delete=models.CASCADE)
-    data_object = models.ForeignKey('DataObject', null=True,
-                                related_name='data_nodes',
-                                on_delete=models.PROTECT)
 
 
 class FileResource(BaseModel):
