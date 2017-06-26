@@ -190,9 +190,6 @@ class FileResource(BaseModel):
         that files end up being organized and browsable by run
         """
 
-        # TODO reenable when connected to TaskAttempt
-        return []
-        
         # We should only be here if the file is connected to a TaskAttempt
         if not source_type in ['log', 'work']:
             return []
@@ -206,14 +203,14 @@ class FileResource(BaseModel):
 
         task = task_attempt.task
         run = task.run
-        breadcrumbs = ["%s-%s" % (str(run.uuid)[0:8], run.template.name),
+        breadcrumbs = ["%s-%s" % (str(run.uuid)[0:8], run.name),
                        "task-%s" % str(task.uuid)[0:8],
                        "attempt-%s" % str(task_attempt.uuid)[0:8]]
         while run.parent is not None:
             run = run.parent
             breadcrumbs = [
-                "%s-%s" % (str(run.uuid)[0:8], run.template.name) \
-                + breadcrumbs]
+                "%s-%s" % (str(run.uuid)[0:8], run.name)] \
+                + breadcrumbs
         # Prepend first run with datetime
         breadcrumbs[0] = "%s-%s" % (
             run.datetime_created.strftime('%Y-%m-%dT%H.%M.%SZ'),

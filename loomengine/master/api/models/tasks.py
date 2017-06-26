@@ -11,7 +11,7 @@ from api import get_setting
 from api import async
 from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
-from api.models.data_objects import DataObject
+from api.models.data_objects import DataObject, FileResource
 from api.models import validators
 from api.exceptions import ConcurrentModificationError
 
@@ -39,7 +39,7 @@ class Task(BaseModel):
                             blank=True)
     
     task_attempt = models.OneToOneField('TaskAttempt',
-                                        related_name='acitve_task',
+                                        related_name='active_task',
                                         on_delete=models.CASCADE,
                                         null=True,
                                         blank=True)
@@ -78,10 +78,10 @@ class Task(BaseModel):
         heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
         timeout = int(get_setting('TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS'))
         try:
-            last_heartbeat = self.selected_task_attempt.last_heartbeat
+            last_heartbeat = self.task_attempt.last_heartbeat
         except AttributeError:
             # No TaskAttempt selected
-            last_heartbeat = self.datetime_created
+            liast_heartbeat = self.datetime_created
         # Actual interval is expected to be slightly longer than setpoint,
         # depending on settings in TaskRunner. If 2.5 x heartbeat_interval
         # has passed, we have probably missed 2 heartbeats
@@ -107,8 +107,7 @@ class Task(BaseModel):
         self.run.add_timepoint('Child Task %s finished successfully' % self.uuid)
         self.run.set_status_is_finished()
         for output in self.outputs.all():
-            output.pull_data_object()
-            output.push_data_object(self.data_path)
+            output.push_data(self.data_path)
         for task_attempt in self.all_task_attempts.all():
             task_attempt.cleanup()
 
@@ -140,7 +139,8 @@ class Task(BaseModel):
             TaskInput.objects.create(
                 task=task,
                 channel=input_item.channel,
-                type=input_item.get_type(),
+                type=input_item.type,
+                mode=input_item.mode,
                 data_tree = input_item.data_tree)
         for run_output in run.outputs.all():
             task_output = TaskOutput.objects.create(
@@ -149,7 +149,8 @@ class Task(BaseModel):
                 task=task,
                 mode=run_output.mode,
                 source=run_output.source,
-                parser=run_output.parser)
+                parser=run_output.parser,
+                data_tree=run_output.data_tree.get_or_create_node(data_path))
         task = task.setattrs_and_save_with_retries(
             { 'command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
@@ -222,6 +223,7 @@ class TaskInput(InputOutputNode):
     task = models.ForeignKey('Task',
                              related_name='inputs',
                              on_delete=models.CASCADE)
+    mode = models.CharField(max_length=255, null=True, blank=True)
 
 
 class TaskOutput(InputOutputNode):
@@ -235,22 +237,19 @@ class TaskOutput(InputOutputNode):
 	validators=[validators.OutputParserValidator.validate_output_parser],
         null=True, blank=True)
 
-    def pull_data_object(self):
-        attempt_output = self.task.selected_task_attempt.get_output(self.channel)
-        self.setattrs_and_save_with_retries({
-            'data_object': attempt_output.data_object })
+    def push_data(self, data_path):
+        # Copy data from the TaskAttemptOutput to the TaskOutput
+        # From there, it is already connected to downstream runs.
+        attempt_output = self.task.task_attempt.get_output(self.channel)
+        attempt_output.data_tree.clone(seed=self.data_tree)
 
-    def push_data_object(self, data_path):
+        # To trigger new runs we have to push on the root node,
+        # but the TaskOutput's data tree may be just a subtree.
+        # So we get the root from the run_output.
         run_output = self.task.run.get_output(self.channel)
-        if self.data_object.is_array:
-            members = self.data_object.arraydataobject.members
-            degree = len(members)
-            for i in range(0, degree):
-                new_data_path = copy.copy(data_path)
-                new_data_path.append((i, degree))
-                run_output.push(new_data_path, members[i])
-        else:
-            run_output.push(data_path, self.data_object)
+        data_root = run_output.data_tree
+        for input in data_root.downstream_run_inputs.all():
+            input.run.push(input.channel, data_path)
 
 
 class TaskTimepoint(BaseModel):
@@ -308,20 +307,19 @@ class TaskAttempt(BaseModel):
         return self.outputs.get(channel=channel)
 
     def fail(self):
-        task_attempt = TaskAttempt.objects.get(uuid=self.uuid)
-        task_attempt.status_is_failed = True
-        task_attempt.status_is_running = False
-        task_attempt.save()
-        task_attempt.add_timepoint(
+        self.setattrs_and_save_with_retries(
+            {'status_is_failed': True,
+             'status_is_running': False})
+        self.add_timepoint(
             "TaskAttempt %s failed" % self.uuid,
             detail='The TaskRunner experienced an error when executing '\
-            'TaskAttempt %s' % task_attempt.uuid,
+            'TaskAttempt %s' % self.uuid,
             is_error=True)
         try:
-            task_attempt.task_as_selected.fail(
-                "Child TaskAttempt %s failed" % task_attempt.uuid,
+            self.active_task.fail(
+                "Child TaskAttempt %s failed" % self.uuid,
                 detail='The TaskRunner experienced an error when executing '\
-                'TaskAttempt %s' % task_attempt.uuid)
+                'TaskAttempt %s' % self.uuid)
         except ObjectDoesNotExist:
             # This attempt is no longer active
             # and will be ignored.
@@ -333,7 +331,7 @@ class TaskAttempt(BaseModel):
             'status_is_finished': True,
             'status_is_running': False })
         try:
-            task = self.task_as_selected
+            task = self.active_task
         except ObjectDoesNotExist:
             # This attempt is no longer active
             # and will be ignored.
@@ -374,7 +372,8 @@ class TaskAttempt(BaseModel):
                 task_attempt=self,
                 type=input.type,
                 channel=input.channel,
-                data_tree=input.data_tree)
+                mode=input.mode,
+                data_tree=input.data_tree.flattened_clone())
 
     def _initialize_outputs(self):
         for task_output in self.task.outputs.all():
@@ -443,10 +442,13 @@ class TaskAttemptInput(InputOutputNode):
     task_attempt = models.ForeignKey('TaskAttempt',
                              related_name='inputs',
                              on_delete=models.CASCADE)
+    mode = models.CharField(max_length=255, null=True, blank=True)
 
 
 class TaskAttemptOutput(InputOutputNode):
 
+    uuid = models.CharField(default=uuidstr, editable=False,
+                            unique=True, max_length=255)
     task_attempt = models.ForeignKey(
         'TaskAttempt',
         related_name='outputs',
@@ -473,22 +475,13 @@ class TaskAttemptLogFile(BaseModel):
         blank=True,
         related_name='task_attempt_log_file',
         on_delete=models.PROTECT)
-    datetime_created = models.DateTimeField(default=timezone.now,
-                                            editable=False)
-
-    def initialize_file(self):
-        # Create a blank file_data_object on save.
-        # The client will upload the file to this object.
-        if self.file is not None:
-            raise Exception('FileDataObject already exists')
-        file = FileDataObject.objects.create(
-            source_type='log', type='file', filename=self.log_name)
-        self.setattrs_and_save_with_retries(
-            {'file': file})
-        return self.file
+    # datetime_created used only for sorting in index view
+    datetime_created = models.DateTimeField(
+        default=timezone.now, editable=False)
 
 
 class TaskAttemptTimepoint(BaseModel):
+
     task_attempt = models.ForeignKey(
         'TaskAttempt',
         related_name='timepoints',
@@ -501,6 +494,10 @@ class TaskAttemptTimepoint(BaseModel):
 
 
 class ArrayInputContext(object):
+    """This class is used with jinja templates to make the 
+    default representation of an array a space-delimited list.
+    """
+
     def __init__(self, items):
         self.items = items
 

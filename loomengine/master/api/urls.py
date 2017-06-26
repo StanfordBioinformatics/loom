@@ -19,14 +19,12 @@ router.register('tasks',
 router.register('task-attempts',
                 api.views.TaskAttemptViewSet,
                 base_name='task-attempt')
-"""
-router.register('task-attempt-outputs',
+router.register('outputs',
                 api.views.TaskAttemptOutputViewSet,
                 base_name='task-attempt-output')
-router.register('task-attempt-log-files',
+router.register('log-files',
                 api.views.TaskAttemptLogFileViewSet,
                 base_name='task-attempt-log-file')
-"""
 router.register('templates',
                 api.views.TemplateViewSet,
                 base_name='template')

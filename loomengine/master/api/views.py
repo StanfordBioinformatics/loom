@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import rest_framework
+from rest_framework.exceptions import NotFound
 from rest_framework import viewsets, serializers, response, status
 from rest_framework.decorators import detail_route
 
@@ -15,7 +16,6 @@ from api import serializers
 from api import async
 from loomengine.utils import version
 
-from django.http import HttpResponseBadRequest, Http404
 
 logger = logging.getLogger(__name__)
 
@@ -117,15 +117,18 @@ class TaskAttemptViewSet(ExpandableViewSet):
             queryset, self.get_serializer_context())
         return queryset.order_by('-datetime_created')
 
-    @detail_route(methods=['post'], url_path='create-log-file',
+    def _get_task_attempt(self, request, uuid):
+        try:
+            return models.TaskAttempt.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+
+    @detail_route(methods=['post'], url_path='log-files',
                   serializer_class=serializers.TaskAttemptLogFileSerializer)
     def create_log_file(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt = self._get_task_attempt(request, uuid)
         s = serializers.TaskAttemptLogFileSerializer(
             data=data,
             context={
@@ -141,32 +144,23 @@ class TaskAttemptViewSet(ExpandableViewSet):
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
     def fail(self, request, uuid=None):
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt = self._get_task_attempt(request, uuid)
         task_attempt.fail()
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='finish',
                   serializer_class=rest_framework.serializers.Serializer)
     def finish(self, request, uuid=None):
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt = self._get_task_attempt(request, uuid)
         async.finish_task_attempt(task_attempt.uuid)
         return JsonResponse({}, status=201)
 
-    @detail_route(methods=['post'], url_path='create-timepoint',
+    @detail_route(methods=['post'], url_path='timepoints',
                   serializer_class=serializers.TaskAttemptTimepointSerializer)
     def create_timepoint(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt = self._get_task_attempt(request, uuid)
         s = serializers.TaskAttemptTimepointSerializer(
             data=data,
             context={
@@ -181,19 +175,14 @@ class TaskAttemptViewSet(ExpandableViewSet):
 
     @detail_route(methods=['get'], url_path='worker-settings')
     def get_worker_settings(self, request, uuid=None):
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-            return JsonResponse({
-                'WORKING_DIR': task_attempt.get_working_dir(),
-                'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
-                'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
-                'HEARTBEAT_INTERVAL_SECONDS':
-                get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
-            }, status=200)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        except Exception as e:
-            return JsonResponse({"message": e.message}, status=500)
+        task_attempt = self._get_task_attempt(request, uuid)
+        return JsonResponse({
+            'WORKING_DIR': task_attempt.get_working_dir(),
+            'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
+            'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
+            'HEARTBEAT_INTERVAL_SECONDS':
+            get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
+        }, status=200)
 
 
 class TemplateViewSet(ExpandableViewSet):
@@ -253,7 +242,7 @@ class RunViewSet(ExpandableViewSet):
         try:
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+            raise NotFound()
         run_input_serializer = serializers.RunInputSerializer(run.inputs.all(),
                                           many=True,
                                           context={'request': request,
@@ -265,7 +254,7 @@ class RunViewSet(ExpandableViewSet):
         try:
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+            raise NotFound()
         run_output_serializer = serializers.RunOutputSerializer(
             run.outputs.all(),
             many=True,
@@ -273,66 +262,56 @@ class RunViewSet(ExpandableViewSet):
                      'expand': True})
         return JsonResponse(run_output_serializer.data, status=200, safe=False)
 
-'''
+
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
-    serializer_class = serializers.TaskAttemptLogFileSerializer
+
     lookup_field = 'uuid'
+    serializer_class = serializers.TaskAttemptLogFileSerializer
 
     def get_queryset(self):
         queryset = models.TaskAttemptLogFile.objects.all()
         queryset = queryset.select_related('file')\
-                   .select_related('file__filedataobject__file_resource')
+                   .select_related('file__file_resource')
         return queryset.order_by('-datetime_created')
 
-    @detail_route(methods=['post'], url_path='initialize-file',
+    @detail_route(methods=['post'], url_path='file',
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
-    def initialize_file(self, request, uuid=None):
+    def create_file(self, request, uuid=None):
         try:
             task_attempt_log_file = models.TaskAttemptLogFile.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+            raise NotFound()
         if task_attempt_log_file.file:
-            s = serializers.DataObjectSerializer(
-                task_attempt_log_file.file, context={'request': request})
-            return JsonResponse(s.data, status=200)
-        task_attempt_log_file.initialize_file()
+            return JsonResponse({'message': 'Object already exists.'}, status=400)
+        data_json = request.body
+        data = json.loads(data_json)
         s = serializers.DataObjectSerializer(
-            task_attempt_log_file.file, context={'request': request})
+            task_attempt_log_file.file, data=data, context={
+                'request': request,
+                'task_attempt_log_file': task_attempt_log_file})
+        s.is_valid(raise_exception=True)
+        data_object = s.save()
         return JsonResponse(s.data, status=201)
 
 
 class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
+    
+    lookup_field = 'uuid'
     serializer_class = serializers.TaskAttemptOutputSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'partial_update':
+            return serializers.TaskAttemptOutputUpdateSerializer
+        else:
+            return serializers.TaskAttemptSerializer
 
     def get_queryset(self):
         queryset = models.TaskAttemptOutput.objects.all()
-        queryset = queryset.select_related('data_object__stringdataobject')\
-                           .select_related('data_object__filedataobject')\
-                           .select_related(
-                               'data_object__filedataobject__file_resource')\
-                           .select_related('data_object__booleandataobject')\
-                           .select_related('data_object__integerdataobject')\
-                           .select_related('data_object__floatdataobject')\
-                           .select_related('data_object__arraydataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__filedataobject__'\
-                               'file_resource')
+        queryset = queryset.select_related('data_tree')
+        queryset = queryset.prefetch_related('data_tree__data_object')\
+                           .prefetch_related('data_tree__data_object__file_resource')
         return queryset
-'''
 
 @require_http_methods(["GET"])
 def status(request):

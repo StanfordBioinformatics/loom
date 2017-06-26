@@ -7,6 +7,7 @@ from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskAttempt, TaskAttemptOutput, TaskAttemptInput, \
     TaskAttemptLogFile, TaskAttemptTimepoint, TaskTimepoint
 from api.serializers.data_objects import DataObjectSerializer
+from api.serializers.input_output_nodes import InputOutputNodeSerializer
 
 
 class TaskTimepointSerializer(CreateWithParentModelSerializer):
@@ -16,58 +17,41 @@ class TaskTimepointSerializer(CreateWithParentModelSerializer):
         fields = ('message', 'detail', 'timestamp', 'is_error')
 
 
-class TaskAttemptInputSerializer(CreateWithParentModelSerializer):
-
-    data_object = DataObjectSerializer(allow_null=True, required=False)
-    type = serializers.CharField(read_only=True)
-    channel = serializers.CharField(read_only=True)
+class TaskAttemptInputSerializer(InputOutputNodeSerializer):
 
     class Meta:
         model = TaskAttemptInput
-        fields = ('type', 'channel', 'data_object',)
+        fields = ('type', 'channel', 'data', 'mode')
+
+    mode = serializers.CharField()
 
 
-class TaskAttemptOutputSerializer(CreateWithParentModelSerializer):
+class TaskAttemptOutputSerializer(InputOutputNodeSerializer):
 
-    data_object = DataObjectSerializer(allow_null=True, required=False)
-    type = serializers.CharField(read_only=True)
-    channel = serializers.CharField(read_only=True)
+    class Meta:
+        model = TaskAttemptOutput
+        fields = ('uuid', 'type', 'channel', 'data', 'mode', 'source', 'parser')
+
     source = serializers.JSONField(required=False)
     parser = serializers.JSONField(required=False)
     mode = serializers.CharField()
 
+
+class TaskAttemptOutputUpdateSerializer(TaskAttemptOutputSerializer):
+
     class Meta:
         model = TaskAttemptOutput
-        fields = ('id', 'type', 'channel', 'source', 'data_object', 'parser', 'mode')
+        fields = ('uuid', 'type', 'channel', 'data', 'mode', 'source', 'parser')
 
-    def update(self, instance, validated_data):
-        data_object_data = self.initial_data.get('data_object', None)
-        validated_data.pop('data_object', None)
-
-        if data_object_data:
-            if not instance.data_object:
-                if data_object_data.get('type') == 'file':
-                    # We can't use the serializer because it fails to initialize
-                    # the file data object when it isn't attached to a
-                    # task_attempt_output
-                    data_object = DataObject.objects.create(
-                        **data_object_data)
-                    instance = instance.setattrs_and_save_with_retries(
-                        {'data_object': data_object})
-                else:
-                    s = DataObjectSerializer(data=data_object_data)
-                    s.is_valid(raise_exception=True)
-                    validated_data['data_object'] = s.save()
-            else:
-                s = DataObjectSerializer(instance.data_object, data=data_object_data)
-                s.is_valid(raise_exception=True)
-                validated_data['data_object'] = s.save()
-        return super(self.__class__, self).update(
-            instance,
-            validated_data)
-
+    source = serializers.JSONField(read_only=True)
+    parser = serializers.JSONField(read_only=True)
+    
 
 class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
+
+    class Meta:
+        model = TaskAttemptLogFile
+        fields = ('uuid', 'url', 'log_name', 'file')
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -75,9 +59,26 @@ class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
         lookup_field='uuid')
     file = DataObjectSerializer(allow_null=True, required=False)
 
-    class Meta:
-        model = TaskAttemptLogFile
-        fields = ('uuid', 'url', 'log_name', 'file', 'datetime_created')
+    def update(self, instance, validated_data):
+        file_data = self.initial_data.get('file', None)
+        validated_data.pop('file', None)
+
+        if file_data:
+            if file_data.get('type') and not file_data.get('type') == 'file':
+                raise serializers.ValidationError(
+                    'Bad type "%s". Must be type "file".' % file_data.get('type'))
+            if instance.file:
+                raise serializers.ValidationError(
+                    'Updating existing nested file not allowed')
+            
+            s = DataObjectSerializer(data=file_data,
+                                     context={
+                                         'request': self.request,
+                                         'task_attempt_log_file': instance}
+                                     )
+            s.is_valid(raise_exception=True)
+            s.save()
+        return instance
 
 
 class TaskAttemptTimepointSerializer(CreateWithParentModelSerializer):
@@ -237,29 +238,24 @@ class ExpandableTaskAttemptSerializer(ExpandableSerializerMixin, TaskAttemptSeri
     SUMMARY_SERIALIZER = SummaryTaskAttemptSerializer
 
 
-class TaskInputSerializer(CreateWithParentModelSerializer):
-
-    data_object = DataObjectSerializer(read_only=True)
-    type = serializers.CharField(read_only=True)
-    channel = serializers.CharField(read_only=True)
+class TaskInputSerializer(InputOutputNodeSerializer):
 
     class Meta:
         model = TaskInput
-        fields = ('data_object', 'type', 'channel',)
+        fields = ('data', 'type', 'channel', 'mode')
 
-
-class TaskOutputSerializer(CreateWithParentModelSerializer):
-
-    data_object = DataObjectSerializer(read_only=True)
-    type = serializers.CharField(read_only=True)
     mode = serializers.CharField(read_only=True)
-    channel = serializers.CharField(read_only=True)
-    source = serializers.JSONField(required=False)
-    parser = serializers.JSONField(required=False)
+
+
+class TaskOutputSerializer(InputOutputNodeSerializer):
 
     class Meta:
         model = TaskOutput
-        fields = ('data_object', 'source', 'type', 'channel', 'parser', 'mode')
+        fields = ('type', 'channel', 'data', 'mode', 'source', 'parser')
+
+    mode = serializers.CharField(read_only=True)
+    source = serializers.JSONField(required=False)
+    parser = serializers.JSONField(required=False)
 
 
 class TaskURLSerializer(serializers.HyperlinkedModelSerializer):
@@ -278,32 +274,6 @@ class TaskURLSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class TaskSerializer(serializers.HyperlinkedModelSerializer):
-
-    uuid = serializers.CharField(required=False, read_only=True)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='task-detail',
-        lookup_field='uuid')
-    resources = serializers.JSONField(required=False)
-    environment = serializers.JSONField(required=False)
-    inputs = TaskInputSerializer(many=True, read_only=True)
-    outputs = TaskOutputSerializer(many=True, read_only=True)
-    all_task_attempts = TaskAttemptURLSerializer(many=True, read_only=True)
-    task_attempt = TaskAttemptURLSerializer(required=False)
-    raw_command = serializers.CharField(required=False)
-    command = serializers.CharField(required=False)
-    interpreter = serializers.CharField(required=False)
-    datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
-    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
-    status_is_finished = serializers.BooleanField(required=False)
-    status_is_failed = serializers.BooleanField(required=False)
-    status_is_killed = serializers.BooleanField(required=False)
-    status_is_running = serializers.BooleanField(required=False)
-    status_is_waiting = serializers.BooleanField(required=False)
-    attempt_number = serializers.IntegerField(read_only=True)
-    timepoints = TaskTimepointSerializer(
-        many=True, allow_null=True, required=False)
-    data_path = serializers.JSONField(required=True)
-    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = Task
@@ -331,6 +301,32 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'data_path',
             'status',
         )
+
+    uuid = serializers.CharField(required=False, read_only=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='task-detail',
+        lookup_field='uuid')
+    resources = serializers.JSONField(required=False)
+    environment = serializers.JSONField(required=False)
+    inputs = TaskInputSerializer(many=True, read_only=True)
+    outputs = TaskOutputSerializer(many=True, read_only=True)
+    all_task_attempts = TaskAttemptURLSerializer(many=True, read_only=True)
+    task_attempt = TaskAttemptURLSerializer(required=False)
+    raw_command = serializers.CharField(required=False)
+    command = serializers.CharField(required=False)
+    interpreter = serializers.CharField(required=False)
+    datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
+    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    status_is_finished = serializers.BooleanField(required=False)
+    status_is_failed = serializers.BooleanField(required=False)
+    status_is_killed = serializers.BooleanField(required=False)
+    status_is_running = serializers.BooleanField(required=False)
+    status_is_waiting = serializers.BooleanField(required=False)
+    attempt_number = serializers.IntegerField(read_only=True)
+    timepoints = TaskTimepointSerializer(
+        many=True, allow_null=True, required=False)
+    data_path = serializers.JSONField(required=True)
+    status = serializers.CharField(read_only=True)
 
     @classmethod
     def _apply_prefetch(cls, queryset):

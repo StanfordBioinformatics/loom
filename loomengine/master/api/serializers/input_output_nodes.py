@@ -28,6 +28,20 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
             io_node.save()
         return io_node
 
+    def update(self, instance, validated_data):
+        # This is used to add data to an existing node
+        data = validated_data.pop('data', None)
+        if data is not None:
+            if instance.data_tree:
+                raise ValidationError('Update to existing data not allowed')
+            data_node_serializer = DataNodeSerializer(
+                data=data,
+                context = {'type': instance.type})
+            data_node_serializer.is_valid(raise_exception=True)
+            instance.data_tree = data_node_serializer.save()
+            instance.save()
+        return instance
+
     def to_representation(self, instance):
         if not isinstance(instance, models.Model):
             # If the Serializer was instantiated with data instead of a model,

@@ -261,12 +261,6 @@ class Run(MPTTModel, BaseModel):
                 raise Exception('Postprocessing failed due to unexpected '\
                                 'concurrent modification')
 
-    def _push_all_inputs(self):
-        if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
-            return
-        for input in self.inputs.all():
-            input.push_all()
-
     @classmethod
     def postprocess(cls, run_uuid):
         run = Run.objects.get(uuid=run_uuid)
@@ -362,7 +356,13 @@ class Run(MPTTModel, BaseModel):
             # connector already exists. Just use it.
             connector = self.connectors.get(channel=io_node.channel)
         connector.connect(io_node)
-            
+
+    def _push_all_inputs(self):
+        if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
+            return
+        for input in self.inputs.all():
+            self.push(input.channel, [])
+
     def push(self, channel, data_path):
         """Called when new data is available at the given data_path 
         on the given channel. This will trigger creation of new tasks if 1)
@@ -424,19 +424,6 @@ class RunInput(InputOutputNode):
         else:
             return False
 
-    def push_all(self):
-        """Notify steps that input data is available.
-        This method triggers a separate call to push(data_path) on the RunInput
-        for each available DataObject.
-        """
-	self.push([])
-
-    def push(self, data_path):
-        """Indicates that new data is available at the given data_path.
-        Notify StepRun.
-        """
-        self.run.push(self.channel, data_path)
-
 
 class RunOutput(InputOutputNode):
 
@@ -453,10 +440,6 @@ class RunOutput(InputOutputNode):
     parser = jsonfield.JSONField(
 	validators=[validators.OutputParserValidator.validate_output_parser],
         null=True, blank=True)
-
-    def push(self, data_path, data_object):
-        self.add_data_object(data_path, data_object)
-        self.data_tree.push(data_path)
 
 
 class RunConnectorNode(InputOutputNode):

@@ -141,7 +141,7 @@ class InputSetGeneratorNode(object):
         generator = InputSetGeneratorNode()
         for (data_path, data_node) in io_node.get_ready_data_nodes(
                 target_path, gather_depth):
-            input_item = InputItem(data_node, io_node.channel)
+            input_item = InputItem(data_node, io_node.channel, mode=io_node.mode)
             generator._add_input_item(data_path, input_item)
         return generator
 
@@ -248,9 +248,11 @@ class InputItem(object):
     refrain from creating a new ArrayDataObject for no reason.
     """
 
-    def __init__(self, data_tree, channel):
+    def __init__(self, data_tree, channel, mode):
         self.channel = channel
         self.data_tree = data_tree
+        self.mode = mode
 
-    def get_type(self):
+    @property
+    def type(self):
         return self.data_tree.type

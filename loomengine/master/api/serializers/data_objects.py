@@ -55,8 +55,8 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                 .Meta.model.objects.create(**validated_data)
         else:
             if not isinstance(value, dict):
-                # If it's a string, treat it as a template identifier.
-                # Look it up. 
+                # If it's a string, treat it as a data_object identifier and
+                # look it up. 
                 data_objects = DataObject.filter_by_name_or_id(value)
                 if data_objects.count() == 0:
                     raise serializers.ValidationError(
@@ -69,11 +69,18 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                 # Otherwise, create new.
                 data_object = self.Meta.model.objects.create(**validated_data)
                 try:
+                    # If file is attached to TaskAttemptLogFile, we
+                    # have to connect it before initializing FileResource
+                    # because that info is used in generating the file_url.
+                    log_file = self.context.get('task_attempt_log_file')
+                    if log_file:
+                        log_file.setattrs_and_save_with_retries({'file': data_object})
+
                     value['data_object'] = data_object
                     FileResource.initialize(**value)
                     return data_object
                 except:
-                    # Cleanup
+                    # Cleanup incomplete DataObject if we failed.
                     data_object.delete()
                     raise
 

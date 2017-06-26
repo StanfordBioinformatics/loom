@@ -147,11 +147,20 @@ class Connection(object):
                 % (len(data_objects), max))
         return data_objects
 
+    def get_data_node(self, data_node_id):
+        return self._get_object(
+            'data-nodes/%s/' % data_node_id)
+
+    def get_data_node_index(self):
+        return self._get_object_index(
+            'data-nodes/'
+        )
+
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
             'data-files/' + file_id + '/file-imports/'
         )
-    
+
     def get_template(self, template_id):
         return self._get_object(
             'templates/%s/' % template_id
@@ -219,32 +228,32 @@ class Connection(object):
 
     def get_task_attempt_output(self, task_attempt_output_id):
         return self._get_object(
-            'task-attempt-outputs/%s/' % task_attempt_output_id
+            'outputs/%s/' % task_attempt_output_id
         )
 
     def update_task_attempt_output(self, task_attempt_output_id,
                                    task_attempt_output_update):
         return self._patch_object(
             task_attempt_output_update,
-            'task-attempt-outputs/%s/' % task_attempt_output_id)
+            'outputs/%s/' % task_attempt_output_id)
 
     def post_task_attempt_log_file(self, task_attempt_id, task_attempt_log_file):
         return self._post_object(
             task_attempt_log_file,
-            'task-attempts/%s/create-log-file/' % task_attempt_id
+            'task-attempts/%s/log-files/' % task_attempt_id
         )
-
-    def task_attempt_log_file_initialize_file_data_object(
-            self, task_attempt_log_file_id):
-        url = 'task-attempt-log-files/%s/initialize-file/' % task_attempt_log_file_id
-        data = {}
-        task_attempt_log_file = self._post_object(data, url)
-        return task_attempt_log_file
+    
+    def post_task_attempt_log_file_data_object(
+            self, task_attempt_log_file_id, data_object):
+        return self._post_object(
+            data_object,
+            'log-files/%s/file/' % task_attempt_log_file_id
+        )
 
     def post_task_attempt_timepoint(self, task_attempt_id, task_attempt_timepoint):
         return self._post_object(
             task_attempt_timepoint,
-            'task-attempts/%s/create-timepoint/' % task_attempt_id
+            'task-attempts/%s/timepoints/' % task_attempt_id
         )
 
     def post_task_attempt_fail(self, task_attempt_id):

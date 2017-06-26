@@ -131,74 +131,7 @@ class TestFileResource(TestCase):
         self.assertEqual(resource.get_uuid(), data_object.uuid)
 
     
-    
-"""
-class TestArrayDataObject(TestCase):
-
-    def testSubstitutionValue(self):
-        values = [1,2,3]
-        data_object_list = [
-            DataObject.get_by_value(i, 'integer')
-            for i in values
-        ]
-        array_data_object = ArrayDataObject.create_from_list(
-            data_object_list, 'integer')
-
-        self.assertEqual(array_data_object.substitution_value, values)
-
-    def testIsReady(self):
-        values = [1,2,3]
-        data_object_list = [
-            DataObject.get_by_value(i, 'integer')
-            for i in values
-        ]
-        array_data_object = ArrayDataObject.create_from_list(
-            data_object_list, 'integer')
-        self.assertTrue(array_data_object.is_ready())
-
-    def testTypeMismatchError(self):
-        data_object_list = [
-            DataObject.get_by_value(3, 'integer'),
-            DataObject.get_by_value(False, 'boolean')
-        ]
-        with self.assertRaises(TypeMismatchError):
-            array_data_object = ArrayDataObject.create_from_list(
-                data_object_list, 'integer')
-
-    def testAddToArrayNonArrayError(self):
-        member = DataObject.get_by_value(3, 'integer')
-        non_array = DataObject.get_by_value(4, 'integer')
-        with self.assertRaises(NonArrayError):
-            member.add_to_array(non_array)
-        
-    def testAddToArrayNestedArraysError(self):
-        array1 = DataObject.objects.create(
-            type='integer',
-            is_array=True
-        )
-        array2 = DataObject.objects.create(
-            type='integer',
-            is_array=True
-        )
-        with self.assertRaises(NestedArraysError):
-            array1.add_to_array(array2)
-
-    def testCreateFromListNestedArraysError(self):
-        list1 = [
-            DataObject.get_by_value(3, 'integer'),
-            DataObject.get_by_value(5, 'integer')
-        ]
-        array1 = ArrayDataObject.create_from_list(
-            list1, 'integer')
-
-        list2=[
-            DataObject.get_by_value(7, 'integer'),
-            array1
-        ]
-        with self.assertRaises(NestedArraysError):
-            array2 = ArrayDataObject.create_from_list(
-                list2, 'integer')
-
+"""    
     def testDuplicateFilenames(self):
         file_data_object_list = []
         for i in range(3):

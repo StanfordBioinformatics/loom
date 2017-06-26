@@ -10,8 +10,8 @@ class DataObjectValidator(object):
     @classmethod
     def _validate_boolean_data(cls, value):
         schema = {"type": "object",
-                  "properties": {"contents": {"type": "boolean"}},
-                  "required": ["contents"]}
+                  "properties": {"value": {"type": "boolean"}},
+                  "required": ["value"]}
         try:
             jsonschema.validate(value, schema)
         except jsonschema.exceptions.ValidationError as e:
@@ -27,8 +27,8 @@ class DataObjectValidator(object):
     @classmethod
     def _validate_float_data(cls, value):
         schema = {"type": "object",
-                  "properties": {"contents": {"type": "number"}},
-                  "required": ["contents"]}
+                  "properties": {"value": {"type": "number"}},
+                  "required": ["value"]}
         try:
             jsonschema.validate(value, schema)
         except jsonschema.exceptions.ValidationError as e:
@@ -37,8 +37,8 @@ class DataObjectValidator(object):
     @classmethod
     def _validate_integer_data(cls, value):
         schema = {"type": "object",
-                  "properties": {"contents": {"type": "number"}},
-                  "required": ["contents"]}
+                  "properties": {"value": {"type": "number"}},
+                  "required": ["value"]}
         try:
             jsonschema.validate(value, schema)
         except jsonschema.exceptions.ValidationError as e:
@@ -47,8 +47,8 @@ class DataObjectValidator(object):
     @classmethod
     def _validate_string_data(cls, value):
         schema = {"type": "object",
-                  "properties": {"contents": {"type": "string"}},
-                  "required": ["contents"]}
+                  "properties": {"value": {"type": "string"}},
+                  "required": ["value"]}
         try:
             jsonschema.validate(value, schema)
         except jsonschema.exceptions.ValidationError as e:
@@ -151,16 +151,16 @@ class OutputParserValidator(object):
             }
         }
 
-    OPTIONS_VALIDATORS = {
-        'delimited': _validate_delimited_output_parser_options
-    }
-
     @classmethod
     def validate_output_parser(cls, value):
+        OPTIONS_VALIDATORS = {
+            'delimited': cls._validate_delimited_output_parser_options
+        }
+
         schema = {
             "type": "object",
             "properties": {"type": {"type": "string",
-                                    "enum": "delimited"},
+                                    "enum": ["delimited"]},
                            "options": {"type": "object"}
             },
             "required": ["type"]
@@ -172,7 +172,7 @@ class OutputParserValidator(object):
     
         # Validate options specific to parser_type
         if value.get('options'):
-            validate_options = cls.OPTIONS_VALIDATORS[value.get('type')]
+            validate_options = OPTIONS_VALIDATORS[value.get('type')]
             validate_options(value.get('options'))
 
 

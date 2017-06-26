@@ -14,7 +14,7 @@ class DegreeMismatchError(Exception):
     pass
 class UnknownDegreeError(Exception):
     pass
-class LeafAlreadyExistsError(Exception):
+class NodeAlreadyExistsError(Exception):
     pass
 class DataAlreadyExistsError(Exception):
     pass
@@ -62,7 +62,7 @@ class DataNode(BaseModel):
         """
         assert self.type == data_object.type, 'data type mismatch'
         if self._get_child_by_index(index) is not None:
-            raise LeafAlreadyExistsError(
+            raise NodeAlreadyExistsError(
                 'Leaf data node already exists at this index')
         else:
             return DataNode.objects.create(
@@ -70,6 +70,14 @@ class DataNode(BaseModel):
                 index=index,
                 data_object=data_object,
                 type=self.type)
+
+    def add_blank(self, index):
+        if self._get_child_by_index(index):
+            raise NodeAlreadyExistsError()
+        return DataNode.objects.create(
+            parent=self,
+            index=index,
+            type=self.type)
 
     def add_branch(self, index, degree):
         existing_branch = self._get_branch_by_index(index, degree)
@@ -97,7 +105,7 @@ class DataNode(BaseModel):
                 self.degree = data_path[0][1]
                 self.save()
             data_path = copy.deepcopy(data_path)
-            self._extend_data_path_and_add_data_at_leaf(data_path, data_object)
+            self._extend_to_data_path(data_path, leaf_data=data_object)
 
     def get_data_object(self, data_path):
         node = self.get_node(data_path)
@@ -191,6 +199,12 @@ class DataNode(BaseModel):
                     'Requested branch is missing')
             return child.get_node(data_path)
 
+    def get_or_create_node(self, data_path):
+        if not data_path:
+            return self
+        data_path = copy.deepcopy(data_path)
+        return self._extend_to_data_path(data_path)
+
     def _get_child_by_index(self, index):
         self._check_index(index)
         try:
@@ -218,16 +232,25 @@ class DataNode(BaseModel):
     def _is_empty_branch(self):
         return self.degree==0
 
-    def _extend_data_path_and_add_data_at_leaf(self, data_path, data_object):
+    def _extend_to_data_path(self, data_path, leaf_data=None):
         # 'data_path' is a list of (index, degree) pairs
         index, degree = data_path.pop(0)
-        assert self.degree == degree, 'degree mismatch'
+        if self.degree:
+            assert self.degree == degree, 'degree mismatch'
+        else:
+            self.degree = degree
+            self.save()
         if len(data_path) == 0:
-            self.add_leaf(index, data_object)
-            return
+            if leaf_data:
+                return self.add_leaf(index, leaf_data)
+            else:
+                try:
+                    return self.add_blank(index)
+                except NodeAlreadyExistsError:
+                    return self._get_child_by_index(index)
         child_degree = data_path[0][1]
         child = self.add_branch(index, child_degree)
-        child._extend_data_path_and_add_data_at_leaf(data_path, data_object)
+        return child._extend_to_data_path(data_path, leaf_data=leaf_data)
 
     def _check_index(self, index):
         """Verify that the given index is consistent with the degree of the node.
@@ -270,14 +293,65 @@ class DataNode(BaseModel):
             return [child.substitution_value for child
                     in self.children.order_by('index')]
 
-    def push_all(self):
-        """Push data from all nodes
-        """
-        self.push([])
+    @property
+    def downstream_run_inputs(self):
+        assert not self.parent, "RunInputs are connected to the root node"
+        return self.runinput_set
 
-    def push(self, data_path):
-        """Push any data at or below given path.
-        This instructs run_inputs to check if they can use the data.
-        """
-        for input in self.runinput_set.all():
-            input.push(data_path)
+    def clone(self, parent=None, seed=None):
+        assert not (parent and seed)
+
+        if seed is not None:
+            clone = seed
+            assert clone.type == self.type, 'type mismatch'
+            assert clone.degree is None
+            assert clone.data_object is None
+            # clone.index may be set because the seed
+            # might be connected to a parent.
+    
+            clone.degree = self.degree
+            clone.data_object = self.data_object
+            clone.save()
+
+        else:
+            clone = DataNode.objects.create(
+                parent=parent,
+                index=self.index,
+                degree=self.degree,
+                data_object=self.data_object,
+                type=self.type)
+
+        for child in self.children.all():
+            child.clone(parent=clone)
+
+        return clone
+
+    def flattened_clone(self):
+        if self.is_leaf:
+            return self.clone()
+
+        leaves = self._get_leaves()
+
+        clone = DataNode.objects.create(
+            degree=len(leaves),
+            type=self.type)
+
+        index_counter = 0
+        for leaf in leaves:
+            DataNode.objects.create(
+                parent=clone,
+                index=index_counter,
+                data_object=leaf.data_object,
+                type=leaf.type)
+            index_counter += 1
+        
+        return clone
+
+    def _get_leaves(self):
+        if self.is_leaf:
+            return [self]
+
+        leaves = []
+        for child in self.children.all():
+            leaves.extend(child._get_leaves())
+        return leaves
