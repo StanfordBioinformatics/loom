@@ -94,8 +94,11 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                   'status_is_killed',
                   'status_is_running',
                   'status_is_waiting',
+                  'is_leaf',
                   'command',
                   'interpreter',
+                  'environment',
+                  'resources',
                   'requested_inputs',
                   'inputs',
                   'outputs',
@@ -119,8 +122,11 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     status_is_killed = serializers.BooleanField(required=False)
     status_is_running = serializers.BooleanField(required=False)
     status_is_waiting = serializers.BooleanField(required=False)
+    is_leaf = serializers.BooleanField(required=False)
     command = serializers.CharField(required=False)
     interpreter = serializers.CharField(required=False)
+    environment = serializers.JSONField(required=False)
+    resources = serializers.JSONField(required=False)
     requested_inputs = RequestedInputSerializer(many=True, required=False)
     inputs = RunInputSerializer(many=True,
                                 required=False)
@@ -187,13 +193,13 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             'requested_inputs',
             'inputs',
             'outputs',
-            'requested_inputs__data_tree',
-            'inputs__data_tree',
-            'inputs__data_tree__data_object',
-            'inputs__data_tree__data_object__file_resource',
-            'outputs__data_tree',
-            'outputs__data_tree__data_object',
-            'outputs__data_tree__data_object__file_resource',
+            'requested_inputs__data_node',
+            'inputs__data_node',
+            'inputs__data_node__data_object',
+            'inputs__data_node__data_object__file_resource',
+            'outputs__data_node',
+            'outputs__data_node__data_object',
+            'outputs__data_node__data_object__file_resource',
             'timepoints',
             'steps',
             'tasks']
@@ -281,12 +287,12 @@ class ExpandedRunSerializer(RunSerializer):
         prefetch_list = [
             'inputs',
             'outputs',
-            'inputs__data_tree',
-            'inputs__data_tree__data_object',
-            'inputs__data_tree__data_object__file_resource',
-            'outputs__data_tree',
-            'outputs__data_tree__data_object',
-            'outputs__data_tree__data_object__file_resource',
+            'inputs__data_node',
+            'inputs__data_node__data_object',
+            'inputs__data_node__data_object__file_resource',
+            'outputs__data_node',
+            'outputs__data_node__data_object',
+            'outputs__data_node__data_object__file_resource',
             'timepoints',
             'tasks']
         for suffix in ExpandedTaskSerializer.get_prefetch_related_list() + \

@@ -243,16 +243,16 @@ class InputSet(object):
 class InputItem(object):
     """All the information needed by the Task to construct one TaskInput.
     For array inputs, we avoid creating the ArrayDataObject now and instead
-    provide the data_tree_node from which the array can be generated. That way,
+    provide the data_node from which the array can be generated. That way,
     if we find that the downstream Task has already been created, we can
     refrain from creating a new ArrayDataObject for no reason.
     """
 
-    def __init__(self, data_tree, channel, mode):
+    def __init__(self, data_node, channel, mode):
         self.channel = channel
-        self.data_tree = data_tree
+        self.data_node = data_node
         self.mode = mode
 
     @property
     def type(self):
-        return self.data_tree.type
+        return self.data_node.type

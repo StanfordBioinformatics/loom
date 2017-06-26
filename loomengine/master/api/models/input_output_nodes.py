@@ -18,7 +18,7 @@ since these do not share the full data tree.
 
 class InputOutputNode(BaseModel):
     channel = models.CharField(max_length=255)
-    data_tree = models.ForeignKey('DataNode',
+    data_node = models.ForeignKey('DataNode',
                                    # related_name would cause conflicts on children
                                   null=True,
                                   blank=True)
@@ -32,19 +32,19 @@ class InputOutputNode(BaseModel):
         # DataTreeNodeSerializer is needed to render this field.
         # We don't implement that as a model method here to avoid
         # circular dependencies between models and serializers.
-        # To access data directly use the data_tree field instead.
+        # To access data directly use the data_node field instead.
         return
 
     def get_data_object(self, data_path):
         # Get the data object at the given data_path.
-        return self.data_tree.get_data_object(data_path)
+        return self.data_node.get_data_object(data_path)
 
     def get_ready_data_nodes(self, seed_path, gather_depth):
-        return self.data_tree.get_ready_data_nodes(seed_path, gather_depth)
+        return self.data_node.get_ready_data_nodes(seed_path, gather_depth)
     
-    def _initialize_data_tree(self):
+    def _initialize_data_node(self):
         self.setattrs_and_save_with_retries(
-            {'data_tree': DataNode.objects.create(type=self.type)})
+            {'data_node': DataNode.objects.create(type=self.type)})
 
     def add_data_object(self, data_path, data_object):
         # 'data_path' is a list of (index, degree) pairs that define a path
@@ -54,15 +54,15 @@ class InputOutputNode(BaseModel):
         # (index 0) of 2 branches,
         # and the second of 2 leaves on that branch, i.e. 'file2.txt@id2'.
         # If data_path is length 0, data is scalar
-        if self.data_tree is None:
-            self._initialize_data_tree()
-        self.data_tree.add_data_object(data_path, data_object)
+        if self.data_node is None:
+            self._initialize_data_node()
+        self.data_node.add_data_object(data_path, data_object)
 
     def is_connected(self, connected_node):
         # Nodes are connected by sharing a common DataNode
-        if self.data_tree is None or connected_node.data_tree is None:
+        if self.data_node is None or connected_node.data_node is None:
             return False
-        return self.data_tree.id == connected_node.data_tree.id
+        return self.data_node.id == connected_node.data_node.id
 
     def connect(self, connected_node):
         # Nodes that share the same data should be connected,
@@ -76,23 +76,23 @@ class InputOutputNode(BaseModel):
             'Type mismatch, cannot connect nodes'
 
         # Nodes should not both already be initialized
-        assert connected_node.data_tree is None or self.data_tree is None, \
+        assert connected_node.data_node is None or self.data_node is None, \
             'Cannot connect. Both nodes already '\
             'initialized with non-matching data'
 
         # If neither is initialized, initialize and connect
-        if connected_node.data_tree is None and self.data_tree is None:
-            connected_node._initialize_data_tree()
-            self.data_tree = connected_node.data_tree
+        if connected_node.data_node is None and self.data_node is None:
+            connected_node._initialize_data_node()
+            self.data_node = connected_node.data_node
             self.save()
             return
 
         # If one is initialized, connect the other
-        if self.data_tree is None:
-            self.data_tree = connected_node.data_tree
+        if self.data_node is None:
+            self.data_node = connected_node.data_node
             self.save()
-        elif connected_node.data_tree is None:
-            connected_node.data_tree = self.data_tree
+        elif connected_node.data_node is None:
+            connected_node.data_node = self.data_node
             connected_node.save()
 
     class Meta:

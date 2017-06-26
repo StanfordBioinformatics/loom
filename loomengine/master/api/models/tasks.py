@@ -141,7 +141,7 @@ class Task(BaseModel):
                 channel=input_item.channel,
                 type=input_item.type,
                 mode=input_item.mode,
-                data_tree = input_item.data_tree)
+                data_node = input_item.data_node)
         for run_output in run.outputs.all():
             task_output = TaskOutput.objects.create(
                 channel=run_output.channel,
@@ -150,7 +150,7 @@ class Task(BaseModel):
                 mode=run_output.mode,
                 source=run_output.source,
                 parser=run_output.parser,
-                data_tree=run_output.data_tree.get_or_create_node(data_path))
+                data_node=run_output.data_node.get_or_create_node(data_path))
         task = task.setattrs_and_save_with_retries(
             { 'command': task.render_command() })
         task.add_timepoint('Task %s was created' % task.uuid)
@@ -179,12 +179,12 @@ class Task(BaseModel):
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
-            if input.data_tree.is_leaf:
-                context[input.channel] = input.data_tree\
+            if input.data_node.is_leaf:
+                context[input.channel] = input.data_node\
                                               .substitution_value
             else:
                 context[input.channel] = ArrayInputContext(
-                    input.data_tree\
+                    input.data_node\
                     .substitution_value)
         return context
 
@@ -241,13 +241,13 @@ class TaskOutput(InputOutputNode):
         # Copy data from the TaskAttemptOutput to the TaskOutput
         # From there, it is already connected to downstream runs.
         attempt_output = self.task.task_attempt.get_output(self.channel)
-        attempt_output.data_tree.clone(seed=self.data_tree)
+        attempt_output.data_node.clone(seed=self.data_node)
 
         # To trigger new runs we have to push on the root node,
         # but the TaskOutput's data tree may be just a subtree.
         # So we get the root from the run_output.
         run_output = self.task.run.get_output(self.channel)
-        data_root = run_output.data_tree
+        data_root = run_output.data_node
         for input in data_root.downstream_run_inputs.all():
             input.run.push(input.channel, data_path)
 
@@ -373,7 +373,7 @@ class TaskAttempt(BaseModel):
                 type=input.type,
                 channel=input.channel,
                 mode=input.mode,
-                data_tree=input.data_tree.flattened_clone())
+                data_node=input.data_node.flattened_clone())
 
     def _initialize_outputs(self):
         for task_output in self.task.outputs.all():
@@ -469,7 +469,7 @@ class TaskAttemptLogFile(BaseModel):
         related_name='log_files',
         on_delete=models.CASCADE)
     log_name = models.CharField(max_length=255)
-    file = models.OneToOneField(
+    data_object = models.OneToOneField(
         'DataObject',
         null=True,
         blank=True,

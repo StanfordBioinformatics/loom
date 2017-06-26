@@ -243,7 +243,7 @@ def validate_ge0(value):
     if value < 0:
         raise ValidationError('Must be >= 0. Invalid value "%s"' % value)
 
-data_tree_schema = {
+data_node_schema = {
     # schema used to verify that data contains only a X,
     # a list of X, or a list of (lists of)^n X,
     # where X is string, integer, float, boolean, or object.

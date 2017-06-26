@@ -23,39 +23,39 @@ partial_input_data = [full_input_data[i] for i in [0,3,7]]
 def getScalarInput(channel_name='channel1',
                    mode='no_gather',
                    group=0):
-    data_tree = DataNode.objects.create(type='string')
-    data_tree.add_data_object(
+    data_node = DataNode.objects.create(type='string')
+    data_node.add_data_object(
         [],
         _get_string_data_object(scalar_input_text))
     step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
-    step_run_input.data_tree = data_tree
+    step_run_input.data_node = data_node
     step_run_input.save()
     return step_run_input
 
 def getInputWithPartialTree(channel_name='channel1',
                             mode='no_gather',
                             group=0):
-    data_tree = DataNode.objects.create(type='string')
+    data_node = DataNode.objects.create(type='string')
     for data_path, letter in partial_input_data:
         data_object = _get_string_data_object(letter)
-        data_tree.add_data_object(data_path, data_object)
+        data_node.add_data_object(data_path, data_object)
     step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
-    step_run_input.data_tree = data_tree
+    step_run_input.data_node = data_node
     step_run_input.save()
     return step_run_input
 
 def getInputWithFullTree(channel_name='channel1',
                          mode='no_gather',
                          group=0):
-    data_tree = DataNode.objects.create(type='string')
+    data_node = DataNode.objects.create(type='string')
     for data_path, letter in full_input_data:
         data_object = _get_string_data_object(letter)
-        data_tree.add_data_object(data_path, data_object)
+        data_node.add_data_object(data_path, data_object)
     step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
-    step_run_input.data_tree = data_tree
+    step_run_input.data_node = data_node
     step_run_input.save()
     return step_run_input
 

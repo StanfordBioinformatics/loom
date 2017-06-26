@@ -96,7 +96,7 @@ class TemplateInput(InputOutputNode):
         related_name='inputs',
         on_delete=models.CASCADE)
     hint = models.CharField(max_length=1000, blank=True)
-    mode = models.CharField(max_length=255)
+    mode = models.CharField(max_length=255, blank=True)
     group = models.IntegerField(null=True, blank=True)
 
     class Meta:

@@ -247,7 +247,7 @@ class Connection(object):
             self, task_attempt_log_file_id, data_object):
         return self._post_object(
             data_object,
-            'log-files/%s/file/' % task_attempt_log_file_id
+            'log-files/%s/data-object/' % task_attempt_log_file_id
         )
 
     def post_task_attempt_timepoint(self, task_attempt_id, task_attempt_timepoint):

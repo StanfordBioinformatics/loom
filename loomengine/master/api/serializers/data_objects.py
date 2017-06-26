@@ -74,8 +74,8 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                     # because that info is used in generating the file_url.
                     log_file = self.context.get('task_attempt_log_file')
                     if log_file:
-                        log_file.setattrs_and_save_with_retries({'file': data_object})
-
+                        log_file.setattrs_and_save_with_retries({
+                            'data_object': data_object})
                     value['data_object'] = data_object
                     FileResource.initialize(**value)
                     return data_object

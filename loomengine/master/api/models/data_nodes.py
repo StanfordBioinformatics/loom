@@ -119,7 +119,7 @@ class DataNode(BaseModel):
         return bool(data_object)
 
     def get_ready_data_nodes(self, seed_path, gather_depth):
-        """Returns a list [(path1,data_tree_node1),...]
+        """Returns a list [(path1,data_node1),...]
         with entries only for existing nodes with DataObjects where is_ready==True.
         Missing nodes or those with non-ready or non-existing data are ignored.
         """

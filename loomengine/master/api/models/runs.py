@@ -45,6 +45,12 @@ class Run(MPTTModel, BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
+    environment = jsonfield.JSONField(
+        null=True, blank=True,
+        validators=[validators.validate_environment])
+    resources = jsonfield.JSONField(
+        null=True, blank=True,
+        validators=[validators.validate_resources])
     parent = TreeForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
                             on_delete=models.CASCADE)
@@ -281,7 +287,10 @@ class Run(MPTTModel, BaseModel):
             run._initialize_inputs()
             run._initialize_outputs()
             run._initialize_steps()
-            run.setattrs_and_save_with_retries({'postprocessing_status': 'complete'})
+            run.setattrs_and_save_with_retries({
+                'resources': run.template.resources,
+                'environment': run.template.environment,
+                'postprocessing_status': 'complete'})
             run._push_all_inputs()
         except Exception as e:
             run = Run.objects.get(uuid=run_uuid)
@@ -319,13 +328,15 @@ class Run(MPTTModel, BaseModel):
         if not self.template.outputs:
             return
         for output in self.template.outputs:
-            run_output = RunOutput.objects.create(
-                run=self,
-                type=output.get('type'),
-                channel=output.get('channel'),
-                source=output.get('source'),
-                parser = output.get('parser'),
-                mode=output.get('mode'))
+            kwargs = {'run': self,
+                      'type': output.get('type'),
+                      'channel': output.get('channel'),
+                      'source': output.get('source'),
+                      'parser': output.get('parser')
+            }
+            if output.get('mode'):
+                kwargs.update({'mode': output.get('mode')})
+            run_output = RunOutput.objects.create(**kwargs)
 
             # This takes effect only if the WorkflowRun has a parent
             self._connect_output_to_parent(run_output)
@@ -415,12 +426,12 @@ class RunInput(InputOutputNode):
                             on_delete=models.CASCADE,
                             null=True, # for testing only
                             blank=True)
-    mode = models.CharField(max_length=255, null=True, blank=True)
-    group = models.IntegerField(blank=True, null=True)
+    mode = models.CharField(max_length=255, blank=True)
+    group = models.IntegerField(null=True, blank=True)
 
     def is_ready(self, data_path=None):
-        if self.data_tree:
-            return self.data_tree.is_ready(data_path=data_path)
+        if self.data_node:
+            return self.data_node.is_ready(data_path=data_path)
         else:
             return False
 
@@ -435,11 +446,11 @@ class RunOutput(InputOutputNode):
                             on_delete=models.CASCADE,
                             null=True, # for testing only
                             blank=True)
-    mode = models.CharField(max_length=255, null=True, blank=True)
+    mode = models.CharField(max_length=255, blank=True)
     source = jsonfield.JSONField(null=True, blank=True)
     parser = jsonfield.JSONField(
 	validators=[validators.OutputParserValidator.validate_output_parser],
-        null=True, blank=True)
+        blank=True)
 
 
 class RunConnectorNode(InputOutputNode):

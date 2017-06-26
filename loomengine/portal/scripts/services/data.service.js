@@ -64,14 +64,14 @@ function DataService($http, $q) {
     }
 
     function expandRunInput(i) {
-        return $http.get("/api/data-trees/"+activeData.run.inputs[i].data.uuid)
+        return $http.get("/api/data-nodes/"+activeData.run.inputs[i].data.uuid)
             .then(function(response) {
 		activeData.run.inputs[i].data = response.data;
             });
     }
 
     function expandRunOutput(i) {
-        return $http.get("/api/data-trees/"+activeData.run.outputs[i].data.uuid)
+        return $http.get("/api/data-nodes/"+activeData.run.outputs[i].data.uuid)
             .then(function(response) {
 		activeData.run.outputs[i].data = response.data;
             });
@@ -94,14 +94,14 @@ function DataService($http, $q) {
     }
 
     function expandTemplateFixedInput(i) {
-        return $http.get("/api/data-trees/"+activeData.template.fixed_inputs[i].data.uuid)
+        return $http.get("/api/data-nodes/"+activeData.template.fixed_inputs[i].data.uuid)
             .then(function(response) {
 		activeData.template.fixed_inputs[i].data = response.data;
             });
     }
 
     function setActiveFile(fileId) {
-        return $http.get("/api/data-files/" + fileId + "/")
+        return $http.get("/api/data-objects/" + fileId + "/")
             .then(function(response) {
 		activeData.file = response.data;
             });
@@ -128,21 +128,21 @@ function DataService($http, $q) {
     }
 
     function getImportedFiles() {
-        return $http.get("/api/data-files/?source_type=imported")
+        return $http.get("/api/data-objects/?source_type=imported&type=file")
             .then(function(response) {
 		return response.data;
             });
     }
 
     function getResultFiles() {
-        return $http.get("/api/data-files/?source_type=result")
+        return $http.get("/api/data-objects/?source_type=result&type=file")
             .then(function(response) {
 		return response.data;
             });
     }
 
     function getLogFiles() {
-        return $http.get("/api/data-files/?source_type=log")
+        return $http.get("/api/data-objects/?source_type=log&type=file")
             .then(function(response) {
 		return response.data;
             });

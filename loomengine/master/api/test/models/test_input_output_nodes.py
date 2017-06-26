@@ -29,7 +29,7 @@ class TestInputOutputNode(TestCase):
                                                 mode='no_scatter', type='string')
 
         io_node1.connect(io_node2)
-        self.assertEqual(io_node1.data_tree.id, io_node2.data_tree.id)
+        self.assertEqual(io_node1.data_node.id, io_node2.data_node.id)
 
     def testIsConnected(self):
         io_node1 = RunOutput.objects.create(channel='test',
@@ -47,8 +47,8 @@ class TestInputOutputNode(TestCase):
         io_node2 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
 
-        io_node1._initialize_data_tree()
-        io_node2._initialize_data_tree()
+        io_node1._initialize_data_node()
+        io_node2._initialize_data_node()
 
         with self.assertRaises(AssertionError):
             io_node1.connect(io_node2)

@@ -208,8 +208,8 @@ class TemplateViewSet(ExpandableViewSet):
                    .prefetch_related('steps')\
                    .prefetch_related(
                        'inputs',
-                       'inputs__data_tree',
-                       'inputs__data_tree__data_object')
+                       'inputs__data_node',
+                       'inputs__data_node__data_object')
         return queryset.order_by('-datetime_created')
 
 
@@ -270,24 +270,24 @@ class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = models.TaskAttemptLogFile.objects.all()
-        queryset = queryset.select_related('file')\
-                   .select_related('file__file_resource')
+        queryset = queryset.select_related('data_object')\
+                   .select_related('data_object__file_resource')
         return queryset.order_by('-datetime_created')
 
-    @detail_route(methods=['post'], url_path='file',
+    @detail_route(methods=['post'], url_path='data-object',
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
-    def create_file(self, request, uuid=None):
+    def create_data_object(self, request, uuid=None):
         try:
             task_attempt_log_file = models.TaskAttemptLogFile.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             raise NotFound()
-        if task_attempt_log_file.file:
+        if task_attempt_log_file.data_object:
             return JsonResponse({'message': 'Object already exists.'}, status=400)
         data_json = request.body
         data = json.loads(data_json)
         s = serializers.DataObjectSerializer(
-            task_attempt_log_file.file, data=data, context={
+            task_attempt_log_file.data_object, data=data, context={
                 'request': request,
                 'task_attempt_log_file': task_attempt_log_file})
         s.is_valid(raise_exception=True)
@@ -304,13 +304,13 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
         if self.action == 'partial_update':
             return serializers.TaskAttemptOutputUpdateSerializer
         else:
-            return serializers.TaskAttemptSerializer
+            return serializers.TaskAttemptOutputSerializer
 
     def get_queryset(self):
         queryset = models.TaskAttemptOutput.objects.all()
-        queryset = queryset.select_related('data_tree')
-        queryset = queryset.prefetch_related('data_tree__data_object')\
-                           .prefetch_related('data_tree__data_object__file_resource')
+        queryset = queryset.select_related('data_node')
+        queryset = queryset.prefetch_related('data_node__data_object')\
+                           .prefetch_related('data_node__data_object__file_resource')
         return queryset
 
 @require_http_methods(["GET"])

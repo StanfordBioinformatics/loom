@@ -62,9 +62,14 @@
                     {{activeData.task.resources.memory}}
                 </td>
             </tr>
+            <tr ng-show="activeData.task.resources.disk_size">
+                <th>Disk size</th>
+                <td>
+                    {{activeData.task.resources.disk_size}}
+                </td>
+            </tr>
         </table>
     </div>
-
     <div ng-show="activeData.task.all_task_attempts">
         <h4>Attempts</h4>
         <div class="table-responsive" >
@@ -92,7 +97,6 @@
             </table>
         </div>
     </div>
-
     <div ng-show="activeData.task.inputs.length">
         <h4>Inputs</h4>
         <div class="table-responsive" >
@@ -100,51 +104,53 @@
                 <thead>
                     <th>Channel</th>
                     <th>Type</th>
+		    <th>Mode</th>
                     <th>Data</th>
                 </thead>
                 <tbody>
                     <tr ng-repeat="input in activeData.task.inputs">
                         <td>{{input.channel}}</td>
                         <td>{{input.type}}</td>
+			<td>{{input.mode}}</td>
                         <td ng-show="input.type=='file'">
-                            <a ng-href="#/files/{{input.data_object.uuid}}" ng-show="input.data_object">
-                                {{input.data_object.filename}}
+                            <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data.contents.uuid">
+                                {{input.data.contents.value.filename}}
                             </a>
                         </td>
                         <td ng-hide="input.type=='file'">
-                            {{input.data_object.value}}
+                            {{input.data.contents.value}}
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
-
     <h4>Outputs</h4>
     <div class="table-responsive" >
         <table class="table table-striped">
             <thead>
                 <th>Channel</th>
                 <th>Type</th>
+		<th>Mode</th>
                 <th>Data</th>
             </thead>
             <tbody>
                 <tr ng-repeat="output in activeData.task.outputs">
                     <td>{{output.channel}}</td>
                     <td>{{output.type}}</td>
+		    <td>{{output.mode}}</td>
                     <td ng-show="output.type=='file'">
-                        <a ng-href="#/files/{{output.data_object.uuid}}" ng-show="output.data_object">
-                            {{output.data_object.filename}}
+                        <a ng-href="#/files/{{output.data.contents.uuid}}" ng-show="output.data.contents.uuid">
+                            {{output.data.contents.value.filename}}
                         </a>
                     </td>
                     <td ng-hide="output.type=='file'">
-                        {{output.data_object.value}}
+                        {{output.data.contents.value}}
                     </td>
                 </tr>
             </tbody>
         </table>
     </div>
-
     <div ng-show="activeData.task.timepoints.length>0">
         <h4>Timepoints</h4>
         <div class="table-responsive" >

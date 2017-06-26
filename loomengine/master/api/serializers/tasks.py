@@ -51,27 +51,29 @@ class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = TaskAttemptLogFile
-        fields = ('uuid', 'url', 'log_name', 'file')
+        fields = ('uuid', 'url', 'log_name', 'data_object')
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='task-attempt-log-file-detail',
         lookup_field='uuid')
-    file = DataObjectSerializer(allow_null=True, required=False)
+    data_object = DataObjectSerializer(allow_null=True, required=False)
 
     def update(self, instance, validated_data):
-        file_data = self.initial_data.get('file', None)
-        validated_data.pop('file', None)
+        data_object_data = self.initial_data.get('data_object', None)
+        validated_data.pop('data_object', None)
 
-        if file_data:
-            if file_data.get('type') and not file_data.get('type') == 'file':
+        if data_object_data:
+            if data_object_data.get('type') \
+               and not data_object_data.get('type') == 'file':
                 raise serializers.ValidationError(
-                    'Bad type "%s". Must be type "file".' % file_data.get('type'))
-            if instance.file:
+                    'Bad type "%s". Must be type "file".' %
+                    data_object_data.get('type'))
+            if instance.data_object:
                 raise serializers.ValidationError(
                     'Updating existing nested file not allowed')
             
-            s = DataObjectSerializer(data=file_data,
+            s = DataObjectSerializer(data=dataobject_data,
                                      context={
                                          'request': self.request,
                                          'task_attempt_log_file': instance}
@@ -179,16 +181,16 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
     @classmethod
     def get_prefetch_related_list(cls):
         prefetch_list = ['inputs',
-                'inputs__data_tree__data_object',
+                'inputs__data_node__data_object',
                 'outputs',
-                'outputs__data_tree__data_object',
+                'outputs__data_node__data_object',
                 'log_files',
-                'log_files__file',
-                'log_files__file__file_resource',
+                'log_files__data_object',
+                'log_files__data_object__file_resource',
                 'timepoints']
         for suffix in DataObjectSerializer.get_select_related_list():
-            prefetch_list.append('inputs__data_tree__data_object__'+suffix)
-            prefetch_list.append('outputs__data_tree__data_object__'+suffix)
+            prefetch_list.append('inputs__data_node__data_object__'+suffix)
+            prefetch_list.append('outputs__data_node__data_object__'+suffix)
         return prefetch_list
 
 
@@ -344,14 +346,14 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     def get_prefetch_related_list(cls):
         prefetch_list = [
             'inputs',
-            'inputs__data_tree__data_object',
+            'inputs__data_node__data_object',
             'outputs',
-            'outputs__data_tree__data_object',
+            'outputs__data_node__data_object',
             'all_task_attempts',
             'timepoints']
         for suffix in DataObjectSerializer.get_select_related_list():
-            prefetch_list.append('inputs__data_tree__data_object__'+suffix)
-            prefetch_list.append('outputs__data_tree__data_object__'+suffix)
+            prefetch_list.append('inputs__data_node__data_object__'+suffix)
+            prefetch_list.append('outputs__data_node__data_object__'+suffix)
         return prefetch_list
 
 
@@ -417,14 +419,14 @@ class ExpandedTaskSerializer(TaskSerializer):
     def get_prefetch_related_list(cls):
         prefetch_list = [
             'inputs',
-            'inputs__data_tree__data_object',
+            'inputs__data_node__data_object',
             'outputs',
-            'outputs__data_tree__data_object',
+            'outputs__data_node__data_object',
             'all_task_attempts',
             'timepoints']
         for suffix in DataObjectSerializer.get_select_related_list():
-            prefetch_list.append('inputs__data_tree__data_object__'+suffix)
-            prefetch_list.append('outputs__data_tree__data_object__'+suffix)
+            prefetch_list.append('inputs__data_node__data_object__'+suffix)
+            prefetch_list.append('outputs__data_node__data_object__'+suffix)
         for suffix in TaskAttemptSerializer.get_prefetch_related_list():
             prefetch_list.append('all_task_attempts__'+suffix)
             prefetch_list.append('task_attempt__'+suffix)

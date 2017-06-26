@@ -13,25 +13,16 @@ DEFAULT_INPUT_MODE = 'no_gather'
 DEFAULT_OUTPUT_MODE = 'no_scatter'
 DEFAULT_INTERPRETER = '/bin/bash -euo pipefail'
 
-def _set_input_defaults(input):
+def _set_leaf_input_defaults(input):
     input.setdefault('group', DEFAULT_INPUT_GROUP)
     input.setdefault('mode', DEFAULT_INPUT_MODE)
 
-def _set_output_defaults(output):
-    output.setdefault('mode', DEFAULT_OUTPUT_MODE)
-
-def _set_template_defaults(data, is_leaf):
+def _set_leaf_template_defaults(data):
     # Apply defaults for certain settings if missing
-    if data.get('inputs'):
-        for input in data.get('inputs'):
-            _set_input_defaults(input)
     if data.get('outputs'):
         for output in data.get('outputs'):
-            _set_output_defaults(output)
-    data['is_leaf'] = is_leaf
-    if is_leaf:
-        # Set defaults for leaf node
-        data.setdefault('interpreter', DEFAULT_INTERPRETER)
+            output.setdefault('mode', DEFAULT_OUTPUT_MODE)
+    data.setdefault('interpreter', DEFAULT_INTERPRETER)
         
 def _convert_template_id_to_dict(data):
     # If data is a string instead of a dict value,
@@ -54,7 +45,8 @@ class TemplateInputSerializer(InputOutputNodeSerializer):
     data = serializers.JSONField(required=False) # Override to make non-required
 
     def create(self, validated_data):
-        _set_input_defaults(validated_data)
+        if self.context.get('is_leaf'):
+            _set_leaf_input_defaults(validated_data)
         return super(TemplateInputSerializer, self).create(validated_data)
 
 
@@ -86,7 +78,7 @@ class TemplateURLSerializer(ProxyWriteSerializer):
 
     def get_target_serializer(self):
         return TemplateSerializer
-        
+
 
 class TemplateSerializer(serializers.HyperlinkedModelSerializer):
 
@@ -100,6 +92,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                   'comments',
                   'import_comments',
                   'imported_from_url',
+                  'is_leaf',
                   'interpreter',
                   'environment',
                   'resources',
@@ -118,6 +111,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     comments = serializers.CharField(required=False)
     import_comments = serializers.CharField(required=False)
     imported_from_url = serializers.CharField(required=False)
+    is_leaf = serializers.BooleanField(required=False)
     interpreter = serializers.CharField(required=False)
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
@@ -143,8 +137,10 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         validated_data['raw_data'] = self.initial_data
         validated_data.pop('inputs', None)
         steps = validated_data.pop('steps', None)
-        is_leaf = not steps
-        _set_template_defaults(validated_data, is_leaf)
+        if validated_data.get('is_leaf') is None:
+            validated_data['is_leaf'] = not steps
+        if validated_data['is_leaf']:
+            _set_leaf_template_defaults(validated_data)
         validated_data['imported'] = bool(validated_data.get('imported_from_url'))
         template = super(TemplateSerializer, self).create(validated_data)
 
@@ -177,7 +173,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 s = TemplateInputSerializer(
                     data=input_data,
                     context={'parent_field': 'template',
-                             'parent_instance': template
+                             'parent_instance': template,
+                             'is_leaf': template.is_leaf
                     })
                 s.is_valid(raise_exception=True)
                 s.save()

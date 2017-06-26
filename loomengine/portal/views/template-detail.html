@@ -59,6 +59,12 @@
 	  {{activeData.template.resources.memory}}
 	</td>
       </tr>
+      <tr ng-show="activeData.template.resources.disk_size">
+	<th>Disk size</th>
+	<td>
+	  {{activeData.template.resources.disk_size}}
+	</td>
+      </tr>
     </table>
   </div>
   <div ng-show="activeData.template.steps">
@@ -98,6 +104,18 @@
 	    <th>
 	      Type
 	    </th>
+	    <th ng-show="activeData.template.is_leaf">
+	      Mode
+	    </th>
+	    <th ng-show="activeData.template.is_leaf">
+	      Group
+	    </th>
+	    <th>
+	      Default
+	    </th>
+	    <th>
+	      Hint
+	    </th>
 	  </tr>
 	</thead>
 	<tbody>
@@ -107,6 +125,19 @@
 	    </td>
 	    <td>
 	      {{input.type}}
+	    </td>
+	    <td ng-show="activeData.template.is_leaf">
+	      {{input.mode}}
+	    </td>
+	    <td ng-show="activeData.template.is_leaf">
+	      {{input.group}}
+	    </td>
+
+	    <td>
+	      {{input.data}}
+	    </td>
+	    <td>
+	      {{input.hint}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -153,12 +184,18 @@
 	    <th>
 	      Type
 	    </th>
+	    <th ng-show="activeData.template.is_leaf">
+	      Mode
+	    </th>
 	  </tr>
 	</thead>
 	<tbody>
 	  <tr ng-repeat="output in activeData.template.outputs">
             <td>{{output.channel}}</td>
 	    <td>{{output.type}}</td>
+	    <td ng-show="activeData.template.is_leaf">
+	      {{output.mode}}
+	    </td>
 	  </tr>
 	</tbody>
       </table>

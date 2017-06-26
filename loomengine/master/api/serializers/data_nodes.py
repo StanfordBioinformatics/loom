@@ -7,7 +7,7 @@ from .data_objects import DataObjectSerializer
 from .base import ExpandableSerializerMixin
 from api.models.data_nodes import DataNode
 from api.models.data_objects import DataObject
-from api.models.validators import data_tree_schema
+from api.models.validators import data_node_schema
 
 
 class CollapsedDataNodeSerializer(serializers.HyperlinkedModelSerializer):
@@ -40,12 +40,12 @@ class CollapsedDataNodeSerializer(serializers.HyperlinkedModelSerializer):
         contents = self.initial_data.get('contents')
         if contents is None:
             raise Exception('No data contents. Cannot create DataNode')
-        return self._create_data_tree_from_data_objects(
+        return self._create_data_node_from_data_objects(
                 contents, type)
 
     def validate_contents(self, value):
         try:
-            jsonschema.validate(value, data_tree_schema)
+            jsonschema.validate(value, data_node_schema)
         except jsonschema.exceptions.ValidationError:
             raise serializers.ValidationError(
                 "Data contents must be a string, number, boolean, or object, a list "\
@@ -96,7 +96,7 @@ class CollapsedDataNodeSerializer(serializers.HyperlinkedModelSerializer):
         # Add 1 for the current level
         return minheight + 1
 
-    def _create_data_tree_from_data_objects(self, contents, data_type):
+    def _create_data_node_from_data_objects(self, contents, data_type):
         data_node = DataNode.objects.create(type=data_type)
         self._add_data_objects(data_node, contents, data_type)
         return data_node
@@ -156,10 +156,10 @@ class DataNodeSerializer(CollapsedDataNodeSerializer):
         else:
             assert isinstance(instance, DataNode)
             repr = super(DataNodeSerializer, self).to_representation(instance)
-            repr.update({'contents': self._data_tree_to_data_struct(instance)})
+            repr.update({'contents': self._data_node_to_data_struct(instance)})
             return repr
 
-    def _data_tree_to_data_struct(self, data_node):
+    def _data_node_to_data_struct(self, data_node):
         if data_node._is_blank_node():
             return self.BLANK_NODE_VALUE
         elif data_node._is_empty_branch():
@@ -170,7 +170,7 @@ class DataNodeSerializer(CollapsedDataNodeSerializer):
         else:
             contents = [self.BLANK_NODE_VALUE] * data_node.degree
             for child in data_node.children.all():
-                contents[child.index] = self._data_tree_to_data_struct(child)
+                contents[child.index] = self._data_node_to_data_struct(child)
             return contents
 
 
