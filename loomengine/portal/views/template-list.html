@@ -11,7 +11,7 @@
       <tr ng-repeat="template in templates">
         <td>
 	  <a ng-href="#/templates/{{template.uuid}}">
-	    {{template.name}}@{{template.uuid}}
+	    {{template.name}}@{{template.uuid | limitTo:8}}
 	  </a>
         </td>
         <td>

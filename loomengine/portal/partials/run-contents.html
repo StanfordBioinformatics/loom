@@ -34,7 +34,7 @@
       <a href="#/tasks/{{process.uuid}}" ng-if="process.type=='task'">
 	task {{process.uuid | limitTo:8 }}
       </a>
-      <a ng-if="process.type=='task-attempt'" href="#/task-attempts/{{process.uuid}}">
+      <a href="#/task-attempts/{{process.uuid}}" ng-if="process.type=='task-attempt'">
 	attempt {{process.uuid | limitTo:8}}
       </a>
     </div>

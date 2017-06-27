@@ -112,14 +112,9 @@
                         <td>{{input.channel}}</td>
                         <td>{{input.type}}</td>
 			<td>{{input.mode}}</td>
-                        <td ng-show="input.type=='file'">
-                            <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data.contents.uuid">
-                                {{input.data.contents.value.filename}}
-                            </a>
-                        </td>
-                        <td ng-hide="input.type=='file'">
-                            {{input.data.contents.value}}
-                        </td>
+			<td>
+			  <loom-data contents="input.data.contents"></loom-data>
+			</td>
                     </tr>
                 </tbody>
             </table>
@@ -139,14 +134,9 @@
                     <td>{{output.channel}}</td>
                     <td>{{output.type}}</td>
 		    <td>{{output.mode}}</td>
-                    <td ng-show="output.type=='file'">
-                        <a ng-href="#/files/{{output.data.contents.uuid}}" ng-show="output.data.contents.uuid">
-                            {{output.data.contents.value.filename}}
-                        </a>
-                    </td>
-                    <td ng-hide="output.type=='file'">
-                        {{output.data.contents.value}}
-                    </td>
+		    <td>
+		      <loom-data contents="output.data.contents"></loom-data>
+		    </td>
                 </tr>
             </tbody>
         </table>

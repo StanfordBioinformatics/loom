@@ -132,14 +132,9 @@
 	    <td ng-show="activeData.template.is_leaf">
 	      {{input.group}}
 	    </td>
-	    <td ng-show="input.type=='file'">
-              <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data.contents">
-                {{input.data.contents.value.filename}}
-              </a>
-            </td>
-            <td ng-hide="input.type=='file'">
-              {{input.data.contents.value}}
-            </td>
+	    <td>
+	      <loom-data contents="input.data.contents"></loom-data>
+	    </td>
 	    <td>
 	      {{input.hint}}
 	    </td>
