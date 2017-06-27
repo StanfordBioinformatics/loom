@@ -512,6 +512,7 @@ class TaskRunner(object):
             data_contents = parse_output(output.get('parser'), output_text)
         else:
             data_contents = output_text
+
         output.update({'data': {'contents': data_contents}})
         self.connection.update_task_attempt_output(output['uuid'], output)
 

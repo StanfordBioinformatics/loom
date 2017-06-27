@@ -42,7 +42,7 @@ class InputOutputNode(BaseModel):
     def get_ready_data_nodes(self, seed_path, gather_depth):
         return self.data_node.get_ready_data_nodes(seed_path, gather_depth)
     
-    def _initialize_data_node(self):
+    def initialize_data_node(self):
         self.setattrs_and_save_with_retries(
             {'data_node': DataNode.objects.create(type=self.type)})
 
@@ -55,7 +55,7 @@ class InputOutputNode(BaseModel):
         # and the second of 2 leaves on that branch, i.e. 'file2.txt@id2'.
         # If data_path is length 0, data is scalar
         if self.data_node is None:
-            self._initialize_data_node()
+            self.initialize_data_node()
         self.data_node.add_data_object(data_path, data_object)
 
     def is_connected(self, connected_node):
@@ -82,7 +82,7 @@ class InputOutputNode(BaseModel):
 
         # If neither is initialized, initialize and connect
         if connected_node.data_node is None and self.data_node is None:
-            connected_node._initialize_data_node()
+            connected_node.initialize_data_node()
             self.data_node = connected_node.data_node
             self.save()
             return

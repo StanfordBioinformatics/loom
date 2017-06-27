@@ -30,7 +30,7 @@ class Task(BaseModel):
     raw_command = models.TextField()
     command = models.TextField(blank=True)
     environment = jsonfield.JSONField()
-    resources = jsonfield.JSONField()
+    resources = jsonfield.JSONField(blank=True)
 
     run = models.ForeignKey('Run',
                             related_name='tasks',
@@ -123,9 +123,14 @@ class Task(BaseModel):
 
     @classmethod
     def create_from_input_set(cls, input_set, run):
-        data_path = input_set.data_path
-        if run.tasks.filter(data_path=data_path).count() > 0:
-            raise TaskAlreadyExistsException
+        if input_set:
+            data_path = input_set.data_path
+            if run.tasks.filter(data_path=data_path).count() > 0:
+                raise TaskAlreadyExistsException
+        else:
+            # If run has no inputs, we get an empty input_set.
+            # Task will go on the root node.
+            data_path = []
 
         task = Task.objects.create(
             run=run,
@@ -274,7 +279,7 @@ class TaskAttempt(BaseModel):
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     environment = jsonfield.JSONField()
-    resources = jsonfield.JSONField()
+    resources = jsonfield.JSONField(blank=True)
     last_heartbeat = models.DateTimeField(auto_now=True)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)

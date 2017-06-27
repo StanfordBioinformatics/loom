@@ -340,11 +340,15 @@ class Run(MPTTModel, BaseModel):
 
             # This takes effect only if the WorkflowRun has a parent
             self._connect_output_to_parent(run_output)
-
-            # Now create a connector on the current WorkflowRun so that
+            
+            # Create a connector on the current Run so that
             # children can connect on this channel
             if not self.is_leaf:
                 self._create_connector(run_output)
+
+            # If this is a leaf node but has no parents, initialize the
+            # DataNode so it will be available for connection by the TaskOutput
+            run_output.initialize_data_node()
 
     def _initialize_steps(self):
         if self.is_leaf:
@@ -371,8 +375,11 @@ class Run(MPTTModel, BaseModel):
     def _push_all_inputs(self):
         if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
             return
-        for input in self.inputs.all():
-            self.push(input.channel, [])
+        if self.inputs.exists():
+            for input in self.inputs.all():
+                self.push(input.channel, [])
+        else:
+            self._push_input_set([])
 
     def push(self, channel, data_path):
         """Called when new data is available at the given data_path 
@@ -386,11 +393,15 @@ class Run(MPTTModel, BaseModel):
             return
         for input_set in InputManager(self.inputs.all(), channel, data_path)\
             .get_input_sets():
-            try:
-                task = Task.create_from_input_set(input_set, self)
-                async.run_task(task.uuid)
-            except TaskAlreadyExistsException:
-                pass
+            self._push_input_set(input_set)
+
+    def _push_input_set(self, input_set):
+        try:
+            task = Task.create_from_input_set(input_set, self)
+            async.run_task(task.uuid)
+        except TaskAlreadyExistsException:
+            pass
+
 
 class RunTimepoint(BaseModel):
 
