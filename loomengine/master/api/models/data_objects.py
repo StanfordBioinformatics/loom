@@ -45,7 +45,22 @@ class DataObject(BaseModel):
         if type == 'file':
             return cls._get_file_by_value(value)
         else:
-            return DataObject.objects.create(data={'value': value}, type=type)
+            return DataObject.objects.create(data={
+                'value': cls._type_cast(value, type)}, type=type)
+
+    FALSE_VALUES = [None, False, 0, '', [], 'false', 'False', 'FALSE',
+                    'f', 'F', 'no', 'No', 'NO', 'n', 'N', '0']
+
+    @classmethod
+    def _type_cast(cls, value, type):
+        if type == 'string':
+            return str(value)
+        if type == 'integer':
+            return int(value)
+        if type == 'float':
+            return float(value)
+        if type == 'boolean':
+            return not value in cls.FALSE_VALUES
 
     @classmethod
     def _get_file_by_value(cls, value):
