@@ -77,16 +77,30 @@ class TemplateImporter(AbstractImporter):
         print 'Importing template from "%s".' % filemanager.normalize_url(
             template_file)
         (template, source_url) = cls._get_template(template_file, filemanager)
-        template.update({
-            'import_comments': comments,
-            'imported_from_url': source_url,
-            })
+        if comments:
+            template.update({'import_comments': comments})
+        if source_url:
+            template.update({'imported_from_url': source_url})
+
+        cls._warn_for_fixed_inputs(template)
 
         template_from_server = connection.post_template(template)
         print 'Imported template "%s@%s".' % (
             template_from_server['name'],
             template_from_server['uuid'])
         return template_from_server
+
+    @classmethod
+    def _warn_for_fixed_inputs(cls, template):
+        if template.get('fixed_inputs'):
+            import warnings
+            FIXED_INPUTS_DEPRECATED = '\nFIXED INPUTS ARE DEPRECATED and will '\
+                                      'be removed in a future release. Use '\
+                                      'a standard input with a "data" field instead.'
+            warnings.warn(FIXED_INPUTS_DEPRECATED)
+            return
+        for step in template.get('steps', []):
+            cls._warn_for_fixed_inputs(step)
 
     @classmethod
     def _get_template(cls, template_file, filemanager):

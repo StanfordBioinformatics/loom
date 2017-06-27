@@ -1,3 +1,4 @@
+import copy
 from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, RecursiveField, \
@@ -27,7 +28,7 @@ def _set_leaf_template_defaults(data):
 def _convert_template_id_to_dict(data):
     # If data is a string instead of a dict value,
     # set that as _template_id
-    if not isinstance(data, dict):
+    if isinstance(data, (str, unicode)):
         return {'_template_id': data}
     else:
         return data
@@ -74,7 +75,8 @@ class TemplateURLSerializer(ProxyWriteSerializer):
         """Because we allow template ID string values, where
         serializers normally expect a dict
         """
-        return _convert_template_id_to_dict(data)
+        return super(TemplateURLSerializer, self).to_internal_value(
+            _convert_template_id_to_dict(data))
 
     def get_target_serializer(self):
         return TemplateSerializer
@@ -86,6 +88,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         model = Template
         fields = ('uuid',
                   'url',
+                  '_template_id',
                   'name',
                   'datetime_created',
                   'command',
@@ -98,6 +101,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                   'resources',
                   'postprocessing_status',
                   'inputs',
+                  # Fixed inputs are deprecated
+                  'fixed_inputs',
                   'outputs',
                   'steps',)
 
@@ -105,6 +110,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedIdentityField(
             view_name='template-detail',
             lookup_field='uuid')
+    _template_id = serializers.CharField(write_only=True, required=False)
     name = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
     command = serializers.CharField(required=False)
@@ -117,6 +123,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     resources = serializers.JSONField(required=False)
     postprocessing_status = serializers.CharField(required=False)
     inputs = TemplateInputSerializer(many=True, required=False)
+    # Fixed inputs are deprecated
+    fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     outputs  = serializers.JSONField(required=False)
     steps = TemplateURLSerializer(many=True, required=False)
 
@@ -125,7 +133,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             super(TemplateSerializer, self).to_representation(instance))
 
     def to_internal_value(self, data):
-        return _convert_template_id_to_dict(data)
+        return super(TemplateSerializer, self).to_internal_value(
+            _convert_template_id_to_dict(data))
 
     def create(self, validated_data):
         # If template_id is present, just look it up
@@ -136,6 +145,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         # Save inputs and steps for postprocessing
         validated_data['raw_data'] = self.initial_data
         validated_data.pop('inputs', None)
+        validated_data.pop('fixed_inputs', None)
+
         steps = validated_data.pop('steps', None)
         if validated_data.get('is_leaf') is None:
             validated_data['is_leaf'] = not steps
@@ -167,7 +178,12 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     def postprocess(cls, template_uuid):
         template = Template.objects.get(uuid=template_uuid)
         try:
-            inputs = template.raw_data.get('inputs', [])
+            inputs = copy.deepcopy(template.raw_data.get('inputs', []))
+
+            # Fixed inputs are deprecated
+            fixed_inputs = copy.deepcopy(template.raw_data.get('fixed_inputs', []))
+            inputs.extend(fixed_inputs)
+
             steps = template.raw_data.get('steps', [])
             for input_data in inputs:
                 s = TemplateInputSerializer(

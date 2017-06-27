@@ -28,7 +28,7 @@ class Task(BaseModel):
                             unique=True, max_length=255)
     interpreter = models.CharField(max_length=1024)
     raw_command = models.TextField()
-    command = models.TextField(null=True, blank=True)
+    command = models.TextField(blank=True)
     environment = jsonfield.JSONField()
     resources = jsonfield.JSONField()
 
@@ -45,7 +45,7 @@ class Task(BaseModel):
                                         blank=True)
     data_path = jsonfield.JSONField(
         validators=[validators.validate_data_path],
-        null=True, blank=True)
+        blank=True)
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
@@ -223,7 +223,7 @@ class TaskInput(InputOutputNode):
     task = models.ForeignKey('Task',
                              related_name='inputs',
                              on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, null=True, blank=True)
+    mode = models.CharField(max_length=255)
 
 
 class TaskOutput(InputOutputNode):
@@ -231,11 +231,11 @@ class TaskOutput(InputOutputNode):
     task = models.ForeignKey('Task',
                              related_name='outputs',
                              on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, null=True, blank=True)
-    source = jsonfield.JSONField(null=True, blank=True)
+    mode = models.CharField(max_length=255)
+    source = jsonfield.JSONField(blank=True)
     parser = jsonfield.JSONField(
 	validators=[validators.OutputParserValidator.validate_output_parser],
-        null=True, blank=True)
+        blank=True)
 
     def push_data(self, data_path):
         # Copy data from the TaskAttemptOutput to the TaskOutput
@@ -260,7 +260,7 @@ class TaskTimepoint(BaseModel):
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
     message = models.CharField(max_length=255)
-    detail = models.TextField(null=True, blank=True)
+    detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
 
 
@@ -442,7 +442,7 @@ class TaskAttemptInput(InputOutputNode):
     task_attempt = models.ForeignKey('TaskAttempt',
                              related_name='inputs',
                              on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, null=True, blank=True)
+    mode = models.CharField(max_length=255)
 
 
 class TaskAttemptOutput(InputOutputNode):
@@ -453,11 +453,11 @@ class TaskAttemptOutput(InputOutputNode):
         'TaskAttempt',
         related_name='outputs',
         on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, null=True, blank=True)
-    source = jsonfield.JSONField(null=True, blank=True)
+    mode = models.CharField(max_length=255)
+    source = jsonfield.JSONField(blank=True)
     parser = jsonfield.JSONField(
         validators=[validators.OutputParserValidator.validate_output_parser],
-        null=True, blank=True)
+        blank=True)
 
 
 class TaskAttemptLogFile(BaseModel):
@@ -489,7 +489,7 @@ class TaskAttemptTimepoint(BaseModel):
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
     message = models.CharField(max_length=255)
-    detail = models.TextField(null=True, blank=True)
+    detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
 
 

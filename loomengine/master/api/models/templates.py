@@ -41,15 +41,15 @@ class Template(BaseModel):
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
     environment = jsonfield.JSONField(
-        null=True, blank=True,
+        blank=True,
         validators=[validators.validate_environment])
     resources = jsonfield.JSONField(
-        null=True, blank=True,
+        blank=True,
         validators=[validators.validate_resources])
-    comments = models.TextField(null=True, blank=True)
-    import_comments = models.TextField(null=True, blank=True)
+    comments = models.TextField(blank=True)
+    import_comments = models.TextField(blank=True)
     imported_from_url = models.TextField(
-        null=True, blank=True,
+        blank=True,
 	validators=[validators.validate_url])
     imported = models.BooleanField(default=False)
     steps = models.ManyToManyField(
@@ -59,9 +59,9 @@ class Template(BaseModel):
         related_name='templates')
     outputs = jsonfield.JSONField(
         validators=[validators.TemplateValidator.validate_outputs],
-        null=True, blank=True
+        blank=True
     )
-    raw_data = jsonfield.JSONField(null=True, blank=True)
+    raw_data = jsonfield.JSONField(blank=True)
 
     def get_name_and_id(self):
         return "%s@%s" % (self.name, self.id)

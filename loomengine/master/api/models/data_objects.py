@@ -122,9 +122,9 @@ class FileResource(BaseModel):
         validators=[validators.validate_url])
     md5 = models.CharField(
         max_length=32, validators=[validators.validate_md5])
-    import_comments = models.TextField(null=True, blank=True)
+    import_comments = models.TextField(blank=True)
     imported_from_url = models.TextField(
-        null=True, blank=True,
+        blank=True,
         validators=[validators.validate_url])
     upload_status = models.CharField(
         max_length=16,

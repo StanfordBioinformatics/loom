@@ -46,10 +46,10 @@ class Run(MPTTModel, BaseModel):
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
     environment = jsonfield.JSONField(
-        null=True, blank=True,
+        blank=True,
         validators=[validators.validate_environment])
     resources = jsonfield.JSONField(
-        null=True, blank=True,
+        blank=True,
         validators=[validators.validate_resources])
     parent = TreeForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
@@ -75,8 +75,8 @@ class Run(MPTTModel, BaseModel):
     status_is_waiting = models.BooleanField(default=True)
 
     # For leaf nodes only
-    command = models.TextField(blank=True, null=True)
-    interpreter = models.CharField(max_length=1024, blank=True, null=True)
+    command = models.TextField(blank=True)
+    interpreter = models.CharField(max_length=1024, blank=True)
 
     @property
     def status(self):
@@ -401,7 +401,7 @@ class RunTimepoint(BaseModel):
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
     message = models.CharField(max_length=255)
-    detail = models.TextField(null=True, blank=True)
+    detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
 
 
@@ -447,7 +447,7 @@ class RunOutput(InputOutputNode):
                             null=True, # for testing only
                             blank=True)
     mode = models.CharField(max_length=255, blank=True)
-    source = jsonfield.JSONField(null=True, blank=True)
+    source = jsonfield.JSONField(blank=True)
     parser = jsonfield.JSONField(
 	validators=[validators.OutputParserValidator.validate_output_parser],
         blank=True)

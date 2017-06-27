@@ -522,16 +522,20 @@ class FileManager:
 
         if not force_duplicates:
             self._verify_no_duplicates(md5)
-        
+
+        value = {
+            'filename': filename,
+            'md5': md5,
+            'imported_from_url': source.get_url(),
+            'source_type': 'imported',
+        }
+        if comments:
+            value['import_comments'] = comments
+
         return self.connection.post_data_object({
             'type': 'file',
-            'value': {
-                'filename': filename,
-                'md5': md5,
-                'imported_from_url': source.get_url(),
-                'import_comments': comments,
-                'source_type': 'imported',
-            }})
+            'value': value
+        })
 
     def _verify_no_duplicates(self, md5):
         files = self.connection.get_data_object_index(

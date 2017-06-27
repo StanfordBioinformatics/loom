@@ -142,8 +142,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     def create(self, validated_data):
         requested_inputs = self.initial_data.get('requested_inputs', None)
         validated_data.pop('requested_inputs', None)
-
-        s = TemplateSerializer(data=validated_data.pop('template'))
+        validated_data.pop('template')
+        s = TemplateSerializer(data=self.initial_data.get('template'))
         s.is_valid()
         template = s.save()
 
