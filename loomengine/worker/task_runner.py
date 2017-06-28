@@ -222,29 +222,42 @@ class TaskRunner(object):
                 if input.get('mode') == 'no_gather':
                     self._copy_file_input(input['data']['contents'])
                 else:
-                    filename_count = {}
-                    for data_object in input['data']['contents']:
+                    data_objects = input['data']['contents']
+                    filename_array = [data_object['value']['filename']
+                                      for data_object in data_objects]
+                    duplicates = self._get_duplicates(filename_array)
+
+                    filename_counts = {}
+                    for data_object in data_objects:
                         filename = data_object['value']['filename']
                         
                         # Increment filenames if there are duplicates in an array,
                         # e.g. file.txt, file__1__.txt, file__2__.txt
-                        duplicates = filename_count.setdefault(filename, 0)
-                        filename_count[filename] += 1
-                        if duplicates > 0:
+                        if filename in duplicates:
+                            counter = filename_counts.setdefault(filename, 0)
+                            filename_counts[filename] += 1
                             filename = self._rename_duplicate(
-                                filename, duplicates)
+                                filename, counter)
+
                         self._copy_file_input(data_object,
                                               destination_filename=filename)
 
-    def _rename_duplicate(self, filename, count):
-        if count == 0:
-            return filename
+    def _get_duplicates(self, array):
+        seen = set()
+        duplicates = set()
+        for member in array:
+            if member in seen:
+                duplicates.add(member)
+            seen.add(member)
+        return duplicates
+
+    def _rename_duplicate(self, filename, counter):
         parts = filename.split('.')
 	assert len(parts) > 0, 'missing filename'
         if len(parts) == 1:
-            return parts[0] + '(%s)' % count
+            return parts[0] + '(%s)' % counter
         else:
-            return '.'.join(parts[0:len(parts)-1]) + '__%s__.' % count + parts[-1]
+            return '.'.join(parts[0:len(parts)-1]) + '__%s__.' % counter + parts[-1]
 
     def _copy_file_input(self, data_object, destination_filename=None):
         file_data_object_id = '@'+data_object['uuid']

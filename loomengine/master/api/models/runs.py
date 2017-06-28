@@ -179,7 +179,7 @@ class Run(MPTTModel, BaseModel):
 
     def _connect_input_to_template(self, input):
         template_input = self.template.inputs.get(channel=input.channel)
-        if template_input.data_object is None:
+        if template_input.data_node is None:
             return False
         template_input.connect(input)
         return True
