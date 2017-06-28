@@ -15,10 +15,11 @@ import threading
 import time
 import uuid
 
-from loomengine.worker.output_parsers import parse_output
 import loomengine.utils
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
+from loomengine.worker.outputs import TaskAttemptOutput
+from loomengine.worker.inputs import TaskAttemptInput
 
 
 class WorkerSettingsError(Exception):
@@ -43,7 +44,7 @@ class FileImportError(Exception):
 class TaskRunner(object):
 
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
-    LOOM_RUN_SCRIPT_NAME = 'loom_run_script'
+    LOOM_RUN_SCRIPT_NAME = '.loom_run_script'
 
     def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
         self.is_failed = False
@@ -54,7 +55,7 @@ class TaskRunner(object):
             'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
-            'TASK_ATTEMPT_CONTAINER_NAME': args.server_name+'-task-'+args.task_attempt_id,
+            'TASK_ATTEMPT_CONTAINER_NAME': args.server_name+'-attempt-'+args.task_attempt_id,
         }
 
         # Errors here can't be reported since there is no server connection
@@ -218,56 +219,7 @@ class TaskRunner(object):
             return
 
         for input in self.task_attempt['inputs']:
-            if input['type'] == 'file':
-                if input.get('mode') == 'no_gather':
-                    self._copy_file_input(input['data']['contents'])
-                else:
-                    data_objects = input['data']['contents']
-                    filename_array = [data_object['value']['filename']
-                                      for data_object in data_objects]
-                    duplicates = self._get_duplicates(filename_array)
-
-                    filename_counts = {}
-                    for data_object in data_objects:
-                        filename = data_object['value']['filename']
-                        
-                        # Increment filenames if there are duplicates in an array,
-                        # e.g. file.txt, file__1__.txt, file__2__.txt
-                        if filename in duplicates:
-                            counter = filename_counts.setdefault(filename, 0)
-                            filename_counts[filename] += 1
-                            filename = self._rename_duplicate(
-                                filename, counter)
-
-                        self._copy_file_input(data_object,
-                                              destination_filename=filename)
-
-    def _get_duplicates(self, array):
-        seen = set()
-        duplicates = set()
-        for member in array:
-            if member in seen:
-                duplicates.add(member)
-            seen.add(member)
-        return duplicates
-
-    def _rename_duplicate(self, filename, counter):
-        parts = filename.split('.')
-	assert len(parts) > 0, 'missing filename'
-        if len(parts) == 1:
-            return parts[0] + '(%s)' % counter
-        else:
-            return '.'.join(parts[0:len(parts)-1]) + '__%s__.' % counter + parts[-1]
-
-    def _copy_file_input(self, data_object, destination_filename=None):
-        file_data_object_id = '@'+data_object['uuid']
-        self.logger.debug('Copying input %s to %s.' % (
-            file_data_object_id,
-            self.settings['WORKING_DIR']))
-        self.filemanager.export_file(
-            file_data_object_id,
-            destination_url=self.settings['WORKING_DIR'],
-            destination_filename=destination_filename)
+            TaskAttemptInput(input, self.filemanager, self.settings).copy()
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
@@ -468,66 +420,10 @@ class TaskRunner(object):
         try:
             self.container
         except AttributeError:
-            self.logger.debug('No container, so no outputs to save.')
-            return # Never ran. No outputs to save
-
-        self.logger.debug('Saving outputs')
+            raise Exception("No container found. The task did not run.")
 
         for output in self.task_attempt['outputs']:
-            if output['type'] == 'file':
-                self._save_file_output(output)
-            else:
-                if output['source'].get('filename'):
-                    with open(
-                            os.path.join(
-                                self.settings['WORKING_DIR'],
-                                output['source'].get('filename')),
-                            'r') as f:
-                        output_text = f.read()
-
-                elif output['source'].get('stream'):
-                    # Get result from stream
-                    if output['source'].get('stream') == 'stdout':
-                        output_text = self._get_stdout()
-                    elif output['source'].get('stream') == 'stderr':
-                        output_text = self._get_stderr()
-                    else:
-                        raise Exception(
-                            'Could not save output "%s" because source is unknown stream type "%s"' %  (output['channel'], output['source']['stream']))
-                else:
-                    raise Exception(
-                        'Could not save output "%s" because did not include a filename or a stream: "%s"' %  (output['channel'], output['source']))
-
-                self._save_nonfile_output(output, output_text)
-                self.logger.debug(
-                    'Saved %s output "%s"' % (output['type'], output['channel']))
-
-    def _save_file_output(self, output):
-        if output.get('mode') == 'scatter':
-            raise Exception("TODO: support scatter for files")
-        else:
-            filename = output['source']['filename']
-            try:
-                data_object = self.filemanager.import_result_file(
-                    output,
-                    os.path.join(self.settings['WORKING_DIR'], filename)
-                )
-                self.logger.debug('Saved file output "%s"' % data_object['uuid'])
-            except IOError as e:
-                self._fail(
-                    'Failed to save output file %s' % filename,
-                    detail=str(e))
-                raise
-
-    def _save_nonfile_output(self, output, output_text):
-        data_type = output['type']
-        if output.get('mode') == 'scatter':
-            data_contents = parse_output(output.get('parser'), output_text)
-        else:
-            data_contents = output_text
-
-        output.update({'data': {'contents': data_contents}})
-        self.connection.update_task_attempt_output(output['uuid'], output)
+            TaskAttemptOutput(output, self).save()
 
     # Updates to TaskAttempt
 
@@ -598,7 +494,6 @@ class TaskRunner(object):
                             default='WARNING',
                             help='Log level')
         return parser
-
 
 def init_directory(directory, new=False):
     if new and os.path.exists(directory):

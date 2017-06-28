@@ -580,7 +580,7 @@ class FileManager:
                             'md5': md5,
                         }}}})
 
-    def import_result_file_array(self, task_attempt_output, source_url_list):
+    def import_result_file_list(self, task_attempt_output, source_url_list):
         md5_list = []
         filename_list = []
         for source_url in source_url_list:
