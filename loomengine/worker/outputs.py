@@ -1,16 +1,16 @@
-from glob import glob
+import glob
 import os
 from loomengine.worker.parsers import OutputParser
 
 
 class BaseOutput(object):
 
-    def __init__(self, output, runner):
+    def __init__(self, output, task_attempt):
         self.output = output
-        self.connection = runner.connection
-        self.filemanager = runner.filemanager
-        self.settings = runner.settings
-        self.runner = runner
+        self.connection = task_attempt.connection
+        self.filemanager = task_attempt.filemanager
+        self.settings = task_attempt.settings
+        self.task_attempt = task_attempt
 
 
 class FileOutput(BaseOutput):
@@ -20,7 +20,7 @@ class FileOutput(BaseOutput):
         file_path = os.path.join(
 	    self.settings['WORKING_DIR'], filename)
         self.filemanager.import_result_file(self.output, file_path)
-        
+
 
 class FileListScatterOutput(BaseOutput):
 
@@ -32,7 +32,7 @@ class FileListScatterOutput(BaseOutput):
             for filename in filename_list]
         self.filemanager.import_result_file_list(
             self.output, file_path_list)
-        
+
 
 class FileContentsOutput(BaseOutput):
 
@@ -73,13 +73,13 @@ class FileListContentsScatterOutput(FileContentsOutput):
         for filename in filename_list:
             file_path = os.path.join(
 	        self.settings['WORKING_DIR'], filename)
-            contents_list.append[self._read_file(file_path)]
+            contents_list.append(self._read_file(file_path))
         self.output.update({'data': {'contents': contents_list}})
         self.connection.update_task_attempt_output(
             self.output['uuid'],
             self.output)
 
-        
+
 class StreamOutput(BaseOutput):
 
     def save(self):
@@ -95,14 +95,14 @@ class StreamOutput(BaseOutput):
             self.output)
 
     def _get_stdout(self):
-        return self.runner._get_stdout()
+        return self.task_attempt._get_stdout()
 
     def _get_stderr(self):
-        return self.runner._get_stderr()
+        return self.task_attempt._get_stderr()
 
 
 class StreamScatterOutput(StreamOutput):
-    
+
     def save(self):
         parser = OutputParser(self.output)
         stream = self.output['source']['stream']
@@ -118,23 +118,28 @@ class StreamScatterOutput(StreamOutput):
             self.output['uuid'],
             self.output)
 
+
 class GlobScatterOutput(BaseOutput):
 
     def save(self):
-        globstring = self.output['source']['glob']
-        file_path_list = glob(globstring)
+        globstring = os.path.join(
+	    self.settings['WORKING_DIR'],
+            self.output['source']['glob'])
+        file_path_list = glob.glob(globstring)
         self.filemanager.import_result_file_list(
-            output, file_path_list)
+            self.output, file_path_list)
 
 
 class GlobContentsScatterOutput(FileContentsOutput):
 
     def save(self):
-        globstring = self.output['source']['glob']
-        file_path_list = glob(globstring)
+        globstring = os.path.join(
+	    self.settings['WORKING_DIR'],
+            self.output['source']['glob'])
+        file_path_list = glob.glob(globstring)
         contents_list = []
         for file_path in file_path_list:
-            contents_list.append[self._read_file(file_path)]
+            contents_list.append(self._read_file(file_path))
         self.output.update({'data': {'contents': contents_list}})
 	self.connection.update_task_attempt_output(
             self.output['uuid'],
@@ -167,7 +172,7 @@ def _get_output_info(output):
             source_type = 'filename'
     return (data_type, mode, source_type)
 
-def TaskAttemptOutput(output, runner):
+def TaskAttemptOutput(output, task_attempt):
     """Returns the correct Output class for a given
     data type, source type, and scatter mode
     """
@@ -178,31 +183,31 @@ def TaskAttemptOutput(output, runner):
         if mode == 'scatter':
             assert source_type in ['file_list', 'glob'], \
                 'source type "%s" not allowed' % source_type
-            if source_type == 'file-list':
-                return FileListScatterOutput(output, runner)
-            return GlobScatterOutput(output, runner)
+            if source_type == 'file_list':
+                return FileListScatterOutput(output, task_attempt)
+            return GlobScatterOutput(output, task_attempt)
         else:
             assert mode == 'no_scatter'
             assert source_type == 'filename', \
                 'source type "%s" not allowed' % source_type
-            return FileOutput(output, runner)
+            return FileOutput(output, task_attempt)
     else: # data_type is non-file
         if mode == 'scatter':
-            assert source_type in ['filename', 'file-list', 'glob', 'stream'], \
+            assert source_type in ['filename', 'file_list', 'glob', 'stream'], \
                 'source type "%s" not allowed' % source_type
             if source_type == 'filename':
-                return FileContentsScatterOutput(output, runner)
+                return FileContentsScatterOutput(output, task_attempt)
             if source_type == 'file_list':
-                return FileListContentsScatterOutput(output, runner)
+                return FileListContentsScatterOutput(output, task_attempt)
             if source_type == 'glob':
-                return GlobContentsScatterOutput(output, runner)
+                return GlobContentsScatterOutput(output, task_attempt)
             assert source_type == 'stream'
-            return StreamScatterOutput(output, runner)
+            return StreamScatterOutput(output, task_attempt)
         else:
             assert mode=='no_scatter'
             assert source_type in ['filename', 'stream'], \
                 'source type "%s" not allowed' % source_type
             if source_type == 'filename':
-                return FileContentsOutput(output, runner)
+                return FileContentsOutput(output, task_attempt)
             assert source_type == 'stream'
-            return StreamOutput(output, runner)
+            return StreamOutput(output, task_attempt)

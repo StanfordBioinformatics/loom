@@ -41,7 +41,7 @@ class FileImportError(Exception):
     pass
 
 
-class TaskRunner(object):
+class TaskAttempt(object):
 
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
     LOOM_RUN_SCRIPT_NAME = '.loom_run_script'
@@ -51,11 +51,9 @@ class TaskRunner(object):
         if args is None:
             args = self._get_args()
         self.settings = {
-            'SERVER_NAME': args.server_name,
             'TASK_ATTEMPT_ID': args.task_attempt_id,
             'MASTER_URL': args.master_url,
             'LOG_LEVEL': args.log_level,
-            'TASK_ATTEMPT_CONTAINER_NAME': args.server_name+'-attempt-'+args.task_attempt_id,
         }
 
         # Errors here can't be reported since there is no server connection
@@ -150,10 +148,10 @@ class TaskRunner(object):
             self._run()
         except Exception as e:
             run_error = e
-        try:
-            self._cleanup()
-        except Exception as e:
-            cleanup_error = e
+        #try:
+        self._cleanup()
+        #except Exception as e:
+        #    cleanup_error = e
 
         # Errors from initialization or run
         # take priority over errors from cleanup
@@ -183,10 +181,10 @@ class TaskRunner(object):
         # Never raise errors, so cleanup can continue
         self._timepoint('Saving outputs')
 
-        try:
-            self._save_outputs()
-        except Exception as e:
-            self._fail('Failed to save outputs', detail=str(e))
+        #try:
+        self._save_outputs()
+        #except Exception as e:
+        #    self._fail('Failed to save outputs', detail=str(e))
 
         self._timepoint('Saving logfiles')
 
@@ -219,7 +217,7 @@ class TaskRunner(object):
             return
 
         for input in self.task_attempt['inputs']:
-            TaskAttemptInput(input, self.filemanager, self.settings).copy()
+            TaskAttemptInput(input, self).copy()
 
     def _try_to_create_run_script(self):
         self.logger.info('Creating run script')
@@ -303,7 +301,7 @@ class TaskRunner(object):
                     'mode': 'rw',
                 }}),
             working_dir=container_dir,
-            name=self.settings['SERVER_NAME']+'-task-'+self.settings['TASK_ATTEMPT_ID'],
+            name=self.settings['SERVER_NAME']+'-attempt-'+self.settings['TASK_ATTEMPT_ID'],
         )
 
     def _try_to_run_container(self):
@@ -475,10 +473,6 @@ class TaskRunner(object):
     @classmethod
     def get_parser(self):
         parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('-s',
-                            '--server_name',
-                            required=True,
-                            help='server name')
         parser.add_argument('-i',
                             '--task_attempt_id',
                             required=True,
@@ -529,8 +523,8 @@ def get_stdout_logger(name, log_level_string):
 # pip entrypoint requires a function with no arguments
 def main():
 
-    tr = TaskRunner()
-    tr.run_with_heartbeats(tr.main)
+    attempt = TaskAttempt()
+    attempt.run_with_heartbeats(attempt.main)
 
 
 if __name__=='__main__':

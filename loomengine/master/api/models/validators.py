@@ -220,7 +220,14 @@ class TemplateValidator(object):
                         "properties": {
                             "stream": {"type": "string",
                                        "enum": ["stdout", "stderr"]},
-                            "filename": {"type": "string"},
+                            "filename": {
+                                "oneOf": [
+                                    {"type": "string"},
+                                    {"type": "array",
+                                     "items": {"type": "string"}}
+                                ]
+                            },
+                            "glob": {"type": "string"}
                         }
                     },
                     "parser": {
@@ -295,6 +302,7 @@ data_node_schema = {
         'booleanschema': {
             'oneOf': [
                 { 'type': [ 'boolean' ] },
+                { 'type': [ 'string' ] },
                 { 'type': [ 'object' ],
                   'properties': {
                       'type': {'enum': ['boolean']}

@@ -1,12 +1,12 @@
-  - name: Run the Loom task runner.
+  - name: Execute a TaskAttempt
     docker_container:
-      name: "{{taskrunner_container_name}}-{{task_attempt_id}}"
+      name: "{{task_attempt_container_name}}-{{task_attempt_id}}"
       image: "{{loom_docker_image}}"
       volumes:  "{{[ '/var/run/docker.sock'~':'~'/var/run/docker.sock', \
                  storage_root~':'~storage_root ]}}"
       api_version: auto
       network_mode: host
-      command: /bin/bash -c 'loom-taskrunner --server_name {{server_name}} --task_attempt_id {{task_attempt_id}} --master_url {{server_url}} --log_level {{log_level}}'
+      command: /bin/bash -c 'loom-execute-task --task_attempt_id {{task_attempt_id}} --master_url {{server_url}} --log_level {{log_level}}'
       log_driver: fluentd
       log_options:
         fluentd-address: "{{fluentd_address}}"

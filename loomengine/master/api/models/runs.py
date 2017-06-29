@@ -163,40 +163,62 @@ class Run(MPTTModel, BaseModel):
                     channel=input.channel)
                 parent_connector.connect(input)
             except ObjectDoesNotExist:
-                self.parent._create_connector(
-                    input, channel_name=input.channel)
-            return True
-        else:
-            return False
+                self.parent._create_connector(input, is_source=False)
 
     def _connect_input_to_requested_input(self, input):
         try:
             requested_input = self.requested_inputs.get(channel=input.channel)
         except ObjectDoesNotExist:
-            return False
+            return
         requested_input.connect(input)
-        return True
 
+    def _connect_fixed_inputs(self):
+        for input in self.inputs.all():
+            self._connect_input_to_template(input)
+
+
+    def _has_requested_input(self, channel):
+        try:
+            self.requested_inputs.get(channel=channel)
+            return True
+        except ObjectDoesNotExist:
+            return False
+
+    def _has_parent_connector_with_source(self, channel):
+        if self.parent is None:
+            return False
+        try:
+            connector = self.parent.connectors.get(channel=channel)
+        except ObjectDoesNotExist:
+            return False
+        return connector.has_source
+        
     def _connect_input_to_template(self, input):
+        # Do not connect if parent connector.has_source
+        if self._has_parent_connector_with_source(input.channel):
+            return
+        
+        # Do not connect if RequestedInput exists
+        if self._has_requested_input(input.channel):                
+            return
+
         template_input = self.template.inputs.get(channel=input.channel)
         if template_input.data_node is None:
-            return False
-        template_input.connect(input)
-        return True
+            raise ValidationError("No input data available on channel %s" % input.channel)
+        template_input.data_node.clone(seed=input.data_node)
 
     def _connect_output_to_parent(self, output):
-        if self.parent:
-            try:
-                parent_connector = self.parent.connectors.get(
-                    channel=output.channel)
-                parent_connector.connect(output)
-            except MultipleObjectsReturned:
-                raise ChannelNameCollisionError(
-                    'ERROR! There is more than one run output named "%s". '\
-                    'Channel names must be unique within a run.' % output.channel)
-            except ObjectDoesNotExist:
-                self.parent._create_connector(
-                    output, channel_name=output.channel)
+        if not self.parent:
+            return
+        try:
+            parent_connector = self.parent.connectors.get(
+                channel=output.channel)
+            if parent_connector.has_source:
+                raise ValidationError(
+                    'Channel "%s" has more than one source' % output.channel)
+            parent_connector.connect(output)
+        except ObjectDoesNotExist:
+            self.parent._create_connector(output, is_source=True)
 
     def fail(self, message, detail=''):
         self.setattrs_and_save_with_retries({
@@ -284,27 +306,30 @@ class Run(MPTTModel, BaseModel):
             return
 
         try:
-            run._initialize_inputs()
-            run._initialize_outputs()
-            run._initialize_steps()
+            for step in run.steps.all():
+                step.initialize_steps()
+                async.postprocess_run(step.uuid)
+
+            run._connect_fixed_inputs()
             run.setattrs_and_save_with_retries({
                 'resources': run.template.resources,
-                'environment': run.template.environment,
-                'postprocessing_status': 'complete'})
+                'environment': run.template.environment})
             run._push_all_inputs()
+            run.setattrs_and_save_with_retries({
+                'postprocessing_status': 'complete'})
+
         except Exception as e:
-            run = Run.objects.get(uuid=run_uuid)
             run.setattrs_and_save_with_retries({'postprocessing_status': 'failed'})
-            run.fail('Postprocessing failed', detail=e.message)
+            run.fail('Postprocessing failed', detail=str(e))
             raise
 
-    def _initialize_inputs(self):
-        deja_vu = set()
+    def initialize_inputs(self):
+        seen = set()
         for input in self.template.inputs.all():
-            assert input.channel not in deja_vu, \
+            assert input.channel not in seen, \
                 'Encountered multiple inputs for channel "%s"' \
                 % input.channel
-            deja_vu.add(input.channel)
+            seen.add(input.channel)
 
             run_input = RunInput.objects.create(
                 run=self,
@@ -313,18 +338,17 @@ class Run(MPTTModel, BaseModel):
                 group=input.group,
                 mode=input.mode)
 
-            # One of these should always take effect.
-            if not self._connect_input_to_parent(run_input):
-                if not self._connect_input_to_requested_input(run_input):
-                    if not self._connect_input_to_template(run_input):
-                        raise Exception('No source for input "%s"' % run_input.channel)
-
-            # Now create a connector on the current Run so that
+            # Create a connector on the current Run so that
             # children can connect on this channel
-            if not self.is_leaf:
-                self._create_connector(run_input)
+            self._create_connector(run_input, is_source=True)
+            self._connect_input_to_parent(run_input)
+            self._connect_input_to_requested_input(run_input)
 
-    def _initialize_outputs(self):
+            # Do not connect to template data (fixed inputs)
+            # yet, because siblings are still initializing
+            # so we don't know if defalt data will be overridden.
+                
+    def initialize_outputs(self):
         if not self.template.outputs:
             return
         for output in self.template.outputs:
@@ -340,36 +364,49 @@ class Run(MPTTModel, BaseModel):
 
             # This takes effect only if the WorkflowRun has a parent
             self._connect_output_to_parent(run_output)
-            
+
             # Create a connector on the current Run so that
             # children can connect on this channel
             if not self.is_leaf:
-                self._create_connector(run_output)
+                self._create_connector(run_output, is_source=False)
 
             # If this is a leaf node but has no parents, initialize the
             # DataNode so it will be available for connection by the TaskOutput
-            run_output.initialize_data_node()
+            if not run_output.data_node:
+                run_output.initialize_data_node()
 
-    def _initialize_steps(self):
+    def initialize_steps(self):
+        """This is executed by the parent to ensure that all siblings are initialized
+        before any are postprocessed.
+        """
         if self.is_leaf:
             return
-        run = Run.objects.get(id=self.id)
-        for step in run.template.steps.all():
-            child_run = self.create_from_template(step, parent=run)
-            async.postprocess_run(child_run.uuid)
+        for step in self.template.steps.all():
+            child_run = self.create_from_template(step, parent=self)
+            child_run.initialize_inputs()
+            child_run.initialize_outputs()
 
-    def _create_connector(self, io_node, channel_name=None):
-        if channel_name is None:
-            channel_name = io_node.channel
+    def _create_connector(self, io_node, is_source):
+        if self.is_leaf:
+            return
         try:
             connector = RunConnectorNode.objects.create(
-                run = self,
-                channel = channel_name,
-                type = io_node.type
+                run=self,
+                channel=io_node.channel,
+                type=io_node.type,
+                has_source=is_source
             )
         except ValidationError:
-            # connector already exists. Just use it.
+            # Connector already exists. Just use it.
             connector = self.connectors.get(channel=io_node.channel)
+
+            # But first make sure it doesn't have multiple data sources
+            if is_source:
+                if connector.has_source:
+                    raise ValidationError('Channel "%s" has more than one source' % io_node.channel_name)
+                else:
+                    connector.has_source = True
+                    connector.save()
         connector.connect(io_node)
 
     def _push_all_inputs(self):
@@ -378,7 +415,8 @@ class Run(MPTTModel, BaseModel):
         if self.inputs.exists():
             for input in self.inputs.all():
                 self.push(input.channel, [])
-        else:
+        elif self.is_leaf:
+            # Special case: No inputs on leaf node
             self._push_input_set([])
 
     def push(self, channel, data_path):
@@ -473,6 +511,7 @@ class RunConnectorNode(InputOutputNode):
     # Instead, connections between siblings always pass through a connector
     # in the parent workflow.
 
+    has_source = models.BooleanField(default=False)
     run = models.ForeignKey('Run',
                             related_name='connectors',
                             on_delete=models.CASCADE)

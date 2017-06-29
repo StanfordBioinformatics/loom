@@ -48,7 +48,7 @@ class DataObject(BaseModel):
             return DataObject.objects.create(data={
                 'value': cls._type_cast(value, type)}, type=type)
 
-    FALSE_VALUES = [None, False, 0, '', [], 'false', 'False', 'FALSE',
+    FALSE_VALUES = [False, 0, '', 'false', 'False', 'FALSE',
                     'f', 'F', 'no', 'No', 'NO', 'n', 'N', '0']
 
     @classmethod

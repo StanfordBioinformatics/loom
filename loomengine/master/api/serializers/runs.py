@@ -176,9 +176,15 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                          })
                 s.is_valid(raise_exception=True)
                 s.save()
+
+        # This ordering ensures that a each run's siblings will exist and have outputs
+        # before postprocessing is triggered.
+        run.initialize_inputs()
+        run.initialize_outputs()
+        run.initialize_steps()
         async.postprocess_run(run.uuid)
         return run
-        
+
     @classmethod
     def _apply_prefetch(cls, queryset):
         for select_string in cls.get_select_related_list():

@@ -6,11 +6,20 @@ from api.exceptions import ConcurrentModificationError, SaveRetriesExceededError
 
 
 def render_from_template(raw_text, context):
+    if not raw_text:
+        return ''
     loader = jinja2.DictLoader({'template': raw_text})
     env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)
     template = env.get_template('template')
     return template.render(**context)
 
+def render_string_or_list(value, context):
+    if isinstance(value, list):
+        # Filename can be a list of filenames                                        
+        return [render_from_template(member, context)
+                for member in value]
+    else:
+        return render_from_template(value, context)
 
 class FilterHelper(object):
     """

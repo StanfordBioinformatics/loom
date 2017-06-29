@@ -70,10 +70,10 @@ def _run_task(task_uuid):
     task = Task.objects.get(uuid=task_uuid)
     task_attempt = task.create_and_activate_attempt()
     if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
-        logger.debug('Skipping async._run_task_runner_playbook because'\
+        logger.debug('Skipping async._run_execute_task_attempt_playbook because'\
                      'TEST_NO_RUN_TASK_ATTEMPT is True')
         return
-    _run_with_heartbeats(_run_task_runner_playbook, task_attempt,
+    _run_with_heartbeats(_run_execute_task_attempt_playbook, task_attempt,
                          args=[task_attempt])
 
 def run_task(*args, **kwargs):
@@ -113,7 +113,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
             last_heartbeat = timezone.now()
         time.sleep(polling_interval)
 
-def _run_task_runner_playbook(task_attempt):
+def _run_execute_task_attempt_playbook(task_attempt):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -129,19 +129,25 @@ def _run_task_runner_playbook(task_attempt):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    disk_size = task_attempt.task.run.template.resources.get('disk_size')
+    resources = task_attempt.task.run.template.resources
+    if resources:
+        disk_size = resources.get('disk_size')
+        cores = resources.get('cores')
+        memory = resources.get('memory')
+    else:
+        disk_size = ''
+        cores = ''
+        memory = ''
+    docker_image = task_attempt.task.run.template.environment.get(
+        'docker_image')
+    name = task_attempt.task.run.template.name
+
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
-                'LOOM_TASK_ATTEMPT_CORES':
-                task_attempt.task.run.template.resources.get('cores'),
-                'LOOM_TASK_ATTEMPT_MEMORY':
-                task_attempt.task.run.template.resources.get('memory'),
-                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB':
-                disk_size if disk_size else '1', # guard against None value
-                'LOOM_TASK_ATTEMPT_DOCKER_IMAGE':
-                task_attempt.task.run.template.environment.get(
-                    'docker_image'),
-                'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task_attempt.task.run.template.name,
+                'LOOM_TASK_ATTEMPT_CORES': cores,
+                'LOOM_TASK_ATTEMPT_MEMORY': memory,
+                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB': disk_size,
+                'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': docker_image,
+                'LOOM_TASK_ATTEMPT_STEP_NAME': name,
                 }
     env.update(new_vars)
 
@@ -155,7 +161,7 @@ def _run_task_runner_playbook(task_attempt):
         print line.strip()
     p.wait()
     if p.returncode != 0:
-        logger.debug('async._run_task_runner_playbook failed for '\
+        logger.debug('async._run_execute_task_attempt_playbook failed for '\
                      'task_attempt.uuid="%s" with returncode="%s"'
                      % (task_attempt.uuid, p.returncode))
         task_attempt.add_timepoint(

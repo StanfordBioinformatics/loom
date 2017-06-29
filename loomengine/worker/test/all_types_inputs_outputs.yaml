@@ -1,0 +1,327 @@
+name: all_types_of_inputs_and_outputs
+steps:
+
+# Setup. We make a file and a list of files.
+
+  - name: setup_files
+    command: echo one > file1.txt; echo two > file2.txt;
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - type: file
+        channel: file
+        source:
+          filename: file1.txt
+      - type: file
+        channel: file_list
+        mode: scatter
+        source:
+        # We have duplicate filename to make things difficult
+          filename:
+            - file1.txt
+            - file1.txt
+            - file2.txt
+
+# A single file as input
+
+  - name: file_input
+    command: cat {{file}}
+    environment:
+      docker_image: ubuntu
+    inputs:
+      - type: file
+        channel: file
+    outputs:
+      - type: string
+        channel: out_83724
+        source:
+          filename: "{{file}}"
+
+# A list of files as input
+
+  - name: file_list_input
+    command: cat {{file_list}}
+    environment:
+      docker_image: ubuntu
+    inputs:
+      - type: file
+        channel: file_list
+        mode: gather
+    outputs:
+      - type: string
+        channel: out_274893
+        mode: scatter
+        source:
+          filename: "{{file_list}}"
+
+# Non-file types as input
+
+  - name: non_file_inputs
+    command: echo {{my_string}} {{my_boolean}} {{my_float}} {{my_integer}}
+    environment:
+      docker_image: ubuntu
+    inputs:
+      - type: string
+        channel: my_string
+        data:
+          contents: "i am a string"
+      - type: boolean
+        channel: my_boolean
+        data:
+          contents: true
+      - type: float
+        channel: my_float
+        data:
+          contents: 3.1459
+      - type: integer
+        channel: my_integer
+        data:
+          contents: 42
+    outputs:
+      - type: string
+        channel: str_27849
+        mode: scatter
+        source:
+          stream: stdout
+        parser:
+          type: delimited
+          options:
+            delimiter: " "
+            trim: true
+
+# Lists of non-file types as input
+
+  - name: non_file_list_inputs
+    command: echo {{my_strings}} {{my_booleans}} {{my_floats}} {{my_integers}}
+    environment:
+      docker_image: ubuntu
+    inputs:
+      - type: string
+        channel: my_strings
+        data:
+          contents:
+            - we
+            - are
+            - strings
+      - type: boolean
+        channel: my_booleans
+        data:
+          contents:
+            - true
+            - false
+            - true
+      - type: float
+        channel: my_floats
+        data:
+          contents:
+            - 3.1459
+            - 2.718
+            - 1.618
+      - type: integer
+        channel: my_integers
+        data:
+          contents: 42
+          contents: 13
+          contents: 3
+    outputs:
+      - type: string
+        channel: str_7272
+        source:
+          stream: stdout
+
+# Various values cast as booleans
+
+  - name: strings_as_boolean_inputs
+    command: echo {{my_true_booleans}} "/" {{my_false_booleans}}
+    environment:
+      docker_image: ubuntu
+    inputs:
+      - channel: my_false_booleans
+        type: boolean
+        mode: gather
+        data:
+          contents:
+            - false
+            - "false"
+            - "FALSE"
+            - "False"
+            - "f"
+            - "F"
+            - "no"
+            - "No"
+            - "NO"
+            - "n"
+            - "N"
+            - "0"
+            - ""
+      - channel: my_true_booleans
+        type: boolean
+        mode: gather
+        data:
+          contents:
+            - true
+            - "true"
+            - "TRUE"
+            - "True"
+            - "t"
+            - "T"
+            - "yes"
+            - "YES"
+            - "Yes"
+            - "y"
+            - "Y"
+            - "1"
+            - "other"
+    outputs:
+      - channel: "{{str_27483}}"
+        type: string
+        source:
+          stream: stdout
+
+# Output is a single file selected by filename
+
+  - name: file_output
+    command: echo data > file.txt
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: file_57489
+        type: file
+        source:
+          filename: file.txt
+
+# Output is a list of files selected by filename
+        
+  - name: file_list_scatter_output
+    command: echo one > file1.txt; echo two > file2.txt;
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: file_list_278432
+        type: file
+        mode: scatter
+        source:
+          filename:
+            - file1.txt
+            - file2.txt
+
+# Output is a list of files selected by glob
+
+  - name: glob_scatter_output        
+    command: echo one > file1.txt; echo two > file2.txt;
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: file_list_5782
+        type: file
+        mode: scatter
+        source:
+          glob: "*.txt"
+
+# A string output taken from a file selected by filename
+
+  - name: file_contents_output
+    command: echo text > file1.txt
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: str_47382
+        type: string
+        source:
+          filename: file1.txt
+
+# A list of strings parsed from a file selected by filename
+
+  - name: file_contents_scatter_output
+    command: echo text1 text2 > file1.txt
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: str_8527
+        type: string
+        mode: scatter
+        source:
+          filename: file1.txt
+        parser:
+          type: delimited
+          options:
+            delimiter: " "
+            trim: true
+
+# A list of strings taken from a list of files selected by filename
+
+  - name: file_contents_scatter_output
+    command: echo one > file1.txt; echo two > file2.txt;
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: str_6472
+        type: string
+        mode: scatter
+        source:
+          filename:
+            - file1.txt
+            - file2.txt
+
+# A list of strings taken from files selected by glob
+
+  - name: glob_contents_scatter_output
+    command: echo one > file1.txt; echo two > file2.txt;
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: str_3158
+        type: string
+        mode: scatter
+        source:
+          glob: "*.txt"
+
+# A string output from stdout
+
+  - name: stream_stdout_output
+    command: echo text
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: strdout_28743
+        type: string
+        source:
+          stream: stdout
+      - channel: stderr_no_data_1158
+        type: string
+        source:
+          stream: stderr
+
+# A string output from stderr
+
+  - name: stream_stderr_output
+    command: echo text 1>&2
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: stdout_no_data_28743
+        type: string
+        source:
+          stream: stdout
+      - channel: stderr_827243
+        type: string
+        source:
+          stream: stderr
+
+# A list of strings parsed from stdout
+
+  - name: stream_scatter_output
+    command: echo "text, text 2, text 3"
+    environment:
+      docker_image: ubuntu
+    outputs:
+      - channel: str_437285
+        type: string
+        mode: scatter
+        source:
+          stream: stdout
+        parser:
+          type: delimited
+          options:
+            delimiter: ","
+            trim: true

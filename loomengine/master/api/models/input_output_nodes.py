@@ -43,8 +43,9 @@ class InputOutputNode(BaseModel):
         return self.data_node.get_ready_data_nodes(seed_path, gather_depth)
     
     def initialize_data_node(self):
-        self.setattrs_and_save_with_retries(
-            {'data_node': DataNode.objects.create(type=self.type)})
+        assert not self.data_node, 'alrady initialized'
+        self.data_node = DataNode.objects.create(type=self.type)
+        self.save()
 
     def add_data_object(self, data_path, data_object):
         # 'data_path' is a list of (index, degree) pairs that define a path

@@ -587,7 +587,7 @@ class FileManager:
             logger.info('Calculating md5 on file "%s"...' % source_url)
             source = Source(source_url, self.settings)
             md5_list.append(source.calculate_md5())
-            filename_list.append(source.filename)
+            filename_list.append(source.get_filename())
         task_attempt_output = self._create_task_attempt_output_file_array(
             task_attempt_output, md5_list, filename_list)
         data_object_array = task_attempt_output['data']['contents']

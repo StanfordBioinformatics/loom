@@ -33,7 +33,7 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
         data = validated_data.pop('data', None)
         if data is not None:
             if instance.data_node:
-                raise ValidationError('Update to existing data not allowed')
+                raise serializers.ValidationError('Update to existing data not allowed')
             data_node_serializer = DataNodeSerializer(
                 data=data,
                 context = {'type': instance.type})

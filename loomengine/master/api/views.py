@@ -177,6 +177,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
     def get_worker_settings(self, request, uuid=None):
         task_attempt = self._get_task_attempt(request, uuid)
         return JsonResponse({
+            'SERVER_NAME': get_setting('SERVER_NAME'),
             'WORKING_DIR': task_attempt.get_working_dir(),
             'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
             'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),

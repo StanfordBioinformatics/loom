@@ -1,5 +1,5 @@
 ---
-- name: Stop and/or cleanup the Loom task runner localhost
+- name: Stop and/or cleanup a TaskAttempt on localhost
   hosts: localhost
   connection: local
   vars_files:
@@ -8,4 +8,4 @@
   vars:
     task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
   tasks:
-    - include: tasks/delete_taskrunner_container.yml
+    - include: tasks/delete_task_attempt_container.yml

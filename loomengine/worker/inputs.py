@@ -2,10 +2,10 @@ import os
 
 class BaseInput(object):
 
-    def __init__(self, data_contents, filemanager, settings):
+    def __init__(self, data_contents, task_attempt):
         self.data_contents = data_contents
-        self.filemanager = filemanager
-        self.settings = settings
+        self.filemanager = task_attempt.filemanager
+        self.settings = task_attempt.settings
 
 
 class FileInput(BaseInput):
@@ -77,7 +77,7 @@ def _get_input_info(input):
         'input has invalid mode "%s"' % mode
     return (data_type, mode)
 
-def TaskAttemptInput(input, filemanager, settings):
+def TaskAttemptInput(input, task_attempt):
     """Returns the correct Input class for a given
     data type and gather mode
     """
@@ -85,11 +85,10 @@ def TaskAttemptInput(input, filemanager, settings):
     (data_type, mode) = _get_input_info(input)
 
     if data_type != 'file':
-        return NoOpInput(None, None, None)
+        return NoOpInput(None, task_attempt)
 
     if mode == 'no_gather':
-        return FileInput(input['data']['contents'], filemanager, settings)
+        return FileInput(input['data']['contents'], task_attempt)
     else:
         assert mode.startswith('gather')
-        return FileListInput(input['data']['contents'], filemanager, settings)
-    
+        return FileListInput(input['data']['contents'], task_attempt)

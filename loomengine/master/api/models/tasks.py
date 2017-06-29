@@ -5,7 +5,7 @@ import jsonfield
 import os
 import re
 
-from .base import BaseModel, render_from_template
+from .base import BaseModel, render_from_template, render_string_or_list
 from .input_output_nodes import InputOutputNode
 from api import get_setting
 from api import async
@@ -201,11 +201,10 @@ class Task(BaseModel):
             # is known beforehand and may be used in the command.
             # For other types, nothing is added to the context.
             if output.source.get('filename'):
-                context[output.channel] = render_from_template(
-                    output.source.get('filename'),
-                    input_context)
+                context[output.channel] = render_string_or_list(
+                    output.source.get('filename'), input_context)
         return context
-
+    
     def get_full_context(self):
         context = self.get_input_context()
         context.update(self.get_output_context(context))
@@ -393,16 +392,23 @@ class TaskAttempt(BaseModel):
             )
 
     def _render_output_source(self, task_output_source):
-        stream=task_output_source.get('stream')
-        if task_output_source.get('filename'):
-            filename = render_from_template(
-                task_output_source.get('filename'),
-                self.task.get_input_context())
-        else:
-            filename = None
+        input_context = self.task.get_input_context()
 
-        return {'filename': filename,
-                'stream': stream}
+        stream = task_output_source.get('stream')
+        filename = render_string_or_list(
+            task_output_source.get('filename'),
+            input_context)
+        glob = render_from_template(
+            task_output_source.get('glob'), input_context)
+
+        output_source = {}
+        if stream:
+            output_source['stream'] = stream
+        if filename:
+            output_source['filename'] = filename
+        if glob:
+            output_source['glob'] = glob
+        return output_source        
 
     def get_working_dir(self):
         return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),

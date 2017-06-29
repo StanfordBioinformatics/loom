@@ -106,7 +106,7 @@
   tasks:
   - include: tasks/pull_worker_docker_images.yml
 
-- name: Run the Loom task runner on the specified worker instance.
+- name: Execute a Loom task attempt on the specified worker instance.
   hosts: new_instances
   remote_user: "{{loom_remote_user}}"
   become: yes
