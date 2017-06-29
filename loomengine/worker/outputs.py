@@ -69,6 +69,8 @@ class FileListContentsScatterOutput(FileContentsOutput):
 
     def save(self):
         filename_list = self.output['source']['filename']
+        if not isinstance(filename_list, list):
+            filename_list = filename_list.split(' ')
         contents_list = []
         for filename in filename_list:
             file_path = os.path.join(
@@ -166,7 +168,9 @@ def _get_output_info(output):
     elif stream_source:
         source_type = 'stream'
     elif filename_source:
-        if isinstance(output['source'].get('filename'), list):
+        if isinstance(filename_source, list):
+            source_type = 'file_list'
+        elif len(filename_source.split(' ')) > 1:
             source_type = 'file_list'
         else:
             source_type = 'filename'

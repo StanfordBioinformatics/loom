@@ -592,7 +592,8 @@ class FileManager:
             task_attempt_output, md5_list, filename_list)
         data_object_array = task_attempt_output['data']['contents']
         imported_data_objects = []
-        for data_object in data_object_array:
+        for (source_url, data_object) in zip(source_url_list, data_object_array):
+            source = Source(source_url, self.settings)
             imported_data_objects.append(
                 self._execute_file_import(data_object, source))
         return imported_data_objects

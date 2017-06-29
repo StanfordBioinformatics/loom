@@ -16,7 +16,7 @@ class DelimitedParser(object):
         return text_array
 
 def _get_parser_info(output):
-    assert 'parser' in output, 'invalid output: "parser" is missing'
+    assert output.get('parser'), 'invalid output: "parser" is missing'
     parser_type = output['parser'].get('type')
     assert parser_type == 'delimited', 'invalid parser type "%s"' % parser_type
     options = output['parser'].get('options', {})
