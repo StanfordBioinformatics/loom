@@ -68,10 +68,6 @@ class Task(BaseModel):
         else:
             return 'Unknown'
 
-    @property
-    def attempt_number(self):
-        return self.all_task_attempts.count()
-
     def is_unresponsive(self):
         heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
         timeout = int(get_setting('TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS'))

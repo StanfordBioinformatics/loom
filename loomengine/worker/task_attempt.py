@@ -82,7 +82,7 @@ class TaskAttempt(object):
                 self.filemanager = mock_filemanager
             else:
                 self.filemanager = FileManager(self.settings['MASTER_URL'])
-                self.settings.update(self._get_worker_settings())
+                self.settings.update(self._get_exec_settings())
                 self._init_docker_client()
                 self._init_working_dir()
         except Exception as e:

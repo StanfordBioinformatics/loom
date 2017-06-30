@@ -1,16 +1,16 @@
 import copy
 from django.db import models
+from mptt.utils import get_cached_trees
 import jsonschema
 from rest_framework import serializers
 
 from .data_objects import DataObjectSerializer
-from .base import ExpandableSerializerMixin
 from api.models.data_nodes import DataNode
 from api.models.data_objects import DataObject
 from api.models.validators import data_node_schema
 
 
-class CollapsedDataNodeSerializer(serializers.HyperlinkedModelSerializer):
+class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
 
     BLANK_NODE_VALUE = None
     EMPTY_BRANCH_VALUE = []
@@ -32,6 +32,11 @@ class CollapsedDataNodeSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = DataNode
         fields = ('uuid', 'url', 'contents',)
+
+    @classmethod
+    def apply_prefetch(cls, queryset):
+        return queryset.select_related('data_object')\
+                       .select_related('data_object__file_resource')
 
     def create(self, validated_data):
         type = self.context.get('type')
@@ -145,7 +150,7 @@ class CollapsedDataNodeSerializer(serializers.HyperlinkedModelSerializer):
                     data_node, contents[i], path_i, data_type)
 
 
-class DataNodeSerializer(CollapsedDataNodeSerializer):
+class ExpandedDataNodeSerializer(DataNodeSerializer):
 
     contents = serializers.JSONField()
 
@@ -155,9 +160,12 @@ class DataNodeSerializer(CollapsedDataNodeSerializer):
                 self.initial_data)
         else:
             assert isinstance(instance, DataNode)
-            repr = super(DataNodeSerializer, self).to_representation(instance)
-            repr.update({'contents': self._data_node_to_data_struct(instance)})
-            return repr
+            instance = self._apply_prefetch_to_instance(instance)
+            representation = super(
+                DataNodeSerializer, self).to_representation(instance)
+            representation.update({
+                'contents': self._data_node_to_data_struct(instance)})
+            return representation
 
     def _data_node_to_data_struct(self, data_node):
         if data_node._is_blank_node():
@@ -169,14 +177,19 @@ class DataNodeSerializer(CollapsedDataNodeSerializer):
             return s.data
         else:
             contents = [self.BLANK_NODE_VALUE] * data_node.degree
-            for child in data_node.children.all():
+            for child in data_node._cached_children:
                 contents[child.index] = self._data_node_to_data_struct(child)
             return contents
+ 
+    @classmethod
+    def apply_prefetch(cls, queryset):
+        # no-op
+        return queryset
 
-
-class ExpandableDataNodeSerializer(ExpandableSerializerMixin,
-                                       DataNodeSerializer):
-    DEFAULT_SERIALIZER = CollapsedDataNodeSerializer
-    COLLAPSE_SERIALIZER = CollapsedDataNodeSerializer
-    EXPAND_SERIALIZER = DataNodeSerializer
-    SUMMARY_SERIALIZER = CollapsedDataNodeSerializer
+    def _apply_prefetch_to_instance(self, instance):
+        if not hasattr(instance, '_cached_children'):
+            descendants = instance.get_descendants(include_self=True)
+            descendants = descendants.select_related('data_object')
+            descendants = descendants.select_related('data_object__file_resource')
+            instance = get_cached_trees(descendants)[0]
+        return instance

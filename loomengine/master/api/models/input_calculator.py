@@ -1,6 +1,7 @@
 import copy
 import re
 
+from data_nodes import DegreeMismatchError
 
 """InputCalculator analyzes the set of nodes acting as inputs
 for one Run to determine when sufficient data is available to 
@@ -82,10 +83,14 @@ class InputCalculator(object):
 
             group_generator = None
             for node in group_data_channels:
-                generator = InputSetGeneratorNode.create_from_input_output_node(
-                    node,
-                    target_path=group_data_path,
-                    gather_depth=self._get_gather_depth(node))
+                try:
+                    generator = InputSetGeneratorNode.create_from_data_channel(
+                        node,
+                        target_path=group_data_path,
+                        gather_depth=self._get_gather_depth(node))
+                except DegreeMismatchError:
+                    raise Exception(
+                        'Input dimensions do not match in group %s' % group)
                 if group_generator is None:
                     group_generator = generator
                 else:
@@ -166,8 +171,8 @@ class InputSetGeneratorNode(object):
         self.input_items = [] # list of InputItems, only on leaf nodes
 
     @classmethod
-    def create_from_input_output_node(cls, io_node, target_path=None, gather_depth=0):
-        """Scan the data tree on the given io_node to create a corresponding
+    def create_from_data_channel(cls, data_channel, target_path=None, gather_depth=0):
+        """Scan the data tree on the given data_channel to create a corresponding
         InputSetGenerator tree.
         """
 
@@ -178,9 +183,9 @@ class InputSetGeneratorNode(object):
             target_path = []
 
         generator = InputSetGeneratorNode()
-        for (data_path, data_node) in io_node.get_ready_data_nodes(
+        for (data_path, data_node) in data_channel.get_ready_data_nodes(
                 target_path, gather_depth):
-            input_item = InputItem(data_node, io_node.channel, mode=io_node.mode)
+            input_item = InputItem(data_node, data_channel.channel, mode=data_channel.mode)
             generator._add_input_item(data_path, input_item)
         return generator
 

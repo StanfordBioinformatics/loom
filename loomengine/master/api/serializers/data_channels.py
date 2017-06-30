@@ -1,9 +1,9 @@
 from rest_framework import serializers
 from django.db import models
 
-from .base import CreateWithParentModelSerializer
+from . import CreateWithParentModelSerializer
 from api.models.data_channels import DataChannel
-from api.serializers.data_nodes import DataNodeSerializer
+from api.serializers.data_nodes import ExpandedDataNodeSerializer, DataNodeSerializer
 
 class DataChannelSerializer(CreateWithParentModelSerializer):
 
@@ -54,6 +54,25 @@ class DataChannelSerializer(CreateWithParentModelSerializer):
                 .to_representation(instance)
             if instance.data_node is not None:
                 data_node_serializer = DataNodeSerializer(
+                    instance.data_node,
+                    context=self.context)
+                representation['data'] = data_node_serializer.data
+            return representation
+
+class ExpandedDataChannelSerializer(DataChannelSerializer):
+
+    def to_representation(self, instance):
+        if not isinstance(instance, models.Model):
+            # If the Serializer was instantiated with data instead of a model,
+            # "instance" is an OrderedDict.
+            return super(DataChannelSerializer, self).to_representation(
+                instance)
+        else:
+            assert isinstance(instance, DataChannel)
+            representation = super(DataChannelSerializer, self)\
+                .to_representation(instance)
+            if instance.data_node is not None:
+                data_node_serializer = ExpandedDataNodeSerializer(
                     instance.data_node,
                     context=self.context)
                 representation['data'] = data_node_serializer.data

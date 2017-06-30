@@ -48,7 +48,7 @@ class DataObject(BaseModel):
 
     def clean(self):
         validators.DataObjectValidator.validate_model(self)
-        
+
     @classmethod
     def get_by_value(cls, value, type):
         """ Converts a value into a corresponding  data object.

@@ -179,10 +179,24 @@ class Run(MPTTModel, BaseModel):
             return
         requested_input.connect(input)
 
-    def _connect_fixed_inputs(self):
+    def connect_inputs_to_template_data(self):
         for input in self.inputs.all():
-            self._connect_input_to_template(input)
+            self._connect_input_to_template_data(input)
 
+    def _connect_input_to_template_data(self, input):
+        # Do not connect if parent connector.has_source
+        if self._has_parent_connector_with_source(input.channel):
+            return
+        
+        # Do not connect if RequestedInput exists
+        if self._has_requested_input(input.channel):                
+            return
+
+        template_input = self.template.inputs.get(channel=input.channel)
+        if template_input.data_node is None:
+            raise ValidationError(
+                "No input data available on channel %s" % input.channel)
+        template_input.data_node.clone(seed=input.data_node)
 
     def _has_requested_input(self, channel):
         try:
@@ -199,20 +213,6 @@ class Run(MPTTModel, BaseModel):
         except ObjectDoesNotExist:
             return False
         return connector.has_source
-        
-    def _connect_input_to_template(self, input):
-        # Do not connect if parent connector.has_source
-        if self._has_parent_connector_with_source(input.channel):
-            return
-        
-        # Do not connect if RequestedInput exists
-        if self._has_requested_input(input.channel):                
-            return
-
-        template_input = self.template.inputs.get(channel=input.channel)
-        if template_input.data_node is None:
-            raise ValidationError("No input data available on channel %s" % input.channel)
-        template_input.data_node.clone(seed=input.data_node)
 
     def _connect_output_to_parent(self, output):
         if not self.parent:
@@ -313,15 +313,9 @@ class Run(MPTTModel, BaseModel):
             return
 
         try:
-            for step in run.steps.all():
-                step.initialize_steps()
-                async.postprocess_run(step.uuid)
-
-            run._connect_fixed_inputs()
-            run.setattrs_and_save_with_retries({
-                'resources': run.template.resources,
-                'environment': run.template.environment})
             run._push_all_inputs()
+            for step in run.steps.all():
+                step.initialize()
             run.setattrs_and_save_with_retries({
                 'postprocessing_status': 'complete'})
 
@@ -330,6 +324,14 @@ class Run(MPTTModel, BaseModel):
             run.fail('Postprocessing failed', detail=str(e))
             raise
 
+    def initialize(self):
+        self.setattrs_and_save_with_retries({
+            'resources': self.template.resources,
+            'environment': self.template.environment})
+        self.connect_inputs_to_template_data()
+        self.create_steps()
+        async.postprocess_run(self.uuid)
+        
     def initialize_inputs(self):
         seen = set()
         for input in self.template.inputs.all():
@@ -347,14 +349,14 @@ class Run(MPTTModel, BaseModel):
 
             # Create a connector on the current Run so that
             # children can connect on this channel
-            self._create_connector(run_input, is_source=True)
-            self._connect_input_to_parent(run_input)
             self._connect_input_to_requested_input(run_input)
+            self._connect_input_to_parent(run_input)
+            self._create_connector(run_input, is_source=True)
 
             # Do not connect to template data (fixed inputs)
             # yet, because siblings are still initializing
             # so we don't know if defalt data will be overridden.
-                
+
     def initialize_outputs(self):
         if not self.template.outputs:
             return
@@ -382,7 +384,7 @@ class Run(MPTTModel, BaseModel):
             if not run_output.data_node:
                 run_output.initialize_data_node()
 
-    def initialize_steps(self):
+    def create_steps(self):
         """This is executed by the parent to ensure that all siblings are initialized
         before any are postprocessed.
         """

@@ -1,11 +1,12 @@
 import copy
+from django.db.models import Prefetch
 from rest_framework import serializers
 
-from .base import CreateWithParentModelSerializer, RecursiveField, \
-    ProxyWriteSerializer, strip_empty_values, ExpandableSerializerMixin
+from . import CreateWithParentModelSerializer, RecursiveField, \
+    ProxyWriteSerializer, strip_empty_values
 from .data_channels import DataChannelSerializer
 from api import async
-from api.models.templates import Template, TemplateInput
+from api.models.templates import Template, TemplateInput, TemplateMembership
 from api.models.data_channels import DataChannel
 
 
@@ -51,60 +52,80 @@ class TemplateInputSerializer(DataChannelSerializer):
         return super(TemplateInputSerializer, self).create(validated_data)
 
 
-class TemplateURLSerializer(ProxyWriteSerializer):
+_template_serializer_fields = (
+    'uuid',
+    'url',
+    '_template_id',
+    'name',
+    'datetime_created',
+    'command',
+    'comments',
+    'import_comments',
+    'imported_from_url',
+    'is_leaf',
+    'interpreter',
+    'environment',
+    'resources',
+    'postprocessing_status',
+    'inputs',
+    # Fixed inputs are deprecated
+    'fixed_inputs',
+    'outputs',
+    'steps',)
+
+
+class URLTemplateSerializer(ProxyWriteSerializer):
 
     class Meta:
         model = Template
-        fields = ('uuid',
-                  'url',
-                  'name',
-                  'datetime_created',
-                  'datetime_finished',
-                  'status')
+        fields = _template_serializer_fields
 
+    # readable
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='template-detail',
         lookup_field='uuid')
-    name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
-    datetime_finished = serializers.DateTimeField(read_only=True, format='iso-8601')
-    status = serializers.CharField(read_only=True)
+
+    # write-only
+    name = serializers.CharField(write_only=True, required=False)
+    datetime_created = serializers.DateTimeField(
+        write_only=True, format='iso-8601', required=False)
+    _template_id = serializers.CharField(write_only=True, required=False)
+    command = serializers.CharField(required=False, write_only=True)
+    comments = serializers.CharField(required=False, write_only=True)
+    import_comments = serializers.CharField(required=False, write_only=True)
+    imported_from_url = serializers.CharField(required=False, write_only=True)
+    is_leaf = serializers.BooleanField(required=False, write_only=True)
+    interpreter = serializers.CharField(required=False, write_only=True)
+    environment = serializers.JSONField(required=False, write_only=True)
+    resources = serializers.JSONField(required=False, write_only=True)
+    postprocessing_status = serializers.CharField(required=False, write_only=True)
+    inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
+    # Fixed inputs are deprecated
+    fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
+    outputs  = serializers.JSONField(required=False, write_only=True)
+    steps = RecursiveField(many=True, required=False, write_only=True)
 
     def to_internal_value(self, data):
         """Because we allow template ID string values, where
         serializers normally expect a dict
         """
-        return super(TemplateURLSerializer, self).to_internal_value(
+        return super(URLTemplateSerializer, self).to_internal_value(
             _convert_template_id_to_dict(data))
 
-    def get_target_serializer(self):
+    def get_write_serializer(self):
         return TemplateSerializer
+
+    @classmethod
+    def apply_prefetch(cls, queryset):
+        return queryset
 
 
 class TemplateSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Template
-        fields = ('uuid',
-                  'url',
-                  '_template_id',
-                  'name',
-                  'datetime_created',
-                  'command',
-                  'comments',
-                  'import_comments',
-                  'imported_from_url',
-                  'is_leaf',
-                  'interpreter',
-                  'environment',
-                  'resources',
-                  'postprocessing_status',
-                  'inputs',
-                  # Fixed inputs are deprecated
-                  'fixed_inputs',
-                  'outputs',
-                  'steps',)
+        fields = _template_serializer_fields
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -112,7 +133,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             lookup_field='uuid')
     _template_id = serializers.CharField(write_only=True, required=False)
     name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    datetime_created = serializers.DateTimeField(format='iso-8601', required=False)
     command = serializers.CharField(required=False)
     comments = serializers.CharField(required=False)
     import_comments = serializers.CharField(required=False)
@@ -126,7 +147,14 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     # Fixed inputs are deprecated
     fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     outputs  = serializers.JSONField(required=False)
-    steps = TemplateURLSerializer(many=True, required=False)
+    steps = URLTemplateSerializer(many=True, required=False)
+
+    @classmethod
+    def apply_prefetch(cls, queryset):
+        return queryset\
+            .prefetch_related('steps')\
+            .prefetch_related('inputs')\
+            .prefetch_related('inputs__data_node')
 
     def to_representation(self, instance):
         return strip_empty_values(
@@ -212,14 +240,49 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         for run in template.runs.all():
             async.postprocess_run(run.uuid)
 
-class NestedTemplateSerializer(TemplateSerializer):
+class SummaryTemplateSerializer(TemplateSerializer):
 
+    #readable fields
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+            view_name='template-detail',
+            lookup_field='uuid')
+    name = serializers.CharField(required=False)
+    postprocessing_status = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(format='iso-8601')
+    is_leaf = serializers.BooleanField(required=False)
     steps = RecursiveField(many=True, required=False)
 
+    # write-only fields
+    _template_id = serializers.CharField(write_only=True, required=False)
+    command = serializers.CharField(required=False, write_only=True)
+    comments = serializers.CharField(required=False, write_only=True)
+    import_comments = serializers.CharField(required=False, write_only=True)
+    imported_from_url = serializers.CharField(required=False, write_only=True)
+    interpreter = serializers.CharField(required=False, write_only=True)
+    environment = serializers.JSONField(required=False, write_only=True)
+    resources = serializers.JSONField(required=False, write_only=True)
+    inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
+    # Fixed inputs are deprecated
+    fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
+    outputs  = serializers.JSONField(required=False, write_only=True)
 
-class ExpandableTemplateSerializer(ExpandableSerializerMixin, TemplateSerializer):
-
-    DEFAULT_SERIALIZER = TemplateSerializer
-    COLLAPSE_SERIALIZER = TemplateSerializer
-    EXPAND_SERIALIZER = NestedTemplateSerializer
-    SUMMARY_SERIALIZER = NestedTemplateSerializer
+    @classmethod
+    def apply_prefetch(cls, queryset):
+        return queryset\
+            .prefetch_related('steps')\
+            .prefetch_related('steps__steps')\
+            .prefetch_related('steps__steps__steps')\
+            .prefetch_related('steps__steps__steps__steps')\
+            .prefetch_related('steps__steps__steps__steps__steps')\
+            .prefetch_related('steps__steps__steps__steps__steps__'\
+                              'steps')\
+            .prefetch_related('steps__steps__steps__steps__steps__'\
+                              'steps__steps')\
+            .prefetch_related('steps__steps__steps__steps__steps__'\
+                              'steps__steps__steps')\
+            .prefetch_related('steps__steps__steps__steps__steps__'\
+                              'steps__steps__steps__steps')\
+            .prefetch_related('steps__steps__steps__steps__steps__'\
+                              'steps__steps__steps__steps__steps')
+            # Warning! This will break down with more than 11 levels

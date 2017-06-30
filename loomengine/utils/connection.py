@@ -293,9 +293,9 @@ class Connection(object):
             return None
         return info.get('version')
 
-    def get_worker_settings(self, attempt_id):
+    def get_exec_settings(self, attempt_id):
         return self._get_object(
-            'task-attempts/%s/worker-settings/' % attempt_id
+            'task-attempts/%s/settings/' % attempt_id
         )
 
     def get_filemanager_settings(self):

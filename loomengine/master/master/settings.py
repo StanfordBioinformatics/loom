@@ -338,3 +338,11 @@ if DEBUG:
         'MEDIA_URL': '/__debug__/m/',
         'SHOW_TOOLBAR_CALLBACK': custom_show_toolbar,
     }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': '232871b2',
+        'TIMEOUT': 0,
+    }
+}

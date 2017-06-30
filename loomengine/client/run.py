@@ -104,6 +104,7 @@ class TemplateRunner(object):
                 raise Exception('Missing value')
             else:
                 terms = value.split(',')
+                terms = [term.strip() for term in terms]
                 if len(terms) == 1:
                     return terms[0]
                 else:

@@ -41,6 +41,8 @@ class MissingBranchError(Exception):
     pass
 class DataOnNonLeafError(Exception):
     pass
+class DegreeMismatchException(Exception):
+    pass
 
 
 class DataNode(MPTTModel, BaseModel):
@@ -214,7 +216,8 @@ class DataNode(MPTTModel, BaseModel):
         else:
             data_path = copy.deepcopy(data_path)
             (index, degree) = data_path.pop(0)
-            assert self.degree == degree, 'degree mismatch'
+            if not self.degree == degree:
+                raise DegreeMismatchError()
             child = self._get_child_by_index(index)
             if child is None:
                 raise MissingBranchError(
@@ -258,7 +261,8 @@ class DataNode(MPTTModel, BaseModel):
         # 'data_path' is a list of (index, degree) pairs
         index, degree = data_path.pop(0)
         if self.degree:
-            assert self.degree == degree, 'degree mismatch'
+            if not self.degree == degree:
+                raise DegreeMismatchException()
         else:
             self.degree = degree
             self.save()
