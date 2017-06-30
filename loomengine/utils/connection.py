@@ -95,9 +95,9 @@ class Connection(object):
     def _patch_object(self, object_data, relative_url):
         return self._patch(object_data, relative_url).json()
 
-    def _get_object(self, relative_url):
+    def _get_object(self, relative_url, params=None):
         # Do not raise_for_status, because we want to check for 404 here
-        response = self._get(relative_url, raise_for_status=False)
+        response = self._get(relative_url, raise_for_status=False, params=params)
         if response.status_code == 404:
             return None
         elif response.status_code == 200:
@@ -161,9 +161,15 @@ class Connection(object):
             'data-files/' + file_id + '/file-imports/'
         )
 
-    def get_template(self, template_id):
+    def get_template(self, template_id, summary=False,
+                     expand=False):
+        params = {}
+        if summary:
+            params['summary'] = '1'
+        if expand:
+            params['expand'] = '1'
         return self._get_object(
-            'templates/%s/' % template_id
+            'templates/%s/' % template_id, params=params
         )
 
     def get_template_index(self, query_string='', imported=False,

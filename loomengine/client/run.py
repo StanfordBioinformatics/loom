@@ -57,7 +57,7 @@ class TemplateRunner(object):
     def run(self):
         run_data = {
             'template': self.args.template,
-            'requested_inputs': self._get_inputs()}
+            'user_inputs': self._get_inputs()}
         if self.args.name:
             run_data['name'] = self.args.name
         try:

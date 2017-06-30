@@ -73,7 +73,7 @@ class ShowFile(AbstractShow):
         else:
             source_type=self.args.type
         self.files = self.connection.get_data_object_index(
-            query_string=self.args.file_id, source_type=source_type)
+            query_string=self.args.file_id, source_type=source_type, type='file')
 
     def _show_files(self):
         print '[showing %s files]' % len(self.files)

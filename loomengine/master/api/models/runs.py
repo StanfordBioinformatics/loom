@@ -172,12 +172,12 @@ class Run(MPTTModel, BaseModel):
             except ObjectDoesNotExist:
                 self.parent._create_connector(input, is_source=False)
 
-    def _connect_input_to_requested_input(self, input):
+    def _connect_input_to_user_input(self, input):
         try:
-            requested_input = self.requested_inputs.get(channel=input.channel)
+            user_input = self.user_inputs.get(channel=input.channel)
         except ObjectDoesNotExist:
             return
-        requested_input.connect(input)
+        user_input.connect(input)
 
     def connect_inputs_to_template_data(self):
         for input in self.inputs.all():
@@ -188,8 +188,8 @@ class Run(MPTTModel, BaseModel):
         if self._has_parent_connector_with_source(input.channel):
             return
         
-        # Do not connect if RequestedInput exists
-        if self._has_requested_input(input.channel):                
+        # Do not connect if UserInput exists
+        if self._has_user_input(input.channel):                
             return
 
         template_input = self.template.inputs.get(channel=input.channel)
@@ -198,9 +198,9 @@ class Run(MPTTModel, BaseModel):
                 "No input data available on channel %s" % input.channel)
         template_input.data_node.clone(seed=input.data_node)
 
-    def _has_requested_input(self, channel):
+    def _has_user_input(self, channel):
         try:
-            self.requested_inputs.get(channel=channel)
+            self.user_inputs.get(channel=channel)
             return True
         except ObjectDoesNotExist:
             return False
@@ -349,7 +349,7 @@ class Run(MPTTModel, BaseModel):
 
             # Create a connector on the current Run so that
             # children can connect on this channel
-            self._connect_input_to_requested_input(run_input)
+            self._connect_input_to_user_input(run_input)
             self._connect_input_to_parent(run_input)
             self._create_connector(run_input, is_source=True)
 
@@ -463,14 +463,14 @@ class RunTimepoint(BaseModel):
     is_error = models.BooleanField(default=False)
 
 
-class RequestedInput(DataChannel):
+class UserInput(DataChannel):
 
     class Meta:
         unique_together = (("run", "channel"),)
 
     run = models.ForeignKey(
         'Run',
-        related_name='requested_inputs',
+        related_name='user_inputs',
         on_delete=models.CASCADE)
 
 

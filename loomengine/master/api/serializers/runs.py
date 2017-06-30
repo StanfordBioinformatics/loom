@@ -4,7 +4,7 @@ from django.db.models import prefetch_related_objects
 from mptt.utils import get_cached_trees
 from . import CreateWithParentModelSerializer, RecursiveField, \
     strip_empty_values, ProxyWriteSerializer
-from api.models.runs import Run, RequestedInput, RunInput, RunOutput, RunTimepoint
+from api.models.runs import Run, UserInput, RunInput, RunOutput, RunTimepoint
 from api.serializers.templates import TemplateSerializer, URLTemplateSerializer
 from api.serializers.tasks import SummaryTaskSerializer, TaskSerializer, \
     URLTaskSerializer, ExpandedTaskSerializer
@@ -12,13 +12,13 @@ from api.serializers.data_channels import DataChannelSerializer
 from api import async
 
 
-class RequestedInputSerializer(DataChannelSerializer):
+class UserInputSerializer(DataChannelSerializer):
 
     # type not required because it is inferred from template
     type = serializers.CharField(required=False)
 
     class Meta:
-        model = RequestedInput
+        model = UserInput
         fields = ('type', 'channel', 'data')
 
         
@@ -79,7 +79,7 @@ _writable_run_serializer_fields = [
     'interpreter',
     'environment',
     'resources',
-    'requested_inputs',
+    'user_inputs',
     'inputs',
     'outputs',
     'timepoints',
@@ -98,9 +98,9 @@ class URLRunSerializer(ProxyWriteSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name='run-detail',
         lookup_field='uuid')
+    name = serializers.CharField(required=False)
 
     # write-only fields
-    name = serializers.CharField(required=False, write_only=True)
     datetime_created = serializers.DateTimeField(
         required=False, format='iso-8601', write_only=True)
     datetime_finished = serializers.DateTimeField(
@@ -117,7 +117,7 @@ class URLRunSerializer(ProxyWriteSerializer):
     interpreter = serializers.CharField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
-    requested_inputs = RequestedInputSerializer(
+    user_inputs = UserInputSerializer(
         many=True, required=False, write_only=True)
     inputs = RunInputSerializer(many=True, required=False, write_only=True)
     outputs = RunOutputSerializer(many=True, required=False, write_only=True)
@@ -156,7 +156,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     interpreter = serializers.CharField(required=False)
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
-    requested_inputs = RequestedInputSerializer(many=True, required=False)
+    user_inputs = UserInputSerializer(many=True, required=False)
     inputs = RunInputSerializer(many=True, required=False)
     outputs = RunOutputSerializer(many=True, required=False)
     timepoints = RunTimepointSerializer(many=True, required=False)
@@ -168,8 +168,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             super(RunSerializer, self).to_representation(instance))
 
     def create(self, validated_data):
-        requested_inputs = self.initial_data.get('requested_inputs', None)
-        validated_data.pop('requested_inputs', None)
+        user_inputs = self.initial_data.get('user_inputs', None)
+        validated_data.pop('user_inputs', None)
         validated_data.pop('template')
         s = TemplateSerializer(data=self.initial_data.get('template'))
         s.is_valid()
@@ -177,9 +177,9 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
 
         run = Run.create_from_template(
             template, name=validated_data.get('name'))
-        if requested_inputs is not None:
-            for input_data in requested_inputs:
-                # The requested_input usually won't have data type specified.
+        if user_inputs is not None:
+            for input_data in user_inputs:
+                # The user_input usually won't have data type specified.
                 # We need to know the data type to find or create the
                 # data object from the value given. We get the type from the
                 # corresponding template input.
@@ -198,7 +198,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                         'input channel "%s" with type "%s".' % (
                             input_data.get('type'), input_data.get('channel'), type))
                 input_data.update({'type': input.type})
-                s = RequestedInputSerializer(
+                s = UserInputSerializer(
                     data=input_data,
                     context={'parent_field': 'run',
                              'parent_instance': run
@@ -219,8 +219,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             .prefetch_related('inputs__data_node')\
             .prefetch_related('outputs')\
             .prefetch_related('outputs__data_node')\
-            .prefetch_related('requested_inputs')\
-            .prefetch_related('requested_inputs__data_node')\
+            .prefetch_related('user_inputs')\
+            .prefetch_related('user_inputs__data_node')\
             .prefetch_related('steps')\
             .prefetch_related('tasks')
 
@@ -260,7 +260,7 @@ class SummaryRunSerializer(RunSerializer):
     interpreter = serializers.CharField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
-    requested_inputs = RequestedInputSerializer(
+    user_inputs = UserInputSerializer(
         required=False, many=True, write_only=True)
     inputs = RunInputSerializer(many=True, required=False, write_only=True)
     outputs = RunOutputSerializer(many=True, required=False, write_only=True)
@@ -320,8 +320,8 @@ class ExpandedRunSerializer(RunSerializer):
             .prefetch_related('inputs__data_node')\
             .prefetch_related('outputs')\
             .prefetch_related('outputs__data_node')\
-            .prefetch_related('requested_inputs')\
-            .prefetch_related('requested_inputs__data_node')\
+            .prefetch_related('user_inputs')\
+            .prefetch_related('user_inputs__data_node')\
             .prefetch_related('tasks')\
             .prefetch_related('tasks__timepoints')\
             .prefetch_related('tasks__inputs')\

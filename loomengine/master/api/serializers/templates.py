@@ -85,9 +85,9 @@ class URLTemplateSerializer(ProxyWriteSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name='template-detail',
         lookup_field='uuid')
+    name = serializers.CharField(required=False)
 
     # write-only
-    name = serializers.CharField(write_only=True, required=False)
     datetime_created = serializers.DateTimeField(
         write_only=True, format='iso-8601', required=False)
     _template_id = serializers.CharField(write_only=True, required=False)
