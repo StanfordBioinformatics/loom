@@ -41,6 +41,8 @@ class TemplateRunner(object):
         parser.add_argument('template', metavar='TEMPLATE', help='ID of template to run')
         parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*',
                             help='ID of data inputs')
+        parser.add_argument('-n', '--name', metavar='RUN_NAME',
+                            help='run name (default is template name)')
         return parser
 
     @classmethod
@@ -56,6 +58,8 @@ class TemplateRunner(object):
         run_data = {
             'template': self.args.template,
             'requested_inputs': self._get_inputs()}
+        if self.args.name:
+            run_data['name'] = self.args.name
         try:
             run = self.connection.post_run(run_data)
         except requests.exceptions.HTTPError as e:

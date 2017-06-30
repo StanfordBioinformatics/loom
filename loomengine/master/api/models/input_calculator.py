@@ -2,13 +2,52 @@ import copy
 import re
 
 
-class InputManager(object):
-    """Manages the set of nodes acting as inputs for one step.
-    Each input node may have more than one DataObject,
-    and DataObjects may arrive to the node at different times.
-    """
-    def __init__(self, input_nodes, target_channel, triggered_data_path):
-        target_node_list = filter(lambda n: n.channel==target_channel, input_nodes)
+"""InputCalculator analyzes the set of nodes acting as inputs
+for one Run to determine when sufficient data is available to 
+create a new Task. For paralle Runs, many Tasks may be created.
+
+InputCalculator includes logic for dot-product or cross-product combination
+of array inputs, and complex combinations of the two. This behavior
+is defined by these two properties on a RunInput:
+- mode: [gather/no_gather/gather_all/gather(n)]
+- group: integer >= 0
+
+Any input that is no_gather will provide the TaskInput with a scalar 
+DataObject, while gather* mode will produce an array of DataObjects.
+
+Consider that non-scalar inputs may simply be arrays, or may trees of 
+greater hight. When a non-scalar input is provided to a "no_gather" 
+channel, it acts as an iterator and produces one Task for each DataObject.
+
+When a non-scalar input is provided to the a "gather" channel, the TaskInput 
+will receive an array of DataObjects, but the Run will still iterate and 
+produce many Tasks if the gather depth is less than the height of the tree.
+
+So every input has the potential to require iteration while producing either 
+scalar or array inputs, and the number of Tasks in the iteration may differ 
+between inputs.
+
+"group" governs the dot/cross product behavior of that iteration when 
+multiple inputs are present. If all inputs had different group numbers, the 
+Run would perform a cross-product of all inputs. The number of Tasks would 
+equal the product of the number of iterations on each step. Conversely, if 
+all inputs had the same group number, a dot product would be performed across 
+all inputs, and the number of Tasks would equal the number of iterations on 
+any input. (The number of iterations on all inputs would have to be the same 
+in this case, or a runtime error will be raised.)
+
+This behavior can be generalized to any combination of dot-products and 
+cross-products across inputs. A dot-product is performed for all inputs 
+in the same group (and all are required to have the same number of 
+iterations). A cross-product is performed between all groups, with the 
+order of the cross-product corresponding to the order of group numbers.
+"""
+
+
+class InputCalculator(object):
+
+    def __init__(self, data_channels, target_channel, triggered_data_path):
+        target_node_list = filter(lambda n: n.channel==target_channel, data_channels)
         assert len(target_node_list) == 1, \
             'expected exactly 1 node with channel %s but found %s' \
             % (channel, len(target_node_list))
@@ -22,14 +61,14 @@ class InputManager(object):
             self._get_gather_depth(target_node))
 
         groups = set()
-        for input_node in input_nodes:
-            groups.add(input_node.group)
+        for data_channel in data_channels:
+            groups.add(data_channel.group)
 
         combined_generator = None
         for group in groups:
             # These will be processed in order of group id, ensuring
             # correct order for cross products.
-            group_input_nodes = filter(lambda n: n.group==group, input_nodes)
+            group_data_channels = filter(lambda n: n.group==group, data_channels)
 
             # The target group is restricted to "data_path",
             # which is where new data has arrived. We will take a cross-
@@ -42,7 +81,7 @@ class InputManager(object):
                 group_data_path = []
 
             group_generator = None
-            for node in group_input_nodes:
+            for node in group_data_channels:
                 generator = InputSetGeneratorNode.create_from_input_output_node(
                     node,
                     target_path=group_data_path,

@@ -5,17 +5,21 @@ import jsonfield
 from mptt.models import MPTTModel, TreeForeignKey
 
 from .base import BaseModel
-from .input_output_nodes import InputOutputNode
-from api.exceptions import NoTemplateInputMatchError
+from .data_channels import DataChannel
 from api.models import uuidstr
 from api.models import validators
 
+
 """
-This module defines Templates. A Template is either 
-a Step or a Workflow.
-Steps have execution details such as command and runtime
-environment, while Workflows are collections of other Steps
-or Workflows.
+A Template is the pattern for a Run. Has defined inputs and outputs,
+but the data designated for each input is only designated at runtime.
+
+A Template may define a default value for each input, but this can
+be overridden at runtime.
+
+Templates may be nested to arbitrary depth. Only the leaf nodes
+represent actual analysis Runs. Both leaf and branch nodes are
+represented by the Template class.
 """
 
 
@@ -89,7 +93,7 @@ class Template(BaseModel):
             self.add_step(step)
 
 
-class TemplateInput(InputOutputNode):
+class TemplateInput(DataChannel):
 
     template = models.ForeignKey(
         'Template',

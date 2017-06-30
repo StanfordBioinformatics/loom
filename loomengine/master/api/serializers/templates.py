@@ -3,10 +3,10 @@ from rest_framework import serializers
 
 from .base import CreateWithParentModelSerializer, RecursiveField, \
     ProxyWriteSerializer, strip_empty_values, ExpandableSerializerMixin
-from .input_output_nodes import InputOutputNodeSerializer
+from .data_channels import DataChannelSerializer
 from api import async
 from api.models.templates import Template, TemplateInput
-from api.models.input_output_nodes import InputOutputNode
+from api.models.data_channels import DataChannel
 
 
 DEFAULT_INPUT_GROUP = 0
@@ -34,7 +34,7 @@ def _convert_template_id_to_dict(data):
         return data
 
 
-class TemplateInputSerializer(InputOutputNodeSerializer):
+class TemplateInputSerializer(DataChannelSerializer):
 
     class Meta:
         model = TemplateInput

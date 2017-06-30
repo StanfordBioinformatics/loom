@@ -5,6 +5,7 @@ from rest_framework_swagger.views import get_swagger_view
 
 import api.views
 
+
 router = routers.DefaultRouter()
 
 router.register('data-objects',

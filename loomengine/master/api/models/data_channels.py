@@ -6,22 +6,29 @@ from api.models.data_nodes import DataNode
 
 
 """
-InputOutputNodes are connected to facilitate the flow of data in a run, e.g. 
-from one RunInput to the RunInput of a child Run, or from a 
-RunOutput to the RunInput of a subsequent Run.
+DataChannels is an abstract class for nodes that can be connected to 
+facilitate the flow of data in a run, e.g. from one RunInput to the 
+RunInput of a child Run, or from a RunOutput to the RunInput of a 
+subsequent Run.
 
-InputOutputNode is inherited by Run input/output classes, 
-including RunRequest Input, but not by TaskRuns or TaskRunAttempts 
-since these do not share the full data tree.
+Each DataChannel may have one DataNode, which may be shared with other
+DataChannels. It is also possible to have one DataChannel conenct to a 
+DataNode that is a branch of the DataNode tree on another DataChannel.
+This is used with parallel workflows to efficiently promote data to
+downstream Runs/Tasks in scatter/gather patterns.
+
+DataChannel is inherited by *Input/*Output classes that represent
+input/output ports on Runs, Templates, and Tasks.
 """
 
 
-class InputOutputNode(BaseModel):
+class DataChannel(BaseModel):
     channel = models.CharField(max_length=255)
-    data_node = models.ForeignKey('DataNode',
-                                   # related_name would cause conflicts on children
-                                  null=True,
-                                  blank=True)
+    data_node = models.ForeignKey(
+        'DataNode',
+        # related_name would cause conflicts on subclasses
+        null=True,
+        blank=True)
     type = models.CharField(
         max_length=255,
         choices=DataObject.DATA_TYPE_CHOICES)
@@ -29,10 +36,6 @@ class InputOutputNode(BaseModel):
     @property
     def data(self):
         # Dummy attribute required by serializers.
-        # DataTreeNodeSerializer is needed to render this field.
-        # We don't implement that as a model method here to avoid
-        # circular dependencies between models and serializers.
-        # To access data directly use the data_node field instead.
         return
 
     def get_data_object(self, data_path):

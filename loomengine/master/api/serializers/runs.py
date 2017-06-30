@@ -7,11 +7,11 @@ from .base import CreateWithParentModelSerializer, RecursiveField, strip_empty_v
 from api.models.runs import Run, RequestedInput, RunInput, RunOutput, RunTimepoint
 from api.serializers.templates import TemplateSerializer, TemplateURLSerializer
 from api.serializers.tasks import SummaryTaskSerializer, TaskSerializer, TaskURLSerializer, ExpandedTaskSerializer
-from api.serializers.input_output_nodes import InputOutputNodeSerializer
+from api.serializers.data_channels import DataChannelSerializer
 from api import async
 
 
-class RequestedInputSerializer(InputOutputNodeSerializer):
+class RequestedInputSerializer(DataChannelSerializer):
 
     # Type is inferred from template
     type = serializers.CharField(required=False)
@@ -21,7 +21,7 @@ class RequestedInputSerializer(InputOutputNodeSerializer):
         fields = ('type', 'channel', 'data')
 
 
-class RunInputSerializer(InputOutputNodeSerializer):
+class RunInputSerializer(DataChannelSerializer):
 
     class Meta:
         model = RunInput
@@ -35,7 +35,7 @@ class RunInputSerializer(InputOutputNodeSerializer):
             super(RunInputSerializer, self).to_representation(instance))
 
 
-class RunOutputSerializer(InputOutputNodeSerializer):
+class RunOutputSerializer(DataChannelSerializer):
 
     class Meta:
         model = RunOutput
@@ -147,7 +147,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         s.is_valid()
         template = s.save()
 
-        run = Run.create_from_template(template)
+        run = Run.create_from_template(
+            template, name=validated_data.get('name'))
         if requested_inputs is not None:
             for input_data in requested_inputs:
                 # The requested_input usually won't have data type specified.

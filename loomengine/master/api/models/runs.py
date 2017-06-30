@@ -12,16 +12,21 @@ from api.exceptions import *
 from api.models import uuidstr
 from api.models import validators
 from api.models.data_objects import DataObject
-from api.models.input_output_nodes import InputOutputNode
-from api.models.input_manager import InputManager
+from api.models.data_channels import DataChannel
+from api.models.input_calculator import InputCalculator
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.templates import Template
 from api.exceptions import ConcurrentModificationError
 
 
 """
-This module defines Run and other classes related to
-running an analysis
+A Run represents the execution of a Template with a given set of inputs.
+Like Templates, Runs may have an arbitrary depth of nested children (steps),
+but only the leaf nodes represent analysis to be performed. Leaf and branch 
+nodes are both of class Run.
+
+Depending on the inputs, a Run can produce a single Task or many parallel
+Tasks.
 """
 
 
@@ -134,19 +139,21 @@ class Run(MPTTModel, BaseModel):
         return all([step.status_is_finished for step in self.steps.all()])
 
     @classmethod
-    def create_from_template(cls, template, parent=None):
+    def create_from_template(cls, template, name=None, parent=None):
+        if name is None:
+            name = template.name
         if template.is_leaf:
             run = Run.objects.create(
                 template=template,
                 is_leaf=template.is_leaf,
-                name=template.name,
+                name=name,
                 command=template.command,
                 interpreter=template.interpreter,
                 parent=parent)
         else:
             run = Run.objects.create(template=template,
                                      is_leaf=template.is_leaf,
-                                     name=template.name,
+                                     name=name,
                                      parent=parent)
 
         run.add_timepoint("Run %s@%s was created" % (run.name, run.uuid))
@@ -429,7 +436,7 @@ class Run(MPTTModel, BaseModel):
             return
         if not self.is_leaf:
             return
-        for input_set in InputManager(self.inputs.all(), channel, data_path)\
+        for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
             .get_input_sets():
             self._push_input_set(input_set)
 
@@ -454,7 +461,7 @@ class RunTimepoint(BaseModel):
     is_error = models.BooleanField(default=False)
 
 
-class RequestedInput(InputOutputNode):
+class RequestedInput(DataChannel):
 
     class Meta:
         unique_together = (("run", "channel"),)
@@ -465,7 +472,7 @@ class RequestedInput(InputOutputNode):
         on_delete=models.CASCADE)
 
 
-class RunInput(InputOutputNode):
+class RunInput(DataChannel):
 
     class Meta:
         unique_together = (("run", "channel"),)
@@ -485,7 +492,7 @@ class RunInput(InputOutputNode):
             return False
 
 
-class RunOutput(InputOutputNode):
+class RunOutput(DataChannel):
 
     class Meta:
         unique_together = (("run", "channel"),)
@@ -502,7 +509,7 @@ class RunOutput(InputOutputNode):
         blank=True)
 
 
-class RunConnectorNode(InputOutputNode):
+class RunConnectorNode(DataChannel):
     # A connector resides in a workflow. All inputs/outputs on the workflow
     # connect internally to connectors, and all inputs/outputs on the
     # nested steps connect externally to connectors on their parent workflow.
@@ -518,46 +525,3 @@ class RunConnectorNode(InputOutputNode):
 
     class Meta:
         unique_together = (("run", "channel"),)
-
-
-class TaskInputManager(object):
-    """Manages the set of nodes acting as inputs for one step.
-    Each input node may have more than one DataObject,
-    and DataObjects may arrive to the node at different times.
-    """
-    def __init__(self, input_nodes, channel, index):
-        self.input_nodes = input_nodes
-        self.channel = channel
-        self.index = index
-
-    def get_ready_input_sets(self):
-        """New data is available at the given channel and index. See whether
-        any new tasks can be created with this data.
-        """
-        for input_node in self.input_nodes:
-            if not input_node.is_ready():
-                return []
-        return [InputSet(self.input_nodes, self.index)]
-
-
-class InputItem(object):
-    """Info needed by the Task to construct a TaskInput
-    """
-
-    def __init__(self, input_node, index):
-        self.data_object = input_node.get_data_object(index)
-        self.type = self.data_object.type
-        self.channel = input_node.channel
-
-
-class InputSet(object):
-    """A TaskInputManager can produce one or more InputSets, where each
-    InputSet corresponds to a single Task.
-    """
-
-    def __init__(self, input_nodes, index):
-        self.index = index
-        self.input_items = [InputItem(i, index) for i in input_nodes]
-
-    def __iter__(self):
-        return self.input_items.__iter__()

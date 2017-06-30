@@ -1,11 +1,28 @@
 import copy
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from mptt.models import MPTTModel, TreeForeignKey
 
 from .base import BaseModel
 from .data_objects import DataObject
 from api.models import uuidstr
 from api.models import validators
+
+
+"""DataNodes allow DataObjects to be organized into trees.
+
+This is useful in two contexts:
+
+1. To define an array of data as input or output to an
+analysis step
+
+2. To organize data produced by parallel analysis. By organizing
+data into a tree instead of an array, it is possible to nest
+parallel workflows to create scatter-scatter-gather-gather patterns.
+
+Trees of DataNodes may be cloned without duplicating the underlying
+DataObjects
+"""
 
 
 class IndexOutOfRangeError(Exception):
@@ -26,14 +43,19 @@ class DataOnNonLeafError(Exception):
     pass
 
 
-class DataNode(BaseModel):
+class DataNode(MPTTModel, BaseModel):
 
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
-    parent = models.ForeignKey(
+    parent = TreeForeignKey('self', null=True, blank=True,
+                            related_name='steps', db_index=True,
+                            on_delete=models.CASCADE)
+
+    parent = TreeForeignKey(
         'self',
         null=True,
         blank=True,
+        db_index=True,
         related_name = 'children',
         on_delete=models.CASCADE)
     # 0 <= index < self.parent.degree; null if no parent

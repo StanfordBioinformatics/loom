@@ -2,10 +2,10 @@ from rest_framework import serializers
 from django.db import models
 
 from .base import CreateWithParentModelSerializer
-from api.models.input_output_nodes import InputOutputNode
+from api.models.data_channels import DataChannel
 from api.serializers.data_nodes import DataNodeSerializer
 
-class InputOutputNodeSerializer(CreateWithParentModelSerializer):
+class DataChannelSerializer(CreateWithParentModelSerializer):
 
     data = serializers.JSONField()
     type = serializers.CharField()
@@ -14,7 +14,7 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
     def create(self, validated_data):
         data = validated_data.pop('data', None)
 
-        io_node = super(InputOutputNodeSerializer, self).create(validated_data)
+        data_channel = super(DataChannelSerializer, self).create(validated_data)
         if data is not None:
             type = validated_data.get('type')
             if not type:
@@ -24,9 +24,9 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
                 context = {'type': type})
             data_node_serializer.is_valid(raise_exception=True)
             data_node = data_node_serializer.save()
-            io_node.data_node = data_node
-            io_node.save()
-        return io_node
+            data_channel.data_node = data_node
+            data_channel.save()
+        return data_channel
 
     def update(self, instance, validated_data):
         # This is used to add data to an existing node
@@ -46,11 +46,11 @@ class InputOutputNodeSerializer(CreateWithParentModelSerializer):
         if not isinstance(instance, models.Model):
             # If the Serializer was instantiated with data instead of a model,
             # "instance" is an OrderedDict.
-            return super(InputOutputNodeSerializer, self).to_representation(
+            return super(DataChannelSerializer, self).to_representation(
                 instance)
         else:
-            assert isinstance(instance, InputOutputNode)
-            representation = super(InputOutputNodeSerializer, self)\
+            assert isinstance(instance, DataChannel)
+            representation = super(DataChannelSerializer, self)\
                 .to_representation(instance)
             if instance.data_node is not None:
                 data_node_serializer = DataNodeSerializer(

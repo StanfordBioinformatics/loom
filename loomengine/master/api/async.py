@@ -14,11 +14,19 @@ import sys
 import threading
 import time
 
-from api.exceptions import ConcurrentModificationError, SaveRetriesExceededError
+from api.exceptions import ConcurrentModificationError
+
+
+"""The 'async' module contains all asynchronous methods used by api.models
+"""
+
 
 logger = logging.getLogger(__name__)
 
 def _run_with_delay(task_function, args, kwargs):
+    """Run a task asynchronously
+    """
+
     if get_setting('TEST_DISABLE_ASYNC_DELAY'):
         # Delay disabled, run synchronously
         logger.debug('Running function "%s" synchronously because '\
@@ -28,7 +36,6 @@ def _run_with_delay(task_function, args, kwargs):
 
     db.connections.close_all()
     time.sleep(0.0001) # Release the GIL
-    logger.debug('Running function "%s" asynchronously' % task_function.__name__)
     task_function.delay(*args, **kwargs)
 
 @shared_task
@@ -140,7 +147,7 @@ def _run_execute_task_attempt_playbook(task_attempt):
         memory = ''
     docker_image = task_attempt.task.run.template.environment.get(
         'docker_image')
-    name = task_attempt.task.run.template.name
+    name = task_attempt.task.run.name
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_CORES': cores,
@@ -199,7 +206,7 @@ def _run_cleanup_task_playbook(task_attempt):
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task_attempt.task.run.template.name,
+                task_attempt.task.run.name,
                 }
     env.update(new_vars)
 

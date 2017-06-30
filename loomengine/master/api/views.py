@@ -27,7 +27,7 @@ class ExpandableViewSet(viewsets.ModelViewSet):
                 'expand': 'expand' in self.request.query_params,
                 'collapse': 'collapse' in self.request.query_params,
                 'summary': 'summary' in self.request.query_params}
-
+    
     def list(self, request):
         if self.get_serializer_context()['expand']:
             return response.Response(
