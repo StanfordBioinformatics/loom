@@ -1,4 +1,5 @@
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, \
+    ValidationError
 from django.db import models
 from django.dispatch import receiver
 from django.utils import timezone
@@ -127,11 +128,7 @@ class Run(MPTTModel, BaseModel):
             {'status_is_running': False,
              'status_is_waiting': False,
              'status_is_finished': True})
-        self.add_timepoint("Run %s@%s finished successfully" %
-                           (self.name, self.uuid))
         if self.parent:
-            self.parent.add_timepoint(
-                "Child Run %s@%s finished successfully" % (self.name, self.uuid))
             if self.parent._are_children_finished():
                 self.parent.set_status_is_finished()
 
@@ -155,12 +152,6 @@ class Run(MPTTModel, BaseModel):
                                      is_leaf=template.is_leaf,
                                      name=name,
                                      parent=parent)
-
-        run.add_timepoint("Run %s@%s was created" % (run.name, run.uuid))
-        if run.parent:
-            run.parent.add_timepoint("Child run %s@%s was created" % (
-                run.name, run.uuid))
-
         return run
 
     def _connect_input_to_parent(self, input):
@@ -227,30 +218,30 @@ class Run(MPTTModel, BaseModel):
         except ObjectDoesNotExist:
             self.parent._create_connector(output, is_source=True)
 
-    def fail(self, message, detail=''):
+    def fail(self, detail=''):
         self.setattrs_and_save_with_retries({
             'status_is_failed': True,
             'status_is_running': False,
             'status_is_waiting': False})
-        self.add_timepoint(message, detail=detail, is_error=True)
+        self.add_event("Run failed", detail=detail, is_error=True)
         if self.parent:
-            self.parent.fail('Run %s failed' % self.uuid, detail=detail)
+            self.parent.fail(detail='Failure in step %s@%s' % (self.uuid, self.uuid))
         else:
-            self.kill(detail)
+            self.kill(detail='Automatically killed due to failure')
 
-    def kill(self, kill_message):
+    def kill(self, detail=''):
         if self.status_is_finished:
             # Don't kill successfully completed runs
             return
-        self.add_timepoint('Run killed', detail=kill_message, is_error=True)
+        self.add_event('Run was killed', detail=detail, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
              'status_is_running': False,
              'status_is_waiting': False})
         for step in self.steps.all():
-            step.kill(kill_message)
+            step.kill(detail=detail)
         for task in self.tasks.all():
-            task.kill(kill_message)
+            task.kill(detail=detail)
 
     def set_running_status(self):
         if self.status_is_running and not self.status_is_waiting:
@@ -261,9 +252,9 @@ class Run(MPTTModel, BaseModel):
         if self.parent:
             self.parent.set_running_status()
 
-    def add_timepoint(self, message, detail='', is_error=False):
-        timepoint = RunTimepoint.objects.create(
-            message=message, run=self, detail=detail, is_error=is_error)
+    def add_event(self, event, detail='', is_error=False):
+        event = RunEvent.objects.create(
+            event=event, run=self, detail=detail[-1000:], is_error=is_error)
 
     def _claim_for_postprocessing(self):
         # There are two paths to get Run.postprocess():
@@ -273,9 +264,6 @@ class Run(MPTTModel, BaseModel):
         #    is postprocessed only after template is ready.
         # There is a chance of both paths being executed, so we have to
         # protect against that
-
-        assert self.template.postprocessing_status == 'complete', \
-            'Template not ready, cannot postprocess run %s' % run.uuid
 
         self.postprocessing_status = 'in_progress'
         try:
@@ -299,9 +287,6 @@ class Run(MPTTModel, BaseModel):
     @classmethod
     def postprocess(cls, run_uuid):
         run = Run.objects.get(uuid=run_uuid)
-        if not run.template.postprocessing_status == 'complete':
-            # Never mind, we'll postprocess when the template is ready
-            return
 
         if run.postprocessing_status == 'complete':
             # Nothing more to do
@@ -321,7 +306,7 @@ class Run(MPTTModel, BaseModel):
 
         except Exception as e:
             run.setattrs_and_save_with_retries({'postprocessing_status': 'failed'})
-            run.fail('Postprocessing failed', detail=str(e))
+            run.fail(detail='Postprocessing failed with error "%s"' % str(e))
             raise
 
     def initialize(self):
@@ -412,7 +397,9 @@ class Run(MPTTModel, BaseModel):
             # But first make sure it doesn't have multiple data sources
             if is_source:
                 if connector.has_source:
-                    raise ValidationError('Channel "%s" has more than one source' % io_node.channel_name)
+                    raise ValidationError(
+                        'Channel "%s" has more than one source'
+                        % io_node.channel_name)
                 else:
                     connector.has_source = True
                     connector.save()
@@ -450,15 +437,15 @@ class Run(MPTTModel, BaseModel):
             pass
 
 
-class RunTimepoint(BaseModel):
+class RunEvent(BaseModel):
 
     run = models.ForeignKey(
         'Run',
-	related_name='timepoints',
+	related_name='events',
 	on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
-    message = models.CharField(max_length=255)
+    event = models.CharField(max_length=255)
     detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
 

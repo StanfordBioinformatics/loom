@@ -8,6 +8,7 @@ from .data_channels import DataChannelSerializer
 from api import async
 from api.models.templates import Template, TemplateInput, TemplateMembership
 from api.models.data_channels import DataChannel
+from api.serializers import DataNodeSerializer
 
 
 DEFAULT_INPUT_GROUP = 0
@@ -66,7 +67,6 @@ _template_serializer_fields = (
     'interpreter',
     'environment',
     'resources',
-    'postprocessing_status',
     'inputs',
     # Fixed inputs are deprecated
     'fixed_inputs',
@@ -86,20 +86,19 @@ class URLTemplateSerializer(ProxyWriteSerializer):
         view_name='template-detail',
         lookup_field='uuid')
     name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(
+        format='iso-8601', required=False)
+    is_leaf = serializers.BooleanField(required=False)
 
     # write-only
-    datetime_created = serializers.DateTimeField(
-        write_only=True, format='iso-8601', required=False)
     _template_id = serializers.CharField(write_only=True, required=False)
     command = serializers.CharField(required=False, write_only=True)
     comments = serializers.CharField(required=False, write_only=True)
     import_comments = serializers.CharField(required=False, write_only=True)
     imported_from_url = serializers.CharField(required=False, write_only=True)
-    is_leaf = serializers.BooleanField(required=False, write_only=True)
     interpreter = serializers.CharField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
-    postprocessing_status = serializers.CharField(required=False, write_only=True)
     inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     # Fixed inputs are deprecated
     fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
@@ -142,7 +141,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     interpreter = serializers.CharField(required=False)
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
-    postprocessing_status = serializers.CharField(required=False)
     inputs = TemplateInputSerializer(many=True, required=False)
     # Fixed inputs are deprecated
     fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
@@ -170,23 +168,48 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         if template_id:
             return self._lookup_by_id(template_id)
 
-        # Save inputs and steps for postprocessing
-        validated_data['raw_data'] = self.initial_data
-        validated_data.pop('inputs', None)
-        validated_data.pop('fixed_inputs', None)
+        templates = []
+        inputs = []
+        m2m_relationships = []
+        preexisting_templates = []
 
-        steps = validated_data.pop('steps', None)
-        if validated_data.get('is_leaf') is None:
-            validated_data['is_leaf'] = not steps
-        if validated_data['is_leaf']:
-            _set_leaf_template_defaults(validated_data)
-        validated_data['imported'] = bool(validated_data.get('imported_from_url'))
-        template = super(TemplateSerializer, self).create(validated_data)
+        self._create_unsaved_models(
+            [self.initial_data,], templates, inputs,
+            m2m_relationships, preexisting_templates)
 
-        async.postprocess_template(template.uuid)
+        root_uuid = templates[0].uuid
 
-        return template
+        templates = Template.objects.bulk_create(templates)
+        templates = self._reload(Template, templates)
+        templates = [template for template in templates]
+        templates.extend(preexisting_templates)
 
+        # Refresh unsaved objects with their saved counterparts
+        self._match_and_update_by_uuid(inputs, 'template', templates)
+        self._match_and_update_by_uuid(m2m_relationships, 'parent_template', templates)
+        self._match_and_update_by_uuid(m2m_relationships, 'child_template', templates)
+
+        TemplateInput.objects.bulk_create(inputs)
+        TemplateMembership.objects.bulk_create(m2m_relationships)
+        
+        assert templates[0].uuid == root_uuid
+        return templates[0]
+
+    def _match_and_update_by_uuid(self, unsaved_models, field, saved_models):
+        for unsaved_model in unsaved_models:
+            uuid = getattr(unsaved_model, field).uuid
+            match = filter(lambda m: m.uuid==uuid, saved_models)
+            assert len(match) == 1
+            setattr(unsaved_model, field, match[0])
+    
+    def _reload(self, ModelClass, models):
+        # bulk_create doesn't give PK's, so we reload the models by uuid
+        uuids = [model.uuid for model in models]
+
+        # sort by id to preserve order, then verify
+        models = ModelClass.objects.filter(uuid__in=uuids)
+        return models
+    
     def _lookup_by_id(self, template_id):
         matches = Template.filter_by_name_or_id(template_id)
         if matches.count() < 1:
@@ -202,43 +225,77 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                     template_id, match_id_string))
         return  matches.first()
     
-    @classmethod
-    def postprocess(cls, template_uuid):
-        template = Template.objects.get(uuid=template_uuid)
-        try:
-            inputs = copy.deepcopy(template.raw_data.get('inputs', []))
+    def _create_unsaved_models(
+            self,
+            child_templates_data,
+            template_models,
+            input_models,
+            m2m_relationship_models,
+            preexisting_templates,
+            parent_model=None):
 
-            # Fixed inputs are deprecated
-            fixed_inputs = copy.deepcopy(template.raw_data.get('fixed_inputs', []))
+        for template_data in child_templates_data:
+            if isinstance(template_data, (unicode, str)):
+                serializer = TemplateSerializer(
+                    data=template_data)
+                serializer.is_valid(raise_exception=True)
+                template = serializer.save()
+                preexisting_tempates.append(child)
+                # This step already exists. Just link to the parent
+                if parent_model:
+                    m2m_relationship_models.append(
+                        TemplateMembership(
+                            parent_template=parent_model,
+                            child_template=template))
+                continue
+
+            # To be processed by recursion
+            grandchildren = template_data.pop('steps', [])
+
+            # Set defaults and inferred values
+            if template_data.get('is_leaf') is None:
+                template_data['is_leaf'] = not grandchildren
+            if template_data['is_leaf']:
+                _set_leaf_template_defaults(template_data)
+            if not template_data.get('imported'):
+                template_data['imported'] = bool(
+                    template_data.get('imported_from_url'))
+
+            inputs = template_data.pop('inputs', [])
+            fixed_inputs = template_data.pop('fixed_inputs', [])
             inputs.extend(fixed_inputs)
 
-            steps = template.raw_data.get('steps', [])
-            for input_data in inputs:
-                s = TemplateInputSerializer(
-                    data=input_data,
-                    context={'parent_field': 'template',
-                             'parent_instance': template,
-                             'is_leaf': template.is_leaf
-                    })
-                s.is_valid(raise_exception=True)
-                s.save()
-            for step_data in steps:
-                s = TemplateSerializer(data=step_data)
-                s.is_valid(raise_exception=True)
-                step = s.save()
-                template.add_step(step)
-            template.postprocessing_status='complete'
-            template.save()
-        except Exception as e:
-            template.postprocessing_status='failed'
-            template.save
-            raise
+            template = Template(**template_data)
+            template_models.append(template)
 
-        # The user may have already submitted a run request before this
-        # template finished postprocessing. If runs exist, postprocess them now.
-        template = Template.objects.get(uuid=template.uuid)
-        for run in template.runs.all():
-            async.postprocess_run(run.uuid)
+            for input_data in inputs:
+                input_data['template'] = template
+                if template.is_leaf:
+                    _set_leaf_input_defaults(input_data)
+                if input_data.get('data'):
+                    s = DataNodeSerializer(
+                        data=input_data.pop('data'),
+                        context={'type': input_data.get('type')}
+                    )
+                    s.is_valid(raise_exception=True)
+                    input_data['data_node'] = s.save()
+                input_models.append(TemplateInput(**input_data))
+
+            if parent_model:
+                m2m_relationship_models.append(
+                    TemplateMembership(
+                        parent_template=parent_model,
+                        child_template=template))
+
+            if grandchildren:
+                self._create_unsaved_models(
+                    grandchildren,
+                    template_models,
+                    input_models,
+                    m2m_relationship_models,
+                    preexisting_templates,
+                    parent_model=template)
+
 
 class SummaryTemplateSerializer(TemplateSerializer):
 
@@ -248,7 +305,6 @@ class SummaryTemplateSerializer(TemplateSerializer):
             view_name='template-detail',
             lookup_field='uuid')
     name = serializers.CharField(required=False)
-    postprocessing_status = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(format='iso-8601')
     is_leaf = serializers.BooleanField(required=False)
     steps = RecursiveField(many=True, required=False)

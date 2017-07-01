@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from . import CreateWithParentModelSerializer
 from api.models.task_attempts import TaskAttempt, TaskAttemptOutput, \
-    TaskAttemptInput, TaskAttemptLogFile, TaskAttemptTimepoint
+    TaskAttemptInput, TaskAttemptLogFile, TaskAttemptEvent
 from api.serializers.data_objects import DataObjectSerializer
 from api.serializers.data_channels import DataChannelSerializer, \
     ExpandedDataChannelSerializer
@@ -77,38 +77,37 @@ class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
         return instance
 
 
-class TaskAttemptTimepointSerializer(CreateWithParentModelSerializer):
+class TaskAttemptEventSerializer(CreateWithParentModelSerializer):
 
     class Meta:
-        model = TaskAttemptTimepoint
-        fields = ('message', 'detail', 'timestamp', 'is_error')
+        model = TaskAttemptEvent
+        fields = ('event', 'detail', 'timestamp', 'is_error')
 
 
 class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = TaskAttempt
-        _read_only_fields = ['status']
-        _writable_fields = ['uuid',
-                            'url',
-                            'datetime_created',
-                            'datetime_finished',
-                            'last_heartbeat',
-                            'status_is_finished',
-                            'status_is_failed',
-                            'status_is_killed',
-                            'status_is_running',
-                            'status_is_cleaned_up',
-                            'log_files',
-                            'inputs',
-                            'outputs',
-                            'interpreter',
-                            'command',
-                            'environment',
-                            'resources',
-                            'timepoints'
+        fields = ['uuid',
+                  'url',
+                  'status',
+                  'datetime_created',
+                  'datetime_finished',
+                  'last_heartbeat',
+                  'status_is_finished',
+                  'status_is_failed',
+                  'status_is_killed',
+                  'status_is_running',
+                  'status_is_cleaned_up',
+                  'log_files',
+                  'inputs',
+                  'outputs',
+                  'interpreter',
+                  'command',
+                  'environment',
+                  'resources',
+                  'events'
         ]
-        fields = _read_only_fields + _writable_fields
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -121,7 +120,7 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
     inputs = TaskAttemptInputSerializer(many=True, allow_null=True, required=False)
     outputs = TaskAttemptOutputSerializer(
         many=True, allow_null=True, required=False)
-    timepoints = TaskAttemptTimepointSerializer(
+    events = TaskAttemptEventSerializer(
         many=True, allow_null=True, required=False)
     resources = serializers.JSONField(required=False)
     environment = serializers.JSONField(required=False)
@@ -163,7 +162,7 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
                    .prefetch_related('outputs')\
                    .prefetch_related('outputs__data_node')\
                    .prefetch_related('outputs__data_node')\
-                   .prefetch_related('timepoints')
+                   .prefetch_related('events')
         return queryset
 
 
@@ -171,53 +170,8 @@ class URLTaskAttemptSerializer(TaskAttemptSerializer):
 
     class Meta:
         model = TaskAttempt
-        # Exclude read_only fields because we can't set both
-        # read_only and write_only
-        fields = TaskAttemptSerializer.Meta._writable_fields
+        fields = TaskAttemptSerializer.Meta.fields
     
-    # readable
-    uuid = serializers.CharField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='task-attempt-detail',
-        lookup_field='uuid')
-
-    # write-only
-    command = serializers.CharField(required=False, write_only=True)
-    interpreter = serializers.CharField(required=False, write_only=True)
-    log_files = TaskAttemptLogFileSerializer(
-        many=True, allow_null=True, required=False, write_only=True)
-    inputs = TaskAttemptInputSerializer(many=True, allow_null=True,
-                                        required=False, write_only=True)
-    outputs = TaskAttemptOutputSerializer(
-        many=True, allow_null=True, required=False, write_only=True)
-    timepoints = TaskAttemptTimepointSerializer(
-        many=True, allow_null=True, required=False, write_only=True)
-    resources = serializers.JSONField(required=False, write_only=True)
-    environment = serializers.JSONField(required=False, write_only=True)
-    datetime_created = serializers.DateTimeField(
-        required=False, format='iso-8601', write_only=True)
-    datetime_finished = serializers.DateTimeField(
-        required=False, format='iso-8601', write_only=True)
-    last_heartbeat = serializers.DateTimeField(
-        required=False, format='iso-8601', write_only=True)
-    status = None # serializers.CharField(read_only=True, write_only=True)
-    status_is_finished = serializers.BooleanField(required=False, write_only=True)
-    status_is_failed = serializers.BooleanField(required=False, write_only=True)
-    status_is_killed = serializers.BooleanField(required=False, write_only=True)
-    status_is_running = serializers.BooleanField(required=False, write_only=True)
-    status_is_cleaned_up = serializers.BooleanField(required=False, write_only=True)
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
-
-
-class SummaryTaskAttemptSerializer(TaskAttemptSerializer):
-
-    """SummaryTaskAttemptSerializer is an abbreviated alternative to
-    TaskAttemptSerializer. Most fields are write_only.
-    """
-
     # readable
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -238,7 +192,7 @@ class SummaryTaskAttemptSerializer(TaskAttemptSerializer):
                                         required=False, write_only=True)
     outputs = TaskAttemptOutputSerializer(
         many=True, allow_null=True, required=False, write_only=True)
-    timepoints = TaskAttemptTimepointSerializer(
+    events = TaskAttemptEventSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)

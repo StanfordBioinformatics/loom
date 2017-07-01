@@ -56,20 +56,14 @@ class TaskAttempt(BaseModel):
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
-    def fail(self):
+    def fail(self, detail=''):
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
              'status_is_running': False})
-        self.add_timepoint(
-            "TaskAttempt %s failed" % self.uuid,
-            detail='The TaskRunner experienced an error when executing '\
-            'TaskAttempt %s' % self.uuid,
-            is_error=True)
+        self.add_event("TaskAttempt failed", detail=detail, is_error=True)
         try:
             self.active_task.fail(
-                "Child TaskAttempt %s failed" % self.uuid,
-                detail='The TaskRunner experienced an error when executing '\
-                'TaskAttempt %s' % self.uuid)
+                detail="Child TaskAttempt %s failed" % self.uuid)
         except ObjectDoesNotExist:
             # This attempt is no longer active
             # and will be ignored.
@@ -90,12 +84,11 @@ class TaskAttempt(BaseModel):
            or task.status_is_failed \
            or task.status_is_killed:
             return
-        task.add_timepoint("Child TaskAttempt %s finished successfully" % self.uuid)
         task.finish()
 
-    def add_timepoint(self, message, detail='', is_error=False):
-        timepoint = TaskAttemptTimepoint.objects.create(
-            message=message, task_attempt=self, detail=detail, is_error=is_error)
+    def add_event(self, event, detail='', is_error=False):
+        event = TaskAttemptEvent.objects.create(
+            event=event, task_attempt=self, detail=detail[-1000:], is_error=is_error)
 
     @classmethod
     def create_from_task(cls, task):
@@ -176,22 +169,18 @@ class TaskAttempt(BaseModel):
     def get_stderr_log_file(self):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
-    def kill(self, kill_message):
+    def kill(self, detail):
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
              'status_is_running': False})
-        self.add_timepoint('TaskAttempt killed', detail=kill_message, is_error=True)
+        self.add_event('TaskAttempt was killed', detail=detail, is_error=True)
 
     def cleanup(self):
         if self.status_is_cleaned_up:
             return
         if get_setting('PRESERVE_ALL'):
-            self.add_timepoint('Skipping cleanup')
             return
         async.cleanup_task_attempt(self.uuid)
-        self.setattrs_and_save_with_retries({
-            'status_is_cleaned_up': True })
-        self.add_timepoint('Cleaning up')
 
 
 class TaskAttemptInput(DataChannel):
@@ -237,15 +226,15 @@ class TaskAttemptLogFile(BaseModel):
         default=timezone.now, editable=False)
 
 
-class TaskAttemptTimepoint(BaseModel):
+class TaskAttemptEvent(BaseModel):
 
     task_attempt = models.ForeignKey(
         'TaskAttempt',
-        related_name='timepoints',
+        related_name='events',
         on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
-    message = models.CharField(max_length=255)
+    event = models.CharField(max_length=255)
     detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
 

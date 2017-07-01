@@ -13,9 +13,9 @@ class TestDataObject(TestCase):
 
     VALUE_SETS = [
         # (type, valid_value, invalid_value)
-        ('boolean', True, 'True'),
-        ('float', 3.7, '3.7'),
-        ('integer', 3, '3'),
+        ('boolean', True, None),
+        ('float', 3.7, 'word'),
+        ('integer', 3, 'three'),
         ('string', ':D', 7),
     ]
 
@@ -37,7 +37,8 @@ class TestDataObject(TestCase):
     def testGetByValue_invalidValue(self):
         for (type, value, invalid_value) in self.VALUE_SETS:
             with self.assertRaises(ValidationError):
-                DataObject.get_by_value(invalid_value, type)
+                if invalid_value is not None:
+                    DataObject.get_by_value(invalid_value, type)
 
     def testGetByValue_invalidType(self):
         with self.assertRaises(ValidationError):

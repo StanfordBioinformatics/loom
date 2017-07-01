@@ -32,7 +32,8 @@ function DataService($http, $q) {
         return $http.get("/api/runs/" + runId + "/")
             .then(function(response) {
 		activeData.run = response.data;
-		expandRunInputsOutputs();
+		expandDataChannels(activeData.run.inputs);
+		expandDataChannels(activeData.run.outputs);
             });
     }
 
@@ -40,6 +41,9 @@ function DataService($http, $q) {
         return $http.get("/api/tasks/" + taskId + "/")
             .then(function(response) {
 		activeData.task = response.data;
+		expandDataChannels(activeData.task.inputs);
+		expandDataChannels(activeData.task.outputs);
+
             });
     }
 
@@ -47,33 +51,9 @@ function DataService($http, $q) {
         return $http.get("/api/task-attempts/" + taskAttemptId + "/")
             .then(function(response) {
 		activeData.taskAttempt = response.data;
-            });
-    }
+		expandDataChannels(activeData.taskAttempt.inputs);
+		expandDataChannels(activeData.taskAttempt.outputs);
 
-    function expandRunInputsOutputs() {
-	if (activeData.run.inputs) {
-            for (var i=0; i < activeData.run.inputs.length; i++) {
-		expandRunInput(i);
-            }
-	}
-	if (activeData.run.outputs) {
-            for (var i=0; i < activeData.run.outputs.length; i++) {
-		expandRunOutput(i);
-            }
-	}
-    }
-
-    function expandRunInput(i) {
-        return $http.get("/api/data-nodes/"+activeData.run.inputs[i].data.uuid)
-            .then(function(response) {
-		activeData.run.inputs[i].data = response.data;
-            });
-    }
-
-    function expandRunOutput(i) {
-        return $http.get("/api/data-nodes/"+activeData.run.outputs[i].data.uuid)
-            .then(function(response) {
-		activeData.run.outputs[i].data = response.data;
             });
     }
 
@@ -81,22 +61,30 @@ function DataService($http, $q) {
         return $http.get("/api/templates/" + templateId + "/")
             .then(function(response) {
 		activeData.template = response.data;
-		expandTemplateInputs();
+		expandDataChannels(activeData.template.inputs);
+		expandDataChannels(activeData.template.outputs);
             });
     }
 
-    function expandTemplateInputs() {
-	if (activeData.template.fixed_inputs) {
-            for (var i=0; i < activeData.template.fixed_inputs.length; i++) {
-		expandTemplateFixedInput(i);
+    function expandDataChannels(channels) {
+	if (channels) {
+	    if (channels==null){
+		return;
+	    }
+            for (var i=0; i < channels.length; i++) {
+		expandDataChannel(channels[i]);
             }
 	}
     }
 
-    function expandTemplateFixedInput(i) {
-        return $http.get("/api/data-nodes/"+activeData.template.fixed_inputs[i].data.uuid)
+    function expandDataChannel(channel) {
+	if (channel.data==null){
+	    return;
+	}
+        return $http.get(
+	    "/api/data-nodes/"+channel.data.uuid+"?expand")
             .then(function(response) {
-		activeData.template.fixed_inputs[i].data = response.data;
+		channel.data = response.data;
             });
     }
 

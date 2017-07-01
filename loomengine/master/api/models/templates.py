@@ -35,13 +35,6 @@ class Template(BaseModel):
     is_leaf = models.BooleanField()
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    postprocessing_status = models.CharField(
-        max_length=255,
-        default='incomplete',
-        choices=(('incomplete', 'Incomplete'),
-                 ('complete', 'Complete'),
-                 ('failed', 'Failed'))
-    )
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
     environment = jsonfield.JSONField(

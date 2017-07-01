@@ -125,13 +125,13 @@ class TaskViewSet(ExpandableViewSet):
 
 
 class TaskAttemptViewSet(ExpandableViewSet):
-    """A TaskAttempt represents a single attempt at executing a Task. A Task may have multiple TaskAttempts due to retries. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?summary will show a summary version (not allowed in index view). ?url will show only the url and uuid fields (for testing only). DETAIL_ROUTES: "fail" will set a run to failed status. "finish" will set a run to finished status. "log-files" can be used to POST a new LogFile. "timepoints" can be used to POST a new timepoint. "settings" can be used to get settings for loom-execute-task.
+    """A TaskAttempt represents a single attempt at executing a Task. A Task may have multiple TaskAttempts due to retries. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?summary will show a summary version (not allowed in index view). ?url will show only the url and uuid fields (for testing only). DETAIL_ROUTES: "fail" will set a run to failed status. "finish" will set a run to finished status. "log-files" can be used to POST a new LogFile. "events" can be used to POST a new event. "settings" can be used to get settings for loom-execute-task.
     """
     lookup_field = 'uuid'
 
     DEFAULT_SERIALIZER = serializers.TaskAttemptSerializer
     EXPANDED_SERIALIZER = serializers.TaskAttemptSerializer
-    SUMMARY_SERIALIZER = serializers.SummaryTaskAttemptSerializer
+    SUMMARY_SERIALIZER = serializers.URLTaskAttemptSerializer
     URL_SERIALIZER = serializers.URLTaskAttemptSerializer
 
     def _get_task_attempt(self, request, uuid):
@@ -172,13 +172,13 @@ class TaskAttemptViewSet(ExpandableViewSet):
         async.finish_task_attempt(task_attempt.uuid)
         return JsonResponse({}, status=201)
 
-    @detail_route(methods=['post'], url_path='timepoints',
-                  serializer_class=serializers.TaskAttemptTimepointSerializer)
-    def create_timepoint(self, request, uuid=None):
+    @detail_route(methods=['post'], url_path='events',
+                  serializer_class=serializers.TaskAttemptEventSerializer)
+    def create_event(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
         task_attempt = self._get_task_attempt(request, uuid)
-        s = serializers.TaskAttemptTimepointSerializer(
+        s = serializers.TaskAttemptEventSerializer(
             data=data,
             context={
                 'parent_field': 'task_attempt',
@@ -190,8 +190,8 @@ class TaskAttemptViewSet(ExpandableViewSet):
 
         return JsonResponse(s.data, status=201)
 
-    @detail_route(methods=['get'], url_path='worker-settings')
-    def get_worker_settings(self, request, uuid=None):
+    @detail_route(methods=['get'], url_path='settings')
+    def get_task_execution_settings(self, request, uuid=None):
         task_attempt = self._get_task_attempt(request, uuid)
         return JsonResponse({
             'SERVER_NAME': get_setting('SERVER_NAME'),
@@ -251,32 +251,6 @@ class RunViewSet(ExpandableViewSet):
         queryset = Serializer.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
-    """
-    @detail_route(methods=['get'], url_path='inputs')
-    def inputs(self, request, uuid=None):
-        try:
-            run = models.Run.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            raise NotFound()
-        run_input_serializer = serializers.RunInputSerializer(run.inputs.all(),
-                                          many=True,
-                                          context={'request': request,
-                                                   'expand': True})
-        return JsonResponse(run_input_serializer.data, status=200, safe=False)
-
-    @detail_route(methods=['get'], url_path='outputs')
-    def outputs(self, request, uuid=None):
-        try:
-            run = models.Run.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            raise NotFound()
-        run_output_serializer = serializers.RunOutputSerializer(
-            run.outputs.all(),
-            many=True,
-            context={'request': request,
-                     'expand': True})
-        return JsonResponse(run_output_serializer.data, status=200, safe=False)
-    """
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
     """LogFiles represent the logs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating a LogFile without updating the full TaskAttempt. DETAIL_ROUTES: "data-object" allows you to post the file DataObject for the LogFile.

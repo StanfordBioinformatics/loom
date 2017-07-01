@@ -149,8 +149,8 @@
         </table>
     </div>
 
-    <div ng-show="activeData.taskAttempt.timepoints.length>0">
-        <h4>Timepoints</h4>
+    <div ng-show="activeData.taskAttempt.events.length>0">
+        <h4>Events</h4>
         <div class="table-responsive" >
             <table class="table table-striped">
                 <thead>
@@ -160,13 +160,13 @@
                     <th>Detail</th>
                 </thead>
                 <tbody>
-                    <tr ng-repeat="timepoint in activeData.taskAttempt.timepoints">
+                    <tr ng-repeat="event in activeData.taskAttempt.events">
                         <td>
-                            {{timepoint.timestamp | date:'medium'}}
+                            {{event.timestamp | date:'medium'}}
                         </td>
-                        <td>{{timepoint.message}}</td>
-                        <td>{{timepoint.is_error}}</td>
-                        <td>{{timepoint.detail}}</td>
+                        <td>{{event.event}}</td>
+                        <td>{{event.is_error}}</td>
+                        <td>{{event.detail}}</td>
                     </tr>
                 </tbody>
             </table>

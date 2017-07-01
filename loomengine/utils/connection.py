@@ -147,9 +147,12 @@ class Connection(object):
                 % (len(data_objects), max))
         return data_objects
 
-    def get_data_node(self, data_node_id):
+    def get_data_node(self, data_node_id, expand=False):
+        params = {}
+        if expand:
+            params['expand'] = '1'
         return self._get_object(
-            'data-nodes/%s/' % data_node_id)
+            'data-nodes/%s/' % data_node_id, params)
 
     def get_data_node_index(self):
         return self._get_object_index(
@@ -256,10 +259,10 @@ class Connection(object):
             'log-files/%s/data-object/' % task_attempt_log_file_id
         )
 
-    def post_task_attempt_timepoint(self, task_attempt_id, task_attempt_timepoint):
+    def post_task_attempt_event(self, task_attempt_id, task_attempt_event):
         return self._post_object(
-            task_attempt_timepoint,
-            'task-attempts/%s/timepoints/' % task_attempt_id
+            task_attempt_event,
+            'task-attempts/%s/events/' % task_attempt_id
         )
 
     def post_task_attempt_fail(self, task_attempt_id):
@@ -299,7 +302,7 @@ class Connection(object):
             return None
         return info.get('version')
 
-    def get_exec_settings(self, attempt_id):
+    def get_task_attempt_settings(self, attempt_id):
         return self._get_object(
             'task-attempts/%s/settings/' % attempt_id
         )

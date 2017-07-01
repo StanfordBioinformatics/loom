@@ -3,7 +3,7 @@ from django.test import TestCase
 from api.test.models import _get_string_data_object
 from api.models.data_objects import DataObject
 from api.models.data_nodes import DataNode
-from api.models.input_manager import InputManager, InputSetGeneratorNode
+from api.models.input_calculator import InputCalculator, InputSetGeneratorNode
 from api.models.runs import RunInput
 
 scalar_input_text = 'scalar data'
@@ -59,8 +59,17 @@ def getInputWithFullTree(channel_name='channel1',
     step_run_input.save()
     return step_run_input
 
+def are_paths_equal(path1, path2):
+    if len(path1) != len(path2):
+        return False
+    for pair1, pair2 in zip(path1, path2):
+        if int(pair1[0]) != int(pair2[0]):
+            return False
+        if int(pair1[1]) != int(pair2[2]):
+            return False
 
-class TestInputManager(TestCase):
+
+class TestInputCalculator(TestCase):
 
     def testGetTargetDataPathNoGather(self):
         channel = 'channel0'
@@ -75,10 +84,10 @@ class TestInputManager(TestCase):
         input_data_path = [(0,2), (1,2), (3,5)]
         input1.add_data_object(input_data_path, data_object)
 
-        target_data_path = InputManager._gather(
+        target_data_path = InputCalculator._gather(
             input_data_path,
-            InputManager._get_gather_depth(input1))
-        self.assertEqual(target_data_path, input_data_path)
+            InputCalculator._get_gather_depth(input1))
+        self.assertTrue(are_paths_equal(target_data_path, input_data_path))
 
     def testGetTargetDataPathGather(self):
         channel = 'channel1'
@@ -93,10 +102,11 @@ class TestInputManager(TestCase):
         input_data_path = [(0,2), (1,2), (3,5)]
         input1.add_data_object(input_data_path, data_object)
 
-        target_data_path = InputManager._gather(
+        target_data_path = InputCalculator._gather(
             input_data_path,
-            InputManager._get_gather_depth(input1))
-        self.assertEqual(target_data_path, input_data_path[0:len(input_data_path)-1])
+            InputCalculator._get_gather_depth(input1))
+        self.assertTrue(are_paths_equal(target_data_path,
+                                        input_data_path[0:len(input_data_path)-1]))
 
     def testGetTargetDataPathGatherN(self):
         gather_n = 2
@@ -112,11 +122,12 @@ class TestInputManager(TestCase):
         input_data_path = [(0,2), (1,2), (3,5)]
         input1.add_data_object(input_data_path, data_object)
 
-        target_data_path = InputManager._gather(
+        target_data_path = InputCalculator._gather(
             input_data_path,
-            InputManager._get_gather_depth(input1))
-        self.assertEqual(target_data_path,
-                         input_data_path[0:len(input_data_path)-gather_n])
+            InputCalculator._get_gather_depth(input1))
+        self.assertTrue(are_paths_equal(
+            target_data_path,
+            input_data_path[0:len(input_data_path)-gather_n]))
 
     def testGetTargetDataPathGatherNExceedDepth(self):
         gather_depth = 4
@@ -128,7 +139,7 @@ class TestInputManager(TestCase):
 
         # We are using a gather depth greater than the tree height.
         # This should gather the full tree and not issue error or warning.
-        t = InputManager([input1], channel, [])
+        t = InputCalculator([input1], channel, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 1)
         input_items = input_sets[0].input_items
@@ -144,7 +155,7 @@ class TestInputManager(TestCase):
             mode='no_gather', channel_name=channel, group=0)
 
         input_nodes = [step_run_input]
-        t = InputManager(input_nodes, channel, [])
+        t = InputCalculator(input_nodes, channel, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 1)
         self.assertEqual(input_sets[0].data_path, [])
@@ -159,11 +170,11 @@ class TestInputManager(TestCase):
         step_run_input = getInputWithPartialTree(
             mode='no_gather', channel_name=channel, group=0)
         input_nodes = [step_run_input]
-        t = InputManager(input_nodes, channel, [])
+        t = InputCalculator(input_nodes, channel, [])
         input_sets = t.get_input_sets()
 
         self.assertEqual(len(input_sets), 3)
-        self.assertEqual(input_sets[0].data_path, [(0,3),(0,1)])
+        self.assertTrue(are_paths_equal(input_sets[0].data_path, [(0,3),(0,1)]))
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, channel)
@@ -175,7 +186,7 @@ class TestInputManager(TestCase):
         step_run_input = getInputWithPartialTree(
             mode='gather(2)', channel_name=channel, group=0)
         input_nodes = [step_run_input]
-        t = InputManager(input_nodes, channel, [])
+        t = InputCalculator(input_nodes, channel, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 0) #Nothing ready
 
@@ -184,7 +195,7 @@ class TestInputManager(TestCase):
         step_run_input = getInputWithFullTree(
             mode='gather(2)', channel_name=channel, group=0)
         input_nodes = [step_run_input]
-        t = InputManager(input_nodes, channel, [])
+        t = InputCalculator(input_nodes, channel, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 1)
         self.assertEqual(input_sets[0].data_path, [])
@@ -203,10 +214,10 @@ class TestInputManager(TestCase):
         input2 = getScalarInput(
             mode='no_gather', channel_name=channel2, group=0)
 
-        t = InputManager([input1, input2], channel2, [])
+        t = InputCalculator([input1, input2], channel2, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 3)
-        self.assertEqual(input_sets[0].data_path, [(0,3),(0,1)])
+        self.assertTrue(are_paths_equal(input_sets[0].data_path, [(0,3),(0,1)]))
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 2)
 
@@ -219,10 +230,10 @@ class TestInputManager(TestCase):
         input2 = getScalarInput(
             mode='no_gather', channel_name=channel2, group=1)
 
-        t = InputManager([input1, input2], channel2, [])
+        t = InputCalculator([input1, input2], channel2, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 3)
-        self.assertEqual(input_sets[0].data_path, [(0,3),(0,1)])
+        self.assertTrue(are_paths_equal(input_sets[0].data_path, [(0,3),(0,1)]))
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 2)
 
@@ -235,11 +246,13 @@ class TestInputManager(TestCase):
         input2 = getInputWithFullTree(
             mode='no_gather', channel_name=channel2, group=1)
 
-        t = InputManager([input1, input2], channel2, [])
+        t = InputCalculator([input1, input2], channel2, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 3*8)
-        self.assertEqual(input_sets[0].data_path, [(0,3),(0,1),(0,3),(0,1)])
-        self.assertEqual(input_sets[8].data_path, [(2,3),(0,5),(0,3),(0,1)])
+        self.assertTrue(are_paths_equal(
+            input_sets[0].data_path, [(0,3),(0,1),(0,3),(0,1)]))
+        self.assertTrue(are_paths_equal(
+            input_sets[8].data_path, [(2,3),(0,5),(0,3),(0,1)]))
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 2)
 
@@ -252,7 +265,7 @@ class TestInputManager(TestCase):
         input2 = getInputWithFullTree(
             mode='no_gather', channel_name=channel2, group=0)
 
-        t = InputManager([input1, input2], channel2, [])
+        t = InputCalculator([input1, input2], channel2, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 8*3)
         self.assertEqual(input_sets[0].data_path, [(0,3),(0,1),(0,3),(0,1)])
@@ -269,11 +282,11 @@ class TestInputManager(TestCase):
         input2 = getInputWithFullTree(
             mode='gather', channel_name=channel2, group=1)
 
-        t = InputManager([input1, input2], channel2, [])
+        t = InputCalculator([input1, input2], channel2, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 1*3)
-        self.assertEqual(input_sets[0].data_path, [(0,3),(0,3)])
-        self.assertEqual(input_sets[1].data_path, [(0,3),(1,3)])
+        self.assertTrue(are_paths_equal(input_sets[0].data_path, [(0,3),(0,3)]))
+        self.assertTrue(are_paths_equal(input_sets[1].data_path, [(0,3),(1,3)]))
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 2)
 

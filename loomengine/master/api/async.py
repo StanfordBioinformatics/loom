@@ -39,26 +39,6 @@ def _run_with_delay(task_function, args, kwargs):
     task_function.delay(*args, **kwargs)
 
 @shared_task
-def _postprocess_template(template_uuid):
-    from api.models.templates import Template
-    from api.serializers.templates import TemplateSerializer
-    try:
-        Template.objects.filter(uuid=template_uuid)
-        TemplateSerializer.postprocess(template_uuid)
-    except db.DatabaseError:
-        # Ignore this task since the same one is already running
-        logger.debug('Exiting async._postprocess_template(%s) with no action '\
-                     'because it is already running.' % template_uuid)
-        return
-
-def postprocess_template(*args, **kwargs):
-    if get_setting('TEST_NO_POSTPROCESS'):
-        logger.debug('Skipping async._postprocess_template because '\
-                     'TEST_NO_POSTPROCESS is True')
-        return
-    return _run_with_delay(_postprocess_template, args, kwargs)
-
-@shared_task
 def _postprocess_run(run_uuid):
     from api.models import Run
     Run.postprocess(run_uuid)
@@ -183,7 +163,8 @@ def _cleanup_task_attempt(task_attempt_uuid):
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     _run_cleanup_task_playbook(task_attempt)
-
+    task_attempt.setattrs_and_save_with_retries({
+        'status_is_cleaned_up': True })
 
 def cleanup_task_attempt(*args, **kwargs):
     return _run_with_delay(_cleanup_task_attempt, args, kwargs)

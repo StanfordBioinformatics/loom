@@ -4,7 +4,6 @@ import yaml
 from api.test.models.test_templates import get_workflow
 from api.models.data_objects import *
 from api.models.runs import Run
-from api.models.input_manager import InputManager
 from api.test.helper import request_run_from_template_file
 
 def get_run():

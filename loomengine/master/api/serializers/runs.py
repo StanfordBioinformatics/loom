@@ -4,7 +4,7 @@ from django.db.models import prefetch_related_objects
 from mptt.utils import get_cached_trees
 from . import CreateWithParentModelSerializer, RecursiveField, \
     strip_empty_values, ProxyWriteSerializer
-from api.models.runs import Run, UserInput, RunInput, RunOutput, RunTimepoint
+from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.serializers.templates import TemplateSerializer, URLTemplateSerializer
 from api.serializers.tasks import SummaryTaskSerializer, TaskSerializer, \
     URLTaskSerializer, ExpandedTaskSerializer
@@ -51,20 +51,18 @@ class RunOutputSerializer(DataChannelSerializer):
             super(RunOutputSerializer, self).to_representation(instance))
 
 
-class RunTimepointSerializer(CreateWithParentModelSerializer):
+class RunEventSerializer(CreateWithParentModelSerializer):
 
     class Meta:
-        model = RunTimepoint
-        fields = ('message', 'detail', 'timestamp', 'is_error')
+        model = RunEvent
+        fields = ('event', 'detail', 'timestamp', 'is_error')
 
 
-_read_only_run_serializer_fields = [
-    'status']
-
-_writable_run_serializer_fields = [
+_run_serializer_fields = [
     'uuid',
     'url',
     'name',
+    'status',
     'datetime_created',
     'datetime_finished',
     'template',
@@ -82,7 +80,7 @@ _writable_run_serializer_fields = [
     'user_inputs',
     'inputs',
     'outputs',
-    'timepoints',
+    'events',
     'steps',
     'tasks',]
 
@@ -91,7 +89,7 @@ class URLRunSerializer(ProxyWriteSerializer):
 
     class Meta:
         model = Run
-        fields = _writable_run_serializer_fields
+        fields = _run_serializer_fields
 
     # readable fields
     uuid = serializers.UUIDField(required=False)
@@ -99,12 +97,14 @@ class URLRunSerializer(ProxyWriteSerializer):
         view_name='run-detail',
         lookup_field='uuid')
     name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(
+        required=False, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(
+        required=False, format='iso-8601')
+    status = serializers.CharField(read_only=True)
+    is_leaf = serializers.BooleanField(required=False)
 
     # write-only fields
-    datetime_created = serializers.DateTimeField(
-        required=False, format='iso-8601', write_only=True)
-    datetime_finished = serializers.DateTimeField(
-        required=False, format='iso-8601', write_only=True)
     template = TemplateSerializer(required=False, write_only=True)
     postprocessing_status = serializers.CharField(required=False, write_only=True)
     status_is_finished = serializers.BooleanField(required=False, write_only=True)
@@ -112,7 +112,6 @@ class URLRunSerializer(ProxyWriteSerializer):
     status_is_killed = serializers.BooleanField(required=False, write_only=True)
     status_is_running = serializers.BooleanField(required=False, write_only=True)
     status_is_waiting = serializers.BooleanField(required=False, write_only=True)
-    is_leaf = serializers.BooleanField(required=False, write_only=True)
     command = serializers.CharField(required=False, write_only=True)
     interpreter = serializers.CharField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
@@ -121,7 +120,7 @@ class URLRunSerializer(ProxyWriteSerializer):
         many=True, required=False, write_only=True)
     inputs = RunInputSerializer(many=True, required=False, write_only=True)
     outputs = RunOutputSerializer(many=True, required=False, write_only=True)
-    timepoints = RunTimepointSerializer(many=True, required=False, write_only=True)
+    events = RunEventSerializer(many=True, required=False, write_only=True)
     steps = RecursiveField(many=True, required=False, write_only=True)
     tasks = URLTaskSerializer(many=True, required=False, write_only=True)
 
@@ -134,7 +133,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Run
-	fields = _writable_run_serializer_fields + _read_only_run_serializer_fields
+	fields = _run_serializer_fields
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -159,7 +158,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     user_inputs = UserInputSerializer(many=True, required=False)
     inputs = RunInputSerializer(many=True, required=False)
     outputs = RunOutputSerializer(many=True, required=False)
-    timepoints = RunTimepointSerializer(many=True, required=False)
+    events = RunEventSerializer(many=True, required=False)
     steps = URLRunSerializer(many=True, required=False)
     tasks = URLTaskSerializer(many=True, required=False)
 
@@ -214,7 +213,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     def apply_prefetch(cls, queryset):
         return queryset\
             .select_related('template')\
-            .prefetch_related('timepoints')\
+            .prefetch_related('events')\
             .prefetch_related('inputs')\
             .prefetch_related('inputs__data_node')\
             .prefetch_related('outputs')\
@@ -237,15 +236,16 @@ class SummaryRunSerializer(RunSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name='run-detail',
         lookup_field='uuid')
-    name = serializers.CharField(required=False, write_only=True)
+    name = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(
-        required=False, format='iso-8601', write_only=True)
+        required=False, format='iso-8601')
     datetime_finished = serializers.DateTimeField(
-        required=False, format='iso-8601', write_only=True)
+        required=False, format='iso-8601')
     status = serializers.CharField(read_only=True)
     steps = RecursiveField(many=True, required=False,
                            source='_cached_children')
     tasks = SummaryTaskSerializer(many=True, required=False)
+    is_leaf = serializers.BooleanField(required=False)
 
     # write-only fields
     template = TemplateSerializer(required=False, write_only=True)
@@ -255,7 +255,6 @@ class SummaryRunSerializer(RunSerializer):
     status_is_killed = serializers.BooleanField(required=False, write_only=True)
     status_is_running = serializers.BooleanField(required=False, write_only=True)
     status_is_waiting = serializers.BooleanField(required=False, write_only=True)
-    is_leaf = serializers.BooleanField(required=False, write_only=True)
     command = serializers.CharField(required=False, write_only=True)
     interpreter = serializers.CharField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
@@ -264,7 +263,7 @@ class SummaryRunSerializer(RunSerializer):
         required=False, many=True, write_only=True)
     inputs = RunInputSerializer(many=True, required=False, write_only=True)
     outputs = RunOutputSerializer(many=True, required=False, write_only=True)
-    timepoints = RunTimepointSerializer(many=True, required=False, write_only=True)
+    events = RunEventSerializer(many=True, required=False, write_only=True)
 
     def to_representation(self, instance):
         instance = self._apply_prefetch_to_instance(instance)
@@ -315,7 +314,7 @@ class ExpandedRunSerializer(RunSerializer):
     def _prefetch_on_tree_nodes(cls, queryset):
         return queryset\
             .select_related('template')\
-            .prefetch_related('timepoints')\
+            .prefetch_related('events')\
             .prefetch_related('inputs')\
             .prefetch_related('inputs__data_node')\
             .prefetch_related('outputs')\
@@ -323,13 +322,13 @@ class ExpandedRunSerializer(RunSerializer):
             .prefetch_related('user_inputs')\
             .prefetch_related('user_inputs__data_node')\
             .prefetch_related('tasks')\
-            .prefetch_related('tasks__timepoints')\
+            .prefetch_related('tasks__events')\
             .prefetch_related('tasks__inputs')\
             .prefetch_related('tasks__inputs__data_node')\
             .prefetch_related('tasks__outputs')\
             .prefetch_related('tasks__outputs__data_node')\
             .prefetch_related('tasks__task_attempt')\
-            .prefetch_related('tasks__task_attempt__timepoints')\
+            .prefetch_related('tasks__task_attempt__events')\
             .prefetch_related('tasks__task_attempt__inputs')\
             .prefetch_related('tasks__task_attempt__inputs__data_node')\
             .prefetch_related('tasks__task_attempt__outputs')\

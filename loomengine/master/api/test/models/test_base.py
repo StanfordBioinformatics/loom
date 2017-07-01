@@ -1,6 +1,7 @@
 from django.test import TestCase
 
-from api.models.base import render_from_template, FilterHelper
+from api.models import render_from_template
+from api.models.base import FilterHelper
 from api.models.data_objects import DataObject, FileResource
 from api import exceptions
 

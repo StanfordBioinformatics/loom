@@ -76,18 +76,18 @@ class TaskAttempt(object):
         # Errors here can be both logged and reported to server
 
         try:
-            self._timepoint('Initializing monitor')
+            self._event('Initializing monitor')
             self._init_task_attempt()
             if mock_filemanager is not None:
                 self.filemanager = mock_filemanager
             else:
                 self.filemanager = FileManager(self.settings['MASTER_URL'])
-                self.settings.update(self._get_exec_settings())
+                self.settings.update(self._get_settings())
                 self._init_docker_client()
                 self._init_working_dir()
         except Exception as e:
             try:
-                self._fail('Failed to initialize', detail=str(e))
+                self._fail(detail='Failed with error "%s"' % str(e))
             except:
                 # Raise original error, not status change error
                 pass
@@ -103,8 +103,8 @@ class TaskAttempt(object):
         if self.task_attempt is None:
             raise TaskAttemptNotFoundError('TaskAttempt ID "%s" not found' % self.settings['TASK_ATTEMPT_ID'])
 
-    def _get_worker_settings(self):
-        settings = self.connection.get_worker_settings(self.settings['TASK_ATTEMPT_ID'])
+    def _get_settings(self):
+        settings = self.connection.get_task_attempt_settings(self.settings['TASK_ATTEMPT_ID'])
         if settings is None:
             raise WorkerSettingsError('Worker settings not found')
         return settings
@@ -179,36 +179,32 @@ class TaskAttempt(object):
         cleanup_start_time = time.time()
 
         # Never raise errors, so cleanup can continue
-        self._timepoint('Saving outputs')
+        self._event('Saving outputs')
+        try:
+            self._save_outputs()
+        except Exception as e:
+            self._fail(detail='Saving outputs failed with error "%s"' % str(e))
 
-        #try:
-        self._save_outputs()
-        #except Exception as e:
-        #    self._fail('Failed to save outputs', detail=str(e))
-
-        self._timepoint('Saving logfiles')
-
+        self._event('Saving logfiles')
         try:
             self._save_process_logs()
         except Exception as e:
-            self._fail('Failed to save process logs', detail=str(e))
+            self._fail(detail='Saving logs failed with error %s' % str(e))
 
     def _finish(self):
         try:
             self._finish()
             self.logger.info('Done.')
         except Exception as e:
-            self._fail('Failed to set status to finished',
-                       detail=str(e))
+            self._fail(detail='Setting finished status failed with error "%s"' % str(e))
 
     def _try_to_copy_inputs(self):
         self.logger.info('Downloading input files')
-        self._timepoint('Copying inputs')
+        self._event('Copying inputs')
         try:
             self._copy_inputs()
         except Exception as e:
-            self._fail('Failed to copy inputs to workspace',
-                       detail=str(e))
+            self._fail(detail='Copying inputs failed with error "%s"' % str(e))
             raise
 
     def _copy_inputs(self):
@@ -220,13 +216,10 @@ class TaskAttempt(object):
             TaskAttemptInput(input, self).copy()
 
     def _try_to_create_run_script(self):
-        self.logger.info('Creating run script')
-        self._timepoint('Creating run script')
-
         try:
             self._create_run_script()
         except Exception as e:
-            self._fail('Failed to create run script', detail=str(e))
+            self._fail(detail='Creating run script failed with error "%s"' % str(e))
             raise
 
     def _create_run_script(self):
@@ -238,7 +231,7 @@ class TaskAttempt(object):
             f.write(user_command + '\n')
 
     def _try_to_pull_image(self):
-        self._timepoint('Fetching image')
+        self._event('Pulling image')
 
         try:
             self._pull_image()
@@ -248,9 +241,7 @@ class TaskAttempt(object):
                 'Pulled image %s and received image id %s' % (
                     self._get_docker_image(), image_id))
         except Exception as e:
-            self._fail(
-                'Failed to fetch image for runtime environment',
-                detail=str(e))
+            self._fail(detail='Pulling Docker image failed with error %s' % str(e))
             raise
 
     def _pull_image(self):
@@ -272,14 +263,12 @@ class TaskAttempt(object):
         return [json.loads(line) for line in data.strip().split('\r\n')]
 
     def _try_to_create_container(self):
-        self._timepoint('Creating container')
+        self._event('Creating container')
         try:
             self._create_container()
             self._set_container_id(self.container['Id'])
         except Exception as e:
-            self._fail(
-                'Failed to create container for runtime environment',
-                detail=str(e))
+            self._fail(detail='Creating container failed with error "%s"' % str(e))
             raise
 
     def _create_container(self):
@@ -305,12 +294,12 @@ class TaskAttempt(object):
         )
 
     def _try_to_run_container(self):
-        self._timepoint('Starting analysis')
+        self._event('Starting analysis')
         try:
             self.docker_client.start(self.container)
             self._verify_container_started_running()
         except Exception as e:
-            self._fail('Failed to start analysis', detail=str(e))
+            self._fail(detail='Starting analysis failed with error "%s"' % str(e))
             raise
 
     def _verify_container_started_running(self):
@@ -334,7 +323,7 @@ class TaskAttempt(object):
             sys.stderr.write(line)
 
     def _try_to_get_returncode(self):
-        self._timepoint('Running analysis')
+        self._event('Running analysis')
         try:
             returncode = self._poll_for_returncode()
             if returncode == 0:
@@ -342,14 +331,12 @@ class TaskAttempt(object):
             else:
                 # bad returncode
                 self._fail(
-                    'Analysis finished with a bad returncode %s' % returncode,
-                    detail='Returncode %s. Check stderr log for more information.' \
+                    'Analysis finished with returncode %s. '\
+                    'Check stderr/stdout logs for errors.'
                     % returncode)
                 # Do not raise error. Attempt to save log files.
         except Exception as e:
-            self._fail(
-                'An error prevented the analysis from finishing',
-                detail=str(e))
+            self._fail('Failed to run analysis. Error was "%s"' % str(e))
             # Do not raise error. Attempt to save log files.
 
     def _poll_for_returncode(self, poll_interval_seconds=1):
@@ -443,22 +430,21 @@ class TaskAttempt(object):
             {'image_id': image_id}
         )
 
-    def _timepoint(self, message, detail='', is_error=False):
-        timepoint = {'message': message,
-                     'detail': detail,
-                     'is_error': is_error
+    def _event(self, event, detail='', is_error=False):
+        event = {'event': event,
+                 'detail': detail,
+                 'is_error': is_error
         }
         if is_error:
-            self.logger.error('Adding error %s' % timepoint)
+            self.logger.error("%s. %s" % (event, detail))
         else:
-            self.logger.debug('Adding timepoint %s' % timepoint)
-        self.connection.post_task_attempt_timepoint(
-            self.settings['TASK_ATTEMPT_ID'], timepoint)
+            self.logger.debug("%s. %s" % (event, detail))
+        self.connection.post_task_attempt_event(
+            self.settings['TASK_ATTEMPT_ID'], event)
 
-    def _fail(self, message, detail=''):
+    def _fail(self, detail=''):
         self.is_failed = True
-        self.logger.error(message + ': ' + detail)
-        self._timepoint(message, detail=detail, is_error=True)
+        self._event("TaskAttempt execution failed.", detail=detail, is_error=True)
         self.connection.post_task_attempt_fail(self.settings['TASK_ATTEMPT_ID'])
 
     def _finish(self):

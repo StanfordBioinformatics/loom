@@ -81,39 +81,35 @@ class Task(BaseModel):
         # has passed, we have probably missed 2 heartbeats
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
-    def fail(self, message, detail=''):
+    def fail(self, detail=''):
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
              'status_is_running': False,
              'status_is_waiting': False})
-        self.add_timepoint(message, detail=detail, is_error=True)
-        if not self.run.status_is_failed:
-            self.run.fail(
-                'Task %s failed' % self.uuid,
-                detail=detail)
-
+        self.add_event("Task failed", detail=detail, is_error=True)
+        self.run.fail(detail='Task %s failed' % self.uuid)
+                
     def finish(self):
         self.setattrs_and_save_with_retries(
             { 'datetime_finished': timezone.now(),
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.run.add_timepoint('Child Task %s finished successfully' % self.uuid)
         self.run.set_status_is_finished()
         for output in self.outputs.all():
             output.push_data(self.data_path)
         for task_attempt in self.all_task_attempts.all():
             task_attempt.cleanup()
 
-    def kill(self, kill_message):
+    def kill(self, detail=''):
         self.setattrs_and_save_with_retries({
             'status_is_waiting': False,
             'status_is_running': False,
             'status_is_killed': True
         })
-        self.add_timepoint('Task killed', detail=kill_message, is_error=True)
+        self.add_event('Task was killed', detail=detail, is_error=True)
         for task_attempt in self.all_task_attempts.all():
-            async.kill_task_attempt(task_attempt.uuid, kill_message)
+            async.kill_task_attempt(task_attempt.uuid, detail)
 
     @classmethod
     def create_from_input_set(cls, input_set, run):
@@ -152,8 +148,6 @@ class Task(BaseModel):
                 data_node=run_output.data_node.get_or_create_node(data_path))
         task = task.setattrs_and_save_with_retries(
             { 'command': task.render_command() })
-        task.add_timepoint('Task %s was created' % task.uuid)
-        run.add_timepoint('Child Task %s was created' % task.uuid)
         run.set_running_status()
         return task
 
@@ -164,16 +158,10 @@ class Task(BaseModel):
                 'task_attempt': task_attempt,
                 'status_is_running': True,
                 'status_is_waiting': False})
-            self.add_timepoint('Created child TaskAttempt %s' % task_attempt.uuid)
-        except ConcurrentModificationError as e:
-            task_attempt.add_timepoint(
-                'Failed to update task with newly created task_attempt',
-                detail=e.message,
-                is_error=True)
-            task_attempt.fail()
+            return task_attempt
+        except Exception as e:
+            task_attempt.fail(detail='Error creating TaskAttempt: "%s"' % str(e))
             raise
-        task_attempt.add_timepoint('TaskAttempt %s was created' % task_attempt.uuid)
-        return task_attempt
 
     def get_input_context(self):
         context = {}
@@ -212,9 +200,10 @@ class Task(BaseModel):
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
-    def add_timepoint(self, message, detail='', is_error=False):
-        timepoint = TaskTimepoint.objects.create(
-            message=message, task=self, detail=detail, is_error=is_error)
+    def add_event(self, event, detail='', is_error=False):
+        event = TaskEvent.objects.create(
+            event=event, task=self,
+            detail=detail[-1000:], is_error=is_error)
 
 
 class TaskInput(DataChannel):
@@ -251,13 +240,13 @@ class TaskOutput(DataChannel):
             input.run.push(input.channel, data_path)
 
 
-class TaskTimepoint(BaseModel):
+class TaskEvent(BaseModel):
     task = models.ForeignKey(
         'Task',
-        related_name='timepoints',
+        related_name='events',
         on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
-    message = models.CharField(max_length=255)
+    event = models.CharField(max_length=255)
     detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
