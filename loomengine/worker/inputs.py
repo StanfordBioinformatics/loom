@@ -30,7 +30,7 @@ class FileListInput(BaseInput):
         for data_object in data_object_list:
 	    filename = data_object['value']['filename']
             # Increment filenames if there are duplicates in an array,       
-            # e.g. file.txt, file__1__.txt, file__2__.txt                    
+            # e.g. file__0__.txt, file__1__.txt, file__2__.txt
             if filename in duplicates:
                 counter = filename_counts.setdefault(filename, 0)
                 filename_counts[filename] += 1

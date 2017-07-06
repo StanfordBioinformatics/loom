@@ -3,27 +3,27 @@
 
 integer_data_object = {
     'type': 'integer',
-    'contents': 3
+    'value': 3
 }
 
 boolean_data_object = {
     'type': 'boolean',
-    'contents': True
+    'value': True
 }
 
 float_data_object = {
     'type': 'float',
-    'contents': 2.7
+    'value': 2.7
 }
 
 string_data_object = {
     'type': 'string',
-    'contents': 'some text here'
+    'value': 'some text here'
 }
 
 file_data_object = {
     'type': 'file',
-    'contents': {
+    'value': {
         'filename': 'file1.txt',
         'md5': 'eed7ca1bba1c93a7fa5b5dba1307b791',
         'import_comments': 'Here is where I got this',

@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from api.models import *
-
+from api.test.models import _get_string_data_node
 
 def get_step_one():
     step_one = Template.objects.create(
@@ -12,7 +12,6 @@ def get_step_one():
         outputs=[{'channel': 'two', 'type': 'string',
                   'source': {'stream': 'stdout'},
                   'mode': 'no_scatter'}],
-        postprocessing_status='complete',
         is_leaf=True)
     TemplateInput.objects.create(
         channel='one',
@@ -31,7 +30,6 @@ def get_step_two():
         outputs=[{'channel': 'three', 'type': 'string',
                   'source': {'stream': 'stdout'},
                   'mode': 'no_scatter'}],
-        postprocessing_status='complete',
         is_leaf=True)
     TemplateInput.objects.create(
         channel='two',
@@ -45,12 +43,13 @@ def get_workflow():
     workflow = Template.objects.create(
         name='one_two',
         outputs = [{'channel': 'three', 'type': 'string'}],
-        postprocessing_status='complete',
         is_leaf=False)
+    default = _get_string_data_node('default data')
     TemplateInput.objects.create(
         channel='one',
         type='string',
         mode='no_gather',
+        data_node=default,
         template=workflow)
     workflow.add_steps([get_step_one(),
                         get_step_two()])

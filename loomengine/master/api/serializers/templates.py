@@ -47,10 +47,10 @@ class TemplateInputSerializer(DataChannelSerializer):
     group = serializers.IntegerField(required=False)
     data = serializers.JSONField(required=False) # Override to make non-required
 
-    def create(self, validated_data):
-        if self.context.get('is_leaf'):
-            _set_leaf_input_defaults(validated_data)
-        return super(TemplateInputSerializer, self).create(validated_data)
+#    def create(self, validated_data):
+#        if self.context.get('is_leaf'):
+#            _set_leaf_input_defaults(validated_data)
+#        return super(TemplateInputSerializer, self).create(self.validated_data)
 
 
 _template_serializer_fields = (
@@ -174,7 +174,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         preexisting_templates = []
 
         self._create_unsaved_models(
-            [self.initial_data,], templates, inputs,
+            [copy.deepcopy(self.initial_data),], templates, inputs,
             m2m_relationships, preexisting_templates)
 
         root_uuid = templates[0].uuid
@@ -191,9 +191,9 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
 
         TemplateInput.objects.bulk_create(inputs)
         TemplateMembership.objects.bulk_create(m2m_relationships)
-        
-        assert templates[0].uuid == root_uuid
-        return templates[0]
+
+        root_template = filter(lambda t: t.uuid==root_uuid, templates)
+        return root_template[0]
 
     def _match_and_update_by_uuid(self, unsaved_models, field, saved_models):
         for unsaved_model in unsaved_models:
@@ -240,7 +240,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                     data=template_data)
                 serializer.is_valid(raise_exception=True)
                 template = serializer.save()
-                preexisting_tempates.append(child)
+                preexisting_templates.append(template)
                 # This step already exists. Just link to the parent
                 if parent_model:
                     m2m_relationship_models.append(

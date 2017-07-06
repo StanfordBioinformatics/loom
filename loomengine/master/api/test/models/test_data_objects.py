@@ -12,30 +12,36 @@ filename_1 = 'mydata.txt'
 class TestDataObject(TestCase):
 
     VALUE_SETS = [
-        # (type, valid_value, invalid_value)
-        ('boolean', True, None),
-        ('float', 3.7, 'word'),
-        ('integer', 3, 'three'),
-        ('string', ':D', 7),
+        # (type, valid_value)
+        ('boolean', True),
+        ('float', 3.7),
+        ('integer', 3),
+        ('string', ':D'),
+    ]
+
+    INVALID_VALUE_SETS = [
+        # (type, invalid_value)
+        ('float', 'word'),
+        ('integer', 'three'),
     ]
 
     def testGetByValue(self):
-        for (type, value, invalid_value) in self.VALUE_SETS:
+        for (type, value) in self.VALUE_SETS:
             do = DataObject.get_by_value(value, type)
-            self.assertEqual(do.contents, value)
+            self.assertEqual(do.value, value)
 
     def testSubstitutionValue(self):
-        for (type, value, invalid_value) in self.VALUE_SETS:
+        for (type, value) in self.VALUE_SETS:
             do = DataObject.get_by_value(value, type)
             self.assertEqual(do.substitution_value, str(value))
 
     def testIsReady(self):
-        for (type, value, invalid_value) in self.VALUE_SETS:
+        for (type, value) in self.VALUE_SETS:
             do = DataObject.get_by_value(value, type)
             self.assertTrue(do.is_ready)
 
     def testGetByValue_invalidValue(self):
-        for (type, value, invalid_value) in self.VALUE_SETS:
+        for (type, invalid_value) in self.INVALID_VALUE_SETS:
             with self.assertRaises(ValidationError):
                 if invalid_value is not None:
                     DataObject.get_by_value(invalid_value, type)
@@ -61,7 +67,7 @@ class TestDataObject(TestCase):
     def testValue_file(self):
         do = DataObject.create_and_initialize_file_resource(
             filename=filename_1, md5=md5_1, source_type='result')
-        self.assertEqual(do.contents, do.file_resource)
+        self.assertEqual(do.value, do.file_resource)
 
     def testSubstitutionValue_file(self):
         do = DataObject.create_and_initialize_file_resource(
@@ -130,25 +136,3 @@ class TestFileResource(TestCase):
             data_object=data_object, filename=filename_1,
             md5=md5_1, source_type='result')
         self.assertEqual(resource.get_uuid(), data_object.uuid)
-
-    
-"""    
-    def testDuplicateFilenames(self):
-        file_data_object_list = []
-        for i in range(3):
-            file_data_object_list.append(
-                FileDataObject.objects.create(
-                    type='file',
-                    filename='same.txt',
-                    source_type='imported',
-                    file_import={'source_url': 'file:///data/somewhere.txt',
-                                 'note': 'Test data'},
-                    md5='abcde'
-                )
-            )
-
-        array = ArrayDataObject.create_from_list(file_data_object_list, 'file')
-        
-        self.assertEqual(array.substitution_value,
-                         ['same.txt','same__1__.txt','same__2__.txt'])
-"""

@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from api.test.models import _get_string_data_node
 from api.models.data_objects import *
 from api.models.tasks import *
 
@@ -7,45 +8,40 @@ from api.models.tasks import *
 def get_task():
     task = Task.objects.create(
         interpreter='/bin/bash',
-        command='echo {{input1}}; echo {{ input3|join(", ") }}',
-        rendered_command='echo True',
+        raw_command='echo {{input1}}; echo {{ input3|join(", ") }}',
+        command='echo True',
         resources={'memory': '1', 'disk_size': '1', 'cores': '1'},
         environment={'docker_image': 'ubuntu'},
-        data_path = [(0,1),],
+        data_path = [[0,1],],
     )
-    input_data_object = DataObject.objects.create(
-        type='boolean',
-        data={'contents': True}
-    )
+    input_data_node = _get_string_data_node('input1')
+
     input = TaskInput.objects.create(task=task,
-                                     data_object=input_data_object,
+                                     data_node=input_data_node,
                                      channel='input1',
+                                     mode='no_gather',
                                      type='boolean')
 
-    input_data_object2 = StringDataObject.objects.create(
-        type='string',
-        value='mydata',
-    )
+    input_data_node2 = _get_string_data_node('input2')
     input2 = TaskInput.objects.create(task=task,
-                                      data_object=input_data_object2,
+                                      data_node=input_data_node2,
                                       channel='input2',
+                                      mode='no_gather',
                                       type='string')
-    
-    input3_data_object_list = [
-        StringDataObject.objects.create(
-            type='string',
-            value=value) for value in ['salud','amor','dinero']]
-    input3_array_data_object = ArrayDataObject.create_from_list(
-        input3_data_object_list, 'string')
+
+    input_data_node3 = _get_string_data_node(
+        ['salud','amor','dinero'])
 
     input3 = TaskInput.objects.create(task=task,
-                                     data_object=input3_array_data_object,
-                                     channel='input3',
-                                     type='string')
+                                      data_node=input_data_node3,
+                                      channel='input3',
+                                      mode='gather',
+                                      type='string')
     output = TaskOutput.objects.create(
         task=task,
         channel='output1',
         type='string',
+        mode='no_scatter',
         source={'filename': '{{input2}}.txt'}
     )
     return task
@@ -60,7 +56,7 @@ class TestTask(TestCase):
     def testCreateAttempt(self):
         task = get_task()
         task_attempt = task.create_and_activate_attempt()
-        self.assertEqual(task_attempt.rendered_command, task.rendered_command)
+        self.assertEqual(task_attempt.command, task.command)
 
     def testGetInputContext(self):
         task = get_task()
@@ -68,7 +64,7 @@ class TestTask(TestCase):
         self.assertEqual(context['input3'][2], 'dinero')
         self.assertEqual(str(context['input3']), 'salud amor dinero')
         command = task.render_command()
-        self.assertEqual(command, 'echo True; echo salud, amor, dinero')
+        self.assertEqual(command, 'echo input1; echo salud, amor, dinero')
 
 
 class TestTaskAttempt(TestCase):
@@ -85,4 +81,4 @@ class TestTaskAttempt(TestCase):
         self.assertEqual(self.task_attempt.outputs.first().source.get('stream'),
                          self.task.outputs.first().source.get('stream'))
         self.assertEqual(self.task_attempt.outputs.first().source.get('filename'),
-                         'mydata.txt')
+                         'input2.txt')

@@ -4,7 +4,6 @@ from . import CreateWithParentModelSerializer
 from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskEvent
-from api.serializers.data_objects import DataObjectSerializer
 from api.serializers.data_channels import DataChannelSerializer
 from api.serializers.task_attempts import TaskAttemptSerializer, \
     URLTaskAttemptSerializer

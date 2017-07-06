@@ -50,7 +50,6 @@ ALLOWED_HOSTS = to_list(os.getenv('LOOM_MASTER_ALLOWED_HOSTS', '[*]'))
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
-WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL').upper()
 LOOM_STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'LOCAL').upper()
 
 STATIC_ROOT = os.getenv('LOOM_MASTER_STATIC_ROOT', '/tmp/static')

@@ -47,8 +47,8 @@ class TestInputOutputNode(TestCase):
         data_channel2 = RunOutput.objects.create(channel='test',
                                                 mode='no_scatter', type='string')
 
-        data_channel1._initialize_data_node()
-        data_channel2._initialize_data_node()
+        data_channel1.initialize_data_node()
+        data_channel2.initialize_data_node()
 
         with self.assertRaises(AssertionError):
             data_channel1.connect(data_channel2)

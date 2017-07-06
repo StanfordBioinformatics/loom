@@ -17,15 +17,15 @@ class TestDataObjectSerializer(TestCase):
         s.is_valid(raise_exception=True)
         data_object = s.save()
         self.assertEqual(data_object.file_resource.filename,
-                         data['contents']['filename'])
+                         data['value']['filename'])
 
     def testRender_file(self):
-        file_data = fixtures.data_objects.file_data_object['contents']
+        file_data = fixtures.data_objects.file_data_object['value']
         data_object = DataObject.create_and_initialize_file_resource(**file_data)
         s = DataObjectSerializer(data_object,
                                  context=get_mock_context())
         rendered_data = s.data
-        value = rendered_data['contents']
+        value = rendered_data['value']
         self.assertEqual(value['filename'], file_data['filename'])
         self.assertEqual(value['md5'], file_data['md5'])
         self.assertEqual(value['source_type'], file_data['source_type'])
@@ -33,7 +33,7 @@ class TestDataObjectSerializer(TestCase):
         self.assertEqual(value['imported_from_url'], file_data['imported_from_url'])
 
     def testRoundTrip_file(self):
-        file_data = fixtures.data_objects.file_data_object['contents']
+        file_data = fixtures.data_objects.file_data_object['value']
         data_object = DataObject.create_and_initialize_file_resource(**file_data)
         s = DataObjectSerializer(data_object,
                                  context=get_mock_context())
@@ -57,23 +57,23 @@ class TestDataObjectSerializer(TestCase):
                             rendered_2['uuid'])
         self.assertNotEqual(rendered_1['url'],
                             rendered_2['url'])
-        self.assertEqual(rendered_1['contents']['filename'],
-                         rendered_2['contents']['filename'])
-        self.assertEqual(rendered_1['contents']['md5'],
-                         rendered_2['contents']['md5'])
-        self.assertEqual(rendered_1['contents']['import_comments'],
-                         rendered_2['contents']['import_comments'])
-        self.assertEqual(rendered_1['contents']['imported_from_url'],
-                         rendered_2['contents']['imported_from_url'])
-        self.assertEqual(rendered_1['contents']['upload_status'],
-                         rendered_2['contents']['upload_status'])
-        self.assertEqual(rendered_1['contents']['source_type'],
-                         rendered_2['contents']['source_type'])
-        self.assertEqual(rendered_1['contents']['file_url'],
-                            rendered_2['contents']['file_url'])
+        self.assertEqual(rendered_1['value']['filename'],
+                         rendered_2['value']['filename'])
+        self.assertEqual(rendered_1['value']['md5'],
+                         rendered_2['value']['md5'])
+        self.assertEqual(rendered_1['value']['import_comments'],
+                         rendered_2['value']['import_comments'])
+        self.assertEqual(rendered_1['value']['imported_from_url'],
+                         rendered_2['value']['imported_from_url'])
+        self.assertEqual(rendered_1['value']['upload_status'],
+                         rendered_2['value']['upload_status'])
+        self.assertEqual(rendered_1['value']['source_type'],
+                         rendered_2['value']['source_type'])
+        self.assertEqual(rendered_1['value']['file_url'],
+                            rendered_2['value']['file_url'])
 
     def testCreate_errorUuidCollision(self):
-        file_data = copy.deepcopy(fixtures.data_objects.file_data_object)['contents']
+        file_data = copy.deepcopy(fixtures.data_objects.file_data_object)['value']
         data_object = DataObject.create_and_initialize_file_resource(**file_data)
         s = DataObjectSerializer(data_object,
                                  context=get_mock_context())
@@ -87,7 +87,7 @@ class TestDataObjectSerializer(TestCase):
 
     def testCreate_noDroolOnFail(self):
         file_data = copy.deepcopy(fixtures.data_objects.file_data_object)
-        file_data['contents']['md5'] = 'invalid_md5'
+        file_data['value']['md5'] = 'invalid_md5'
 
         data_object_count_before = DataObject.objects.count()
         s = DataObjectSerializer(data=file_data)
@@ -110,18 +110,18 @@ class TestDataObjectSerializer(TestCase):
             s = DataObjectSerializer(data=data)
             s.is_valid(raise_exception=True)
             data_object = s.save()
-            self.assertEqual(data_object.contents, data['contents'])
+            self.assertEqual(data_object.value, data['value'])
 
             rendered_data = DataObjectSerializer(
                 data_object, context=get_mock_context()).data
-            self.assertEqual(data_object.contents, rendered_data['contents'])
+            self.assertEqual(data_object.value, rendered_data['value'])
 
     def testRoundTrip_nonFileTypes(self):
         for data in self.data_object_fixtures:
             s1 = DataObjectSerializer(data=data)
             s1.is_valid(raise_exception=True)
             data_object_1 = s1.save()
-            self.assertEqual(data_object_1.contents, data['contents'])
+            self.assertEqual(data_object_1.value, data['value'])
             rendered_data = DataObjectSerializer(
                 data_object_1, context=get_mock_context()).data
 
@@ -130,4 +130,4 @@ class TestDataObjectSerializer(TestCase):
             s2 = DataObjectSerializer(data=rendered_data)
             s2.is_valid(raise_exception=True)
             data_object_2 = s2.save()
-            self.assertEqual(data_object_1.contents, data_object_2.contents)
+            self.assertEqual(data_object_1.value, data_object_2.value)

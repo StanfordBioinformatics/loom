@@ -58,12 +58,12 @@ class ArrayInputContext(object):
         parts = filename.split('.')
         assert len(parts) > 0, 'missing filename'
         if len(parts) == 1:
-            return parts[0] + '(%s)' % count
+            return parts[0] + '__%s__' % count
         else:
             return '.'.join(parts[0:len(parts)-1]) + '__%s__.' % count + parts[-1]
 
     def __iter__(self):
-        return self.items.iter()
+        return self.items.__iter__()
 
     def __getitem__(self, i):
         return self.items[i]

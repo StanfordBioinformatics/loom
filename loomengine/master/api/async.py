@@ -118,9 +118,9 @@ def _run_execute_task_attempt_playbook(task_attempt):
 
     resources = task_attempt.task.run.template.resources
     if resources:
-        disk_size = resources.get('disk_size')
-        cores = resources.get('cores')
-        memory = resources.get('memory')
+        disk_size = resources.get('disk_size', '')
+        cores = resources.get('cores', '')
+        memory = resources.get('memory', '')
     else:
         disk_size = ''
         cores = ''

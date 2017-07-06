@@ -1,3 +1,4 @@
+import copy
 import django.core.exceptions
 import jsonschema
 import jsonschema.exceptions
@@ -68,21 +69,34 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
             else:
                 # Otherwise, create new.
                 data_object = self.Meta.model.objects.create(**validated_data)
+
+                # If file belongs to TaskAttemptLogFile, make the connection
+                log_file = self.context.get('task_attempt_log_file')
+                if log_file:
+                    log_file.setattrs_and_save_with_retries({
+                        'data_object': data_object})
+
                 try:
-                    # If file is attached to TaskAttemptLogFile, we
-                    # have to connect it before initializing FileResource
-                    # because that info is used in generating the file_url.
-                    log_file = self.context.get('task_attempt_log_file')
-                    if log_file:
-                        log_file.setattrs_and_save_with_retries({
-                            'data_object': data_object})
-                    value['data_object'] = data_object
-                    FileResource.initialize(**value)
+                    resource_init_args = copy.copy(value)
+                    if self.context.get('task_attempt'):
+                        resource_init_args['task_attempt'] = self.context.get(
+                            'task_attempt')
+                    resource_init_args['data_object'] = data_object
+                    file_resource = FileResource.initialize(**resource_init_args)
                     return data_object
                 except:
                     # Cleanup incomplete DataObject if we failed.
-                    data_object.delete()
+                    self._cleanup(data_object)
                     raise
+                    
+    def _cleanup(self, data_object):
+        try:
+            log_file = data_object.task_attempt_log_file
+            log_file.data_object=None
+            log_file.save()
+        except django.core.exceptions.ObjectDoesNotExist:
+            pass
+        data_object.delete()
 
     @classmethod
     def get_select_related_list(cls):

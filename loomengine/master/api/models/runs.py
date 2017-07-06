@@ -316,7 +316,7 @@ class Run(MPTTModel, BaseModel):
         self.connect_inputs_to_template_data()
         self.create_steps()
         async.postprocess_run(self.uuid)
-        
+
     def initialize_inputs(self):
         seen = set()
         for input in self.template.inputs.all():

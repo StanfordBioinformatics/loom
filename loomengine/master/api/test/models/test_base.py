@@ -1,6 +1,5 @@
 from django.test import TestCase
 
-from api.models import render_from_template
 from api.models.base import FilterHelper
 from api.models.data_objects import DataObject, FileResource
 from api import exceptions
@@ -15,15 +14,6 @@ def _create_file_data_object():
         md5='081deeb1218a094526005f5f00ffd0a1'
     )
     return data_object
-
-
-class TestRenderFromTemplate(TestCase):
-
-    def testRenderFromTemplate(self):
-        raw_text = 'My name is {{name}}'
-        context = {'name': 'Inigo'}
-        rendered_text = render_from_template(raw_text, context)
-        self.assertEqual(rendered_text, 'My name is Inigo')
 
 
 class TestFilterHelper(TestCase):

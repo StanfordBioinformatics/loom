@@ -129,9 +129,9 @@ class InputCalculator(object):
         For example, if an input has mode "gather" and just received 
         the first member of a 5-element 1-dimensional array, the input_data_path
         is ([0, 5],). That data will not be processed alone, but rather once all 5
-        elements arrive they will be processed as a single ArrayDataObject 
-        input for downstream tasks. The data_path of that array is up one level,
-        in general, which is at the root node (data_path=[]) in this example.
+        elements arrive they will be processed as a single array input for
+        downstream tasks. The data_path of that array is up one level, in
+        general, which is at the root node (data_path=[]) in this example.
         """
         if len(data_path) < gather_depth:
             return []

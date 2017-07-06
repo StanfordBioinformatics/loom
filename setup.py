@@ -102,7 +102,7 @@ setup(
                         'flower==0.9.1',
                         'google-api-python-client==1.6.2',
                         'google-apitools>=0.5.8',
-                        'google-cloud==0.23.0',
+                        'google-cloud==0.26.0',
                         'gunicorn>=19.7.1',
                         'Jinja2==2.9.6',
                         'jsonfield==2.0.1',

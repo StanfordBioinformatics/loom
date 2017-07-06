@@ -1,4 +1,4 @@
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
 from django.utils import timezone
 import jsonfield
@@ -66,14 +66,17 @@ class DataObject(BaseModel):
 
     @classmethod
     def _type_cast(cls, value, type):
-        if type == 'string':
-            return str(value)
-        if type == 'integer':
-            return int(value)
-        if type == 'float':
-            return float(value)
-        if type == 'boolean':
-            return not value in cls.FALSE_VALUES
+        try:
+            if type == 'string':
+                return str(value)
+            if type == 'integer':
+                return int(value)
+            if type == 'float':
+                return float(value)
+            if type == 'boolean':
+                return not value in cls.FALSE_VALUES
+        except ValueError:
+            raise ValidationError('"%s" is not a valid %s' % (value, type))
 
     @classmethod
     def _get_file_by_value(cls, value):
@@ -179,13 +182,15 @@ class FileResource(BaseModel):
                 cls._get_path_for_import(
                     kwargs.get('filename'),
                     kwargs.get('source_type'),
-                    kwargs.get('data_object')))
+                    kwargs.get('data_object'),
+                    kwargs.get('task_attempt')
+                ))
         return cls.objects.create(**kwargs)
 
     @classmethod
-    def _get_path_for_import(cls, filename, source_type, data_object):
+    def _get_path_for_import(cls, filename, source_type, data_object, task_attempt):
         parts = [cls._get_file_root()]
-        parts.extend(cls._get_breadcrumbs(source_type, data_object))
+        parts.extend(cls._get_breadcrumbs(source_type, data_object, task_attempt))
         parts.append(cls._get_subdir(source_type))
         parts.append(cls._get_expanded_filename(filename, data_object.uuid))
         return os.path.join(*parts)
@@ -213,33 +218,36 @@ class FileResource(BaseModel):
             assert False, 'Invalid source_type %s' % source_type
 
     @classmethod
-    def _get_breadcrumbs(cls, source_type, data_object):
+    def _get_breadcrumbs(cls, source_type, data_object, task_attempt):
         """Create a path for a given file, in such a way
         that files end up being organized and browsable by run
         """
 
-        # We should only be here if the file is connected to a TaskAttempt
-        if not source_type in ['log', 'work']:
+        # We cannot generate the path unless connect to a TaskAttempt
+        # and a run
+        if not task_attempt:
+            return []
+        task = task_attempt.task
+        if task is None:
+            return []
+        run = task.run
+        if run is None:
             return []
 
-        if source_type == 'log':
-            task_attempt \
-                = data_object.task_attempt_log_file.task_attempt
-        elif source_type == 'result':
-            task_attempt \
-                = data_object.task_attempt_output.task_attempt
+        breadcrumbs = [
+            "%s-%s" % (str(run.uuid)[0:8], run.name),
+            "task-%s" % str(task.uuid)[0:8],
+            "attempt-%s" % str(task_attempt.uuid)[0:8],
+        ]
 
-        task = task_attempt.task
-        run = task.run
-        breadcrumbs = ["%s-%s" % (str(run.uuid)[0:8], run.name),
-                       "task-%s" % str(task.uuid)[0:8],
-                       "attempt-%s" % str(task_attempt.uuid)[0:8]]
+        # Include any ancestors if run is nested
         while run.parent is not None:
             run = run.parent
             breadcrumbs = [
                 "%s-%s" % (str(run.uuid)[0:8], run.name)] \
                 + breadcrumbs
-        # Prepend first run with datetime
+
+        # Prepend first breadcrumb with datetime
         breadcrumbs[0] = "%s-%s" % (
             run.datetime_created.strftime('%Y-%m-%dT%H.%M.%SZ'),
             breadcrumbs[0])

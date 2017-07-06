@@ -65,8 +65,9 @@ def are_paths_equal(path1, path2):
     for pair1, pair2 in zip(path1, path2):
         if int(pair1[0]) != int(pair2[0]):
             return False
-        if int(pair1[1]) != int(pair2[2]):
+        if int(pair1[1]) != int(pair2[1]):
             return False
+    return True
 
 
 class TestInputCalculator(TestCase):
@@ -144,10 +145,9 @@ class TestInputCalculator(TestCase):
         self.assertEqual(len(input_sets), 1)
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 1)
-        data_object = input_items[0].get_data_object()
-        self.assertTrue(data_object.is_array)
-        self.assertEqual(data_object.substitution_value,
-                         ['i','a','m','r','o','b','o','t'])
+        data_node = input_items[0].data_node
+        self.assertEqual(data_node.substitution_value,
+                         [['i'],['a','m'],['r','o','b','o','t']])
 
     def testSingleScalarInput(self):
         channel = 'a_scalar_channel'
@@ -162,7 +162,7 @@ class TestInputCalculator(TestCase):
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, channel)
-        self.assertEqual(input_items[0].get_data_object().substitution_value,
+        self.assertEqual(input_items[0].data_node.data_object.substitution_value,
                          scalar_input_text)
 
     def testSingleParallelInput(self):
@@ -178,7 +178,7 @@ class TestInputCalculator(TestCase):
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, channel)
-        self.assertEqual(input_items[0].get_data_object().substitution_value,
+        self.assertEqual(input_items[0].data_node.data_object.substitution_value,
                          'i')
 
     def testSingleParallelInputWithGatherMissingData(self):
@@ -202,8 +202,8 @@ class TestInputCalculator(TestCase):
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, channel)
-        self.assertEqual(input_items[0].get_data_object().substitution_value,
-                         ['i','a','m','r','o','b','o','t'])
+        self.assertEqual(input_items[0].data_node.substitution_value,
+                         [['i'],['a','m'],['r','o','b','o','t']])
 
     def testTwoInputsSameGroup(self):
         channel = 'channel1'
@@ -268,8 +268,10 @@ class TestInputCalculator(TestCase):
         t = InputCalculator([input1, input2], channel2, [])
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 8*3)
-        self.assertEqual(input_sets[0].data_path, [(0,3),(0,1),(0,3),(0,1)])
-        self.assertEqual(input_sets[4].data_path, [(1,3),(0,2),(2,3),(0,5)])
+        self.assertTrue(are_paths_equal(
+            input_sets[0].data_path, [(0,3),(0,1),(0,3),(0,1)]))
+        self.assertTrue(are_paths_equal(
+            input_sets[4].data_path, [(1,3),(0,2),(2,3),(0,5)]))
         input_items = input_sets[0].input_items
         self.assertEqual(len(input_items), 2)
 
@@ -295,27 +297,27 @@ class TestInputSetGeneratorNode(TestCase):
 
     def testCreateFromRoot(self):
         step_run_input = getInputWithFullTree(mode='no_gather')
-        generator = InputSetGeneratorNode.create_from_input_output_node(step_run_input)
+        generator = InputSetGeneratorNode.create_from_data_channel(step_run_input)
         input_sets = generator.get_input_sets([])
         self.assertEqual(len(input_sets), len(full_input_data))
         
     def testCreateFromRootWithGather(self):
         step_run_input = getInputWithFullTree(mode='gather')
-        generator = InputSetGeneratorNode.create_from_input_output_node(
+        generator = InputSetGeneratorNode.create_from_data_channel(
             step_run_input, gather_depth=1)
         input_sets = generator.get_input_sets([])
         self.assertEqual(len(input_sets), 3) # 8 letters are merged into 3 arrays
 
     def testCreateFromTargetPath(self):
         step_run_input = getInputWithFullTree(mode='no_gather')
-        generator = InputSetGeneratorNode.create_from_input_output_node(
+        generator = InputSetGeneratorNode.create_from_data_channel(
             step_run_input, target_path=[(2,3),])
         input_sets = generator.get_input_sets([])
         self.assertEqual(len(input_sets), 5) # 5 letters of last word only
 
     def testCreateFromTargetPathWithGather(self):
         step_run_input = getInputWithFullTree(mode='gather')
-        generator = InputSetGeneratorNode.create_from_input_output_node(
+        generator = InputSetGeneratorNode.create_from_data_channel(
             step_run_input, target_path=[(2,3),], gather_depth=1)
         input_sets = generator.get_input_sets([])
         self.assertEqual(len(input_sets), 1) # last word gathered into array
@@ -326,9 +328,9 @@ class TestInputSetGeneratorNode(TestCase):
         # True for either order.
         step_run_input_full = getInputWithFullTree(mode='no_gather')
         step_run_input_partial = getInputWithPartialTree(mode='no_gather')
-        generator_full = InputSetGeneratorNode.create_from_input_output_node(
+        generator_full = InputSetGeneratorNode.create_from_data_channel(
             step_run_input_full, target_path=[], gather_depth=0)
-        generator_partial = InputSetGeneratorNode.create_from_input_output_node(
+        generator_partial = InputSetGeneratorNode.create_from_data_channel(
             step_run_input_partial, target_path=[], gather_depth=0)
         generator_combined = generator_full.dot_product(generator_partial)
         generator_reverse = generator_partial.dot_product(generator_full)
@@ -337,20 +339,20 @@ class TestInputSetGeneratorNode(TestCase):
         self.assertEqual(len(input_sets), 3)
         self.assertEqual(len(input_sets_reverse), 3)
         self.assertEqual(input_sets[0].input_items[0]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
         self.assertEqual(input_sets[0].input_items[1]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
         self.assertEqual(input_sets_reverse[0].input_items[0]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
         self.assertEqual(input_sets_reverse[0].input_items[1]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
 
     def testCrossProduct(self):
         step_run_input_full = getInputWithFullTree(mode='no_gather')
         step_run_input_partial = getInputWithPartialTree(mode='no_gather')
-        generator_full = InputSetGeneratorNode.create_from_input_output_node(
+        generator_full = InputSetGeneratorNode.create_from_data_channel(
             step_run_input_full, target_path=[], gather_depth=0)
-        generator_partial = InputSetGeneratorNode.create_from_input_output_node(
+        generator_partial = InputSetGeneratorNode.create_from_data_channel(
             step_run_input_partial, target_path=[], gather_depth=0)
         generator_combined = generator_full.cross_product(generator_partial)
         generator_reverse = generator_partial.cross_product(generator_full)
@@ -359,13 +361,13 @@ class TestInputSetGeneratorNode(TestCase):
         self.assertEqual(len(input_sets), 3 * 8)
         self.assertEqual(len(input_sets_reverse), 8 * 3)
         self.assertEqual(input_sets[0].input_items[0]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
         self.assertEqual(input_sets[0].input_items[1]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
         self.assertEqual(input_sets_reverse[0].input_items[0]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
         self.assertEqual(input_sets_reverse[0].input_items[1]\
-                          .get_data_object().substitution_value, 'i')
+                          .data_node.data_object.substitution_value, 'i')
 
 
 # TEST CASES

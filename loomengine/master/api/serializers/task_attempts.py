@@ -70,8 +70,8 @@ class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
             s = DataObjectSerializer(data=dataobject_data,
                                      context={
                                          'request': self.request,
-                                         'task_attempt_log_file': instance}
-                                     )
+                                         'task_attempt': instance.task_attempt}
+            )
             s.is_valid(raise_exception=True)
             s.save()
         return instance
