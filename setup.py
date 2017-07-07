@@ -87,7 +87,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-                        'ansible==2.3.0.0',
+                        'ansible==2.3.1.0',
                         'apache-libcloud==1.5.0',
                         'celery==4.0.2',
                         'Django==1.11',
@@ -102,7 +102,7 @@ setup(
                         'flower==0.9.1',
                         'google-api-python-client==1.6.2',
                         'google-apitools>=0.5.8',
-                        'google-cloud==0.25.0',
+                        'google-cloud==0.26.0',
                         'gunicorn>=19.7.1',
                         'Jinja2==2.9.6',
                         'jsonfield==2.0.1',
@@ -111,7 +111,7 @@ setup(
                         'oauth2client==3.0.0',
                         'python-dateutil==2.6.0',
                         'PyYAML==3.12',
-                        'requests==2.13.0',            # match docker-py dependency
+                        'requests==2.17.3',            # match docker-py dependency
                         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
                         'setuptools-git==1.2',
                         'SQLAlchemy==1.1.9',
@@ -145,7 +145,7 @@ setup(
      entry_points={
          'console_scripts': [
              'loom=loomengine.client.main:main',
-             'loom-taskrunner=loomengine.worker.task_runner:main',
+             'loom-execute-task=loomengine.worker.task_execution_manager:main',
          ],
      },
 )

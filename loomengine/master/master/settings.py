@@ -50,11 +50,11 @@ ALLOWED_HOSTS = to_list(os.getenv('LOOM_MASTER_ALLOWED_HOSTS', '[*]'))
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
-WORKER_TYPE = os.getenv('WORKER_TYPE', 'LOCAL').upper()
 LOOM_STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'LOCAL').upper()
 
 STATIC_ROOT = os.getenv('LOOM_MASTER_STATIC_ROOT', '/tmp/static')
 
+SERVER_NAME = os.getenv('LOOM_SERVER_NAME', 'loom') # used in attempt contianer names
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
 LOOM_STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-data'))
@@ -132,12 +132,11 @@ FORCE_RERUN = True
 
 # For testing only
 TEST_DISABLE_ASYNC_DELAY = to_boolean(os.getenv('TEST_DISABLE_ASYNC_DELAY', False))
-TEST_NO_TASK_CREATION = to_boolean(os.getenv('TEST_NO_TASK_CREATION', False))
+TEST_NO_CREATE_TASK = to_boolean(os.getenv('TEST_NO_CREATE_TASK', False))
 TEST_NO_RUN_TASK_ATTEMPT = to_boolean(os.getenv('TEST_NO_RUN_TASK_ATTEMPT', False))
 TEST_NO_POSTPROCESS = to_boolean(os.getenv('TEST_NO_POSTPROCESS', False))
-TEST_NO_PUSH_INPUTS_ON_RUN_CREATION = to_boolean(os.getenv(
-    'TEST_NO_PUSH_INPUTS_ON_RUN_CREATION', False))
-
+TEST_NO_PUSH_INPUTS_ON_RUN_CREATION = to_boolean(
+    os.getenv('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION', False))
 
 # Fixed settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -338,3 +337,11 @@ if DEBUG:
         'MEDIA_URL': '/__debug__/m/',
         'SHOW_TOOLBAR_CALLBACK': custom_show_toolbar,
     }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': '232871b2',
+        'TIMEOUT': 0,
+    }
+}

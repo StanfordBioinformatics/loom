@@ -1,7 +1,7 @@
 import copy
 
 template = {
-    "fixed_inputs": [
+    "inputs": [
         {
             "channel": "delimiter", 
             "data": {
@@ -46,9 +46,9 @@ def make_many_steps(count):
                     }
                 ], 
                 "resources": {
-                    "cores": 1, 
-                    "disk_space": 1, 
-                    "memory": 1
+                    "cores": "1", 
+                    "disk_size": "1", 
+                    "memory": "1"
                 }
             }
         )
@@ -73,9 +73,9 @@ def make_many_steps(count):
                 }
             ], 
             "resources": {
-                "cores": 1, 
-                "disk_space": 1, 
-                "memory": 1
+                "cores": "1", 
+                "disk_size": "1", 
+                "memory": "1"
             }
         })
 

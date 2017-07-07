@@ -370,8 +370,9 @@ class GoogleStorageDestination(AbstractDestination):
         return self.blob.exists()
 
     def is_dir(self):
-        # No dirs in Google Storage, just blobs
-        return False
+        # No dirs in Google Storage, just blobs.
+        # Call it a dir if it ends in /
+        self.url.geturl().endswith('/')
 
     def write(self, content):
         with tempfile.NamedTemporaryFile('w') as f:
@@ -422,7 +423,7 @@ class LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise e
+                raise
         shutil.copy(self.source.get_path(), self.destination.get_path())
 
     def move(self):
@@ -432,7 +433,7 @@ class LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise e
+                raise
         shutil.move(self.source.get_path(), self.destination.get_path())
 
 
@@ -490,85 +491,132 @@ class FileManager:
         self.connection = Connection(master_url)
         self.settings = self.connection.get_filemanager_settings()
 
-    def import_from_patterns(self, patterns, note, force_duplicates=False):
+    def import_from_patterns(self, patterns, comments, force_duplicates=False):
         files = []
         for pattern in patterns:
             files.extend(self.import_from_pattern(
-                pattern, note, force_duplicates=force_duplicates))
+                pattern, comments, force_duplicates=force_duplicates))
         return files
 
-    def import_from_pattern(self, pattern, note, force_duplicates=False):
+    def import_from_pattern(self, pattern, comments, force_duplicates=False):
         files = []
         for source in SourceSet(pattern, self.settings):
             files.append(self.import_file(
                 source.get_url(),
-                note,
+                comments,
                 force_duplicates=force_duplicates
             ))
         return files
 
-    def import_file(self, source_url, note, force_duplicates=False):
-        return self._execute_file_import(
-            self._create_file_data_object_for_import(
-                source_url, note, force_duplicates=force_duplicates),
-            source_url,
-        )
-
-    def _create_file_data_object_for_import(self, source_url, note,
-                                            force_duplicates=True):
+    def import_file(self, source_url, comments, force_duplicates=False):
         source = Source(source_url, self.settings)
-        filename = source.get_filename()
+        data_object = self._create_file_data_object_for_import(
+            source, comments, force_duplicates=force_duplicates)
+        return self._execute_file_import(data_object, source)
 
-        logger.info('Calculating md5 on file "%s"...' % source_url)
+    def _create_file_data_object_for_import(self, source, comments,
+                                            force_duplicates=True):
+        filename = source.get_filename()
+        logger.info('Calculating md5 on file "%s"...' % source.get_url())
         md5 = source.calculate_md5()
 
         if not force_duplicates:
-            files = self.connection.get_file_data_object_index(
-                query_string='%%%s' % md5)
-            if len(files) > 0:
-                md5 = files[0].get('md5')
-                matches = []
-                for file in files:
-                    matches.append('%s@%s' % (file.get('filename'), file.get('uuid')))
-                raise DuplicateFileError(
-                    'ERROR! One or more files with md5 %s already exist: "%s". '\
-                    'Use "--force-duplicates" if you want to create another copy.'
-                    % (md5, '", "'.join(matches)))
-        
-        file_data_object = self.connection.post_data_object({
-            'type': 'file',
+            self._verify_no_duplicates(md5)
+
+        value = {
             'filename': filename,
             'md5': md5,
-            'file_import': {
-                'source_url': source.get_url(),
-                'note': note },
+            'imported_from_url': source.get_url(),
             'source_type': 'imported',
+        }
+        if comments:
+            value['import_comments'] = comments
+
+        return self.connection.post_data_object({
+            'type': 'file',
+            'value': value
         })
-        return file_data_object
+
+    def _verify_no_duplicates(self, md5):
+        files = self.connection.get_data_object_index(
+            query_string='$%s' % md5, type='file')
+        if len(files) == 0:
+            return
+        md5 = files[0].get('md5')
+        matches = []
+        for file in files:
+            value = file.get('value')
+            try:
+                filename = value.get('filename')
+            except AttributeError:
+                filename = ''
+            matches.append('%s@%s' % (filename, file.get('uuid')))
+        raise DuplicateFileError(
+            'ERROR! One or more files with md5 %s already exist: "%s". '\
+            'Use "--force-duplicates" if you want to create another copy.'
+            % (md5, '", "'.join(matches)))
 
     def import_result_file(self, task_attempt_output, source_url):
         logger.info('Calculating md5 on file "%s"...' % source_url)
         source = Source(source_url, self.settings)
         md5 = source.calculate_md5()
+        task_attempt_output = self._create_task_attempt_output_file(
+            task_attempt_output, md5, source.get_filename())
+        data_object = task_attempt_output['data']['contents']
+        return self._execute_file_import(data_object, source)
 
-        file_data_object = self._execute_file_import(
-            self._create_task_attempt_output_file(task_attempt_output, md5),
-            source_url
-        )
-        return file_data_object
-
-    def _create_task_attempt_output_file(self, task_attempt_output, md5):
-        updated_task_attempt_output = self.connection.update_task_attempt_output(
-            task_attempt_output['id'],
+    def _create_task_attempt_output_file(
+            self, task_attempt_output, md5, filename):
+        return self.connection.update_task_attempt_output(
+            task_attempt_output['uuid'],
             {
-                'data_object': {
+                'data': {
                     'type': 'file',
-                    'filename': task_attempt_output['source']['filename'],
+                    'contents': {
+                        'type': 'file',
+                        'value': {
+                            'filename': filename,
+                            'source_type': 'result',
+                            'md5': md5,
+                        }}}})
+
+    def import_result_file_list(self, task_attempt_output, source_url_list):
+        md5_list = []
+        filename_list = []
+        for source_url in source_url_list:
+            logger.info('Calculating md5 on file "%s"...' % source_url)
+            source = Source(source_url, self.settings)
+            md5_list.append(source.calculate_md5())
+            filename_list.append(source.get_filename())
+        task_attempt_output = self._create_task_attempt_output_file_array(
+            task_attempt_output, md5_list, filename_list)
+        data_object_array = task_attempt_output['data']['contents']
+        imported_data_objects = []
+        for (source_url, data_object) in zip(source_url_list, data_object_array):
+            source = Source(source_url, self.settings)
+            imported_data_objects.append(
+                self._execute_file_import(data_object, source))
+        return imported_data_objects
+
+    def _create_task_attempt_output_file_array(
+            self, task_attempt_output, md5_array, filename_array):
+        contents = []
+        for md5, filename in zip(md5_array, filename_array):
+            contents.append({
+                'type': 'file',
+                'value': {
+                    'filename': filename,
                     'source_type': 'result',
                     'md5': md5,
                 }})
-        return updated_task_attempt_output.get('data_object')
-
+        return self.connection.update_task_attempt_output(
+            task_attempt_output['uuid'],
+            {
+                'data': {
+                    'type': 'file',
+                    'contents': contents
+                    }})
+            
     def import_log_file(self, task_attempt, source_url):
         log_name = os.path.basename(source_url)
         log_file = self.connection.post_task_attempt_log_file(
@@ -578,43 +626,27 @@ class FileManager:
         source = Source(source_url, self.settings)
         md5 = source.calculate_md5()
 
-        file_data_object = self.\
-                           connection.task_attempt_log_file_initialize_file_data_object(
-                               log_file['uuid'])
+        data_object = self.\
+                      connection.post_task_attempt_log_file_data_object(
+                          log_file['uuid'],
+                          {
+                              'type': 'file',
+                              'value': {
+                                  'filename': log_name,
+                                  'source_type': 'log',
+                                  'md5': md5,
+                }})
+        
+        return self._execute_file_import(data_object, source)
 
-        assert not file_data_object.get('md5')
-        file_data_object.update({'md5': md5,
-                                 'filename': log_name})
-        # update file_data_object with md5 and other missing info
-        file_data_object = self.connection.update_data_object(
-            file_data_object['uuid'], file_data_object)
-        return self._execute_file_import(
-            file_data_object,
-            source_url
-        )
-
-    def _execute_file_import(self, file_data_object, source_url):
-        # A new file_data_object will typically have a file_resource with 
-        # status=incomplete
-        # If the server is configured not to save multiple files with
-        # identical content, the data_object.file_resource may have
-        # status=complete, indicating that no re-upload is needed.
-        #
-        file_data_object['file_resource'] = self.connection.\
-                                            file_data_object_initialize_file_resource(
-                                                file_data_object['uuid'])
-
-        source = Source(source_url, self.settings)
+    def _execute_file_import(self, file_data_object, source):
         logger.info('Importing file from %s...' % source.get_url())
-
-        if file_data_object['file_resource']['upload_status'] == 'complete':
-            logger.info(
-                '   server already has the file. Skipping upload.')
+        if file_data_object['value']['upload_status'] == 'complete':
+            logger.info('   server already has the file. Skipping upload.')
             return file_data_object
-
         try:
             destination = Destination(
-                file_data_object['file_resource']['file_url'],
+                file_data_object['value']['file_url'],
                 self.settings)
             logger.info(
                 '   copying to destination %s ...' % destination.get_url())
@@ -633,75 +665,72 @@ class FileManager:
         file_data_object = self._set_upload_status(
             file_data_object, 'complete')
         logger.info('   imported file %s@%s' % (
-            file_data_object['filename'],
+            file_data_object['value']['filename'],
             file_data_object['uuid']))
         return file_data_object
 
     def _set_upload_status(self, file_data_object, upload_status):
         """ Set file_data_object.file_resource.upload_status
         """
-        file_resource = file_data_object['file_resource']
-        file_resource['upload_status'] = upload_status
-        file_resource = self.connection.update_file_resource(
-            file_resource['uuid'],
-            file_resource
-        )
-        file_data_object['file_resource'] = file_resource
-        return file_data_object
+        file_data_object['value']['upload_status'] = upload_status
+        return self.connection.update_data_object(
+            file_data_object['uuid'],
+            file_data_object)
 
     def export_files(self, file_ids, destination_url=None):
         if destination_url is not None and len(file_ids) > 1:
             # destination must be a directory
             if not Destination(destination_url, self.settings).is_dir():
                 raise Exception(
-                    'Destination must be a directory if multiple files are exported. "%s" is not a directory.'
+                    'Destination must be a directory if multiple files '\
+                    'are exported. "%s" is not a directory.'
                     % destination_url)
         for file_id in file_ids:
             self.export_file(file_id, destination_url=destination_url)
 
-    def export_file(self, file_id, destination_url=None):
+    def export_file(self, file_id, destination_url=None, destination_filename=None):
+        """Export a file from Loom to some file storage location.
+        Default destination_url is cwd. Default destination_filename is the 
+        filename from the file data object associated with the given file_id.
+        destination_url may be for a file or a directory. If destination_filename
+        is given, destination_url must be a directory.
+        """
         # Error raised if there is not exactly one matching file.
-        file_data_object = self.connection.get_file_data_object_index(query_string=file_id, max=1, min=1)[0]
+        data_object = self.connection.get_data_object_index(
+            query_string=file_id, type='file', max=1, min=1)[0]
 
         if not destination_url:
             destination_url = os.getcwd()
-        default_name = file_data_object['filename']
-        destination_url = self.get_destination_file_url(destination_url, default_name)
-        destination = Destination(destination_url, self.settings)
+        
+        if Destination(destination_url, self.settings).is_dir():
+            # Filename not given with destination_url. We get it from inputs
+            # or from the object specified by file_id
+            if not destination_filename:
+                destination_filename = data_object['value']['filename']
+            destination_file_url = os.path.join(destination_url,
+                                                destination_filename)
+        else:
+            if destination_filename:
+                raise Exception('Conflicting args: cannot give both destination_url '
+                                ' and destination_filename unless destination_url '
+                                ' is a directory')
+            # Filename is included with destination_url
+            destination_file_url = destination_url   
 
-        logger.info('Exporting file %s@%s to %s...' % (file_data_object['filename'], file_data_object['uuid'], destination.get_url()))
+        destination = Destination(destination_file_url, self.settings)
+        if destination.exists():
+            raise FileAlreadyExistsError('File already exists at %s' % destination_url)
+
+        logger.info('Exporting file %s@%s to %s...' % (
+            data_object['value']['filename'],
+            data_object['uuid'],
+            destination.get_url()))
 
         # Copy from the first file location
-        source_url = file_data_object['file_resource']['file_url']
+        source_url = data_object['value']['file_url']
         Source(source_url, self.settings).copy_to(destination)
 
         logger.info('...finished exporting file')
-
-    def get_destination_file_url(self, requested_destination, default_name):
-        """destination may be a file, a directory, or None
-        This function accepts the specified file desitnation, 
-        or creates a sensible default that will not overwrite an existing file.
-        """
-        if requested_destination is None:
-            auto_destination = os.path.join(os.getcwd(), default_name)
-            destination = self._rename_to_avoid_overwrite(auto_destination)
-        elif Destination(requested_destination, self.settings).is_dir():
-            auto_destination = os.path.join(requested_destination, default_name)
-            destination = self._rename_to_avoid_overwrite(auto_destination)
-        else:
-            # Don't modify a file destination specified by the user, even if it overwrites something.
-            destination = requested_destination
-        return self.normalize_url(destination)
-
-    def _rename_to_avoid_overwrite(self, destination_path):
-        root = destination_path
-        destination = Destination(root, self.settings)
-        counter = 0
-        while destination.exists():
-            counter += 1
-            destination_path = '%s(%s)' % (root, counter)
-            destination = Destination(destination_path, self.settings)
-        return destination_path
 
     def read_file(self, url):
         source = Source(url, self.settings)

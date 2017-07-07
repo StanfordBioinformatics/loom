@@ -3,8 +3,8 @@ import yaml
 NUM_STEPS = 10
 
 workflow = {"name":"fib",
-            "fixed_inputs":[{"type":"string","channel":"fib0","data":{"contents":"0"}},
-                            {"type":"string","channel":"fib1","data":{"contents":"1"}},
+            "inputs":[{"type":"string","channel":"fib0","data":{"contents":"0"}},
+                      {"type":"string","channel":"fib1","data":{"contents":"1"}},
             ],
             "outputs":[{"type":"string","channel":"fib"+str(NUM_STEPS+1)}],
             "steps":[],

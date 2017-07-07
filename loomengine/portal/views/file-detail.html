@@ -5,7 +5,7 @@
       <tr>
         <th>Filename</th>
 	<td>
-          {{activeData.file.filename}}
+          {{activeData.file.value.filename}}
 	</td>
       </tr>
       <tr>
@@ -17,25 +17,25 @@
       <tr>
 	<th>md5</th>
 	<td>
-          {{activeData.file.md5}}
+          {{activeData.file.value.md5}}
         </td>
       </tr>
-      <tr ng-show="activeData.file.file_resource">
+      <tr>
 	<th>File URL</th>
 	<td>
-	  {{activeData.file.file_resource.file_url}}
+	  {{activeData.file.value.file_url}}
         </td>
       </tr>
-      <tr ng-show="activeData.file.file_import.source_url">
-        <th>Source URL</th>
+      <tr ng-show="activeData.file.value.imported_from_url">
+        <th>Imported from URL</th>
 	<td>
-	  {{activeData.file.file_import.source_url}}
+	  {{activeData.file.value.imported_from_url}}
 	</td>
       </tr>
-      <tr ng-show="activeData.file.file_import.note">
-	<th>Note</th>
+      <tr ng-show="activeData.file.value.import_comments">
+	<th>Import comments</th>
 	<td>
-	  {{activeData.file.file_import.note}}
+	  {{activeData.file.value.import_comments}}
 	</td>
       </tr>
     </tbody>

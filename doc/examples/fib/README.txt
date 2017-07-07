@@ -1,22 +1,36 @@
+This template demonstrates how channels are used to declare
+dependencies between steps to create concurrent
+or serial execution. It is also useful for creating
+a wide, shallow workflow, i.e. with many steps that
+are not nested.
+
 To run this workflow:
 
-1. Import the template
+1. If running for the first time, start the server
+
+      loom server start --settings-file local.conf
+
+2. Import the template
 
       loom import template fib.yaml
 
-2. Execute the run
+3. Execute the run
 
       loom run fib
 
-3. Monitor the run from the commandline
+      # Or to override default input values:
+
+      loom run fib fib0=7 fib1=13
+
+4. Monitor the run from the commandline
 
       loom show run fib --detail
 
-4. Monitor the run in the browser
+5. Monitor the run in the browser
 
       loom browser
 
-5. If you want to delete the Loom server
+6. If you want to delete the Loom server
 
       loom server delete
 

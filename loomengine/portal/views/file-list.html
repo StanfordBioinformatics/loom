@@ -11,12 +11,10 @@
     <tbody>
       <tr ng-repeat="file in files">
 	<td>
-	  <a ng-href="#/files/{{file.uuid}}">
-	    {{file.filename}}@{{file.uuid}}
-	  </a>
+	  <loom-data contents="file"></loom-data>
 	</td>
         <td>
-          {{file.md5}}
+          {{file.value.md5}}
         </td>
 	<td>
 	  {{file.datetime_created | date:'medium'}}

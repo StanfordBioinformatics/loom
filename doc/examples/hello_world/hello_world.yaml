@@ -7,7 +7,6 @@ inputs:
 - type: file
   hint: Enter the 'world' file
   channel: world
-fixed_inputs:
 - type: string
   channel: final_punc
   data:
@@ -57,10 +56,13 @@ steps:
   inputs:
   - type: file
     channel: hello_cap
+    group: 0
   - type: file
     channel: world_cap
+    group: 0
   - type: string
     channel: final_punc
+    group: 1
   outputs:
   - type: string
     channel: hello_world

@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import rest_framework
+from rest_framework.exceptions import NotFound
 from rest_framework import viewsets, serializers, response, status
 from rest_framework.decorators import detail_route
 
@@ -15,264 +16,136 @@ from api import serializers
 from api import async
 from loomengine.utils import version
 
-from django.http import HttpResponseBadRequest, Http404
 
 logger = logging.getLogger(__name__)
 
-DATA_CLASSES = {'file': models.FileDataObject,
-                'string': models.StringDataObject,
-                'boolean': models.BooleanDataObject,
-                'float': models.FloatDataObject,
-                'integer': models.IntegerDataObject}
-
 
 class ExpandableViewSet(viewsets.ModelViewSet):
+    """Some models contain nested data that cannot be rendered in an index
+    view in a finite number of queries, making it very slow to render all nested
+    data as the number of model instances grows.
 
-    def get_serializer_context(self):
-        return {'request': self.request,
-                'expand': 'expand' in self.request.query_params,
-                'collapse': 'collapse' in self.request.query_params,
-                'summary': 'summary' in self.request.query_params}
+    For these models, we include three distinct serializers:
+    - default (collapsed): Includes all data either rendered or through links
+    - expanded: Includes all data fully rendered
+    - summary: Include a subset of data useful for display. This is
+    useful for efficiently rendering a skeleton version of nested data.
+    - url: Show only the model's id and url
+
+    Because the number of database queries with the number of objects for
+    summary and expanded views, these are disabled in the index view.
+
+    URL serializers are not useful when accessed directly from the viewset, 
+    since they only container information that was implicit in the URL from 
+    which they were retrieved. But collapsed serializers use url serializers 
+    to minimally represent nested data, and a ?url option is include with the
+    viewsets for testing purposes.
+
+    Write behavior for all serializers types is the same. Only the representation
+    differs.
+    """
+
+    def get_serializer_class(self):
+        if 'expand' in self.request.query_params:
+            return self.EXPANDED_SERIALIZER
+        elif 'summary' in self.request.query_params:
+            return self.SUMMARY_SERIALIZER
+        elif 'url' in self.request.query_params:
+            return self.URL_SERIALIZER
+        else:
+            return self.DEFAULT_SERIALIZER
 
     def list(self, request):
-        if self.get_serializer_context()['expand']:
+        if 'expand' in self.request.query_params:
             return response.Response(
                 {"non_field_errors":
                  "'expand' mode is not allowed in a list view."},
                 status=rest_framework.status.HTTP_400_BAD_REQUEST)
-        if self.get_serializer_context()['summary']:
+        elif 'summary' in self.request.query_params:
             return response.Response(
                 {"non_field_errors":
                  "'summary' mode is not allowed in a list view."},
                 status=rest_framework.status.HTTP_400_BAD_REQUEST)
         return super(ExpandableViewSet, self).list(self, request)
 
+    def get_queryset(self):
+        Serializer = self.get_serializer_class()
+        queryset = Serializer.Meta.model.objects.all()
+        queryset = Serializer.apply_prefetch(queryset)
+        return queryset #.order_by('-datetime_created')
+
 
 class DataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of any type, including arrays.
-    For documentation of each data type, see the respective /api/data-*/ endpoints.
+    """Each DataObject represents a value of type file, string, boolean, integer, or float.
     """
 
     lookup_field = 'uuid'
-    serializer_class = serializers.DataObjectSerializer
 
-    def get_queryset(self):
-        queryset = models.DataObject.objects.all()
-        queryset = queryset.select_related('stringdataobject')\
-                           .select_related('filedataobject')\
-                           .select_related('filedataobject__file_resource')\
-                           .select_related('booleandataobject')\
-                           .select_related('integerdataobject')\
-                           .select_related('floatdataobject')\
-                           .select_related('arraydataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'arraydataobject__prefetch_members__filedataobject__'\
-                               'file_resource')
-        return queryset.order_by('-datetime_created')
-
-
-class FileDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'file'. parameters:
-    q = {file query string e.g. filename@uuid};
-    source_type = [ 'log' | 'imported' | 'result' ].
-    All Data Object types including 'file' may be managed at /api/data-objects/,
-    but file-specific parameters are processed only at /api/data-files/
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.FileDataObjectSerializer
+    def get_serializer_class(self):
+        if self.action == 'partial_update':
+            return serializers.DataObjectUpdateSerializer
+        else:
+            return serializers.DataObjectSerializer
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
+        type = self.request.query_params.get('type', '')
         source_type = self.request.query_params.get('source_type', '')
         if query_string:
-            queryset = models.FileDataObject.filter_by_name_or_id_or_hash(query_string)
+            queryset = models.DataObject.filter_by_name_or_id_or_hash(query_string)
         else:
-            queryset = models.FileDataObject.objects.all()
+            queryset = models.DataObject.objects.all()
         if source_type and source_type != 'all':
-            queryset = queryset.filter(source_type=source_type)
-        queryset = queryset.select_related('file_resource')
-        return queryset.order_by('-datetime_created')
-
-    @detail_route(methods=['post'], url_path='initialize-file-resource',
-                  # Use base serializer since request has no data. Used by API doc.
-                  serializer_class=rest_framework.serializers.Serializer)
-
-    def initialize_file_resource(self, request, uuid=None):
-        try:
-            file_data_object = models.FileDataObject.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        if file_data_object.file_resource:
-            s = serializers.FileResourceSerializer(
-                file_data_object.file_resource, context={'request': request})
-            return JsonResponse(s.data, status=200)
-        file_data_object.initialize_file_resource()
-        s = serializers.FileResourceSerializer(
-            file_data_object.file_resource, context={'request': request})
-        return JsonResponse(s.data, status=201)
-
-
-class StringDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'string'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.StringDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.StringDataObject.objects.all()
+            queryset = queryset.filter(file_resource__source_type=source_type)
+        if type:
+            queryset = queryset.filter(type=type)
+        queryset = self.get_serializer_class().apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
 
-class BooleanDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'boolean'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
+class DataNodeViewSet(ExpandableViewSet):
+    """DataNodes are used to organize DataObjects into arrays or trees to facilitate parallel runs. All nodes in a tree must have the same type. The 'contents' field is a JSON containing a single DataObject, a list of DataObjects, or nested lists. For write actions, each DataObject can be represented in full for as a dict, or as a string, where the string represents a given value (e.g. '3' for type integer), or a reference id (e.g. myfile.txt@22588117-425d-44f9-8a61-0cfd4d241d5e). PARAMS: ?expand or ?summary will show data contents (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.BooleanDataObjectSerializer
 
-    def get_queryset(self):
-        queryset = models.BooleanDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class IntegerDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'integer'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.IntegerDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.IntegerDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class FloatDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Data Objects of type 'float'.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts all data object types.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.FloatDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.FloatDataObject.objects.all()
-        return queryset.order_by('-datetime_created')
-
-
-class ArrayDataObjectViewSet(viewsets.ModelViewSet):
-    """
-    Array Data Objects of any type.
-    'members' contains a JSON formatted list of member data objects.
-    Each DataObject representation may be a complete object, the value from which
-    a new object will be created, or the identifier from which an existing
-    FileDataObject can be looked up.
-    This endpoint is primarily for documentation.
-    Use /api/data-objects/ instead, which accepts both array and non-array DataObjects.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.ArrayDataObjectSerializer
-
-    def get_queryset(self):
-        queryset = models.DataObject.objects.all()
-        queryset = queryset.filter(is_array=True)
-        return queryset.order_by('-datetime_created')
-
-
-class DataTreeViewSet(ExpandableViewSet):
-    """
-    A tree whose nodes represent DataObjects, all of the same type.
-    The 'contents' field is a JSON that may be a DataObject, a list of
-    DataObjects, or nested lists of DataObjects representing a tree structure.
-    Each DataObject representation may be a complete object, the value from which
-    a new object will be created, or the identifier from which an existing
-    FileDataObject can be looked up.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.DataTreeNodeSerializer
-
-    def get_queryset(self):
-        queryset = models.DataTreeNode.objects.filter(parent__isnull=True)
-        queryset = queryset\
-                   .select_related('data_object')\
-                   .prefetch_related('descendants__data_object')\
-                   .prefetch_related('descendants__data_object__stringdataobject')\
-                   .prefetch_related('descendants__data_object__filedataobject')\
-                   .prefetch_related(
-                       'descendants__data_object__filedataobject__file_resource')\
-                   .prefetch_related('descendants__data_object__booleandataobject')\
-                   .prefetch_related('descendants__data_object__integerdataobject')\
-                   .prefetch_related('descendants__data_object__floatdataobject')
-        return queryset
-
-
-class FileResourceViewSet(viewsets.ModelViewSet):
-    """
-    FileResource represents the location where a file is stored.
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.FileResourceSerializer
-
-    def get_queryset(self):
-        return models.FileResource.objects.all().order_by('-datetime_created')
-
+    DEFAULT_SERIALIZER = serializers.DataNodeSerializer
+    EXPANDED_SERIALIZER = serializers.ExpandedDataNodeSerializer
+    SUMMARY_SERIALIZER = serializers.ExpandedDataNodeSerializer
+    URL_SERIALIZER = serializers.DataNodeSerializer
 
 class TaskViewSet(ExpandableViewSet):
-    """
-    A Task represents a specific set of (runtime environment, command, inputs).
-    A step may contain many tasks if its inputs are parallel.
+    """A Task represents a specific combination of runtime environment, command, and inputs that describe a reproducible unit of analysis. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?summary will show a summary version (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.ExpandableTaskSerializer
 
-    def get_queryset(self):
-        queryset = models.Task.objects.all()
-        queryset = self.serializer_class.apply_prefetch(
-            queryset, self.get_serializer_context())
-        return queryset.order_by('-datetime_created')
+    DEFAULT_SERIALIZER = serializers.TaskSerializer
+    EXPANDED_SERIALIZER = serializers.ExpandedTaskSerializer
+    SUMMARY_SERIALIZER = serializers.SummaryTaskSerializer
+    URL_SERIALIZER = serializers.URLTaskSerializer
 
 
 class TaskAttemptViewSet(ExpandableViewSet):
-    """
-    A TaskAttempt represents a single attempt at executing a Task.
-    A Task may have multiple TaskAttempts if retries are executed.
+    """A TaskAttempt represents a single attempt at executing a Task. A Task may have multiple TaskAttempts due to retries. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?summary will show a summary version (not allowed in index view). ?url will show only the url and uuid fields (for testing only). DETAIL_ROUTES: "fail" will set a run to failed status. "finish" will set a run to finished status. "log-files" can be used to POST a new LogFile. "events" can be used to POST a new event. "settings" can be used to get settings for loom-execute-task.
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.ExpandableTaskAttemptSerializer
 
-    def get_queryset(self):
-        queryset = models.TaskAttempt.objects.all()
-        queryset = self.serializer_class.apply_prefetch(
-            queryset, self.get_serializer_context())
-        return queryset.order_by('-datetime_created')
+    DEFAULT_SERIALIZER = serializers.TaskAttemptSerializer
+    EXPANDED_SERIALIZER = serializers.TaskAttemptSerializer
+    SUMMARY_SERIALIZER = serializers.URLTaskAttemptSerializer
+    URL_SERIALIZER = serializers.URLTaskAttemptSerializer
 
-    @detail_route(methods=['post'], url_path='create-log-file',
+    def _get_task_attempt(self, request, uuid):
+        try:
+            return models.TaskAttempt.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+
+    @detail_route(methods=['post'], url_path='log-files',
                   serializer_class=serializers.TaskAttemptLogFileSerializer)
     def create_log_file(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt = self._get_task_attempt(request, uuid)
         s = serializers.TaskAttemptLogFileSerializer(
             data=data,
             context={
@@ -288,33 +161,24 @@ class TaskAttemptViewSet(ExpandableViewSet):
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
     def fail(self, request, uuid=None):
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt = self._get_task_attempt(request, uuid)
         task_attempt.fail()
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='finish',
                   serializer_class=rest_framework.serializers.Serializer)
     def finish(self, request, uuid=None):
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
+        task_attempt = self._get_task_attempt(request, uuid)
         async.finish_task_attempt(task_attempt.uuid)
         return JsonResponse({}, status=201)
 
-    @detail_route(methods=['post'], url_path='create-timepoint',
-                  serializer_class=serializers.TaskAttemptTimepointSerializer)
-    def create_timepoint(self, request, uuid=None):
+    @detail_route(methods=['post'], url_path='events',
+                  serializer_class=serializers.TaskAttemptEventSerializer)
+    def create_event(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        s = serializers.TaskAttemptTimepointSerializer(
+        task_attempt = self._get_task_attempt(request, uuid)
+        s = serializers.TaskAttemptEventSerializer(
             data=data,
             context={
                 'parent_field': 'task_attempt',
@@ -326,174 +190,116 @@ class TaskAttemptViewSet(ExpandableViewSet):
 
         return JsonResponse(s.data, status=201)
 
-    @detail_route(methods=['get'], url_path='worker-settings')
-    def get_worker_settings(self, request, uuid=None):
-        try:
-            task_attempt = models.TaskAttempt.objects.get(uuid=uuid)
-            return JsonResponse({
-                'WORKING_DIR': task_attempt.get_working_dir(),
-                'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
-                'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
-                'HEARTBEAT_INTERVAL_SECONDS':
-                get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
-            }, status=200)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        except Exception as e:
-            return JsonResponse({"message": e.message}, status=500)
+    @detail_route(methods=['get'], url_path='settings')
+    def get_task_execution_settings(self, request, uuid=None):
+        task_attempt = self._get_task_attempt(request, uuid)
+        return JsonResponse({
+            'SERVER_NAME': get_setting('SERVER_NAME'),
+            'WORKING_DIR': task_attempt.get_working_dir(),
+            'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
+            'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
+            'HEARTBEAT_INTERVAL_SECONDS':
+            get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
+        }, status=200)
 
 
 class TemplateViewSet(ExpandableViewSet):
-    """
-    A Template is a pattern for analysis to be performed, but without necessarily
-    having inputs assigned. May be type 'step' or 'workflow'.
-    For documentation of each Template type,
-    see the respective /api/template-*/ endpoints.
+    """A Template is a pattern for analysis to be performed, but without assigned inputs. Templates can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, and environment. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?summary will show a summary version to full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
     lookup_field = 'uuid'
-    serializer_class = serializers.ExpandableTemplateSerializer
+
+    DEFAULT_SERIALIZER = serializers.TemplateSerializer
+    EXPANDED_SERIALIZER = serializers.TemplateSerializer
+    SUMMARY_SERIALIZER = serializers.SummaryTemplateSerializer
+    URL_SERIALIZER = serializers.URLTemplateSerializer
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
         imported = 'imported' in self.request.query_params
+        Serializer = self.get_serializer_class()
         if query_string:
             queryset = models.Template.filter_by_name_or_id(query_string)
         else:
             queryset = models.Template.objects.all()
         if imported:
-            queryset = queryset.filter(template_import__isnull=False)
-        queryset = queryset\
-                   .prefetch_related('steps')\
-                   .prefetch_related(
-                       'fixed_inputs__data_root')
+            queryset = queryset.exclude(imported=False)
+        queryset = Serializer.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
 
 class RunViewSet(ExpandableViewSet):
-    """
-    A Run represents the execution of a Template on a specific set of inputs.
-    May be type 'step' or 'workflow'.
-    For documentation of each Run type,
-    see the respective /api/run-*/ endpoints.
+    """A Run represents the execution of a Template on a specific set of inputs. Runs can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, environment, and tasks. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?summary will show a summary version to full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
 
     lookup_field = 'uuid'
-    serializer_class = serializers.ExpandableRunSerializer
+
+    DEFAULT_SERIALIZER = serializers.RunSerializer
+    EXPANDED_SERIALIZER = serializers.ExpandedRunSerializer
+    SUMMARY_SERIALIZER = serializers.SummaryRunSerializer
+    URL_SERIALIZER = serializers.URLRunSerializer
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
         parent_only = 'parent_only' in self.request.query_params
+        Serializer = self.get_serializer_class()
         if query_string:
             queryset = models.Run.filter_by_name_or_id(query_string)
         else:
             queryset = models.Run.objects.all()
         if parent_only:
             queryset = queryset.filter(parent__isnull=True)
-        queryset = self.serializer_class.apply_prefetch(
-            queryset, self.get_serializer_context())
-        return queryset.order_by('-datetime_created')
-
-    @detail_route(methods=['get'], url_path='inputs')
-    def inputs(self, request, uuid=None):
-        try:
-            run = models.Run.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        run_input_serializer = serializers.RunInputSerializer(run.inputs.all(),
-                                          many=True,
-                                          context={'request': request,
-                                                   'expand': True})
-        return JsonResponse(run_input_serializer.data, status=200, safe=False)
-
-    @detail_route(methods=['get'], url_path='outputs')
-    def outputs(self, request, uuid=None):
-        try:
-            run = models.Run.objects.get(uuid=uuid)
-        except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        run_output_serializer = serializers.RunOutputSerializer(
-            run.outputs.all(),
-            many=True,
-            context={'request': request,
-                     'expand': True})
-        return JsonResponse(run_output_serializer.data, status=200, safe=False)
-
-
-class RunRequestViewSet(ExpandableViewSet):
-    """
-    A RunRequest represents a user request to execute a given Template
-    with a particular set of Inputs. 'template' may be a Template object
-    or an identifier (e.g. template_name@uuid).
-    """
-    lookup_field = 'uuid'
-    serializer_class = serializers.RunRequestSerializer
-
-    def get_queryset(self):
-        queryset = models.RunRequest.objects.all()
-        queryset = queryset.select_related('run')\
-                           .select_related('template')\
-                           .prefetch_related('inputs__data_root')
+        queryset = Serializer.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
-    serializer_class = serializers.TaskAttemptLogFileSerializer
+    """LogFiles represent the logs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating a LogFile without updating the full TaskAttempt. DETAIL_ROUTES: "data-object" allows you to post the file DataObject for the LogFile.
+    """
+
     lookup_field = 'uuid'
+    serializer_class = serializers.TaskAttemptLogFileSerializer
 
     def get_queryset(self):
         queryset = models.TaskAttemptLogFile.objects.all()
-        queryset = queryset.select_related('file')\
-                   .select_related('file__filedataobject__file_resource')
+        queryset = queryset.select_related('data_object')\
+                   .select_related('data_object__file_resource')
         return queryset.order_by('-datetime_created')
 
-    @detail_route(methods=['post'], url_path='initialize-file',
+    @detail_route(methods=['post'], url_path='data-object',
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
-    def initialize_file(self, request, uuid=None):
+    def create_data_object(self, request, uuid=None):
         try:
             task_attempt_log_file = models.TaskAttemptLogFile.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            return JsonResponse({"message": "Not Found"}, status=404)
-        if task_attempt_log_file.file:
-            s = serializers.DataObjectSerializer(
-                task_attempt_log_file.file, context={'request': request})
-            return JsonResponse(s.data, status=200)
-        task_attempt_log_file.initialize_file()
+            raise NotFound()
+        if task_attempt_log_file.data_object:
+            return JsonResponse({'message': 'Object already exists.'}, status=400)
+        data_json = request.body
+        data = json.loads(data_json)
         s = serializers.DataObjectSerializer(
-            task_attempt_log_file.file, context={'request': request})
+            task_attempt_log_file.data_object, data=data, context={
+                'request': request,
+                'task_attempt_log_file': task_attempt_log_file})
+        s.is_valid(raise_exception=True)
+        data_object = s.save()
         return JsonResponse(s.data, status=201)
 
 
 class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
-    serializer_class = serializers.TaskAttemptOutputSerializer
+    """Outputs represent the outputs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating an Output without updating the full TaskAttempt.
+    """
+    
+    lookup_field = 'uuid'
+
+    def get_serializer_class(self):
+        if self.action == 'partial_update':
+            return serializers.TaskAttemptOutputUpdateSerializer
+        else:
+            return serializers.TaskAttemptOutputSerializer
 
     def get_queryset(self):
-        queryset = models.TaskAttemptOutput.objects.all()
-        queryset = queryset.select_related('data_object__stringdataobject')\
-                           .select_related('data_object__filedataobject')\
-                           .select_related(
-                               'data_object__filedataobject__file_resource')\
-                           .select_related('data_object__booleandataobject')\
-                           .select_related('data_object__integerdataobject')\
-                           .select_related('data_object__floatdataobject')\
-                           .select_related('data_object__arraydataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__stringdataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__booleandataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__integerdataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__floatdataobject')\
-                           .prefetch_related(
-                               'data_object__arraydataobject__'\
-                               'prefetch_members__filedataobject__'\
-                               'file_resource')
-        return queryset
+        return models.TaskAttemptOutput.objects.all()
 
 
 @require_http_methods(["GET"])

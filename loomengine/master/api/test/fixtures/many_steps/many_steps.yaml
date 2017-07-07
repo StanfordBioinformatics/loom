@@ -1,10 +1,10 @@
 ---
-fixed_inputs:
+name: many_steps
+inputs:
 - channel: delimiter
   data:
     contents: " "
   type: string
-name: many_steps
 outputs:
 - channel: count
   type: string

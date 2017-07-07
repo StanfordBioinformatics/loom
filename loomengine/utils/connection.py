@@ -95,9 +95,9 @@ class Connection(object):
     def _patch_object(self, object_data, relative_url):
         return self._patch(object_data, relative_url).json()
 
-    def _get_object(self, relative_url):
+    def _get_object(self, relative_url, params=None):
         # Do not raise_for_status, because we want to check for 404 here
-        response = self._get(relative_url, raise_for_status=False)
+        response = self._get(relative_url, raise_for_status=False, params=params)
         if response.status_code == 404:
             return None
         elif response.status_code == 200:
@@ -120,65 +120,59 @@ class Connection(object):
         return self._get_object(
             'data-objects/%s/' % data_object_id)
 
-    def get_data_object_index(self, query_string='', min=0, max=float('inf')):
-        url = 'data-objects/'
-        if query_string:
-            url += 'data-objects/?q='+urllib.quote(query_string)
-        data_objects =  self._get_object_index(url)
-        if len(data_objects) < min:
-            raise IdMatchedTooFewDataObjectsError(
-                'Found %s DataObjects, expected at least %s' \
-                % (len(data_objects), min))
-        if len(data_objects) > max:
-            raise IdMatchedTooManyDataObjectsError(
-                'Found %s DataObjects, expected at most %s' \
-                % (len(data_objects), max))
-        return data_objects
-
     def update_data_object(self, data_object_id, data_update):
         return self._patch_object(
             data_update,
             'data-objects/%s/' % data_object_id)
 
-    def get_file_data_object_index(
-            self, query_string=None, source_type='all',
-            min=0, max=float('inf')):
-        url = 'data-files/'
+    def get_data_object_index(
+            self, query_string=None, source_type=None,
+            type=None, min=0, max=float('inf')):
+        url = 'data-objects/'
         params = {}
         if query_string:
             params['q'] = query_string
-        if source_type and source_type!='all':
+        if source_type:
             params['source_type'] = source_type
-        file_data_objects =  self._get_object_index(url, params=params)
-        if len(file_data_objects) < min:
+        if type:
+            params['type'] = type
+        data_objects =  self._get_object_index(url, params=params)
+        if len(data_objects) < min:
             raise IdMatchedTooFewDataObjectsError(
                 'Found %s FileDataObjects, expected at least %s' \
                 % (len(file_data_objects), min))
-        if len(file_data_objects) > max:
+        if len(data_objects) > max:
             raise IdMatchedTooManyDataObjectsError(
                 'Found %s FilDataObjects, expected at most %s' \
-                % (len(file_data_objects), max))
-        return file_data_objects
+                % (len(data_objects), max))
+        return data_objects
 
-    def file_data_object_initialize_file_resource(self, file_data_object_id):
-        url = 'data-files/%s/initialize-file-resource/' % file_data_object_id
-        data = {}
-        file_data_object = self._post_object(data, url)
-        return file_data_object
-    
-    def update_file_resource(self, file_resource_id, file_resource_update):
-        return self._patch_object(
-            file_resource_update,
-            'file-resources/%s/' % file_resource_id)
+    def get_data_node(self, data_node_id, expand=False):
+        params = {}
+        if expand:
+            params['expand'] = '1'
+        return self._get_object(
+            'data-nodes/%s/' % data_node_id, params)
+
+    def get_data_node_index(self):
+        return self._get_object_index(
+            'data-nodes/'
+        )
 
     def get_file_imports_by_file(self, file_id):
         return self._get_object_index(
             'data-files/' + file_id + '/file-imports/'
         )
-    
-    def get_template(self, template_id):
+
+    def get_template(self, template_id, summary=False,
+                     expand=False):
+        params = {}
+        if summary:
+            params['summary'] = '1'
+        if expand:
+            params['expand'] = '1'
         return self._get_object(
-            'templates/%s/' % template_id
+            'templates/%s/' % template_id, params=params
         )
 
     def get_template_index(self, query_string='', imported=False,
@@ -226,23 +220,6 @@ class Connection(object):
             run,
             'runs/')
 
-    def post_run_request(self, run_request):
-        return self._post_object(
-            run_request,
-            'run-requests/')
-
-    def get_run_request_index(self, query_string='', min=0, max=float('inf')):
-        if query_string:
-            url = 'run-requests/?q='+urllib.quote(query_string)
-        else:
-            url = 'run-requests/'
-        run_requests = self._get_object_index(url)
-        if len(run_requests) < min:
-            raise Error('Found %s run requests, expected at least %s' %(len(run_requests), min))
-        if len(run_requests) > max:
-            raise Error('Found %s run requests, expected at most %s' %(len(run_requests), max))
-        return run_requests
-
     def post_task(self, task):
         return self._post_object(
             task,
@@ -260,32 +237,32 @@ class Connection(object):
 
     def get_task_attempt_output(self, task_attempt_output_id):
         return self._get_object(
-            'task-attempt-outputs/%s/' % task_attempt_output_id
+            'outputs/%s/' % task_attempt_output_id
         )
 
     def update_task_attempt_output(self, task_attempt_output_id,
                                    task_attempt_output_update):
         return self._patch_object(
             task_attempt_output_update,
-            'task-attempt-outputs/%s/' % task_attempt_output_id)
+            'outputs/%s/' % task_attempt_output_id)
 
     def post_task_attempt_log_file(self, task_attempt_id, task_attempt_log_file):
         return self._post_object(
             task_attempt_log_file,
-            'task-attempts/%s/create-log-file/' % task_attempt_id
+            'task-attempts/%s/log-files/' % task_attempt_id
+        )
+    
+    def post_task_attempt_log_file_data_object(
+            self, task_attempt_log_file_id, data_object):
+        return self._post_object(
+            data_object,
+            'log-files/%s/data-object/' % task_attempt_log_file_id
         )
 
-    def task_attempt_log_file_initialize_file_data_object(
-            self, task_attempt_log_file_id):
-        url = 'task-attempt-log-files/%s/initialize-file/' % task_attempt_log_file_id
-        data = {}
-        task_attempt_log_file = self._post_object(data, url)
-        return task_attempt_log_file
-
-    def post_task_attempt_timepoint(self, task_attempt_id, task_attempt_timepoint):
+    def post_task_attempt_event(self, task_attempt_id, task_attempt_event):
         return self._post_object(
-            task_attempt_timepoint,
-            'task-attempts/%s/create-timepoint/' % task_attempt_id
+            task_attempt_event,
+            'task-attempts/%s/events/' % task_attempt_id
         )
 
     def post_task_attempt_fail(self, task_attempt_id):
@@ -325,9 +302,9 @@ class Connection(object):
             return None
         return info.get('version')
 
-    def get_worker_settings(self, attempt_id):
+    def get_task_attempt_settings(self, attempt_id):
         return self._get_object(
-            'task-attempts/%s/worker-settings/' % attempt_id
+            'task-attempts/%s/settings/' % attempt_id
         )
 
     def get_filemanager_settings(self):

@@ -59,6 +59,12 @@
 	  {{activeData.template.resources.memory}}
 	</td>
       </tr>
+      <tr ng-show="activeData.template.resources.disk_size">
+	<th>Disk size</th>
+	<td>
+	  {{activeData.template.resources.disk_size}}
+	</td>
+      </tr>
     </table>
   </div>
   <div ng-show="activeData.template.steps">
@@ -98,6 +104,18 @@
 	    <th>
 	      Type
 	    </th>
+	    <th ng-show="activeData.template.is_leaf">
+	      Mode
+	    </th>
+	    <th ng-show="activeData.template.is_leaf">
+	      Group
+	    </th>
+	    <th>
+	      Default
+	    </th>
+	    <th>
+	      Hint
+	    </th>
 	  </tr>
 	</thead>
 	<tbody>
@@ -108,33 +126,17 @@
 	    <td>
 	      {{input.type}}
 	    </td>
-	  </tr>
-	</tbody>
-      </table>
-    </div>
-  </div>
-  <div ng-show="activeData.template.fixed_inputs.length">
-    <h4>Fixed inputs</h4>
-    <div class="table-responsive">
-      <table class="table table-striped">
-	<thead>
-	  <tr>
-	    <th>Channel</th>
-	    <th>Type</th>
-	    <th>Data</th>
-	  </tr>
-	</thead>
-	<tbody>
-	  <tr ng-repeat="input in activeData.template.fixed_inputs">
-            <td>{{input.channel}}</td>
-	    <td>{{input.type}}</td>
-	    <td ng-show="input.type=='file'">
-	      <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data">
-		{{input.data.contents.filename}}
-	      </a>
+	    <td ng-show="activeData.template.is_leaf">
+	      {{input.mode}}
 	    </td>
-	    <td ng-hide="input.type=='file'">
-	      {{input.data.contents.value}}
+	    <td ng-show="activeData.template.is_leaf">
+	      {{input.group}}
+	    </td>
+	    <td>
+	      <loom-data contents="input.data.contents"></loom-data>
+	    </td>
+	    <td>
+	      {{input.hint}}
 	    </td>
 	  </tr>
 	</tbody>
@@ -153,12 +155,18 @@
 	    <th>
 	      Type
 	    </th>
+	    <th ng-show="activeData.template.is_leaf">
+	      Mode
+	    </th>
 	  </tr>
 	</thead>
 	<tbody>
 	  <tr ng-repeat="output in activeData.template.outputs">
             <td>{{output.channel}}</td>
 	    <td>{{output.type}}</td>
+	    <td ng-show="activeData.template.is_leaf">
+	      {{output.mode}}
+	    </td>
 	  </tr>
 	</tbody>
       </table>

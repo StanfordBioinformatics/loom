@@ -1,40 +1,31 @@
 from django.test import TestCase
 
-from api.models.base import render_from_template, FilterHelper
-from api.models.data_objects import FileDataObject
+from api.models.base import FilterHelper
+from api.models.data_objects import DataObject, FileResource
 from api import exceptions
 
 
 def _create_file_data_object():
-    return FileDataObject.objects.create(
-        type='file',
+    data_object = DataObject.create_and_initialize_file_resource(
         filename='myfile.dat',
         source_type='imported',
-        file_import={'source_url': 'file:///data/myfile.dat',
-                     'note': 'Test data'},
-        md5='abcde'
+        imported_from_url='file:///data/myfile.dat',
+        import_comments='Test data',
+        md5='081deeb1218a094526005f5f00ffd0a1'
     )
-
-
-class TestRenderFromTemplate(TestCase):
-
-    def testRenderFromTemplate(self):
-        raw_text = 'My name is {{name}}'
-        context = {'name': 'Inigo'}
-        rendered_text = render_from_template(raw_text, context)
-        self.assertEqual(rendered_text, 'My name is Inigo')
+    return data_object
 
 
 class TestFilterHelper(TestCase):
 
     def setUp(self):
         self.file_data_object = _create_file_data_object()
-        self.filter_helper = FilterHelper(FileDataObject)
+        self.filter_helper = FilterHelper(DataObject)
 
-        self.name = self.file_data_object.filename
+        self.name = self.file_data_object.file_resource.filename
         self.uuid = '@%s' % str(self.file_data_object.uuid)
         self.short_uuid = self.uuid[0:8]
-        self.hash = '$%s' % self.file_data_object.md5
+        self.hash = '$%s' % self.file_data_object.file_resource.md5
            
     def testFilterByNameOrIdOrHash(self):
         for query_string in [
@@ -105,14 +96,14 @@ class TestFilterMixin(TestCase):
     def TestFilterByNameOrIdOrHash(self):
         file_data_object = _create_file_data_object()
         query_string = file_data_object.filename
-        results = FileDataObject.filter_by_name_or_id_or_hash(query_string)
+        results = DataObject.filter_by_name_or_id_or_hash(query_string)
         self.assertEqual(results.count(), 1)
         self.assertEqual(results.first().id, file_data_object.id)
 
     def TestFilterByNameOrId(self):
         file_data_object = _create_file_data_object()
         query_string = file_data_object.filename
-        results = FileDataObject.filter_by_name_or_id(query_string)
+        results = DataObject.filter_by_name_or_id(query_string)
         self.assertEqual(results.count(), 1)
         self.assertEqual(results.first().id, file_data_object.id)
             
@@ -127,8 +118,8 @@ class TestBase(TestCase):
         file_data_object = _create_file_data_object()
         file_id = file_data_object.id
 
-        file1 = FileDataObject.objects.get(id=file_id)
-        file2 = FileDataObject.objects.get(id=file_id)
+        file1 = DataObject.objects.get(id=file_id)
+        file2 = DataObject.objects.get(id=file_id)
 
         file1.filename = 'one'
         file2.flename = 'two'

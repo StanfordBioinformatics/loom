@@ -72,8 +72,8 @@ class ShowFile(AbstractShow):
             source_type=None
         else:
             source_type=self.args.type
-        self.files = self.connection.get_file_data_object_index(
-            query_string=self.args.file_id, source_type=source_type)
+        self.files = self.connection.get_data_object_index(
+            query_string=self.args.file_id, source_type=source_type, type='file')
 
     def _show_files(self):
         print '[showing %s files]' % len(self.files)
@@ -85,7 +85,7 @@ class ShowFile(AbstractShow):
     def _render_file(self, file_data_object):
         try:
             file_identifier = '%s@%s' % (
-                file_data_object['filename'], file_data_object['uuid'])
+                file_data_object['value'].get('filename'), file_data_object['uuid'])
         except TypeError:
             file_identifier = '@%s' % file_data_object['uuid']
         if self.args.detail:
@@ -94,14 +94,13 @@ class ShowFile(AbstractShow):
             try:
                 text += '  - Imported: %s\n' % \
                         render_time(file_data_object['datetime_created'])
-                text += '  - md5: %s\n' % file_data_object['md5']
-                if file_data_object.get('file_import'):
-                    if file_data_object['file_import'].get('source_url'):
-                        text += '  - Source URL: %s\n' % \
-                                file_data_object['file_import']['source_url']
-                        if file_data_object['file_import'].get('note'):
-                            text += '  - Import note: %s\n' % \
-                                    file_data_object['file_import']['note']
+                text += '  - md5: %s\n' % file_data_object['value'].get('md5')
+                if file_data_object['value'].get('imported_from_url'):
+                    text += '  - Source URL: %s\n' % \
+                            file_data_object['value'].get('imported_from_url')
+                if file_data_object['value'].get('import_comments'):
+                    text += '  - Import note: %s\n' % \
+                            file_data_object['value']['import_comments']
             except TypeError:
                 pass
         else:

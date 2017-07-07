@@ -1,0 +1,120 @@
+---
+- name: Gather information needed to create the worker instance.
+  hosts: localhost
+  connection: local
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+    - include: tasks/gcloud_get_worker_instance_name.yml
+    - name: Create a GCP-safe name for the worker scratch disk.
+      command: python -c "import gcloud_utils; gcloud_utils.get_scratch_disk_name('{{server_name}}','{{step_name}}','{{task_attempt_id}}')"
+      args:
+        chdir: "{{playbook_dir}}/files"
+      register: scratch_disk_name_result
+    - name: Find the cheapest instance type that has at least the cores and memory needed by the task.
+      command: python -c "import gcloud_utils; gcloud_utils.get_cheapest_instance_type({{cores}}, {{memory}})"
+      args:
+        chdir: "{{playbook_dir}}/files"
+      register: instance_type_result
+    - set_fact:
+        instance_type: "{{instance_type_result.stdout}}"
+        scratch_disk_name: "{{scratch_disk_name_result.stdout}}"
+        scratch_disk_device_path: "/dev/disk/by-id/google-{{scratch_disk_name_result.stdout}}"
+
+- name: Create a new instance for the Loom worker.
+  hosts: localhost
+  connection: local
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+  - include: tasks/gcloud_create_instance.yml use_internal_ip={{worker_uses_internal_ip}}
+  - include: tasks/gcloud_configure_instance_ssh.yml  use_internal_ip={{worker_uses_internal_ip}} ssh_private_key_path={{worker_ssh_private_key_path_in_container}}
+
+- name: Set facts on the worker instance.
+  hosts: new_instances
+  remote_user: "{{loom_remote_user}}"
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+    - name: Set vars for downstream tasks.
+      set_fact:
+        instance_name: "{{hostvars.localhost.instance_name}}"
+        scratch_disk_name: "{{hostvars.localhost.scratch_disk_name}}"
+        scratch_disk_device_path: "{{hostvars.localhost.scratch_disk_device_path}}"
+
+- name: Create a scratch disk and attach it to the worker when required vars defined.
+  hosts: localhost
+  connection: local
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+    - name: Create a scratch disk and attach it to the instance.
+      gce_pd: instance_name={{instance_name}} name={{scratch_disk_name}} disk_type={{scratch_disk_type}} size_gb={{scratch_disk_size_gb}} zone={{zone}} mode=READ_WRITE service_account_email={{gce_email}} credentials_file={{gce_credential}} project_id={{gce_project}} delete_on_termination=yes
+      when:
+      - scratch_disk_name is defined
+      - scratch_disk_type is defined
+      - scratch_disk_size_gb is defined
+      register: gce_pd
+      until: gce_pd['state'] is defined and gce_pd['state'] == "present"
+      retries: 5
+      delay: 5
+
+- name: Format and mount the scratch disk on the Loom worker.
+  hosts: new_instances
+  remote_user: "{{loom_remote_user}}"
+  become: yes
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+  - include: tasks/gcloud_setup_scratch_disk.yml
+
+- name: Install Docker on the Loom worker and add remote user to docker group.
+  hosts: new_instances
+  remote_user: "{{loom_remote_user}}"
+  become: yes
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  roles:
+  - {role: docker, when: "not lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS') | bool"}
+  - {role: docker-py, when: "not lookup('env', 'LOOM_GCLOUD_WORKER_SKIP_INSTALLS') | bool"}
+  tasks:
+  - include: tasks/gcloud_create_docker_group.yml
+
+- name: Log into Google Container Registry.
+  hosts: new_instances
+  remote_user: "{{loom_remote_user}}"
+  become: yes
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+  - include: tasks/gcloud_docker_login.yml
+
+- name: Pull Docker images on the new instance.
+  hosts: new_instances
+  remote_user: "{{loom_remote_user}}"
+  become: yes
+  vars_files:
+  - vars/common.yml
+  - vars/gcloud_worker.yml
+  tasks:
+  - include: tasks/pull_worker_docker_images.yml
+
+- name: Execute a Loom task attempt on the specified worker instance.
+  hosts: new_instances
+  remote_user: "{{loom_remote_user}}"
+  become: yes
+  vars_files:
+    - vars/common.yml
+    - vars/gcloud_worker.yml
+  vars:
+    task_attempt_id: "{{lookup('env', 'LOOM_TASK_ATTEMPT_ID')}}"
+    server_url: "{{lookup('ini', 'LOOM_SERVER_URL type=properties file='+container_settings_home+'/'+worker_connection_settings_file)}}"
+  tasks:
+    - include: tasks/run_task.yml

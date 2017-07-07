@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 # Workflow and related objects
 
-fixed_step_input = {
+template_input = {
     'type': 'string',
     'channel': 'test',
     'data': {'contents': 'teststring'},
@@ -24,9 +24,7 @@ step_a = {
 	    'channel': 'a1',
             'type': 'string',
             'hint': 'Give a file with the first integer above 0'
-	}
-    ],
-    'fixed_inputs': [
+	},
         {
             'type': 'string',
             'data': {'contents': 'a word or two'},
@@ -66,13 +64,13 @@ step_b = {
 	    'channel': 'b2',
             'type': 'string',
             'hint': 'Give a file with the first integer above 0, twice'
-	}
+	},
+        {
+            'type': 'string',
+            'data': {'contents': 'more text'},
+            'channel': 'b3'
+        }
     ],
-    'fixed_inputs': [{
-        'type': 'string',
-        'data': {'contents': 'more text'},
-        'channel': 'b3'
-    }],
     'outputs': [
 	{
             'source': {
@@ -121,9 +119,7 @@ flat_workflow = {
             'hint': 'Any text',
             'type': 'string',
             'channel': 'a1'
-        }
-    ],
-    'fixed_inputs': [
+        },
 	{
             'type': 'string',
 	    'data': {'contents': 'two'},
@@ -144,7 +140,7 @@ flat_workflow = {
 
 nested_workflow = {
     'name': 'nested',
-    'fixed_inputs': [
+    'inputs': [
         {
             'type': 'string',
             'channel': 'a1',
@@ -177,7 +173,7 @@ for i in range(50):
                 'memory': '1',
                 'disk_size': '1024' 
             },
-            'fixed_inputs': [
+            'inputs': [
                 {
                     'type': 'string',
                     'data': {'contents': 'a word or two'},

@@ -7,7 +7,7 @@
                     Name
                 </th>
                 <td>
-                    {{activeData.run.template.name}}
+                    {{activeData.run.name}}
                 </td>
             </tr>
             <tr>
@@ -18,12 +18,14 @@
                     {{activeData.run.uuid}}
                 </td>
             </tr>
-            <tr ng-show="activeData.run.status">
+            <tr>
                 <th>
                     Status
                 </th>
                 <td>
-                    {{activeData.run.status}}
+                  <span ng-class="'label label-'+(activeData.run.status|statusColor)">
+		    {{activeData.run.status}}
+		  </span>
                 </td>
             </tr>
             <tr>
@@ -60,24 +62,30 @@
                     {{activeData.run.interpreter}}
                 </td>
             </tr>
-            <tr ng-show="activeData.run.template.environment.docker_image">
-                <th>Docker Image</th>
-                <td>
-                    {{activeData.run.template.environment.docker_image}}
-                </td>
-            </tr>
-            <tr ng-show="activeData.run.template.resources.cores">
-                <th>Cores</th>
-                <td>
-                    {{activeData.run.template.resources.cores}}
-                </td>
-            </tr>
-            <tr ng-show="activeData.run.template.resources.memory">
-                <th>Memory</th>
-                <td>
-                    {{activeData.run.template.resources.memory}}
-                </td>
-            </tr>
+	    <tr ng-show="activeData.run.environment.docker_image">
+              <th>Docker Image</th>
+              <td>
+		{{activeData.run.environment.docker_image}}
+              </td>
+	    </tr>
+	    <tr ng-show="activeData.run.resources.cores">
+              <th>Cores</th>
+              <td>
+		{{activeData.run.resources.cores}}
+              </td>
+	    </tr>
+	    <tr ng-show="activeData.run.resources.memory">
+              <th>Memory</th>
+              <td>
+		{{activeData.run.resources.memory}}
+              </td>
+	    </tr>
+	    <tr ng-show="activeData.run.resources.disk_size">
+              <th>Disk size</th>
+              <td>
+		{{activeData.run.resources.disk_size}}
+              </td>
+	    </tr>
         </table>
     </div>
     <div ng-show="activeData.run.steps.length">
@@ -98,7 +106,11 @@
                                 {{step.name}}@{{step.uuid | limitTo: 8}}
                             </a>
                         </td>
-                        <td>{{step.status}}</td>
+                        <td>
+			  <span ng-class="'label label-'+(step.status|statusColor)">
+			    {{step.status}}
+			  </span>
+			</td>
                         <td>{{step.datetime_created | date:'medium'}}</td>
                     </tr>
                 </tbody>
@@ -122,7 +134,11 @@
                                 Task {{task.uuid}}
                             </a>
                         </td>
-                        <td><!-- show task.status when supported --></td>
+                        <td>
+			  <span ng-class="'label label-'+(task.status|statusColor)">
+			    {{task.status}}
+			  </span>
+			</td>
                         <td>{{task.datetime_created | date:'medium'}}</td>
                     </tr>
                 </tbody>
@@ -137,51 +153,22 @@
                 <thead>
                     <th>Channel</th>
                     <th>Type</th>
+		    <th ng-show="activeData.run.is_leaf">Mode</th>
+		    <th ng-show="activeData.run.is_leaf">Group</th>
                     <th>Data</th>
                 </thead>
                 <tbody>
                     <tr ng-repeat="input in activeData.run.inputs">
                         <td>{{input.channel}}</td>
                         <td>{{input.type}}</td>
-                        <td ng-show="input.type=='file'">
-                            <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data">
-                                {{input.data.contents.filename}}
-                            </a>
-                        </td>
-                        <td ng-hide="input.type=='file'">
-                            {{input.data.contents.value}}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div ng-show="activeData.run.fixed_inputs.length">
-        <h4>Fixed inputs</h4>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Channel</th>
-                        <th>Type</th>
-                        <th>Data</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr ng-repeat="input in activeData.run.fixed_inputs">
-                        <td>
-                            {{input.channel}}
-                        </td>
-                        <td>
-                            {{input.type}}
-                        </td>
-                        <td ng-show="input.type=='file'">
-                            <a ng-href="#/files/{{input.data.contents.uuid}}" ng-show="input.data">
-                                {{input.data.contents.filename}}
-                            </a>
-                        </td>
-                        <td ng-hide="input.type=='file'">
-                            {{input.data.contents.value}}
+			<td ng-show="activeData.run.is_leaf">
+			  {{input.mode}}
+			</td>
+			<td ng-show="activeData.run.is_leaf">
+			  {{input.group}}
+			</td>
+			<td>
+			  <loom-data contents="input.data.contents"></loom-data>
                         </td>
                     </tr>
                 </tbody>
@@ -194,27 +181,26 @@
             <thead>
                 <th>Channel</th>
                 <th>Type</th>
+		<th ng-show="activeData.run.is_leaf">Mode</th>
                 <th>Data</th>
             </thead>
             <tbody>
                 <tr ng-repeat="output in activeData.run.outputs">
                     <td>{{output.channel}}</td>
                     <td>{{output.type}}</td>
-                    <td ng-show="output.type=='file'">
-                        <a ng-href="#/files/{{output.data.contents.uuid}}" ng-show="output.data">
-                            {{output.data.contents.filename}}
-                        </a>
-                    </td>
-                    <td ng-hide="output.type=='file'">
-                        {{output.data.contents.value}}
+		    <td ng-show="activeData.run.is_leaf">
+		      {{output.mode}}
+		    </td>
+		    <td>
+		      <loom-data contents="output.data.contents"></loom-data>
                     </td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <div ng-show="activeData.run.timepoints.length>0">
-        <h4>Timepoints</h4>
+    <div ng-show="activeData.run.events.length>0">
+        <h4>Events</h4>
         <div class="table-responsive" >
             <table class="table table-striped">
                 <thead>
@@ -224,13 +210,13 @@
                     <th>Detail</th>
                 </thead>
                 <tbody>
-                    <tr ng-repeat="timepoint in activeData.run.timepoints">
+                    <tr ng-repeat="event in activeData.run.events">
                         <td>
-                            {{timepoint.timestamp | date:'medium'}}
+                            {{event.timestamp | date:'medium'}}
                         </td>
-                        <td>{{timepoint.message}}</td>
-                        <td>{{timepoint.is_error}}</td>
-                        <td>{{timepoint.detail}}</td>
+                        <td>{{event.event}}</td>
+                        <td>{{event.is_error}}</td>
+                        <td>{{event.detail}}</td>
                     </tr>
                 </tbody>
             </table>

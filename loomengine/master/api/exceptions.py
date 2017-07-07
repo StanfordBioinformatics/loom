@@ -1,47 +1,16 @@
 class Error(Exception):
     pass
 
-class DataObjectValidationError(Error):
-    pass
-
-class UnknownNameFieldError(Error):
-    pass
-
-class IdTooShortError(Error):
-    pass
-
-class InvalidIdError(Error):
-    pass
-
-class MissingInputsError(Error):
-    pass
-
-class IdNotFoundError(Error):
-    pass
-
-class TooManyMatchesError(Error):
-    pass
-
 class ConcurrentModificationError(Exception):
+    """Raised by the "save" method when the model has
+    been changed in the database since it was loaded.
+    """
     pass
 
-class NoFileMatchError(Exception):
-    pass
-
-class MultipleFileMatchesError(Exception):
-    pass
-
-class NoTemplateMatchError(Exception):
-    pass
-
-class MultipleTemplateMatchesError(Exception):
-    pass
-
-class NoTemplateInputMatchError(Exception):
-    pass
-
-class ChannelNameCollisionError(Exception):
-    pass
 
 class SaveRetriesExceededError(Exception):
+    """Raised by the "save" method when saving raises
+    a ConcurrentModificationError after the allowed
+    number of retries is exhausted.
+    """
     pass

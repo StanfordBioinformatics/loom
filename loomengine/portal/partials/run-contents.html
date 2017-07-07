@@ -8,7 +8,7 @@
     </a>
   </div>
   <div class="col col-xs-2">
-    <span ng-class="getColorClass(run.status)">
+    <span ng-class="'label label-' + (run.status | statusColor)">
       {{run.status}}
     </span>
   </div>
@@ -26,7 +26,7 @@
   <div class="col col-xs-3"></div>
 </div>
 <div id="{{run.uuid}}" class="collapse in" ng-hide="loading">
-  <div class="row" ng-repeat="process in expandedRun | flattenSteps">
+  <div class="row" ng-repeat="process in expandedRun | flattenRun">
     <div class="col col-xs-5" style="padding-left:calc(26px + (20px * {{process.level}}))">
       <a href="#/runs/{{process.uuid}}" ng-if="process.type=='run'">
 	{{ process.name }}@{{process.uuid | limitTo:8 }}
@@ -34,12 +34,12 @@
       <a href="#/tasks/{{process.uuid}}" ng-if="process.type=='task'">
 	task {{process.uuid | limitTo:8 }}
       </a>
-      <a ng-if="process.type=='task-attempt'" href="#/task-attempts/{{process.uuid}}">
+      <a href="#/task-attempts/{{process.uuid}}" ng-if="process.type=='task-attempt'">
 	attempt {{process.uuid | limitTo:8}}
       </a>
     </div>
     <div class="col col-xs-2">
-      <span ng-class="getColorClass(process.status)">
+      <span ng-class="'label label-' + (process.status | statusColor)">
 	{{process.status}}
       </span>
     </div>

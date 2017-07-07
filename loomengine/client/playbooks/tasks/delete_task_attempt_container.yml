@@ -1,0 +1,5 @@
+  - name: Delete the Loom task attempt container.
+    docker_container:
+      name: "{{task_attempt_container_name}}-{{task_attempt_id}}"
+      state: absent
+      force_kill: yes

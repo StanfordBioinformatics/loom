@@ -1,99 +1,75 @@
-from django.core.exceptions import ObjectDoesNotExist
-from django.core.exceptions import ValidationError
 from django.db import models
-from django.dispatch import receiver
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import jsonfield
+from mptt.models import MPTTModel, TreeForeignKey
 
 from .base import BaseModel
-from .data_objects import DataObject
-from .input_output_nodes import InputOutputNode
-from api.exceptions import NoTemplateInputMatchError
+from .data_channels import DataChannel
 from api.models import uuidstr
+from api.models import validators
 
 
 """
-This module defines Templates. A Template is either 
-a Step or a Workflow.
-Steps have execution details such as command and runtime
-environment, while Workflows are collections of other Steps
-or Workflows.
+A Template is the pattern for a Run. Has defined inputs and outputs,
+but the data designated for each input is only designated at runtime.
+
+A Template may define a default value for each input, but this can
+be overridden at runtime.
+
+Templates may be nested to arbitrary depth. Only the leaf nodes
+represent actual analysis Runs. Both leaf and branch nodes are
+represented by the Template class.
 """
-
-def template_import_validator(value):
-    pass
-
-def environment_validator(value):
-    pass
-
-def outputs_validator(value):
-    pass
-
-def inputs_validator(value):
-    pass
-
-def resources_validator(value):
-    pass
 
 
 class Template(BaseModel):
 
     NAME_FIELD = 'name'
+    ID_FIELD = 'uuid'
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255,
+                            validators=[validators.TemplateValidator.validate_name])
     is_leaf = models.BooleanField()
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
-    postprocessing_status = models.CharField(
-        max_length=255,
-        default='incomplete',
-        choices=(('incomplete', 'Incomplete'),
-                 ('complete', 'Complete'),
-                 ('failed', 'Failed'))
-    )
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
-    environment = jsonfield.JSONField(validators=[environment_validator],
-                                      null=True, blank=True)
-    resources = jsonfield.JSONField(validators=[resources_validator],
-                                      null=True, blank=True)
-    template_import = jsonfield.JSONField(validators=[template_import_validator],
-                                          null=True, blank=True)
+    environment = jsonfield.JSONField(
+        blank=True,
+        validators=[validators.validate_environment])
+    resources = jsonfield.JSONField(
+        blank=True,
+        validators=[validators.validate_resources])
+    comments = models.TextField(blank=True)
+    import_comments = models.TextField(blank=True)
+    imported_from_url = models.TextField(
+        blank=True,
+	validators=[validators.validate_url])
+    imported = models.BooleanField(default=False)
     steps = models.ManyToManyField(
         'Template',
         through='TemplateMembership',
         through_fields=('parent_template', 'child_template'),
         related_name='templates')
-    outputs = jsonfield.JSONField(validators=[outputs_validator],
-                                  null=True, blank=True)
-    inputs = jsonfield.JSONField(validators=[inputs_validator],
-                                 null=True, blank=True)
-    raw_data = jsonfield.JSONField(null=True, blank=True)
+    outputs = jsonfield.JSONField(
+        validators=[validators.TemplateValidator.validate_outputs],
+        blank=True
+    )
+    raw_data = jsonfield.JSONField(blank=True)
 
     def get_name_and_id(self):
         return "%s@%s" % (self.name, self.id)
 
-    def get_fixed_input(self, channel):
-        inputs = self.fixed_inputs.filter(channel=channel)
-        if inputs.count() == 0:
-            raise Exception('No fixed input matching %s' % channel)
-        if inputs.count() > 1:
-            raise Exception('Found %s fixed inputs for channel %s' \
-                            % (inputs.count(), channel))
-        return inputs.first()
-
     def get_input(self, channel):
-        inputs = filter(lambda i: i.get('channel')==channel,
-                        self.inputs)
-        if len(inputs) == 0:
-            raise NoTemplateInputMatchError(
-                'ERROR! No input named "%s" in template "%s"' % (channel, self.name))
-        if len(inputs) > 1:
-            raise Exception('Found %s inputs for channel %s' \
-                            % (len(inputs), channel))
-        return inputs[0]
+        inputs = self.inputs.filter(channel=channel)
+        if inputs.count() == 0:
+            raise ObjectDoesNotExist('No input with channel "%s"' % channel)
+        assert inputs.count() == 1, \
+            'Found %s inputs for channel %s' % (inputs.count(), channel)
+        return inputs.first()
 
     def get_output(self, channel):
         outputs = filter(lambda o: o.get('channel')==channel,
@@ -110,14 +86,15 @@ class Template(BaseModel):
             self.add_step(step)
 
 
-class FixedInput(InputOutputNode):
+class TemplateInput(DataChannel):
 
     template = models.ForeignKey(
         'Template',
-        related_name='fixed_inputs',
+        related_name='inputs',
         on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255)
-    group = models.IntegerField()
+    hint = models.CharField(max_length=1000, blank=True)
+    mode = models.CharField(max_length=255, blank=True)
+    group = models.IntegerField(null=True, blank=True)
 
     class Meta:
         app_label = 'api'
@@ -139,3 +116,4 @@ class TemplateMembership(BaseModel):
             TemplateMembership.objects.create(
                 parent_template=parent,
                 child_template=step)
+

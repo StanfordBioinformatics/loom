@@ -1,4 +1,5 @@
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, \
+    ValidationError
 from django.db import models
 from django.dispatch import receiver
 from django.utils import timezone
@@ -10,16 +11,23 @@ from api import get_setting
 from api import async
 from api.exceptions import *
 from api.models import uuidstr
+from api.models import validators
 from api.models.data_objects import DataObject
-from api.models.input_output_nodes import InputOutputNode
+from api.models.data_channels import DataChannel
+from api.models.input_calculator import InputCalculator
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.templates import Template
 from api.exceptions import ConcurrentModificationError
 
 
 """
-This module defines Run and other classes related to
-running an analysis
+A Run represents the execution of a Template with a given set of inputs.
+Like Templates, Runs may have an arbitrary depth of nested children (steps),
+but only the leaf nodes represent analysis to be performed. Leaf and branch 
+nodes are both of class Run.
+
+Depending on the inputs, a Run can produce a single Task or many parallel
+Tasks.
 """
 
 
@@ -33,7 +41,8 @@ class Run(MPTTModel, BaseModel):
     Workflow composed of one or more Steps.
     """
 
-    NAME_FIELD = 'template__name'
+    NAME_FIELD = 'name'
+    ID_FIELD = 'uuid'
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
@@ -42,6 +51,12 @@ class Run(MPTTModel, BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
+    environment = jsonfield.JSONField(
+        blank=True,
+        validators=[validators.validate_environment])
+    resources = jsonfield.JSONField(
+        blank=True,
+        validators=[validators.validate_resources])
     parent = TreeForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
                             on_delete=models.CASCADE)
@@ -66,8 +81,8 @@ class Run(MPTTModel, BaseModel):
     status_is_waiting = models.BooleanField(default=True)
 
     # For leaf nodes only
-    command = models.TextField(blank=True, null=True)
-    interpreter = models.CharField(max_length=1024, blank=True, null=True)
+    command = models.TextField(blank=True)
+    interpreter = models.CharField(max_length=1024, blank=True)
 
     @property
     def status(self):
@@ -113,11 +128,7 @@ class Run(MPTTModel, BaseModel):
             {'status_is_running': False,
              'status_is_waiting': False,
              'status_is_finished': True})
-        self.add_timepoint("Run %s@%s finished successfully" %
-                           (self.name, self.uuid))
         if self.parent:
-            self.parent.add_timepoint(
-                "Child Run %s@%s finished successfully" % (self.name, self.uuid))
             if self.parent._are_children_finished():
                 self.parent.set_status_is_finished()
 
@@ -125,38 +136,22 @@ class Run(MPTTModel, BaseModel):
         return all([step.status_is_finished for step in self.steps.all()])
 
     @classmethod
-    def create_from_template(cls, template, parent=None, run_request=None):
+    def create_from_template(cls, template, name=None, parent=None):
+        if name is None:
+            name = template.name
         if template.is_leaf:
             run = Run.objects.create(
                 template=template,
                 is_leaf=template.is_leaf,
-                name=template.name,
+                name=name,
                 command=template.command,
                 interpreter=template.interpreter,
                 parent=parent)
         else:
             run = Run.objects.create(template=template,
                                      is_leaf=template.is_leaf,
-                                     name=template.name,
+                                     name=name,
                                      parent=parent)
-        if run_request:
-            run_request.setattrs_and_save_with_retries({'run': run})
-
-        # Postprocess run only if postprocessing of template is done.
-        # It is possible for the run to be completed before the template
-        # is postprocessing_status=='complete'. In that case, the run postprocessing
-        # will be triggered by the template postprocessing when the template
-        # is ready
-        template = Template.objects.get(uuid=template.uuid)
-        if template.postprocessing_status == 'complete':
-            async.postprocess_run(run.uuid)
-        if run_request:
-            run_request.setattrs_and_save_with_retries({'run': run})
-
-        run.add_timepoint("Run %s@%s was created" % (run.name, run.uuid))
-        if run.parent:
-            run.parent.add_timepoint("Child run %s@%s was created" % (
-                run.name, run.uuid))
         return run
 
     def _connect_input_to_parent(self, input):
@@ -166,65 +161,87 @@ class Run(MPTTModel, BaseModel):
                     channel=input.channel)
                 parent_connector.connect(input)
             except ObjectDoesNotExist:
-                self.parent._create_connector(
-                    input, channel_name=input.channel)
-            except MultipleObjectsReturned:
-                raise ChannelNameCollisionError(
-                    'ERROR! There is more than one run input named "%s". '\
-                    'Channel names must be unique within a run.' % input.channel)
+                self.parent._create_connector(input, is_source=False)
 
-    def _connect_input_to_run_request(self, input):
+    def _connect_input_to_user_input(self, input):
         try:
-            run_request = self.run_request
+            user_input = self.user_inputs.get(channel=input.channel)
         except ObjectDoesNotExist:
-            # No run request here
             return
+        user_input.connect(input)
+
+    def connect_inputs_to_template_data(self):
+        for input in self.inputs.all():
+            self._connect_input_to_template_data(input)
+
+    def _connect_input_to_template_data(self, input):
+        # Do not connect if parent connector.has_source
+        if self._has_parent_connector_with_source(input.channel):
+            return
+        
+        # Do not connect if UserInput exists
+        if self._has_user_input(input.channel):                
+            return
+
+        template_input = self.template.inputs.get(channel=input.channel)
+        if template_input.data_node is None:
+            raise ValidationError(
+                "No input data available on channel %s" % input.channel)
+        template_input.data_node.clone(seed=input.data_node)
+
+    def _has_user_input(self, channel):
         try:
-            run_request_input = run_request.inputs.get(channel=input.channel)
-        except MultipleObjectsReturned:
-            raise ChannelNameCollisionError(
-                'ERROR! There is more than one run input named "%s". '\
-                'Channel names must be unique within a run.' % input.channel)
-        run_request_input.connect(input)
+            self.user_inputs.get(channel=channel)
+            return True
+        except ObjectDoesNotExist:
+            return False
+
+    def _has_parent_connector_with_source(self, channel):
+        if self.parent is None:
+            return False
+        try:
+            connector = self.parent.connectors.get(channel=channel)
+        except ObjectDoesNotExist:
+            return False
+        return connector.has_source
 
     def _connect_output_to_parent(self, output):
-        if self.parent:
-            try:
-                parent_connector = self.parent.connectors.get(
-                    channel=output.channel)
-                parent_connector.connect(output)
-            except MultipleObjectsReturned:
-                raise ChannelNameCollisionError(
-                    'ERROR! There is more than one run output named "%s". '\
-                    'Channel names must be unique within a run.' % output.channel)
-            except ObjectDoesNotExist:
-                self.parent._create_connector(
-                    output, channel_name=output.channel)
+        if not self.parent:
+            return
+        try:
+            parent_connector = self.parent.connectors.get(
+                channel=output.channel)
+            if parent_connector.has_source:
+                raise ValidationError(
+                    'Channel "%s" has more than one source' % output.channel)
+            parent_connector.connect(output)
+        except ObjectDoesNotExist:
+            self.parent._create_connector(output, is_source=True)
 
-    def fail(self, message, detail=''):
+    def fail(self, detail=''):
         self.setattrs_and_save_with_retries({
             'status_is_failed': True,
             'status_is_running': False,
             'status_is_waiting': False})
-        self.add_timepoint(message, detail=detail, is_error=True)
+        self.add_event("Run failed", detail=detail, is_error=True)
         if self.parent:
-            self.parent.fail('Run %s failed' % self.uuid, detail=detail)
+            self.parent.fail(detail='Failure in step %s@%s' % (self.name, self.uuid))
         else:
-            self.kill(detail)
+            self.kill(detail='Automatically killed due to failure')
 
-    def kill(self, kill_message):
+    def kill(self, detail=''):
         if self.status_is_finished:
             # Don't kill successfully completed runs
             return
-        self.add_timepoint('Run killed', detail=kill_message, is_error=True)
+        self.add_event('Run was killed', detail=detail, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
              'status_is_running': False,
              'status_is_waiting': False})
         for step in self.steps.all():
-            step.kill(kill_message)
+            step.kill(detail=detail)
         for task in self.tasks.all():
-            task.kill(kill_message)
+            task.kill(detail=detail)
 
     def set_running_status(self):
         if self.status_is_running and not self.status_is_waiting:
@@ -235,9 +252,9 @@ class Run(MPTTModel, BaseModel):
         if self.parent:
             self.parent.set_running_status()
 
-    def add_timepoint(self, message, detail='', is_error=False):
-        timepoint = RunTimepoint.objects.create(
-            message=message, run=self, detail=detail, is_error=is_error)
+    def add_event(self, event, detail='', is_error=False):
+        event = RunEvent.objects.create(
+            event=event, run=self, detail=detail[-1000:], is_error=is_error)
 
     def _claim_for_postprocessing(self):
         # There are two paths to get Run.postprocess():
@@ -247,9 +264,6 @@ class Run(MPTTModel, BaseModel):
         #    is postprocessed only after template is ready.
         # There is a chance of both paths being executed, so we have to
         # protect against that
-
-        assert self.template.postprocessing_status == 'complete', \
-            'Template not ready, cannot postprocess run %s' % run.uuid
 
         self.postprocessing_status = 'in_progress'
         try:
@@ -270,15 +284,13 @@ class Run(MPTTModel, BaseModel):
                 raise Exception('Postprocessing failed due to unexpected '\
                                 'concurrent modification')
 
-    def _push_all_inputs(self):
-        if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
-            return
-        for input in self.inputs.all():
-            input.push_all()
-
     @classmethod
     def postprocess(cls, run_uuid):
         run = Run.objects.get(uuid=run_uuid)
+
+        if run.postprocessing_status == 'complete':
+            # Nothing more to do
+            return
 
         try:
             run._claim_for_postprocessing()
@@ -286,187 +298,207 @@ class Run(MPTTModel, BaseModel):
             return
 
         try:
-            run._initialize_inputs()
-            run._initialize_outputs()
-            run._initialize_steps()
-            run.setattrs_and_save_with_retries({'postprocessing_status': 'complete'})
             run._push_all_inputs()
+            for step in run.steps.all():
+                step.initialize()
+            run.setattrs_and_save_with_retries({
+                'postprocessing_status': 'complete'})
+
         except Exception as e:
-            run = Run.objects.get(uuid=run_uuid)
             run.setattrs_and_save_with_retries({'postprocessing_status': 'failed'})
-            run.fail('Postprocessing failed', detail=e.message)
+            run.fail(detail='Postprocessing failed with error "%s"' % str(e))
             raise
 
-    def _initialize_inputs(self):
-        visited_channels = set()
-        if self.template.inputs:
-            for input in self.template.inputs:
-                assert input.get('channel') not in visited_channels, \
-                    'Encountered multiple inputs for channel "%s"' \
-                    % input.get('channel')
-                visited_channels.add(input.get('channel'))
+    def initialize(self):
+        self.setattrs_and_save_with_retries({
+            'resources': self.template.resources,
+            'environment': self.template.environment})
+        self.connect_inputs_to_template_data()
+        self.create_steps()
+        async.postprocess_run(self.uuid)
 
-                run_input = RunInput.objects.create(
-                    run=self,
-                    channel=input.get('channel'),
-                    type=input.get('type'),
-                    group=input.get('group'),
-                    mode=input.get('mode'))
+    def initialize_inputs(self):
+        seen = set()
+        for input in self.template.inputs.all():
+            assert input.channel not in seen, \
+                'Encountered multiple inputs for channel "%s"' \
+                % input.channel
+            seen.add(input.channel)
 
-                # One of these two should always take effect. The other is ignored.
-                self._connect_input_to_parent(run_input)
-                self._connect_input_to_run_request(run_input)
-
-                # Now create a connector on the current WorkflowRun so that
-                # children can connect on this channel
-                if not self.is_leaf:
-                    self._create_connector(run_input)
-
-        for fixed_input in self.template.fixed_inputs.all():
-            assert fixed_input.channel not in visited_channels, \
-                'Encountered multiple inputs/fixed_inputs for channel "%s"' \
-                % fixed_input.channel
-            visited_channels.add(fixed_input.channel)
-
-            if self.is_leaf:
-                group = fixed_input.group
-                mode = fixed_input.mode
-            else:
-                group = None
-                mode = None
             run_input = RunInput.objects.create(
                 run=self,
-                channel=fixed_input.channel,
-                type=fixed_input.type,
-                group=group,
-                mode=mode)
-            run_input.connect(fixed_input)
+                channel=input.channel,
+                type=input.type,
+                group=input.group,
+                mode=input.mode)
 
-            # Now create a connector on the current WorkflowRun so that
+            # Create a connector on the current Run so that
             # children can connect on this channel
-            if not self.is_leaf:
-                self._create_connector(run_input)
+            self._connect_input_to_user_input(run_input)
+            self._connect_input_to_parent(run_input)
+            self._create_connector(run_input, is_source=True)
 
-    def _initialize_outputs(self):
-        visited_channels = set()
+            # Do not connect to template data (fixed inputs)
+            # yet, because siblings are still initializing
+            # so we don't know if defalt data will be overridden.
+
+    def initialize_outputs(self):
+        if not self.template.outputs:
+            return
         for output in self.template.outputs:
-            assert output.get('channel') not in visited_channels, \
-                "Run has multiple outputs for channel '%s'"\
-                % output.get('channel')
-
-            visited_channels.add(output.get('channel'))
-
-            run_output = RunOutput.objects.create(
-                run=self,
-                type=output.get('type'),
-                channel=output.get('channel'),
-                source=output.get('source'),
-                mode=output.get('mode'))
+            kwargs = {'run': self,
+                      'type': output.get('type'),
+                      'channel': output.get('channel'),
+                      'source': output.get('source'),
+                      'parser': output.get('parser')
+            }
+            if output.get('mode'):
+                kwargs.update({'mode': output.get('mode')})
+            run_output = RunOutput.objects.create(**kwargs)
 
             # This takes effect only if the WorkflowRun has a parent
             self._connect_output_to_parent(run_output)
 
-            # Now create a connector on the current WorkflowRun so that
+            # Create a connector on the current Run so that
             # children can connect on this channel
             if not self.is_leaf:
-                self._create_connector(run_output)
+                self._create_connector(run_output, is_source=False)
 
-    def _initialize_steps(self):
+            # If this is a leaf node but has no parents, initialize the
+            # DataNode so it will be available for connection by the TaskOutput
+            if not run_output.data_node:
+                run_output.initialize_data_node()
+
+    def create_steps(self):
+        """This is executed by the parent to ensure that all siblings are initialized
+        before any are postprocessed.
+        """
         if self.is_leaf:
             return
-        run = Run.objects.get(id=self.id)
-        for step in run.template.steps.all():
-            self.create_from_template(step, parent=run)
+        for step in self.template.steps.all():
+            child_run = self.create_from_template(step, parent=self)
+            child_run.initialize_inputs()
+            child_run.initialize_outputs()
 
-    def _create_connector(self, io_node, channel_name=None):
-        if channel_name is None:
-            channel_name = io_node.channel
+    def _create_connector(self, io_node, is_source):
+        if self.is_leaf:
+            return
         try:
             connector = RunConnectorNode.objects.create(
-                run = self,
-                channel = channel_name,
-                type = io_node.type
+                run=self,
+                channel=io_node.channel,
+                type=io_node.type,
+                has_source=is_source
             )
         except ValidationError:
-            # connector already exists. Just use it.
+            # Connector already exists. Just use it.
             connector = self.connectors.get(channel=io_node.channel)
+
+            # But first make sure it doesn't have multiple data sources
+            if is_source:
+                if connector.has_source:
+                    raise ValidationError(
+                        'Channel "%s" has more than one source'
+                        % io_node.channel_name)
+                else:
+                    connector.has_source = True
+                    connector.save()
         connector.connect(io_node)
 
-    def push(self, channel, index):
-        """Indicates that new data is available at the given index
-        on the given channel. This may trigger creation of new tasks.
+    def _push_all_inputs(self):
+        if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
+            return
+        if self.inputs.exists():
+            for input in self.inputs.all():
+                self.push(input.channel, [])
+        elif self.is_leaf:
+            # Special case: No inputs on leaf node
+            self._push_input_set([])
+
+    def push(self, channel, data_path):
+        """Called when new data is available at the given data_path 
+        on the given channel. This will trigger creation of new tasks if 1)
+        other input data for those tasks is available, and 2) the task with
+        that data_path was not already created previously.
         """
+        if get_setting('TEST_NO_CREATE_TASK'):
+            return
         if not self.is_leaf:
             return
-        for input_set in TaskInputManager(
-                self.inputs.all(), channel, index).get_ready_input_sets():
-            if get_setting('TEST_NO_TASK_CREATION'):
-                return
-            try:
-                task = Task.create_from_input_set(input_set, self)
-                async.run_task(task.uuid)
-            except TaskAlreadyExistsException:
-                pass
+        for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
+            .get_input_sets():
+            self._push_input_set(input_set)
+
+    def _push_input_set(self, input_set):
+        try:
+            task = Task.create_from_input_set(input_set, self)
+            async.run_task(task.uuid)
+        except TaskAlreadyExistsException:
+            pass
 
 
-class RunTimepoint(BaseModel):
+class RunEvent(BaseModel):
 
     run = models.ForeignKey(
         'Run',
-	related_name='timepoints',
+	related_name='events',
 	on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now,
                                      editable=False)
-    message = models.CharField(max_length=255)
-    detail = models.TextField(null=True, blank=True)
+    event = models.CharField(max_length=255)
+    detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
 
 
-class RunInput(InputOutputNode):
+class UserInput(DataChannel):
+
+    class Meta:
+        unique_together = (("run", "channel"),)
+
+    run = models.ForeignKey(
+        'Run',
+        related_name='user_inputs',
+        on_delete=models.CASCADE)
+
+
+class RunInput(DataChannel):
+
+    class Meta:
+        unique_together = (("run", "channel"),)
 
     run = models.ForeignKey('Run',
                             related_name='inputs',
-                            on_delete=models.CASCADE)
-    mode = models.CharField(max_length=255, null=True, blank=True)
-    group = models.IntegerField(blank=True, null=True)
+                            on_delete=models.CASCADE,
+                            null=True, # for testing only
+                            blank=True)
+    mode = models.CharField(max_length=255, blank=True)
+    group = models.IntegerField(null=True, blank=True)
 
-    def is_ready(self):
-        if self.get_data_as_scalar() is None:
+    def is_ready(self, data_path=None):
+        if self.data_node:
+            return self.data_node.is_ready(data_path=data_path)
+        else:
             return False
-        return self.get_data_as_scalar().is_ready()
-
-    def push_all(self):
-        """Notify steps that input data is available.
-        This method triggers a separate call to push(index) on the RunInput
-        for each available DataObject.
-        """
-        if self.data_root is None:
-            return
-	self.data_root.push_all()
-
-    def push(self, index):
-        """Indicates that new data is available at the given index.
-        Notify StepRun.
-        """
-        self.run.push(self.channel, index)
 
 
-class RunOutput(InputOutputNode):
+class RunOutput(DataChannel):
+
+    class Meta:
+        unique_together = (("run", "channel"),)
 
     run = models.ForeignKey('Run',
                             related_name='outputs',
                             on_delete=models.CASCADE,
                             null=True, # for testing only
                             blank=True)
-    mode = models.CharField(max_length=255, null=True, blank=True)
-    source = jsonfield.JSONField(null=True, blank=True)
+    mode = models.CharField(max_length=255, blank=True)
+    source = jsonfield.JSONField(blank=True)
+    parser = jsonfield.JSONField(
+	validators=[validators.OutputParserValidator.validate_output_parser],
+        blank=True)
 
-    def push(self, index, data_object):
-        self.add_data_object(index, data_object)
-        self.data_root.push_by_index(index)
 
-
-class RunConnectorNode(InputOutputNode):
+class RunConnectorNode(DataChannel):
     # A connector resides in a workflow. All inputs/outputs on the workflow
     # connect internally to connectors, and all inputs/outputs on the
     # nested steps connect externally to connectors on their parent workflow.
@@ -475,89 +507,10 @@ class RunConnectorNode(InputOutputNode):
     # Instead, connections between siblings always pass through a connector
     # in the parent workflow.
 
+    has_source = models.BooleanField(default=False)
     run = models.ForeignKey('Run',
                             related_name='connectors',
                             on_delete=models.CASCADE)
 
     class Meta:
         unique_together = (("run", "channel"),)
-
-
-class TaskInputManager(object):
-    """Manages the set of nodes acting as inputs for one step.
-    Each input node may have more than one DataObject,
-    and DataObjects may arrive to the node at different times.
-    """
-    def __init__(self, input_nodes, channel, index):
-        self.input_nodes = input_nodes
-        self.channel = channel
-        self.index = index
-
-    def get_ready_input_sets(self):
-        """New data is available at the given channel and index. See whether
-        any new tasks can be created with this data.
-        """
-        for input_node in self.input_nodes:
-            if not input_node.is_ready():
-                return []
-        return [InputSet(self.input_nodes, self.index)]
-
-
-class InputItem(object):
-    """Info needed by the Task to construct a TaskInput
-    """
-
-    def __init__(self, input_node, index):
-        self.data_object = input_node.get_data_object(index)
-        self.type = self.data_object.type
-        self.channel = input_node.channel
-
-
-class InputSet(object):
-    """A TaskInputManager can produce one or more InputSets, where each
-    InputSet corresponds to a single Task.
-    """
-
-    def __init__(self, input_nodes, index):
-        self.index = index
-        self.input_items = [InputItem(i, index) for i in input_nodes]
-
-    def __iter__(self):
-        return self.input_items.__iter__()
-
-
-'''
-class WorkflowRun(Run):
-
-    def update_workflow_status(self):
-        if self._are_children_finished():
-            self.setattrs_and_save_with_retries({'status_is_running': False,
-                                                 'status_is_waiting': False,
-                                                 'status_is_finished': True})
-            self.add_timepoint("Run %s@%s finished successfully" % (
-                self.name, self.uuid))
-            if self.parent:
-                self.parent.add_timepoint("Child Run %s@%s finished successfully" % (
-                    self.name, self.uuid))
-        if self.parent:
-            self.parent.update_workflow_status()
-
-    def _are_children_finished(self):
-        return all([step.status_is_finished for step in self.steps.all()])
-
-
-
-class StepRun(Run):
-
-    def update_status(self):
-        self.setattrs_and_save_with_retries({'status_is_running': False,
-                                             'status_is_waiting': False,
-                                             'status_is_finished': True})
-        self.add_timepoint("Run %s@%s finished successfully" % (self.name, self.uuid))
-        if self.parent:
-            self.parent.add_timepoint(
-                "Child Run %s@%s finished successfully" % (self.name, self.uuid))
-            self.parent.update_workflow_status()
-
-'''
-

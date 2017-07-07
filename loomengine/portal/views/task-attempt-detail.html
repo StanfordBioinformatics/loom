@@ -12,7 +12,7 @@
             </tr>
             <tr>
                 <th>
-                    Kibana Logs
+                    Logs
                 </th>
                 <td>
                     <a target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}:5601/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:{{activeData.taskAttempt.uuid}}')),sort:!('@timestamp',desc))">
@@ -25,7 +25,9 @@
                     Status
                 </th>
                 <td>
+		  <span ng-class="'label label-'+(activeData.taskAttempt.status|statusColor)">
                     {{activeData.taskAttempt.status}}
+		  </span>
                 </td>
             </tr>
             <tr>
@@ -36,12 +38,12 @@
                     {{activeData.taskAttempt.datetime_created | date:'medium'}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.rendered_command">
+            <tr ng-show="activeData.taskAttempt.command">
                 <th>
-                    Rendered Command
+                    Command
                 </th>
                 <td>
-                    {{activeData.taskAttempt.rendered_command}}
+                    {{activeData.taskAttempt.command}}
                 </td>
             </tr>
             <tr ng-show="activeData.taskAttempt.interpreter">
@@ -70,57 +72,58 @@
                     {{activeData.taskAttempt.resources.memory}}
                 </td>
             </tr>
+            <tr ng-show="activeData.taskAttempt.resources.disk_size">
+                <th>Disk size</th>
+                <td>
+                    {{activeData.taskAttempt.resources.disk_size}}
+                </td>
+            </tr>
         </table>
     </div>
 
     <div ng-show="activeData.taskAttempt.log_files">
-        <h4>Logfiles</h4>
-        <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <th>Name</th>
-                    <th>ID</th>
-                    <th>Created</th>
-                </thead>
-                <tbody ng-repeat="log_file in activeData.taskAttempt.log_files">
-                    <tr>
-                        <td>
-                            <a href="{{log_file.file.url}}">
-                                {{log_file.log_name}}
-                            </a>
-                        </td>
-                        <td>{{log_file.uuid}}</td>
-                        <td>{{log_file.datetime_created | date:'medium'}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+      <h4>Logfiles</h4>
+      <div class="table-responsive" >
+        <table class="table table-striped">
+          <thead>
+            <th>Name</th>
+            <th>ID</th>
+            <th>Created</th>
+          </thead>
+          <tbody ng-repeat="log_file in activeData.taskAttempt.log_files">
+            <tr>
+              <td>
+		<loom-data contents="log_file.data_object"></loom-data>
+              </td>
+              <td>{{log_file.uuid}}</td>
+              <td>{{log_file.data_object.datetime_created | date:'medium'}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div ng-show="activeData.taskAttempt.inputs.length">
-        <h4>Inputs</h4>
+      <h4>Inputs</h4>
         <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <th>Channel</th>
-                    <th>Type</th>
-                    <th>Data</th>
-                </thead>
-                <tbody>
-                    <tr ng-repeat="input in activeData.taskAttempt.inputs">
-                        <td>{{input.channel}}</td>
-                        <td>{{input.type}}</td>
-                        <td ng-show="input.type=='file'">
-                            <a ng-href="#/files/{{input.data_object.uuid}}" ng-show="input.data_object">
-                                {{input.data_object.filename}}
-                            </a>
-                        </td>
-                        <td ng-hide="input.type=='file'">
-                            {{input.data_object.value}}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+          <table class="table table-striped">
+            <thead>
+              <th>Channel</th>
+              <th>Type</th>
+	      <th>Mode</th>
+              <th>Data</th>
+            </thead>
+            <tbody>
+              <tr ng-repeat="input in activeData.taskAttempt.inputs">
+                <td>{{input.channel}}</td>
+                <td>{{input.type}}</td>
+		<td>{{input.mode}}</td>
+		<td>
+		  <loom-data contents="input.data.contents"></loom-data>
+		</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
     </div>
 
@@ -130,27 +133,24 @@
             <thead>
                 <th>Channel</th>
                 <th>Type</th>
+		<th>Mode</th>
                 <th>Data</th>
             </thead>
             <tbody>
                 <tr ng-repeat="output in activeData.taskAttempt.outputs">
                     <td>{{output.channel}}</td>
                     <td>{{output.type}}</td>
-                    <td ng-show="output.type=='file'">
-                        <a ng-href="#/files/{{output.data_object.uuid}}" ng-show="output.data_object">
-                            {{output.data_object.filename}}
-                        </a>
-                    </td>
-                    <td ng-hide="output.type=='file'">
-                        {{output.data_object.value}}
-                    </td>
+		    <td>{{output.mode}}</td>
+		    <td>
+		      <loom-data contents='output.data.contents'></loom-data>
+		    </td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <div ng-show="activeData.taskAttempt.timepoints.length>0">
-        <h4>Timepoints</h4>
+    <div ng-show="activeData.taskAttempt.events.length>0">
+        <h4>Events</h4>
         <div class="table-responsive" >
             <table class="table table-striped">
                 <thead>
@@ -160,13 +160,13 @@
                     <th>Detail</th>
                 </thead>
                 <tbody>
-                    <tr ng-repeat="timepoint in activeData.taskAttempt.timepoints">
+                    <tr ng-repeat="event in activeData.taskAttempt.events">
                         <td>
-                            {{timepoint.timestamp | date:'medium'}}
+                            {{event.timestamp | date:'medium'}}
                         </td>
-                        <td>{{timepoint.message}}</td>
-                        <td>{{timepoint.is_error}}</td>
-                        <td>{{timepoint.detail}}</td>
+                        <td>{{event.event}}</td>
+                        <td>{{event.is_error}}</td>
+                        <td>{{event.detail}}</td>
                     </tr>
                 </tbody>
             </table>

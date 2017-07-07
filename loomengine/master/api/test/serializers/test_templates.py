@@ -1,34 +1,30 @@
-from rest_framework.test import RequestsClient
 import copy
-import datetime
 from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
 from . import fixtures
 from . import get_mock_request, get_mock_context
-from api.test.fixtures.many_steps import generator
 from api.serializers.templates import *
 
-@override_settings(TEST_DISABLE_ASYNC_DELAY=True)
-class TestFixedInputSerializer(TestCase):
+class TestTemplateInputSerializer(TestCase):
 
     def testCreate(self):
-        step = Template(command='test command',
+        template = Template(command='test command',
                         name='test',
                         is_leaf=True)
-        step.save()
+        template.save()
 
-        s = FixedInputSerializer(
-            data=fixtures.templates.fixed_step_input,
+        s = TemplateInputSerializer(
+            data=fixtures.templates.template_input,
             context={'parent_field': 'template',
-                     'parent_instance': step})
+                     'parent_instance': template})
         s.is_valid(raise_exception=True)
-        fixed_input = s.save()
+        template_input = s.save()
 
         self.assertEqual(
-            fixed_input.data_root.data_object.substitution_value,
-            fixtures.templates.fixed_step_input['data']['contents'])
+            template_input.data_node.substitution_value,
+            fixtures.templates.template_input['data']['contents'])
 
 
     def testRender(self):
@@ -37,18 +33,17 @@ class TestFixedInputSerializer(TestCase):
                         is_leaf=True)
         step.save()
 
-        s = FixedInputSerializer(
-            data=fixtures.templates.fixed_step_input,
+        s = TemplateInputSerializer(
+            data=fixtures.templates.template_input,
             context={'parent_field': 'template',
                      'parent_instance': step})
         s.is_valid(raise_exception=True)
-        fixed_input = s.save()
+        template_input = s.save()
 
-        s2 = FixedInputSerializer(fixed_input, context=get_mock_context())
+        s2 = TemplateInputSerializer(template_input, context=get_mock_context())
         self.assertTrue('uuid' in s2.data['data'].keys())
-        
 
-@override_settings(TEST_DISABLE_ASYNC_DELAY=True)
+
 class TestTemplateSerializer(TransactionTestCase):
 
     def testCreateStep(self):
@@ -59,21 +54,21 @@ class TestTemplateSerializer(TransactionTestCase):
 
         self.assertEqual(m.command, fixtures.templates.step_a['command'])
         self.assertEqual(
-            m.fixed_inputs.first().data_root.data_object.substitution_value,
-            fixtures.templates.step_a['fixed_inputs'][0]['data']['contents'])
+            m.get_input('a2').data_node.substitution_value,
+            fixtures.templates.step_a['inputs'][1]['data']['contents'])
 
     def testCreateFlatWorkflow(self):
         with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
             s = TemplateSerializer(data=fixtures.templates.flat_workflow)
             s.is_valid(raise_exception=True)
             m = s.save()
-
+    
         self.assertEqual(
             m.steps.first().command, 
             fixtures.templates.flat_workflow['steps'][0]['command'])
         self.assertEqual(
-            m.fixed_inputs.first().data_root.data_object.substitution_value,
-            fixtures.templates.flat_workflow['fixed_inputs'][0]['data']['contents'])
+            m.get_input('b2').data_node.substitution_value,
+            fixtures.templates.flat_workflow['inputs'][1]['data']['contents'])
 
     def testCreateNestedWorkflow(self):
         with self.settings(TEST_DISABLE_ASYNC_DELAY=True):
@@ -86,8 +81,8 @@ class TestTemplateSerializer(TransactionTestCase):
             fixtures.templates.nested_workflow[
                 'steps'][0]['steps'][0]['command'])
         self.assertEqual(
-            m.fixed_inputs.first().data_root.data_object.substitution_value,
-            fixtures.templates.nested_workflow['fixed_inputs'][0]['data']['contents'])
+            m.inputs.first().data_node.substitution_value,
+            fixtures.templates.nested_workflow['inputs'][0]['data']['contents'])
 
     def testCreateNestedWorkflowByReference(self):
         """Create a step first, then define a workflow that references
@@ -114,15 +109,3 @@ class TestTemplateSerializer(TransactionTestCase):
 
         s2 = TemplateSerializer(m, context=get_mock_context())
         self.assertEqual(s2.data['name'], 'nested')
-
-    def testCreationPostprocessing(self):
-
-        STEP_COUNT=2
-        
-        data = generator.make_many_steps(STEP_COUNT)
-
-        s = TemplateSerializer(data=data)
-        s.is_valid(raise_exception=True)
-        m = s.save()
-
-        self.assertTrue(m.steps.count() == STEP_COUNT+1)
