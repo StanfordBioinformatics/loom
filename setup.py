@@ -87,7 +87,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-                        'ansible==2.3.0.0',
+                        'ansible==2.3.1.0',
                         'apache-libcloud==1.5.0',
                         'celery==4.0.2',
                         'Django==1.11',

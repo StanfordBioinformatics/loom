@@ -1,6 +1,13 @@
-NOTE: This example does not work currently! The parallel feature is not yet available.
-This template demonstrates how parallel steps WILL BE implemented using
-"scatter" and "gather" modes on inputs and outputs.
+This template shows how Loom data is not restricted to
+scalars or arrays but also supports higher dimensionality,
+and here this is used to create a
+scatter-scatter-gather-gather pattern. In this example,
+a sentence is split into words, which are split into
+letters. Each letter is converted to an integer score.
+When a "gather" is applied to sum the scores letters,
+it merges only the last level of split, creating a separate
+sum for each word. A second gather is applied to calculate
+the product of the scores of all the words.
 
 To run this workflow:
 
@@ -8,26 +15,26 @@ To run this workflow:
 
       loom server start --settings-file local.conf
 
-2. Import the input file
-
-      loom import file wordfile.txt
-
-3. Import the template
+2. Import the template
 
       loom import template word_scoring.yaml
 
-4. Select inputs and execute the run
+3. Execute the run
 
-      loom run word_scoring wordfile=wordfile.txt
+      loom run word_scoring
 
-5. Monitor the run from the commandline
+      # or to override the default input value:
+
+      loom run word_scoring wordlist="my own crazy input here"
+
+4. Monitor the run from the commandline
 
       loom show run word_scoring --detail
 
-6. Monitor the run in the browser
+5. Monitor the run in the browser
 
       loom browser
 
-7. If you want to delete the Loom server
+6. If you want to delete the Loom server
 
       loom server delete

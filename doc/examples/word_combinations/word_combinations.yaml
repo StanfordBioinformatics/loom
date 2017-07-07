@@ -1,0 +1,44 @@
+---
+name: word_combinations
+inputs:
+  - channel: adjectives
+    type: string
+    data:
+      contents: [green,purple,orange]
+  - channel: nouns
+    type: string
+    data:
+      contents: [balloon,button]
+outputs:
+  - channel: all_word_pairs
+    type: file
+steps:
+  - name: combine_words
+    command: echo "{{adjectives}} {{nouns}}" > {{word_pair_files}}
+    environment:
+      docker_image: ubuntu
+    inputs:
+      - channel: adjectives
+        type: string
+        group: 0
+      - channel: nouns
+        type: string
+        group: 1
+    outputs:
+      - channel: word_pair_files
+        type: file
+        source:
+          filename: word_pair.txt
+  - name: merge_word_pairs
+    command: cat {{word_pair_files}} > {{all_word_pairs}}
+    environment:
+      docker_image: ubuntu
+    inputs:
+      - channel: word_pair_files
+        type: file
+        mode: gather(2)
+    outputs:
+      - channel: all_word_pairs
+        type: file
+        source:
+          filename: all_word_pairs.txt

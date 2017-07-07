@@ -10,7 +10,7 @@ create a new Task. For paralle Runs, many Tasks may be created.
 InputCalculator includes logic for dot-product or cross-product combination
 of array inputs, and complex combinations of the two. This behavior
 is defined by these two properties on a RunInput:
-- mode: [gather/no_gather/gather_all/gather(n)]
+- mode: [gather/no_gather/gather(n)]
 - group: integer >= 0
 
 Any input that is no_gather will provide the TaskInput with a scalar 
@@ -185,7 +185,11 @@ class InputSetGeneratorNode(object):
         generator = InputSetGeneratorNode()
         for (data_path, data_node) in data_channel.get_ready_data_nodes(
                 target_path, gather_depth):
-            input_item = InputItem(data_node, data_channel.channel, mode=data_channel.mode)
+            # If gather depth > 1, the data has to be flattened before we
+            # attach it to the task. If gather depth is 1 or 0, the flattened
+            # clone is an unchanged copy.
+            flat_data_node = data_node.flattened_clone()
+            input_item = InputItem(flat_data_node, data_channel.channel, mode=data_channel.mode)
             generator._add_input_item(data_path, input_item)
         return generator
 

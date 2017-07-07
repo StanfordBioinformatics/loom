@@ -225,7 +225,7 @@ class Run(MPTTModel, BaseModel):
             'status_is_waiting': False})
         self.add_event("Run failed", detail=detail, is_error=True)
         if self.parent:
-            self.parent.fail(detail='Failure in step %s@%s' % (self.uuid, self.uuid))
+            self.parent.fail(detail='Failure in step %s@%s' % (self.name, self.uuid))
         else:
             self.kill(detail='Automatically killed due to failure')
 

@@ -160,7 +160,7 @@ class Task(BaseModel):
                 'status_is_waiting': False})
             return task_attempt
         except Exception as e:
-            task_attempt.fail(detail='Error creating TaskAttempt: "%s"' % str(e))
+            task.fail(detail='Error creating TaskAttempt: "%s"' % str(e))
             raise
 
     def get_input_context(self):

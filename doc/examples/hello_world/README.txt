@@ -1,3 +1,5 @@
+This example shows how to import files and use them as inputs
+
 To run this workflow:
 
 1. If running for the first time, start the server

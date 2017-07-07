@@ -1,18 +1,20 @@
 ---
 name: word_scoring
 inputs:
-- channel: wordfile
-  type: file
-  hint: Input text file to be broken into words and letters
+- channel: wordlist
+  type: string
+  hint: Input text to be broken into words and letters
+  data:
+    contents: I am robot
 outputs:
 - channel: sentence_value
-  type: string
+  type: integer
 steps:
 - name: split_into_words
-  command: cat {{ wordfile }}
+  command: echo {{ wordlist }}
   inputs:
-  - channel: wordfile
-    type: file
+  - channel: wordlist
+    type: string
   outputs:
   - channel: word
     mode: scatter
@@ -59,7 +61,7 @@ steps:
     type: string
   outputs:
   - channel: letter_value
-    type: string
+    type: integer
     source:
       stream: stdout
   environment:
@@ -72,11 +74,11 @@ steps:
   command: print({{ letter_value|join(' + ') }}, end='')
   inputs:
   - channel: letter_value
-    type: string
+    type: integer
     mode: gather
   outputs:
   - channel: word_value
-    type: string
+    type: integer
     source:
       stream: stdout
   environment:
@@ -89,11 +91,11 @@ steps:
   command: print({{ word_value|join(' * ') }}, end='')
   inputs:
   - channel: word_value
-    type: string
+    type: integer
     mode: gather
   outputs:
   - channel: sentence_value
-    type: string
+    type: integer
     source:
       stream: stdout
   environment:

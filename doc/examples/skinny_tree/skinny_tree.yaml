@@ -1,0 +1,41 @@
+inputs:
+- channel: in
+  data:
+    contents: '0'
+  type: string
+name: skinny_tree
+outputs:
+- channel: out
+  type: string
+steps:
+- inputs:
+  - channel: in
+    type: string
+  name: level2
+  outputs:
+  - channel: out
+    type: string
+  steps:
+  - inputs:
+    - channel: in
+      type: string
+    name: level1
+    outputs:
+    - channel: out
+      type: string
+    steps:
+    - command: echo "This tree is 3 levels tall, and the input was {{in}}"
+      environment:
+        docker_image: ubuntu
+      inputs:
+      - channel: in
+        type: string
+      name: level0
+      outputs:
+      - channel: out
+        source:
+          stream: stdout
+        type: string
+      resources:
+        cores: '1'
+        memory: '1'
