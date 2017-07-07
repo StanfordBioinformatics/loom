@@ -180,6 +180,8 @@ class TaskAttempt(BaseModel):
             return
         if get_setting('PRESERVE_ALL'):
             return
+        if get_setting('PRESERVE_ON_FAILURE') and self.status_is_failed:
+            return
         async.cleanup_task_attempt(self.uuid)
 
 
