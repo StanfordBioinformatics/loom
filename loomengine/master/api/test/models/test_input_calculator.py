@@ -147,7 +147,7 @@ class TestInputCalculator(TestCase):
         self.assertEqual(len(input_items), 1)
         data_node = input_items[0].data_node
         self.assertEqual(data_node.substitution_value,
-                         [['i'],['a','m'],['r','o','b','o','t']])
+                         ['i','a','m','r','o','b','o','t'])
 
     def testSingleScalarInput(self):
         channel = 'a_scalar_channel'
@@ -203,7 +203,7 @@ class TestInputCalculator(TestCase):
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, channel)
         self.assertEqual(input_items[0].data_node.substitution_value,
-                         [['i'],['a','m'],['r','o','b','o','t']])
+                         ['i','a','m','r','o','b','o','t'])
 
     def testTwoInputsSameGroup(self):
         channel = 'channel1'
