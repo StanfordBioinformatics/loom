@@ -92,6 +92,8 @@ class TemplateImporter(AbstractImporter):
 
     @classmethod
     def _warn_for_fixed_inputs(cls, template):
+        if isinstance(template, (str, unicode)):
+            return
         if template.get('fixed_inputs'):
             import warnings
             FIXED_INPUTS_DEPRECATED = '\nFIXED INPUTS ARE DEPRECATED and will '\

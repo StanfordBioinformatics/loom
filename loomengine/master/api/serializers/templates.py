@@ -47,11 +47,6 @@ class TemplateInputSerializer(DataChannelSerializer):
     group = serializers.IntegerField(required=False)
     data = serializers.JSONField(required=False) # Override to make non-required
 
-#    def create(self, validated_data):
-#        if self.context.get('is_leaf'):
-#            _set_leaf_input_defaults(validated_data)
-#        return super(TemplateInputSerializer, self).create(self.validated_data)
-
 
 _template_serializer_fields = (
     'uuid',
