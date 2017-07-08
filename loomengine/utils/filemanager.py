@@ -40,7 +40,7 @@ def _execute_with_retries(retriable_function,
         try:
             retriable_function()
             break
-        except (ExceptionGoogleCloudError, SocketError) as e:
+        except (GoogleCloudError, SocketError) as e:
             attempt += 1
             if attempt > max_retries:
                 raise

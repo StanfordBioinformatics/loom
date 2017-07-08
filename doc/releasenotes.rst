@@ -1,6 +1,15 @@
 Release Notes
 =============
 
+0.4.0
+---------
+* Parallel workflows
+* Deprecated fixed inputs, replaced with optional and overridable "data" field on standard inputs
+* User-defined run names, using the optional "--name" flag with "loom run"
+* Updated examples, including two parallel examples "word_scoring" and "word_combinations"
+* Saving of templates is no longer asynchronous, so any errors are raised immediately with "loom import template"
+* Outputs can now use "glob" source in addition to "filename" and "stream"
+
 0.3.8
 ---------
 * Run overview shows nested runs, tasks, and task-attempts
