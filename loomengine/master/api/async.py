@@ -219,3 +219,12 @@ def _kill_task_attempt(task_attempt_uuid, kill_message):
 
 def kill_task_attempt(*args, **kwargs):
     return _run_with_delay(_kill_task_attempt, args, kwargs)
+
+@shared_task
+def _send_run_notifications(run_uuid):
+    from api.models.runs import Run
+    run = Run.objects.get(uuid=run_uuid)
+    run.send_notifications()
+
+def send_run_notifications(*args, **kwargs):
+    return _run_with_delay(_send_run_notifications, args, kwargs)

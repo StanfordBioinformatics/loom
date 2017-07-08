@@ -20,6 +20,13 @@ def to_boolean(value):
         return True
     raise Exception("Invalid value %s. Expected True or False")
 
+def to_float(value):
+    if value is None:
+        return None
+    if value == '':
+        return None
+    return float(value)
+
 def to_list(value):
     if value is None:
         return []
@@ -107,6 +114,20 @@ LOOM_MYSQL_PORT = os.getenv('LOOM_MYSQL_PORT', 3306)
 LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
 LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('LOOM_EMAIL_HOST', None)
+EMAIL_PORT = int(os.getenv('LOOM_EMAIL_PORT', 587))
+EMAIL_HOST_USER = os.getenv('LOOM_EMAIL_HOST_USER', None)
+EMAIL_HOST_PASSWORD = os.getenv('LOOM_EMAIL_HOST_PASSWORD', None)
+EMAIL_USE_TLS = to_boolean(os.getenv('LOOM_EMAIL_USE_TLS', True))
+EMAIL_USE_SSL = to_boolean(os.getenv('LOOM_EMAIL_USE_SSL', True))
+EMAIL_TIMEOUT = to_float(os.getenv('LOOM_EMAIL_TIMEOUT', 0.0))
+EMAIL_SSL_KEYFILE = os.getenv('LOOM_EMAIL_SSL_KEYFILE', None)
+EMAIL_SSL_CERTFILE = os.getenv('LOOM_EMAIL_SSL_CERTFILE', None)
+DEFAULT_FROM_EMAIL = os.getenv('LOOM_DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+LOOM_NOTIFICATION_ADDRESSES = to_list(os.getenv('LOOM_NOTIFICATION_ADDRESSES', '[]'))
 
 # Message broker settings
 LOOM_RABBITMQ_PASSWORD = os.getenv('LOOM_RABBITMQ_PASSWORD', 'guest')

@@ -95,7 +95,7 @@ class Task(BaseModel):
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.run.set_status_is_finished()
+        self.run.finish()
         for output in self.outputs.all():
             output.push_data(self.data_path)
         for task_attempt in self.all_task_attempts.all():
