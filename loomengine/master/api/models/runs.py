@@ -214,6 +214,7 @@ class Run(MPTTModel, BaseModel):
             if parent_connector.has_source:
                 raise ValidationError(
                     'Channel "%s" has more than one source' % output.channel)
+            parent_connector.setattrs_and_save_with_retries({'has_source': True})
             parent_connector.connect(output)
         except ObjectDoesNotExist:
             self.parent._create_connector(output, is_source=True)
