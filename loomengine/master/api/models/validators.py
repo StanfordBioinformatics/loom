@@ -140,6 +140,17 @@ def validate_resources(value):
             raise ValidationError(
                 'Invalid value for "memory: "%s". Expected an integer (in GB).')
 
+def validate_notification_addresses(value):
+    # value should be a list of notification targets,
+    # either email addresses or http/https URLs.
+    for target in value:
+        match = re.match(r'(^\S+@\S+$|^https?://|^HTTPS?://)', target)
+        if match is None:
+            raise ValidationError(
+                'Invalid notification target, must be an email address '\
+                'or an http/https URL: "%s"' % target)
+
+
 class OutputParserValidator(object):
 
     @classmethod

@@ -44,6 +44,6 @@ urlpatterns = [
 if settings.DEBUG:
     # This view is for testing response to a server error, e.g. where
     # server errors are logged.
-    urlpatterns.append(
-        url('^error/$', api.views.raise_server_error)
-    )
+    urlpatterns.extend([
+        url('^error/$', api.views.raise_server_error),
+    ])

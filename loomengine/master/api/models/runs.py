@@ -1,10 +1,13 @@
+from django.core import mail
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, \
     ValidationError
 from django.db import models
 from django.dispatch import receiver
+from django.template.loader import render_to_string
 from django.utils import timezone
 from mptt.models import MPTTModel, TreeForeignKey
 import jsonfield
+import requests
 
 from .base import BaseModel
 from api import get_setting
@@ -57,6 +60,8 @@ class Run(MPTTModel, BaseModel):
     resources = jsonfield.JSONField(
         blank=True,
         validators=[validators.validate_resources])
+    notification_addresses = jsonfield.JSONField(
+        blank=True, validators=[validators.validate_notification_addresses])
     parent = TreeForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
                             on_delete=models.CASCADE)
@@ -123,20 +128,24 @@ class Run(MPTTModel, BaseModel):
             return False
         return True
 
-    def set_status_is_finished(self):
+    def finish(self, notification_context):
         self.setattrs_and_save_with_retries(
             {'status_is_running': False,
              'status_is_waiting': False,
              'status_is_finished': True})
         if self.parent:
             if self.parent._are_children_finished():
-                self.parent.set_status_is_finished()
+                self.parent.finish(notification_context)
+        else:
+            # Send notifications only if topmost run
+            async.send_run_notifications(self.uuid, notification_context)
 
     def _are_children_finished(self):
         return all([step.status_is_finished for step in self.steps.all()])
 
     @classmethod
-    def create_from_template(cls, template, name=None, parent=None):
+    def create_from_template(cls, template, name=None,
+                             notification_addresses=[], parent=None):
         if name is None:
             name = template.name
         if template.is_leaf:
@@ -146,12 +155,19 @@ class Run(MPTTModel, BaseModel):
                 name=name,
                 command=template.command,
                 interpreter=template.interpreter,
+                environment=template.environment,
+                resources=template.resources,
+                notification_addresses=notification_addresses,
                 parent=parent)
         else:
-            run = Run.objects.create(template=template,
-                                     is_leaf=template.is_leaf,
-                                     name=name,
-                                     parent=parent)
+            run = Run.objects.create(
+                template=template,
+                is_leaf=template.is_leaf,
+                name=name,
+                environment=template.environment,
+                resources=template.resources,
+                notification_addresses=notification_addresses,
+                parent=parent)
         return run
 
     def _connect_input_to_parent(self, input):
@@ -218,16 +234,21 @@ class Run(MPTTModel, BaseModel):
         except ObjectDoesNotExist:
             self.parent._create_connector(output, is_source=True)
 
-    def fail(self, detail=''):
+    def fail(self, notification_context, detail=''):
         self.setattrs_and_save_with_retries({
             'status_is_failed': True,
             'status_is_running': False,
             'status_is_waiting': False})
         self.add_event("Run failed", detail=detail, is_error=True)
         if self.parent:
-            self.parent.fail(detail='Failure in step %s@%s' % (self.name, self.uuid))
+            self.parent.fail(notification_context,
+                             detail='Failure in step %s@%s' % (
+                                 self.name, self.uuid))
         else:
+            # Send kill signal to children if topmost run.
             self.kill(detail='Automatically killed due to failure')
+            # Send notifications only if topmost run
+            async.send_run_notifications(self.uuid, notification_context)
 
     def kill(self, detail=''):
         if self.status_is_finished:
@@ -242,6 +263,63 @@ class Run(MPTTModel, BaseModel):
             step.kill(detail=detail)
         for task in self.tasks.all():
             task.kill(detail=detail)
+
+    def send_notifications(self, notification_context):
+        notification_context.update({
+            'run_url': '%s/#/runs/%s/' % (notification_context['server_url'],
+                                          self.uuid),
+            'run_api_url': '%s/api/runs/%s/' % (notification_context['server_url'],
+                                                self.uuid),
+            'run_status': self.status,
+            'run_name_and_id': '%s@%s' % (self.name, self.uuid[0:8])
+        })
+        notification_addresses = []
+        if self.notification_addresses:
+            notification_addresses = self.notification_addresses
+        if get_setting('LOOM_NOTIFICATION_ADDRESSES'):
+            notification_addresses = notification_addresses\
+                                     + get_setting('LOOM_NOTIFICATION_ADDRESSES')
+        email_addresses = filter(lambda x: '@' in x, notification_addresses)
+        urls = filter(lambda x: '@' not in x, notification_addresses)
+        self._send_email_notifications(email_addresses, notification_context)
+        self._send_http_notifications(urls, notification_context)
+
+    def _send_email_notifications(self, email_addresses, notification_context):
+        if not email_addresses:
+            return
+        text_content = render_to_string('email/notify_run_completed.txt',
+                                        notification_context)
+        html_content = render_to_string('email/notify_run_completed.html',
+                                        notification_context)
+        connection = mail.get_connection()
+        connection.open()
+        email = mail.EmailMultiAlternatives(
+            'Loom run %s@%s is %s' % (self.name, self.uuid[0:8], self.status.lower()),
+            text_content,
+            get_setting('DEFAULT_FROM_EMAIL'),
+            email_addresses,
+        )
+        email.attach_alternative(html_content, "text/html")
+        email.send()
+        connection.close()
+
+    def _send_http_notifications(self, urls, notification_context):
+        if not urls:
+            return
+        data = {
+            'message': 'Loom run %s is %s' % (
+                notification_context['run_name_and_id'],
+                notification_context['run_status']),
+            'run_uuid': self.uuid,
+            'run_name': self.name,
+            'run_status': self.status,
+            'run_url': notification_context['run_url'],
+            'run_api_url': notification_context['run_api_url'],
+            'server_name': notification_context['server_name'],
+            'server_url': notification_context['server_url'],
+        }
+        for url in urls:
+            requests.post(url, data = data)
 
     def set_running_status(self):
         if self.status_is_running and not self.status_is_waiting:
@@ -310,9 +388,6 @@ class Run(MPTTModel, BaseModel):
             raise
 
     def initialize(self):
-        self.setattrs_and_save_with_retries({
-            'resources': self.template.resources,
-            'environment': self.template.environment})
         self.connect_inputs_to_template_data()
         self.create_steps()
         async.postprocess_run(self.uuid)

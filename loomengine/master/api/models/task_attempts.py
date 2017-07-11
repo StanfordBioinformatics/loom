@@ -56,20 +56,21 @@ class TaskAttempt(BaseModel):
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
-    def fail(self, detail=''):
+    def fail(self, notification_context, detail=''):
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
              'status_is_running': False})
         self.add_event("TaskAttempt failed", detail=detail, is_error=True)
         try:
             self.active_task.fail(
+                notification_context,
                 detail="Child TaskAttempt %s failed" % self.uuid)
         except ObjectDoesNotExist:
             # This attempt is no longer active
             # and will be ignored.
             pass
 
-    def finish(self):
+    def finish(self, notification_context):
         self.setattrs_and_save_with_retries({
             'datetime_finished': timezone.now(),
             'status_is_finished': True,
@@ -84,7 +85,7 @@ class TaskAttempt(BaseModel):
            or task.status_is_failed \
            or task.status_is_killed:
             return
-        task.finish()
+        task.finish(notification_context)
 
     def add_event(self, event, detail='', is_error=False):
         event = TaskAttemptEvent.objects.create(
