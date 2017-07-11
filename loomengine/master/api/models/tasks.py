@@ -82,34 +82,50 @@ class Task(BaseModel):
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
     def fail(self, detail=''):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
              'status_is_running': False,
              'status_is_waiting': False})
         self.add_event("Task failed", detail=detail, is_error=True)
+        self._kill_children(detail=detail)
         self.run.fail(detail='Task %s failed' % self.uuid)
-                
+
+    def has_terminal_status(self):
+        return self.status_is_finished \
+            or self.status_is_failed \
+            or self.status_is_killed
+
     def finish(self):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries(
             { 'datetime_finished': timezone.now(),
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.run.set_status_is_finished()
+        self.run.finish()
         for output in self.outputs.all():
             output.push_data(self.data_path)
         for task_attempt in self.all_task_attempts.all():
             task_attempt.cleanup()
 
     def kill(self, detail=''):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries({
             'status_is_waiting': False,
             'status_is_running': False,
             'status_is_killed': True
         })
         self.add_event('Task was killed', detail=detail, is_error=True)
+        self._kill_children(detail=detail)
+
+    def _kill_children(self, detail=''):
         for task_attempt in self.all_task_attempts.all():
-            async.kill_task_attempt(task_attempt.uuid, detail)
+            if not task_attempt.has_terminal_status():
+                async.kill_task_attempt(task_attempt.uuid, detail)
 
     @classmethod
     def create_from_input_set(cls, input_set, run):

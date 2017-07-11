@@ -123,14 +123,16 @@ class Run(MPTTModel, BaseModel):
             return False
         return True
 
-    def set_status_is_finished(self):
+    def finish(self):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries(
             {'status_is_running': False,
              'status_is_waiting': False,
              'status_is_finished': True})
         if self.parent:
             if self.parent._are_children_finished():
-                self.parent.set_status_is_finished()
+                self.parent.finish()
 
     def _are_children_finished(self):
         return all([step.status_is_finished for step in self.steps.all()])
@@ -219,7 +221,14 @@ class Run(MPTTModel, BaseModel):
         except ObjectDoesNotExist:
             self.parent._create_connector(output, is_source=True)
 
+    def has_terminal_status(self):
+        return self.status_is_finished \
+            or self.status_is_failed \
+            or self.status_is_killed
+            
     def fail(self, detail=''):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries({
             'status_is_failed': True,
             'status_is_running': False,
@@ -228,17 +237,19 @@ class Run(MPTTModel, BaseModel):
         if self.parent:
             self.parent.fail(detail='Failure in step %s@%s' % (self.name, self.uuid))
         else:
-            self.kill(detail='Automatically killed due to failure')
+            self._kill_children(detail='Automatically killed due to failure')
 
     def kill(self, detail=''):
-        if self.status_is_finished:
-            # Don't kill successfully completed runs
+        if self.has_terminal_status():
             return
         self.add_event('Run was killed', detail=detail, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
              'status_is_running': False,
              'status_is_waiting': False})
+        self._kill_children(detail=detail)
+
+    def _kill_children(self, detail=''):
         for step in self.steps.all():
             step.kill(detail=detail)
         for task in self.tasks.all():

@@ -163,6 +163,8 @@ def _cleanup_task_attempt(task_attempt_uuid):
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     _run_cleanup_task_playbook(task_attempt)
+    task_attempt.add_event('Cleaned up',
+                           is_error=False)
     task_attempt.setattrs_and_save_with_retries({
         'status_is_cleaned_up': True })
 
