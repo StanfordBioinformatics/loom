@@ -186,10 +186,16 @@ class Run(MPTTModel, BaseModel):
             return
 
         template_input = self.template.inputs.get(channel=input.channel)
+
         if template_input.data_node is None:
             raise ValidationError(
                 "No input data available on channel %s" % input.channel)
-        template_input.data_node.clone(seed=input.data_node)
+        if input.data_node is None:
+            data_node = template_input.data_node.clone()
+            input.setattrs_and_save_with_retries({'data_node': data_node})
+        else:
+            template_input.data_node.clone(seed=input.data_node)
+            
 
     def _has_user_input(self, channel):
         try:
@@ -299,7 +305,6 @@ class Run(MPTTModel, BaseModel):
     @classmethod
     def postprocess(cls, run_uuid):
         run = Run.objects.get(uuid=run_uuid)
-
         if run.postprocessing_status == 'complete':
             # Nothing more to do
             return
@@ -340,6 +345,7 @@ class Run(MPTTModel, BaseModel):
             run_input = RunInput.objects.create(
                 run=self,
                 channel=input.channel,
+                as_channel=input.as_channel,
                 type=input.type,
                 group=input.group,
                 mode=input.mode)
@@ -361,6 +367,7 @@ class Run(MPTTModel, BaseModel):
             kwargs = {'run': self,
                       'type': output.get('type'),
                       'channel': output.get('channel'),
+                      'as_channel': output.get('as_channel'),
                       'source': output.get('source'),
                       'parser': output.get('parser')
             }
@@ -485,6 +492,7 @@ class RunInput(DataChannel):
                             blank=True)
     mode = models.CharField(max_length=255, blank=True)
     group = models.IntegerField(null=True, blank=True)
+    as_channel = models.CharField(max_length=255, null=True, blank=True)
 
     def is_ready(self, data_path=None):
         if self.data_node:
@@ -508,6 +516,7 @@ class RunOutput(DataChannel):
     parser = jsonfield.JSONField(
 	validators=[validators.OutputParserValidator.validate_output_parser],
         blank=True)
+    as_channel = models.CharField(max_length=255, null=True, blank=True)
 
 
 class RunConnectorNode(DataChannel):

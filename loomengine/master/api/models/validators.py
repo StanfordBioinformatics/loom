@@ -211,6 +211,7 @@ class TemplateValidator(object):
                 "type": "object",
                 "properties": {
                     "channel": {"type": "string"},
+                    "as_channel": {"type": "string"},
                     "type": {
                         "type": "string",
                         "enum": ["file", "boolean", "string", "float", "integer"]},

@@ -1,0 +1,15 @@
+name: join_array_of_words
+command: echo -n {{wordarray}}
+environment:
+  docker_image: ubuntu:latest
+inputs:
+  - channel: wordarray
+    type: string
+    mode: gather
+    data:
+      contents: [aardvark,aback,abacus,abaft]
+outputs:
+  - channel: wordoutput
+    type: string
+    source:
+      stream: stdout

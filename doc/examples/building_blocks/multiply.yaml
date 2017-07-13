@@ -1,0 +1,15 @@
+name: multiply
+command: print({{ c }} * {{ ab_sum }}, end='')
+environment:
+  docker_image: python
+interpreter: python
+inputs:
+  - type: integer
+    channel: ab_sum
+  - type: integer
+    channel: c
+outputs:
+  - type: integer
+    channel: result
+    source:
+      stream: stdout

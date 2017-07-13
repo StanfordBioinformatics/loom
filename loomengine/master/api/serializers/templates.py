@@ -40,12 +40,13 @@ class TemplateInputSerializer(DataChannelSerializer):
 
     class Meta:
         model = TemplateInput
-        fields = ('type', 'channel', 'data', 'hint', 'mode', 'group')
+        fields = ('type', 'channel', 'as_channel', 'data', 'hint', 'mode', 'group')
 
     hint = serializers.CharField(required=False)
     mode = serializers.CharField(required=False)
     group = serializers.IntegerField(required=False)
     data = serializers.JSONField(required=False) # Override to make non-required
+    as_channel = serializers.CharField(required=False)
 
 
 _template_serializer_fields = (

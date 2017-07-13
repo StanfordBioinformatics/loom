@@ -1,0 +1,48 @@
+name: add_then_multiply
+inputs:
+  - type: integer
+    channel: a
+    data:
+      contents: 3
+  - type: integer
+    channel: b
+    data:
+      contents: 5
+  - type: integer
+    channel: c
+    data:
+      contents: 7
+outputs:
+  - type: integer
+    channel: result
+steps:
+  - name: add
+    command: print({{ a }} + {{ b }}, end='')
+    environment:
+      docker_image: python
+    interpreter: python
+    inputs:
+      - type: integer
+        channel: a
+      - type: integer
+        channel: b
+    outputs:
+      - type: integer
+        channel: ab_sum
+        source:
+          stream: stdout
+  - name: multiply
+    command: print({{ c }} * {{ ab_sum }}, end='')
+    environment:
+      docker_image: python
+    interpreter: python
+    inputs:
+      - type: integer
+        channel: ab_sum
+      - type: integer
+        channel: c
+    outputs:
+      - type: integer
+        channel: result
+        source:
+          stream: stdout

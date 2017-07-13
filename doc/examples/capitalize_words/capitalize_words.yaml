@@ -1,0 +1,15 @@
+name: capitalize_words
+command: echo -n {{word}} | awk '{print toupper($0)}'
+environment:
+  docker_image: ubuntu:latest
+inputs:
+  - channel: words
+    as_channel: word
+    type: string
+    data:
+      contents: [aardvark,aback,abacus,abaft]
+outputs:
+  - channel: wordoutput
+    type: string
+    source:
+      stream: stdout

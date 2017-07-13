@@ -1,7 +1,6 @@
----
-name: word_scoring
+name: sentence_scoring
 inputs:
-- channel: wordlist
+- channel: sentence
   type: string
   hint: Input text to be broken into words and letters
   data:
@@ -11,9 +10,9 @@ outputs:
   type: integer
 steps:
 - name: split_into_words
-  command: echo {{ wordlist }}
+  command: echo {{ sentence }}
   inputs:
-  - channel: wordlist
+  - channel: sentence
     type: string
   outputs:
   - channel: word
@@ -28,9 +27,6 @@ steps:
         trim: true
   environment:
     docker_image: ubuntu
-  resources:
-    cores: '1'
-    memory: '1'
 - name: split_into_letters
   interpreter: python
   command: print(' '.join([letter for letter in '{{ word }}']))
@@ -50,9 +46,6 @@ steps:
         trim: true
   environment:
     docker_image: python
-  resources:
-    cores: '1'
-    memory: '1'
 - name: letter_to_integer
   interpreter: python
   command: print(ord( '{{ letter }}' ), end='')
@@ -66,9 +59,6 @@ steps:
       stream: stdout
   environment:
     docker_image: python
-  resources:
-    cores: '1'
-    memory: '1'
 - name: sum_word
   interpreter: python
   command: print({{ letter_value|join(' + ') }}, end='')
@@ -83,9 +73,6 @@ steps:
       stream: stdout
   environment:
     docker_image: python
-  resources:
-    cores: '1'
-    memory: '1'
 - name: multiply_sentence
   interpreter: python
   command: print({{ word_value|join(' * ') }}, end='')
@@ -100,6 +87,3 @@ steps:
       stream: stdout
   environment:
     docker_image: python
-  resources:
-    cores: '1'
-    memory: '1'

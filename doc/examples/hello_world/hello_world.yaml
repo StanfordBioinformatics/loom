@@ -1,4 +1,3 @@
----
 name: hello_world
 inputs:
 - type: file
