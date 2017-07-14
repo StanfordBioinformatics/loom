@@ -81,7 +81,7 @@ class Task(BaseModel):
         # has passed, we have probably missed 2 heartbeats
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
-    def fail(self, detail=''):
+    def fail(self, notification_context, detail=''):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
@@ -90,14 +90,14 @@ class Task(BaseModel):
              'status_is_waiting': False})
         self.add_event("Task failed", detail=detail, is_error=True)
         self._kill_children(detail=detail)
-        self.run.fail(detail='Task %s failed' % self.uuid)
+        self.run.fail(notification_context, detail='Task %s failed' % self.uuid)
 
     def has_terminal_status(self):
         return self.status_is_finished \
             or self.status_is_failed \
             or self.status_is_killed
 
-    def finish(self):
+    def finish(self, notification_context):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
@@ -105,7 +105,7 @@ class Task(BaseModel):
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.run.finish()
+        self.run.finish(notification_context)
         for output in self.outputs.all():
             output.push_data(self.data_path)
         for task_attempt in self.all_task_attempts.all():

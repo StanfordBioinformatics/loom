@@ -79,6 +79,7 @@ _run_serializer_fields = [
     'interpreter',
     'environment',
     'resources',
+    'notification_addresses',
     'user_inputs',
     'inputs',
     'outputs',
@@ -118,6 +119,8 @@ class URLRunSerializer(ProxyWriteSerializer):
     interpreter = serializers.CharField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
+    notification_addresses = serializers.JSONField(
+        required=False, write_only=True, allow_null=True)
     user_inputs = UserInputSerializer(
         many=True, required=False, write_only=True)
     inputs = RunInputSerializer(many=True, required=False, write_only=True)
@@ -157,6 +160,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     interpreter = serializers.CharField(required=False)
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
+    notification_addresses = serializers.JSONField(required=False, allow_null=True)
     user_inputs = UserInputSerializer(many=True, required=False)
     inputs = RunInputSerializer(many=True, required=False)
     outputs = RunOutputSerializer(many=True, required=False)
@@ -177,7 +181,9 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         template = s.save()
 
         run = Run.create_from_template(
-            template, name=validated_data.get('name'))
+            template,
+            name=validated_data.get('name'),
+            notification_addresses=validated_data.get('notification_addresses'))
         if user_inputs is not None:
             for input_data in user_inputs:
                 # The user_input usually won't have data type specified.
@@ -261,6 +267,8 @@ class SummaryRunSerializer(RunSerializer):
     interpreter = serializers.CharField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
+    notification_addresses = serializers.JSONField(
+        required=False, write_only=True, allow_null=True)
     user_inputs = UserInputSerializer(
         required=False, many=True, write_only=True)
     inputs = RunInputSerializer(many=True, required=False, write_only=True)

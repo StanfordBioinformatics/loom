@@ -1,0 +1,3 @@
+Loom run "{{ run_name_and_id }}" has completed on Loom server "{{server_name}}" with status "{{ run_status }}".
+
+{{ run_url }}

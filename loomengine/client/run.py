@@ -43,6 +43,10 @@ class TemplateRunner(object):
                             help='ID of data inputs')
         parser.add_argument('-n', '--name', metavar='RUN_NAME',
                             help='run name (default is template name)')
+        parser.add_argument('--notify', '-e', action='append',
+                            metavar='EMAIL/URL',
+                            help='Recipients of completed run notifications. '\
+                            'Repeat flag for multiple emails or urls')
         return parser
 
     @classmethod
@@ -57,7 +61,8 @@ class TemplateRunner(object):
     def run(self):
         run_data = {
             'template': self.args.template,
-            'user_inputs': self._get_inputs()}
+            'user_inputs': self._get_inputs(),
+            'notification_addresses': self.args.notify,}
         if self.args.name:
             run_data['name'] = self.args.name
         try:

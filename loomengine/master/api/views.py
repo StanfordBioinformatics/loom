@@ -157,19 +157,34 @@ class TaskAttemptViewSet(ExpandableViewSet):
         model = s.save()
         return JsonResponse(s.data, status=201)
 
+    def _get_notification_context(self, request, task_attempt):
+        # This context is needed to compose notification emails.
+        # We generate it here while the request is available,
+        # but it will be used later by an async process if
+        # a notification email is sent.
+        run = task_attempt.task.run
+        return {
+            'server_name': get_setting('SERVER_NAME'),
+            'server_url': '%s://%s' % (request.scheme,
+                                       request.get_host()),
+        }
+
     @detail_route(methods=['post'], url_path='fail',
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
-    def fail(self, request, uuid=None):
+    def fail(self, request, uuid):
         task_attempt = self._get_task_attempt(request, uuid)
-        task_attempt.fail()
+        notification_context = self._get_notification_context(request, task_attempt)
+        task_attempt.fail(notification_context)
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='finish',
                   serializer_class=rest_framework.serializers.Serializer)
     def finish(self, request, uuid=None):
         task_attempt = self._get_task_attempt(request, uuid)
-        async.finish_task_attempt(task_attempt.uuid)
+        notification_context = self._get_notification_context(request, task_attempt)
+        async.finish_task_attempt(task_attempt.uuid,
+                                  notification_context)
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='events',

@@ -7,10 +7,8 @@ from django import db
 from django.utils import timezone
 import logging
 from api import get_setting
-import kombu.exceptions
 import os
 import subprocess
-import sys
 import threading
 import time
 
@@ -196,14 +194,12 @@ def _run_cleanup_task_playbook(task_attempt):
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
 
 @shared_task
-def _finish_task_attempt(task_attempt_uuid):
+def _finish_task_attempt(task_attempt_uuid, notification_context):
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    task_attempt.finish()
+    task_attempt.finish(notification_context)
 
-def finish_task_attempt(task_attempt_uuid):
-    args = [task_attempt_uuid]
-    kwargs = {}
+def finish_task_attempt(*args, **kwargs):
     return _run_with_delay(_finish_task_attempt, args, kwargs)
 
 @shared_task
@@ -221,3 +217,12 @@ def _kill_task_attempt(task_attempt_uuid, kill_message):
 
 def kill_task_attempt(*args, **kwargs):
     return _run_with_delay(_kill_task_attempt, args, kwargs)
+
+@shared_task
+def _send_run_notifications(run_uuid, notification_context):
+    from api.models.runs import Run
+    run = Run.objects.get(uuid=run_uuid)
+    run.send_notifications(notification_context)
+
+def send_run_notifications(*args, **kwargs):
+    return _run_with_delay(_send_run_notifications, args, kwargs)
