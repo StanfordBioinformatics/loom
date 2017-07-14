@@ -15,7 +15,7 @@ steps:
   - channel: sentence
     type: string
   outputs:
-  - channel: word
+  - channel: words
     mode: scatter
     type: string
     source:
@@ -31,10 +31,11 @@ steps:
   interpreter: python
   command: print(' '.join([letter for letter in '{{ word }}']))
   inputs:
-  - channel: word
+  - channel: words
+    as_channel: word
     type: string
   outputs:
-  - channel: letter
+  - channel: letters
     type: string
     mode: scatter
     source:
@@ -50,10 +51,11 @@ steps:
   interpreter: python
   command: print(ord( '{{ letter }}' ), end='')
   inputs:
-  - channel: letter
+  - channel: letters
+    as_channel: letter
     type: string
   outputs:
-  - channel: letter_value
+  - channel: letter_values
     type: integer
     source:
       stream: stdout
@@ -61,13 +63,13 @@ steps:
     docker_image: python
 - name: sum_word
   interpreter: python
-  command: print({{ letter_value|join(' + ') }}, end='')
+  command: print({{ letter_values|join(' + ') }}, end='')
   inputs:
-  - channel: letter_value
+  - channel: letter_values
     type: integer
     mode: gather
   outputs:
-  - channel: word_value
+  - channel: word_values
     type: integer
     source:
       stream: stdout
@@ -75,9 +77,9 @@ steps:
     docker_image: python
 - name: multiply_sentence
   interpreter: python
-  command: print({{ word_value|join(' * ') }}, end='')
+  command: print({{ word_values|join(' * ') }}, end='')
   inputs:
-  - channel: word_value
+  - channel: word_values
     type: integer
     mode: gather
   outputs:

@@ -16,5 +16,5 @@ outputs:
   - type: integer
     channel: result
 steps:
-  - add
-  - multiply
+  - add$5b4c0b69984d50284d0a3c38f735c532
+  - multiply$32b277628f359b590304f69202cd6f86

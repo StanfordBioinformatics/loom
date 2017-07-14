@@ -42,3 +42,6 @@ class ValidationError(Error):
 
 class DuplicateFileError(Error):
     pass
+
+class DuplicateTemplateError(Error):
+    pass

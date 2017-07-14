@@ -20,4 +20,4 @@ outputs:
     parser:
       type: delimited
       options:
-        delimiter: '\n'
+        delimiter: "\n"

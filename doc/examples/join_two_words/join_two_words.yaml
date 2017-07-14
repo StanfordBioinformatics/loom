@@ -1,5 +1,5 @@
 name: join_two_words
-command: echo {{word1}} {{word2}}\!
+command: echo {{word1}} {{word2}}
 environment:
   docker_image: ubuntu:latest
 inputs:

@@ -13,18 +13,21 @@ outputs:
     type: file
 steps:
   - name: combine_words
-    command: echo "{{adjectives}} {{nouns}}" > {{word_pair_files}}
+    command: echo "{{adjective}} {{noun}}" > {{word_pair_file}}
     environment:
       docker_image: ubuntu
     inputs:
       - channel: adjectives
+        as_channel: adjective
         type: string
         group: 0
       - channel: nouns
+        as_channel: noun
         type: string
         group: 1
     outputs:
       - channel: word_pair_files
+        as_channel: word_pair_file
         type: file
         source:
           filename: word_pair.txt

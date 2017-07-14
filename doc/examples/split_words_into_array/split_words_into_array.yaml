@@ -1,9 +1,9 @@
 name: split_words_into_array
-command: echo -n {{wordinput}}
+command: echo -n {{text}}
 environment:
   docker_image: ubuntu:latest
 inputs:
-  - channel: wordinput
+  - channel: text
     type: string
     data:
       contents: >
@@ -12,7 +12,7 @@ inputs:
         magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
         ullamco laboris nisi ut aliquip ex ea commodo consequat.
 outputs:
-  - channel: wordoutput
+  - channel: wordlist
     type: string
     mode: scatter
     source:

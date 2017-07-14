@@ -1,5 +1,5 @@
 ######################################
-Loom templates
+Loom Templates
 ######################################
 
 To run an analysis on Loom, you must first have a template that defines the analysis steps and their relative arrangement (input/output dependencies, scatter-gather patterns). An analysis run may then be initiated by assigning input data to an existing template.
@@ -17,7 +17,7 @@ join_two_words
 
 *simplest example, a.k.a. hello world*
 
-This example illustrates the minimal set of features in a Loom template: command, runtime environment (defined by a docker image), and declarations of inputs and outputs.
+This example illustrates the minimal set of features in a Loom template: name, command, environment (defined by a docker image), and input/output definitions.
 
 We use the optional "data" field on the inputs to assign default values.
 
@@ -27,7 +27,9 @@ We use the optional "data" field on the inputs to assign default values.
 
 :download:`join_two_words.yaml <examples/join_two_words/join_two_words.yaml>`
 
-The command "echo {{word1}} {{word2}}\!" makes use of jinja2 notation to substitute input values. "{{word1}}" in the command will be substituted with the value provided on the "word1" input channel. For inputs of type "string", "integer", "boolean", and "float", the value substituted is a string representation of the data. For inputs of type "file", the filename is substituted. The full set of jinja2 features may be used, including filters, conditional statements, and loops.
+The command "echo {{word1}} {{word2}}" makes use of Jinja2_ notation to substitute input values. "{{word1}}" in the command will be substituted with the value provided on the "word1" input channel. For inputs of type "string", "integer", "boolean", and "float", the value substituted is a string representation of the data. For inputs of type "file", the filename is substituted. The full set of Jinja2 features may be used, including filters, conditional statements, and loops.
+
+.. _Jinja2: http://jinja.pocoo.org/docs/
 
 **Run the join_two_words example**
 
@@ -35,10 +37,10 @@ The command "echo {{word1}} {{word2}}\!" makes use of jinja2 notation to substit
    
    loom import template join_two_words.yaml
   
-   # run with default input data
+   # Run with default input data
    loom run join_two_words
    
-   # run with custom input data
+   # Run with custom input data
    loom run join_two_words word1=foo word2=bar
 
 capitalize_words
@@ -49,6 +51,8 @@ capitalize_words
 This template illustrates the concept of non-scalar data (in this case a 1-dimensional array). The default mode for inputs is "no_gather", which means that rather than gather all the objects into an array to be processed together in a single task, Loom will iterate over the array and execute the command once for each data object, in separate tasks.
 
 Here we capitalize each word in the array. The output from each task executed is a string, but since many tasks are executed, the output is an array of strings.
+
+Note the use of "as_channel" on the input definition. Since our input channel is an array we named the channel with the plural "words", but this run executes a separate tasks for each element in the array it may be confusing to refer to "{{words}} inside the command. It improves readability to use "as_channel: word".
 
 *capitalize_words.yaml:*
 
@@ -62,10 +66,10 @@ Here we capitalize each word in the array. The output from each task executed is
    
    loom import template capitalize_words.yaml
    
-   # run with default input data
+   # Run with default input data
    loom run capitalize_words
    
-   # run with custom input data
+   # Run with custom input data
    loom run capitalize_words words=[uno,dos,tres]
 
 join_array_of_words
@@ -73,11 +77,11 @@ join_array_of_words
 
 *array data, gather mode on an input*
 
-Earlier we say how to join two words, each defined on a separate input. But what if we want to join an arbitrary number of words?
+Earlier we saw how to join two words, each defined on a separate input. But what if we want to join an arbitrary number of words?
 
-This example has a single input, whose default value is an array of words. By setting the mode of this input as "gather", instead of iterating as in the last example, we will execute a single task that receives the full list of words as an input.
+This example has a single input, whose default value is an array of words. By setting the mode of this input as "gather", instead of iterating as in the last example we will execute a single task that receives the full list of words as an input.
 
-We merge the strings and output the result to a scalar string value.
+In this example we merge the strings and output the result as a string.
 
 *join_array_of_words.yaml:*
 
@@ -91,10 +95,10 @@ We merge the strings and output the result to a scalar string value.
    
    loom import template join_array_of_words.yaml
    
-   # run with default input data
+   # Run with default input data
    loom run join_array_of_words
    
-   # run with custom input data
+   # Run with custom input data
    loom run join_array_of_words wordarray=[uno,dos,tres]
 
 split_words_into_array
@@ -120,11 +124,11 @@ We also need to instruct Loom how to split the text in stdout to an array. For t
    
    loom import template split_words_into_array.yaml
    
-   # run with default input data
+   # Run with default input data
    loom run split_words_into_array
    
-   # run with custom input data
-   loom run split_words_into_array wordinput="one two three"
+   # Run with custom input data
+   loom run split_words_into_array text="one two three"
 
 add_then_multiply
 =================
@@ -149,10 +153,10 @@ Notice how the flow of data is defined using shared channel names between inputs
    
    loom import template add_then_multiply.yaml
    
-   # run with default input data
+   # Run with default input data
    loom run add_then_multiply
    
-   # run with custom input data
+   # Run with custom input data
    loom run add_then_multiply a=1 b=2 c=3
   
 building_blocks
@@ -184,15 +188,15 @@ Let's look at another way to write the previous workflow. The "add" and "multipl
 
 ::
    
-   # import child templates before parent
+   # Import child templates before the parent that references them
    loom import template add.yaml
    loom import template multiply.yaml
    loom import template building_blocks.yaml
    
-   # run with default input data
+   # Run with default input data
    loom run building_blocks
    
-   # run with custom input data
+   # Run with custom input data
    loom run building_blocks a=1 b=2 c=3
 
 search_file
@@ -216,11 +220,19 @@ In this example, the "lorem_ipsum.txt" input file should be imported prior to im
 		    
 :download:`search_file.yaml <examples/search_file/search_file.yaml>`
 
+Here is an alternative text file not referenced in the template. We can override the default input file and specify beowulf.txt as the input when starting a run.
+
+*beowulf.txt:*
+
+.. literalinclude:: examples/search_file/beowulf.txt
+
+:download:`beowulf.txt <examples/search_file/beowulf.txt>`
+	  
 **Run the search_file example**
 
 ::
    
-   # import the file before the template that references it
+   # Import the file before the template that references it
    loom import file lorem_ipsum.txt
    loom import template search_file.yaml
    
@@ -228,8 +240,8 @@ In this example, the "lorem_ipsum.txt" input file should be imported prior to im
    loom run search_file
    
    # Run with custom input data
-   loom import file a_different_file.txt
-   loom run search_file pattern="wolfman" file_to_search=a_different_file.txt
+   loom import file beowulf.txt
+   loom run search_file pattern=we file_to_search=beowulf.txt\$20b8f89484673eae4f121801e1fec28c
 
 word_combinations
 =================
@@ -238,12 +250,12 @@ word_combinations
 
 When a template step has two inputs rather than one, iteration can be done in two ways:
 
-collated iteration: [a,b] + [c,d] => [a+c,b+d]
-combinatorial iteration: [a,b] + [c,d] => [a+c, a+d, b+c, b+d]
+* collated iteration: [a,b] + [c,d] => [a+c,b+d]
+* combinatorial iteration: [a,b] + [c,d] => [a+c, a+d, b+c, b+d]
 
 With more than two inputs, we could employ some combination of these two approaches.
 
-"groups" provide a flexible way to define how iteration is performed. Each input has an integer group id (the default is 0). All inputs with a common group id will be combined with collation. Between groups, combinatorial iteration is used.
+"groups" provide a flexible way to define when to use collated or combinatorial iteration. Each input has an integer group ID (the default is 0). All inputs with a common group ID will be combined with collation. Between groups, combinatorial iteration is used.
 
 In this example, we iterate over two inputs, one with an array of adjectives and one with an array of nouns. Since the inputs have different group IDs, we iterate over all possible combinations of word pairs (combinatorial).
 
@@ -261,10 +273,10 @@ You may have noticed that we gather the input "word_pair_files" with "mode: gath
    
    loom import template word_combinations.yaml
 
-   # run with default input data
+   # Run with default input data
    loom run word_combinations
    
-   # run with custom input data
+   # Run with custom input data
    loom run word_combinations adjectives=[little,green] nouns=[men,pickles,apples]
 
 sentence_scoring
@@ -284,10 +296,10 @@ Why should we bother differentiating between "gather" and "gather(2)"? This exam
    
    loom import template sentence_scoring.yaml
    
-   # run with default input data
+   # Run with default input data
    loom run sentence_scoring
    
-   # run with custom input data
+   # Run with custom input data
    loom run sentence_scoring sentence='To infinity and beyond'
 
 *******

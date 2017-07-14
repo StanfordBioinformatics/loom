@@ -152,6 +152,7 @@ class ShowTemplate(AbstractShow):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Template: %s\n' % template_identifier
+            text += '  - md5: %s\n' % template.get('md5')
             text += '  - Imported: %s\n' % \
                     render_time(template['datetime_created'])
             if template.get('inputs'):

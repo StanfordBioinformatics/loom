@@ -221,13 +221,13 @@ class TemplateValidator(object):
                         "properties": {
                             "stream": {"type": "string",
                                        "enum": ["stdout", "stderr"]},
-                            "filename": {
+                            "filename": {"type": "string"},
+                            "filenames": {
                                 "oneOf": [
                                     {"type": "string"},
                                     {"type": "array",
                                      "items": {"type": "string"}}
-                                ]
-                            },
+                                ]},
                             "glob": {"type": "string"}
                         }
                     },

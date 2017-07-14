@@ -10,6 +10,8 @@ class DelimitedParser(object):
         self.trim = options.get('trim', False)
 
     def parse(self, text):
+        if self.trim:
+            text = text.strip()
         text_array = text.split(self.delimiter)
         if self.trim:
             text_array = [item.strip() for item in text_array]

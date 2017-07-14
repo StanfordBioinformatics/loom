@@ -1,7 +1,7 @@
 .. _getting-started:
 
 ###############
-Getting started
+Getting Started
 ###############
 
 This guide walks you through installing the Loom client, using it to launch a Loom server either on your local machine or on Google Cloud Platform, and running a workflow.

@@ -25,7 +25,7 @@ class FileOutput(BaseOutput):
 class FileListScatterOutput(BaseOutput):
 
     def save(self):
-        filename_list = self.output['source']['filename']
+        filename_list = self.output['source']['filenames']
         file_path_list = [
             os.path.join(
 	        self.settings['WORKING_DIR'], filename)
@@ -68,7 +68,7 @@ class FileContentsScatterOutput(FileContentsOutput):
 class FileListContentsScatterOutput(FileContentsOutput):
 
     def save(self):
-        filename_list = self.output['source']['filename']
+        filename_list = self.output['source']['filenames']
         if not isinstance(filename_list, list):
             filename_list = filename_list.split(' ')
         contents_list = []
@@ -159,21 +159,19 @@ def _get_output_info(output):
     assert mode in ['scatter', 'no_scatter'], \
         'output has invalid mode "%s"' % mode
     filename_source = output['source'].get('filename')
+    filename_list_source = output['source'].get('filenames')
     glob_source = output['source'].get('glob')
     stream_source = output['source'].get('stream')
-    assert sum([bool(filename_source), bool(glob_source), bool(stream_source)]) == 1, \
-               'exactly one type of source is required: "%s"' % output['source']
+    assert sum([bool(filename_source), bool(glob_source), bool(stream_source), bool(filename_list_source)]) == 1, \
+        'exactly one type of source is required: "%s"' % output['source']
     if glob_source:
         source_type = 'glob'
     elif stream_source:
         source_type = 'stream'
     elif filename_source:
-        if isinstance(filename_source, list):
-            source_type = 'file_list'
-        elif len(filename_source.split(' ')) > 1:
-            source_type = 'file_list'
-        else:
-            source_type = 'filename'
+        source_type = 'filename'
+    elif filename_list_source:
+        source_type = 'filenames'
     return (data_type, mode, source_type)
 
 def TaskAttemptOutput(output, task_attempt):
@@ -185,9 +183,9 @@ def TaskAttemptOutput(output, task_attempt):
 
     if data_type == 'file':
         if mode == 'scatter':
-            assert source_type in ['file_list', 'glob'], \
+            assert source_type in ['filenames', 'glob'], \
                 'source type "%s" not allowed' % source_type
-            if source_type == 'file_list':
+            if source_type == 'filenames':
                 return FileListScatterOutput(output, task_attempt)
             return GlobScatterOutput(output, task_attempt)
         else:
@@ -197,11 +195,11 @@ def TaskAttemptOutput(output, task_attempt):
             return FileOutput(output, task_attempt)
     else: # data_type is non-file
         if mode == 'scatter':
-            assert source_type in ['filename', 'file_list', 'glob', 'stream'], \
+            assert source_type in ['filename', 'filenames', 'glob', 'stream'], \
                 'source type "%s" not allowed' % source_type
             if source_type == 'filename':
                 return FileContentsScatterOutput(output, task_attempt)
-            if source_type == 'file_list':
+            if source_type == 'filenames':
                 return FileListContentsScatterOutput(output, task_attempt)
             if source_type == 'glob':
                 return GlobContentsScatterOutput(output, task_attempt)

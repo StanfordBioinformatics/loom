@@ -521,7 +521,7 @@ class FileManager:
         md5 = source.calculate_md5()
 
         if not force_duplicates:
-            self._verify_no_duplicates(md5)
+            self._verify_no_file_duplicates(filename, md5)
 
         value = {
             'filename': filename,
@@ -537,24 +537,20 @@ class FileManager:
             'value': value
         })
 
-    def _verify_no_duplicates(self, md5):
+    def _verify_no_file_duplicates(self, filename, md5):
         files = self.connection.get_data_object_index(
-            query_string='$%s' % md5, type='file')
+            query_string='%s$%s' % (filename, md5), type='file')
         if len(files) == 0:
             return
-        md5 = files[0].get('md5')
         matches = []
         for file in files:
-            value = file.get('value')
-            try:
-                filename = value.get('filename')
-            except AttributeError:
-                filename = ''
-            matches.append('%s@%s' % (filename, file.get('uuid')))
+            matches.append('%s@%s' % (file['value'].get('filename'), file.get('uuid')))
         raise DuplicateFileError(
-            'ERROR! One or more files with md5 %s already exist: "%s". '\
-            'Use "--force-duplicates" if you want to create another copy.'
-            % (md5, '", "'.join(matches)))
+            'ERROR! The name and md5 hash "%s$%s" is already in use by one '
+            'or more files: "%s". '\
+            'Use "--force-duplicates" to create another copy, but if you '\
+            'do you will have to use @uuid to reference these files.'
+            % (filename, md5, '", "'.join(matches)))
 
     def import_result_file(self, task_attempt_output, source_url):
         logger.info('Calculating md5 on file "%s"...' % source_url)
@@ -741,3 +737,24 @@ class FileManager:
 
     def normalize_url(self, url):
         return _urlparse(url).geturl()
+
+    def calculate_md5(self, url):
+        return Source(url, self.settings).calculate_md5()
+
+    def verify_no_template_duplicates(self, template):
+        md5 = template.get('md5')
+        name = template.get('name')
+        
+        templates = self.connection.get_template_index(
+            query_string='%s$%s' % (name, md5))
+        if len(templates) == 0:
+            return
+        matches = []
+        for template in templates:
+            matches.append('%s@%s' % (template.get('name'), template.get('uuid')))
+        raise DuplicateTemplateError(
+            'ERROR! The name and md5 hash "%s$%s" is already in use by one '
+            'or more templates: "%s". '\
+            'Use "--force-duplicates" to create another copy, but if you '\
+            'do you will have to use @uuid to reference these templates.'
+            % (name, md5, '", "'.join(matches)))
