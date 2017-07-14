@@ -58,7 +58,7 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
             if not isinstance(value, dict):
                 # If it's a string, treat it as a data_object identifier and
                 # look it up. 
-                data_objects = DataObject.filter_by_name_or_id(value)
+                data_objects = DataObject.filter_by_name_or_id_or_hash(value)
                 if data_objects.count() == 0:
                     raise serializers.ValidationError(
                         'No matching DataObject found for "%s"' % value)

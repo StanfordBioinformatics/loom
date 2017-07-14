@@ -1,0 +1,20 @@
+name: building_blocks
+inputs:
+  - type: integer
+    channel: a
+    data:
+      contents: 3
+  - type: integer
+    channel: b
+    data:
+      contents: 5
+  - type: integer
+    channel: c
+    data:
+      contents: 7
+outputs:
+  - type: integer
+    channel: result
+steps:
+  - add$5b4c0b69984d50284d0a3c38f735c532
+  - multiply$32b277628f359b590304f69202cd6f86

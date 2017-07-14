@@ -17,7 +17,7 @@ steps:
         mode: scatter
         source:
         # We have duplicate filename to make things difficult
-          filename:
+          filenames:
             - file1.txt
             - file1.txt
             - file2.txt
@@ -52,7 +52,7 @@ steps:
         channel: out_274893
         mode: scatter
         source:
-          filename: "{{file_list}}"
+          filenames: "{{file_list}}"
 
 # Non-file types as input
 
@@ -190,7 +190,7 @@ steps:
         source:
           filename: file.txt
 
-# Output is a list of files selected by filename
+# Output is a list of files selected by filenames
         
   - name: file_list_scatter_output
     command: echo one > file1.txt; echo two > file2.txt;
@@ -201,7 +201,7 @@ steps:
         type: file
         mode: scatter
         source:
-          filename:
+          filenames:
             - file1.txt
             - file2.txt
 
@@ -248,7 +248,7 @@ steps:
             delimiter: " "
             trim: true
 
-# A list of strings taken from a list of files selected by filename
+# A list of strings taken from a list of files selected by filenames
 
   - name: file_contents_scatter_output
     command: echo one > file1.txt; echo two > file2.txt;
@@ -259,7 +259,7 @@ steps:
         type: string
         mode: scatter
         source:
-          filename:
+          filenames:
             - file1.txt
             - file2.txt
 

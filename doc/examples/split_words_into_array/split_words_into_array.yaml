@@ -1,0 +1,24 @@
+name: split_words_into_array
+command: echo -n {{text}}
+environment:
+  docker_image: ubuntu:latest
+inputs:
+  - channel: text
+    type: string
+    data:
+      contents: >
+        Lorem ipsum dolor sit amet, consectetur adipiscing
+        elit, sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
+        ullamco laboris nisi ut aliquip ex ea commodo consequat.
+outputs:
+  - channel: wordlist
+    type: string
+    mode: scatter
+    source:
+      stream: stdout
+    parser:
+      type: delimited
+      options:
+        delimiter: " "
+        trim: True

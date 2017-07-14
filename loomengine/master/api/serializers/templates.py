@@ -40,12 +40,13 @@ class TemplateInputSerializer(DataChannelSerializer):
 
     class Meta:
         model = TemplateInput
-        fields = ('type', 'channel', 'data', 'hint', 'mode', 'group')
+        fields = ('type', 'channel', 'as_channel', 'data', 'hint', 'mode', 'group')
 
     hint = serializers.CharField(required=False)
     mode = serializers.CharField(required=False)
     group = serializers.IntegerField(required=False)
     data = serializers.JSONField(required=False) # Override to make non-required
+    as_channel = serializers.CharField(required=False)
 
 
 _template_serializer_fields = (
@@ -53,6 +54,7 @@ _template_serializer_fields = (
     'url',
     '_template_id',
     'name',
+    'md5',
     'datetime_created',
     'command',
     'comments',
@@ -81,6 +83,7 @@ class URLTemplateSerializer(ProxyWriteSerializer):
         view_name='template-detail',
         lookup_field='uuid')
     name = serializers.CharField(required=False)
+    md5 = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(
         format='iso-8601', required=False)
     is_leaf = serializers.BooleanField(required=False)
@@ -206,7 +209,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         return models
     
     def _lookup_by_id(self, template_id):
-        matches = Template.filter_by_name_or_id(template_id)
+        matches = Template.filter_by_name_or_id_or_hash(template_id)
         if matches.count() < 1:
             raise serializers.ValidationError(
                 'No template found that matches value "%s"' % template_id)
@@ -300,6 +303,7 @@ class SummaryTemplateSerializer(TemplateSerializer):
             view_name='template-detail',
             lookup_field='uuid')
     name = serializers.CharField(required=False)
+    md5 = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(format='iso-8601')
     is_leaf = serializers.BooleanField(required=False)
     steps = RecursiveField(many=True, required=False)

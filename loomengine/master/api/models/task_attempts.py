@@ -139,8 +139,10 @@ class TaskAttempt(BaseModel):
         input_context = self.task.get_input_context()
 
         stream = task_output_source.get('stream')
-        filename = render_string_or_list(
-            task_output_source.get('filename'),
+        filename = render_from_template(
+            task_output_source.get('filename'), input_context)
+        filenames = render_string_or_list(
+            task_output_source.get('filenames'),
             input_context)
         glob = render_from_template(
             task_output_source.get('glob'), input_context)
@@ -150,6 +152,8 @@ class TaskAttempt(BaseModel):
             output_source['stream'] = stream
         if filename:
             output_source['filename'] = filename
+        if filenames:
+            output_source['filenames'] = filenames
         if glob:
             output_source['glob'] = glob
         return output_source        

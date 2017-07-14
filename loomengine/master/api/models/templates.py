@@ -26,12 +26,15 @@ represented by the Template class.
 class Template(BaseModel):
 
     NAME_FIELD = 'name'
+    HASH_FIELD = 'md5'
     ID_FIELD = 'uuid'
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
     name = models.CharField(max_length=255,
                             validators=[validators.TemplateValidator.validate_name])
+    md5 = models.CharField(null=True, blank=True,
+                           max_length=32, validators=[validators.validate_md5])
     is_leaf = models.BooleanField()
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
@@ -95,6 +98,7 @@ class TemplateInput(DataChannel):
     hint = models.CharField(max_length=1000, blank=True)
     mode = models.CharField(max_length=255, blank=True)
     group = models.IntegerField(null=True, blank=True)
+    as_channel = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         app_label = 'api'

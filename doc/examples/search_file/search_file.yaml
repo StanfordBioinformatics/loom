@@ -1,0 +1,23 @@
+name: search_file
+command: grep {{pattern}} {{file_to_search}}
+environment:
+  docker_image: ubuntu:latest
+inputs:
+  - channel: file_to_search
+    type: file
+    data:
+      contents: lorem_ipsum.txt
+  - channel: pattern
+    type: string
+    data:
+      contents: dolor
+outputs:
+  - channel: matches
+    type: string
+    mode: scatter
+    source:
+      stream: stdout
+    parser:
+      type: delimited
+      options:
+        delimiter: "\n"

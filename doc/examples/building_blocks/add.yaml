@@ -1,0 +1,15 @@
+name: add
+command: print({{ a }} + {{ b }}, end='')
+environment:
+  docker_image: python
+interpreter: python
+inputs:
+  - type: integer
+    channel: a
+  - type: integer
+    channel: b
+outputs:
+  - type: integer
+    channel: ab_sum
+    source:
+      stream: stdout

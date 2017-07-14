@@ -508,9 +508,9 @@ def get_stdout_logger(name, log_level_string):
 
 # pip entrypoint requires a function with no arguments
 def main():
-
     attempt = TaskAttempt()
-    attempt.run_with_heartbeats(attempt.main)
+    #attempt.run_with_heartbeats(attempt.main)
+    attempt.main()
 
 
 if __name__=='__main__':

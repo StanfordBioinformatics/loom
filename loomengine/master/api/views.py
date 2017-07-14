@@ -233,7 +233,7 @@ class TemplateViewSet(ExpandableViewSet):
         imported = 'imported' in self.request.query_params
         Serializer = self.get_serializer_class()
         if query_string:
-            queryset = models.Template.filter_by_name_or_id(query_string)
+            queryset = models.Template.filter_by_name_or_id_or_hash(query_string)
         else:
             queryset = models.Template.objects.all()
         if imported:

@@ -150,12 +150,14 @@ class Task(BaseModel):
             TaskInput.objects.create(
                 task=task,
                 channel=input_item.channel,
+                as_channel=input_item.as_channel,
                 type=input_item.type,
                 mode=input_item.mode,
                 data_node = input_item.data_node)
         for run_output in run.outputs.all():
             task_output = TaskOutput.objects.create(
                 channel=run_output.channel,
+                as_channel=run_output.as_channel,
                 type=run_output.type,
                 task=task,
                 mode=run_output.mode,
@@ -182,24 +184,32 @@ class Task(BaseModel):
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
-            if input.data_node.is_leaf:
-                context[input.channel] = input.data_node\
-                                              .substitution_value
+            if input.as_channel:
+                channel = input.as_channel
             else:
-                context[input.channel] = ArrayInputContext(
+                channel = input.channel
+            if input.data_node.is_leaf:
+                context[channel] = input.data_node\
+                                        .substitution_value
+            else:
+                context[channel] = ArrayInputContext(
                     input.data_node.substitution_value,
                     input.type
                 )
         return context
 
     def get_output_context(self, input_context):
+        # This returns a value only for Files, where the filename
+        # is known beforehand and may be used in the command.
+        # For other types, nothing is added to the context.
         context = {}
         for output in self.outputs.all():
-            # This returns a value only for Files, where the filename
-            # is known beforehand and may be used in the command.
-            # For other types, nothing is added to the context.
+            if output.as_channel:
+                channel = output.as_channel
+            else:
+                channel = output.channel
             if output.source.get('filename'):
-                context[output.channel] = render_string_or_list(
+                context[channel] = render_string_or_list(
                     output.source.get('filename'), input_context)
         return context
     
@@ -228,6 +238,7 @@ class TaskInput(DataChannel):
                              related_name='inputs',
                              on_delete=models.CASCADE)
     mode = models.CharField(max_length=255)
+    as_channel = models.CharField(max_length=255, null=True, blank=True)
 
 
 class TaskOutput(DataChannel):
@@ -240,6 +251,7 @@ class TaskOutput(DataChannel):
     parser = jsonfield.JSONField(
 	validators=[validators.OutputParserValidator.validate_output_parser],
         blank=True)
+    as_channel = models.CharField(max_length=255, null=True, blank=True)
 
     def push_data(self, data_path):
         # Copy data from the TaskAttemptOutput to the TaskOutput

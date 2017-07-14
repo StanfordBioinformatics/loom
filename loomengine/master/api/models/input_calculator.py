@@ -175,7 +175,6 @@ class InputSetGeneratorNode(object):
         """Scan the data tree on the given data_channel to create a corresponding
         InputSetGenerator tree.
         """
-
         # If target_path is given, any data above that path will be ignored.
         # The path [] represents the root node, so this default value scans
         # the whole tree
@@ -189,7 +188,7 @@ class InputSetGeneratorNode(object):
             # attach it to the task. If gather depth is 1 or 0, the flattened
             # clone is an unchanged copy.
             flat_data_node = data_node.flattened_clone()
-            input_item = InputItem(flat_data_node, data_channel.channel, mode=data_channel.mode)
+            input_item = InputItem(flat_data_node, data_channel.channel, data_channel.as_channel, mode=data_channel.mode)
             generator._add_input_item(data_path, input_item)
         return generator
 
@@ -296,8 +295,9 @@ class InputItem(object):
     refrain from creating a new ArrayDataObject for no reason.
     """
 
-    def __init__(self, data_node, channel, mode):
+    def __init__(self, data_node, channel, as_channel, mode):
         self.channel = channel
+        self.as_channel = as_channel
         self.data_node = data_node
         self.mode = mode
 

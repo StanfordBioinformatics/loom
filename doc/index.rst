@@ -13,3 +13,4 @@ Welcome to Loom's documentation!
    releasenotes
    about
    installing
+   templates

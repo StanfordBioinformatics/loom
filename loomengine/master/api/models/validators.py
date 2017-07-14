@@ -222,6 +222,7 @@ class TemplateValidator(object):
                 "type": "object",
                 "properties": {
                     "channel": {"type": "string"},
+                    "as_channel": {"type": "string"},
                     "type": {
                         "type": "string",
                         "enum": ["file", "boolean", "string", "float", "integer"]},
@@ -231,13 +232,13 @@ class TemplateValidator(object):
                         "properties": {
                             "stream": {"type": "string",
                                        "enum": ["stdout", "stderr"]},
-                            "filename": {
+                            "filename": {"type": "string"},
+                            "filenames": {
                                 "oneOf": [
                                     {"type": "string"},
                                     {"type": "array",
                                      "items": {"type": "string"}}
-                                ]
-                            },
+                                ]},
                             "glob": {"type": "string"}
                         }
                     },

@@ -7,7 +7,7 @@ from loomengine.client.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, parse_as_json_or_yaml
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-from loomengine.utils.exceptions import DuplicateFileError
+from loomengine.utils.exceptions import DuplicateFileError, DuplicateTemplateError
 
 class AbstractImporter(object):
     """Common functions for the various subcommands under 'loom import'
@@ -71,12 +71,20 @@ class TemplateImporter(AbstractImporter):
         return self.import_template(self.args.template,
                                     self.args.comments,
                                     self.filemanager,
-                                    self.connection)
+                                    self.connection,
+                                    self.args.force_duplicates)
+
     @classmethod
-    def import_template(cls, template_file, comments, filemanager, connection):
+    def import_template(cls, template_file, comments,
+                        filemanager, connection, force_duplicates=False):
         print 'Importing template from "%s".' % filemanager.normalize_url(
             template_file)
         (template, source_url) = cls._get_template(template_file, filemanager)
+        if not force_duplicates:
+            try:
+                filemanager.verify_no_template_duplicates(template)
+            except DuplicateTemplateError as e:
+                raise SystemExit(e.message)
         if comments:
             template.update({'import_comments': comments})
         if source_url:
@@ -106,6 +114,7 @@ class TemplateImporter(AbstractImporter):
 
     @classmethod
     def _get_template(cls, template_file, filemanager):
+        md5 = filemanager.calculate_md5(template_file)
         try:
             (template_text, source_url) = filemanager.read_file(template_file)
         except Exception as e:
@@ -113,7 +122,7 @@ class TemplateImporter(AbstractImporter):
                             % (template_file, str(e)))
         template = parse_as_json_or_yaml(template_text)
         try:
-            template.update
+            template.update({'md5': md5})
         except AttributeError:
             raise SystemExit(
                 'ERROR! Template at "%s" could not be parsed into a dict.'
@@ -153,7 +162,7 @@ class Importer:
         file_subparser.add_argument('-d', '--force-duplicates', action='store_true',
                                     default=False,
                                     help='Force upload even if another file with '\
-                                    'the same md5 exists')
+                                    'the same name and md5 exists')
 
         hidden_file_subparser = subparsers.add_parser('files')
         FileImporter.get_parser(hidden_file_subparser)
@@ -162,12 +171,19 @@ class Importer:
                                            action='store_true', default=False)
 
         template_subparser = subparsers.add_parser('template', help='import a template')
+        template_subparser.add_argument('-d', '--force-duplicates', action='store_true',
+                                    default=False,
+                                    help='Force upload even if another template with '\
+                                    'the same name and md5 exists')
+
         TemplateImporter.get_parser(template_subparser)
         template_subparser.set_defaults(SubSubcommandClass=TemplateImporter)
 
         hidden_template_subparser = subparsers.add_parser('templates')
         TemplateImporter.get_parser(hidden_template_subparser)
         hidden_template_subparser.set_defaults(SubSubcommandClass=TemplateImporter)
+        hidden_template_subparser.add_argument('--force-duplicates', '-d',
+                                           action='store_true', default=False)
 
         return parser
 

@@ -26,10 +26,11 @@ class RunInputSerializer(DataChannelSerializer):
 
     class Meta:
         model = RunInput
-        fields = ('type', 'channel', 'data', 'mode', 'group')
+        fields = ('type', 'channel', 'as_channel', 'data', 'mode', 'group')
 
     mode = serializers.CharField()
     group = serializers.IntegerField()
+    as_channel = serializers.CharField(required=False)
 
     def to_representation(self, instance):
         return strip_empty_values(
@@ -40,11 +41,12 @@ class RunOutputSerializer(DataChannelSerializer):
 
     class Meta:
         model = RunOutput
-        fields = ('type', 'channel', 'data', 'mode', 'source', 'parser')
+        fields = ('type', 'channel', 'as_channel', 'data', 'mode', 'source', 'parser')
 
     mode = serializers.CharField()
     source = serializers.JSONField(required=False)
     parser = serializers.JSONField(required=False)
+    as_channel = serializers.CharField(required=False)
 
     def to_representation(self, instance):
         return strip_empty_values(
