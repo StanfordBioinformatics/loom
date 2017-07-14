@@ -57,6 +57,8 @@ class TaskAttempt(BaseModel):
         return self.outputs.get(channel=channel)
 
     def fail(self, notification_context, detail=''):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
              'status_is_running': False})
@@ -70,7 +72,14 @@ class TaskAttempt(BaseModel):
             # and will be ignored.
             pass
 
+    def has_terminal_status(self):
+        return self.status_is_finished \
+            or self.status_is_failed \
+            or self.status_is_killed
+
     def finish(self, notification_context):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries({
             'datetime_finished': timezone.now(),
             'status_is_finished': True,
@@ -80,10 +89,6 @@ class TaskAttempt(BaseModel):
         except ObjectDoesNotExist:
             # This attempt is no longer active
             # and will be ignored.
-            return
-        if task.status_is_finished \
-           or task.status_is_failed \
-           or task.status_is_killed:
             return
         task.finish(notification_context)
 
@@ -171,17 +176,24 @@ class TaskAttempt(BaseModel):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
     def kill(self, detail):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
              'status_is_running': False})
         self.add_event('TaskAttempt was killed', detail=detail, is_error=True)
+        self.cleanup()
 
     def cleanup(self):
         if self.status_is_cleaned_up:
             return
         if get_setting('PRESERVE_ALL'):
+            self.add_event('Skipped cleanup because PRESERVER_ALL is True',
+                           is_error=False)
             return
         if get_setting('PRESERVE_ON_FAILURE') and self.status_is_failed:
+            self.add_event('Skipped cleanup because PRESERVER_ON_FAILURE is True',
+                           is_error=False)
             return
         async.cleanup_task_attempt(self.uuid)
 

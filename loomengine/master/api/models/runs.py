@@ -129,6 +129,8 @@ class Run(MPTTModel, BaseModel):
         return True
 
     def finish(self, notification_context):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries(
             {'status_is_running': False,
              'status_is_waiting': False,
@@ -230,11 +232,19 @@ class Run(MPTTModel, BaseModel):
             if parent_connector.has_source:
                 raise ValidationError(
                     'Channel "%s" has more than one source' % output.channel)
+            parent_connector.setattrs_and_save_with_retries({'has_source': True})
             parent_connector.connect(output)
         except ObjectDoesNotExist:
             self.parent._create_connector(output, is_source=True)
 
+    def has_terminal_status(self):
+        return self.status_is_finished \
+            or self.status_is_failed \
+            or self.status_is_killed
+
     def fail(self, notification_context, detail=''):
+        if self.has_terminal_status():
+            return
         self.setattrs_and_save_with_retries({
             'status_is_failed': True,
             'status_is_running': False,
@@ -245,20 +255,22 @@ class Run(MPTTModel, BaseModel):
                              detail='Failure in step %s@%s' % (
                                  self.name, self.uuid))
         else:
-            # Send kill signal to children if topmost run.
-            self.kill(detail='Automatically killed due to failure')
+            # Send kill signal to children
+            self._kill_children(detail='Automatically killed due to failure')
             # Send notifications only if topmost run
             async.send_run_notifications(self.uuid, notification_context)
 
     def kill(self, detail=''):
-        if self.status_is_finished:
-            # Don't kill successfully completed runs
+        if self.has_terminal_status():
             return
         self.add_event('Run was killed', detail=detail, is_error=True)
         self.setattrs_and_save_with_retries(
             {'status_is_killed': True,
              'status_is_running': False,
              'status_is_waiting': False})
+        self._kill_children(detail=detail)
+
+    def _kill_children(self, detail=''):
         for step in self.steps.all():
             step.kill(detail=detail)
         for task in self.tasks.all():

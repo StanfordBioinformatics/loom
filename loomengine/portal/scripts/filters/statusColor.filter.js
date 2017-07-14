@@ -6,7 +6,10 @@ angular
 
 function statusColor(){
     return function(status){
-	if (status=='Killed' || status=='Failed'){
+	if (status=='Killed'){
+	    return "default";
+	}
+	else if (status=='Failed'){
             return "danger";
         }
         else if (status=="Finished"){
