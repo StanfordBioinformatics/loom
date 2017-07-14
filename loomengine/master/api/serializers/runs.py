@@ -214,7 +214,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                 s.save()
         run.initialize_inputs()
         run.initialize_outputs()
-        run.initialize()
+        run.initialize(self.context.get('request'))
         return run
 
     @classmethod

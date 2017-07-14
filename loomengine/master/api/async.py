@@ -37,9 +37,9 @@ def _run_with_delay(task_function, args, kwargs):
     task_function.delay(*args, **kwargs)
 
 @shared_task
-def _postprocess_run(run_uuid):
+def _postprocess_run(run_uuid, request):
     from api.models import Run
-    Run.postprocess(run_uuid)
+    Run.postprocess(run_uuid, request)
 
 def postprocess_run(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
@@ -49,11 +49,11 @@ def postprocess_run(*args, **kwargs):
     return _run_with_delay(_postprocess_run, args, kwargs)
 
 @shared_task
-def _run_task(task_uuid):
+def _run_task(task_uuid, request):
     # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
-    task_attempt = task.create_and_activate_attempt()
+    task_attempt = task.create_and_activate_attempt(request)
     if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
         logger.debug('Skipping async._run_execute_task_attempt_playbook because'\
                      'TEST_NO_RUN_TASK_ATTEMPT is True')
@@ -194,10 +194,10 @@ def _run_cleanup_task_playbook(task_attempt):
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
 
 @shared_task
-def _finish_task_attempt(task_attempt_uuid, notification_context):
+def _finish_task_attempt(task_attempt_uuid, request):
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    task_attempt.finish(notification_context)
+    task_attempt.finish(request)
 
 def finish_task_attempt(*args, **kwargs):
     return _run_with_delay(_finish_task_attempt, args, kwargs)
@@ -219,10 +219,10 @@ def kill_task_attempt(*args, **kwargs):
     return _run_with_delay(_kill_task_attempt, args, kwargs)
 
 @shared_task
-def _send_run_notifications(run_uuid, notification_context):
+def _send_run_notifications(run_uuid, request):
     from api.models.runs import Run
     run = Run.objects.get(uuid=run_uuid)
-    run.send_notifications(notification_context)
+    run.send_notifications(request)
 
 def send_run_notifications(*args, **kwargs):
     return _run_with_delay(_send_run_notifications, args, kwargs)

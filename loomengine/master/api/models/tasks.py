@@ -81,7 +81,7 @@ class Task(BaseModel):
         # has passed, we have probably missed 2 heartbeats
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
-    def fail(self, notification_context, detail=''):
+    def fail(self, request, detail=''):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
@@ -90,14 +90,14 @@ class Task(BaseModel):
              'status_is_waiting': False})
         self.add_event("Task failed", detail=detail, is_error=True)
         self._kill_children(detail=detail)
-        self.run.fail(notification_context, detail='Task %s failed' % self.uuid)
+        self.run.fail(request, detail='Task %s failed' % self.uuid)
 
     def has_terminal_status(self):
         return self.status_is_finished \
             or self.status_is_failed \
             or self.status_is_killed
 
-    def finish(self, notification_context):
+    def finish(self, request):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
@@ -105,9 +105,9 @@ class Task(BaseModel):
               'status_is_finished': True,
               'status_is_running': False,
               'status_is_waiting': False})
-        self.run.finish(notification_context)
+        self.run.finish(request)
         for output in self.outputs.all():
-            output.push_data(self.data_path)
+            output.push_data(self.data_path, request)
         for task_attempt in self.all_task_attempts.all():
             task_attempt.cleanup()
 
@@ -169,7 +169,7 @@ class Task(BaseModel):
         run.set_running_status()
         return task
 
-    def create_and_activate_attempt(self):
+    def create_and_activate_attempt(self, request):
         try:
             task_attempt = TaskAttempt.create_from_task(self)
             self.setattrs_and_save_with_retries({
@@ -178,7 +178,7 @@ class Task(BaseModel):
                 'status_is_waiting': False})
             return task_attempt
         except Exception as e:
-            task.fail(detail='Error creating TaskAttempt: "%s"' % str(e))
+            task.fail(request, detail='Error creating TaskAttempt: "%s"' % str(e))
             raise
 
     def get_input_context(self):
@@ -253,7 +253,7 @@ class TaskOutput(DataChannel):
         blank=True)
     as_channel = models.CharField(max_length=255, null=True, blank=True)
 
-    def push_data(self, data_path):
+    def push_data(self, data_path, request):
         # Copy data from the TaskAttemptOutput to the TaskOutput
         # From there, it is already connected to downstream runs.
         attempt_output = self.task.task_attempt.get_output(self.channel)
@@ -265,7 +265,7 @@ class TaskOutput(DataChannel):
         run_output = self.task.run.get_output(self.channel)
         data_root = run_output.data_node
         for input in data_root.downstream_run_inputs.all():
-            input.run.push(input.channel, data_path)
+            input.run.push(input.channel, data_path, request)
 
 
 class TaskEvent(BaseModel):

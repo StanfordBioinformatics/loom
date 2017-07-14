@@ -12,8 +12,10 @@ import tempfile
 import warnings
 
 def to_boolean(value):
-    if value is None:
+    if value in [None, '', False]:
         return False
+    if value == True:
+        return True
     if str(value).upper() == 'FALSE':
         return False
     if str(value).upper() == 'TRUE':
@@ -26,6 +28,13 @@ def to_float(value):
     if value == '':
         return None
     return float(value)
+
+def to_int(value):
+    if value is None:
+        return None
+    if value == '':
+        return None
+    return int(value)
 
 def to_list(value):
     if value is None:
@@ -118,7 +127,7 @@ LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('LOOM_EMAIL_HOST', None)
-EMAIL_PORT = int(os.getenv('LOOM_EMAIL_PORT', 587))
+EMAIL_PORT = to_int(os.getenv('LOOM_EMAIL_PORT', 587))
 EMAIL_HOST_USER = os.getenv('LOOM_EMAIL_HOST_USER', None)
 EMAIL_HOST_PASSWORD = os.getenv('LOOM_EMAIL_HOST_PASSWORD', None)
 EMAIL_USE_TLS = to_boolean(os.getenv('LOOM_EMAIL_USE_TLS', True))
