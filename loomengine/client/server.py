@@ -398,9 +398,10 @@ class ServerControls:
     def _get_start_settings_from_args(self):
         settings = {}
         if self.args.settings_file:
-            full_path_to_settings_file = self._check_stock_dir_and_get_full_path(
-                self.args.settings_file, STOCK_SETTINGS_DIR)
-            settings.update(parse_settings_file(full_path_to_settings_file))
+            for conf_file in self.args.settings_file:
+                full_path_to_settings_file = self._check_stock_dir_and_get_full_path(
+                    conf_file, STOCK_SETTINGS_DIR)
+                settings.update(parse_settings_file(full_path_to_settings_file))
         if self.args.extra_settings:
             settings.update(self._parse_extra_settings(self.args.extra_settings))
 
@@ -485,7 +486,8 @@ def get_parser(parser=None):
     start_parser = subparsers.add_parser(
         'start',
         help='Start or create a loom server')
-    start_parser.add_argument('--settings-file', '-s', metavar='SETTINGS_FILE')
+    start_parser.add_argument('--settings-file', '-s', action='append',
+                              metavar='SETTINGS_FILE')
     start_parser.add_argument('--extra-settings', '-e', action='append',
                                metavar='KEY=VALUE')
     start_parser.add_argument('--playbook-dir', '-p', metavar='PLAYBOOK_DIR')
