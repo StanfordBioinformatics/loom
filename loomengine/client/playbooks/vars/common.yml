@@ -6,7 +6,11 @@ container_settings_home: /loom-settings
 
 server_name: "{{lookup('env', 'LOOM_SERVER_NAME')}}"
 log_level: "{{lookup('env', 'LOOM_LOG_LEVEL')|upper}}"
-loom_docker_image: "{{lookup('env', 'LOOM_DOCKER_IMAGE')}}"
+loom_default_docker_registry: "{{lookup('env', 'LOOM_DEFAULT_DOCKER_REGISTRY')}}"
+
+default_registry: "{{lookup('env', 'LOOM_DEFAULT_DOCKER_REGISTRY')}}"
+raw_image: "{{lookup('env', 'LOOM_DOCKER_IMAGE')}}"
+loom_docker_image: "{% if default_registry %}{% if not ('.' in raw_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_image}}"
 
 admin_files_dir: "{{lookup('env', 'LOOM_ADMIN_FILES_DIR')}}"
 loom_playbook_dir: "{{lookup('env', 'LOOM_PLAYBOOK_DIR')}}"

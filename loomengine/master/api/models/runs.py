@@ -114,21 +114,7 @@ class Run(MPTTModel, BaseModel):
         assert len(outputs) == 1, 'missing output for channel %s' % channel
         return outputs[0]
 
-    def get_topmost_run(self):
-        try:
-            self.run_request
-        except ObjectDoesNotExist:
-            return self.parent.get_topmost_run()
-        return self
-
-    def is_topmost_run(self):
-        try:
-            self.run_request
-        except ObjectDoesNotExist:
-            return False
-        return True
-
-    def finish(self, request):
+    def finish(self, context):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
@@ -137,13 +123,16 @@ class Run(MPTTModel, BaseModel):
              'status_is_finished': True})
         if self.parent:
             if self.parent._are_children_finished():
-                self.parent.finish(request)
+                self.parent.finish(context)
         else:
             # Send notifications only if topmost run
-            async.send_run_notifications(self.uuid, request)
+            async.send_run_notifications(self.uuid, context)
 
     def _are_children_finished(self):
         return all([step.status_is_finished for step in self.steps.all()])
+
+    def are_tasks_finished(self):
+        return all([task.status_is_finished for task in self.tasks.all()])
 
     @classmethod
     def create_from_template(cls, template, name=None,
@@ -249,7 +238,7 @@ class Run(MPTTModel, BaseModel):
             or self.status_is_failed \
             or self.status_is_killed
 
-    def fail(self, request, detail=''):
+    def fail(self, context, detail=''):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries({
@@ -258,14 +247,14 @@ class Run(MPTTModel, BaseModel):
             'status_is_waiting': False})
         self.add_event("Run failed", detail=detail, is_error=True)
         if self.parent:
-            self.parent.fail(request,
+            self.parent.fail(context,
                              detail='Failure in step %s@%s' % (
                                  self.name, self.uuid))
         else:
             # Send kill signal to children
             self._kill_children(detail='Automatically killed due to failure')
             # Send notifications only if topmost run
-            async.send_run_notifications(self.uuid, request)
+            async.send_run_notifications(self.uuid, context)
 
     def kill(self, detail=''):
         if self.has_terminal_status():
@@ -283,18 +272,16 @@ class Run(MPTTModel, BaseModel):
         for task in self.tasks.all():
             task.kill(detail=detail)
 
-    def send_notifications(self, request):
-        assert request is not None, 'Request missing'
-        server_url = '%s://%s' % (request.scheme,
-                                  request.get_host())
-        context = {
-            'server_name': get_setting('SERVER_NAME'),
-            'server_url': server_url,
+    def send_notifications(self, context=None):
+        if not context:
+            context = {}
+        server_url = context.get('server_url')
+        context.update({
             'run_url': '%s/#/runs/%s/' % (server_url, self.uuid),
             'run_api_url': '%s/api/runs/%s/' % (server_url, self.uuid),
             'run_status': self.status,
             'run_name_and_id': '%s@%s' % (self.name, self.uuid[0:8])
-        }
+        })
         notification_addresses = []
         if self.notification_addresses:
             notification_addresses = self.notification_addresses
@@ -343,6 +330,17 @@ class Run(MPTTModel, BaseModel):
         for url in urls:
             requests.post(url, data = data)
 
+    @classmethod
+    def get_notification_context(cls, request):
+        if not request:
+            return {}
+        return {
+            'server_name': get_setting('SERVER_NAME'),
+            'server_url': '%s://%s' % (
+                request.scheme,
+                request.get_host()),
+        }
+            
     def set_running_status(self):
         if self.status_is_running and not self.status_is_waiting:
             return
@@ -385,7 +383,7 @@ class Run(MPTTModel, BaseModel):
                                 'concurrent modification')
 
     @classmethod
-    def postprocess(cls, run_uuid, request=None):
+    def postprocess(cls, run_uuid, context=None):
         run = Run.objects.get(uuid=run_uuid)
         if run.postprocessing_status == 'complete':
             # Nothing more to do
@@ -397,21 +395,21 @@ class Run(MPTTModel, BaseModel):
             return
 
         try:
-            run._push_all_inputs(request)
+            run._push_all_inputs(context)
             for step in run.steps.all():
-                step.initialize(request)
+                step.initialize(context)
             run.setattrs_and_save_with_retries({
                 'postprocessing_status': 'complete'})
 
         except Exception as e:
             run.setattrs_and_save_with_retries({'postprocessing_status': 'failed'})
-            run.fail(request, detail='Postprocessing failed with error "%s"' % str(e))
+            run.fail(context, detail='Postprocessing failed with error "%s"' % str(e))
             raise
 
-    def initialize(self, request=None):
+    def initialize(self, context=None):
         self.connect_inputs_to_template_data()
         self.create_steps()
-        async.postprocess_run(self.uuid, request)
+        async.postprocess_run(self.uuid, context)
 
     def initialize_inputs(self):
         seen = set()
@@ -503,17 +501,17 @@ class Run(MPTTModel, BaseModel):
                     connector.save()
         connector.connect(io_node)
 
-    def _push_all_inputs(self, request):
+    def _push_all_inputs(self, context):
         if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
             return
         if self.inputs.exists():
             for input in self.inputs.all():
-                self.push(input.channel, [], request)
+                self.push(input.channel, [], context)
         elif self.is_leaf:
             # Special case: No inputs on leaf node
-            self._push_input_set([], request)
+            self._push_input_set([], context)
 
-    def push(self, channel, data_path, request):
+    def push(self, channel, data_path, context):
         """Called when new data is available at the given data_path 
         on the given channel. This will trigger creation of new tasks if 1)
         other input data for those tasks is available, and 2) the task with
@@ -525,12 +523,12 @@ class Run(MPTTModel, BaseModel):
             return
         for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
             .get_input_sets():
-            self._push_input_set(input_set, request)
+            self._push_input_set(input_set, context)
 
-    def _push_input_set(self, input_set, request):
+    def _push_input_set(self, input_set, context):
         try:
             task = Task.create_from_input_set(input_set, self)
-            async.run_task(task.uuid, request)
+            async.run_task(task.uuid, context)
         except TaskAlreadyExistsException:
             pass
 

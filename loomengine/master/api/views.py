@@ -162,15 +162,16 @@ class TaskAttemptViewSet(ExpandableViewSet):
                   serializer_class=rest_framework.serializers.Serializer)
     def fail(self, request, uuid):
         task_attempt = self._get_task_attempt(request, uuid)
-        task_attempt.fail(request)
+        task_attempt.fail(models.Run.get_notification_context(request))
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='finish',
                   serializer_class=rest_framework.serializers.Serializer)
     def finish(self, request, uuid=None):
         task_attempt = self._get_task_attempt(request, uuid)
-        async.finish_task_attempt(task_attempt.uuid,
-                                  request)
+        async.finish_task_attempt(
+            task_attempt.uuid,
+            models.Run.get_notification_context(request))
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='events',
@@ -199,6 +200,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
             'WORKING_DIR': task_attempt.get_working_dir(),
             'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
             'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
+            'DEFAULT_DOCKER_REGISTRY': get_setting('DEFAULT_DOCKER_REGISTRY'),
             'HEARTBEAT_INTERVAL_SECONDS':
             get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
         }, status=200)

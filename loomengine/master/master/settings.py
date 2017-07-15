@@ -84,6 +84,8 @@ PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'False'))
 PRESERVE_ALL = to_boolean(os.getenv('LOOM_PRESERVE_ALL', 'False'))
 MAXIMUM_TASK_RETRIES = os.getenv('LOOM_MAXIMUM_TASK_RETRIES', '2')
 
+DEFAULT_DOCKER_REGISTRY = os.getenv('LOOM_DEFAULT_DOCKER_REGISTRY', 'docker.io')
+
 # GCP settings
 GCE_EMAIL = os.getenv('GCE_EMAIL')
 GCE_PROJECT = os.getenv('GCE_PROJECT', '')
