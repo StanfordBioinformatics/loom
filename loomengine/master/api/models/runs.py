@@ -332,6 +332,8 @@ class Run(MPTTModel, BaseModel):
 
     @classmethod
     def get_notification_context(cls, request):
+        if not request:
+            return {}
         return {
             'server_name': get_setting('SERVER_NAME'),
             'server_url': '%s://%s' % (
