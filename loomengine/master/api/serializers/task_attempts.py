@@ -105,7 +105,9 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
                   'interpreter',
                   'command',
                   'environment',
+                  'environment_info',
                   'resources',
+                  'resources_info',
                   'events'
         ]
 
@@ -123,7 +125,9 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
     events = TaskAttemptEventSerializer(
         many=True, allow_null=True, required=False)
     resources = serializers.JSONField(required=False)
+    resources_info = serializers.JSONField(required=False)
     environment = serializers.JSONField(required=False)
+    environment_info = serializers.JSONField(required=False)
     datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
     datetime_finished = serializers.DateTimeField(required=False, format='iso-8601')
     last_heartbeat = serializers.DateTimeField(required=False, format='iso-8601')
@@ -141,7 +145,9 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         status_is_finished = validated_data.pop('status_is_finished', None)
         status_is_failed = validated_data.pop('status_is_failed', None)
         status_is_running = validated_data.pop('status_is_running', None)
-
+        environment_info = validated_data.pop('environment_info', None)
+        resources_info = validated_data.pop('resources_info', None)
+        
         attributes = {}
         if status_is_finished is not None:
             attributes['status_is_finished'] = status_is_finished
@@ -149,6 +155,10 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
             attributes['status_is_failed'] = status_is_failed
         if status_is_running is not None:
             attributes['status_is_running'] = status_is_running
+        if environment_info is not None:
+            attributes['environment_info'] = environment_info
+        if resources_info is not None:
+            attributes['resources_info'] = resources_info
         instance = instance.setattrs_and_save_with_retries(attributes)
         return instance
 
@@ -195,7 +205,9 @@ class URLTaskAttemptSerializer(TaskAttemptSerializer):
     events = TaskAttemptEventSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
+    resources_info = serializers.JSONField(required=False, write_only=True)
     environment = serializers.JSONField(required=False, write_only=True)
+    environment_info = serializers.JSONField(required=False, write_only=True)
     last_heartbeat = serializers.DateTimeField(
         required=False, format='iso-8601', write_only=True)
     status_is_finished = serializers.BooleanField(required=False, write_only=True)

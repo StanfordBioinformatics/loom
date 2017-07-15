@@ -99,12 +99,15 @@ class TaskAttempt(object):
         utils_logger = get_stdout_logger(loomengine.utils.__name__, log_level)
 
     def _init_task_attempt(self):
-        self.task_attempt = self.connection.get_task_attempt(self.settings['TASK_ATTEMPT_ID'])
+        self.task_attempt = self.connection.get_task_attempt(
+            self.settings['TASK_ATTEMPT_ID'])
         if self.task_attempt is None:
-            raise TaskAttemptNotFoundError('TaskAttempt ID "%s" not found' % self.settings['TASK_ATTEMPT_ID'])
+            raise TaskAttemptNotFoundError(
+                'TaskAttempt ID "%s" not found' % self.settings['TASK_ATTEMPT_ID'])
 
     def _get_settings(self):
-        settings = self.connection.get_task_attempt_settings(self.settings['TASK_ATTEMPT_ID'])
+        settings = self.connection.get_task_attempt_settings(
+            self.settings['TASK_ATTEMPT_ID'])
         if settings is None:
             raise WorkerSettingsError('Worker settings not found')
         return settings
@@ -235,11 +238,12 @@ class TaskAttempt(object):
 
         try:
             self._pull_image()
-            image_id = self.docker_client.inspect_image(self._get_docker_image())['Id']
-            self._set_image_id(image_id)
+            container_info = self.docker_client.inspect_image(
+                self._get_docker_image())
+            self._save_environment_info(container_info)
             self.logger.info(
                 'Pulled image %s and received image id %s' % (
-                    self._get_docker_image(), image_id))
+                    self._get_docker_image(), container_info['Id']))
         except Exception as e:
             self._fail(detail='Pulling Docker image failed with error %s' % str(e))
             raise
@@ -255,8 +259,12 @@ class TaskAttempt(object):
     def _get_docker_image(self):
         # Tag is required. Otherwise docker-py pull will download all tags.
         docker_image = self.task_attempt['environment']['docker_image']
-        if not ':' in docker_image:
-            docker_image = docker_image + ':latest'
+        if not '.' in docker_image.split('/')[0]:
+            default_registry = self.settings.get('DEFAULT_DOCKER_REGISTRY', None)
+            if default_registry:
+                docker_image = '%s/%s' % (default_registry, docker_image)
+        if not '@' in docker_image and not ':' in docker_image:
+            docker_image += ':latest'
         return docker_image
 
     def _parse_docker_output(self, data):
@@ -424,10 +432,10 @@ class TaskAttempt(object):
             {'container_id': container_id}
         )
 
-    def _set_image_id(self, image_id):
+    def _save_environment_info(self, container_info):
         self.connection.update_task_attempt(
             self.settings['TASK_ATTEMPT_ID'],
-            {'image_id': image_id}
+            {'environment_info': container_info}
         )
 
     def _event(self, event, detail='', is_error=False):
