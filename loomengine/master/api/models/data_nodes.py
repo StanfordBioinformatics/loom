@@ -147,7 +147,10 @@ class DataNode(MPTTModel, BaseModel):
         with entries only for existing nodes with DataObjects where is_ready==True.
         Missing nodes or those with non-ready or non-existing data are ignored.
         """
-        seed_node = self.get_node(seed_path)
+        try:
+            seed_node = self.get_node(seed_path)
+        except MissingBranchError:
+            return []
         all_paths = seed_node._get_all_paths(seed_path, gather_depth)
         ready_data_nodes = []
         for path in all_paths:
@@ -182,7 +185,7 @@ class DataNode(MPTTModel, BaseModel):
         
     def is_ready(self, data_path=None):
         # True if all data at or below the given index is ready.
-        if data_path:
+        if data_path is not None:
             # Look at the node designated by data_path to see if it is ready
             try:
                 node = self.get_node(data_path)
@@ -213,10 +216,13 @@ class DataNode(MPTTModel, BaseModel):
         # 'data_path' is a list of (index, degree) pairs
         if not data_path:
             return self
+        if self._is_blank_node():
+            raise MissingBranchError(
+                'Node is incomplete')
         else:
             data_path = copy.deepcopy(data_path)
             (index, degree) = data_path.pop(0)
-            if not self.degree == degree:
+            if self.degree != degree:
                 raise DegreeMismatchError()
             child = self._get_child_by_index(index)
             if child is None:
