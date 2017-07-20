@@ -50,7 +50,9 @@ attempt = 0
 
 while True:
     try:
-        print subprocess.check_output([inventory_file], env=env)
+        inventory = subprocess.check_output([inventory_file], env=env)
+        # Make sure the result is a valid JSON, otherwise raises ValueError
+        json.loads(inventory)
         sys.exit(0)
     except Exception as e:
         attempt += 1
