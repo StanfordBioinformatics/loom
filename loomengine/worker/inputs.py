@@ -15,7 +15,8 @@ class FileInput(BaseInput):
         data_object_id = '@%s' % data_object['uuid']
         self.filemanager.export_file(
             data_object_id,
-            destination_url=self.settings['WORKING_DIR'])
+            destination_url=self.settings['WORKING_DIR'],
+            retry=True)
 
 
 class FileListInput(BaseInput):
@@ -40,7 +41,8 @@ class FileListInput(BaseInput):
             self.filemanager.export_file(
                 data_object_id,
                 destination_url=os.path.join(
-                    self.settings['WORKING_DIR'], filename))
+                    self.settings['WORKING_DIR'], filename),
+                retry=True)
 
     def _get_duplicates(self, array):
         seen = set()

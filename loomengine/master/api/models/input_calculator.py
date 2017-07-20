@@ -51,7 +51,7 @@ class InputCalculator(object):
         target_node_list = filter(lambda n: n.channel==target_channel, data_channels)
         assert len(target_node_list) == 1, \
             'expected exactly 1 node with channel %s but found %s' \
-            % (channel, len(target_node_list))
+            % (target_channel, len(target_node_list))
         target_node = target_node_list[0]
         target_group = target_node.group
         # New data has arrived at triggered_data_path, but if the input

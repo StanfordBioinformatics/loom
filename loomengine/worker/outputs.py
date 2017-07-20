@@ -19,7 +19,7 @@ class FileOutput(BaseOutput):
         filename = self.output['source']['filename']
         file_path = os.path.join(
 	    self.settings['WORKING_DIR'], filename)
-        self.filemanager.import_result_file(self.output, file_path)
+        self.filemanager.import_result_file(self.output, file_path, retry=True)
 
 
 class FileListScatterOutput(BaseOutput):
@@ -31,7 +31,7 @@ class FileListScatterOutput(BaseOutput):
 	        self.settings['WORKING_DIR'], filename)
             for filename in filename_list]
         self.filemanager.import_result_file_list(
-            self.output, file_path_list)
+            self.output, file_path_list, retry=True)
 
 
 class FileContentsOutput(BaseOutput):
@@ -129,7 +129,7 @@ class GlobScatterOutput(BaseOutput):
             self.output['source']['glob'])
         file_path_list = glob.glob(globstring)
         self.filemanager.import_result_file_list(
-            self.output, file_path_list)
+            self.output, file_path_list, retry=True)
 
 
 class GlobContentsScatterOutput(FileContentsOutput):
