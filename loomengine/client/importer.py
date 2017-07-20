@@ -31,20 +31,31 @@ class FileImporter(AbstractImporter):
     def get_parser(cls, parser):
         parser.add_argument(
             'files',
-            metavar='FILE', nargs='+', help='File path or Google Storage URL of file(s) to be imported. Wildcards are allowed.')
+            metavar='FILE', nargs='+', help='File path or Google Storage URL '\
+            'of file(s) to be imported. Wildcards are allowed.')
         parser.add_argument(
-            '--comment',
+            '-c', '--comments',
             metavar='COMMENTS',
             help='Comments. '\
             'Give enough detail for traceability.')
+        parser.add_argument('-d', '--force-duplicates', action='store_true',
+                            default=False,
+                            help='Force upload even if another file with '\
+                            'the same name and md5 exists')
+        parser.add_argument('-r', '--retry', action='store_true',
+                            default=False,
+                            help='Allow retries if there is a failure '\
+                            'connecting to storage')
+            
         return parser
 
     def run(self):
         try:
             files_imported = self.filemanager.import_from_patterns(
                 self.args.files,
-                self.args.comment,
+                self.args.comments,
                 force_duplicates=self.args.force_duplicates,
+                retry=self.args.retry,
             )
         except DuplicateFileError as e:
             raise SystemExit(e.message)
@@ -59,12 +70,21 @@ class TemplateImporter(AbstractImporter):
     def get_parser(cls, parser):
         parser.add_argument(
             'template',
-            metavar='TEMPLATE_FILE', help='Template to be imported, in YAML or JSON format.')
+            metavar='TEMPLATE_FILE', help='Template to be imported, '\
+            'in YAML or JSON format.')
         parser.add_argument(
-            '--comments',
+            '-c', '--comments',
             metavar='COMMENTS',
             help='Comments. '\
             'Give enough detail for traceability.')
+        parser.add_argument('-d', '--force-duplicates', action='store_true',
+                            default=False,
+                            help='Force upload even if another template with '\
+                            'the same name and md5 exists')
+        parser.add_argument('-r', '--retry', action='store_true',
+                            default=False,
+                            help='Allow retries if there is a failure '\
+                            'connecting to storage')
         return parser
 
     def run(self):
@@ -72,14 +92,16 @@ class TemplateImporter(AbstractImporter):
                                     self.args.comments,
                                     self.filemanager,
                                     self.connection,
-                                    self.args.force_duplicates)
+                                    force_duplicates=self.args.force_duplicates,
+                                    retry=self.args.retry)
 
     @classmethod
     def import_template(cls, template_file, comments,
-                        filemanager, connection, force_duplicates=False):
+                        filemanager, connection, force_duplicates=False,
+                        retry=False):
         print 'Importing template from "%s".' % filemanager.normalize_url(
             template_file)
-        (template, source_url) = cls._get_template(template_file, filemanager)
+        (template, source_url) = cls._get_template(template_file, filemanager, retry)
         if not force_duplicates:
             try:
                 filemanager.verify_no_template_duplicates(template)
@@ -113,10 +135,11 @@ class TemplateImporter(AbstractImporter):
             cls._warn_for_fixed_inputs(step)
 
     @classmethod
-    def _get_template(cls, template_file, filemanager):
-        md5 = filemanager.calculate_md5(template_file)
+    def _get_template(cls, template_file, filemanager, retry):
+        md5 = filemanager.calculate_md5(template_file, retry=retry)
         try:
-            (template_text, source_url) = filemanager.read_file(template_file)
+            (template_text, source_url) = filemanager.read_file(template_file,
+                                                                retry=retry)
         except Exception as e:
             raise SystemExit('ERROR! Unable to read file "%s". %s'
                             % (template_file, str(e)))
@@ -154,27 +177,21 @@ class Importer:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select a data type to import', metavar='{file,template}')
+        subparsers = parser.add_subparsers(
+            help='select a data type to import', metavar='{file,template}')
 
-        file_subparser = subparsers.add_parser('file', help='import a file or list files')
+        file_subparser = subparsers.add_parser(
+            'file', help='import a file or list files')
+                                               
         FileImporter.get_parser(file_subparser)
         file_subparser.set_defaults(SubSubcommandClass=FileImporter)
-        file_subparser.add_argument('-d', '--force-duplicates', action='store_true',
-                                    default=False,
-                                    help='Force upload even if another file with '\
-                                    'the same name and md5 exists')
 
         hidden_file_subparser = subparsers.add_parser('files')
         FileImporter.get_parser(hidden_file_subparser)
         hidden_file_subparser.set_defaults(SubSubcommandClass=FileImporter)
-        hidden_file_subparser.add_argument('--force-duplicates', '-d',
-                                           action='store_true', default=False)
 
-        template_subparser = subparsers.add_parser('template', help='import a template')
-        template_subparser.add_argument('-d', '--force-duplicates', action='store_true',
-                                    default=False,
-                                    help='Force upload even if another template with '\
-                                    'the same name and md5 exists')
+        template_subparser = subparsers.add_parser(
+            'template', help='import a template')
 
         TemplateImporter.get_parser(template_subparser)
         template_subparser.set_defaults(SubSubcommandClass=TemplateImporter)
@@ -182,8 +199,6 @@ class Importer:
         hidden_template_subparser = subparsers.add_parser('templates')
         TemplateImporter.get_parser(hidden_template_subparser)
         hidden_template_subparser.set_defaults(SubSubcommandClass=TemplateImporter)
-        hidden_template_subparser.add_argument('--force-duplicates', '-d',
-                                           action='store_true', default=False)
 
         return parser
 

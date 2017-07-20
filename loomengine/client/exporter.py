@@ -39,12 +39,19 @@ class FileExporter(AbstractExporter):
             '--destination',
             metavar='DESTINATION',
             help='Destination filename or directory')
+        parser.add_argument(
+            '-r', '--retry', action='store_true',
+            default=False,
+            help='Allow retries if there is a failure '\
+            'connecting to storage')
+
         return parser
 
     def run(self):
         self.filemanager.export_files(
             self.args.file_ids,
-            destination_url=self.args.destination
+            destination_url=self.args.destination,
+            retry=self.args.retry,
         )
 
 
@@ -64,26 +71,31 @@ class TemplateExporter(AbstractExporter):
             choices=['json', 'yaml'],
             default='yaml',
             help='Data format for downloaded template')
+        parser.add_argument(
+            '-r', '--retry', action='store_true',
+            default=False,
+            help='Allow retries if there is a failure '\
+            'connecting to storage')
         return parser
 
     def run(self):
         template = self.connection.get_template_index(query_string=self.args.template_id, min=1, max=1)[0]
-        destination_url = self._get_destination_url(template)
-        self._save_template(template, destination_url)
+        destination_url = self._get_destination_url(template, retry=self.args.retry)
+        self._save_template(template, destination_url, retry=self.args.retry)
 
-    def _get_destination_url(self, template):
+    def _get_destination_url(self, template, retry=False):
         default_name = '%s.%s' % (template['name'], self.args.format)
-        return self.filemanager.get_destination_file_url(self.args.destination, default_name)
+        return self.filemanager.get_destination_file_url(self.args.destination, default_name, retry=retry)
 
-    def _save_template(self, template, destination):
-        print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('_id'), destination)
+    def _save_template(self, template, destination, retry=False):
+        print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('uuid'), destination)
         if self.args.format == 'json':
             template_text = json.dumps(template, indent=4, separators=(',', ': '))
         elif self.args.format == 'yaml':
             template_text = yaml.safe_dump(template, default_flow_style=False)
         else:
             raise Exception('Invalid format type %s' % self.args.format)
-        self.filemanager.write_to_file(destination, template_text)
+        self.filemanager.write_to_file(destination, template_text, retry=retry)
         print '...finished exporting template'
 
 class Exporter:

@@ -145,7 +145,7 @@ setup(
      entry_points={
          'console_scripts': [
              'loom=loomengine.client.main:main',
-             'loom-execute-task=loomengine.worker.task_execution_manager:main',
+             'loom-task-monitor=loomengine.worker.task_monitor:main',
          ],
      },
 )

@@ -10,11 +10,13 @@ import sys
 import tempfile
 import time
 import urlparse
+from google.auth.exceptions import TransportError
 import google.cloud.storage
 from google.cloud.exceptions import GoogleCloudError
 import requests
 from socket import error as SocketError
 
+from loomengine.utils import execute_with_retries
 from loomengine.utils import md5calc
 from loomengine.utils.exceptions import *
 from loomengine.utils.connection import Connection
@@ -27,33 +29,6 @@ import apiclient.discovery
 
 logger = logging.getLogger(__name__)
 
-def _execute_with_retries(retriable_function,
-                          human_readable_action_name='Action'):
-    """This attempts to execute "retriable_function" with exponential backoff 
-    on delay time.
-    10 retries adds up to about 34 minutes total delay before the last attempt.
-    "human_readable_action_name" is an option input to customize retry message.
-    """
-    max_retries = 10
-    attempt = 0
-    while True:
-        try:
-            retriable_function()
-            break
-        except (GoogleCloudError, SocketError) as e:
-            attempt += 1
-            if attempt > max_retries:
-                raise
-            # Exponentional backoff on retry delay as suggested by
-            # https://cloud.google.com/storage/docs/exponential-backoff
-            delay = 2**attempt + random.random()
-            logger.info('%s failed with error "%s". '\
-                        'Retry number %s of %s in %s seconds'
-                        % (human_readable_action_name, str(e),
-                           attempt, max_retries, delay))
-            time.sleep(delay)
-    return # successful exit
-
 def _urlparse(pattern):
     """Like urlparse except it assumes 'file://' if no scheme is specified
     """
@@ -63,7 +38,7 @@ def _urlparse(pattern):
     return url
 
 
-def SourceSet(pattern, settings):
+def SourceSet(pattern, settings, retry=False):
     """Factory Method that returns a set of Sources matching the given pattern.
     Each Source represents one source file to be copied.
     """
@@ -71,10 +46,10 @@ def SourceSet(pattern, settings):
     url = _urlparse(pattern)
 
     if url.scheme == 'gs':
-        return GoogleStorageSourceSet(pattern, settings)
+        return GoogleStorageSourceSet(pattern, settings, retry=retry)
     elif url.scheme == 'file':
         if url.hostname == 'localhost' or url.hostname is None:
-            return LocalSourceSet(pattern, settings)
+            return LocalSourceSet(pattern, settings, retry=retry)
         else:
             raise Exception("Cannot process file pattern %s. Remote file hosts not supported." % pattern)
     else:
@@ -91,7 +66,7 @@ class AbstractSourceSet:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def __init__(self, pattern, settings):
+    def __init__(self, pattern, settings, retry=False):
         pass
 
     @abc.abstractmethod
@@ -103,10 +78,12 @@ class LocalSourceSet(AbstractSourceSet):
     """A set of source files on local storage
     """
 
-    def __init__(self, pattern, settings):
+    def __init__(self, pattern, settings, retry=False):
+        # retry has no effect
         url = _urlparse(pattern)
         matches = self._get_matching_files(url.path)
-        self.sources = [LocalSource('file://' + path, settings) for path in matches]
+        self.sources = [LocalSource('file://' + path, settings, retry=retry)
+                        for path in matches]
 
     def __iter__(self):
         return self.sources.__iter__()
@@ -123,9 +100,9 @@ class GoogleStorageSourceSet(AbstractSourceSet):
     """A set of source files on Google Storage
     """
 
-    def __init__(self, pattern, settings):
+    def __init__(self, pattern, settings, retry=False):
         self.settings = settings
-        self.sources = [GoogleStorageSource(pattern, settings)]
+        self.sources = [GoogleStorageSource(pattern, settings, retry=retry)]
 
     def __iter__(self):
         return self.sources.__iter__()
@@ -133,20 +110,23 @@ class GoogleStorageSourceSet(AbstractSourceSet):
     # TODO support wildcards with multiple matches
 
 
-def Source(url, settings):
+def Source(url, settings, retry=False):
     """Factory method
     """
     parsed_url = _urlparse(url)
 
     if parsed_url.scheme == 'gs':
-        return GoogleStorageSource(url, settings)
+        return GoogleStorageSource(url, settings, retry=retry)
     elif parsed_url.scheme == 'file':
         if parsed_url.hostname == 'localhost' or parsed_url.hostname is None:
-            return LocalSource(url, settings)
+            return LocalSource(url, settings, retry=retry)
         else:
-            raise Exception("Cannot process file url %s. Remote file hosts not supported." % url)
+            raise Exception(
+                "Cannot process file url %s. Remote file hosts not supported."
+                % url)
     else:
-        raise Exception('Unsupported scheme "%s" in file "%s"' % (parsed_url.scheme, url))
+        raise Exception('Unsupported scheme "%s" in file "%s"'
+                        % (parsed_url.scheme, url))
 
 
 class AbstractSource:
@@ -156,17 +136,13 @@ class AbstractSource:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def __init__(self, url, settings):
+    def __init__(self, url, settings, retry=False):
         pass
 
 
     def copy_to(self, destination):
         copier = Copier(self, destination)
         copier.copy()
-
-    def move_to(self, destination):
-        copier = Copier(self, destination)
-        copier.move()
 
     @abc.abstractmethod
     def calculate_md5(self):
@@ -187,8 +163,9 @@ class LocalSource(AbstractSource):
 
     type = 'local'
 
-    def __init__(self, url, settings):
+    def __init__(self, url, settings, retry=False):
         self.url = _urlparse(url)
+        self.retry = retry
 
     def calculate_md5(self):
         return md5calc.calculate_md5sum(self.get_path())
@@ -219,8 +196,9 @@ class GoogleStorageSource(AbstractSource):
     # 2016-08-30: With default 1024*1024, download is 20x slower than gsutil.
     CHUNK_SIZE = 1024*1024*100 
 
-    def __init__(self, url, settings):
+    def __init__(self, url, settings, retry=False):
         self.url = _urlparse(url)
+        self.retry = retry
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
@@ -238,8 +216,20 @@ class GoogleStorageSource(AbstractSource):
                 'Please run "gcloud auth application-default login"')
 
         try:
-            self.bucket = self.client.get_bucket(self.bucket_id)
-            self.blob = self.bucket.get_blob(self.blob_id)
+            if self.retry:
+                self.bucket = execute_with_retries(
+                    lambda: self.client.get_bucket(self.bucket_id),
+                    (GoogleCloudError, TransportError, SocketError),
+                    logger,
+                    'Get bucket')
+                self.blob = execute_with_retries(
+                    lambda: self.bucket.get_blob(self.blob_id),
+                    (GoogleCloudError, TransportError, SocketError),
+                    logger,
+                    'Get blob')
+            else:
+                self.bucket = self.client.get_bucket(self.bucket_id)
+                self.blob = self.bucket.get_blob(self.blob_id)
         except HttpAccessTokenRefreshError:
             raise Exception('Failed to access bucket "%s". Are you logged in? Try "gcloud auth login"' % self.bucket_id)
         if self.blob is None:
@@ -262,7 +252,7 @@ class GoogleStorageSource(AbstractSource):
     def read(self):
         tempdir = tempfile.mkdtemp()
         dest_file = os.path.join(tempdir, self.get_filename())
-        self.copy_to(Destination(dest_file, self.settings))
+        self.copy_to(Destination(dest_file, self.settings, retry=retry))
         with open(dest_file) as f:
             text = f.read()
         os.remove(dest_file)
@@ -273,16 +263,16 @@ class GoogleStorageSource(AbstractSource):
         self.blob.delete()
 
 
-def Destination(url, settings):
+def Destination(url, settings, retry=False):
     """Factory method
     """
     parsed_url = _urlparse(url)
 
     if parsed_url.scheme == 'gs':
-        return GoogleStorageDestination(url, settings)
+        return GoogleStorageDestination(url, settings, retry=retry)
     elif parsed_url.scheme == 'file':
         if parsed_url.hostname == 'localhost' or parsed_url.hostname is None:
-            return LocalDestination(url, settings)
+            return LocalDestination(url, settings, retry=retry)
         else:
             raise Exception("Cannot process file url %s. Remote file hosts not supported." % url)
     else:
@@ -296,7 +286,7 @@ class AbstractDestination:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def __init__(self, url, settings):
+    def __init__(self, url, settings, retry=False):
         pass
     
     @abc.abstractmethod
@@ -319,9 +309,10 @@ class LocalDestination(AbstractDestination):
 
     type = 'local'
 
-    def __init__(self, url, settings):
+    def __init__(self, url, settings, retry=False):
         self.url = _urlparse(url)
         self.settings = settings
+        self.retry = retry
 
     def get_path(self):
         return os.path.abspath(os.path.expanduser(self.url.path))
@@ -346,16 +337,29 @@ class GoogleStorageDestination(AbstractDestination):
 
     CHUNK_SIZE = 1024*1024*100
 
-    def __init__(self, url, settings):
+    def __init__(self, url, settings, retry=False):
         self.settings = settings
         self.url = _urlparse(url)
+        self.retry = retry
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
         self.client = google.cloud.storage.client.Client(self.settings['GCE_PROJECT'])
         try:
-            self.bucket = self.client.get_bucket(self.bucket_id)
-            self.blob = self.bucket.get_blob(self.blob_id)
+            if self.retry:
+                self.bucket = execute_with_retries(
+                    lambda: self.client.get_bucket(self.bucket_id),
+                    (GoogleCloudError, TransportError, SocketError),
+                    logger,
+                    'Get bucket')
+                self.blob = execute_with_retries(
+                    lambda: self.bucket.get_blob(self.blob_id),
+                    (GoogleCloudError, TransportError, SocketError),
+                    logger,
+                    'Get blob')
+            else:
+                self.bucket = self.client.get_bucket(self.bucket_id)
+                self.blob = self.bucket.get_blob(self.blob_id)
             if self.blob:
                 self.blob.chunk_size = self.CHUNK_SIZE
         except HttpAccessTokenRefreshError:
@@ -378,7 +382,7 @@ class GoogleStorageDestination(AbstractDestination):
         with tempfile.NamedTemporaryFile('w') as f:
             f.write(content)
             f.flush()
-            Source(f.name, self.settings).copy_to(self)
+            Source(f.name, self.settings, retry=self.retry).copy_to(self)
 
 
 def Copier(source, destination):
@@ -401,22 +405,19 @@ def Copier(source, destination):
 class AbstractCopier:
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, source, destination):
+    def __init__(self, source, destination, retry=False):
         self.source = source
         self.destination = destination
             
     @abc.abstractmethod
-    def copy(self, hash_function):
-        pass
-
-    @abc.abstractmethod
-    def move(self):
+    def copy(self, path):
         pass
 
 
 class LocalCopier(AbstractCopier):
 
     def copy(self):
+        # Retry has no effect in local copier
         try:
             os.makedirs(os.path.dirname(self.destination.get_path()))
         except OSError as e:
@@ -426,20 +427,11 @@ class LocalCopier(AbstractCopier):
                 raise
         shutil.copy(self.source.get_path(), self.destination.get_path())
 
-    def move(self):
-        try:
-            os.makedirs(os.path.dirname(self.destination.get_path()))
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                pass
-            else:
-                raise
-        shutil.move(self.source.get_path(), self.destination.get_path())
-
 
 class GoogleStorageCopier(AbstractCopier):
 
     def copy(self):
+        # retry has no effect
         rewrite_token = None
         while True:
             rewrite_token, rewritten, size = self.destination.blob.rewrite(
@@ -449,19 +441,19 @@ class GoogleStorageCopier(AbstractCopier):
                 logger.info("   copy completed ...")
                 break
 
-    def move(self):
-        if not self.source.bucket_id == self.destination.bucket_id:
-            raise Exception('"move" operation is not supported between buckets.')
-        _execute_with_retries(lambda: self.source.bucket.rename_blob(self.source.blob, self.destination.blob_id), 'File move')
-
 
 class Local2GoogleStorageCopier(AbstractCopier):
 
     def copy(self):
-        _execute_with_retries(lambda: self.destination.blob.upload_from_filename(self.source.get_path()), 'File upload')
-
-    def move(self):
-        raise Exception('"move" operation is not supported from local to Google Storage.')
+        if self.source.retry or self.destination.retry:
+            execute_with_retries(
+                lambda: self.destination.blob.upload_from_filename(
+                    self.source.get_path()),
+                (GoogleCloudError, TransportError, SocketError),
+                logger,
+                'File upload')
+        else:
+            self.destination.blob.upload_from_filename(self.source.get_path())
 
 
 class GoogleStorage2LocalCopier(AbstractCopier):
@@ -477,10 +469,15 @@ class GoogleStorage2LocalCopier(AbstractCopier):
                     'Failed to create local directory "%s": "%s"' %
                     (os.path.dirname(self.destination.get_path()),
                      e))
-        _execute_with_retries(lambda: self.source.blob.download_to_filename(self.destination.get_path()), 'File download')
-
-    def move(self):
-        raise Exception('"move" operation is not supported from Google Storage to local.')
+        if self.source.retry or self.destination.retry:
+            execute_with_retries(
+                lambda: self.source.blob.download_to_filename(
+                    self.destination.get_path()),
+                (GoogleCloudError, TransportError, SocketError),
+                logger,
+                'File download')
+        else:
+            self.source.blob.download_to_filename(self.destination.get_path())
 
 
 class FileManager:
@@ -491,28 +488,31 @@ class FileManager:
         self.connection = Connection(master_url)
         self.settings = self.connection.get_filemanager_settings()
 
-    def import_from_patterns(self, patterns, comments, force_duplicates=False):
+    def import_from_patterns(self, patterns, comments,
+                             force_duplicates=False, retry=False):
         files = []
         for pattern in patterns:
             files.extend(self.import_from_pattern(
-                pattern, comments, force_duplicates=force_duplicates))
+                pattern, comments, force_duplicates=force_duplicates, retry=retry))
         return files
 
-    def import_from_pattern(self, pattern, comments, force_duplicates=False):
+    def import_from_pattern(self, pattern, comments,
+                            force_duplicates=False, retry=False):
         files = []
-        for source in SourceSet(pattern, self.settings):
+        for source in SourceSet(pattern, self.settings, retry=retry):
             files.append(self.import_file(
                 source.get_url(),
                 comments,
-                force_duplicates=force_duplicates
+                force_duplicates=force_duplicates,
+                retry=retry,
             ))
         return files
 
-    def import_file(self, source_url, comments, force_duplicates=False):
-        source = Source(source_url, self.settings)
+    def import_file(self, source_url, comments, force_duplicates=False, retry=False):
+        source = Source(source_url, self.settings, retry=retry)
         data_object = self._create_file_data_object_for_import(
             source, comments, force_duplicates=force_duplicates)
-        return self._execute_file_import(data_object, source)
+        return self._execute_file_import(data_object, source, retry=retry)
 
     def _create_file_data_object_for_import(self, source, comments,
                                             force_duplicates=True):
@@ -552,14 +552,14 @@ class FileManager:
             'do you will have to use @uuid to reference these files.'
             % (filename, md5, '", "'.join(matches)))
 
-    def import_result_file(self, task_attempt_output, source_url):
+    def import_result_file(self, task_attempt_output, source_url, retry=False):
         logger.info('Calculating md5 on file "%s"...' % source_url)
-        source = Source(source_url, self.settings)
+        source = Source(source_url, self.settings, retry=retry)
         md5 = source.calculate_md5()
         task_attempt_output = self._create_task_attempt_output_file(
             task_attempt_output, md5, source.get_filename())
         data_object = task_attempt_output['data']['contents']
-        return self._execute_file_import(data_object, source)
+        return self._execute_file_import(data_object, source, retry=retry)
 
     def _create_task_attempt_output_file(
             self, task_attempt_output, md5, filename):
@@ -576,12 +576,13 @@ class FileManager:
                             'md5': md5,
                         }}}})
 
-    def import_result_file_list(self, task_attempt_output, source_url_list):
+    def import_result_file_list(self, task_attempt_output, source_url_list,
+                                retry=False):
         md5_list = []
         filename_list = []
         for source_url in source_url_list:
             logger.info('Calculating md5 on file "%s"...' % source_url)
-            source = Source(source_url, self.settings)
+            source = Source(source_url, self.settings, retry=retry)
             md5_list.append(source.calculate_md5())
             filename_list.append(source.get_filename())
         task_attempt_output = self._create_task_attempt_output_file_array(
@@ -589,9 +590,9 @@ class FileManager:
         data_object_array = task_attempt_output['data']['contents']
         imported_data_objects = []
         for (source_url, data_object) in zip(source_url_list, data_object_array):
-            source = Source(source_url, self.settings)
+            source = Source(source_url, self.settings, retry=retry)
             imported_data_objects.append(
-                self._execute_file_import(data_object, source))
+                self._execute_file_import(data_object, source, retry=retry))
         return imported_data_objects
 
     def _create_task_attempt_output_file_array(
@@ -613,13 +614,13 @@ class FileManager:
                     'contents': contents
                     }})
             
-    def import_log_file(self, task_attempt, source_url):
+    def import_log_file(self, task_attempt, source_url, retry=False):
         log_name = os.path.basename(source_url)
         log_file = self.connection.post_task_attempt_log_file(
             task_attempt['uuid'], {'log_name': log_name})
 
         logger.info('Calculating md5 on file "%s"...' % source_url)
-        source = Source(source_url, self.settings)
+        source = Source(source_url, self.settings, retry=retry)
         md5 = source.calculate_md5()
 
         data_object = self.\
@@ -633,9 +634,9 @@ class FileManager:
                                   'md5': md5,
                 }})
         
-        return self._execute_file_import(data_object, source)
+        return self._execute_file_import(data_object, source, retry=retry)
 
-    def _execute_file_import(self, file_data_object, source):
+    def _execute_file_import(self, file_data_object, source, retry=False):
         logger.info('Importing file from %s...' % source.get_url())
         if file_data_object['value']['upload_status'] == 'complete':
             logger.info('   server already has the file. Skipping upload.')
@@ -643,7 +644,8 @@ class FileManager:
         try:
             destination = Destination(
                 file_data_object['value']['file_url'],
-                self.settings)
+                self.settings,
+                retry=retry)
             logger.info(
                 '   copying to destination %s ...' % destination.get_url())
             source.copy_to(destination)
@@ -673,18 +675,19 @@ class FileManager:
             file_data_object['uuid'],
             file_data_object)
 
-    def export_files(self, file_ids, destination_url=None):
+    def export_files(self, file_ids, destination_url=None, retry=False):
         if destination_url is not None and len(file_ids) > 1:
             # destination must be a directory
-            if not Destination(destination_url, self.settings).is_dir():
+            if not Destination(destination_url, self.settings, retry=retry).is_dir():
                 raise Exception(
                     'Destination must be a directory if multiple files '\
                     'are exported. "%s" is not a directory.'
                     % destination_url)
         for file_id in file_ids:
-            self.export_file(file_id, destination_url=destination_url)
+            self.export_file(file_id, destination_url=destination_url, retry=retry)
 
-    def export_file(self, file_id, destination_url=None, destination_filename=None):
+    def export_file(self, file_id, destination_url=None,
+                    destination_filename=None, retry=False):
         """Export a file from Loom to some file storage location.
         Default destination_url is cwd. Default destination_filename is the 
         filename from the file data object associated with the given file_id.
@@ -698,7 +701,7 @@ class FileManager:
         if not destination_url:
             destination_url = os.getcwd()
         
-        if Destination(destination_url, self.settings).is_dir():
+        if Destination(destination_url, self.settings, retry=retry).is_dir():
             # Filename not given with destination_url. We get it from inputs
             # or from the object specified by file_id
             if not destination_filename:
@@ -713,7 +716,7 @@ class FileManager:
             # Filename is included with destination_url
             destination_file_url = destination_url   
 
-        destination = Destination(destination_file_url, self.settings)
+        destination = Destination(destination_file_url, self.settings, retry=retry)
         if destination.exists():
             raise FileAlreadyExistsError('File already exists at %s' % destination_url)
 
@@ -724,22 +727,25 @@ class FileManager:
 
         # Copy from the first file location
         source_url = data_object['value']['file_url']
-        Source(source_url, self.settings).copy_to(destination)
+        Source(source_url, self.settings, retry=retry).copy_to(destination)
 
         logger.info('...finished exporting file')
 
-    def read_file(self, url):
-        source = Source(url, self.settings)
+    def read_file(self, url, retry=False):
+        source = Source(url, self.settings, retry=retry)
         return source.read(), source.get_url()
 
-    def write_to_file(self, url, content):
-        Destination(url, self.settings).write(content)
+    def write_to_file(self, url, content, retry=False):
+        destination = Destination(url, self.settings, retry=retry)
+        if destination.exists():
+            raise FileAlreadyExistsError('File already exists at %s' % url)
+        destination.write(content)
 
     def normalize_url(self, url):
         return _urlparse(url).geturl()
 
-    def calculate_md5(self, url):
-        return Source(url, self.settings).calculate_md5()
+    def calculate_md5(self, url, retry=False):
+        return Source(url, self.settings, retry=retry).calculate_md5()
 
     def verify_no_template_duplicates(self, template):
         md5 = template.get('md5')
@@ -758,3 +764,18 @@ class FileManager:
             'Use "--force-duplicates" to create another copy, but if you '\
             'do you will have to use @uuid to reference these templates.'
             % (name, md5, '", "'.join(matches)))
+
+    def get_destination_file_url(self, requested_destination, default_name,
+                                 retry=False):
+        """destination may be a file, a directory, or None
+        This function accepts the specified file desitnation, 
+        or creates a sensible default that will not overwrite an existing file.
+        """
+        if requested_destination is None:
+            destination = os.path.join(os.getcwd(), default_name)
+        elif Destination(requested_destination, self.settings, retry=retry).is_dir():
+            destination = os.path.join(requested_destination, default_name)
+        else:
+            # Don't modify a file destination specified by the user
+            destination = requested_destination
+        return self.normalize_url(destination)
