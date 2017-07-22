@@ -193,7 +193,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
         return JsonResponse(s.data, status=201)
 
     @detail_route(methods=['get'], url_path='settings')
-    def get_task_execution_settings(self, request, uuid=None):
+    def get_task_monitor_settings(self, request, uuid=None):
         task_attempt = self._get_task_attempt(request, uuid)
         return JsonResponse({
             'SERVER_NAME': get_setting('SERVER_NAME'),
@@ -201,6 +201,8 @@ class TaskAttemptViewSet(ExpandableViewSet):
             'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
             'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
             'DEFAULT_DOCKER_REGISTRY': get_setting('DEFAULT_DOCKER_REGISTRY'),
+            'PRESERVE_ALL': get_setting('PRESERVE_ON_FAILURE'),
+            'PRESERVE_ON_FAILURE': get_setting('PRESERVE_ON_FAILURE'),
             'HEARTBEAT_INTERVAL_SECONDS':
             get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
         }, status=200)

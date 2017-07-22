@@ -115,17 +115,20 @@ class TaskMonitor(object):
                 last_heartbeat = datetime.now()
 
     def run(self):
-        self._copy_inputs()
-        self._create_run_script()
-        self._pull_image()
-        self._create_container()
-        self._run_container()
-        self._stream_docker_logs()
-        self._get_returncode()
-        self._save_process_logs()
-        if not self.is_failed:
-            self._save_outputs()
-            self._finish()
+        try:
+            self._copy_inputs()
+            self._create_run_script()
+            self._pull_image()
+            self._create_container()
+            self._run_container()
+            self._stream_docker_logs()
+            self._get_returncode()
+            self._save_process_logs()
+            if not self.is_failed:
+                self._save_outputs()
+                self._finish()
+        finally:
+            self._delete_container()
 
     def _copy_inputs(self):
         self._event('Copying inputs')
@@ -383,6 +386,16 @@ class TaskMonitor(object):
 
     def _finish(self):
         self.connection.post_task_attempt_finish(self.settings['TASK_ATTEMPT_ID'])
+
+    def _delete_container(self):
+        if not self.container:
+            return
+        if self.settings.get('PRESERVE_ALL'):
+            return
+        if self.is_failed and self.settings.get('PRESERVE_ON_FAILURE'):
+            return
+        self.docker_client.stop(self.container)
+        self.docker_client.remove_container(self.container)
 
     # Parser
 
