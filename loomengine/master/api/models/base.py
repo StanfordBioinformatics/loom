@@ -115,7 +115,6 @@ class BaseModel(models.Model, _FilterMixin):
         the same object. Normally the second save would silently overwrite the
         changes from the first. Instead we raise a ConcurrentModificationError.
         """
-        self.full_clean() # To extend validation, use field validators and Model.clean
         cls = self.__class__
         if self.pk:
             rows = cls.objects.filter(
@@ -140,6 +139,7 @@ class BaseModel(models.Model, _FilterMixin):
             for attribute, value in assignments.iteritems():
                 setattr(obj, attribute, value)
             try:
+                obj.full_clean()
                 obj.save()
             except ConcurrentModificationError:
                 if  count >= max_retries:

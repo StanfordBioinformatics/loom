@@ -122,12 +122,10 @@ class DataNode(MPTTModel, BaseModel):
                 raise DataAlreadyExistsError(
                     'Failed to add new data to data node %s because '\
                     'data_node is already set' % self.uuid)
-            self.data_object = data_object
-            self.save()
+            self.setattrs_and_save_with_retries({'data_object': data_object})
         else:
             if self.degree is None:
-                self.degree = data_path[0][1]
-                self.save()
+                self.setattrs_and_save_with_retries({'degree': data_path[0][1]})
             data_path = copy.deepcopy(data_path)
             self._extend_to_data_path(data_path, leaf_data=data_object)
 
@@ -270,8 +268,7 @@ class DataNode(MPTTModel, BaseModel):
             if not self.degree == degree:
                 raise DegreeMismatchException()
         else:
-            self.degree = degree
-            self.save()
+            self.setattrs_and_save_with_retries({'degree': degree})
         if len(data_path) == 0:
             if leaf_data:
                 return self.add_leaf(index, leaf_data)
@@ -340,11 +337,9 @@ class DataNode(MPTTModel, BaseModel):
             assert clone.data_object is None
             # clone.index may be set because the seed
             # might be connected to a parent.
-    
-            clone.degree = self.degree
-            clone.data_object = self.data_object
-            clone.save()
-
+            clone.setattrs_and_save_with_retries({
+                'degree': self.degree,
+                'data_object': self.data_object})
         else:
             clone = DataNode.objects.create(
                 parent=parent,

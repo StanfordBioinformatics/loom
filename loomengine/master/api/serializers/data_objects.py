@@ -92,8 +92,8 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
     def _cleanup(self, data_object):
         try:
             log_file = data_object.task_attempt_log_file
-            log_file.data_object=None
-            log_file.save()
+            log_file.setattrs_and_save_with_retries({
+                'data_object': None})
         except django.core.exceptions.ObjectDoesNotExist:
             pass
         data_object.delete()
@@ -156,9 +156,9 @@ class DataObjectUpdateSerializer(DataObjectSerializer):
             if not instance.value:
                 raise serializers.ValidationError(
                     "Failed to update DataObject because file value are missing")
-            instance.value.upload_status = value_data.get('upload_status')
             try:
-                instance.value.save()
+                instance.value.setattrs_and_save_with_retries({
+                    'upload_status': value_data.get('upload_status')})
             except django.core.exceptions.ValidationError as e:
                 raise serializers.ValidationError(e.messages)
         return instance

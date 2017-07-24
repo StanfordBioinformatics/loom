@@ -497,8 +497,9 @@ class Run(MPTTModel, BaseModel):
                         'Channel "%s" has more than one source'
                         % io_node.channel_name)
                 else:
-                    connector.has_source = True
-                    connector.save()
+                    connector.setattrs_and_save_with_retries({
+                        'has_source': True
+                    })
         connector.connect(io_node)
 
     def _push_all_inputs(self, context):

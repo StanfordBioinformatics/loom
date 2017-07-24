@@ -24,8 +24,8 @@ class DataChannelSerializer(CreateWithParentModelSerializer):
                 context = {'type': type})
             data_node_serializer.is_valid(raise_exception=True)
             data_node = data_node_serializer.save()
-            data_channel.data_node = data_node
-            data_channel.save()
+            data_channel.setattrs_and_save_with_retries({
+                'data_node': data_node})
         return data_channel
 
     def update(self, instance, validated_data):
@@ -38,8 +38,9 @@ class DataChannelSerializer(CreateWithParentModelSerializer):
                 data=data,
                 context = {'type': instance.type})
             data_node_serializer.is_valid(raise_exception=True)
-            instance.data_node = data_node_serializer.save()
-            instance.save()
+            data_node = data_node_serializer.save()
+            instance.setattrs_and_save_with_retries({
+                'data_node': data_node})
         return instance
 
     def to_representation(self, instance):

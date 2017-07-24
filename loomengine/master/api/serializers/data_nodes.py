@@ -140,8 +140,8 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
             return
         elif len(contents) == 0:
             # An empty list represents a node of degree 0
-            data_node.degree = 0
-            data_node.save()
+            data_node.setattrs_and_save_with_retries({
+                'degree': 0})
         else:
             for i in range(len(contents)):
                 path_i = copy.deepcopy(path)

@@ -47,8 +47,8 @@ class DataChannel(BaseModel):
     
     def initialize_data_node(self):
         assert not self.data_node, 'alrady initialized'
-        self.data_node = DataNode.objects.create(type=self.type)
-        self.save()
+        data_node = DataNode.objects.create(type=self.type)
+        self.setattrs_and_save_with_retries({'data_node': data_node})
 
     def add_data_object(self, data_path, data_object):
         # 'data_path' is a list of (index, degree) pairs that define a path
@@ -87,17 +87,17 @@ class DataChannel(BaseModel):
         # If neither is initialized, initialize and connect
         if connected_node.data_node is None and self.data_node is None:
             connected_node.initialize_data_node()
-            self.data_node = connected_node.data_node
-            self.save()
+            data_node = connected_node.data_node
+            self.setattrs_and_save_with_retries({'data_node': data_node})
             return
 
         # If one is initialized, connect the other
         if self.data_node is None:
-            self.data_node = connected_node.data_node
-            self.save()
+            data_node = connected_node.data_node
+            self.setattrs_and_save_with_retries({'data_node': data_node})
         elif connected_node.data_node is None:
-            connected_node.data_node = self.data_node
-            connected_node.save()
+            data_node = self.data_node
+            connected_node.setattrs_and_save_with_retries({'data_node': data_node})
 
     class Meta:
         abstract = True
