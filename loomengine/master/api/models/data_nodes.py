@@ -89,30 +89,39 @@ class DataNode(MPTTModel, BaseModel):
             raise NodeAlreadyExistsError(
                 'Leaf data node already exists at this index')
         else:
-            return DataNode.objects.create(
+            data_node = DataNode(
                 parent=self,
                 index=index,
                 data_object=data_object,
                 type=self.type)
+            data_node.full_clean()
+            data_node.save()
+            return data_node
 
     def add_blank(self, index):
         if self._get_child_by_index(index):
             raise NodeAlreadyExistsError()
-        return DataNode.objects.create(
+        data_node = DataNode(
             parent=self,
             index=index,
             type=self.type)
+        data_node.full_clean()
+        data_node.save()
+        return data_node
 
     def add_branch(self, index, degree):
         existing_branch = self._get_branch_by_index(index, degree)
         if existing_branch is not None:
             return existing_branch
         else:
-            return DataNode.objects.create(
+            data_node = DataNode(
                 parent=self,
                 index=index,
                 degree=degree,
                 type=self.type)
+            data_node.full_clean()
+            data_node.save()
+            return data_node
 
     def add_data_object(self, data_path, data_object):
         # 'data_path' is a list of (index, degree) pairs
@@ -341,12 +350,14 @@ class DataNode(MPTTModel, BaseModel):
                 'degree': self.degree,
                 'data_object': self.data_object})
         else:
-            clone = DataNode.objects.create(
+            clone = DataNode(
                 parent=parent,
                 index=self.index,
                 degree=self.degree,
                 data_object=self.data_object,
                 type=self.type)
+            clone.full_clean()
+            clone.save()
 
         for child in self.children.all():
             child.clone(parent=clone)
@@ -359,19 +370,22 @@ class DataNode(MPTTModel, BaseModel):
 
         leaves = self._get_leaves()
 
-        clone = DataNode.objects.create(
+        clone = DataNode(
             degree=len(leaves),
             type=self.type)
+        clone.full_clean()
+        clone.save()
 
         index_counter = 0
         for leaf in leaves:
-            DataNode.objects.create(
+            data_node = DataNode(
                 parent=clone,
                 index=index_counter,
                 data_object=leaf.data_object,
                 type=leaf.type)
+            data_node.full_clean()
+            data_node.save()
             index_counter += 1
-        
         return clone
 
     def _get_leaves(self):

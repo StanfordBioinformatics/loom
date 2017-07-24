@@ -95,18 +95,22 @@ class TaskAttempt(BaseModel):
         task.finish(context)
 
     def add_event(self, event, detail='', is_error=False):
-        event = TaskAttemptEvent.objects.create(
+        event = TaskAttemptEvent(
             event=event, task_attempt=self, detail=detail[-1000:], is_error=is_error)
+        event.full_clean()
+        event.save()
 
     @classmethod
     def create_from_task(cls, task):
-        task_attempt = cls.objects.create(
+        task_attempt = cls(
             task=task,
             interpreter=task.interpreter,
             command=task.command,
             environment=task.environment,
             resources=task.resources,
         )
+        task_attempt.full_clean()
+        task_attempt.save()
         task_attempt.initialize()
         return task_attempt
 
@@ -119,16 +123,18 @@ class TaskAttempt(BaseModel):
 
     def _initialize_inputs(self):
         for input in self.task.inputs.all():
-            TaskAttemptInput.objects.create(
+            task_attempt_input = TaskAttemptInput(
                 task_attempt=self,
                 type=input.type,
                 channel=input.channel,
                 mode=input.mode,
                 data_node=input.data_node.flattened_clone())
+            task_attempt_input.full_clean()
+            task_attempt_input.save()
 
     def _initialize_outputs(self):
         for task_output in self.task.outputs.all():
-            task_attempt_output = TaskAttemptOutput.objects.create(
+            task_attempt_output = TaskAttemptOutput(
                 task_attempt=self,
                 type=task_output.type,
                 channel=task_output.channel,
@@ -136,6 +142,8 @@ class TaskAttempt(BaseModel):
                 source=self._render_output_source(task_output.source),
                 parser=task_output.parser
             )
+            task_attempt_output.full_clean()
+            task_attempt_output.save()
 
     def _render_output_source(self, task_output_source):
         input_context = self.task.get_input_context()

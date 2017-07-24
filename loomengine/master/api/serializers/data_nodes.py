@@ -102,7 +102,9 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
         return minheight + 1
 
     def _create_data_node_from_data_objects(self, contents, data_type):
-        data_node = DataNode.objects.create(type=data_type)
+        data_node = DataNode(type=data_type)
+        data_node.full_clean()
+        data_node.save()
         self._add_data_objects(data_node, contents, data_type)
         return data_node
 

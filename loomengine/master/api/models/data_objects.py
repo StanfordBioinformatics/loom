@@ -58,8 +58,11 @@ class DataObject(BaseModel):
         if type == 'file':
             return cls._get_file_by_value(value)
         else:
-            return DataObject.objects.create(data={
+            data_object = DataObject(data={
                 'value': cls._type_cast(value, type)}, type=type)
+            data_object.full_clean()
+            data_object.save()
+            return data_object
 
     FALSE_VALUES = [False, 0, '', 'false', 'False', 'FALSE',
                     'f', 'F', 'no', 'No', 'NO', 'n', 'N', '0']
@@ -124,7 +127,9 @@ class DataObject(BaseModel):
 
     @classmethod
     def create_and_initialize_file_resource(cls, **kwargs):
-        data_object = cls.objects.create(type='file')
+        data_object = cls(type='file')
+        data_object.full_clean()
+        data_object.save()
         kwargs['data_object'] = data_object
         FileResource.initialize(**kwargs)
         return data_object
@@ -185,7 +190,10 @@ class FileResource(BaseModel):
                     kwargs.get('data_object'),
                     kwargs.get('task_attempt')
                 ))
-        return cls.objects.create(**kwargs)
+        file_resource = cls(**kwargs)
+        file_resource.full_clean()
+        file_resource.save()
+        return file_resource
 
     @classmethod
     def _get_path_for_import(cls, filename, source_type, data_object, task_attempt):

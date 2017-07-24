@@ -117,7 +117,10 @@ class TemplateMembership(BaseModel):
 
     @classmethod
     def add_step_to_workflow(cls, step, parent):
-            TemplateMembership.objects.create(
+            template_membership = TemplateMembership(
                 parent_template=parent,
                 child_template=step)
+            template_membership.full_clean()
+            template_membership.save()
+
 

@@ -52,8 +52,11 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                     '"type" not found in "type" field or in context')
         if validated_data.get('type') != 'file':
             validated_data['data'] = {'value': value}
-            return DataObjectSerializer\
-                .Meta.model.objects.create(**validated_data)
+            data_object = DataObjectSerializer\
+                          .Meta.model(**validated_data)
+            data_object.full_clean()
+            data_object.save()
+            return data_object
         else:
             if not isinstance(value, dict):
                 # If it's a string, treat it as a data_object identifier and
@@ -68,7 +71,9 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                 return data_objects.first()
             else:
                 # Otherwise, create new.
-                data_object = self.Meta.model.objects.create(**validated_data)
+                data_object = self.Meta.model(**validated_data)
+                data_object.full_clean()
+                data_object.save()
 
                 # If file belongs to TaskAttemptLogFile, make the connection
                 log_file = self.context.get('task_attempt_log_file')

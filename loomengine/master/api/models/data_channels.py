@@ -47,7 +47,9 @@ class DataChannel(BaseModel):
     
     def initialize_data_node(self):
         assert not self.data_node, 'alrady initialized'
-        data_node = DataNode.objects.create(type=self.type)
+        data_node = DataNode(type=self.type)
+        data_node.full_clean()
+        data_node.save()
         self.setattrs_and_save_with_retries({'data_node': data_node})
 
     def add_data_object(self, data_path, data_object):

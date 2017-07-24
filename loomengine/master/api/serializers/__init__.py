@@ -76,7 +76,10 @@ class CreateWithParentModelSerializer(
             validated_data.update({
                 self.context.get('parent_field'):
                 self.context.get('parent_instance')})
-        return self.Meta.model.objects.create(**validated_data)
+        instance = self.Meta.model(**validated_data)
+        instance.full_clean()
+        instance.save()
+        return instance
 
 
 from .data_objects import *

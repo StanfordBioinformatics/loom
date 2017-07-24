@@ -141,7 +141,7 @@ class Run(MPTTModel, BaseModel):
         if name is None:
             name = template.name
         if template.is_leaf:
-            run = Run.objects.create(
+            run = Run(
                 template=template,
                 is_leaf=template.is_leaf,
                 name=name,
@@ -151,8 +151,10 @@ class Run(MPTTModel, BaseModel):
                 resources=template.resources,
                 notification_addresses=notification_addresses,
                 parent=parent)
+            run.full_clean()
+            run.save()
         else:
-            run = Run.objects.create(
+            run = Run(
                 template=template,
                 is_leaf=template.is_leaf,
                 name=name,
@@ -160,6 +162,8 @@ class Run(MPTTModel, BaseModel):
                 resources=template.resources,
                 notification_addresses=notification_addresses,
                 parent=parent)
+            run.full_clean()
+            run.save()
         return run
 
     def _connect_input_to_parent(self, input):
@@ -351,8 +355,10 @@ class Run(MPTTModel, BaseModel):
             self.parent.set_running_status()
 
     def add_event(self, event, detail='', is_error=False):
-        event = RunEvent.objects.create(
+        event = RunEvent(
             event=event, run=self, detail=detail[-1000:], is_error=is_error)
+        event.full_clean()
+        event.save()
 
     def _claim_for_postprocessing(self):
         # There are two paths to get Run.postprocess():
@@ -419,13 +425,15 @@ class Run(MPTTModel, BaseModel):
                 % input.channel
             seen.add(input.channel)
 
-            run_input = RunInput.objects.create(
+            run_input = RunInput(
                 run=self,
                 channel=input.channel,
                 as_channel=input.as_channel,
                 type=input.type,
                 group=input.group,
                 mode=input.mode)
+            run_input.full_clean()
+            run_input.save()
 
             # Create a connector on the current Run so that
             # children can connect on this channel
@@ -450,7 +458,9 @@ class Run(MPTTModel, BaseModel):
             }
             if output.get('mode'):
                 kwargs.update({'mode': output.get('mode')})
-            run_output = RunOutput.objects.create(**kwargs)
+            run_output = RunOutput(**kwargs)
+            run_output.full_clean()
+            run_output.save()
 
             # This takes effect only if the WorkflowRun has a parent
             self._connect_output_to_parent(run_output)
@@ -480,12 +490,14 @@ class Run(MPTTModel, BaseModel):
         if self.is_leaf:
             return
         try:
-            connector = RunConnectorNode.objects.create(
+            connector = RunConnectorNode(
                 run=self,
                 channel=io_node.channel,
                 type=io_node.type,
                 has_source=is_source
             )
+            connector.full_clean()
+            connector.save()
         except ValidationError:
             # Connector already exists. Just use it.
             connector = self.connectors.get(channel=io_node.channel)

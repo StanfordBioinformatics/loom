@@ -93,7 +93,7 @@ class TestDataObjectSerializer(TestCase):
         s = DataObjectSerializer(data=file_data)
         s.is_valid(raise_exception=True)
         with self.assertRaises(ValidationError):
-            s.save()
+            m = s.save()
         data_object_count_after = DataObject.objects.count()
 
         self.assertEqual(data_object_count_before, data_object_count_after)

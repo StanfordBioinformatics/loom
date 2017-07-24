@@ -187,6 +187,10 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         self._match_and_update_by_uuid(m2m_relationships, 'parent_template', templates)
         self._match_and_update_by_uuid(m2m_relationships, 'child_template', templates)
 
+        # We can clean now that relationships have been defined
+        for instance in m2m_relationships:
+            instance.full_clean()
+
         TemplateInput.objects.bulk_create(inputs)
         TemplateMembership.objects.bulk_create(m2m_relationships)
 
@@ -244,7 +248,10 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                     m2m_relationship_models.append(
                         TemplateMembership(
                             parent_template=parent_model,
-                            child_template=template))
+                            child_template=template)
+                    )
+                    # Do not call full_clean yet.
+                    # Relationships must be added first.
                 continue
 
             # To be processed by recursion
@@ -264,6 +271,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             inputs.extend(fixed_inputs)
 
             template = Template(**template_data)
+            template.full_clean()
             template_models.append(template)
 
             for input_data in inputs:
