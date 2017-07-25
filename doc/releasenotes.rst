@@ -2,6 +2,15 @@
 Release Notes
 #############
 
+0.4.1
+=============
+* Notification for completed runs by email or posting JSON to URL
+* Documentation for Loom templates
+* Templates can be referenced by hash
+* Added retries to file import/export, docker pull, other external services
+* Added "--original-copy" option to "loom file import"
+* Added LOOM_DEFAULT_DOCKER_REGISTRY setting
+
 0.4.0
 =============
 * Parallel workflows
