@@ -42,6 +42,10 @@ class FileImporter(AbstractImporter):
                             default=False,
                             help='Force upload even if another file with '\
                             'the same name and md5 exists')
+        parser.add_argument('-o', '--original-copy', action='store_true',
+                            default=False,
+                            help='Use existing copy instead of copying to storage '\
+                            'managed by Loom')
         parser.add_argument('-r', '--retry', action='store_true',
                             default=False,
                             help='Allow retries if there is a failure '\
@@ -54,6 +58,7 @@ class FileImporter(AbstractImporter):
             files_imported = self.filemanager.import_from_patterns(
                 self.args.files,
                 self.args.comments,
+                original_copy=self.args.original_copy,
                 force_duplicates=self.args.force_duplicates,
                 retry=self.args.retry,
             )

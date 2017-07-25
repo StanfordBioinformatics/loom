@@ -488,31 +488,40 @@ class FileManager:
         self.connection = Connection(master_url)
         self.settings = self.connection.get_filemanager_settings()
 
-    def import_from_patterns(self, patterns, comments,
+    def import_from_patterns(self, patterns, comments, original_copy=False,
                              force_duplicates=False, retry=False):
+                             
         files = []
         for pattern in patterns:
             files.extend(self.import_from_pattern(
-                pattern, comments, force_duplicates=force_duplicates, retry=retry))
+                pattern, comments, original_copy=original_copy,
+                force_duplicates=force_duplicates, retry=retry))
         return files
 
-    def import_from_pattern(self, pattern, comments,
+    def import_from_pattern(self, pattern, comments, original_copy=False,
                             force_duplicates=False, retry=False):
         files = []
         for source in SourceSet(pattern, self.settings, retry=retry):
             files.append(self.import_file(
                 source.get_url(),
                 comments,
+                original_copy=original_copy,
                 force_duplicates=force_duplicates,
                 retry=retry,
             ))
         return files
 
-    def import_file(self, source_url, comments, force_duplicates=False, retry=False):
+    def import_file(self, source_url, comments, original_copy=False,
+                    force_duplicates=False, retry=False):
         source = Source(source_url, self.settings, retry=retry)
-        data_object = self._create_file_data_object_for_import(
-            source, comments, force_duplicates=force_duplicates)
-        return self._execute_file_import(data_object, source, retry=retry)
+        if original_copy:
+            data_object = self._create_file_data_object_from_original_copy(
+                source, comments, force_duplicates=force_duplicates)
+            return data_object
+        else:
+            data_object = self._create_file_data_object_for_import(
+                source, comments, force_duplicates=force_duplicates)
+            return self._execute_file_import(data_object, source, retry=retry)
 
     def _create_file_data_object_for_import(self, source, comments,
                                             force_duplicates=True):
@@ -536,6 +545,35 @@ class FileManager:
             'type': 'file',
             'value': value
         })
+
+    def _create_file_data_object_from_original_copy(self, source, comments,
+                                                    force_duplicates=True):
+        filename = source.get_filename()
+        logger.info('Calculating md5 on file "%s"...' % source.get_url())
+        md5 = source.calculate_md5()
+
+        if not force_duplicates:
+            self._verify_no_file_duplicates(filename, md5)
+
+        value = {
+            'filename': filename,
+            'md5': md5,
+            'file_url': source.get_url(),
+            'imported_from_url': source.get_url(),
+            'upload_status': 'complete',
+            'source_type': 'imported',
+        }
+        if comments:
+            value['import_comments'] = comments
+
+        file_data_object = self.connection.post_data_object({
+            'type': 'file',
+            'value': value
+        })
+        logger.info('   registered file %s@%s' % (
+            file_data_object['value']['filename'],
+            file_data_object['uuid']))
+        return file_data_object
 
     def _verify_no_file_duplicates(self, filename, md5):
         files = self.connection.get_data_object_index(
