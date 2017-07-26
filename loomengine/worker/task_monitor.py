@@ -175,9 +175,14 @@ class TaskMonitor(object):
 
     def _get_docker_image(self):
         docker_image = self.task_attempt['environment']['docker_image']
-        # If no registry is specified, set to default
-        if not '.' in docker_image.split('/')[0]:
+        # If no registry is specified, set to default.
+        # If the first term contains "." or ends in ":", it is a registry.
+        part1=docker_image.split('/')[0]
+        if not '.' in part1 and not part1.endswith(':'):
             default_registry = self.settings.get('DEFAULT_DOCKER_REGISTRY', None)
+            # Don't add default_registry without the owner. Default ower is library
+            if len(docker_image.split('/')) == 1:
+                   docker_image = 'library/' + docker_image
             if default_registry:
                 docker_image = '%s/%s' % (default_registry, docker_image)
         # Tag is required. Otherwise docker-py pull will download all tags.

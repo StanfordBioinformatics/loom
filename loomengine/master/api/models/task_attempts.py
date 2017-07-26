@@ -190,12 +190,11 @@ class TaskAttempt(BaseModel):
         return os.path.join(self.get_log_dir(), 'stderr.log')
 
     def kill(self, detail):
-        if self.has_terminal_status():
-            return
-        self.setattrs_and_save_with_retries(
-            {'status_is_killed': True,
-             'status_is_running': False})
-        self.add_event('TaskAttempt was killed', detail=detail, is_error=True)
+        if not self.has_terminal_status():
+            self.setattrs_and_save_with_retries(
+                {'status_is_killed': True,
+                 'status_is_running': False})
+            self.add_event('TaskAttempt was killed', detail=detail, is_error=True)
         self.cleanup()
 
     def cleanup(self):
