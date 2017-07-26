@@ -67,8 +67,8 @@ class TaskMonitor(object):
                 self._init_working_dir()
             except Exception as e:
                 self._fail(
-                    detail='Initializing TaskMonitor failed with error "%s"'\
-                    % str(e))
+                    detail='Initializing TaskMonitor failed with "%s" error: '\
+                    '"%s"' % (e.__class__, str(e)))
                 raise
 
     def _init_task_attempt(self):
@@ -138,7 +138,7 @@ class TaskMonitor(object):
             for input in self.task_attempt['inputs']:
                 TaskAttemptInput(input, self).copy()
         except Exception as e:
-            self._fail(detail='Copying inputs failed with error "%s"' % str(e))
+            self._fail(detail='Copying inputs failed with "%s" error: "%s"' % (e.__class__, str(e)))
             raise
 
     def _create_run_script(self):
@@ -150,7 +150,7 @@ class TaskMonitor(object):
                       'w') as f:
                 f.write(user_command + '\n')
         except Exception as e:
-            self._fail(detail='Creating run script failed with error "%s"' % str(e))
+            self._fail(detail='Creating run script failed with "%s" error: "%s"' % (e.__class__, str(e)))
             raise
 
     def _pull_image(self):
@@ -170,7 +170,7 @@ class TaskMonitor(object):
                 self._get_docker_image())
             self._save_environment_info(container_info)
         except Exception as e:
-            self._fail(detail='Pulling Docker image failed with error %s' % str(e))
+            self._fail(detail='Pulling Docker image failed with "%s" error: "%s"' % (e.__class__, str(e)))
             raise
 
     def _get_docker_image(self):
@@ -219,7 +219,7 @@ class TaskMonitor(object):
             )
             self._set_container_id(self.container['Id'])
         except Exception as e:
-            self._fail(detail='Creating container failed with error "%s"' % str(e))
+            self._fail(detail='Creating container failed with "%s" error: "%s"' % (e.__class__, str(e)))
             raise
 
     def _run_container(self):
@@ -228,7 +228,7 @@ class TaskMonitor(object):
             self.docker_client.start(self.container)
             self._verify_container_started_running()
         except Exception as e:
-            self._fail(detail='Starting analysis failed with error "%s"' % str(e))
+            self._fail(detail='Starting analysis failed with "%s" error: "%s"' % (e.__class__, str(e)))
             raise
 
     def _verify_container_started_running(self):
@@ -308,7 +308,7 @@ class TaskMonitor(object):
             self._import_log_file(self.settings['STDOUT_LOG_FILE'], retry=True)
             self._import_log_file(self.settings['STDERR_LOG_FILE'], retry=True)
         except Exception as e:
-            self._fail(detail='Saving log files failed with error "%s"'\
+            self._fail(detail='Saving log files failed with "%s" error: "%s"' % (e.__class__, str(e)))
                        % str(e))
             raise
             
@@ -335,14 +335,14 @@ class TaskMonitor(object):
             for output in self.task_attempt['outputs']:
                 TaskAttemptOutput(output, self).save()
         except Exception as e:
-            self._fail(detail='Saving outputs failed with error "%s"' % str(e))
+            self._fail(detail='Saving outputs failed with "%s" error: "%s".' % (e.__class__, str(e)))
             raise
 
     def _finish(self):
         try:
             self._finish()
         except Exception as e:
-            self._fail(detail='Setting finished status failed with error "%s"' % str(e))
+            self._fail(detail='Setting finished status failed with "%s" error "%s"' % (e.__class__, str(e)))
             raise
 
 
