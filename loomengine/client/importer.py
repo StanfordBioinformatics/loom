@@ -3,6 +3,8 @@
 import argparse
 import glob
 import os
+import sys
+
 from loomengine.client.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, parse_as_json_or_yaml
 from loomengine.utils.filemanager import FileManager
@@ -50,6 +52,8 @@ class FileImporter(AbstractImporter):
                             default=False,
                             help='Allow retries if there is a failure '\
                             'connecting to storage')
+        parser.add_argument('-t', '--tag', metavar='TAG',
+                            help='Tag the file when it is created')
             
         return parser
 
@@ -67,6 +71,23 @@ class FileImporter(AbstractImporter):
         if len(files_imported) == 0:
             raise SystemExit('ERROR! Did not find any files matching "%s"'
                              % '", "'.join(self.args.files))
+        if self.args.tag:
+            if len(files_imported) > 1:
+                print ('WARNING! Tag was not applied, because tags '\
+                       'must be unique but multiple files were imported.')
+                sys.exit(0)
+            else:
+                target = '@'+files_imported[0]['uuid']
+                tag_data = {
+                    'target': target,
+                    'name': self.args.tag
+                }
+                tag = self.connection.post_tag(tag_data)
+                print 'Target "%s@%s" of type "%s" has been tagged as "%s"' % \
+                    (tag['target']['value'].get('filename'),
+                     tag['target'].get('uuid'),
+                     tag.get('type'),
+                     tag.get('name'))
 
 
 class TemplateImporter(AbstractImporter):
@@ -90,15 +111,22 @@ class TemplateImporter(AbstractImporter):
                             default=False,
                             help='Allow retries if there is a failure '\
                             'connecting to storage')
+        parser.add_argument('-t', '--tag', metavar='TAG',
+                            help='Tag the template when it is created')
         return parser
 
     def run(self):
-        return self.import_template(self.args.template,
+        template = self.import_template(self.args.template,
                                     self.args.comments,
                                     self.filemanager,
                                     self.connection,
                                     force_duplicates=self.args.force_duplicates,
                                     retry=self.args.retry)
+        if self.args.tag:
+            self.apply_tag(template)
+
+        return template
+
 
     @classmethod
     def import_template(cls, template_file, comments,
@@ -156,6 +184,19 @@ class TemplateImporter(AbstractImporter):
                 'ERROR! Template at "%s" could not be parsed into a dict.'
                 % os.path.abspath(template_file))
         return template, source_url
+
+    def apply_tag(self, template):
+        target = '@'+template['uuid']
+        tag_data = {
+            'target': target,
+            'name': self.args.tag
+	}
+        tag = self.connection.post_tag(tag_data)
+        print 'Target "%s@%s" of type "%s" has been tagged as "%s"' % \
+            (tag['target'].get('name'),
+             tag['target'].get('uuid'),
+             tag.get('type'),
+             tag.get('name'))
 
 
 class Importer:

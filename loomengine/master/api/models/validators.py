@@ -69,6 +69,14 @@ class DataObjectValidator(object):
         validate_data = DATA_VALIDATORS[instance.type]
         validate_data(instance.data)
 
+def validate_tag(tag_model):
+    for type in ('file', 'template', 'run'):
+        if tag_model.type == type and getattr(tag_model, type) is None:
+            raise ValidationError('Tag has no %s' % type)
+        if tag_model.type != type and getattr(tag_model, type) is not None:
+            raise ValidationError('Tag is type %s but is linked to a %s'
+                                  % (tag_model.type, type))
+
 def validate_filename(value):
     pattern = r'^([a-zA-Z0-9_]|[a-zA-Z0-9._][a-zA-Z0-9.\-_]+)$'
     if not re.match(pattern, value):

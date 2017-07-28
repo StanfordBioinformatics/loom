@@ -285,6 +285,11 @@ class Connection(object):
             file_import_update,
             'abstract-file-imports/%s/' % file_import_id)
 
+    def post_tag(self, data):
+        return self._post_object(
+            data,
+            'tags/')
+
     def get_info(self):
         try:
             response = self._get('info/')

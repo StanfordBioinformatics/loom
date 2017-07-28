@@ -209,11 +209,6 @@ def get_parser(parser=None):
     integration_parser.add_argument('--timeout', '-t', metavar='TIMEOUT_SECONDS',
                                     default=300)
 
-#    profile_parser = subparsers.add_parser(
-#        'profile',
-#        help='Run profile test. If no Loom server is running,'\
-#        'a temporary local Loom server will be created.')
-
     return parser
 
 def _get_args():

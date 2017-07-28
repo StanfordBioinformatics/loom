@@ -32,6 +32,9 @@ router.register('templates',
 router.register('runs',
                 api.views.RunViewSet,
                 base_name='run')
+router.register('tags',
+                api.views.TagViewSet,
+                base_name='tag')
 
 urlpatterns = [
     url(r'^', include(router.urls)),

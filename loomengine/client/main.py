@@ -18,6 +18,7 @@ from loomengine.client import importer
 from loomengine.client import run
 from loomengine.client import server
 from loomengine.client import show
+from loomengine.client import tag
 from loomengine.client import test_runner
 
 
@@ -71,6 +72,10 @@ class Main(object):
         show.Show.get_parser(show_subparser)
         show_subparser.set_defaults(SubcommandClass=show.Show)
 
+        tag_subparser = subparsers.add_parser('tag', help='manage tags')
+        tag.Tag.get_parser(tag_subparser)
+        tag_subparser.set_defaults(SubcommandClass=tag.Tag)
+        
         browser_subparser = subparsers.add_parser('browser', help='launch the Loom web browser')
         browser.Browser.get_parser(browser_subparser)
         browser_subparser.set_defaults(SubcommandClass=browser.Browser)

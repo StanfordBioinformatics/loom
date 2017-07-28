@@ -47,6 +47,8 @@ class TemplateRunner(object):
                             metavar='EMAIL/URL',
                             help='Recipients of completed run notifications. '\
                             'Repeat flag for multiple emails or urls')
+        parser.add_argument('-t', '--tag', metavar='TAG',
+                            help='Tag the run when it is created')
         return parser
 
     @classmethod
@@ -83,6 +85,9 @@ class TemplateRunner(object):
             run['name'],
             run['uuid'])
 
+        if self.args.tag:
+            self.apply_tags(run)
+
     def _get_inputs(self):
         """Converts command line args into a list of template inputs
         """
@@ -97,6 +102,20 @@ class TemplateRunner(object):
                         self._parse_string_to_nested_lists(input_id)}
                 })
         return inputs
+
+    def apply_tags(self, run):
+	target = '@'+run['uuid']
+        tag_data = {
+            'target': target,
+            'name': self.args.tag
+        }
+        tag = self.connection.post_tag(tag_data)
+        print 'Target "%s@%s" of type "%s" has been tagged as "%s"' % \
+	    (tag['target'].get('name'),
+             tag['target'].get('uuid'),
+             tag.get('type'),
+             tag.get('name'))
+
 
     def _parse_string_to_nested_lists(self, value):
         """e.g., convert "[[a,b,c],[d,e],[f,g]]" 
