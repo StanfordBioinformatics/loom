@@ -124,8 +124,7 @@ class Task(BaseModel):
 
     def _kill_children(self, detail=''):
         for task_attempt in self.all_task_attempts.all():
-            if not task_attempt.has_terminal_status():
-                async.kill_task_attempt(task_attempt.uuid, detail)
+            async.kill_task_attempt(task_attempt.uuid, detail)
 
     @classmethod
     def create_from_input_set(cls, input_set, run):

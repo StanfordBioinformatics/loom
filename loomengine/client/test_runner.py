@@ -67,7 +67,8 @@ class TestRunner:
         file_id = match.group()
  
         import_template_cmd = [loom_executable, 'import', 'template',
-                               os.path.join(template_dir, template_file_name)]
+                               os.path.join(template_dir, template_file_name),
+                               '--force-duplicates']
         (returncode, stdout) = self._run_command(import_template_cmd)
         if returncode != 0:
             raise IntegrationTestFailure('ERROR: Failed to import template.')

@@ -211,10 +211,7 @@ def _kill_task_attempt(task_attempt_uuid, kill_message):
         task_attempt.kill(kill_message)
     except Exception as e:
         logger.debug('Failed to kill task_attempt.uuid=%s.' % task_attempt_uuid)
-        task_attempt.cleanup()
         raise
-
-    task_attempt.cleanup()
 
 def kill_task_attempt(*args, **kwargs):
     return _run_with_delay(_kill_task_attempt, args, kwargs)
