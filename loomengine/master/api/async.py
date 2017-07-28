@@ -59,7 +59,7 @@ def _run_task(task_uuid, context):
                      'TEST_NO_RUN_TASK_ATTEMPT is True')
         return
     _run_with_heartbeats(_run_execute_task_attempt_playbook, task_attempt,
-                         args=[task_attempt])
+                         args=[task_attempt, context])
 
 def run_task(*args, **kwargs):
     return _run_with_delay(_run_task, args, kwargs)
@@ -98,7 +98,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
             last_heartbeat = timezone.now()
         time.sleep(polling_interval)
 
-def _run_execute_task_attempt_playbook(task_attempt):
+def _run_execute_task_attempt_playbook(task_attempt, context):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -146,15 +146,16 @@ def _run_execute_task_attempt_playbook(task_attempt):
         print line.strip()
     p.wait()
     if p.returncode != 0:
-        logger.debug('async._run_execute_task_attempt_playbook failed for '\
-                     'task_attempt.uuid="%s" with returncode="%s"'
+        logger.error('async._run_execute_task_attempt_playbook failed for '\
+                     'task_attempt.uuid="%s" with returncode="%s".'
                      % (task_attempt.uuid, p.returncode))
-        task_attempt.add_timepoint(
-            "Failed to launch worker process for TaskAttempt %s" \
-            % task_attempt.uuid,
-            detail=terminal_output,
-            is_error=True)
-        task_attempt.fail()
+        msg = "Failed to launch worker process for TaskAttempt %s" \
+              % task_attempt.uuid
+        task_attempt.add_event(msg,
+                               detail=terminal_output,
+                               is_error=True)
+        task_attempt.fail(context,
+                          detail="Failed to launch worker process")
 
 @shared_task
 def _cleanup_task_attempt(task_attempt_uuid):
