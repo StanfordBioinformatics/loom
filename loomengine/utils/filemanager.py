@@ -12,6 +12,7 @@ import time
 import urlparse
 from google.auth.exceptions import TransportError
 import google.cloud.storage
+import google.cloud.streaming
 from google.cloud.exceptions import GoogleCloudError
 import requests
 from socket import error as SocketError
@@ -207,8 +208,14 @@ class GoogleStorageSource(AbstractSource):
         
         self.settings = settings
 
+        RETRYABLE_EXCEPTIONS = (GoogleCloudError, TransportError, SocketError)
         try:
-            self.client = google.cloud.storage.client.Client(self.settings['GCE_PROJECT'])
+            self.client = execute_with_retries(
+                lambda: google.cloud.storage.client.Client(
+                    self.settings['GCE_PROJECT']),
+                RETRYABLE_EXCEPTIONS,
+                logger,
+                'Get client')
         except ApplicationDefaultCredentialsError as e:
             raise SystemExit(
                 'ERROR! '\
@@ -217,14 +224,16 @@ class GoogleStorageSource(AbstractSource):
 
         try:
             if self.retry:
+                RETRYABLE_EXCEPTIONS = (
+                    GoogleCloudError, TransportError, SocketError)
                 self.bucket = execute_with_retries(
                     lambda: self.client.get_bucket(self.bucket_id),
-                    (GoogleCloudError, TransportError, SocketError),
+                    RETRYABLE_EXCEPTIONS,
                     logger,
                     'Get bucket')
                 self.blob = execute_with_retries(
                     lambda: self.bucket.get_blob(self.blob_id),
-                    (GoogleCloudError, TransportError, SocketError),
+                    RETRYABLE_EXCEPTIONS,
                     logger,
                     'Get blob')
             else:
@@ -344,17 +353,23 @@ class GoogleStorageDestination(AbstractDestination):
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
-        self.client = google.cloud.storage.client.Client(self.settings['GCE_PROJECT'])
+        RETRYABLE_EXCEPTIONS = (GoogleCloudError, TransportError, SocketError)
+        self.client = execute_with_retries(
+            lambda: google.cloud.storage.client.Client(
+                self.settings['GCE_PROJECT']),
+            RETRYABLE_EXCEPTIONS,
+            logger,
+            'Get client')
         try:
             if self.retry:
                 self.bucket = execute_with_retries(
                     lambda: self.client.get_bucket(self.bucket_id),
-                    (GoogleCloudError, TransportError, SocketError),
+                    RETRYABLE_EXCEPTIONS,
                     logger,
                     'Get bucket')
                 self.blob = execute_with_retries(
                     lambda: self.bucket.get_blob(self.blob_id),
-                    (GoogleCloudError, TransportError, SocketError),
+                    RETRYABLE_EXCEPTIONS,
                     logger,
                     'Get blob')
             else:
@@ -445,11 +460,15 @@ class GoogleStorageCopier(AbstractCopier):
 class Local2GoogleStorageCopier(AbstractCopier):
 
     def copy(self):
+        RETRYABLE_EXCEPTIONS = [
+            e for e in
+            google.cloud.streaming.http_wrapper._RETRYABLE_EXCEPTIONS
+        ] + [GoogleCloudError, TransportError, SocketError]
         if self.source.retry or self.destination.retry:
             execute_with_retries(
                 lambda: self.destination.blob.upload_from_filename(
                     self.source.get_path()),
-                (GoogleCloudError, TransportError, SocketError),
+                RETRYABLE_EXCEPTIONS,
                 logger,
                 'File upload')
         else:
@@ -470,10 +489,14 @@ class GoogleStorage2LocalCopier(AbstractCopier):
                     (os.path.dirname(self.destination.get_path()),
                      e))
         if self.source.retry or self.destination.retry:
+            RETRYABLE_EXCEPTIONS = [
+                e for e in
+                google.cloud.streaming.http_wrapper._RETRYABLE_EXCEPTIONS
+            ] + [GoogleCloudError, TransportError, SocketError]
             execute_with_retries(
                 lambda: self.source.blob.download_to_filename(
                     self.destination.get_path()),
-                (GoogleCloudError, TransportError, SocketError),
+                RETRYABLE_EXCEPTIONS,
                 logger,
                 'File download')
         else:
