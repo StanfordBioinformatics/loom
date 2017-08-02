@@ -26,7 +26,7 @@ def execute_with_retries(retryable_function,
     while True:
         try:
             return retryable_function()
-        except retryable_errors as e:
+        except tuple(retryable_errors) as e:
             attempt += 1
             if attempt > max_retries:
                 raise
