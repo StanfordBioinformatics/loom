@@ -12,11 +12,11 @@ except ImportError:
 logging.getLogger(__name__).addHandler(NullHandler())
 
 
-def execute_with_retries(retriable_function,
-                         retriable_errors,
+def execute_with_retries(retryable_function,
+                         retryable_errors,
                          logger,
                          human_readable_action_name='Action'):
-    """This attempts to execute "retriable_function" with exponential backoff
+    """This attempts to execute "retryable_function" with exponential backoff
     on delay time.
     10 retries adds up to about 34 minutes total delay before the last attempt.
     "human_readable_action_name" is an option input to customize retry message.
@@ -25,8 +25,8 @@ def execute_with_retries(retriable_function,
     attempt = 0
     while True:
         try:
-            return retriable_function()
-        except retriable_errors as e:
+            return retryable_function()
+        except tuple(retryable_errors) as e:
             attempt += 1
             if attempt > max_retries:
                 raise
