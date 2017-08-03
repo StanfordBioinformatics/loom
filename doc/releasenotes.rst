@@ -13,14 +13,14 @@ Release Notes
 * Documentation for Loom templates
 * Templates can be referenced by hash
 * Added retries to file import/export, docker pull, other external services
-* Added "--original-copy" option to "loom file import"
+* Added ``--original-copy`` option to "loom file import"
 * Added LOOM_DEFAULT_DOCKER_REGISTRY setting
 
 0.4.0
 =============
 * Parallel workflows
 * Deprecated fixed inputs, replaced with optional and overridable "data" field on standard inputs
-* User-defined run names, using the optional "--name" flag with "loom run"
+* User-defined run names, using the optional ``--name`` flag with "loom run"
 * Updated examples, including two parallel examples "word_scoring" and "word_combinations"
 * Saving of templates is no longer asynchronous, so any errors are raised immediately with "loom import template"
 * Outputs can now use "glob" source in addition to "filename" and "stream"

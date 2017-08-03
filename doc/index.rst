@@ -14,3 +14,5 @@ Welcome to Loom's documentation!
    about
    installing
    templates
+   tags_and_labels
+

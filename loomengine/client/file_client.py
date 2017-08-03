@@ -159,11 +159,11 @@ class FileList(object):
             metavar='FILE_IDENTIFIER',
             help='Name or ID of file(s) to list.')
         parser.add_argument(
-            '--detail',
+            '-d', '--detail',
             action='store_true',
             help='Show detailed view of files')
         parser.add_argument(
-            '--type',
+            '-t', '--type',
             choices=['imported', 'result', 'log', 'all'],
             default='imported',
             help='List only files of the specified type. '\

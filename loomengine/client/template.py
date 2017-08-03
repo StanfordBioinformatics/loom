@@ -212,11 +212,11 @@ class TemplateList(object):
             metavar='TEMPLATE_IDENTIFIER',
             help='Name or ID of template(s) to list.')
         parser.add_argument(
-            '--detail',
+            '-d', '--detail',
             action='store_true',
             help='Show detailed view of templates')
         parser.add_argument(
-            '--all',
+            '-a', '--all',
             action='store_true',
             help='List all templates, including nested children. '\
             '(ignored when TEMPLATE_IDENTIFIER is given)')
