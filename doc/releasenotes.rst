@@ -2,6 +2,11 @@
 Release Notes
 #############
 
+0.5.0
+=============
+* Tags and labels for files, templates, and runs
+* Changed client commands to follow 'loom {noun} {verb}' pattern
+
 0.4.1
 =============
 * Notification for completed runs by email or posting JSON to URL
