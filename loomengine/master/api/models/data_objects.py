@@ -28,6 +28,7 @@ class DataObject(BaseModel):
     NAME_FIELD = 'file_resource__filename'
     HASH_FIELD = 'file_resource__md5'
     ID_FIELD = 'uuid'
+    TAG_FIELD = 'tags__tag'
 
     DATA_TYPE_CHOICES = (
         ('boolean', 'Boolean'),

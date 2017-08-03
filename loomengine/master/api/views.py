@@ -76,7 +76,8 @@ class ExpandableViewSet(viewsets.ModelViewSet):
 
 
 class DataObjectViewSet(viewsets.ModelViewSet):
-    """Each DataObject represents a value of type file, string, boolean, integer, or float.
+    """Each DataObject represents a value of type file, string, boolean, 
+    integer, or float.
     """
 
     lookup_field = 'uuid'
@@ -91,16 +92,111 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         query_string = self.request.query_params.get('q', '')
         type = self.request.query_params.get('type', '')
         source_type = self.request.query_params.get('source_type', '')
+        labels = self.request.query_params.get('labels', '')
         if query_string:
-            queryset = models.DataObject.filter_by_name_or_id_or_hash(query_string)
+            queryset = models.DataObject.filter_by_name_or_id_or_tag_or_hash(
+                query_string)
         else:
             queryset = models.DataObject.objects.all()
         if source_type and source_type != 'all':
             queryset = queryset.filter(file_resource__source_type=source_type)
         if type:
             queryset = queryset.filter(type=type)
+        if labels:
+            for label in labels.split(','):
+                queryset = queryset.filter(labels__label=label)
         queryset = self.get_serializer_class().apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
+    
+    @detail_route(methods=['post'], url_path='add-tag',
+                  serializer_class=serializers.DataTagSerializer)
+    def add_tag(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            data_object = models.DataObject.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        s = serializers.DataTagSerializer(
+            data=data, context={'data_object': data_object})
+        s.is_valid(raise_exception=True)
+        s.save()
+        return JsonResponse(s.data, status=201)
+
+    @detail_route(methods=['post'], url_path='remove-tag',
+                  serializer_class=serializers.DataTagSerializer)
+    def remove_tag(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        tag = data.get('tag')
+        try:
+            data_object = models.DataObject.objects.get(uuid=uuid)
+            tag_instance = data_object.tags.get(tag=tag)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        tag_instance.delete()
+        return JsonResponse({
+            'tag': tag,
+            'message': 'Tag %s was removed from DataObject @%s' % (
+                tag, data_object.uuid)},
+                            status=200)
+
+    @detail_route(methods=['get'], url_path='tags')
+    def list_tags(self, request, uuid=None):
+        try:
+            data_object = models.DataObject.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        tags = []
+        for tag in data_object.tags.all():
+            tags.append(tag.tag)
+
+        return JsonResponse({'tags': tags}, status=200)
+
+    @detail_route(methods=['post'], url_path='add-label',
+                  serializer_class=serializers.DataLabelSerializer)
+    def add_label(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            data_object = models.DataObject.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        s = serializers.DataLabelSerializer(
+            data=data, context={'data_object': data_object})
+        s.is_valid(raise_exception=True)
+        s.save()
+        return JsonResponse(s.data, status=201)
+
+    @detail_route(methods=['post'], url_path='remove-label',
+                  serializer_class=serializers.DataLabelSerializer)
+    def remove_label(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        label = data.get('label')
+        try:
+            data_object = models.DataObject.objects.get(uuid=uuid)
+            label_instance = data_object.labels.get(label=label)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        label_instance.delete()
+        return JsonResponse({
+            'label': label,
+            'message': 'Label %s was removed from DataObject @%s' % (
+                label, data_object.uuid)},
+                            status=200)
+
+    @detail_route(methods=['get'], url_path='labels',
+                  serializer_class=serializers.DataLabelSerializer)
+    def list_labels(self, request, uuid=None):
+        try:
+            data_object = models.DataObject.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        data = []
+        for label in data_object.labels.all():
+            data.append(serializers.DataLabelSerializer(label).data)
+        return JsonResponse(data, status=200)
 
 
 class DataNodeViewSet(ExpandableViewSet):
@@ -122,14 +218,6 @@ class TaskViewSet(ExpandableViewSet):
     EXPANDED_SERIALIZER = serializers.ExpandedTaskSerializer
     SUMMARY_SERIALIZER = serializers.SummaryTaskSerializer
     URL_SERIALIZER = serializers.URLTaskSerializer
-
-
-class TagViewSet(viewsets.ModelViewSet):
-    lookup_field = 'id'
-    serializer_class = serializers.TagSerializer
-
-    def get_queryset(self):
-        return models.Tag.objects.all()
 
 
 class TaskAttemptViewSet(ExpandableViewSet):
@@ -230,15 +318,109 @@ class TemplateViewSet(ExpandableViewSet):
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
         imported = 'imported' in self.request.query_params
+        labels = self.request.query_params.get('labels', '')
         Serializer = self.get_serializer_class()
         if query_string:
-            queryset = models.Template.filter_by_name_or_id_or_hash(query_string)
+            queryset = models.Template.filter_by_name_or_id_or_tag_or_hash(query_string)
         else:
             queryset = models.Template.objects.all()
         if imported:
             queryset = queryset.exclude(imported=False)
+        if labels:
+            for label in labels.split(','):
+                queryset = queryset.filter(labels__label=label)
         queryset = Serializer.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
+
+    @detail_route(methods=['post'], url_path='add-tag',
+                  serializer_class=serializers.TemplateTagSerializer)
+    def add_tag(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            template = models.Template.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        s = serializers.TemplateTagSerializer(
+            data=data, context={'template': template})
+        s.is_valid(raise_exception=True)
+        s.save()
+        return JsonResponse(s.data, status=201)
+
+    @detail_route(methods=['post'], url_path='remove-tag',
+                  serializer_class=serializers.DataTagSerializer)
+    def remove_tag(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        tag = data.get('tag')
+        try:
+            template = models.Template.objects.get(uuid=uuid)
+            tag_instance = template.tags.get(tag=tag)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        tag_instance.delete()
+        return JsonResponse({
+            'tag': tag,
+            'message': 'Tag %s was removed from Template @%s' % (
+                tag, template.uuid)},
+                            status=200)
+
+    @detail_route(methods=['get'], url_path='tags')
+    def list_tags(self, request, uuid=None):
+        try:
+            template = models.Template.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        tags = []
+        for tag in template.tags.all():
+            tags.append(tag.tag)
+
+        return JsonResponse({'tags': tags}, status=200)
+
+    @detail_route(methods=['post'], url_path='add-label',
+                  serializer_class=serializers.TemplateLabelSerializer)
+    def add_label(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            template = models.Template.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        s = serializers.TemplateLabelSerializer(
+            data=data, context={'template': template})
+        s.is_valid(raise_exception=True)
+        s.save()
+        return JsonResponse(s.data, status=201)
+
+    @detail_route(methods=['post'], url_path='remove-label',
+                  serializer_class=serializers.DataLabelSerializer)
+    def remove_label(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        label = data.get('label')
+        try:
+            template = models.Template.objects.get(uuid=uuid)
+            label_instance = template.labels.get(label=label)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        label_instance.delete()
+        return JsonResponse({
+            'label': label,
+            'message': 'Label %s was removed from Template @%s' % (
+                label, template.uuid)},
+                            status=200)
+
+    @detail_route(methods=['get'], url_path='labels')
+    def list_labels(self, request, uuid=None):
+        try:
+            template = models.Template.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        labels = []
+        for label in template.labels.all():
+            labels.append(label.label)
+
+        return JsonResponse({'labels': labels}, status=200)
 
 
 class RunViewSet(ExpandableViewSet):
@@ -255,15 +437,109 @@ class RunViewSet(ExpandableViewSet):
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
         parent_only = 'parent_only' in self.request.query_params
+        labels = self.request.query_params.get('labels', '')
         Serializer = self.get_serializer_class()
         if query_string:
-            queryset = models.Run.filter_by_name_or_id(query_string)
+            queryset = models.Run.filter_by_name_or_id_or_tag(query_string)
         else:
             queryset = models.Run.objects.all()
         if parent_only:
             queryset = queryset.filter(parent__isnull=True)
+        if labels:
+            for label in labels.split(','):
+                queryset = queryset.filter(labels__label=label)
         queryset = Serializer.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
+
+    @detail_route(methods=['post'], url_path='add-tag',
+                  serializer_class=serializers.RunTagSerializer)
+    def add_tag(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        s = serializers.RunTagSerializer(
+            data=data, context={'run': run})
+        s.is_valid(raise_exception=True)
+        s.save()
+        return JsonResponse(s.data, status=201)
+
+    @detail_route(methods=['post'], url_path='remove-tag',
+                  serializer_class=serializers.DataTagSerializer)
+    def remove_tag(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        tag = data.get('tag')
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+            tag_instance = run.tags.get(tag=tag)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        tag_instance.delete()
+        return JsonResponse({
+            'tag': tag,
+            'message': 'Tag %s was removed from DataObject @%s' % (
+                tag, run.uuid)},
+                            status=200)
+
+    @detail_route(methods=['get'], url_path='tags')
+    def list_tags(self, request, uuid=None):
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        tags = []
+        for tag in run.tags.all():
+            tags.append(tag.tag)
+
+        return JsonResponse({'tags': tags}, status=200)
+
+    @detail_route(methods=['post'], url_path='add-label',
+                  serializer_class=serializers.RunLabelSerializer)
+    def add_label(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        s = serializers.RunLabelSerializer(
+            data=data, context={'run': run})
+        s.is_valid(raise_exception=True)
+        s.save()
+        return JsonResponse(s.data, status=201)
+
+    @detail_route(methods=['post'], url_path='remove-label',
+                  serializer_class=serializers.DataLabelSerializer)
+    def remove_label(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        label = data.get('label')
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+            label_instance = run.labels.get(label=label)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        label_instance.delete()
+        return JsonResponse({
+            'label': label,
+            'message': 'Label %s was removed from DataObject @%s' % (
+                label, run.uuid)},
+                            status=200)
+
+    @detail_route(methods=['get'], url_path='labels')
+    def list_labels(self, request, uuid=None):
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        labels = []
+        for label in run.labels.all():
+            labels.append(label.label)
+
+        return JsonResponse({'labels': labels}, status=200)
 
 
 class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
@@ -315,6 +591,44 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return models.TaskAttemptOutput.objects.all()
 
+class DataTagViewSet(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = serializers.DataTagSerializer
+    lookup_field = 'id'
+    queryset = models.DataTag.objects.all()
+
+
+class DataLabelViewSet(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = serializers.DataLabelSerializer
+    lookup_field = 'id'
+    queryset = models.DataLabel.objects.all()
+
+class TemplateTagViewSet(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = serializers.TemplateTagSerializer
+    lookup_field = 'id'
+    queryset = models.TemplateTag.objects.all()
+
+
+class TemplateLabelViewSet(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = serializers.TemplateLabelSerializer
+    lookup_field = 'id'
+    queryset = models.TemplateLabel.objects.all()
+
+class RunTagViewSet(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = serializers.RunTagSerializer
+    lookup_field = 'id'
+    queryset = models.RunTag.objects.all()
+
+
+class RunLabelViewSet(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = serializers.RunLabelSerializer
+    lookup_field = 'id'
+    queryset = models.RunLabel.objects.all()
 
 @require_http_methods(["GET"])
 def status(request):

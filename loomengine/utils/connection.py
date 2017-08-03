@@ -127,6 +127,7 @@ class Connection(object):
 
     def get_data_object_index(
             self, query_string=None, source_type=None,
+            labels=None,
             type=None, min=0, max=float('inf')):
         url = 'data-objects/'
         params = {}
@@ -136,16 +137,36 @@ class Connection(object):
             params['source_type'] = source_type
         if type:
             params['type'] = type
+        if labels:
+            params['labels'] = ','.join(labels)
         data_objects =  self._get_object_index(url, params=params)
         if len(data_objects) < min:
             raise IdMatchedTooFewDataObjectsError(
-                'Found %s FileDataObjects, expected at least %s' \
-                % (len(file_data_objects), min))
+                'Found %s DataObjects, expected at least %s' \
+                % (len(data_objects), min))
         if len(data_objects) > max:
             raise IdMatchedTooManyDataObjectsError(
-                'Found %s FilDataObjects, expected at most %s' \
+                'Found %s DataObjects, expected at most %s' \
                 % (len(data_objects), max))
         return data_objects
+
+    def get_data_tag_index(self):
+        return self._get_object_index('data-tags/')
+
+    def get_template_tag_index(self):
+        return self._get_object_index('template-tags/')
+
+    def get_run_tag_index(self):
+        return self._get_object_index('run-tags/')
+
+    def get_data_label_index(self):
+        return self._get_object_index('data-labels/')
+
+    def get_template_label_index(self):
+        return self._get_object_index('template-labels/')
+
+    def get_run_label_index(self):
+        return self._get_object_index('run-labels/')
 
     def get_data_node(self, data_node_id, expand=False):
         params = {}
@@ -176,13 +197,15 @@ class Connection(object):
         )
 
     def get_template_index(self, query_string='', imported=False,
-                           min=0, max=float('inf')):
+                           labels=None, min=0, max=float('inf')):
         url = 'templates/'
         params = {}
         if query_string:
             params['q'] = query_string
         if imported:
             params['imported'] = '1'
+        if labels:
+            params['labels'] = ','.join(labels)
         templates = self._get_object_index(url, params=params)
         if len(templates) < min:
             raise Error('Found %s templates, expected at least %s' %(len(templates), min))
@@ -201,6 +224,7 @@ class Connection(object):
         )
 
     def get_run_index(self, query_string=None, parent_only=False,
+                      labels=None,
                       min=0, max=float('inf')):
         url = 'runs/'
         params = {}
@@ -208,6 +232,8 @@ class Connection(object):
             params['q'] = query_string
         if parent_only:
             params['parent_only'] = '1'
+        if labels:
+            params['labels'] = ','.join(labels)
         runs = self._get_object_index(url, params=params)
         if len(runs) < min:
             raise Error('Found %s template runs, expected at least %s' %(len(runs), min))
@@ -285,10 +311,89 @@ class Connection(object):
             file_import_update,
             'abstract-file-imports/%s/' % file_import_id)
 
-    def post_tag(self, data):
+    def post_run_tag(self, run_id, data):
         return self._post_object(
             data,
-            'tags/')
+            'runs/%s/add-tag/' % run_id)
+
+    def list_run_tags(self, run_id):
+        return self._get_object(
+            'runs/%s/tags/' % run_id)
+
+    def remove_run_tag(self, run_id, data):
+        return self._post_object(
+            data,
+            'runs/%s/remove-tag/' % run_id)
+
+    def post_data_tag(self, data_object_id, data):
+        return self._post_object(
+            data,
+            'data-objects/%s/add-tag/' % data_object_id)
+
+    def list_data_tags(self, data_object_id):
+        return self._get_object(
+            'data-objects/%s/tags/' % data_object_id)
+
+    def remove_data_tag(self, data_object_id, data):
+        return self._post_object(
+            data,
+            'data-objects/%s/remove-tag/' % data_object_id)
+
+    def post_template_tag(self, template_id, data):
+        return self._post_object(
+            data,
+            'templates/%s/add-tag/' % template_id)
+
+    def list_template_tags(self, template_id):
+        return self._get_object(
+            'templates/%s/tags/' % template_id)
+
+    def remove_template_tag(self, template_id, data):
+        return self._post_object(
+            data,
+            'templates/%s/remove-tag/' % template_id)
+
+    def post_run_label(self, run_id, data):
+        return self._post_object(
+            data,
+            'runs/%s/add-label/' % run_id)
+
+    def list_run_labels(self, run_id):
+        return self._get_object(
+            'runs/%s/labels/' % run_id)
+
+    def remove_run_label(self, run_id, data):
+        return self._post_object(
+            data,
+            'runs/%s/remove-label/' % run_id)
+
+    def post_data_label(self, data_object_id, data):
+        return self._post_object(
+            data,
+            'data-objects/%s/add-label/' % data_object_id)
+
+    def list_data_labels(self, data_id):
+        return self._get_object(
+            'data-objects/%s/labels/' % data_id)
+
+    def remove_data_label(self, data_id, data):
+        return self._post_object(
+            data,
+            'data-objects/%s/remove-label/' % data_id)
+
+    def post_template_label(self, template_id, data):
+        return self._post_object(
+            data,
+            'templates/%s/add-label/' % template_id)
+
+    def list_template_labels(self, template_id):
+        return self._get_object(
+            'templates/%s/labels/' % template_id)
+
+    def remove_template_label(self, template_id, data):
+        return self._post_object(
+            data,
+            'templates/%s/remove-label/' % template_id)
 
     def get_info(self):
         try:

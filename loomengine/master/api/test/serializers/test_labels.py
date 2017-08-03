@@ -3,31 +3,31 @@ from rest_framework import serializers
 
 from api.models import Run
 from api.serializers import DataObjectSerializer
-from api.serializers import TemplateTagSerializer, DataTagSerializer, RunTagSerializer
+from api.serializers import TemplateLabelSerializer, DataLabelSerializer, RunLabelSerializer
 from api.serializers import TemplateSerializer
 from . import fixtures
 from . import get_mock_context
 
-class TestTemplateTagSerializer(TestCase):
+class TestTemplateLabelSerializer(TestCase):
 
     def testCreate(self):
         template = self.create_template()
-        tag = self.create_tag(template)
-        self.assertEqual(tag.template.uuid, template.uuid)
+        label = self.create_label(template)
+        self.assertEqual(label.template.uuid, template.uuid)
 
     def testRender(self):
         template = self.create_template()
-        tag = self.create_tag(template)
-        tag_data = TemplateTagSerializer(tag).data
-        self.assertEqual(tag_data.get('tag'), 'tag1')
+        label = self.create_label(template)
+        label_data = TemplateLabelSerializer(label).data
+        self.assertEqual(label_data.get('label'), 'label1')
 
-    def create_tag(self, template):
-        tag_data = {
-            'tag': 'tag1',
+    def create_label(self, template):
+        label_data = {
+            'label': 'label1',
         }
         context = {'template': template}
 
-        s = TemplateTagSerializer(data=tag_data, context=context)
+        s = TemplateLabelSerializer(data=label_data, context=context)
         s.is_valid(raise_exception=True)
         return s.save()
 
@@ -40,24 +40,24 @@ class TestTemplateTagSerializer(TestCase):
 
 @override_settings(TEST_DISABLE_ASYNC_DELAY=True,
                    TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
-class TestRunTagSerializer(TransactionTestCase):
+class TestRunLabelSerializer(TransactionTestCase):
 
     def testCreate(self):
         run = self.create_run()
-        tag = self.create_tag(run)
-        self.assertEqual(tag.run.uuid, run.uuid)
+        label = self.create_label(run)
+        self.assertEqual(label.run.uuid, run.uuid)
 
     def testRender(self):
         run = self.create_run()
-        tag = self.create_tag(run)
+        label = self.create_label(run)
         context = {'run': run}
-        tag_data = RunTagSerializer(tag, context=context).data
-        self.assertEqual(tag_data.get('tag'), 'tag1')
+        label_data = RunLabelSerializer(label, context=context).data
+        self.assertEqual(label_data.get('label'), 'label1')
 
-    def create_tag(self, run):
-        tag_data = {'tag': 'tag1'}
+    def create_label(self, run):
+        label_data = {'label': 'label1'}
         context = {'run': run}
-        s = RunTagSerializer(data=tag_data, context=context)
+        s = RunLabelSerializer(data=label_data, context=context)
         s.is_valid(raise_exception=True)
         return s.save()
 
@@ -70,12 +70,12 @@ class TestRunTagSerializer(TransactionTestCase):
         return run
 
 
-class TestDataTagSerializer(TestCase):
+class TestDataLabelSerializer(TestCase):
 
     def testCreate(self):
         file = self.create_file()
-        tag = self.create_tag(file)
-        self.assertEqual(tag.data_object.uuid, file.uuid)
+        label = self.create_label(file)
+        self.assertEqual(label.data_object.uuid, file.uuid)
         
     def create_file(self):
         data = fixtures.data_objects.file_data_object
@@ -83,9 +83,9 @@ class TestDataTagSerializer(TestCase):
         s.is_valid(raise_exception=True)
         return s.save()
 
-    def create_tag(self, file):
-        tag_data = {'tag': 'tag1'}
+    def create_label(self, file):
+        label_data = {'label': 'label1'}
         context = {'data_object': file}
-        s = DataTagSerializer(data=tag_data, context=context)
+        s = DataLabelSerializer(data=label_data, context=context)
         s.is_valid(raise_exception=True)
         return s.save()

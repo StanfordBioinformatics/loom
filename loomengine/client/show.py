@@ -282,6 +282,13 @@ class Show:
         return parser
 
     def run(self):
+        import warnings
+        LOOM_SHOW_DEPRECATED = '\n THE "LOOM SHOW" COMMAND IS DEPRECATED and '\
+                               'will be removed in a future release. Use "loom '\
+                               'file list", "loom template list", and "loom run '\
+                               'list" instead.'
+        warnings.warn(LOOM_SHOW_DEPRECATED)
+
         self.args.SubSubcommandClass(self.args).run()
 
 

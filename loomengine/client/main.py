@@ -13,12 +13,13 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(rootdir)
 
 from loomengine.client import browser
+from loomengine.client import file_client
 from loomengine.client import exporter
 from loomengine.client import importer
 from loomengine.client import run
 from loomengine.client import server
 from loomengine.client import show
-from loomengine.client import tag
+from loomengine.client import template
 from loomengine.client import test_runner
 
 
@@ -50,39 +51,46 @@ class Main(object):
         parser = argparse.ArgumentParser('loom')
         parser.add_argument('-v', '--version', nargs=0, action=Version)
 
-        subparsers = parser.add_subparsers(help='select a subcommand')
+        subparsers = parser.add_subparsers(
+            metavar='{run,file,template,browser,server,test}')
 
-        run_subparser = subparsers.add_parser('run', help='run a template')
-        run.TemplateRunner.get_parser(run_subparser)
-        run_subparser.set_defaults(SubcommandClass=run.TemplateRunner)
-
-        server_subparser = subparsers.add_parser('server', help='manage the Loom server')
-        server.get_parser(server_subparser)
-        server_subparser.set_defaults(SubcommandClass=server.ServerControls)
-
-        import_subparser = subparsers.add_parser('import', help='import files or other data to the Loom server')
-        importer.Importer.get_parser(import_subparser)
-        import_subparser.set_defaults(SubcommandClass=importer.Importer)
-
-        export_subparser = subparsers.add_parser('export', help='export files or other data from the Loom server')
-        exporter.Exporter.get_parser(export_subparser)
-        export_subparser.set_defaults(SubcommandClass=exporter.Exporter)
-
-        show_subparser = subparsers.add_parser('show', help='query and show data objects from the Loom server')
-        show.Show.get_parser(show_subparser)
-        show_subparser.set_defaults(SubcommandClass=show.Show)
-
-        tag_subparser = subparsers.add_parser('tag', help='manage tags')
-        tag.Tag.get_parser(tag_subparser)
-        tag_subparser.set_defaults(SubcommandClass=tag.Tag)
+        run_subparser = subparsers.add_parser('run', help='manage runs')
+        run.RunClient.get_parser(run_subparser)
+        run_subparser.set_defaults(SubcommandClass=run.RunClient)
         
+        template_subparser = subparsers.add_parser('template',
+                                                    help='mangage templates')
+        template.Template.get_parser(template_subparser)
+        template_subparser.set_defaults(SubcommandClass=template.Template)
+
+        file_subparser = subparsers.add_parser('file', help='manage files')
+        file_client.FileClient.get_parser(file_subparser)
+        file_subparser.set_defaults(SubcommandClass=file_client.FileClient)
+
         browser_subparser = subparsers.add_parser('browser', help='launch the Loom web browser')
         browser.Browser.get_parser(browser_subparser)
         browser_subparser.set_defaults(SubcommandClass=browser.Browser)
 
+        server_subparser = subparsers.add_parser(
+            'server', help='manage the Loom server')
+        server.get_parser(server_subparser)
+        server_subparser.set_defaults(SubcommandClass=server.ServerControls)
+
         test_subparser = subparsers.add_parser('test', help='run tests')
         test_runner.get_parser(test_subparser)
         test_subparser.set_defaults(SubcommandClass=test_runner.TestRunner)
+
+        import_subparser = subparsers.add_parser('import')            
+        importer.Importer.get_parser(import_subparser)
+        import_subparser.set_defaults(SubcommandClass=importer.Importer)
+
+        export_subparser = subparsers.add_parser('export')
+        exporter.Exporter.get_parser(export_subparser)
+        export_subparser.set_defaults(SubcommandClass=exporter.Exporter)
+
+        show_subparser = subparsers.add_parser('show')
+        show.Show.get_parser(show_subparser)
+        show_subparser.set_defaults(SubcommandClass=show.Show)
 
         return parser
 

@@ -40,12 +40,12 @@ class TestFilterHelper(TestCase):
                 self.name+self.uuid+self.hash,
                 self.name+self.hash+self.short_uuid,
                 self.name+self.short_uuid+self.hash]:
-            results = self.filter_helper.filter_by_name_or_id_or_hash(query_string)
+            results = self.filter_helper.filter_by_name_or_id_or_tag_or_hash(query_string)
             self.assertEqual(results.count(), 1)
             self.assertEqual(results.first().id, self.file_data_object.id)
 
     def testFilterByNameOrIdOrHashNoMatch(self):
-        results =self.filter_helper.filter_by_name_or_id_or_hash('dont_match_nothing')
+        results =self.filter_helper.filter_by_name_or_id_or_tag_or_hash('dont_match_nothing')
         self.assertEqual(results.count(), 0)
 
     def testFilterByNameOrId(self):
@@ -55,12 +55,12 @@ class TestFilterHelper(TestCase):
                 self.short_uuid,
                 self.name+self.uuid,
                 self.name+self.short_uuid]:
-            results = self.filter_helper.filter_by_name_or_id(query_string)
+            results = self.filter_helper.filter_by_name_or_id_or_tag(query_string)
             self.assertEqual(results.count(), 1)
             self.assertEqual(results.first().id, self.file_data_object.id)
 
     def testFilterByNameOrIdNoMatch(self):
-        results = self.filter_helper.filter_by_name_or_id('dont_match_nothing')
+        results = self.filter_helper.filter_by_name_or_id_or_tag('dont_match_nothing')
         self.assertEqual(results.count(), 0)
 
     def testParseAsNameOrIdOrHash(self):
@@ -96,14 +96,14 @@ class TestFilterMixin(TestCase):
     def TestFilterByNameOrIdOrHash(self):
         file_data_object = _create_file_data_object()
         query_string = file_data_object.filename
-        results = DataObject.filter_by_name_or_id_or_hash(query_string)
+        results = DataObject.filter_by_name_or_id_or_tag_or_hash(query_string)
         self.assertEqual(results.count(), 1)
         self.assertEqual(results.first().id, file_data_object.id)
 
     def TestFilterByNameOrId(self):
         file_data_object = _create_file_data_object()
         query_string = file_data_object.filename
-        results = DataObject.filter_by_name_or_id(query_string)
+        results = DataObject.filter_by_name_or_id_or_tag(query_string)
         self.assertEqual(results.count(), 1)
         self.assertEqual(results.first().id, file_data_object.id)
             

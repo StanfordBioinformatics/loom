@@ -53,6 +53,9 @@ class ProxyWriteSerializer(rest_framework.serializers.HyperlinkedModelSerializer
     def update(self, *args, **kwargs):
         return self._get_serializer().update(*args, **kwargs)
 
+    def save(self, *args, **kwargs):
+        return self._get_serializer().save(*args, **kwargs)
+
 
 class CreateWithParentModelSerializer(
         rest_framework.serializers.HyperlinkedModelSerializer):
@@ -84,6 +87,7 @@ class CreateWithParentModelSerializer(
 
 from .data_objects import *
 from .data_nodes import *
+from .labels import *
 from .runs import *
 from .tags import *
 from .task_attempts import *

@@ -28,6 +28,7 @@ class Template(BaseModel):
     NAME_FIELD = 'name'
     HASH_FIELD = 'md5'
     ID_FIELD = 'uuid'
+    TAG_FIELD = 'tags__tag'
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)

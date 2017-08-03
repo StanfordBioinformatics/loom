@@ -201,11 +201,11 @@ class TaskAttempt(BaseModel):
         if self.status_is_cleaned_up:
             return
         if get_setting('PRESERVE_ALL'):
-            self.add_event('Skipped cleanup because PRESERVER_ALL is True',
+            self.add_event('Skipped cleanup because PRESERVE_ALL is True',
                            is_error=False)
             return
         if get_setting('PRESERVE_ON_FAILURE') and self.status_is_failed:
-            self.add_event('Skipped cleanup because PRESERVER_ON_FAILURE is True',
+            self.add_event('Skipped cleanup because PRESERVE_ON_FAILURE is True',
                            is_error=False)
             return
         async.cleanup_task_attempt(self.uuid)

@@ -32,9 +32,24 @@ router.register('templates',
 router.register('runs',
                 api.views.RunViewSet,
                 base_name='run')
-router.register('tags',
-                api.views.TagViewSet,
-                base_name='tag')
+router.register('data-tags',
+                api.views.DataTagViewSet,
+                base_name='data-tag')
+router.register('data-labels',
+                api.views.DataLabelViewSet,
+                base_name='data-label')
+router.register('template-tags',
+                api.views.TemplateTagViewSet,
+                base_name='template-tag')
+router.register('template-labels',
+                api.views.TemplateLabelViewSet,
+                base_name='template-label')
+router.register('run-tags',
+                api.views.RunTagViewSet,
+                base_name='run-tag')
+router.register('run-labels',
+                api.views.RunLabelViewSet,
+                base_name='run-label')
 
 urlpatterns = [
     url(r'^', include(router.urls)),

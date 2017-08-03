@@ -55,7 +55,7 @@ class TestRunner:
         input_file_name = 'message.txt'
         template_file_name = 'integration_test.yaml'
 
-        import_file_cmd = [loom_executable, 'import', 'file',
+        import_file_cmd = [loom_executable, 'file', 'import',
                            os.path.join(template_dir, input_file_name),
                            '--force-duplicates']
         (returncode, stdout) = self._run_command(import_file_cmd)
@@ -66,7 +66,7 @@ class TestRunner:
             raise IntegrationTestFailure('Could not find id of imported file')
         file_id = match.group()
  
-        import_template_cmd = [loom_executable, 'import', 'template',
+        import_template_cmd = [loom_executable, 'template', 'import',
                                os.path.join(template_dir, template_file_name),
                                '--force-duplicates']
         (returncode, stdout) = self._run_command(import_template_cmd)
@@ -77,7 +77,7 @@ class TestRunner:
             raise IntegrationTestFailure('ERROR: Could not find id of imported template')
         template_id = match.group()
 
-        run_cmd = [loom_executable, 'run', template_id, 'message=%s' % file_id]
+        run_cmd = [loom_executable, 'run', 'start', template_id, 'message=%s' % file_id]
         (returncode, stdout) = self._run_command(run_cmd)
         if returncode != 0:
             raise IntegrationTestFailure('ERROR: Failed to execute run.')
@@ -93,14 +93,14 @@ class TestRunner:
         start_time = datetime.now()
         loom_executable = sys.argv[0]
         timeout = int(self.args.timeout)
-        cmd = [loom_executable, 'show', 'run', run_id]
+        cmd = [loom_executable, 'run', 'list', run_id]
         while (datetime.now() - start_time).total_seconds() < timeout:
             p = subprocess.Popen(cmd, env=os.environ,
                                 stdout=subprocess.PIPE)
             p.wait()
             if not p.returncode == 0:
                 raise IntegrationTestFailure(
-                    'ERROR: "loom server show" command failed.')
+                    'ERROR: "loom run list" command failed.')
             (stdout, stderr) = p.communicate()
             match = re.search(r'Run: .* \(([a-zA-Z0-9_\-]*)\)', stdout)
             if match:

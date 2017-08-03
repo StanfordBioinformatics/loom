@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from api.models.data_objects import DataObject, FileResource
 
+
 class DataValueSerializer(serializers.Field):
 
     def to_representation(self, value):
@@ -20,6 +21,7 @@ class DataValueSerializer(serializers.Field):
 
     def to_internal_value(self, data):
         return data
+
 
 class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
@@ -106,7 +108,7 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
     @classmethod
     def get_select_related_list(cls):
         return ['file_resource']
-                
+
     @classmethod
     def apply_prefetch(cls, queryset):
         for select_string in cls.get_select_related_list():

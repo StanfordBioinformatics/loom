@@ -225,7 +225,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 'Multiple templates were found matching value "%s": "%s". '\
                 'Use a more precise identifier to select just one template.' % (
                     template_id, match_id_string))
-        return  matches.first()
+        return matches.first()
     
     def _create_unsaved_models(
             self,
