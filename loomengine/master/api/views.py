@@ -193,10 +193,10 @@ class DataObjectViewSet(viewsets.ModelViewSet):
             data_object = models.DataObject.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             raise NotFound()
-        data = []
+        labels = []
         for label in data_object.labels.all():
-            data.append(serializers.DataLabelSerializer(label).data)
-        return JsonResponse(data, status=200)
+            labels.append(label.label)
+        return JsonResponse({'labels': labels}, status=200)
 
 
 class DataNodeViewSet(ExpandableViewSet):
@@ -419,7 +419,6 @@ class TemplateViewSet(ExpandableViewSet):
         labels = []
         for label in template.labels.all():
             labels.append(label.label)
-
         return JsonResponse({'labels': labels}, status=200)
 
 
@@ -538,7 +537,6 @@ class RunViewSet(ExpandableViewSet):
         labels = []
         for label in run.labels.all():
             labels.append(label.label)
-
         return JsonResponse({'labels': labels}, status=200)
 
 

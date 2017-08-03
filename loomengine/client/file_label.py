@@ -46,10 +46,10 @@ class FileLabelAdd(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be labeled')
+            help='identifier for file to be labeled')
         parser.add_argument(
             'label',
-            metavar='LABEL', help='Label name to be addd')
+            metavar='LABEL', help='label name to be added')
         return parser
 
     def run(self):
@@ -91,10 +91,10 @@ class FileLabelRemove(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be unlabeled')
+            help='identifier for file to be unlabeled')
         parser.add_argument(
             'label',
-            metavar='LABEL', help='Label name to be removed')
+            metavar='LABEL', help='label name to be removed')
         return parser
 
     def run(self):
@@ -136,7 +136,7 @@ class FileLabelList(object):
             'target',
             metavar='TARGET',
             nargs='?',
-            help='Show labels only for the specified target')
+            help='show labels only for the specified file')
 
         return parser
 
@@ -182,20 +182,20 @@ class FileLabel(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-	subparsers = parser.add_subparsers(help='select an action')
+	subparsers = parser.add_subparsers()
 
         add_subparser = subparsers.add_parser(
-            'add', help='add a label')
+            'add', help='add a file label')
         FileLabelAdd.get_parser(add_subparser)
         add_subparser.set_defaults(SubSubcommandClass=FileLabelAdd)
 
         remove_subparser = subparsers.add_parser(
-            'remove', help='remove a label')
+            'remove', help='remove a file label')
         FileLabelRemove.get_parser(remove_subparser)
         remove_subparser.set_defaults(SubSubcommandClass=FileLabelRemove)
 
         list_subparser = subparsers.add_parser(
-            'list', help='list labels')
+            'list', help='list file labels')
         FileLabelList.get_parser(list_subparser)
         list_subparser.set_defaults(SubSubcommandClass=FileLabelList)
 

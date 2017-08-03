@@ -200,12 +200,12 @@ def get_parser(parser=None):
 
     unit_parser = subparsers.add_parser(
         'unit',
-        help='Run unit tests')
+        help='run unit tests')
 
     integration_parser = subparsers.add_parser(
         'integration',
-        help='Run integration test. If no Loom server is running,'\
-        'a temporary local Loom server will be created.')
+        help='run integration test. If no Loom server is running, '\
+        'a temporary local Loom server will be created')
     integration_parser.add_argument('--timeout', '-t', metavar='TIMEOUT_SECONDS',
                                     default=300)
 

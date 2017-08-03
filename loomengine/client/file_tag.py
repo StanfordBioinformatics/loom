@@ -46,10 +46,10 @@ class FileTagAdd(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be tagged')
+            help='identifier for file to be tagged')
         parser.add_argument(
             'tag',
-            metavar='TAG', help='Tag name to be addd')
+            metavar='TAG', help='tag name to be added')
         return parser
 
     def run(self):
@@ -91,10 +91,10 @@ class FileTagRemove(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be untagged')
+            help='identifier for file to be untagged')
         parser.add_argument(
             'tag',
-            metavar='TAG', help='Tag name to be removed')
+            metavar='TAG', help='tag name to be removed')
         return parser
 
     def run(self):
@@ -136,7 +136,7 @@ class FileTagList(object):
             'target',
             metavar='TARGET',
             nargs='?',
-            help='Show tags only for the specified target')
+            help='show tags only for the specified file')
 
         return parser
 
@@ -151,7 +151,6 @@ class FileTagList(object):
         else:
             tag_list = self.connection.get_data_tag_index()
             tags = [item.get('tag') for item in tag_list]
-
         print '[showing %s tags]' % len(tags)
         for tag in tags:
             print tag
@@ -178,20 +177,20 @@ class FileTag(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-	subparsers = parser.add_subparsers(help='select an action')
+	subparsers = parser.add_subparsers()
 
         add_subparser = subparsers.add_parser(
-            'add', help='add a tag')
+            'add', help='add a file tag')
         FileTagAdd.get_parser(add_subparser)
         add_subparser.set_defaults(SubSubcommandClass=FileTagAdd)
 
         remove_subparser = subparsers.add_parser(
-            'remove', help='remove a tag')
+            'remove', help='remove a file tag')
         FileTagRemove.get_parser(remove_subparser)
         remove_subparser.set_defaults(SubSubcommandClass=FileTagRemove)
 
         list_subparser = subparsers.add_parser(
-            'list', help='list tags')
+            'list', help='list file tags')
         FileTagList.get_parser(list_subparser)
         list_subparser.set_defaults(SubSubcommandClass=FileTagList)
 

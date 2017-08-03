@@ -213,7 +213,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         return models
     
     def _lookup_by_id(self, template_id):
-        matches = Template.filter_by_name_or_id_or_hash(template_id)
+        matches = Template.filter_by_name_or_id_or_tag_or_hash(template_id)
         if matches.count() < 1:
             raise serializers.ValidationError(
                 'No template found that matches value "%s"' % template_id)

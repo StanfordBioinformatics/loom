@@ -5,6 +5,7 @@ import glob
 import os
 import sys
 
+from loomengine.client import _render_time
 from loomengine.client.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, parse_as_json_or_yaml
 from loomengine.client.file_tag import FileTag
@@ -30,29 +31,29 @@ class FileImport(object):
     def get_parser(cls, parser):
         parser.add_argument(
             'files',
-            metavar='FILE', nargs='+', help='File path or Google Storage URL '\
-            'of file(s) to be imported. Wildcards are allowed.')
+            metavar='FILE', nargs='+', help='file path or Google Storage URL '\
+            'of file(s) to be imported. Wildcards are allowed')
         parser.add_argument(
             '-c', '--comments',
             metavar='COMMENTS',
-            help='Comments. '\
+            help='comments. '\
             'Give enough detail for traceability.')
         parser.add_argument('-d', '--force-duplicates', action='store_true',
                             default=False,
-                            help='Force upload even if another file with '\
+                            help='force upload even if another file with '\
                             'the same name and md5 exists')
         parser.add_argument('-o', '--original-copy', action='store_true',
                             default=False,
-                            help='Use existing copy instead of copying to storage '\
+                            help='use existing copy instead of copying to storage '\
                             'managed by Loom')
         parser.add_argument('-r', '--retry', action='store_true',
                             default=False,
-                            help='Allow retries if there is a failure '\
+                            help='allow retries if there is a failure '\
                             'connecting to storage')
         parser.add_argument('-t', '--tag', metavar='TAG', action='append',
-                            help='Tag the file when it is created')
+                            help='tag the file when it is created')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
-                            help='Label the file when it is created')
+                            help='label the file when it is created')
             
         return parser
 
@@ -70,41 +71,39 @@ class FileImport(object):
         if len(files_imported) == 0:
             raise SystemExit('ERROR! Did not find any files matching "%s"'
                              % '", "'.join(self.args.files))
-        self.apply_tags(files_imported)
-        self.apply_labels(files_imported)
+        self._apply_tags(files_imported)
+        self._apply_labels(files_imported)
         return files_imported
 
-    def _apply_tags(files_imported):
-        if self.args.tag:
-            if len(files_imported) > 1:
-                print ('WARNING! No tags were applied, because tags '\
-                       'must be unique but multiple files were imported.')
-                return
-            else:
-                target = '@'+files_imported[0]['uuid']
-                tag_data = {
-                    'target': target,
-                    'name': self.args.tag
-                }
-                tag = self.connection.post_tag(tag_data)
+    def _apply_tags(self, files_imported):
+        if not self.args.tag:
+            return
+        if len(files_imported) > 1:
+            print ('WARNING! No tags were applied, because tags '\
+                   'must be unique but multiple files were imported.')
+            return
+        else:
+            for tagname in self.args.tag:
+                tag_data = {'tag': tagname}
+                tag = self.connection.post_data_tag(
+                    files_imported[0].get('uuid'), tag_data)
                 print 'File "%s@%s" has been tagged as "%s"' % \
-                    (tag['target']['value'].get('filename'),
-                     tag['target'].get('uuid'),
-                     tag.get('name'))
+                    (files_imported[0]['value'].get('filename'),
+                     files_imported[0].get('uuid'),
+                     tag.get('tag'))
 
-    def _apply_labels(files_imported):
-        for label in self.args.label:
+    def _apply_labels(self, files_imported):
+        if not self.args.label:
+            return
+        for labelname in self.args.label:
             for file_imported in files_imported:
-                target = '@'+file_imported['uuid']
-                label_data = {
-                    'target': target,
-                    'name': label
-                }
-                label = self.connection.post_label(label_data)
+                label_data = {'label': labelname}
+                label = self.connection.post_data_label(
+                    file_imported.get('uuid'), label_data)
                 print 'File "%s@%s" has been labeled as "%s"' % \
-                    (label['target']['value'].get('filename'),
-                     label['target'].get('uuid'),
-                     label.get('name'))
+                    (file_imported['value'].get('filename'),
+                     file_imported.get('uuid'),
+                     label.get('label'))
 
 
 class FileExport(object):
@@ -123,15 +122,15 @@ class FileExport(object):
             'file_ids',
             nargs='+',
             metavar='FILE_ID',
-            help='File or list of files to be exported')
+            help='file or list of files to be exported')
         parser.add_argument(
             '--destination',
             metavar='DESTINATION',
-            help='Destination filename or directory')
+            help='destination filename or directory')
         parser.add_argument(
             '-r', '--retry', action='store_true',
             default=False,
-            help='Allow retries if there is a failure '\
+            help='allow retries if there is a failure '\
             'connecting to storage')
         return parser
 
@@ -205,7 +204,7 @@ class FileList(object):
             text += 'File: %s\n' % file_identifier
             try:
                 text += '  - Imported: %s\n' % \
-                        render_time(file_data_object['datetime_created'])
+                        _render_time(file_data_object['datetime_created'])
                 text += '  - md5: %s\n' % file_data_object['value'].get('md5')
                 if file_data_object['value'].get('imported_from_url'):
                     text += '  - Source URL: %s\n' % \
@@ -244,7 +243,7 @@ class FileClient:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select an action')
+        subparsers = parser.add_subparsers()
 
         import_subparser = subparsers.add_parser(
             'import', help='import a file or list files')
@@ -261,11 +260,11 @@ class FileClient:
         FileList.get_parser(list_subparser)
         list_subparser.set_defaults(SubSubcommandClass=FileList)
 
-        tag_subparser = subparsers.add_parser('tag', help='manage tags')
+        tag_subparser = subparsers.add_parser('tag', help='manage file tags')
         FileTag.get_parser(tag_subparser)
         tag_subparser.set_defaults(SubSubcommandClass=FileTag)
 
-        label_subparser = subparsers.add_parser('label', help='manage labels')
+        label_subparser = subparsers.add_parser('label', help='manage file labels')
         FileLabel.get_parser(label_subparser)
         label_subparser.set_defaults(SubSubcommandClass=FileLabel)
 

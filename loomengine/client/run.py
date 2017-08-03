@@ -5,6 +5,7 @@ import os
 import re
 import requests.exceptions
 
+from loomengine.client import _render_time
 from loomengine.client.common import get_server_url, read_as_json_or_yaml, \
     verify_has_connection_settings, verify_server_is_running
 from loomengine.client.run_tag import RunTag
@@ -41,17 +42,16 @@ class RunStart(object):
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('template', metavar='TEMPLATE', help='ID of template to run')
         parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*',
-                            help='ID of data inputs')
+                            help='ID or value of data inputs')
         parser.add_argument('-n', '--name', metavar='RUN_NAME',
                             help='run name (default is template name)')
-        parser.add_argument('--notify', '-e', action='append',
+        parser.add_argument('-e', '--notify', action='append',
                             metavar='EMAIL/URL',
-                            help='Recipients of completed run notifications. '\
-                            'Repeat flag for multiple emails or urls')
+                            help='recipients of completed run notifications')
         parser.add_argument('-t', '--tag', metavar='TAG', action='append',
-                            help='Tag the run when it is created')
+                            help='tag the run when it is started')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
-                            help='Label the run when it is created')
+                            help='label the run when it is started')
         return parser
 
     @classmethod
@@ -107,30 +107,27 @@ class RunStart(object):
         return inputs
 
     def _apply_tags(self, run):
-        for tag in self.args.tag:
-	    target = '@'+run['uuid']
-            tag_data = {
-                'target': target,
-                'name': tag
-            }
-            tag = self.connection.post_tag(tag_data)
+        if not self.args.tag:
+            return
+        for tagname in self.args.tag:
+            tag_data = {'tag': tagname}
+            tag = self.connection.post_run_tag(run.get('uuid'), tag_data)
             print 'Run "%s@%s" has been tagged as "%s"' % \
-	        (tag['target'].get('name'),
-                 tag['target'].get('uuid'),
-                 tag.get('name'))
+	        (run.get('name'),
+                 run.get('uuid'),
+                 tag.get('tag'))
 
     def _apply_labels(self, run):
-        for label in self.args.label:
-	    target = '@'+run['uuid']
-            label_data = {
-                'target': target,
-                'name': self.args.label
-            }
-            label = self.connection.post_label(label_data)
+        if not self.args.label:
+            return
+        for labelname in self.args.label:
+            label_data = {'label': labelname}
+            label = self.connection.post_run_label(
+                run.get('uuid'), label_data)
             print 'Run "%s@%s" has been labeled as "%s"' % \
-	        (label['target'].get('name'),
-                 label['target'].get('uuid'),
-                 label.get('name'))
+	        (run.get('name'),
+                 run.get('uuid'),
+                 label.get('label'))
 
     def _parse_string_to_nested_lists(self, value):
         """e.g., convert "[[a,b,c],[d,e],[f,g]]" 
@@ -192,18 +189,18 @@ class RunList(object):
             'run_id',
             nargs='?',
             metavar='RUN_IDENTIFIER',
-            help='Name or ID of run(s) to list.')
+            help='name or ID of run(s) to list.')
         parser.add_argument(
-            '--detail',
+            '-d', '--detail',
             action='store_true',
-            help='Show detailed view of runs')
+            help='show detailed view of runs')
         parser.add_argument(
-            '--all',
+            '-a', '--all',
             action='store_true',
-            help='List all runs, including nested children '\
+            help='list all runs, including nested children '\
             '(ignored when RUN_IDENTIFIER is given)')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
-                            help='Filter by label')
+                            help='filter by label')
         return parser
 
     def run(self):
@@ -229,7 +226,7 @@ class RunList(object):
         if self.args.detail:
             text = '---------------------------------------\n'
             text += 'Run: %s\n' % run_identifier
-            text += '  - Created: %s\n' % render_time(run['datetime_created'])
+            text += '  - Created: %s\n' % _render_time(run['datetime_created'])
             text += '  - Status: %s\n' % run.get('status')
             if run.get('steps'):
                 text += '  - Steps:\n'
@@ -259,9 +256,9 @@ class RunClient(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select an action')
+        subparsers = parser.add_subparsers()
 
-        start_subparser = subparsers.add_parser('start')
+        start_subparser = subparsers.add_parser('start', help='start a new run')
         RunStart.get_parser(start_subparser)
         start_subparser.set_defaults(SubSubcommandClass=RunStart)
 
@@ -270,11 +267,11 @@ class RunClient(object):
         RunList.get_parser(list_subparser)
 	list_subparser.set_defaults(SubSubcommandClass=RunList)
 
-        tag_subparser = subparsers.add_parser('tag', help='manage tags')
+        tag_subparser = subparsers.add_parser('tag', help='manage run tags')
         RunTag.get_parser(tag_subparser)
         tag_subparser.set_defaults(SubSubcommandClass=RunTag)
 
-        label_subparser = subparsers.add_parser('label', help='manage labels')
+        label_subparser = subparsers.add_parser('label', help='manage run labels')
         RunLabel.get_parser(label_subparser)
         label_subparser.set_defaults(SubSubcommandClass=RunLabel)
 

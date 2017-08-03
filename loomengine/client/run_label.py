@@ -46,10 +46,10 @@ class RunLabelAdd(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be labeled')
+            help='identifier for run to be labeled')
         parser.add_argument(
             'label',
-            metavar='LABEL', help='Label name to be addd')
+            metavar='LABEL', help='label name to be added')
         return parser
 
     def run(self):
@@ -91,10 +91,10 @@ class RunLabelRemove(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be unlabeled')
+            help='identifier for run to be unlabeled')
         parser.add_argument(
             'label',
-            metavar='LABEL', help='Label name to be removed')
+            metavar='LABEL', help='label name to be removed')
         return parser
 
     def run(self):
@@ -136,7 +136,7 @@ class RunLabelList(object):
             'target',
             metavar='TARGET',
             nargs='?',
-            help='Show labels only for the specified target')
+            help='show labels only for the specified run')
 
         return parser
 
@@ -182,20 +182,20 @@ class RunLabel(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-	subparsers = parser.add_subparsers(help='select an action')
+	subparsers = parser.add_subparsers()
 
         add_subparser = subparsers.add_parser(
-            'add', help='add a label')
+            'add', help='add a run label')
         RunLabelAdd.get_parser(add_subparser)
         add_subparser.set_defaults(SubSubcommandClass=RunLabelAdd)
 
         remove_subparser = subparsers.add_parser(
-            'remove', help='remove a label')
+            'remove', help='remove a run label')
         RunLabelRemove.get_parser(remove_subparser)
         remove_subparser.set_defaults(SubSubcommandClass=RunLabelRemove)
 
         list_subparser = subparsers.add_parser(
-            'list', help='list labels')
+            'list', help='list run labels')
         RunLabelList.get_parser(list_subparser)
         list_subparser.set_defaults(SubSubcommandClass=RunLabelList)
 

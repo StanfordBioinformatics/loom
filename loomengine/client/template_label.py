@@ -46,10 +46,10 @@ class TemplateLabelAdd(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be labeled')
+            help='identifier for template to be labeled')
         parser.add_argument(
             'label',
-            metavar='LABEL', help='Label name to be addd')
+            metavar='LABEL', help='label name to be added')
         return parser
 
     def run(self):
@@ -91,10 +91,10 @@ class TemplateLabelRemove(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be unlabeled')
+            help='identifier for template to be unlabeled')
         parser.add_argument(
             'label',
-            metavar='LABEL', help='Label name to be removed')
+            metavar='LABEL', help='label name to be removed')
         return parser
 
     def run(self):
@@ -136,7 +136,7 @@ class TemplateLabelList(object):
             'target',
             metavar='TARGET',
             nargs='?',
-            help='Show labels only for the specified target')
+            help='show labels only for the specified template')
 
         return parser
 
@@ -182,20 +182,20 @@ class TemplateLabel(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-	subparsers = parser.add_subparsers(help='select an action')
+	subparsers = parser.add_subparsers()
 
         add_subparser = subparsers.add_parser(
-            'add', help='add a label')
+            'add', help='add a template label')
         TemplateLabelAdd.get_parser(add_subparser)
         add_subparser.set_defaults(SubSubcommandClass=TemplateLabelAdd)
 
         remove_subparser = subparsers.add_parser(
-            'remove', help='remove a label')
+            'remove', help='remove a template label')
         TemplateLabelRemove.get_parser(remove_subparser)
         remove_subparser.set_defaults(SubSubcommandClass=TemplateLabelRemove)
 
         list_subparser = subparsers.add_parser(
-            'list', help='list labels')
+            'list', help='list template labels')
         TemplateLabelList.get_parser(list_subparser)
         list_subparser.set_defaults(SubSubcommandClass=TemplateLabelList)
 

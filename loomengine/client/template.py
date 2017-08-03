@@ -5,6 +5,7 @@ import glob
 import os
 import sys
 
+from loomengine.client import _render_time
 from loomengine.client.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, parse_as_json_or_yaml
 from loomengine.client.template_tag import TemplateTag
@@ -28,25 +29,25 @@ class TemplateImport(object):
     def get_parser(cls, parser):
         parser.add_argument(
             'template',
-            metavar='TEMPLATE_FILE', help='Template to be imported, '\
-            'in YAML or JSON format.')
+            metavar='TEMPLATE_FILE', help='template to be imported, '\
+            'in YAML or JSON format')
         parser.add_argument(
             '-c', '--comments',
             metavar='COMMENTS',
-            help='Comments. '\
-            'Give enough detail for traceability.')
+            help='comments. '\
+            'Give enough detail for traceability')
         parser.add_argument('-d', '--force-duplicates', action='store_true',
                             default=False,
-                            help='Force upload even if another template with '\
+                            help='force upload even if another template with '\
                             'the same name and md5 exists')
         parser.add_argument('-r', '--retry', action='store_true',
                             default=False,
-                            help='Allow retries if there is a failure '\
+                            help='allow retries if there is a failure '\
                             'connecting to storage')
         parser.add_argument('-t', '--tag', metavar='TAG', action='append',
-                            help='Tag the template when it is created')
+                            help='tag the template when it is created')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
-                            help='Label the template when it is created')
+                            help='label the template when it is created')
         return parser
 
     def run(self):
@@ -119,30 +120,27 @@ class TemplateImport(object):
         return template, source_url
 
     def _apply_tags(self, template):
-        for tag in self.args.tag:
-            target = '@'+template['uuid']
-            tag_data = {
-                'target': target,
-                'name': tag
-	    }
-            tag = self.connection.post_tag(tag_data)
+        if not self.args.tag:
+            return
+        for tagname in self.args.tag:
+            tag_data = {'tag': tagname}
+            tag = self.connection.post_template_tag(template.get('uuid'), tag_data)
             print 'Template "%s@%s" has been tagged as "%s"' % \
-                (tag['target'].get('name'),
-                 tag['target'].get('uuid'),
-                 tag.get('name'))
+                (template.get('name'),
+                 template.get('uuid'),
+                 tag.get('tag'))
 
     def _apply_labels(self, template):
-        for label in self.args.label:
-            target = '@'+template['uuid']
-            label_data = {
-                'target': target,
-                'name': label
-	    }
-            label = self.connection.post_label(label_data)
+        if not self.args.label:
+            return
+        for labelname in self.args.label:
+            label_data = {'label': labelname}
+            label = self.connection.post_template_label(
+                template.get('uuid'), label_data)
             print 'Template "%s@%s" has been labeled as "%s"' % \
-                (label['target'].get('name'),
-                 label['target'].get('uuid'),
-                 label.get('name'))
+                (template.get('name'),
+                 template.get('uuid'),
+                 label.get('label'))
 
 
 class TemplateExport(object):
@@ -159,20 +157,20 @@ class TemplateExport(object):
     def get_parser(cls, parser):
         parser.add_argument(
             'template_id',
-            metavar='TEMPLATE_ID', help='Template to be downloaded.')
+            metavar='TEMPLATE_ID', help='template to be downloaded')
         parser.add_argument(
-            '--destination',
+            '-d', '--destination',
             metavar='DESTINATION',
-            help='Destination filename or directory')
+            help='destination filename or directory')
         parser.add_argument(
-            '--format',
+            '-f', '--format',
             choices=['json', 'yaml'],
             default='yaml',
-            help='Data format for downloaded template')
+            help='data format for downloaded template')
         parser.add_argument(
             '-r', '--retry', action='store_true',
             default=False,
-            help='Allow retries if there is a failure '\
+            help='allow retries if there is a failure '\
             'connecting to storage')
         return parser
 
@@ -252,7 +250,7 @@ class TemplateList(object):
             text += 'Template: %s\n' % template_identifier
             text += '  - md5: %s\n' % template.get('md5')
             text += '  - Imported: %s\n' % \
-                    render_time(template['datetime_created'])
+                    _render_time(template['datetime_created'])
             if template.get('inputs'):
                 text += '  - Inputs\n'
                 for input in template['inputs']:
@@ -297,7 +295,7 @@ class Template:
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-        subparsers = parser.add_subparsers(help='select an action')
+        subparsers = parser.add_subparsers()
 
         import_subparser = subparsers.add_parser(
             'import', help='import a template')
@@ -314,11 +312,11 @@ class Template:
         TemplateList.get_parser(list_subparser)
 	list_subparser.set_defaults(SubSubcommandClass=TemplateList)
 
-        tag_subparser = subparsers.add_parser('tag', help='manage tags')
+        tag_subparser = subparsers.add_parser('tag', help='manage template tags')
         TemplateTag.get_parser(tag_subparser)
         tag_subparser.set_defaults(SubSubcommandClass=TemplateTag)
 
-        label_subparser = subparsers.add_parser('label', help='manage labels')
+        label_subparser = subparsers.add_parser('label', help='manage template labels')
         TemplateLabel.get_parser(label_subparser)
         label_subparser.set_defaults(SubSubcommandClass=TemplateLabel)
 

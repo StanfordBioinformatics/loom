@@ -86,7 +86,7 @@ class DataObject(BaseModel):
     def _get_file_by_value(cls, value):
         """Look up a file DataObject by name, uuid, and/or md5.
         """
-        matches = FileResource.filter_by_name_or_id_or_hash(value)
+        matches = FileResource.filter_by_name_or_id_or_tag_or_hash(value)
         if matches.count() == 0:
             raise ValidationError(
                 'No file found that matches value "%s"' % value)
@@ -141,6 +141,7 @@ class FileResource(BaseModel):
     NAME_FIELD = 'filename'
     HASH_FIELD = 'md5'
     ID_FIELD = 'data_object__uuid'
+    TAG_FIELD = 'data_object__tags__tag'
 
     UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
                              ('complete', 'Complete'),

@@ -481,49 +481,49 @@ def get_parser(parser=None):
 
     status_parser = subparsers.add_parser(
         'status',
-        help='Show the status of the Loom server')
+        help='show the status of the Loom server')
 
     start_parser = subparsers.add_parser(
         'start',
-        help='Start or create a loom server')
-    start_parser.add_argument('--settings-file', '-s', action='append',
+        help='start a loom server')
+    start_parser.add_argument('-s', '--settings-file', action='append',
                               metavar='SETTINGS_FILE')
-    start_parser.add_argument('--extra-settings', '-e', action='append',
+    start_parser.add_argument('-e', '--extra-settings', action='append',
                                metavar='KEY=VALUE')
-    start_parser.add_argument('--playbook-dir', '-p', metavar='PLAYBOOK_DIR')
-    start_parser.add_argument('--inventory-dir', '-i', metavar='INVENTORY_DIR')
-    start_parser.add_argument('--admin-files-dir', '-f', metavar='ADMIN_FILES_DIR')
+    start_parser.add_argument('-p', '--playbook-dir', metavar='PLAYBOOK_DIR')
+    start_parser.add_argument('-i', '--inventory-dir', metavar='INVENTORY_DIR')
+    start_parser.add_argument('-a', '--admin-files-dir', metavar='ADMIN_FILES_DIR')
     start_parser.add_argument('-v', '--verbose', action='store_true',
-                              help='Provide more feedback to console.')
+                              help='provide more feedback to console')
 
     stop_parser = subparsers.add_parser(
         'stop',
-        help='Stop execution of a Loom server. (It can be started again.)')
+        help='stop execution of a Loom server. (It can be started again.)')
     stop_parser.add_argument('-v', '--verbose', action='store_true',
-                             help='Provide more feedback to console.')
+                             help='provide more feedback to console')
 
     connect_parser = subparsers.add_parser(
         'connect',
-        help='Connect to a running Loom server')
+        help='connect to a running Loom server')
     connect_parser.add_argument(
         'server_url',
         metavar='LOOM_SERVER_URL',
-        help='Enter the URL of the Loom server you wish to connect to.')
-    connect_parser.add_argument('--connection-files-dir', '-c',
-                              metavar='CONNECTION_FILES_DIR')
+        help='URL of the Loom server you wish to connect to')
+    connect_parser.add_argument('-c', '--connection-files-dir',
+                                metavar='CONNECTION_FILES_DIR')
 
     disconnect_parser = subparsers.add_parser(
         'disconnect',
-        help='Disconnect the client from a Loom server but leave the server running')
+        help='disconnect the client from a Loom server but leave the server running')
 
     delete_parser = subparsers.add_parser(
         'delete',
-        help='Delete the Loom server')
-    delete_parser.add_argument('--confirm-server-name', '-n', metavar='SERVER_NAME',
-                               help='Provide server name to skip confirmation prompt '\
+        help='delete the Loom server')
+    delete_parser.add_argument('-s', '--confirm-server-name', metavar='SERVER_NAME',
+                               help='provide server name to skip confirmation prompt '\
                                'when deleting the server')
     delete_parser.add_argument('-v', '--verbose', action='store_true',
-                               help='Provide more feedback to console.')
+                               help='provide more feedback to console')
 
     return parser
 

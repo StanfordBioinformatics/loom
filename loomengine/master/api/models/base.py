@@ -34,7 +34,7 @@ class FilterHelper(object):
             'TAG_FIELD is missing on model %s' % self.Model.__name__
         
         filter_args = {}
-        name, uuid, hash_value, tag = self._parse_as_name_or_id_or_tag_or_hash(
+        name, uuid, tag, hash_value = self._parse_as_name_or_id_or_tag_or_hash(
             query_string)
         if name is not None:
             filter_args[self.Model.NAME_FIELD] = name
@@ -54,14 +54,18 @@ class FilterHelper(object):
             'NAME_FIELD is missing on model %s' % self.Model.__name__
         assert self.Model.ID_FIELD, \
             'ID_FIELD is missing on model %s' % self.Model.__name__
+        assert self.Model.TAG_FIELD, \
+            'TAG_FIELD is missing on model %s' % self.Model.__name__
 
-        kwargs = {}
-        name, uuid = self._parse_as_name_or_id_or_hash(query_string)
-        if name:
-            kwargs[self.Model.NAME_FIELD] = name
-        if uuid:
-            kwargs[self.Model.ID_FIELD+'__startswith'] = uuid
-        return self.Model.objects.filter(**kwargs)
+        filter_args = {}
+        name, uuid, tag = self._parse_as_name_or_id_or_tag(query_string)
+        if name is not None:
+            filter_args[self.Model.NAME_FIELD] = name
+        if uuid is not None:
+            filter_args[self.Model.ID_FIELD+'__startswith'] = uuid
+        if tag is not None:
+            filter_args[self.Model.TAG_FIELD] = tag
+        return self.Model.objects.filter(**filter_args)
 
     def _parse_as_name_or_id_or_tag_or_hash(self, query_string):
         name = None
@@ -77,23 +81,24 @@ class FilterHelper(object):
         uuid_match = re.match('^.*?@(.*?)($|\$|:)', query_string)
         if uuid_match is not None:
             uuid = uuid_match.groups()[0]
-        # hash starts with $ and ends with @ or end of string
-        hash_match = re.match('^.*?\$(.*?)($|@|:)', query_string)
-        if hash_match is not None:
-            hash_value = hash_match.groups()[0]
         # tag starts with $ and ends with @ or end of string
         tag_match = re.match('^.*?:(.*?)($|\$|@)', query_string)
         if tag_match is not None:
             tag = tag_match.groups()[0]
-        return name, uuid, hash_value, tag
+        # hash starts with $ and ends with @ or end of string
+        hash_match = re.match('^.*?\$(.*?)($|@|:)', query_string)
+        if hash_match is not None:
+            hash_value = hash_match.groups()[0]
+        return name, uuid, tag, hash_value
 
     def _parse_as_name_or_id_or_tag(self, query_string):
-        name, uuid, hash_value = self._parse_as_name_or_id_or_tag_or_hash(query_string)
+        name, uuid, tag, hash_value = self._parse_as_name_or_id_or_tag_or_hash(
+            query_string)
         if hash_value is not None:
             raise Exception('Invalid input "%s". '\
                             'Hash not accepted for models of type "%s"' %
                             (query_string, self.Model.__name__))
-        return name, uuid
+        return name, uuid, tag
 
 
 class _FilterMixin(object):

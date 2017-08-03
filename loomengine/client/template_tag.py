@@ -46,10 +46,10 @@ class TemplateTagAdd(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be tagged')
+            help='identifier for template to be tagged')
         parser.add_argument(
             'tag',
-            metavar='TAG', help='Tag name to be addd')
+            metavar='TAG', help='tag name to be added')
         return parser
 
     def run(self):
@@ -91,10 +91,10 @@ class TemplateTagRemove(object):
         parser.add_argument(
             'target',
             metavar='TARGET',
-            help='Identifier for target object to be untagged')
+            help='identifier for template to be untagged')
         parser.add_argument(
             'tag',
-            metavar='TAG', help='Tag name to be removed')
+            metavar='TAG', help='tag name to be removed')
         return parser
 
     def run(self):
@@ -136,7 +136,7 @@ class TemplateTagList(object):
             'target',
             metavar='TARGET',
             nargs='?',
-            help='Show tags only for the specified target')
+            help='show tags only for the specified template')
 
         return parser
 
@@ -177,20 +177,20 @@ class TemplateTag(object):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
 
-	subparsers = parser.add_subparsers(help='select an action')
+	subparsers = parser.add_subparsers()
 
         add_subparser = subparsers.add_parser(
-            'add', help='add a tag')
+            'add', help='add a template tag')
         TemplateTagAdd.get_parser(add_subparser)
         add_subparser.set_defaults(SubSubcommandClass=TemplateTagAdd)
 
         remove_subparser = subparsers.add_parser(
-            'remove', help='remove a tag')
+            'remove', help='remove a template tag')
         TemplateTagRemove.get_parser(remove_subparser)
         remove_subparser.set_defaults(SubSubcommandClass=TemplateTagRemove)
 
         list_subparser = subparsers.add_parser(
-            'list', help='list tags')
+            'list', help='list template tags')
         TemplateTagList.get_parser(list_subparser)
         list_subparser.set_defaults(SubSubcommandClass=TemplateTagList)
 
