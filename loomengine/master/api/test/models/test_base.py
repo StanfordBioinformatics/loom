@@ -73,7 +73,7 @@ class TestFilterHelper(TestCase):
                 ('name@uuid$hash', 'name', 'uuid', 'hash'),
                 ('name$hash@uuid', 'name', 'uuid', 'hash'),
         ]:
-            (name, uuid, hash_value) = self.filter_helper._parse_as_name_or_id_or_hash(
+            (name, uuid, tag, hash_value) = self.filter_helper._parse_as_name_or_id_or_tag_or_hash(
                 input_string)
             self.assertEqual(name, input_name)
             self.assertEqual(uuid, input_uuid)
@@ -85,7 +85,7 @@ class TestFilterHelper(TestCase):
                 ('@uuid', None, 'uuid'),
                 ('name@uuid', 'name', 'uuid'),
         ]:
-            (name, uuid) = self.filter_helper._parse_as_name_or_id(
+            (name, uuid, tag) = self.filter_helper._parse_as_name_or_id_or_tag(
                 input_string)
             self.assertEqual(name, input_name)
             self.assertEqual(uuid, input_uuid)
