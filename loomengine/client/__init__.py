@@ -1,3 +1,4 @@
+import dateutil
 import logging
 import sys
 import loomengine.utils
@@ -10,5 +11,5 @@ _DATETIME_FORMAT = '%b %d, %Y %-I:%M:%S %p'
 
 def _render_time(timestr):
     time_gmt = dateutil.parser.parse(timestr)
-    time_local = time_gmt.astimezone(tz.tzlocal())
+    time_local = time_gmt.astimezone(dateutil.tz.tzlocal())
     return format(time_local, _DATETIME_FORMAT)
