@@ -5,6 +5,7 @@ import glob
 import logging
 import os
 import random
+from requests.exceptions import HTTPError
 import shutil
 import sys
 import tempfile
@@ -537,14 +538,22 @@ class FileManager:
     def import_file(self, source_url, comments, original_copy=False,
                     force_duplicates=False, retry=False):
         source = Source(source_url, self.settings, retry=retry)
-        if original_copy:
-            data_object = self._create_file_data_object_from_original_copy(
-                source, comments, force_duplicates=force_duplicates)
-            return data_object
-        else:
-            data_object = self._create_file_data_object_for_import(
-                source, comments, force_duplicates=force_duplicates)
-            return self._execute_file_import(data_object, source, retry=retry)
+        try:
+            if original_copy:
+                data_object = self._create_file_data_object_from_original_copy(
+                    source, comments, force_duplicates=force_duplicates)
+                return data_object
+            else:
+                data_object = self._create_file_data_object_for_import(
+                    source, comments, force_duplicates=force_duplicates)
+                return self._execute_file_import(data_object, source, retry=retry)
+        except HTTPError as e:
+            if e.response.status_code==400:
+                errors = e.response.json()
+                raise SystemExit(
+                    "ERROR! %s" % errors)
+            else:
+                raise
 
     def _create_file_data_object_for_import(self, source, comments,
                                             force_duplicates=True):

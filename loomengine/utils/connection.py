@@ -30,7 +30,8 @@ class Connection(object):
                 url,
                 data=json.dumps(data),
                 headers={'content-type': 'application/json'},
-                verify=False))
+                verify=False,
+            ))
 
     def _put(self, data, relative_url):
         url = self.api_root_url + relative_url

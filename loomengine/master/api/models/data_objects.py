@@ -132,7 +132,9 @@ class DataObject(BaseModel):
         data_object.full_clean()
         data_object.save()
         kwargs['data_object'] = data_object
-        FileResource.initialize(**kwargs)
+        file_resource = FileResource.initialize(**kwargs)
+        file_resource.full_clean()
+        file_resource.save()
         return data_object
 
 
@@ -193,8 +195,6 @@ class FileResource(BaseModel):
                     kwargs.get('task_attempt')
                 ))
         file_resource = cls(**kwargs)
-        file_resource.full_clean()
-        file_resource.save()
         return file_resource
 
     @classmethod

@@ -1,13 +1,14 @@
 from django.core.exceptions import ObjectDoesNotExist
+import django.core.exceptions
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
 import logging
 import os
-import rest_framework
-from rest_framework.exceptions import NotFound
-from rest_framework import viewsets, serializers, response, status
+import rest_framework.response
+import rest_framework.viewsets
+import rest_framework.status
 from rest_framework.decorators import detail_route
 
 from api import get_setting
@@ -16,11 +17,10 @@ from api import serializers
 from api import async
 from loomengine.utils import version
 
-
 logger = logging.getLogger(__name__)
 
 
-class ExpandableViewSet(viewsets.ModelViewSet):
+class ExpandableViewSet(rest_framework.viewsets.ModelViewSet):
     """Some models contain nested data that cannot be rendered in an index
     view in a finite number of queries, making it very slow to render all nested
     data as the number of model instances grows.
@@ -57,12 +57,12 @@ class ExpandableViewSet(viewsets.ModelViewSet):
 
     def list(self, request):
         if 'expand' in self.request.query_params:
-            return response.Response(
+            return rest_framework.response.Response(
                 {"non_field_errors":
                  "'expand' mode is not allowed in a list view."},
                 status=rest_framework.status.HTTP_400_BAD_REQUEST)
         elif 'summary' in self.request.query_params:
-            return response.Response(
+            return rest_framework.response.Response(
                 {"non_field_errors":
                  "'summary' mode is not allowed in a list view."},
                 status=rest_framework.status.HTTP_400_BAD_REQUEST)
@@ -75,7 +75,7 @@ class ExpandableViewSet(viewsets.ModelViewSet):
         return queryset #.order_by('-datetime_created')
 
 
-class DataObjectViewSet(viewsets.ModelViewSet):
+class DataObjectViewSet(rest_framework.viewsets.ModelViewSet):
     """Each DataObject represents a value of type file, string, boolean, 
     integer, or float.
     """
@@ -116,7 +116,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         try:
             data_object = models.DataObject.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         s = serializers.DataTagSerializer(
             data=data, context={'data_object': data_object})
         s.is_valid(raise_exception=True)
@@ -133,7 +133,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
             data_object = models.DataObject.objects.get(uuid=uuid)
             tag_instance = data_object.tags.get(tag=tag)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         tag_instance.delete()
         return JsonResponse({
             'tag': tag,
@@ -146,7 +146,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         try:
             data_object = models.DataObject.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         tags = []
         for tag in data_object.tags.all():
             tags.append(tag.tag)
@@ -161,7 +161,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         try:
             data_object = models.DataObject.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         s = serializers.DataLabelSerializer(
             data=data, context={'data_object': data_object})
         s.is_valid(raise_exception=True)
@@ -178,7 +178,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
             data_object = models.DataObject.objects.get(uuid=uuid)
             label_instance = data_object.labels.get(label=label)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         label_instance.delete()
         return JsonResponse({
             'label': label,
@@ -192,7 +192,7 @@ class DataObjectViewSet(viewsets.ModelViewSet):
         try:
             data_object = models.DataObject.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         labels = []
         for label in data_object.labels.all():
             labels.append(label.label)
@@ -234,7 +234,7 @@ class TaskAttemptViewSet(ExpandableViewSet):
         try:
             return models.TaskAttempt.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
 
     @detail_route(methods=['post'], url_path='log-files',
                   serializer_class=serializers.TaskAttemptLogFileSerializer)
@@ -340,7 +340,7 @@ class TemplateViewSet(ExpandableViewSet):
         try:
             template = models.Template.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         s = serializers.TemplateTagSerializer(
             data=data, context={'template': template})
         s.is_valid(raise_exception=True)
@@ -357,7 +357,7 @@ class TemplateViewSet(ExpandableViewSet):
             template = models.Template.objects.get(uuid=uuid)
             tag_instance = template.tags.get(tag=tag)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         tag_instance.delete()
         return JsonResponse({
             'tag': tag,
@@ -370,7 +370,7 @@ class TemplateViewSet(ExpandableViewSet):
         try:
             template = models.Template.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         tags = []
         for tag in template.tags.all():
             tags.append(tag.tag)
@@ -385,7 +385,7 @@ class TemplateViewSet(ExpandableViewSet):
         try:
             template = models.Template.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         s = serializers.TemplateLabelSerializer(
             data=data, context={'template': template})
         s.is_valid(raise_exception=True)
@@ -402,7 +402,7 @@ class TemplateViewSet(ExpandableViewSet):
             template = models.Template.objects.get(uuid=uuid)
             label_instance = template.labels.get(label=label)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         label_instance.delete()
         return JsonResponse({
             'label': label,
@@ -415,7 +415,7 @@ class TemplateViewSet(ExpandableViewSet):
         try:
             template = models.Template.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         labels = []
         for label in template.labels.all():
             labels.append(label.label)
@@ -458,7 +458,7 @@ class RunViewSet(ExpandableViewSet):
         try:
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         s = serializers.RunTagSerializer(
             data=data, context={'run': run})
         s.is_valid(raise_exception=True)
@@ -475,7 +475,7 @@ class RunViewSet(ExpandableViewSet):
             run = models.Run.objects.get(uuid=uuid)
             tag_instance = run.tags.get(tag=tag)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         tag_instance.delete()
         return JsonResponse({
             'tag': tag,
@@ -488,7 +488,7 @@ class RunViewSet(ExpandableViewSet):
         try:
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         tags = []
         for tag in run.tags.all():
             tags.append(tag.tag)
@@ -503,7 +503,7 @@ class RunViewSet(ExpandableViewSet):
         try:
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         s = serializers.RunLabelSerializer(
             data=data, context={'run': run})
         s.is_valid(raise_exception=True)
@@ -520,7 +520,7 @@ class RunViewSet(ExpandableViewSet):
             run = models.Run.objects.get(uuid=uuid)
             label_instance = run.labels.get(label=label)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         label_instance.delete()
         return JsonResponse({
             'label': label,
@@ -533,14 +533,14 @@ class RunViewSet(ExpandableViewSet):
         try:
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         labels = []
         for label in run.labels.all():
             labels.append(label.label)
         return JsonResponse({'labels': labels}, status=200)
 
 
-class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
+class TaskAttemptLogFileViewSet(rest_framework.viewsets.ModelViewSet):
     """LogFiles represent the logs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating a LogFile without updating the full TaskAttempt. DETAIL_ROUTES: "data-object" allows you to post the file DataObject for the LogFile.
     """
 
@@ -560,7 +560,7 @@ class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
         try:
             task_attempt_log_file = models.TaskAttemptLogFile.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
-            raise NotFound()
+            raise rest_framework.exceptions.NotFound()
         if task_attempt_log_file.data_object:
             return JsonResponse({'message': 'Object already exists.'}, status=400)
         data_json = request.body
@@ -574,7 +574,7 @@ class TaskAttemptLogFileViewSet(viewsets.ModelViewSet):
         return JsonResponse(s.data, status=201)
 
 
-class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
+class TaskAttemptOutputViewSet(rest_framework.viewsets.ModelViewSet):
     """Outputs represent the outputs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating an Output without updating the full TaskAttempt.
     """
     
@@ -589,40 +589,40 @@ class TaskAttemptOutputViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return models.TaskAttemptOutput.objects.all()
 
-class DataTagViewSet(viewsets.ReadOnlyModelViewSet):
+class DataTagViewSet(rest_framework.viewsets.ReadOnlyModelViewSet):
 
     serializer_class = serializers.DataTagSerializer
     lookup_field = 'id'
     queryset = models.DataTag.objects.all()
 
 
-class DataLabelViewSet(viewsets.ReadOnlyModelViewSet):
+class DataLabelViewSet(rest_framework.viewsets.ReadOnlyModelViewSet):
 
     serializer_class = serializers.DataLabelSerializer
     lookup_field = 'id'
     queryset = models.DataLabel.objects.all()
 
-class TemplateTagViewSet(viewsets.ReadOnlyModelViewSet):
+class TemplateTagViewSet(rest_framework.viewsets.ReadOnlyModelViewSet):
 
     serializer_class = serializers.TemplateTagSerializer
     lookup_field = 'id'
     queryset = models.TemplateTag.objects.all()
 
 
-class TemplateLabelViewSet(viewsets.ReadOnlyModelViewSet):
+class TemplateLabelViewSet(rest_framework.viewsets.ReadOnlyModelViewSet):
 
     serializer_class = serializers.TemplateLabelSerializer
     lookup_field = 'id'
     queryset = models.TemplateLabel.objects.all()
 
-class RunTagViewSet(viewsets.ReadOnlyModelViewSet):
+class RunTagViewSet(rest_framework.viewsets.ReadOnlyModelViewSet):
 
     serializer_class = serializers.RunTagSerializer
     lookup_field = 'id'
     queryset = models.RunTag.objects.all()
 
 
-class RunLabelViewSet(viewsets.ReadOnlyModelViewSet):
+class RunLabelViewSet(rest_framework.viewsets.ReadOnlyModelViewSet):
 
     serializer_class = serializers.RunLabelSerializer
     lookup_field = 'id'

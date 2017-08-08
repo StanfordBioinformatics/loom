@@ -1,6 +1,6 @@
 import copy
 import uuid
-from django.core.exceptions import ValidationError
+from rest_framework.serializers import ValidationError
 from django.test import TestCase
 
 from . import fixtures, get_mock_context
@@ -79,10 +79,9 @@ class TestDataObjectSerializer(TestCase):
                                  context=get_mock_context())
         rendered_1 = s.data
 
-        # update UUID to avoid collision
         s = DataObjectSerializer(data=rendered_1)
-        s.is_valid(raise_exception=True)
         with self.assertRaises(ValidationError):
+            s.is_valid(raise_exception=True)
             data_object = s.save()
 
     def testCreate_noDroolOnFail(self):

@@ -44,58 +44,99 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
     datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
     value = DataValueSerializer(source='_value_info')
 
-    def create(self, validated_data):
-        value = validated_data.pop('_value_info')
-        if not validated_data.get('type'):
-            if self.context.get('type'):
-                validated_data['type'] = self.context.get('type')
-            else:
+    def validate(self, data):
+        # Use a copy to avoid modifying data
+        datacopy = copy.deepcopy(data)
+
+        # Type is required unless this is an update
+        datacopy.setdefault('type', self.context.get('type'))
+        if not datacopy.get('type') and not self.instance:
+            raise serializers.ValidationError(
+                'DataObject "type" not found in "type" field or in context')
+
+        if datacopy['type'] == 'file':
+            self._validate_file(datacopy)
+        else:
+            self._validate_nonfile(datacopy)
+
+        return data
+
+    def _validate_nonfile(self, data):
+        value = data.pop('_value_info')
+        data['data'] = {'value': value}
+        self._cached_data_object = DataObjectSerializer\
+            .Meta.model(**data)
+        self._do_create_new_data_object=True
+        try:
+            self._cached_data_object.full_clean()
+        except django.core.exceptions.ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        return data
+
+    def _validate_file(self, data):
+        value = data.pop('_value_info')
+        if not isinstance(value, dict):
+            # If it's a string, treat it as a data_object identifier and
+            # look it up.
+            data_objects = DataObject.filter_by_name_or_id_or_tag_or_hash(value)
+            if data_objects.count() == 0:
                 raise serializers.ValidationError(
-                    '"type" not found in "type" field or in context')
-        if validated_data.get('type') != 'file':
-            validated_data['data'] = {'value': value}
-            data_object = DataObjectSerializer\
-                          .Meta.model(**validated_data)
-            data_object.full_clean()
+                    'No matching DataObject found for "%s"' % value)
+            elif data_objects.count() > 1:
+                raise serializers.ValidationError(
+                    'Multiple matching DataObjects found for "%s"' % value)
+            self._cached_data_object = data_objects.first()
+            self._do_create_new_data_object = False
+        else:
+            # Otherwise, create new.
+            self._cached_data_object = self.Meta.model(**data)
+            self._do_create_new_data_object = True
+            try:
+                self._cached_data_object.full_clean()
+            except django.core.exceptions.ValidationError as e:
+                raise serializers.ValidationError(e.message_dict)
+        return data
+
+    def create(self, validated_data):
+        if not self._do_create_new_data_object:
+            return self._cached_data_object
+        else:
+            if self._cached_data_object.type == 'file':
+                return self._create_file(validated_data)
+            else:
+                return self._create_nonfile(validated_data)
+
+    def _create_nonfile(self, validated_data):
+        data_object = self._cached_data_object
+        if self._do_create_new_data_object:
             data_object.save()
             return data_object
-        else:
-            if not isinstance(value, dict):
-                # If it's a string, treat it as a data_object identifier and
-                # look it up. 
-                data_objects = DataObject.filter_by_name_or_id_or_tag_or_hash(value)
-                if data_objects.count() == 0:
-                    raise serializers.ValidationError(
-                        'No matching DataObject found for "%s"' % value)
-                elif data_objects.count() > 1:
-                    raise serializers.ValidationError(
-                        'Multiple matching DataObjects found for "%s"' % value)
-                return data_objects.first()
-            else:
-                # Otherwise, create new.
-                data_object = self.Meta.model(**validated_data)
-                data_object.full_clean()
-                data_object.save()
 
-                # If file belongs to TaskAttemptLogFile, make the connection
-                log_file = self.context.get('task_attempt_log_file')
-                if log_file:
-                    log_file.setattrs_and_save_with_retries({
-                        'data_object': data_object})
+    def _create_file(self, validated_data):
+        value = validated_data.pop('_value_info')
+        try:
+            self._cached_data_object.save()
+            # If file belongs to TaskAttemptLogFile, make the connection
+            log_file = self.context.get('task_attempt_log_file')
+            if log_file:
+                log_file.setattrs_and_save_with_retries({
+                    'data_object': self._cached_data_object})
+            resource_init_args = copy.copy(value)
+            if self.context.get('task_attempt'):
+                resource_init_args['task_attempt'] = self.context.get(
+                    'task_attempt')
+            resource_init_args['data_object'] = self._cached_data_object
+            file_resource = FileResource.initialize(**resource_init_args)
+            try:
+                file_resource.full_clean()
+            except django.core.exceptions.ValidationError as e:
+                raise serializers.ValidationError(e.message_dict)
+            file_resource.save()
+            return self._cached_data_object
+        except Exception as e:
+            self._cleanup(self._cached_data_object)
+            raise
 
-                try:
-                    resource_init_args = copy.copy(value)
-                    if self.context.get('task_attempt'):
-                        resource_init_args['task_attempt'] = self.context.get(
-                            'task_attempt')
-                    resource_init_args['data_object'] = data_object
-                    file_resource = FileResource.initialize(**resource_init_args)
-                    return data_object
-                except:
-                    # Cleanup incomplete DataObject if we failed.
-                    self._cleanup(data_object)
-                    raise
-                    
     def _cleanup(self, data_object):
         try:
             log_file = data_object.task_attempt_log_file
@@ -151,6 +192,9 @@ class DataObjectUpdateSerializer(DataObjectSerializer):
     type = serializers.CharField(read_only=True)
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
 
+    def validate(self, data):
+        return data
+
     def update(self, instance, validated_data):
         # The only time a DataObject should be updated by the client
         # is to change upload_status of a file.
@@ -162,7 +206,7 @@ class DataObjectUpdateSerializer(DataObjectSerializer):
                     'with type "%s"' % instance.type)
             if not instance.value:
                 raise serializers.ValidationError(
-                    "Failed to update DataObject because file value are missing")
+                    "Failed to update DataObject because FileResource is missing")
             try:
                 instance.value.setattrs_and_save_with_retries({
                     'upload_status': value_data.get('upload_status')})
