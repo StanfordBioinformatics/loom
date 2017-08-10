@@ -1,12 +1,14 @@
 import copy
 import django.core.exceptions
 from django.db.models import Prefetch
+from jinja2.exceptions import UndefinedError
 from rest_framework import serializers
 
 from . import CreateWithParentModelSerializer, RecursiveField, \
     ProxyWriteSerializer, strip_empty_values
 from .data_channels import DataChannelSerializer
 from api import async
+from api.models import DummyContext, render_from_template, render_string_or_list
 from api.models.templates import Template, TemplateInput, TemplateMembership
 from api.models.data_channels import DataChannel
 from api.serializers import DataNodeSerializer
@@ -185,8 +187,75 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 model.full_clean()
         except django.core.exceptions.ValidationError as e:
             raise serializers.ValidationError(e.message_dict)
-        self._validate_channels(template_data, root=True)
+        self._validate_template_data(template_data, root=True)
         return data
+
+    def _validate_template_data(self, data, root=False):
+        self._validate_channels(data, root=root)
+        self._validate_jinja_templates(data)
+        for step in data.get('steps', []):
+            self._validate_template_data(step)
+
+    def _validate_jinja_templates(self, data):
+        input_context = self._get_dummy_input_context(data)
+        for output in data.get('outputs', []):
+            if output.get('source'):
+                self._validate_output_source(
+                    output.get('source'), input_context)
+        self._validate_command(data)
+
+    def _validate_command(self, data):
+        if not data.get('command'):
+            return
+        try:
+            render_from_template(
+                data.get('command'),
+                self._get_dummy_full_context(data))
+        except Exception as e:
+            raise serializers.ValidationError({
+                'command':
+                'Error "%s" when parsing command "%s"' %
+                (e, data.get('command'))})
+
+    def _get_dummy_input_context(self, data):
+        context = {}
+        for input in data.get('inputs', []):
+            if input.get('as_channel'):
+                channel = input.get('as_channel')
+            else:
+                channel = input.get('channel')
+            context[channel] = DummyContext('value')
+        return context
+
+    def _get_dummy_output_context(self, data):
+        context = {}
+	for output in data.get('outputs', []):
+            if output.get('as_channel'):
+                channel = output.get('as_channel')
+            else:
+                channel = output.get('channel')
+        context[channel] = DummyContext('value')
+        return context
+
+    def _get_dummy_full_context(self, data):
+        context = self._get_dummy_input_context(data)
+        context.update(self._get_dummy_output_context(data))
+        return context
+
+    def _validate_output_source(self, output_source, input_context):
+        try:
+            render_from_template(
+                output_source.get('filename'), input_context)
+            render_string_or_list(
+                output_source.get('filenames'),
+                input_context)
+            render_from_template(
+                output_source.get('glob'), input_context)
+        except UndefinedError as e:
+            raise serializers.ValidationError({
+                'source':
+                'Error "%s" in output source "%s"' %
+                (e, output_source)})
 
     def _validate_channels(self, data, root=False):
         self._validate_channels_no_duplicates(data)
@@ -549,6 +618,8 @@ class CycleDetector(object):
             self.backtrack[vertex] = sender
             for neighbor in self.edges[vertex]:
                 self._visit(neighbor, vertex)
+            self.gray.remove(vertex)
+            self.black.append(vertex)
         elif vertex in self.gray:
             # cycle detected
             cycle_steps = [vertex]

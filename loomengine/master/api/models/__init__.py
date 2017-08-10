@@ -19,6 +19,7 @@ def render_string_or_list(value, context):
     else:
         return render_from_template(value, context)
 
+
 class ArrayInputContext(object):
     """This class is used with jinja templates to make the 
     default representation of an array a space-delimited list.
@@ -70,6 +71,55 @@ class ArrayInputContext(object):
 
     def __str__(self):
         return ' '.join([str(item) for item in self.items])
+
+class DummyContext(str):
+    """This class is used to create dummy context values used to validate 
+    jinja templates during Template validation, before actual context values 
+    are known. It acts as both a string and a list and attempts to avoid 
+    raising any errors for usage that could be valid for some
+    particular string or list.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(DummyContext, self).__init__(self, *args, **kwargs)
+        string = args[0]
+        self.items = [letter for letter in string]
+
+    def __iter__(self, *args, **kwargs):
+        return self.items.__iter__(*args, **kwargs)
+
+    def __len__(self,*args,**kwargs):
+        return self.items.__len__(*args, **kwargs)
+
+    def __getitem__(self, i):
+        return 'x'
+
+    def append(self, *args, **kwargs):
+        return self.items.append(*args, **kwargs)
+
+    def count(self, *args, **kwargs):
+        return self.items.count(*args, **kwargs)
+
+    def extend(self, *args, **kwargs):
+        return self.items.extend(*args, **kwargs)
+
+    def index(self, *args, **kwargs):
+        return self.items.index(*args, **kwargs)
+
+    def insert(self, *args, **kwargs):
+        return self.items.insert(*args, **kwargs)
+
+    def pop(self, *args, **kwargs):
+        return self.items.pop(*args, **kwargs)
+
+    def remove(self, *args, **kwargs):
+        return self.items.remove(*args, **kwargs)
+
+    def reverse(self, *args, **kwargs):
+        return self.items.reverse(*args, **kwargs)
+
+    def sort(self, *args, **kwargs):
+        return self.items.sort(*args, **kwargs)
 
 from .data_objects import *
 from .data_nodes import *
