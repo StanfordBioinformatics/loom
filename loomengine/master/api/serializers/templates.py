@@ -164,6 +164,13 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             _convert_template_id_to_dict(data))
 
     def validate(self, data):
+        data_keys = self.initial_data.keys()
+        serializer_keys = self.fields.keys()
+        extra_fields = filter(lambda key: key not in serializer_keys, data_keys)
+        if extra_fields:
+            raise serializers.ValidationError(
+                'Unrecognized fields %s' % extra_fields)
+
         # No validation if data is a template_ID. Only validate on create
         # to avoid an extra database hit.
         template_id = data.get('_template_id')
@@ -487,6 +494,14 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 child_templates_data[i] = TemplateSerializer(
                     template, context=self.context).data
                 continue
+
+            # Validate fields
+            data_keys = template_data.keys()
+            serializer_keys = self.fields.keys()
+            extra_fields = filter(lambda key: key not in serializer_keys, data_keys)
+            if extra_fields:
+                raise serializers.ValidationError(
+                    'Unrecognized fields %s' % extra_fields)
 
             # To be processed by recursion
             grandchildren = template_data.get('steps', [])
