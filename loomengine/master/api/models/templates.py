@@ -112,9 +112,11 @@ class TemplateInput(DataChannel):
 
 class TemplateMembership(BaseModel):
 
-    parent_template = models.ForeignKey('Template', related_name='children')
+    parent_template = models.ForeignKey('Template', related_name='children',
+                                        on_delete=models.CASCADE)
     child_template = models.ForeignKey('Template', related_name='parents', 
-                                       null=True, blank=True)
+                                       null=True, blank=True,
+                                       on_delete=models.CASCADE)
 
     @classmethod
     def add_step_to_workflow(cls, step, parent):

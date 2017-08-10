@@ -1,4 +1,5 @@
 import copy
+import django.core.exceptions
 from django.db.models import Prefetch
 from rest_framework import serializers
 
@@ -22,8 +23,8 @@ def _set_leaf_input_defaults(input):
 
 def _set_leaf_template_defaults(data):
     # Apply defaults for certain settings if missing
-    if data.get('outputs'):
-        for output in data.get('outputs'):
+    if data.get('outputs', []):
+        for output in data.get('outputs', []):
             output.setdefault('mode', DEFAULT_OUTPUT_MODE)
     data.setdefault('interpreter', DEFAULT_INTERPRETER)
         
@@ -160,42 +161,199 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         return super(TemplateSerializer, self).to_internal_value(
             _convert_template_id_to_dict(data))
 
+    def validate(self, data):
+        # No validation if data is a template_ID. Only validate on create
+        # to avoid an extra database hit.
+        template_id = data.get('_template_id')
+        if template_id:
+            return data
+
+        # We have to use bulk_create for performance, so create all templates
+        # before saving.
+        # We need these to validate, and we'll cache them to reuse on create.
+        self._unsaved_templates = []
+        self._unsaved_inputs = []
+        self._unsaved_m2m_relationships = []
+        self._preexisting_templates = []
+        template_data = copy.deepcopy(self.initial_data)
+        self._create_unsaved_models(
+            [template_data,], self._unsaved_templates,
+            self._unsaved_inputs, self._unsaved_m2m_relationships,
+            self._preexisting_templates)
+        try:
+            for model in self._unsaved_templates:
+                model.full_clean()
+        except django.core.exceptions.ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        self._validate_channels(template_data, root=True)
+        return data
+
+    def _validate_channels(self, data, root=False):
+        self._validate_channels_no_duplicates(data)
+        self._validate_channels_no_duplicate_sources(data)
+        self._validate_channels_valid_source(data, root=root)
+        self._validate_input_dimensions(data)
+        self._validate_no_cycles(data)
+
+    def _validate_channels_no_duplicates(self, data):
+        # Same channel name should never appear twice in a step
+        visited_channels = set()
+        for input in data.get('inputs', [])+data.get('outputs', []):
+            channel = input.get('channel')
+            if channel in visited_channels:
+                raise serializers.ValidationError(
+                    'Duplicate channel "%s" in template "%s"'
+                    % (channel, data.get('name')))
+            visited_channels.add(channel)
+
+    def _validate_channels_no_duplicate_sources(self, data):
+        # Same channel should not be both input of a step
+        # and output of one of its children
+        visited_channels = set()
+        for input in data.get('inputs', []):
+            channel=input.get('channel')
+            if channel in visited_channels:
+                raise serializers.ValidationError(
+                    'Duplicate source channel "%s" in template "%s"'
+                    % (channel, data.get('name')))
+            visited_channels.add(channel)
+        for step in data.get('steps', []):
+            for output in step.get('outputs', []):
+                channel = output.get('channel')
+                if channel in visited_channels:
+                    raise serializers.ValidationError(
+                        'Duplicate source channel "%s" in template "%s"'
+                        % (channel, data.get('name')))
+                visited_channels.add(channel)
+
+    def _validate_channels_valid_source(self, data, root=False):
+        if data.get('is_leaf'):
+            return
+
+        # Every channel should have a valid data source.
+        # For inputs on root node of template, source can be given at runtime.
+        sources = {}
+        for input in data.get('inputs', []):
+            sources[input.get('channel')] = input.get('type')
+        for step in data.get('steps', []):
+            for output in step.get('outputs', []):
+                sources[output.get('channel')] = output.get('type')
+
+        # Every output on a non-leaf node must have a source
+        for output in data.get('outputs', []):
+            if output.get('channel') in sources:
+                if not output.get('type') == sources[output.get('channel')]:
+                    raise serializers.ValidationError(
+                        'Type mismatch on channel "%s", step "%s"'
+                        % (output.get('channel'), step.get('name')))
+            else:
+                if not output.get('data'):
+                    raise serializers.ValidationError(
+                        'No source for output channel "%s" on step "%s".'
+                        % (output.get('channel'), data.get('name')))
+
+        # Every input on a child node must have a source
+        for step in data.get('steps', []):
+            for input in step.get('inputs', []):
+                if input.get('channel') in sources:
+                    if not input.get('type') == sources[input.get('channel')]:
+                        raise serializers.ValidationError(
+                            'Type mismatch on channel "%s", step "%s"'
+                            % (input.get('channel'), step.get('name')))
+                else:
+                    # No external source, ok if it has fixed data.
+                    if not input.get('data'):
+                        raise serializers.ValidationError(
+                            'No source for input channel "%s" on step "%s".'
+                            % (input.get('channel'), step.get('name')))
+
+    def _validate_input_dimensions(self, data):
+        # Group settings only apply to leaf
+        if not data.get('is_leaf'):
+            return
+        
+        groups = {}
+        for input in data.get('inputs', []):
+            group = input.get('group')
+            groups.setdefault(group, [])
+            groups[group].append(input)
+        for (group, inputs) in groups.iteritems():
+            group_dimensions = None
+            for input in inputs:
+                if input.get('data'):
+                    contents = input.get('data').get('contents')
+                    dimensions = self._get_data_dimensions(contents, [])
+                    if group_dimensions is None:
+                        group_dimensions = dimensions
+                    else:
+                        if group_dimensions != dimensions:
+                            raise serializers.ValidationError(
+                                'Dimensions mismatch on input data '\
+                                'in group "%s", step "%s"'
+                                % (group, data.get('name')))
+
+    def _get_data_dimensions(self, contents, path):
+        if not isinstance(contents, list):
+            return path
+        else:
+            paths = []
+            for item in contents:
+                paths.append(self._get_data_dimensions(item, copy.deepcopy(path)))
+            return paths
+
+    def _validate_no_cycles(self, data):
+        CycleDetector(data.get('steps', [])).dfs()
+
     def create(self, validated_data):
         # If template_id is present, just look it up
         template_id = validated_data.get('_template_id')
         if template_id:
             return self._lookup_by_id(template_id)
 
-        templates = []
-        inputs = []
-        m2m_relationships = []
-        preexisting_templates = []
+        try:
+            root_uuid = self._unsaved_templates[0].uuid
 
-        self._create_unsaved_models(
-            [copy.deepcopy(self.initial_data),], templates, inputs,
-            m2m_relationships, preexisting_templates)
+            bulk_templates = Template.objects.bulk_create(self._unsaved_templates)
+            # self._new_templates includes pk's needed for cleanup on failure
+            self._new_templates = self._reload(Template, bulk_templates)
+            templates = [template for template in self._new_templates]
+            templates.extend(self._preexisting_templates)
 
-        root_uuid = templates[0].uuid
+            # Refresh unsaved objects with their saved counterparts
+            self._match_and_update_by_uuid(
+                self._unsaved_inputs, 'template', templates)
+            self._match_and_update_by_uuid(
+                self._unsaved_m2m_relationships, 'parent_template', templates)
+            self._match_and_update_by_uuid(
+                self._unsaved_m2m_relationships, 'child_template', templates)
 
-        templates = Template.objects.bulk_create(templates)
-        templates = self._reload(Template, templates)
-        templates = [template for template in templates]
-        templates.extend(preexisting_templates)
+            # We can clean now that relationships have been defined.
+            # Convert any model ValidationError
+            # to serializer ValidationError to raise 400 http code.
+            try:
+                for instance in self._unsaved_inputs:
+                    instance.full_clean()
+                for instance in self._unsaved_m2m_relationships:
+                    instance.full_clean()
+            except django.core.exceptions.ValidationError as e:
+                raise serializers.ValidationError(e.message_dict)
 
-        # Refresh unsaved objects with their saved counterparts
-        self._match_and_update_by_uuid(inputs, 'template', templates)
-        self._match_and_update_by_uuid(m2m_relationships, 'parent_template', templates)
-        self._match_and_update_by_uuid(m2m_relationships, 'child_template', templates)
+            TemplateInput.objects.bulk_create(self._unsaved_inputs)
+            TemplateMembership.objects.bulk_create(self._unsaved_m2m_relationships)
+                
+            root_template = filter(lambda t: t.uuid==root_uuid, templates)
+            assert len(root_template) == 1, '1 template should match uuid of root'
+            return root_template[0]
 
-        # We can clean now that relationships have been defined
-        for instance in m2m_relationships:
-            instance.full_clean()
+        except:
+            self._cleanup()
+            raise
 
-        TemplateInput.objects.bulk_create(inputs)
-        TemplateMembership.objects.bulk_create(m2m_relationships)
-
-        root_template = filter(lambda t: t.uuid==root_uuid, templates)
-        return root_template[0]
+    def _cleanup(self):
+        # Deleting the templates will cascade to delete
+        # any TemplateInput or TemplateMembership
+        if hasattr(self, '_new_templates'):
+            self._new_templates.delete()
 
     def _match_and_update_by_uuid(self, unsaved_models, field, saved_models):
         for unsaved_model in unsaved_models:
@@ -205,10 +363,9 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             setattr(unsaved_model, field, match[0])
     
     def _reload(self, ModelClass, models):
-        # bulk_create doesn't give PK's, so we reload the models by uuid
+        # bulk_create doesn't give PK's, so we have to reload the models.
+        # We can look them up by uuid, which is also unique
         uuids = [model.uuid for model in models]
-
-        # sort by id to preserve order, then verify
         models = ModelClass.objects.filter(uuid__in=uuids)
         return models
     
@@ -236,14 +393,18 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             preexisting_templates,
             parent_model=None):
 
-        for template_data in child_templates_data:
+        for i in range(len(child_templates_data)):
+            template_data = child_templates_data[i]
             if isinstance(template_data, (unicode, str)):
+                # This is a reference to an existing template.
+                # Use the serializer to retrive the instance
                 serializer = TemplateSerializer(
                     data=template_data)
                 serializer.is_valid(raise_exception=True)
+                # No new template created here, just a lookup
                 template = serializer.save()
                 preexisting_templates.append(template)
-                # This step already exists. Just link to the parent
+                # Link to parent if any
                 if parent_model:
                     m2m_relationship_models.append(
                         TemplateMembership(
@@ -252,10 +413,14 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                     )
                     # Do not call full_clean yet.
                     # Relationships must be added first.
+                # Replace the template reference with the full
+                # template structure
+                child_templates_data[i] = TemplateSerializer(
+                    template, context=self.context).data
                 continue
 
             # To be processed by recursion
-            grandchildren = template_data.pop('steps', [])
+            grandchildren = template_data.get('steps', [])
 
             # Set defaults and inferred values
             if template_data.get('is_leaf') is None:
@@ -266,26 +431,29 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 template_data['imported'] = bool(
                     template_data.get('imported_from_url'))
 
-            inputs = template_data.pop('inputs', [])
+            inputs = template_data.get('inputs', [])
             fixed_inputs = template_data.pop('fixed_inputs', [])
             inputs.extend(fixed_inputs)
 
-            template = Template(**template_data)
-            template.full_clean()
+            template_copy = copy.deepcopy(template_data)
+            template_copy.pop('steps', None)
+            template_copy.pop('inputs', None)
+            template = Template(**template_copy)
             template_models.append(template)
 
             for input_data in inputs:
-                input_data['template'] = template
                 if template.is_leaf:
                     _set_leaf_input_defaults(input_data)
-                if input_data.get('data'):
+                input_copy = copy.deepcopy(input_data)
+                input_copy['template'] = template
+                if input_copy.get('data'):
                     s = DataNodeSerializer(
-                        data=input_data.pop('data'),
-                        context={'type': input_data.get('type')}
+                        data=input_copy.pop('data'),
+                        context={'type': input_copy.get('type')}
                     )
                     s.is_valid(raise_exception=True)
-                    input_data['data_node'] = s.save()
-                input_models.append(TemplateInput(**input_data))
+                    input_copy['data_node'] = s.save()
+                input_models.append(TemplateInput(**input_copy))
 
             if parent_model:
                 m2m_relationship_models.append(
@@ -349,3 +517,49 @@ class SummaryTemplateSerializer(TemplateSerializer):
             .prefetch_related('steps__steps__steps__steps__steps__'\
                               'steps__steps__steps__steps__steps')
             # Warning! This will break down with more than 11 levels
+
+class CycleDetector(object):
+
+    def __init__(self, steps):
+        self.white = []
+        self.gray = []
+        self.black = []
+        self.edges = {}
+        self.backtrack = {}
+        for step in steps:
+            assert step['name'] not in self.white
+            self.white.append(step['name'])
+            self.edges.setdefault(step['name'], [])
+        for step in steps:
+            for output in step.get('outputs', []):
+                channel = output['channel']
+                for dest in steps:
+                    for input in dest.get('inputs', []):
+                        if input.get('channel') == channel:
+                            self.edges[step['name']].append(dest['name'])
+
+    def dfs(self):
+        while self.white:
+            self._visit(self.white[0], None)
+
+    def _visit(self, vertex, sender):
+        if vertex in self.white:
+            self.white.remove(vertex)
+            self.gray.append(vertex)
+            self.backtrack[vertex] = sender
+            for neighbor in self.edges[vertex]:
+                self._visit(neighbor, vertex)
+        elif vertex in self.gray:
+            # cycle detected
+            cycle_steps = [vertex]
+            next_step = sender
+            while next_step != vertex and next_step != None:
+                cycle_steps.append(next_step)
+                next_step = self.backtrack[next_step]
+            raise serializers.ValidationError(
+                'Cycle detected in steps "%s"' % '", "'.join(cycle_steps))
+        elif vertex in self.black:
+            return
+
+        
+        

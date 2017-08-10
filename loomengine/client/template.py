@@ -3,6 +3,7 @@
 import argparse
 import glob
 import os
+from requests.exceptions import HTTPError
 import sys
 
 from loomengine.client import _render_time
@@ -81,7 +82,17 @@ class TemplateImport(object):
 
         cls._warn_for_fixed_inputs(template)
 
-        template_from_server = connection.post_template(template)
+        try:
+            template_from_server = connection.post_template(template)
+
+        except HTTPError as e:
+            if e.response.status_code==400:
+                errors = e.response.json()
+                raise SystemExit(
+                    "ERROR! %s" % errors)
+            else:
+                raise
+                
         print 'Imported template "%s@%s".' % (
             template_from_server['name'],
             template_from_server['uuid'])

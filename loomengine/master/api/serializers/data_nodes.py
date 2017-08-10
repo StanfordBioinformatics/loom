@@ -65,7 +65,6 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
         return value
 
     def _validate_uniform_height(self, contents):
-
         if not isinstance(contents, (list, tuple)):
             # This is a data object, not a list. Height is 1.
             return 1

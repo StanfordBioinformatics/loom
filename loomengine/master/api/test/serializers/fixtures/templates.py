@@ -202,3 +202,122 @@ big_workflow = {
     ],
     'steps': big_workflow_steps
 }
+
+duplicate_channels = {
+    'name': 'duplicate_channels',
+    'command': 'echo',
+    'environment': {
+        'docker_image': 'ubuntu'
+    },
+    'resources': {
+        'cores': '1',
+        'memory': '1',
+        'disk_size': '1024' 
+    },
+    'inputs': [
+	{
+	    'channel': 'dup',
+            'type': 'string',
+            'hint': 'Give a file with the first integer above 0'
+	}
+    ],
+    'outputs': [
+	{
+            'source': {
+                'filename': 'out.txt'
+            },
+            'type': 'string',
+	    'channel': 'dup'
+	}
+    ]
+}
+
+duplicate_sources = {
+    'name': 'duplicate_sources',
+    'command': 'echo',
+    'environment': {'docker_image': 'ubuntu'},
+    'inputs': [{'channel': 'dup', 'type': 'string'},
+               {'channel': 'one', 'type': 'string'},],
+    'steps': [
+        {
+            'name': 'child1',
+            'command': 'echo',
+            'environment': {'docker_image': 'ubuntu'},
+            'inputs': [{'channel': 'one', 'type': 'string'},],
+            'outputs': [{'channel': 'dup', 'type': 'string'},],
+        }
+    ],
+}
+
+no_source = {
+    'name': 'no_source',
+    'command': 'echo',
+    'environment': {'docker_image': 'ubuntu'},
+    'inputs': [{'channel': 'one', 'type': 'string'},],
+    'steps': [
+        {
+            'name': 'child1',
+            'command': 'echo',
+            'environment': {'docker_image': 'ubuntu'},
+            'inputs': [{'channel': 'two', 'type': 'string'},],
+            'outputs': [{'channel': 'three', 'type': 'string'},],
+        }
+    ],
+}
+
+source_type_mismatch = {
+    'name': 'source_type_mismatch',
+    'inputs': [{'channel': 'one', 'type': 'boolean'},],
+    'steps': [
+        {
+            'name': 'child1',
+            'command': 'echo',
+            'environment': {'docker_image': 'ubuntu'},
+            'inputs': [{'channel': 'one', 'type': 'string'},],
+            'outputs': [{'channel': 'three', 'type': 'string'},],
+        }
+    ],
+}
+
+missing_file_reference = {
+    'name': 'missing_file_reference',
+    'command': 'echo',
+    'environment': {'docker_image': 'ubuntu'},
+    'inputs': [{'channel': 'one', 'type': 'file', 'data': {'contents': 'missingfile.txt'}},],
+}
+
+missing_template_reference = {
+    'name': 'no_source',
+    'inputs': [{'channel': 'one', 'type': 'string'},],
+    'steps': ['stepone',],
+}
+
+input_dimension_mismatch = {
+    'name': 'input_dimension_mismatch',
+    'command': 'echo',
+    'environment': {'docker_image': 'ubuntu'},
+    'inputs': [
+        {'channel': 'one', 'type': 'integer', 'group': 0, 'data': {'contents': [[1,2,3],[4,5]]}},
+        {'channel': 'two', 'type': 'integer', 'group': 0, 'data': {'contents': [[1,2],[3,4]]}},
+    ],
+}
+
+has_cycle = {
+    'name': 'has_cycle',
+    'steps': [
+        {
+            'name': 'child1',
+            'command': 'echo',
+            'environment': {'docker_image': 'ubuntu'},
+            'inputs': [{'channel': 'one', 'type': 'string'},],
+            'outputs': [{'channel': 'two', 'type': 'string'},],
+        },
+        {
+            'name': 'child2',
+            'command': 'echo',
+            'environment': {'docker_image': 'ubuntu'},
+            'inputs': [{'channel': 'two', 'type': 'string'},],
+            'outputs': [{'channel': 'one', 'type': 'string'},],
+        }
+    ],
+}
