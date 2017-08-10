@@ -541,7 +541,7 @@ class Run(MPTTModel, BaseModel):
 
     def _push_input_set(self, input_set, context):
         try:
-            task = Task.create_from_input_set(input_set, self)
+            task = Task.create_from_input_set(input_set, self, context)
             async.run_task(task.uuid, context)
         except TaskAlreadyExistsException:
             pass

@@ -127,51 +127,55 @@ class Task(BaseModel):
             async.kill_task_attempt(task_attempt.uuid, detail)
 
     @classmethod
-    def create_from_input_set(cls, input_set, run):
-        if input_set:
-            data_path = input_set.data_path
-            if run.tasks.filter(data_path=data_path).count() > 0:
-                raise TaskAlreadyExistsException
-        else:
-            # If run has no inputs, we get an empty input_set.
-            # Task will go on the root node.
-            data_path = []
+    def create_from_input_set(cls, input_set, run, context):
+        try:
+            if input_set:
+                data_path = input_set.data_path
+                if run.tasks.filter(data_path=data_path).count() > 0:
+                    raise TaskAlreadyExistsException
+            else:
+                # If run has no inputs, we get an empty input_set.
+                # Task will go on the root node.
+                data_path = []
 
-        task = Task(
-            run=run,
-            raw_command=run.command,
-            interpreter=run.interpreter,
-            environment=run.template.environment,
-            resources=run.template.resources,
-            data_path=data_path,
-        )
-        task.full_clean()
-        task.save()
-        for input_item in input_set:
-            task_input =TaskInput(
-                task=task,
-                channel=input_item.channel,
-                as_channel=input_item.as_channel,
-                type=input_item.type,
-                mode=input_item.mode,
-                data_node = input_item.data_node)
-            task_input.full_clean()
-            task_input.save()
-        for run_output in run.outputs.all():
-            task_output = TaskOutput(
-                channel=run_output.channel,
-                as_channel=run_output.as_channel,
-                type=run_output.type,
-                task=task,
-                mode=run_output.mode,
-                source=run_output.source,
-                parser=run_output.parser,
-                data_node=run_output.data_node.get_or_create_node(data_path))
-            task_output.full_clean()
-            task_output.save()
-        task = task.setattrs_and_save_with_retries(
-            { 'command': task.render_command() })
-        run.set_running_status()
+            task = Task(
+                run=run,
+                raw_command=run.command,
+                interpreter=run.interpreter,
+                environment=run.template.environment,
+                resources=run.template.resources,
+                data_path=data_path,
+            )
+            task.full_clean()
+            task.save()
+            for input_item in input_set:
+                task_input =TaskInput(
+                    task=task,
+                    channel=input_item.channel,
+                    as_channel=input_item.as_channel,
+                    type=input_item.type,
+                    mode=input_item.mode,
+                    data_node = input_item.data_node)
+                task_input.full_clean()
+                task_input.save()
+            for run_output in run.outputs.all():
+                task_output = TaskOutput(
+                    channel=run_output.channel,
+                    as_channel=run_output.as_channel,
+                    type=run_output.type,
+                    task=task,
+                    mode=run_output.mode,
+                    source=run_output.source,
+                    parser=run_output.parser,
+                    data_node=run_output.data_node.get_or_create_node(data_path))
+                task_output.full_clean()
+                task_output.save()
+            task = task.setattrs_and_save_with_retries(
+                { 'command': task.render_command() })
+            run.set_running_status()
+        except Exception as e:
+            run.fail(context, detail='Error creating Task: "%s"' % str(e))
+            raise
         return task
 
     def create_and_activate_attempt(self, context):
