@@ -173,10 +173,11 @@ class Task(BaseModel):
             task = task.setattrs_and_save_with_retries(
                 { 'command': task.render_command() })
             run.set_running_status()
+            return task
         except Exception as e:
-            run.fail(context, detail='Error creating Task: "%s"' % str(e))
+            if not isinstance(e,TaskAlreadyExistsException):
+                run.fail(context, detail='Error creating Task: "%s"' % str(e))
             raise
-        return task
 
     def create_and_activate_attempt(self, context):
         try:

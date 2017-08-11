@@ -164,18 +164,18 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             _convert_template_id_to_dict(data))
 
     def validate(self, data):
+        # No validation if data is a template_ID. Only validate on create
+        # to avoid an extra database hit.
+        template_id = data.get('_template_id')
+        if template_id:
+            return data
+
         data_keys = self.initial_data.keys()
         serializer_keys = self.fields.keys()
         extra_fields = filter(lambda key: key not in serializer_keys, data_keys)
         if extra_fields:
             raise serializers.ValidationError(
                 'Unrecognized fields %s' % extra_fields)
-
-        # No validation if data is a template_ID. Only validate on create
-        # to avoid an extra database hit.
-        template_id = data.get('_template_id')
-        if template_id:
-            return data
 
         # We have to use bulk_create for performance, so create all templates
         # before saving.
@@ -267,6 +267,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     def _validate_channels(self, data, root=False):
         self._validate_channels_no_duplicates(data)
         self._validate_channels_no_duplicate_sources(data)
+        self._validate_channels_check_duplicate_inputs(data)
         self._validate_channels_valid_source(data, root=root)
         self._validate_input_dimensions(data)
         self._validate_no_cycles(data)
@@ -301,6 +302,22 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                         'Duplicate source channel "%s" in template "%s"'
                         % (channel, data.get('name')))
                 visited_channels.add(channel)
+
+    def _validate_channels_check_duplicate_inputs(self, data):
+        # If two siblings have the same channel, the channel must be
+        # defined on the parent
+        parent_inputs = set()
+        for input in data.get('inputs', []):
+            parent_inputs.add(input.get('channel'))
+        child_inputs = set()
+        for step in data.get('steps', []):
+            for input in step.get('inputs'):
+                channel = input.get('channel')
+                if channel in child_inputs and channel not in parent_inputs:
+                    raise serializers.ValidationError(
+                        'Because the input channel "%s" exists on multiple child '\
+                        'steps, it must also be defined on the parent' % channel)
+                child_inputs.add(channel)
 
     def _validate_channels_valid_source(self, data, root=False):
         if data.get('is_leaf'):

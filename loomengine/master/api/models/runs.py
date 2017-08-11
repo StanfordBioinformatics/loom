@@ -107,6 +107,7 @@ class Run(MPTTModel, BaseModel):
 
     def get_input(self, channel):
         inputs = [i for i in self.inputs.filter(channel=channel)]
+        assert len(inputs) < 2, 'too many inputs for channel %s' % channel
         assert len(inputs) == 1, 'missing input for channel %s' % channel
         return inputs[0]
 
