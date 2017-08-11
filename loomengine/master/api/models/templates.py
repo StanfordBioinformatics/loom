@@ -47,7 +47,6 @@ class Template(BaseModel):
     resources = jsonfield.JSONField(
         blank=True,
         validators=[validators.validate_resources])
-    comments = models.TextField(blank=True)
     import_comments = models.TextField(blank=True)
     imported_from_url = models.TextField(
         blank=True,

@@ -60,7 +60,6 @@ _template_serializer_fields = (
     'md5',
     'datetime_created',
     'command',
-    'comments',
     'import_comments',
     'imported_from_url',
     'is_leaf',
@@ -94,7 +93,6 @@ class URLTemplateSerializer(ProxyWriteSerializer):
     # write-only
     _template_id = serializers.CharField(write_only=True, required=False)
     command = serializers.CharField(required=False, write_only=True)
-    comments = serializers.CharField(required=False, write_only=True)
     import_comments = serializers.CharField(required=False, write_only=True)
     imported_from_url = serializers.CharField(required=False, write_only=True)
     interpreter = serializers.CharField(required=False, write_only=True)
@@ -135,7 +133,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     name = serializers.CharField(required=False)
     datetime_created = serializers.DateTimeField(format='iso-8601', required=False)
     command = serializers.CharField(required=False)
-    comments = serializers.CharField(required=False)
     import_comments = serializers.CharField(required=False)
     imported_from_url = serializers.CharField(required=False)
     is_leaf = serializers.BooleanField(required=False)
@@ -588,7 +585,6 @@ class SummaryTemplateSerializer(TemplateSerializer):
     # write-only fields
     _template_id = serializers.CharField(write_only=True, required=False)
     command = serializers.CharField(required=False, write_only=True)
-    comments = serializers.CharField(required=False, write_only=True)
     import_comments = serializers.CharField(required=False, write_only=True)
     imported_from_url = serializers.CharField(required=False, write_only=True)
     interpreter = serializers.CharField(required=False, write_only=True)

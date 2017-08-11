@@ -152,7 +152,7 @@ class TaskMonitor(object):
                     self.settings['WORKING_DIR'],
                     self.LOOM_RUN_SCRIPT_NAME),
                       'w') as f:
-                f.write(user_command + '\n')
+                f.write(user_command.encode('utf-8') + '\n')
         except Exception as e:
             error = self._get_error_text(e)
             self._fail(detail='Creating run script failed. %s' % error)
