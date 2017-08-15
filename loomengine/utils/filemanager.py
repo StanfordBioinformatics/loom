@@ -11,12 +11,7 @@ import sys
 import tempfile
 import time
 import urlparse
-from google.auth.exceptions import TransportError
 import google.cloud.storage
-import google.cloud.streaming
-from google.cloud.exceptions import GoogleCloudError
-import requests
-from socket import error as SocketError
 
 from loomengine.utils import execute_with_retries
 from loomengine.utils import md5calc
@@ -209,12 +204,11 @@ class GoogleStorageSource(AbstractSource):
         
         self.settings = settings
 
-        RETRYABLE_EXCEPTIONS = (GoogleCloudError, TransportError, SocketError)
         try:
             self.client = execute_with_retries(
                 lambda: google.cloud.storage.client.Client(
                     self.settings['GCE_PROJECT']),
-                RETRYABLE_EXCEPTIONS,
+                (Exception,),
                 logger,
                 'Get client')
         except ApplicationDefaultCredentialsError as e:
@@ -225,16 +219,14 @@ class GoogleStorageSource(AbstractSource):
 
         try:
             if self.retry:
-                RETRYABLE_EXCEPTIONS = (
-                    GoogleCloudError, TransportError, SocketError)
                 self.bucket = execute_with_retries(
                     lambda: self.client.get_bucket(self.bucket_id),
-                    RETRYABLE_EXCEPTIONS,
+                    (Exception,),
                     logger,
                     'Get bucket')
                 self.blob = execute_with_retries(
                     lambda: self.bucket.get_blob(self.blob_id),
-                    RETRYABLE_EXCEPTIONS,
+                    (Exception,),
                     logger,
                     'Get blob')
             else:
@@ -354,23 +346,22 @@ class GoogleStorageDestination(AbstractDestination):
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
-        RETRYABLE_EXCEPTIONS = (GoogleCloudError, TransportError, SocketError)
         self.client = execute_with_retries(
             lambda: google.cloud.storage.client.Client(
                 self.settings['GCE_PROJECT']),
-            RETRYABLE_EXCEPTIONS,
+            (Exception,),
             logger,
             'Get client')
         try:
             if self.retry:
                 self.bucket = execute_with_retries(
                     lambda: self.client.get_bucket(self.bucket_id),
-                    RETRYABLE_EXCEPTIONS,
+                    (Exception,),
                     logger,
                     'Get bucket')
                 self.blob = execute_with_retries(
                     lambda: self.bucket.get_blob(self.blob_id),
-                    RETRYABLE_EXCEPTIONS,
+                    (Exception,),
                     logger,
                     'Get blob')
             else:
@@ -461,15 +452,11 @@ class GoogleStorageCopier(AbstractCopier):
 class Local2GoogleStorageCopier(AbstractCopier):
 
     def copy(self):
-        RETRYABLE_EXCEPTIONS = [
-            e for e in
-            google.cloud.streaming.http_wrapper._RETRYABLE_EXCEPTIONS
-        ] + [GoogleCloudError, TransportError, SocketError]
         if self.source.retry or self.destination.retry:
             execute_with_retries(
                 lambda: self.destination.blob.upload_from_filename(
                     self.source.get_path()),
-                RETRYABLE_EXCEPTIONS,
+                (Exception,),
                 logger,
                 'File upload')
         else:
@@ -490,14 +477,10 @@ class GoogleStorage2LocalCopier(AbstractCopier):
                     (os.path.dirname(self.destination.get_path()),
                      e))
         if self.source.retry or self.destination.retry:
-            RETRYABLE_EXCEPTIONS = [
-                e for e in
-                google.cloud.streaming.http_wrapper._RETRYABLE_EXCEPTIONS
-            ] + [GoogleCloudError, TransportError, SocketError]
             execute_with_retries(
                 lambda: self.source.blob.download_to_filename(
                     self.destination.get_path()),
-                RETRYABLE_EXCEPTIONS,
+                (Exception,),
                 logger,
                 'File download')
         else:
