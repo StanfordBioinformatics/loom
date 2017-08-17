@@ -36,7 +36,8 @@ class DataChannelSerializer(CreateWithParentModelSerializer):
                 raise serializers.ValidationError('Update to existing data not allowed')
             data_node_serializer = DataNodeSerializer(
                 data=data,
-                context = {'type': instance.type})
+                context = {'type': instance.type,
+                           'task_attempt': instance.task_attempt})
             data_node_serializer.is_valid(raise_exception=True)
             data_node = data_node_serializer.save()
             instance.setattrs_and_save_with_retries({

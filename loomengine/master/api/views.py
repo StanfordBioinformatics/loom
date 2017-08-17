@@ -558,7 +558,12 @@ class TaskAttemptLogFileViewSet(rest_framework.viewsets.ModelViewSet):
                   serializer_class=rest_framework.serializers.Serializer)
     def create_data_object(self, request, uuid=None):
         try:
-            task_attempt_log_file = models.TaskAttemptLogFile.objects.get(uuid=uuid)
+            task_attempt_log_file = models\
+                                    .TaskAttemptLogFile\
+                                    .objects\
+                                    .select_related('task_attempt')\
+                                    .select_related('data_object')\
+                                    .get(uuid=uuid)
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
         if task_attempt_log_file.data_object:
@@ -568,7 +573,9 @@ class TaskAttemptLogFileViewSet(rest_framework.viewsets.ModelViewSet):
         s = serializers.DataObjectSerializer(
             task_attempt_log_file.data_object, data=data, context={
                 'request': request,
-                'task_attempt_log_file': task_attempt_log_file})
+                'task_attempt_log_file': task_attempt_log_file,
+                'task_attempt': task_attempt_log_file.task_attempt,
+            })
         s.is_valid(raise_exception=True)
         data_object = s.save()
         return JsonResponse(s.data, status=201)

@@ -192,7 +192,7 @@ class FileResource(BaseModel):
                     kwargs.get('filename'),
                     kwargs.get('source_type'),
                     kwargs.get('data_object'),
-                    kwargs.get('task_attempt')
+                    kwargs.pop('task_attempt', None)
                 ))
         file_resource = cls(**kwargs)
         return file_resource
@@ -232,7 +232,6 @@ class FileResource(BaseModel):
         """Create a path for a given file, in such a way
         that files end up being organized and browsable by run
         """
-
         # We cannot generate the path unless connect to a TaskAttempt
         # and a run
         if not task_attempt:
