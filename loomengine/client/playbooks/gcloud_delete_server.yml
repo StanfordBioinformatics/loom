@@ -6,4 +6,5 @@
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
+  - include: tasks/gcloud_get_server_instance_name.yml
   - include: tasks/gcloud_delete_instance.yml

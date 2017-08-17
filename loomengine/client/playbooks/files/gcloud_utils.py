@@ -100,3 +100,10 @@ def sanitize_instance_name_base(name):
     name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
     name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
     return name
+
+def sanitize_server_name(name):
+    server_name = sanitize_instance_name_base(name)[:63]
+    if not server_name:
+        raise Exception('Failed to sanitize server name "%s"' % name)
+    print server_name
+    return server_name
