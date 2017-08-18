@@ -2,6 +2,10 @@
 Release Notes
 #############
 
+0.5.1
+=============
+* Enhanced validation of templates and data objects
+
 0.5.0
 =============
 * Tags and labels for files, templates, and runs
