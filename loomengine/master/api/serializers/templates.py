@@ -238,7 +238,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 channel = output.get('as_channel')
             else:
                 channel = output.get('channel')
-        context[channel] = DummyContext('value')
+            context[channel] = DummyContext('value')
         return context
 
     def _get_dummy_full_context(self, data):
