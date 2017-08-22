@@ -301,19 +301,22 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 visited_channels.add(channel)
 
     def _validate_channels_check_duplicate_inputs(self, data):
-        # If two siblings have the same channel, the channel must be
-        # defined on the parent
-        parent_inputs = set()
+        # If two siblings have the same channel, the channel must have a source,
+        # either on the parent or on a sibling's output.
+        sources = set()
         for input in data.get('inputs', []):
-            parent_inputs.add(input.get('channel'))
+            sources.add(input.get('channel'))
+        for step in data.get('steps', []):
+            for output in step.get('outputs'):
+                sources.add(output.get('channel'))
         child_inputs = set()
         for step in data.get('steps', []):
             for input in step.get('inputs'):
                 channel = input.get('channel')
-                if channel in child_inputs and channel not in parent_inputs:
+                if channel in child_inputs and channel not in sources:
                     raise serializers.ValidationError(
                         'Because the input channel "%s" exists on multiple child '\
-                        'steps, it must also be defined on the parent' % channel)
+                        'steps, it must have a shared source' % channel)
                 child_inputs.add(channel)
 
     def _validate_channels_valid_source(self, data, root=False):
