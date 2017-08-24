@@ -81,7 +81,7 @@ class BaseSettingsValidator(object):
         'LOOM_PRESERVE_ON_FAILURE',
         'LOOM_PRESERVE_ALL',
         'LOOM_MAXIMUM_TASK_RETRIES',
-        'WORKER_TYPE',
+        'LOOM_WORKER_TYPE',
         'LOOM_FLOWER_INTERNAL_PORT',
         'LOOM_FLOWER_CONTAINER_NAME_SUFFIX',
     )
