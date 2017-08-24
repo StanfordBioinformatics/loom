@@ -1,0 +1,45 @@
+from .base import BaseSettingsValidator
+
+"""Validator for gcloud settings
+"""
+
+class GcloudSettingsValidator(BaseSettingsValidator):
+
+    # In addition to those defined in BaseSettingsValidator
+    REQUIRED_SETTINGS = (
+        'LOOM_GCE_PEM_FILE',
+        'LOOM_GCE_EMAIL',
+        'LOOM_GCE_PROJECT',
+        'LOOM_GCLOUD_SERVER_BOOT_DISK_TYPE',
+        'LOOM_GCLOUD_SERVER_BOOT_DISK_SIZE_GB',
+        'LOOM_GCLOUD_SERVER_INSTANCE_IMAGE',
+        'LOOM_GCLOUD_SERVER_INSTANCE_TYPE',
+        'LOOM_GCLOUD_SERVER_NETWORK',
+        'LOOM_GCLOUD_SERVER_SUBNETWORK',
+        'LOOM_GCLOUD_SERVER_ZONE',
+        'LOOM_GCLOUD_SERVER_SKIP_INSTALLS',
+        'LOOM_GCLOUD_SERVER_EXTERNAL_IP',
+        'LOOM_GCLOUD_WORKER_BOOT_DISK_TYPE',
+        'LOOM_GCLOUD_WORKER_BOOT_DISK_SIZE_GB',
+        'LOOM_GCLOUD_WORKER_SCRATCH_DISK_TYPE',
+        'LOOM_GCLOUD_WORKER_SCRATCH_DISK_MIN_SIZE_GB',
+        'LOOM_GCLOUD_WORKER_INSTANCE_IMAGE',
+        'LOOM_GCLOUD_WORKER_INSTANCE_TYPE',
+        'LOOM_GCLOUD_WORKER_NETWORK',
+        'LOOM_GCLOUD_WORKER_SUBNETWORK',
+        'LOOM_GCLOUD_WORKER_ZONE',
+        'LOOM_GCLOUD_WORKER_SKIP_INSTALLS',
+        'LOOM_GCLOUD_WORKER_EXTERNAL_IP',
+        'LOOM_GCLOUD_WORKER_CONNECTION_SETTINGS_FILE',
+        'LOOM_GCLOUD_WORKER_USES_SERVER_INTERNAL_IP',
+        'LOOM_GCLOUD_CLIENT_USES_SERVER_INTERNAL_IP',
+        'LOOM_GCLOUD_SERVER_USES_WORKER_INTERNAL_IP',
+    )
+    OPTIONAL_SETTINGS = (
+        'LOOM_GCLOUD_SERVER_TAGS',
+        'LOOM_GCLOUD_WORKER_TAGS',
+    )
+
+    def validate(self):
+        self.validate_common()
+        self.raise_if_errors()

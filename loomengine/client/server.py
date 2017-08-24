@@ -12,6 +12,7 @@ import subprocess
 import urlparse
 
 from loomengine.client.common import *
+from loomengine.client import settings_validators
 
 
 STOCK_SETTINGS_DIR = os.path.join(
@@ -388,12 +389,16 @@ class ServerControls:
                              'LOOM_DELETE_SERVER_PLAYBOOK',
                              'LOOM_RUN_TASK_PLAYBOOK',
                              'LOOM_ANSIBLE_INVENTORY',
+                             'LOOM_SETTINGS_VALIDATOR',
         ]
         current_settings = set(settings.keys())
         missing_settings = set(REQUIRED_SETTINGS).difference(current_settings)
         if len(missing_settings) != 0:
             raise SystemExit('ERROR! Missing required settings [%s].'
                              % ', '.join(missing_settings))
+        if settings.get('LOOM_SETTINGS_VALIDATOR'):
+            settings_validators.validate(
+                settings, settings.get('LOOM_SETTINGS_VALIDATOR'))
 
     def _get_start_settings_from_args(self):
         settings = {}
@@ -419,17 +424,18 @@ class ServerControls:
         # remove "LOOM_" prefix from the setting name.
         # In the settings file or command line args, either form is ok.
         # In environment variables, only "LOOM_*" will be detected.
-        settings = self._strip_loom_prefix(settings, 'ANSIBLE_HOST_KEY_CHECKING')
+        settings = self._copy_setting_without_loom_prefix(
+            settings, 'ANSIBLE_HOST_KEY_CHECKING')
 
         return settings
 
-    def _strip_loom_prefix(self, settings, real_setting_name):
+    def _copy_setting_without_loom_prefix(self, settings, real_setting_name):
         loom_setting_name = 'LOOM_'+real_setting_name
         if settings.get(loom_setting_name) and not \
            settings.get(real_setting_name):
-            settings[real_setting_name] = settings.pop(loom_setting_name)
+            settings[real_setting_name] = settings.get(loom_setting_name)
         elif settings.get(loom_setting_name) == settings.get(real_setting_name):
-            settings.pop(loom_setting_name)
+            pass
         else:
             raise Exception("Conflicting settings %s=%s, %s=%s" % (
                 real_setting_name,
@@ -439,7 +445,7 @@ class ServerControls:
         return settings
 
     def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):
-        """If 'filepath' is found in stock settings, we return the
+        """If 'filepath' is found in stock_dir, we return the
         full path to that stock file. Otherwise, we interpret filepath relative
         to the current working directory.
         """
