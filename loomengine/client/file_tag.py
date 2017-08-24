@@ -182,22 +182,22 @@ class FileTag(object):
         add_subparser = subparsers.add_parser(
             'add', help='add a file tag')
         FileTagAdd.get_parser(add_subparser)
-        add_subparser.set_defaults(SubSubcommandClass=FileTagAdd)
+        add_subparser.set_defaults(SubSubSubcommandClass=FileTagAdd)
 
         remove_subparser = subparsers.add_parser(
             'remove', help='remove a file tag')
         FileTagRemove.get_parser(remove_subparser)
-        remove_subparser.set_defaults(SubSubcommandClass=FileTagRemove)
+        remove_subparser.set_defaults(SubSubSubcommandClass=FileTagRemove)
 
         list_subparser = subparsers.add_parser(
             'list', help='list file tags')
         FileTagList.get_parser(list_subparser)
-        list_subparser.set_defaults(SubSubcommandClass=FileTagList)
+        list_subparser.set_defaults(SubSubSubcommandClass=FileTagList)
 
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        self.args.SubSubSubcommandClass(self.args).run()
 
 
 if __name__=='__main__':

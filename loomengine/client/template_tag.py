@@ -182,22 +182,22 @@ class TemplateTag(object):
         add_subparser = subparsers.add_parser(
             'add', help='add a template tag')
         TemplateTagAdd.get_parser(add_subparser)
-        add_subparser.set_defaults(SubSubcommandClass=TemplateTagAdd)
+        add_subparser.set_defaults(SubSubSubcommandClass=TemplateTagAdd)
 
         remove_subparser = subparsers.add_parser(
             'remove', help='remove a template tag')
         TemplateTagRemove.get_parser(remove_subparser)
-        remove_subparser.set_defaults(SubSubcommandClass=TemplateTagRemove)
+        remove_subparser.set_defaults(SubSubSubcommandClass=TemplateTagRemove)
 
         list_subparser = subparsers.add_parser(
             'list', help='list template tags')
         TemplateTagList.get_parser(list_subparser)
-        list_subparser.set_defaults(SubSubcommandClass=TemplateTagList)
+        list_subparser.set_defaults(SubSubSubcommandClass=TemplateTagList)
 
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        self.args.SubSubSubcommandClass(self.args).run()
 
 
 if __name__=='__main__':

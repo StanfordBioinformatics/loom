@@ -182,22 +182,22 @@ class RunTag(object):
         add_subparser = subparsers.add_parser(
             'add', help='add a run tag')
         RunTagAdd.get_parser(add_subparser)
-        add_subparser.set_defaults(SubSubcommandClass=RunTagAdd)
+        add_subparser.set_defaults(SubSubSubcommandClass=RunTagAdd)
 
         remove_subparser = subparsers.add_parser(
             'remove', help='remove a run tag')
         RunTagRemove.get_parser(remove_subparser)
-        remove_subparser.set_defaults(SubSubcommandClass=RunTagRemove)
+        remove_subparser.set_defaults(SubSubSubcommandClass=RunTagRemove)
 
         list_subparser = subparsers.add_parser(
             'list', help='list run tags')
         RunTagList.get_parser(list_subparser)
-        list_subparser.set_defaults(SubSubcommandClass=RunTagList)
+        list_subparser.set_defaults(SubSubSubcommandClass=RunTagList)
 
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        self.args.SubSubSubcommandClass(self.args).run()
 
 
 if __name__=='__main__':
