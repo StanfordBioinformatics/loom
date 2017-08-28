@@ -14,12 +14,12 @@ LOOM_MASTER_GUNICORN_WORKERS_COUNT=${LOOM_MASTER_GUNICORN_WORKERS_COUNT:-$DEFAUL
 BIN_PATH="`dirname \"$0\"`"
 
 # Wait for database to become available
-RETRIES=30
+RETRIES=10
 n=0
 while :
 do
     # break if db connection is successful
-    $BIN_PATH/../loomengine/master/manage.py inspectdb > /dev/null 2>%1 && break
+    $BIN_PATH/../loomengine/master/manage.py inspectdb > /dev/null 2>&1 && break
 
     # exit if retries exceeded
     if [ $n -ge $RETRIES ]
@@ -27,9 +27,9 @@ do
 	>&2 echo "Timeout while waiting for database"
 	exit 1;
     fi
-
-    sleep 1
+    sleep 5
     n=$[$n+1]
+    echo "Could not reach database. Retry $n/$RETRIES."
 done
 
 $BIN_PATH/../loomengine/master/manage.py migrate

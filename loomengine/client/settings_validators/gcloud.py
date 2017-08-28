@@ -10,6 +10,7 @@ class GcloudSettingsValidator(BaseSettingsValidator):
         'LOOM_GCE_PEM_FILE',
         'LOOM_GCE_EMAIL',
         'LOOM_GCE_PROJECT',
+        'LOOM_SSH_PRIVATE_KEY_NAME',
         'LOOM_GCLOUD_SERVER_BOOT_DISK_TYPE',
         'LOOM_GCLOUD_SERVER_BOOT_DISK_SIZE_GB',
         'LOOM_GCLOUD_SERVER_INSTANCE_IMAGE',

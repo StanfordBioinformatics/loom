@@ -13,7 +13,7 @@ import urlparse
 
 from loomengine.client.common import *
 from loomengine.client import settings_validators
-
+import loomengine.utils.version
 
 STOCK_SETTINGS_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'client', 'settings'))
@@ -97,8 +97,26 @@ class ServerControls:
 
     @loom_settings_transaction
     def start(self):
-        settings = self._get_admin_settings()
-        # Hard-coded settings that don't come from the user:
+        # Default settings that may be overridden by the user
+        settings = {
+            'LOOM_SERVER_NAME': 'loom-server',
+            'LOOM_LOG_LEVEL': 'INFO',
+            'LOOM_DOCKER_IMAGE':
+            'loomengine/loom:%s' % loomengine.utils.version.version(),
+            'LOOM_START_SERVER_PLAYBOOK': 'local_start_server.yml',
+            'LOOM_STOP_SERVER_PLAYBOOK': 'local_stop_server.yml',
+            'LOOM_DELETE_SERVER_PLAYBOOK': 'local_delete_server.yml',
+            'LOOM_RUN_TASK_PLAYBOOK': 'local_run_task_attempt.yml',
+            'LOOM_CLEANUP_TASK_PLAYBOOK': 'local_cleanup_task.yml',
+            'LOOM_STORAGE_TYPE': 'local',
+            'LOOM_WORKER_TYPE': 'LOCAL',
+            'LOOM_ANSIBLE_INVENTORY': 'localhost,',
+        }
+
+        # Get settings from user or from running server
+        settings.update(self._get_admin_settings())
+
+        # Hard-coded settings that should not come from the user:
         settings.update({
             'LOOM_PLAYBOOK_DIR': LOOM_PLAYBOOK_DIR,
             'LOOM_INVENTORY_DIR': LOOM_INVENTORY_DIR,
@@ -108,14 +126,18 @@ class ServerControls:
             'LOOM_ADMIN_SETTINGS_FILE': LOOM_ADMIN_SETTINGS_FILE,
         })
 
-        if self._user_provided_settings():
-            self._make_dir_if_missing(LOOM_SETTINGS_HOME)
-            self._copy_playbooks_to_settings_dir()
-            self._copy_inventory_to_settings_dir()
+        settings.update({
+            'LOOM_STORAGE_ROOT': self._get_default_storage_root(settings)
+        })
 
-            # These may be later updated by start playbook:
-            self._save_admin_settings_file(settings)
-            self._copy_admin_files_to_settings_dir()
+        #if self._user_provided_settings():
+        self._make_dir_if_missing(LOOM_SETTINGS_HOME)
+        self._copy_playbooks_to_settings_dir()
+        self._copy_inventory_to_settings_dir()
+
+        # These may be later updated by start playbook:
+        self._save_admin_settings_file(settings)
+        self._copy_admin_files_to_settings_dir()
 
         print 'Starting a Loom server named "%s".' % self._get_required_setting(
             'LOOM_SERVER_NAME', settings)
@@ -128,6 +150,12 @@ class ServerControls:
                              'active resources such as running docker containers or '\
                              ' VMs that were created by the playbook and not '\
                              'cleaned up.')
+
+    def _get_default_storage_root(self, settings):
+        if settings.get('LOOM_STORAGE_TYPE').upper() == 'LOCAL':
+            return os.path.expanduser('~/loomdata')
+        else:
+            return 'loomdata'
 
     @loom_settings_transaction
     def stop(self):
@@ -366,36 +394,19 @@ class ServerControls:
                     'the settings needed to manage the server. If you want to '\
                     'start a new server, first disconnect using "loom disconnect".')
         else:
-            if self._user_provided_settings():
-                settings = self._get_start_settings_from_args()
-            else:
-                raise SystemExit('ERROR! No settings provided. '\
-                                 'Use "--settings-file" to provide your own '\
-                                 'custom settings or one of the stock settings '\
-                                 'files in "%s": [%s].'
-                                 % (STOCK_SETTINGS_DIR,
-                                    ', '.join(os.listdir(STOCK_SETTINGS_DIR))))
+            #if self._user_provided_settings():
+            settings = self._get_start_settings_from_args()
+            #else:
+            #    raise SystemExit('ERROR! No settings provided. '\
+            #                     'Use "--settings-file" to provide your own '\
+            #                     'custom settings or one of the stock settings '\
+            #                     'files in "%s": [%s].'
+            #                     % (STOCK_SETTINGS_DIR,
+            #                        ', '.join(os.listdir(STOCK_SETTINGS_DIR))))
         self._validate_settings(settings)
         return settings
 
     def _validate_settings(self, settings):
-
-        # These are always required, independent of what playbooks are used.
-        # Additional settings are typically required by the playbooks, but LOOM
-        # is blind to those settings.
-        REQUIRED_SETTINGS = ['LOOM_SERVER_NAME',
-                             'LOOM_START_SERVER_PLAYBOOK',
-                             'LOOM_STOP_SERVER_PLAYBOOK',
-                             'LOOM_DELETE_SERVER_PLAYBOOK',
-                             'LOOM_RUN_TASK_PLAYBOOK',
-                             'LOOM_ANSIBLE_INVENTORY',
-                             'LOOM_SETTINGS_VALIDATOR',
-        ]
-        current_settings = set(settings.keys())
-        missing_settings = set(REQUIRED_SETTINGS).difference(current_settings)
-        if len(missing_settings) != 0:
-            raise SystemExit('ERROR! Missing required settings [%s].'
-                             % ', '.join(missing_settings))
         if settings.get('LOOM_SETTINGS_VALIDATOR'):
             settings_validators.validate(
                 settings, settings.get('LOOM_SETTINGS_VALIDATOR'))

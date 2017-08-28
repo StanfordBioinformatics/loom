@@ -14,28 +14,38 @@ class BaseSettingsValidator(object):
     OPTIONAL_SETTINGS = ()
 
     COMMON_REQUIRED_SETTINGS = (
-        'LOOM_SETTINGS_VALIDATOR',
-        'LOOM_SERVER_NAME',
-        'LOOM_LOG_LEVEL',
+        'LOOM_DOCKER_IMAGE',
         'LOOM_START_SERVER_PLAYBOOK',
         'LOOM_STOP_SERVER_PLAYBOOK',
         'LOOM_DELETE_SERVER_PLAYBOOK',
         'LOOM_RUN_TASK_PLAYBOOK',
         'LOOM_CLEANUP_TASK_PLAYBOOK',
         'LOOM_STORAGE_TYPE',
-        'LOOM_STORAGE_ROOT',
+        'LOOM_WORKER_TYPE',
         'LOOM_ANSIBLE_INVENTORY',
+    )
+
+    COMMON_OPTIONAL_SETTINGS = (
+        'LOOM_SERVER_NAME',
+        'LOOM_SETTINGS_VALIDATOR',
+        'LOOM_DEBUG',
+        'LOOM_LOG_LEVEL',
         'LOOM_ANSIBLE_HOST_KEY_CHECKING',
-        'ANSIBLE_HOST_KEY_CHECKING',
-        'LOOM_DOCKER_IMAGE',
+        'ANSIBLE_HOST_KEY_CHECKING', # copy of LOOM_ANSIBLE_HOST_KEY_CHECKING
         'LOOM_DEFAULT_DOCKER_REGISTRY',
+        'LOOM_STORAGE_ROOT',
         'LOOM_HTTP_PORT',
         'LOOM_HTTPS_PORT',
         'LOOM_HTTP_PORT_ENABLED',
         'LOOM_HTTPS_PORT_ENABLED',
         'LOOM_HTTP_REDIRECT_TO_HTTPS',
-        'LOOM_SSH_PRIVATE_KEY_NAME',
         'LOOM_SSL_CERT_CREATE_NEW',
+        'LOOM_SSL_CERT_C',
+        'LOOM_SSL_CERT_ST',
+        'LOOM_SSL_CERT_L',
+        'LOOM_SSL_CERT_O',
+        'LOOM_SSL_CERT_KEY_FILE',
+        'LOOM_SSL_CERT_FILE',
         'LOOM_MASTER_CONTAINER_NAME_SUFFIX',
         'LOOM_MASTER_INTERNAL_IP',
         'LOOM_MASTER_INTERNAL_PORT',
@@ -81,19 +91,8 @@ class BaseSettingsValidator(object):
         'LOOM_PRESERVE_ON_FAILURE',
         'LOOM_PRESERVE_ALL',
         'LOOM_MAXIMUM_TASK_RETRIES',
-        'LOOM_WORKER_TYPE',
         'LOOM_FLOWER_INTERNAL_PORT',
         'LOOM_FLOWER_CONTAINER_NAME_SUFFIX',
-    )
-
-    COMMON_OPTIONAL_SETTINGS = (
-        'LOOM_DEBUG',
-        'LOOM_SSL_CERT_C',
-        'LOOM_SSL_CERT_ST',
-        'LOOM_SSL_CERT_L',
-        'LOOM_SSL_CERT_O',
-        'LOOM_SSL_CERT_KEY_FILE',
-        'LOOM_SSL_CERT_FILE',
         'LOOM_MYSQL_IMAGE',
         'LOOM_MYSQL_CONTAINER_NAME_SUFFIX',
         'LOOM_MYSQL_RANDOM_ROOT_PASSWORD',
@@ -134,6 +133,7 @@ class BaseSettingsValidator(object):
 
         self._validate_ssl_cert_settings()
         self._validate_mysql_settings()
+        self._validate_ports()
         self._validate_server_name()
 
     def raise_if_errors(self):
@@ -152,6 +152,20 @@ class BaseSettingsValidator(object):
             ]:
                 if not setting in self.settings.keys():
                     self.errors.append('Missing setting "%s"' % setting)
+
+    def _validate_ports(self):
+        if self.to_bool(self.settings.get('LOOM_HTTP_PORT_ENABLED')):
+            if not 'LOOM_HTTP_PORT' in self.settings.keys():
+                self.errors.append(
+                    'Missing setting LOOM_HTTP_PORT is required when '\
+                    'LOOM_HTTP_PORT_ENABLED is True'
+                    % setting)
+        if self.to_bool(self.settings.get('LOOM_HTTPS_PORT_ENABLED')):
+            if not 'LOOM_HTTPS_PORT' in self.settings.keys():
+                self.errors.append(
+                    'Missing setting LOOM_HTTPS_PORT is required when '\
+                    'LOOM_HTTPS_PORT_ENABLED is True'
+                    % setting)
 
     def _validate_mysql_settings(self):
         if self.to_bool(self.settings.get('LOOM_MYSQL_CREATE_DOCKER_CONTAINER')):
@@ -179,7 +193,7 @@ class BaseSettingsValidator(object):
                 % server_name)
 
     def to_bool(self, value):
-        if value.upper() in ['TRUE', 'T', 'YES', 'Y']:
+        if value and value.upper() in ['TRUE', 'T', 'YES', 'Y']:
             return True
         else:
             return False
