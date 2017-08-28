@@ -291,9 +291,9 @@ class Run(MPTTModel, BaseModel):
         notification_addresses = []
         if self.notification_addresses:
             notification_addresses = self.notification_addresses
-        if get_setting('LOOM_NOTIFICATION_ADDRESSES'):
+        if get_setting('NOTIFICATION_ADDRESSES'):
             notification_addresses = notification_addresses\
-                                     + get_setting('LOOM_NOTIFICATION_ADDRESSES')
+                                     + get_setting('NOTIFICATION_ADDRESSES')
         email_addresses = filter(lambda x: '@' in x, notification_addresses)
         urls = filter(lambda x: '@' not in x, notification_addresses)
         self._send_email_notifications(email_addresses, context)
@@ -334,7 +334,10 @@ class Run(MPTTModel, BaseModel):
             'server_url': context['server_url'],
         }
         for url in urls:
-            requests.post(url, data = data)
+            requests.post(
+                url,
+                data = data,
+                verify=get_setting('NOTIFICATION_HTTPS_VERIFY_CERTIFICATE'))
 
     @classmethod
     def get_notification_context(cls, request):
