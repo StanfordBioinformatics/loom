@@ -16,9 +16,9 @@ def to_boolean(value):
         return False
     if value == True:
         return True
-    if str(value).upper() == 'FALSE':
+    if str(value).lower() == 'false':
         return False
-    if str(value).upper() == 'TRUE':
+    if str(value).lower() == 'true':
         return True
     raise Exception("Invalid value %s. Expected True or False")
 
@@ -66,18 +66,17 @@ ALLOWED_HOSTS = to_list(os.getenv('LOOM_MASTER_ALLOWED_HOSTS', '[*]'))
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
-LOOM_STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'LOCAL').upper()
+STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'local').lower()
 
 STATIC_ROOT = os.getenv('LOOM_MASTER_STATIC_ROOT', '/tmp/static')
 
 SERVER_NAME = os.getenv('LOOM_SERVER_NAME', 'loom') # used in attempt container names
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 MASTER_URL_FOR_SERVER = os.getenv('MASTER_URL_FOR_SERVER', 'http://127.0.0.1:8000')
-LOOM_STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-data'))
+STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-data'))
 FILE_ROOT_FOR_WORKER = os.path.expanduser(
-    os.getenv('FILE_ROOT_FOR_WORKER', LOOM_STORAGE_ROOT))
+    os.getenv('FILE_ROOT_FOR_WORKER', STORAGE_ROOT))
 
-LOOM_SETTINGS_PATH = os.path.expanduser(os.getenv('LOOM_SETTINGS_PATH','~/.loom/'))
 TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60')
 TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', '300')
 PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'False'))
@@ -105,26 +104,21 @@ WORKER_TAGS = os.getenv('WORKER_TAGS')
 WORKER_USES_SERVER_INTERNAL_IP = os.getenv('WORKER_USES_SERVER_INTERNAL_IP')
 WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
 
-def _get_run_task_playbook_path():
-    if not os.getenv('LOOM_RUN_TASK_PLAYBOOK'):
-        return None
-    return os.path.join(PLAYBOOKS_PATH,
-                        os.getenv('LOOM_RUN_TASK_PLAYBOOK'))
-
-LOOM_SETTINGS_HOME = os.getenv('LOOM_SETTINGS_HOME', os.path.expanduser('~/.loom'))
-PLAYBOOK_PATH = os.path.join(LOOM_SETTINGS_HOME, os.getenv('LOOM_PLAYBOOK_DIR', 'playbooks'))
-LOOM_RUN_TASK_PLAYBOOK = os.getenv('LOOM_RUN_TASK_PLAYBOOK')
-LOOM_CLEANUP_TASK_PLAYBOOK = os.getenv('LOOM_CLEANUP_TASK_PLAYBOOK')
+SETTINGS_HOME = os.getenv('LOOM_SETTINGS_HOME', os.path.expanduser('~/.loom'))
+PLAYBOOK_PATH = os.path.join(SETTINGS_HOME, os.getenv('LOOM_PLAYBOOK_DIR', 'playbooks'))
+RUN_TASK_ATTEMPT_PLAYBOOK = os.getenv('LOOM_RUN_TASK_ATTEMPT_PLAYBOOK')
+CLEANUP_TASK_ATTEMPT_PLAYBOOK = os.getenv('LOOM_CLEANUP_TASK_ATTEMPT_PLAYBOOK')
 
 # Database settings
-LOOM_MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
-LOOM_MYSQL_USER = os.getenv('LOOM_MYSQL_USER', 'loom')
-LOOM_MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD', 'loompass')
-LOOM_MYSQL_DATABASE = os.getenv('LOOM_MYSQL_DATABASE', 'loomdb')
-LOOM_MYSQL_PORT = int(os.getenv('LOOM_MYSQL_PORT', 3306))
-LOOM_MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
-LOOM_MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
-LOOM_MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
+# Any defaults must match defaults in playbook
+MYSQL_HOST = os.getenv('LOOM_MYSQL_HOST')
+MYSQL_USER = os.getenv('LOOM_MYSQL_USER', 'loom')
+MYSQL_PASSWORD = os.getenv('LOOM_MYSQL_PASSWORD', 'loompass')
+MYSQL_DATABASE = os.getenv('LOOM_MYSQL_DATABASE', 'loomdb')
+MYSQL_PORT = int(os.getenv('LOOM_MYSQL_PORT', 3306))
+MYSQL_SSL_CA_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CA_CERT_PATH')
+MYSQL_SSL_CLIENT_CERT_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_CERT_PATH')
+MYSQL_SSL_CLIENT_KEY_PATH = os.getenv('LOOM_MYSQL_SSL_CLIENT_KEY_PATH')
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -138,7 +132,7 @@ EMAIL_TIMEOUT = to_float(os.getenv('LOOM_EMAIL_TIMEOUT', 0.0))
 EMAIL_SSL_KEYFILE = os.getenv('LOOM_EMAIL_SSL_KEYFILE', None)
 EMAIL_SSL_CERTFILE = os.getenv('LOOM_EMAIL_SSL_CERTFILE', None)
 DEFAULT_FROM_EMAIL = os.getenv('LOOM_DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-LOOM_NOTIFICATION_ADDRESSES = to_list(os.getenv('LOOM_NOTIFICATION_ADDRESSES', '[]'))
+NOTIFICATION_ADDRESSES = to_list(os.getenv('LOOM_NOTIFICATION_ADDRESSES', '[]'))
 
 # Message broker settings
 LOOM_RABBITMQ_PASSWORD = os.getenv('LOOM_RABBITMQ_PASSWORD', 'guest')
@@ -151,8 +145,7 @@ def _get_ansible_inventory():
     ansible_inventory = os.getenv('LOOM_ANSIBLE_INVENTORY', 'localhost,')
     if ',' not in ansible_inventory:
 	ansible_inventory = os.path.join(
-            os.getenv('LOOM_SETTINGS_HOME'),
-            os.getenv('LOOM_INVENTORY_DIR'),
+            PLAYBOOK_PATH,
             os.getenv('LOOM_ANSIBLE_INVENTORY'))
     return ansible_inventory
 
@@ -253,55 +246,55 @@ def _get_sqlite_databases():
     }
 
 def _get_mysql_databases():
-    if not LOOM_MYSQL_USER:
+    if not MYSQL_USER:
         raise Exception(
             "LOOM_MYSQL_USER is a required setting if LOOM_MYSQL_HOST is set")
-    if not LOOM_MYSQL_DATABASE:
+    if not MYSQL_DATABASE:
         raise Exception(
             "LOOM_MYSQL_DATABASE is a required setting if LOOM_MYSQL_HOST is set")
 
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'HOST': LOOM_MYSQL_HOST,
-            'NAME': LOOM_MYSQL_DATABASE,
-            'USER': LOOM_MYSQL_USER,
-            'PORT': LOOM_MYSQL_PORT,
+            'HOST': MYSQL_HOST,
+            'NAME': MYSQL_DATABASE,
+            'USER': MYSQL_USER,
+            'PORT': MYSQL_PORT,
         }
     }
 
-    if LOOM_MYSQL_PASSWORD:
+    if MYSQL_PASSWORD:
         DATABASES['default'].update({
-            'PASSWORD': LOOM_MYSQL_PASSWORD
+            'PASSWORD': MYSQL_PASSWORD
         })
-    if LOOM_MYSQL_SSL_CA_CERT_PATH \
-       or LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
-       or LOOM_MYSQL_SSL_CLIENT_KEY_PATH:
-        if not (LOOM_MYSQL_SSL_CA_CERT_PATH \
-                and LOOM_MYSQL_SSL_CLIENT_CERT_PATH \
-                and LOOM_MYSQL_SSL_CLIENT_KEY_PATH):
+    if MYSQL_SSL_CA_CERT_PATH \
+       or MYSQL_SSL_CLIENT_CERT_PATH \
+       or MYSQL_SSL_CLIENT_KEY_PATH:
+        if not (MYSQL_SSL_CA_CERT_PATH \
+                and MYSQL_SSL_CLIENT_CERT_PATH \
+                and MYSQL_SSL_CLIENT_KEY_PATH):
             raise Exception(
                 'One or more required values missing: '\
                 'LOOM_MYSQL_SSL_CA_CERT_PATH="%s", '\
                 'LOOM_MYSQL_SSL_CLIENT_CERT_PATH="%s", '\
                 'LOOM_MYSQL_SSL_CLIENT_KEY_PATH="%s"' % (
-                    LOOM_MYSQL_SSL_CA_CERT_PATH,
-                    LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
-                    LOOM_MYSQL_SSL_CLIENT_KEY_PATH))
+                    MYSQL_SSL_CA_CERT_PATH,
+                    MYSQL_SSL_CLIENT_CERT_PATH,
+                    MYSQL_SSL_CLIENT_KEY_PATH))
         else:
             DATABASES['default'].update({
                 'OPTIONS': {
                     'ssl': {
-                        'ca': LOOM_MYSQL_SSL_CA_CERT_PATH,
-                        'cert': LOOM_MYSQL_SSL_CLIENT_CERT_PATH,
-                        'key': LOOM_MYSQL_SSL_CLIENT_KEY_PATH
+                        'ca': MYSQL_SSL_CA_CERT_PATH,
+                        'cert': MYSQL_SSL_CLIENT_CERT_PATH,
+                        'key': MYSQL_SSL_CLIENT_KEY_PATH
                     }
                 }
             })
     return DATABASES
 
 # Database
-if LOOM_MYSQL_HOST:
+if MYSQL_HOST:
     DATABASES = _get_mysql_databases()
 else:
     DATABASES = _get_sqlite_databases()

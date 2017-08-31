@@ -1,35 +1,38 @@
+import os
 import re
 import warnings
 
-from . import SettingsValidationError
 
-class BaseSettingsValidator(object):
+class SettingsValidationError(Exception):
+    pass
+
+
+class SettingsValidator(object):
     """Base class for settings validators
     """
 
     errors = []
 
-    # To override
-    REQUIRED_SETTINGS = ()
-    OPTIONAL_SETTINGS = ()
-
-    COMMON_REQUIRED_SETTINGS = (
+    KNOWN_SETTINGS = (
+        'LOOM_PLAYBOOK_DIR',
+        'LOOM_CONNECTION_FILES_DIR',
+        'LOOM_RESOURCE_DIR',
+        'LOOM_CONNECTION_SETTINGS_FILE',
+        'LOOM_INVENTORY_DIR',
+        'LOOM_SERVER_SETTINGS_FILE',
         'LOOM_DOCKER_IMAGE',
         'LOOM_START_SERVER_PLAYBOOK',
         'LOOM_STOP_SERVER_PLAYBOOK',
         'LOOM_DELETE_SERVER_PLAYBOOK',
-        'LOOM_RUN_TASK_PLAYBOOK',
-        'LOOM_CLEANUP_TASK_PLAYBOOK',
+        'LOOM_RUN_TASK_ATTEMPT_PLAYBOOK',
+        'LOOM_CLEANUP_TASK_ATTEMPT_PLAYBOOK',
         'LOOM_STORAGE_TYPE',
-        'LOOM_WORKER_TYPE',
         'LOOM_ANSIBLE_INVENTORY',
-    )
-
-    COMMON_OPTIONAL_SETTINGS = (
         'LOOM_SERVER_NAME',
         'LOOM_SETTINGS_VALIDATOR',
         'LOOM_DEBUG',
         'LOOM_LOG_LEVEL',
+        'LOOM_MODE',
         'LOOM_ANSIBLE_HOST_KEY_CHECKING',
         'ANSIBLE_HOST_KEY_CHECKING', # copy of LOOM_ANSIBLE_HOST_KEY_CHECKING
         'LOOM_DEFAULT_DOCKER_REGISTRY',
@@ -60,6 +63,7 @@ class BaseSettingsValidator(object):
         'LOOM_MYSQL_HOST',
         'LOOM_MYSQL_PORT',
         'LOOM_MYSQL_USER',
+        'LOOM_MYSQL_DATA_VOLUME',
         'LOOM_MYSQL_DATABASE',
         'LOOM_SCHEDULER_CONTAINER_NAME_SUFFIX',
         'LOOM_RABBITMQ_CONTAINER_NAME_SUFFIX',
@@ -68,6 +72,7 @@ class BaseSettingsValidator(object):
         'LOOM_RABBITMQ_PASSWORD',
         'LOOM_RABBITMQ_PORT',
         'LOOM_RABBITMQ_VHOST',
+        'LOOM_RABBITMQ_DATA_VOLUME',
         'LOOM_NGINX_CONTAINER_NAME_SUFFIX',
         'LOOM_NGINX_IMAGE',
         'LOOM_NGINX_SERVER_NAME',
@@ -85,6 +90,8 @@ class BaseSettingsValidator(object):
         'LOOM_KIBANA_IMAGE',
         'LOOM_KIBANA_PORT',
         'LOOM_KIBANA_VERSION',
+        'LOOM_WEBPORTAL_DATA_VOLUME',
+        'LOOM_STATIC_DATA_VOLUME',
         'LOOM_TASKRUNNER_CONTAINER_NAME_SUFFIX',
         'LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS',
         'LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS',
@@ -113,28 +120,54 @@ class BaseSettingsValidator(object):
         'LOOM_DEFAULT_FROM_EMAIL',
         'LOOM_NOTIFICATION_ADDRESSES',
         'LOOM_GOOGLE_STORAGE_BUCKET',
+        # gcloud settings
+        'LOOM_GCE_PEM_FILE',
+        'LOOM_GCE_PROJECT',
+        'LOOM_GCE_EMAIL',
+        'LOOM_SSH_PRIVATE_KEY_NAME',
+        'LOOM_GCLOUD_SERVER_BOOT_DISK_TYPE',
+        'LOOM_GCLOUD_SERVER_BOOT_DISK_SIZE_GB',
+        'LOOM_GCLOUD_SERVER_INSTANCE_IMAGE',
+        'LOOM_GCLOUD_SERVER_INSTANCE_TYPE',
+        'LOOM_GCLOUD_SERVER_NETWORK',
+        'LOOM_GCLOUD_SERVER_SUBNETWORK',
+        'LOOM_GCLOUD_SERVER_ZONE',
+        'LOOM_GCLOUD_SERVER_SKIP_INSTALLS',
+        'LOOM_GCLOUD_SERVER_EXTERNAL_IP',
+        'LOOM_GCLOUD_WORKER_BOOT_DISK_TYPE',
+        'LOOM_GCLOUD_WORKER_BOOT_DISK_SIZE_GB',
+        'LOOM_GCLOUD_WORKER_SCRATCH_DISK_TYPE',
+        'LOOM_GCLOUD_WORKER_SCRATCH_DISK_MIN_SIZE_GB',
+        'LOOM_GCLOUD_WORKER_INSTANCE_IMAGE',
+        'LOOM_GCLOUD_WORKER_INSTANCE_TYPE',
+        'LOOM_GCLOUD_WORKER_NETWORK',
+        'LOOM_GCLOUD_WORKER_SUBNETWORK',
+        'LOOM_GCLOUD_WORKER_ZONE',
+        'LOOM_GCLOUD_WORKER_SKIP_INSTALLS',
+        'LOOM_GCLOUD_WORKER_EXTERNAL_IP',
+        'LOOM_GCLOUD_WORKER_CONNECTION_SETTINGS_FILE',
+        'LOOM_GCLOUD_WORKER_USES_SERVER_INTERNAL_IP',
+        'LOOM_GCLOUD_CLIENT_USES_SERVER_INTERNAL_IP',
+        'LOOM_GCLOUD_SERVER_USES_WORKER_INTERNAL_IP',
+        'LOOM_GCLOUD_SERVER_TAGS',
+        'LOOM_GCLOUD_WORKER_TAGS',
     )
 
     def __init__(self, settings):
         self.settings = settings
-        self.ALL_SETTINGS = self.REQUIRED_SETTINGS \
-                            + self.OPTIONAL_SETTINGS \
-                            + self.COMMON_REQUIRED_SETTINGS \
-                            + self.COMMON_OPTIONAL_SETTINGS
 
-    def validate_common(self):
-        for required_setting in self.REQUIRED_SETTINGS+self.COMMON_REQUIRED_SETTINGS:
-            if not required_setting in self.settings.keys():
-                self.errors.append('Missing required setting "%s"' % required_setting)
-
+    def validate(self):
         for setting in self.settings:
-            if not setting in self.ALL_SETTINGS:
+            if not setting in self.KNOWN_SETTINGS:
                 warnings.warn('Unrecognized setting "%s" will be ignored' % setting)
 
         self._validate_ssl_cert_settings()
         self._validate_mysql_settings()
         self._validate_ports()
         self._validate_server_name()
+        self._validate_storage_root()
+        self._validate_gcloud_settings()
+        self.raise_if_errors()
 
     def raise_if_errors(self):
         if self.errors:
@@ -192,8 +225,33 @@ class BaseSettingsValidator(object):
                 'Invalid LOOM_SERVER_NAME "%s". Cannot exceed 63 letters.'
                 % server_name)
 
+    def _validate_storage_root(self):
+        LOOM_STORAGE_ROOT = self.settings.get('LOOM_STORAGE_ROOT')
+        if LOOM_STORAGE_ROOT and not os.path.isabs(LOOM_STORAGE_ROOT):
+            self.errors.append(
+                'Invalid value "%s" for setting LOOM_STORAGE_ROOT. '\
+                'Value must be an absolute path.' % LOOM_STORAGE_ROOT)
+
+    def _validate_gcloud_settings(self):
+        if not self.settings.get('LOOM_MODE') == 'gcloud':
+            return
+        for required_setting in [
+                'LOOM_GCE_PEM_FILE',
+                'LOOM_GCE_EMAIL',
+                'LOOM_GCE_PROJECT',
+                'LOOM_GOOGLE_STORAGE_BUCKET',
+        ]:
+            if not required_setting in self.settings.keys():
+                self.errors.append(
+                    'Missing setting "%s" is required when '\
+                    'LOOM_MODE="gcloud"' % required_setting)
+            if self.settings.get('LOOM_STORAGE_TYPE').lower() == 'local':
+                raise Exception(
+                    'Setting LOOM_STORAGE_TYPE=local not allowed '\
+                    'when LOOM_MODE==gcloud.')
+
     def to_bool(self, value):
-        if value and value.upper() in ['TRUE', 'T', 'YES', 'Y']:
+        if value and value.lower() in ['true', 't', 'yes', 'y']:
             return True
         else:
             return False

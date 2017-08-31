@@ -102,7 +102,7 @@ def _run_execute_task_attempt_playbook(task_attempt, context):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
-        get_setting('LOOM_RUN_TASK_PLAYBOOK'))
+        get_setting('RUN_TASK_ATTEMPT_PLAYBOOK'))
     cmd_list = ['ansible-playbook',
                 '-i', get_setting('ANSIBLE_INVENTORY'),
                 playbook,
@@ -174,7 +174,7 @@ def _run_cleanup_task_playbook(task_attempt):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
-        get_setting('LOOM_CLEANUP_TASK_PLAYBOOK'))
+        get_setting('CLEANUP_TASK_ATTEMPT_PLAYBOOK'))
     cmd_list = ['ansible-playbook',
                 '-i', get_setting('ANSIBLE_INVENTORY'),
                 playbook,

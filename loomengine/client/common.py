@@ -22,7 +22,7 @@ from loomengine.utils.exceptions import ServerConnectionError
 LOOM_SETTINGS_SUBDIR = '.loom'
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/'+LOOM_SETTINGS_SUBDIR))
 LOOM_CONNECTION_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'connection-files')
-LOOM_CONNECTION_SETTINGS_FILE = 'connection-settings.conf'
+LOOM_CONNECTION_SETTINGS_FILE = 'client-connection-settings.conf'
 
 def parse_settings_file(settings_file):
     PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections

@@ -1,9 +1,9 @@
 # Required settings
 settings_home: "{{lookup('env', 'LOOM_SETTINGS_HOME')}}"
-admin_files_dir: "{{lookup('env', 'LOOM_ADMIN_FILES_DIR')}}"
+resource_dir: "{{lookup('env', 'LOOM_RESOURCE_DIR')}}"
 loom_playbook_dir: "{{lookup('env', 'LOOM_PLAYBOOK_DIR')}}"
 loom_inventory_dir: "{{lookup('env', 'LOOM_INVENTORY_DIR')}}"
-admin_settings_file: "{{lookup('env', 'LOOM_ADMIN_SETTINGS_FILE')}}"
+server_settings_file: "{{lookup('env', 'LOOM_SERVER_SETTINGS_FILE')}}"
 connection_settings_file: "{{lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE')}}"
 storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"
 storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
@@ -50,7 +50,7 @@ raw_elasticsearch_image: "{{lookup('env', 'LOOM_ELASTICSEARCH_IMAGE')|default('d
 elasticsearch_image: "{% if default_registry %}{% if not ('.' in raw_elasticsearch_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_elasticsearch_image}}"
 elasticsearch_container_name: "{{server_name}}-elasticsearch"
 elasticsearch_port: "{{lookup('env', 'LOOM_ELASTICSEARCH_PORT')|default(9200, true)|int}}"
-elasticsearch_data_volume: "{{lookup('env', 'LOOM_ELASTICSEARCH_DATA_VOLUME')|default('esdata', true)}}"
+elasticsearch_data_volume: "{{lookup('env', 'LOOM_ELASTICSEARCH_DATA_VOLUME')|default(server_name~'-eslogs', true)}}"
 elasticsearch_java_opts: "{{lookup('env', 'LOOM_ELASTICSEARCH_JAVA_OPTS')|default('-Xms512m -Xmx512m', true)}}"
 elasticsearch_url: "http://{{server_url|regex_replace('^.*://([^:]+)(?::.+)?$', '\\1')}}:{{elasticsearch_port}}"
 
@@ -67,6 +67,7 @@ mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAI
 raw_mysql_image: "{{lookup('env', 'LOOM_MYSQL_IMAGE')|default('mysql:5.7.17', true)}}"
 mysql_image: "{% if default_registry %}{% if not ('.' in raw_mysql_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_mysql_image}}"
 mysql_container_name: "{{server_name}}-mysql"
+mysql_data_volume: "{{lookup('env', 'LOOM_MYSQL_DATA_VOLUME')|default(server_name~'-mysqldata', true)}}"
 mysql_random_root_password: >
   "{{lookup('env', 'LOOM_MYSQL_RANDOM_ROOT_PASSWORD')|default(true, true)|bool}}"
 mysql_database: "{{lookup('env', 'LOOM_MYSQL_DATABASE')|default('loomdb', true)}}"
@@ -80,9 +81,9 @@ cert_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CA_CERT_FILE')}}"
 client_cert_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CLIENT_CERT_FILE')}}"
 client_key_file: "{{lookup('env', 'LOOM_MYSQL_SSL_CLIENT_KEY_FILE')}}"
 
-container_mysql_ssl_ca_cert_path: "{{container_settings_home+'/'+admin_files_dir+'/'+cert_file if cert_file else none}}"
-container_mysql_ssl_client_cert_path: "{{container_settings_home+'/'+admin_files_dir+'/'+client_cert_file if client_cert_file else none}}"
-container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+admin_files_dir+'/'+client_key_file if client_key_file else none}}"
+container_mysql_ssl_ca_cert_path: "{{container_settings_home+'/'+resource_dir+'/'+cert_file if cert_file else none}}"
+container_mysql_ssl_client_cert_path: "{{container_settings_home+'/'+resource_dir+'/'+client_cert_file if client_cert_file else none}}"
+container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+resource_dir+'/'+client_key_file if client_key_file else none}}"
 
 # Rabbitmq container settings
 raw_rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_MANAGEMENT_IMAGE')|default('rabbitmq:3.6.8', true) if debug else lookup('env', 'LOOM_RABBITMQ_IMAGE')|default('rabbitmq:3.6.8-management', true)}}"
@@ -93,6 +94,7 @@ rabbitmq_password: "{{lookup('env', 'LOOM_RABBITMQ_PASSWORD')|default('guest', t
 rabbitmq_port: "{{lookup('env', 'LOOM_RABBITMQ_PORT')|default(5672, true)|int}}"
 rabbitmq_vhost: "{{lookup('env', 'LOOM_RABBITMQ_VHOST')|default('/', true)}}"
 rabbitmq_host: "{{rabbitmq_container_name}}"
+rabbitmq_data_volume: "{{lookup('env', 'LOOM_RABBITMQ_DATA_VOLUME')|default(server_name~'-rabbitmqdata', true)}}"
 
 # Celery worker container settings
 worker_container_name: "{{server_name}}-worker"
@@ -115,6 +117,10 @@ nginx_webportal_root: "{{lookup('env', 'LOOM_NGINX_WEBPORTAL_ROOT')|default('/lo
 master_container_name: "{{server_name}}-master"
 master_internal_port: "{{lookup('env', 'LOOM_MASTER_INTERNAL_PORT')|default(8000,true)|int}}"
 master_static_root: "{{lookup('env', 'LOOM_MASTER_STATIC_ROOT')|default('/var/www/loom/static', true)}}"
+
+# Volume names
+webportal_data_volume: "{{lookup('env', 'LOOM_WEBPORTAL_DATA_VOLUME')|default(server_name~'-webportal', true)}}"
+webstatic_data_volume: "{{lookup('env', 'LOOM_STATIC_DATA_VOLUME')|default(server_name~'-webstatic', true)}}"
 
 # Loom task attempt container settings
 task_attempt_container_name: "{{server_name}}-monitor"

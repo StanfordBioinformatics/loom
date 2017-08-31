@@ -80,6 +80,9 @@ class Connection(object):
                     response.raise_for_status()
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError("No response from server.\n%s" % e.message)
+            except:
+                print response.text
+                raise
             if error:
                 time.sleep(retry_delay_seconds)
                 continue

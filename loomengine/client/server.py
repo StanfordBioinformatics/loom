@@ -12,22 +12,14 @@ import subprocess
 import urlparse
 
 from loomengine.client.common import *
-from loomengine.client import settings_validators
+from loomengine.client.settings_validator import validate
 import loomengine.utils.version
 
-STOCK_SETTINGS_DIR = os.path.join(
-    os.path.join(imp.find_module('loomengine')[1], 'client', 'settings'))
 STOCK_PLAYBOOK_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'client', 'playbooks'))
-STOCK_INVENTORY_DIR = os.path.join(
-    os.path.join(imp.find_module('loomengine')[1], 'client', 'inventory'))
-
 LOOM_PLAYBOOK_DIR = 'playbooks'
-LOOM_INVENTORY_DIR = 'inventory'
-
-LOOM_ADMIN_FILES_DIR = 'admin-files'
-LOOM_ADMIN_SETTINGS_FILE = 'admin-settings.conf'
-ADMIN_SETTINGS_SECTION = 'settings'
+LOOM_RESOURCE_DIR = 'resources'
+LOOM_SERVER_SETTINGS_FILE = 'server-settings.conf'
 
 LOOM_SETTINGS_HOME_TEMP_BACKUP = LOOM_SETTINGS_HOME + '.tmp'
 
@@ -95,53 +87,91 @@ class ServerControls:
         else:
             raise SystemExit('No response from server at %s' % get_server_url())
 
-    @loom_settings_transaction
     def start(self):
-        # Default settings that may be overridden by the user
-        settings = {
-            'LOOM_SERVER_NAME': 'loom-server',
-            'LOOM_LOG_LEVEL': 'INFO',
-            'LOOM_DOCKER_IMAGE':
-            'loomengine/loom:%s' % loomengine.utils.version.version(),
-            'LOOM_START_SERVER_PLAYBOOK': 'local_start_server.yml',
-            'LOOM_STOP_SERVER_PLAYBOOK': 'local_stop_server.yml',
-            'LOOM_DELETE_SERVER_PLAYBOOK': 'local_delete_server.yml',
-            'LOOM_RUN_TASK_PLAYBOOK': 'local_run_task_attempt.yml',
-            'LOOM_CLEANUP_TASK_PLAYBOOK': 'local_cleanup_task.yml',
-            'LOOM_STORAGE_TYPE': 'local',
-            'LOOM_WORKER_TYPE': 'LOCAL',
-            'LOOM_ANSIBLE_INVENTORY': 'localhost,',
-        }
+        if self._has_server_settings():
+            if self._user_provided_settings():
+                raise SystemExit(
+		    'ERROR! Server settings already exist in "%s". '\
+                    'The "--settings-file" and "--extra-settings" '\
+                    'flags are not allowed now because new settings '\
+                    'and existing settings may conflict.'
+		    % os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
+            else:
+                settings = parse_settings_file(
+                    os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
+                print 'Found settings for a Loom server named "%s". '\
+                    'Restarting it now.' % self._get_required_setting(
+                        'LOOM_SERVER_NAME', settings)
 
-        # Get settings from user or from running server
-        settings.update(self._get_admin_settings())
+        elif has_connection_settings():
+	    raise SystemExit(
+		'ERROR! You are already connected to a server. '\
+		'That lets you view or manage workflows, but you do not have '\
+                'the settings needed to manage the server. If you want to '\
+                'start a new server, first disconnect using "loom disconnect".')
 
-        # Hard-coded settings that should not come from the user:
-        settings.update({
-            'LOOM_PLAYBOOK_DIR': LOOM_PLAYBOOK_DIR,
-            'LOOM_INVENTORY_DIR': LOOM_INVENTORY_DIR,
-            'LOOM_CONNECTION_FILES_DIR': LOOM_CONNECTION_FILES_DIR,
-            'LOOM_CONNECTION_SETTINGS_FILE': LOOM_CONNECTION_SETTINGS_FILE,
-            'LOOM_ADMIN_FILES_DIR': LOOM_ADMIN_FILES_DIR,
-            'LOOM_ADMIN_SETTINGS_FILE': LOOM_ADMIN_SETTINGS_FILE,
-        })
+        else:
+            # Create new settings from defaults and user input
+            
+            # Default settings that may be overridden by the user
+            settings = {
+                'LOOM_SERVER_NAME': 'loom-server',
+                'LOOM_LOG_LEVEL': 'INFO',
+                'LOOM_DOCKER_IMAGE':
+                'loomengine/loom:%s' % loomengine.utils.version.version(),
+                'LOOM_MODE': 'local',
+                'LOOM_ANSIBLE_HOST_KEY_CHECKING': 'false',
+            }
 
-        settings.update({
-            'LOOM_STORAGE_ROOT': self._get_default_storage_root(settings)
-        })
+            # Get settings from user or from running server
+            settings.update(self._get_server_settings())
 
-        #if self._user_provided_settings():
-        self._make_dir_if_missing(LOOM_SETTINGS_HOME)
-        self._copy_playbooks_to_settings_dir()
-        self._copy_inventory_to_settings_dir()
+            # Default values depend on user settings
+            settings.setdefault('LOOM_STORAGE_TYPE',
+                                self._get_default_storage_type(settings))
+            settings.setdefault('LOOM_STORAGE_ROOT',
+                                self._get_default_storage_root(settings))
+            settings.setdefault('LOOM_ANSIBLE_INVENTORY',
+                                self._get_default_ansible_inventory(settings))
 
-        # These may be later updated by start playbook:
-        self._save_admin_settings_file(settings)
-        self._copy_admin_files_to_settings_dir()
+            # For environment variables with an effect on third-party software,
+            # remove "LOOM_" prefix from the setting name.
+            # In the settings file or command line args, either form is ok.
+            # In environment variables, only "LOOM_*" will be detected.
+            settings = self._copy_setting_without_loom_prefix(
+                settings, 'ANSIBLE_HOST_KEY_CHECKING')
 
-        print 'Starting a Loom server named "%s".' % self._get_required_setting(
-            'LOOM_SERVER_NAME', settings)
+            # Hard-coded settings that should not come from the user:
+            settings.update({
+                'LOOM_PLAYBOOK_DIR': LOOM_PLAYBOOK_DIR,
+                'LOOM_CONNECTION_FILES_DIR': LOOM_CONNECTION_FILES_DIR,
+                'LOOM_CONNECTION_SETTINGS_FILE': LOOM_CONNECTION_SETTINGS_FILE,
+                'LOOM_RESOURCE_DIR': LOOM_RESOURCE_DIR,
+                'LOOM_SERVER_SETTINGS_FILE': LOOM_SERVER_SETTINGS_FILE,
+            })
+            mode = settings.get('LOOM_MODE').lower()
+            if mode:
+                settings.update({
+                    'LOOM_START_SERVER_PLAYBOOK': '%s_start_server.yml' % mode,
+                    'LOOM_STOP_SERVER_PLAYBOOK': '%s_stop_server.yml' % mode,
+                    'LOOM_DELETE_SERVER_PLAYBOOK': '%s_delete_server.yml' % mode,
+                    'LOOM_RUN_TASK_ATTEMPT_PLAYBOOK':
+                    '%s_run_task_attempt.yml' % mode,
+                    'LOOM_CLEANUP_TASK_ATTEMPT_PLAYBOOK':
+                    '%s_cleanup_task_attempt.yml' % mode,
+                })
 
+            if not settings.get('LOOM_SKIP_SETTINGS_VALIDATION'):
+                validate(settings)
+
+            self._make_dir_if_missing(LOOM_SETTINGS_HOME)
+            self._copy_playbooks_to_settings_dir()
+            self._save_server_settings_file(settings)
+            self._copy_resources_to_settings_dir()
+
+            print 'Starting a Loom server named "%s".' % self._get_required_setting(
+                'LOOM_SERVER_NAME', settings)
+                
         playbook = self._get_required_setting(
             'LOOM_START_SERVER_PLAYBOOK', settings)
         retcode = self._run_playbook(playbook, settings, verbose=self.args.verbose)
@@ -151,19 +181,30 @@ class ServerControls:
                              ' VMs that were created by the playbook and not '\
                              'cleaned up.')
 
+    def _get_default_storage_type(self, settings):
+        if settings.get('LOOM_MODE').lower() == 'gcloud':
+            return 'google_storage'
+        else:
+            return 'local'
+
     def _get_default_storage_root(self, settings):
-        if settings.get('LOOM_STORAGE_TYPE').upper() == 'LOCAL':
+        if settings.get('LOOM_STORAGE_TYPE').lower() == 'local':
             return os.path.expanduser('~/loomdata')
         else:
-            return 'loomdata'
+            return '/loomdata'
 
-    @loom_settings_transaction
+    def _get_default_ansible_inventory(self, settings):
+        if settings.get('LOOM_MODE').lower() == 'gcloud':
+            return 'gce_inventory_wrapper.py'
+        else:
+            return 'localhost,'
+
     def stop(self):
-        if not self._has_admin_settings():
-            raise SystemExit('ERROR! No server admin settings found. Nothing to stop.')
+        if not self._has_server_settings():
+            raise SystemExit('ERROR! No server settings found. Nothing to stop.')
 
         settings = parse_settings_file(
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
         print 'Stopping Loom server named "%s".' % self._get_required_setting(
             'LOOM_SERVER_NAME', settings)
         playbook = self._get_required_setting('LOOM_STOP_SERVER_PLAYBOOK',
@@ -172,7 +213,6 @@ class ServerControls:
         if retcode:
             raise SystemExit('ERROR! Playbook to stop server failed.')
 
-    @loom_settings_transaction
     def connect(self):
         server_url = self.args.server_url
         if has_connection_settings():
@@ -194,14 +234,13 @@ class ServerControls:
         self._save_connection_settings_file(connection_settings)
         print 'Connected to Loom server at "%s".' % server_url
 
-    @loom_settings_transaction
     def disconnect(self):
         if not has_connection_settings():
             raise SystemExit(
                 'ERROR! No server connection found. Nothing to disconnect.')
-        if self._has_admin_settings():
+        if self._has_server_settings():
             raise SystemExit(
-                'ERROR! Server admin settings found. Disconnecting is not allowed. '\
+                'ERROR! Server settings found. Disconnecting is not allowed. '\
                 'If you really want to disconnect without deleting the server, back '\
                 'up the settings in %s and manually remove them.'
                 % os.path.join(LOOM_SETTINGS_HOME))
@@ -219,13 +258,12 @@ class ServerControls:
         print 'Disconnected from the Loom server at %s \nTo reconnect, '\
             'use "loom server connect %s"' % (server_url, server_url)
 
-    @loom_settings_transaction
     def delete(self):
-        if not self._has_admin_settings():
+        if not self._has_server_settings():
             raise SystemExit(
-            'ERROR! No server admin settings found. Nothing to delete.')
+            'ERROR! No server settings found. Nothing to delete.')
         settings = parse_settings_file(
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
 
         server_name =self._get_required_setting('LOOM_SERVER_NAME', settings)
         user_provided_server_name = self.args.confirm_server_name
@@ -262,9 +300,9 @@ class ServerControls:
                 print 'WARNING! Failed to remove settings directory %s.\n%s' \
                     % (LOOM_SETTINGS_HOME, str(e))
 
-    def _save_admin_settings_file(self, settings):
+    def _save_server_settings_file(self, settings):
         write_settings_file(
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE),
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE),
             settings)
 
     def _save_connection_settings_file(self, settings):
@@ -290,27 +328,19 @@ class ServerControls:
         shutil.copytree(playbook_dir,
                         os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR))
 
-    def _copy_inventory_to_settings_dir(self):
-        if self.args.inventory_dir:
-            inventory_dir = self.args.inventory_dir
-        else:
-            inventory_dir = STOCK_INVENTORY_DIR
-        shutil.copytree(inventory_dir,
-                        os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR))
-
-    def _copy_admin_files_to_settings_dir(self):
-        if self.args.admin_files_dir:
-            shutil.copytree(self.args.admin_files_dir,
-                            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_FILES_DIR))
+    def _copy_resources_to_settings_dir(self):
+        if self.args.resource_dir:
+            shutil.copytree(self.args.resource_dir,
+                            os.path.join(LOOM_SETTINGS_HOME, LOOM_RESOURCE_DIR))
         else:
             # If no files, leave an empty directory
             os.makedirs(
-                os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_FILES_DIR))
+                os.path.join(LOOM_SETTINGS_HOME, LOOM_RESOURCE_DIR))
 
     def _run_playbook(self, playbook, settings, verbose=False):
         inventory = self._get_required_setting('LOOM_ANSIBLE_INVENTORY', settings)
         if ',' not in inventory:
-            inventory = os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR, inventory)
+            inventory = os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR, inventory)
         cmd_list = ['ansible-playbook',
                     '-i', inventory,
                     os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR, playbook),
@@ -344,41 +374,34 @@ class ServerControls:
         # True if user passed settings through commandline arguments
         return self.args.settings_file or self.args.extra_settings
 
-    admin_files_paths = [
-        os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_FILES_DIR),
-        os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR),
-        os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR),
-    ]
-
-    def _has_admin_settings(self):
-        admin_settings_path = os.path.join(LOOM_SETTINGS_HOME,
-                                           LOOM_ADMIN_SETTINGS_FILE)
-        admin_files_paths = [
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_FILES_DIR),
+    def _has_server_settings(self):
+        server_settings_path = os.path.join(LOOM_SETTINGS_HOME,
+                                           LOOM_SERVER_SETTINGS_FILE)
+        resource_paths = [
+            os.path.join(LOOM_SETTINGS_HOME, LOOM_RESOURCE_DIR),
             os.path.join(LOOM_SETTINGS_HOME, LOOM_PLAYBOOK_DIR),
-            os.path.join(LOOM_SETTINGS_HOME, LOOM_INVENTORY_DIR),
         ]
-        has_settings = os.path.exists(admin_settings_path)
-        has_files = any(os.path.exists(path) for path in admin_files_paths)
+        has_settings = os.path.exists(server_settings_path)
+        has_files = any(os.path.exists(path) for path in resource_paths)
         if has_files and not has_settings:
-            raise SystemExit('ERROR! Admin settings are corrupt. No settings file '\
+            raise SystemExit('ERROR! Server settings are corrupt. No settings file '\
                              'found at "%s", but settings files exist in these '\
                              'directories: [%s]'
-                             % (admin_settings_path, ', '.join(admin_files_paths)))
+                             % (server_settings_path, ', '.join(resource_paths)))
         return has_settings
 
-    def _get_admin_settings(self):
-        if self._has_admin_settings():
+    def _get_server_settings(self):
+        if self._has_server_settings():
             if self._user_provided_settings():
                 raise SystemExit(
-                    'ERROR! Admin settings already exist in "%s". '\
+                    'ERROR! Server settings already exist in "%s". '\
                     'The "--settings-file" and "--extra-settings" '\
                     'flags are not allowed now because new settings '\
                     'and existing settings may conflict.'
-                    % os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
+                    % os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
             else:
                 settings = parse_settings_file(
-                    os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_SETTINGS_FILE))
+                    os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
         elif has_connection_settings():
             if self._user_provided_settings():
                 raise SystemExit(
@@ -394,30 +417,14 @@ class ServerControls:
                     'the settings needed to manage the server. If you want to '\
                     'start a new server, first disconnect using "loom disconnect".')
         else:
-            #if self._user_provided_settings():
             settings = self._get_start_settings_from_args()
-            #else:
-            #    raise SystemExit('ERROR! No settings provided. '\
-            #                     'Use "--settings-file" to provide your own '\
-            #                     'custom settings or one of the stock settings '\
-            #                     'files in "%s": [%s].'
-            #                     % (STOCK_SETTINGS_DIR,
-            #                        ', '.join(os.listdir(STOCK_SETTINGS_DIR))))
-        self._validate_settings(settings)
         return settings
-
-    def _validate_settings(self, settings):
-        if settings.get('LOOM_SETTINGS_VALIDATOR'):
-            settings_validators.validate(
-                settings, settings.get('LOOM_SETTINGS_VALIDATOR'))
 
     def _get_start_settings_from_args(self):
         settings = {}
         if self.args.settings_file:
-            for conf_file in self.args.settings_file:
-                full_path_to_settings_file = self._check_stock_dir_and_get_full_path(
-                    conf_file, STOCK_SETTINGS_DIR)
-                settings.update(parse_settings_file(full_path_to_settings_file))
+            for settings_file in self.args.settings_file:
+                settings.update(parse_settings_file(settings_file))
         if self.args.extra_settings:
             settings.update(self._parse_extra_settings(self.args.extra_settings))
 
@@ -430,13 +437,6 @@ class ServerControls:
 
         for key, value in settings.items():
             settings[key] = os.path.expanduser(value)
-
-        # For environment variables with an effect on third-party software,
-        # remove "LOOM_" prefix from the setting name.
-        # In the settings file or command line args, either form is ok.
-        # In environment variables, only "LOOM_*" will be detected.
-        settings = self._copy_setting_without_loom_prefix(
-            settings, 'ANSIBLE_HOST_KEY_CHECKING')
 
         return settings
 
@@ -454,24 +454,6 @@ class ServerControls:
                 loom_setting_name,
                 settings.get(loom_setting_name)))
         return settings
-
-    def _check_stock_dir_and_get_full_path(self, filepath, stock_dir):
-        """If 'filepath' is found in stock_dir, we return the
-        full path to that stock file. Otherwise, we interpret filepath relative
-        to the current working directory.
-        """
-        if os.path.exists(
-                os.path.join(stock_dir, filepath)):
-            # This matches one of the stock settings files
-            return os.path.abspath(os.path.join(stock_dir, filepath))
-        elif os.path.exists(
-                os.path.join(os.getcwd(), filepath)):
-            # File was found relative to current working directory
-            return os.path.abspath(os.path.join(os.getcwd(), filepath))
-        else:
-            # No need to raise exception now for missing file--we'll
-            # handle it when we try to read it
-            return filepath
 
     def _copy_connection_files_to_settings_dir(self):
         if self.args.connection_files_dir:
@@ -508,8 +490,7 @@ def get_parser(parser=None):
     start_parser.add_argument('-e', '--extra-settings', action='append',
                                metavar='KEY=VALUE')
     start_parser.add_argument('-p', '--playbook-dir', metavar='PLAYBOOK_DIR')
-    start_parser.add_argument('-i', '--inventory-dir', metavar='INVENTORY_DIR')
-    start_parser.add_argument('-a', '--admin-files-dir', metavar='ADMIN_FILES_DIR')
+    start_parser.add_argument('-r', '--resource-dir', metavar='RESOURCE_DIR')
     start_parser.add_argument('-v', '--verbose', action='store_true',
                               help='provide more feedback to console')
 

@@ -7,3 +7,5 @@
     - vars/local.yml
   tasks:
     - include: tasks/delete_server_containers.yml
+    - include: tasks/delete_static_volumes.yml
+    - include: tasks/delete_data_volumes.yml

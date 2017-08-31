@@ -20,10 +20,10 @@ def get_required_setting(setting):
         raise Exception('Missing setting %s' % setting)
 
 LOOM_SETTINGS_HOME = get_required_setting('LOOM_SETTINGS_HOME')
-LOOM_ADMIN_FILES_DIR = get_required_setting('LOOM_ADMIN_FILES_DIR')
+LOOM_RESOURCE_DIR = get_required_setting('LOOM_RESOURCE_DIR')
 LOOM_GCE_PEM_FILE = get_required_setting('LOOM_GCE_PEM_FILE')
 
-GCE_PEM_FILE_PATH = os.path.join(LOOM_SETTINGS_HOME, LOOM_ADMIN_FILES_DIR, LOOM_GCE_PEM_FILE)
+GCE_PEM_FILE_PATH = os.path.join(LOOM_SETTINGS_HOME, LOOM_RESOURCE_DIR, LOOM_GCE_PEM_FILE)
 
 if not os.path.exists(GCE_PEM_FILE_PATH):
     raise Exception(GCE_PEM_FILE_PATH + ' not found. Did you forget the --admin-files-dir argument? If not, please provide the full path to the credential file in settings.')

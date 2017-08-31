@@ -404,7 +404,10 @@ class TaskMonitor(object):
         self.connection.post_task_attempt_finish(self.settings['TASK_ATTEMPT_ID'])
 
     def _delete_container(self):
-        if not self.container:
+        try:
+            if not self.container:
+                return
+        except AttributeError:
             return
         if self.settings.get('PRESERVE_ALL'):
             return

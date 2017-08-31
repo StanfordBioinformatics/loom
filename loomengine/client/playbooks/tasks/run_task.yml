@@ -3,7 +3,7 @@
       name: "{{task_attempt_container_name}}-{{task_attempt_id}}"
       image: "{{loom_docker_image}}"
       cleanup: yes
-      volumes:  "{{[ '/var/run/docker.sock'~':'~'/var/run/docker.sock', \
+      volumes:  "{{[ '/var/run/docker.sock:/var/run/docker.sock', \
                  storage_root~':'~storage_root ]}}"
       api_version: auto
       network_mode: host

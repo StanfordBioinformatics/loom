@@ -1,0 +1,12 @@
+- name: Remove elasticsearch data volume
+  command: docker volume rm {{elasticsearch_data_volume }}
+  ignore_errors: yes
+
+- name: Remove rabbitmq data volume
+  command: docker volume rm {{ rabbitmq_data_volume }}
+  ignore_errors: yes
+
+- name: Remove mysql data volume
+  command: docker volume rm {{ mysql_data_volume }}
+  ignore_errors: yes
+  when: mysql_create_docker_container

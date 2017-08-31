@@ -207,12 +207,9 @@ class FileResource(BaseModel):
 
     @classmethod
     def _get_file_root(cls):
-        file_root = get_setting('LOOM_STORAGE_ROOT')
-        # Allow '~/path' home dir notation on local file server
-        if get_setting('LOOM_STORAGE_TYPE') == 'LOCAL':
-            file_root = os.path.expanduser(file_root)
+        file_root = get_setting('STORAGE_ROOT')
         assert file_root.startswith('/'), \
-            'LOOM_STORAGE_ROOT should be an absolute path, but it is "%s".' \
+            'STORAGE_ROOT should be an absolute path, but it is "%s".' \
             % file_root
         return file_root
 
@@ -274,12 +271,12 @@ class FileResource(BaseModel):
         if not path.startswith('/'):
             raise ValidationError(
                 'Expected an absolute path but got path="%s"' % path)
-        LOOM_STORAGE_TYPE = get_setting('LOOM_STORAGE_TYPE')
-        if LOOM_STORAGE_TYPE == 'LOCAL':
+        storage_type = get_setting('STORAGE_TYPE')
+        if storage_type.lower() == 'local':
             return 'file://' + path
-        elif LOOM_STORAGE_TYPE == 'GOOGLE_STORAGE':
+        elif storage_type.lower() == 'google_storage':
             return 'gs://' + get_setting('GOOGLE_STORAGE_BUCKET') + path
         else:
             raise ValidationError(
-                'Couldn\'t recognize value for setting LOOM_STORAGE_TYPE="%s"'\
-                % LOOM_STORAGE_TYPE)
+                'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
+                % storage_type)
