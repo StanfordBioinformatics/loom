@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import urlparse
+import warnings
 
 from loomengine.client.common import *
 from loomengine.client.settings_validator import validate
@@ -330,6 +331,13 @@ class ServerControls:
 
     def _copy_resources_to_settings_dir(self):
         if self.args.resource_dir:
+            resource_dir = self.args.resource_dir
+        elif self.args.admin_files_dir:
+            ADMIN_FILES_DIR_FLAG_DEPRECATED = 'WARNING! The "--admin-files-dir" flag is deprecated '\
+                                              'and will be removed. Use "--resource-dir" instead.'
+            warnings.warn(ADMIN_FILES_DIR_FLAG_DEPRECATED)
+            resource_dir = self.args.admin_files_dir
+        if self.args.resource_dir:
             shutil.copytree(self.args.resource_dir,
                             os.path.join(LOOM_SETTINGS_HOME, LOOM_RESOURCE_DIR))
         else:
@@ -491,6 +499,7 @@ def get_parser(parser=None):
                                metavar='KEY=VALUE')
     start_parser.add_argument('-p', '--playbook-dir', metavar='PLAYBOOK_DIR')
     start_parser.add_argument('-r', '--resource-dir', metavar='RESOURCE_DIR')
+    start_parser.add_argument('-a', '--admin-files-dir', metavar='ADMIN_FILES_DIR', help=argparse.SUPPRESS)
     start_parser.add_argument('-v', '--verbose', action='store_true',
                               help='provide more feedback to console')
 

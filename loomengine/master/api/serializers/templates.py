@@ -67,8 +67,6 @@ _template_serializer_fields = (
     'environment',
     'resources',
     'inputs',
-    # Fixed inputs are deprecated
-    'fixed_inputs',
     'outputs',
     'steps',)
 
@@ -99,8 +97,6 @@ class URLTemplateSerializer(ProxyWriteSerializer):
     environment = serializers.JSONField(required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
     inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
-    # Fixed inputs are deprecated
-    fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     outputs  = serializers.JSONField(required=False, write_only=True)
     steps = RecursiveField(many=True, required=False, write_only=True)
 
@@ -140,8 +136,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     environment = serializers.JSONField(required=False)
     resources = serializers.JSONField(required=False)
     inputs = TemplateInputSerializer(many=True, required=False)
-    # Fixed inputs are deprecated
-    fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     outputs  = serializers.JSONField(required=False)
     steps = URLTemplateSerializer(many=True, required=False)
 
@@ -540,8 +534,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                     template_data.get('imported_from_url'))
 
             inputs = template_data.get('inputs', [])
-            fixed_inputs = template_data.pop('fixed_inputs', [])
-            inputs.extend(fixed_inputs)
 
             template_copy = copy.deepcopy(template_data)
             template_copy.pop('steps', None)
@@ -601,8 +593,6 @@ class SummaryTemplateSerializer(TemplateSerializer):
     environment = serializers.JSONField(required=False, write_only=True)
     resources = serializers.JSONField(required=False, write_only=True)
     inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
-    # Fixed inputs are deprecated
-    fixed_inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     outputs  = serializers.JSONField(required=False, write_only=True)
 
     @classmethod

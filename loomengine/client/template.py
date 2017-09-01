@@ -80,8 +80,6 @@ class TemplateImport(object):
         if source_url:
             template.update({'imported_from_url': source_url})
 
-        cls._warn_for_fixed_inputs(template)
-
         try:
             template_from_server = connection.post_template(template)
 
@@ -97,20 +95,6 @@ class TemplateImport(object):
             template_from_server['name'],
             template_from_server['uuid'])
         return template_from_server
-
-    @classmethod
-    def _warn_for_fixed_inputs(cls, template):
-        if isinstance(template, (str, unicode)):
-            return
-        if template.get('fixed_inputs'):
-            import warnings
-            FIXED_INPUTS_DEPRECATED = '\nFIXED INPUTS ARE DEPRECATED and will '\
-                                      'be removed in a future release. Use '\
-                                      'a standard input with a "data" field instead.'
-            warnings.warn(FIXED_INPUTS_DEPRECATED)
-            return
-        for step in template.get('steps', []):
-            cls._warn_for_fixed_inputs(step)
 
     @classmethod
     def _get_template(cls, template_file, filemanager, retry):
