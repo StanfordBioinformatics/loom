@@ -187,22 +187,22 @@ class FileLabel(object):
         add_subparser = subparsers.add_parser(
             'add', help='add a file label')
         FileLabelAdd.get_parser(add_subparser)
-        add_subparser.set_defaults(SubSubcommandClass=FileLabelAdd)
+        add_subparser.set_defaults(SubSubSubcommandClass=FileLabelAdd)
 
         remove_subparser = subparsers.add_parser(
             'remove', help='remove a file label')
         FileLabelRemove.get_parser(remove_subparser)
-        remove_subparser.set_defaults(SubSubcommandClass=FileLabelRemove)
+        remove_subparser.set_defaults(SubSubSubcommandClass=FileLabelRemove)
 
         list_subparser = subparsers.add_parser(
             'list', help='list file labels')
         FileLabelList.get_parser(list_subparser)
-        list_subparser.set_defaults(SubSubcommandClass=FileLabelList)
+        list_subparser.set_defaults(SubSubSubcommandClass=FileLabelList)
 
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        self.args.SubSubSubcommandClass(self.args).run()
 
 
 if __name__=='__main__':

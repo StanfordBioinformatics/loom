@@ -29,7 +29,7 @@ def _set_leaf_template_defaults(data):
         for output in data.get('outputs', []):
             output.setdefault('mode', DEFAULT_OUTPUT_MODE)
     data.setdefault('interpreter', DEFAULT_INTERPRETER)
-        
+
 def _convert_template_id_to_dict(data):
     # If data is a string instead of a dict value,
     # set that as _template_id
@@ -238,7 +238,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 channel = output.get('as_channel')
             else:
                 channel = output.get('channel')
-        context[channel] = DummyContext('value')
+            context[channel] = DummyContext('value')
         return context
 
     def _get_dummy_full_context(self, data):
@@ -301,23 +301,30 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 visited_channels.add(channel)
 
     def _validate_channels_check_duplicate_inputs(self, data):
-        # If two siblings have the same channel, the channel must be
-        # defined on the parent
-        parent_inputs = set()
+        # If two siblings have the same channel, the channel must have a source,
+        # either on the parent or on a sibling's output.
+        sources = set()
         for input in data.get('inputs', []):
-            parent_inputs.add(input.get('channel'))
+            sources.add(input.get('channel'))
+        for step in data.get('steps', []):
+            for output in step.get('outputs', []):
+                sources.add(output.get('channel'))
         child_inputs = set()
         for step in data.get('steps', []):
-            for input in step.get('inputs'):
+            for input in step.get('inputs', []):
                 channel = input.get('channel')
-                if channel in child_inputs and channel not in parent_inputs:
+                if channel in child_inputs and channel not in sources:
                     raise serializers.ValidationError(
                         'Because the input channel "%s" exists on multiple child '\
-                        'steps, it must also be defined on the parent' % channel)
+                        'steps, it must have a shared source' % channel)
                 child_inputs.add(channel)
 
     def _validate_channels_valid_source(self, data, root=False):
-        if data.get('is_leaf'):
+        if data.get('is_leaf') or data.get('_template_id'):
+            # _template_id field indicates that this is a preexisting template
+            # that should already be validated. Nested children are not loaded,
+            # so cannot re-validate.
+            # is_leaf indicates no children, so skip this validation step.
             return
 
         # Every channel should have a valid data source.
@@ -487,9 +494,10 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             template_data = child_templates_data[i]
             if isinstance(template_data, (unicode, str)):
                 # This is a reference to an existing template.
+                template_id = template_data
                 # Use the serializer to retrive the instance
                 serializer = TemplateSerializer(
-                    data=template_data)
+                    data=template_id)
                 serializer.is_valid(raise_exception=True)
                 # No new template created here, just a lookup
                 template = serializer.save()
@@ -505,8 +513,10 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                     # Relationships must be added first.
                 # Replace the template reference with the full
                 # template structure
-                child_templates_data[i] = TemplateSerializer(
+                child_data = TemplateSerializer(
                     template, context=self.context).data
+                child_data['_template_id'] = template_id
+                child_templates_data[i] = child_data
                 continue
 
             # Validate fields

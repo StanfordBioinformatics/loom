@@ -187,22 +187,22 @@ class TemplateLabel(object):
         add_subparser = subparsers.add_parser(
             'add', help='add a template label')
         TemplateLabelAdd.get_parser(add_subparser)
-        add_subparser.set_defaults(SubSubcommandClass=TemplateLabelAdd)
+        add_subparser.set_defaults(SubSubSubcommandClass=TemplateLabelAdd)
 
         remove_subparser = subparsers.add_parser(
             'remove', help='remove a template label')
         TemplateLabelRemove.get_parser(remove_subparser)
-        remove_subparser.set_defaults(SubSubcommandClass=TemplateLabelRemove)
+        remove_subparser.set_defaults(SubSubSubcommandClass=TemplateLabelRemove)
 
         list_subparser = subparsers.add_parser(
             'list', help='list template labels')
         TemplateLabelList.get_parser(list_subparser)
-        list_subparser.set_defaults(SubSubcommandClass=TemplateLabelList)
+        list_subparser.set_defaults(SubSubSubcommandClass=TemplateLabelList)
 
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        self.args.SubSubSubcommandClass(self.args).run()
 
 
 if __name__=='__main__':

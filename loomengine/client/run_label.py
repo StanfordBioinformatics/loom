@@ -187,22 +187,22 @@ class RunLabel(object):
         add_subparser = subparsers.add_parser(
             'add', help='add a run label')
         RunLabelAdd.get_parser(add_subparser)
-        add_subparser.set_defaults(SubSubcommandClass=RunLabelAdd)
+        add_subparser.set_defaults(SubSubSubcommandClass=RunLabelAdd)
 
         remove_subparser = subparsers.add_parser(
             'remove', help='remove a run label')
         RunLabelRemove.get_parser(remove_subparser)
-        remove_subparser.set_defaults(SubSubcommandClass=RunLabelRemove)
+        remove_subparser.set_defaults(SubSubSubcommandClass=RunLabelRemove)
 
         list_subparser = subparsers.add_parser(
             'list', help='list run labels')
         RunLabelList.get_parser(list_subparser)
-        list_subparser.set_defaults(SubSubcommandClass=RunLabelList)
+        list_subparser.set_defaults(SubSubSubcommandClass=RunLabelList)
 
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        self.args.SubSubSubcommandClass(self.args).run()
 
 
 if __name__=='__main__':

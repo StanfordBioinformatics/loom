@@ -334,7 +334,10 @@ class Run(MPTTModel, BaseModel):
             'server_url': context['server_url'],
         }
         for url in urls:
-            requests.post(url, data = data)
+            requests.post(
+                url,
+                data = data,
+                verify=get_setting('NOTIFICATION_HTTPS_VERIFY_CERTIFICATE'))
 
     @classmethod
     def get_notification_context(cls, request):
