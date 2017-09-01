@@ -705,6 +705,16 @@ LOOM_NOTIFICATION_ADDRESSES
 
 Email addresses or http/https URLs to report to whenever a run reaches terminal status. Requires email configuration.
 
+LOOM_NOTIFICATION_HTTPS_VERIFY_CERTIFICATE
+------------------------------------------
+
+================ ================
+*default*        true
+*valid values*   true|false
+================ ================
+
+When one or more notification addresses is an https URL, LOOM_NOTIFICATION_HTTP_VERIFY_CERTIFICATE determines whether to validate ssl certificates. You may wish to set this to false when using self-signed certificates.
+
 LOOM_DEFAULT_FROM_EMAIL
 -----------------------
 

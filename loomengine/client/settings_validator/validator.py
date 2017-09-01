@@ -119,6 +119,7 @@ class SettingsValidator(object):
         'LOOM_EMAIL_SSL_CERTFILE',
         'LOOM_DEFAULT_FROM_EMAIL',
         'LOOM_NOTIFICATION_ADDRESSES',
+        'LOOM_NOTIFICATION_HTTPS_VERIFY_CERTIFICATE',
         'LOOM_GOOGLE_STORAGE_BUCKET',
         # gcloud settings
         'LOOM_GCE_PEM_FILE',
