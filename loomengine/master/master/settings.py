@@ -68,7 +68,7 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
 STORAGE_TYPE = os.getenv('LOOM_STORAGE_TYPE', 'local').lower()
 
-STATIC_ROOT = os.getenv('LOOM_MASTER_STATIC_ROOT', '/tmp/static')
+STATIC_ROOT = os.getenv('LOOM_MASTER_STATIC_ROOT', '/var/www/loom/static')
 
 SERVER_NAME = os.getenv('LOOM_SERVER_NAME', 'loom') # used in attempt container names
 MASTER_URL_FOR_WORKER = os.getenv('MASTER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
@@ -83,7 +83,7 @@ PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'False'))
 PRESERVE_ALL = to_boolean(os.getenv('LOOM_PRESERVE_ALL', 'False'))
 MAXIMUM_TASK_RETRIES = os.getenv('LOOM_MAXIMUM_TASK_RETRIES', '2')
 
-DEFAULT_DOCKER_REGISTRY = os.getenv('LOOM_DEFAULT_DOCKER_REGISTRY', 'docker.io')
+DEFAULT_DOCKER_REGISTRY = os.getenv('LOOM_DEFAULT_DOCKER_REGISTRY', None)
 
 # GCP settings
 GCE_EMAIL = os.getenv('GCE_EMAIL')

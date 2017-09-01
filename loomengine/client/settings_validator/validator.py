@@ -29,7 +29,6 @@ class SettingsValidator(object):
         'LOOM_STORAGE_TYPE',
         'LOOM_ANSIBLE_INVENTORY',
         'LOOM_SERVER_NAME',
-        'LOOM_SETTINGS_VALIDATOR',
         'LOOM_DEBUG',
         'LOOM_LOG_LEVEL',
         'LOOM_MODE',
@@ -47,6 +46,7 @@ class SettingsValidator(object):
         'LOOM_SSL_CERT_ST',
         'LOOM_SSL_CERT_L',
         'LOOM_SSL_CERT_O',
+        'LOOM_SSL_CERT_CN',
         'LOOM_SSL_CERT_KEY_FILE',
         'LOOM_SSL_CERT_FILE',
         'LOOM_MASTER_CONTAINER_NAME_SUFFIX',
@@ -180,11 +180,20 @@ class SettingsValidator(object):
                     'LOOM_SSL_CERT_ST',
                     'LOOM_SSL_CERT_L',
                     'LOOM_SSL_CERT_O',
-	            'LOOM_SSL_CERT_KEY_FILE',
-	            'LOOM_SSL_CERT_FILE',
+                    # LOOM_SSL_CERT_CN defaults to ansible_hostname
             ]:
                 if not setting in self.settings.keys():
-                    self.errors.append('Missing setting "%s"' % setting)
+                    self.errors.append('Missing setting "%s" required when '\
+                                       'LOOM_SSL_CERT_CREATE_NEW=true' % setting)
+        if not self.to_bool(self.settings.get('LOOM_SSL_CERT_CREATE_NEW')) \
+           and self.to_bool(self.settings.get('LOOM_HTTPS_PORT_ENABLED')):
+            for setting in ['LOOM_SSL_CERT_KEY_FILE',
+	                    'LOOM_SSL_CERT_FILE'
+            ]:
+                if not setting in self.settings.keys():
+                    self.errors.append('Missing setting "%s" required when '\
+                                       'LOOM_SSL_CERT_CREATE_NEW=false and '\
+                                       'LOOM_HTTPS_PORT_ENABLED=true' % setting)
 
     def _validate_ports(self):
         if self.to_bool(self.settings.get('LOOM_HTTP_PORT_ENABLED')):
@@ -246,9 +255,16 @@ class SettingsValidator(object):
                     'Missing setting "%s" is required when '\
                     'LOOM_MODE="gcloud"' % required_setting)
             if self.settings.get('LOOM_STORAGE_TYPE').lower() == 'local':
-                raise Exception(
+                self.errors.append(
                     'Setting LOOM_STORAGE_TYPE=local not allowed '\
                     'when LOOM_MODE==gcloud.')
+        if self.settings.get('LOOM_GCLOUD_WORKER_EXTERNAL_IP'):
+            ip = self.settings.get('LOOM_GCLOUD_WORKER_EXTERNAL_IP')
+            if not ip in ['none', 'ephemeral']:
+                self.errors.append(
+                    'Invalid value "%s" for LOOM_GCLOUD_WORKER_EXTERNAL_IP. '\
+                    'Allowed values are "ephemeral" and "none". If you need to restrict '
+                    'the IP address range, use a subnetwork.' % ip)
 
     def to_bool(self, value):
         if value and value.lower() in ['true', 't', 'yes', 'y']:

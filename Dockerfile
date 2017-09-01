@@ -49,3 +49,4 @@ ADD ./loomengine/__init__.py /loomengine/loomengine/
 ADD ./loomengine/VERSION /loomengine/loomengine/
 RUN pip install -r requirements.txt
 ADD . /loomengine/
+RUN /loomengine/loomengine/master/manage.py collectstatic --noinput

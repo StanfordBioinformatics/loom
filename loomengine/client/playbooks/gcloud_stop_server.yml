@@ -3,13 +3,8 @@
   hosts: "{{lookup('env','LOOM_SERVER_NAME')}}"
   remote_user: "{{loom_remote_user}}"
   vars_files:
+    - vars/common.yml
     - vars/gcloud_server.yml
   tasks:
     - include: tasks/delete_server_containers.yml
     - include: tasks/delete_static_volumes.yml
-- name: Stop the server instance
-  hosts: localhost
-  connection: local
-  tasks:
-    - include: tasks/gcloud_get_server_instance_name.yml
-    - include: tasks/gcloud_stop_instance.yml

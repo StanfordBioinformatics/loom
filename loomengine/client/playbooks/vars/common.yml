@@ -30,9 +30,14 @@ server_protocol: "{{'https' if https_port_enabled else 'http'}}"
 
 # SSL settings
 ssl_cert_create_new: "{{lookup('env', 'LOOM_SSL_CERT_CREATE_NEW')|default(false, true)|bool}}"
-ssl_cert_key_file: "{{lookup('env', 'LOOM_SSL_CERT_KEY_FILE')}}"
-ssl_cert_file: "{{lookup('env', 'LOOM_SSL_CERT_FILE')}}"
-ssl_cert_subj: "/C={{lookup('env', 'LOOM_SSL_CERT_C')}}/ST={{lookup('env', 'LOOM_SSL_CERT_ST')}}/L={{lookup('env', 'LOOM_SSL_CERT_L')}}/O={{lookup('env', 'LOOM_SSL_CERT_O')}}/CN={{ansible_hostname}}"
+ssl_cert_key_file: "{{lookup('env', 'LOOM_SSL_CERT_KEY_FILE')|default(server_name~'-ssl.key',true)}}"
+ssl_cert_file: "{{lookup('env', 'LOOM_SSL_CERT_FILE')|default('server_name~'ssl.crt',true)}}"
+ssl_cert_c: "{{lookup('env', 'LOOM_SSL_CERT_C')|default('US', true)}}"
+ssl_cert_st: "{{lookup('env', 'LOOM_SSL_CERT_ST')|default('California', true)}}"
+ssl_cert_l: "{{lookup('env', 'LOOM_SSL_CERT_L')|default('Palo Alto', true)}}"
+ssl_cert_o: "{{lookup('env', 'LOOM_SSL_CERT_O')|default('Stanford University', true)}}"
+ssl_cert_cn: "{{lookup('env', 'LOOM_SSL_CERT_CN')|default(ansible_hostname, true)}}"
+ssl_cert_subj: "/C={{ssl_cert_c}}/ST={{ssl_cert_st}}/L={{ssl_cert_l}}/O={{ssl_cert_o}}/CN={{ssl_cert_cn}}"
 
 # Fluentd container settings
 fluentd_image: "{{lookup('env', 'LOOM_FLUENTD_IMAGE')|default('loomengine/fluentd-forest-googlecloud', true)}}"

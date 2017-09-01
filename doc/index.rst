@@ -15,4 +15,4 @@ Welcome to Loom's documentation!
    installing
    templates
    tags_and_labels
-
+   server_settings
