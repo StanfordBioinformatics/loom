@@ -5,6 +5,17 @@ Release Notes
 Latest
 =============
 
+0.5.2
+------------
+* "loom server start" now starts a local server using default settings
+* Required settings to launch on gcloud were reduced to a minimal set
+* Server settings validation
+* Removed deprecated commands "loom show", "loom import", and "loom export"
+* Removed deprecated fixed_inputs in templates
+* Deprecation warning for "loom server start --admin-files-dir", renamed flag as "--resource-dir"
+* Server settings can be changed without destroying server, using "loom server start/stop"
+* Docker image versions for Loom server components can be upgraded without destroying server, using "loom server start/stop"
+
 0.5.1
 -------------
 * Enhanced validation of templates and data objects
