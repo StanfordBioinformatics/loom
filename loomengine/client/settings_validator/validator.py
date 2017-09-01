@@ -164,7 +164,6 @@ class SettingsValidator(object):
 
         self._validate_ssl_cert_settings()
         self._validate_mysql_settings()
-        self._validate_ports()
         self._validate_server_name()
         self._validate_storage_root()
         self._validate_gcloud_settings()
@@ -175,17 +174,6 @@ class SettingsValidator(object):
             raise SettingsValidationError(self.errors)
 
     def _validate_ssl_cert_settings(self):
-        if self.to_bool(self.settings.get('LOOM_SSL_CERT_CREATE_NEW')):
-            for setting in [
-                    'LOOM_SSL_CERT_C',
-                    'LOOM_SSL_CERT_ST',
-                    'LOOM_SSL_CERT_L',
-                    'LOOM_SSL_CERT_O',
-                    # LOOM_SSL_CERT_CN defaults to ansible_hostname
-            ]:
-                if not setting in self.settings.keys():
-                    self.errors.append('Missing setting "%s" required when '\
-                                       'LOOM_SSL_CERT_CREATE_NEW=true' % setting)
         if not self.to_bool(self.settings.get('LOOM_SSL_CERT_CREATE_NEW')) \
            and self.to_bool(self.settings.get('LOOM_HTTPS_PORT_ENABLED')):
             for setting in ['LOOM_SSL_CERT_KEY_FILE',
@@ -195,20 +183,6 @@ class SettingsValidator(object):
                     self.errors.append('Missing setting "%s" required when '\
                                        'LOOM_SSL_CERT_CREATE_NEW=false and '\
                                        'LOOM_HTTPS_PORT_ENABLED=true' % setting)
-
-    def _validate_ports(self):
-        if self.to_bool(self.settings.get('LOOM_HTTP_PORT_ENABLED')):
-            if not 'LOOM_HTTP_PORT' in self.settings.keys():
-                self.errors.append(
-                    'Missing setting LOOM_HTTP_PORT is required when '\
-                    'LOOM_HTTP_PORT_ENABLED is True'
-                    % setting)
-        if self.to_bool(self.settings.get('LOOM_HTTPS_PORT_ENABLED')):
-            if not 'LOOM_HTTPS_PORT' in self.settings.keys():
-                self.errors.append(
-                    'Missing setting LOOM_HTTPS_PORT is required when '\
-                    'LOOM_HTTPS_PORT_ENABLED is True'
-                    % setting)
 
     def _validate_mysql_settings(self):
         if self.to_bool(self.settings.get('LOOM_MYSQL_CREATE_DOCKER_CONTAINER')):
