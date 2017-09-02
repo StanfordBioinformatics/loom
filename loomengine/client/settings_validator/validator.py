@@ -163,7 +163,6 @@ class SettingsValidator(object):
                 warnings.warn('Unrecognized setting "%s" will be ignored' % setting)
 
         self._validate_ssl_cert_settings()
-        self._validate_mysql_settings()
         self._validate_server_name()
         self._validate_storage_root()
         self._validate_gcloud_settings()
@@ -183,18 +182,6 @@ class SettingsValidator(object):
                     self.errors.append('Missing setting "%s" required when '\
                                        'LOOM_SSL_CERT_CREATE_NEW=false and '\
                                        'LOOM_HTTPS_PORT_ENABLED=true' % setting)
-
-    def _validate_mysql_settings(self):
-        if self.to_bool(self.settings.get('LOOM_MYSQL_CREATE_DOCKER_CONTAINER')):
-            # Then these are required:
-            for required_setting in [
-                    'LOOM_MYSQL_IMAGE',
-                    'LOOM_MYSQL_CONTAINER_NAME_SUFFIX',
-                    'LOOM_MYSQL_RANDOM_ROOT_PASSWORD']:
-                if not required_setting in self.settings.keys():
-                    self.errors.append(
-                        'Missing setting "%s" is required when '\
-                        'LOOM_MYSQL_CREATE_DOCKER_CONTAINER is True' % required_setting)
 
     def _validate_server_name(self):
         server_name = self.settings.get('LOOM_SERVER_NAME')
