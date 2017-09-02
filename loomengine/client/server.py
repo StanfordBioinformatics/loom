@@ -15,6 +15,7 @@ import warnings
 from loomengine.client.common import *
 from loomengine.client.settings_validator import validate
 import loomengine.utils.version
+from .settings_validator import to_bool
 
 STOCK_PLAYBOOK_DIR = os.path.join(
     os.path.join(imp.find_module('loomengine')[1], 'client', 'playbooks'))
@@ -134,6 +135,7 @@ class ServerControls:
                                 self._get_default_storage_root(settings))
             settings.setdefault('LOOM_ANSIBLE_INVENTORY',
                                 self._get_default_ansible_inventory(settings))
+            self._set_default_mysql_settings(settings)
 
             # For environment variables with an effect on third-party software,
             # remove "LOOM_" prefix from the setting name.
@@ -200,6 +202,17 @@ class ServerControls:
         else:
             return 'localhost,'
 
+    def _set_default_mysql_settings(self, settings):
+        # If user provides a MySQL server name, assume they don't want to create a new one
+        if settings.get('LOOM_MYSQL_HOST'):
+            settings.setdefault('LOOM_MYSQL_CREATE_DOCKER_CONTAINER', 'false')
+        else:
+            settings.setdefault('LOOM_MYSQL_CREATE_DOCKER_CONTAINER', 'true')
+
+        if to_bool(settings.get('LOOM_MYSQL_CREATE_DOCKER_CONTAINER')):
+            settings.setdefault('LOOM_MYSQL_HOST', settings.get('LOOM_SERVER_NAME')+'-mysql')
+        return
+        
     def stop(self):
         if not self._has_server_settings():
             raise SystemExit('ERROR! No server settings found. Nothing to stop.')

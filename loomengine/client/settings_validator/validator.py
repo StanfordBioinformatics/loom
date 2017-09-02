@@ -2,6 +2,7 @@ import os
 import re
 import warnings
 
+from . import to_bool
 
 class SettingsValidationError(Exception):
     pass
@@ -173,8 +174,8 @@ class SettingsValidator(object):
             raise SettingsValidationError(self.errors)
 
     def _validate_ssl_cert_settings(self):
-        if not self.to_bool(self.settings.get('LOOM_SSL_CERT_CREATE_NEW')) \
-           and self.to_bool(self.settings.get('LOOM_HTTPS_PORT_ENABLED')):
+        if not to_bool(self.settings.get('LOOM_SSL_CERT_CREATE_NEW')) \
+           and to_bool(self.settings.get('LOOM_HTTPS_PORT_ENABLED')):
             for setting in ['LOOM_SSL_CERT_KEY_FILE',
 	                    'LOOM_SSL_CERT_FILE'
             ]:
@@ -227,9 +228,3 @@ class SettingsValidator(object):
                     'Invalid value "%s" for LOOM_GCLOUD_WORKER_EXTERNAL_IP. '\
                     'Allowed values are "ephemeral" and "none". If you need to restrict '
                     'the IP address range, use a subnetwork.' % ip)
-
-    def to_bool(self, value):
-        if value and value.lower() in ['true', 't', 'yes', 'y']:
-            return True
-        else:
-            return False
