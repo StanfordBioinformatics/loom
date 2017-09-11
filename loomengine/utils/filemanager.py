@@ -441,8 +441,16 @@ class GoogleStorageCopier(AbstractCopier):
         # retry has no effect
         rewrite_token = None
         while True:
-            rewrite_token, rewritten, size = self.destination.blob.rewrite(
-                self.source.blob, token=rewrite_token)
+            if self.source.retry or self.destination.retry:
+                rewrite_token, rewritten, size = execute_with_retries(
+                    lambda: self.destination.blob.rewrite(
+                        self.source.blob, token=rewrite_token),
+                    (Exception,),
+                    logger,
+                    'File copy')
+            else:
+                rewrite_token, rewritten, size = self.destination.blob.rewrite(
+                    self.source.blob, token=rewrite_token)
             logger.info("   copied %s of %s bytes ..." % (rewritten, size))
             if not rewrite_token:
                 logger.info("   copy completed ...")
