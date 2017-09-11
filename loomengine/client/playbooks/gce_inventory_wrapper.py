@@ -62,6 +62,6 @@ while True:
         # Exponential backoff on retry delay as suggested by
         # https://cloud.google.com/storage/docs/exponential-backoff
         delay = 2**attempt + random.random()
-        print 'Error executing inventory file %s: %s' % (inventory_file, str(e))
-        print 'Retry number %s of %s in %s seconds' % (attempt, max_retries, delay)
+        sys.stderr.write('Error executing inventory file %s: %s\n' % (inventory_file, str(e)))
+        sys.stderr.write('Retry number %s of %s in %s seconds\n' % (attempt, max_retries, delay))
         time.sleep(delay)
