@@ -45,8 +45,9 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
         contents = self.initial_data.get('contents')
         if contents is None:
             raise Exception('No data contents. Cannot create DataNode')
-        return self._create_data_node_from_data_objects(
-                contents, type)
+        data_node = self._create_data_node_from_data_objects(
+            contents, type)
+        return data_node
 
     def validate_contents(self, value):
         try:

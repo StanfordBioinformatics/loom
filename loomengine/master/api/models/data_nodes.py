@@ -49,10 +49,6 @@ class DataNode(MPTTModel, BaseModel):
 
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
-    parent = TreeForeignKey('self', null=True, blank=True,
-                            related_name='steps', db_index=True,
-                            on_delete=models.CASCADE)
-
     parent = TreeForeignKey(
         'self',
         null=True,

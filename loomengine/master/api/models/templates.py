@@ -2,7 +2,6 @@ from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import jsonfield
-from mptt.models import MPTTModel, TreeForeignKey
 
 from .base import BaseModel
 from .data_channels import DataChannel
