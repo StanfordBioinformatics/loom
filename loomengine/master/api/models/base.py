@@ -1,4 +1,5 @@
-from django.db import models
+import django.db.utils
+from django.db import models, transaction
 import re
 
 from api.exceptions import ConcurrentModificationError, SaveRetriesExceededError
@@ -139,7 +140,16 @@ class BaseModel(models.Model, _FilterMixin):
             if not rows:
                 raise ConcurrentModificationError(cls.__name__, self.pk)
             self._change += 1
-        super(BaseModel, self).save(*args, **kwargs)
+
+        count = 0
+        max_retries=3
+        while True:
+            try:
+                return super(BaseModel, self).save(*args, **kwargs)
+            except django.db.utils.OperationalError:
+                if count >= max_retries:
+                    raise
+                count += 1
 
     def setattrs_and_save_with_retries(self, assignments, max_retries=5):
         """

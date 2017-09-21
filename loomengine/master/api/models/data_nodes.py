@@ -1,7 +1,7 @@
 import copy
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from mptt.models import MPTTModel, TreeForeignKey
+from .async_safe_mptt import AsyncSafeMPTTModel, TreeForeignKey
 
 from .base import BaseModel
 from .data_objects import DataObject
@@ -45,7 +45,7 @@ class DegreeMismatchException(Exception):
     pass
 
 
-class DataNode(MPTTModel, BaseModel):
+class DataNode(AsyncSafeMPTTModel, BaseModel):
 
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)

@@ -5,10 +5,10 @@ from django.db import models
 from django.dispatch import receiver
 from django.template.loader import render_to_string
 from django.utils import timezone
-from mptt.models import MPTTModel, TreeForeignKey
 import jsonfield
 import requests
 
+from .async_safe_mptt import AsyncSafeMPTTModel, TreeForeignKey
 from .base import BaseModel
 from api import get_setting
 from api import async
@@ -38,7 +38,7 @@ class RunAlreadyClaimedForPostprocessingException(Exception):
     pass
 
 
-class Run(MPTTModel, BaseModel):
+class Run(AsyncSafeMPTTModel, BaseModel):
     """AbstractWorkflowRun represents the process of executing a Workflow on
     a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
