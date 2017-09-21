@@ -302,42 +302,59 @@ class Run(AsyncSafeMPTTModel, BaseModel):
     def _send_email_notifications(self, email_addresses, context):
         if not email_addresses:
             return
-        text_content = render_to_string('email/notify_run_completed.txt',
-                                        context)
-        html_content = render_to_string('email/notify_run_completed.html',
-                                        context)
-        connection = mail.get_connection()
-        connection.open()
-        email = mail.EmailMultiAlternatives(
-            'Loom run %s@%s is %s' % (self.name, self.uuid[0:8], self.status.lower()),
-            text_content,
-            get_setting('DEFAULT_FROM_EMAIL'),
-            email_addresses,
-        )
-        email.attach_alternative(html_content, "text/html")
-        email.send()
-        connection.close()
+        try:
+            text_content = render_to_string('email/notify_run_completed.txt',
+                                            context)
+            html_content = render_to_string('email/notify_run_completed.html',
+                                            context)
+            connection = mail.get_connection()
+            connection.open()
+            email = mail.EmailMultiAlternatives(
+                'Loom run %s@%s is %s' % (self.name, self.uuid[0:8], self.status.lower()),
+                text_content,
+                get_setting('DEFAULT_FROM_EMAIL'),
+                email_addresses,
+            )
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+            connection.close()
+        except Exception as e:
+            self.add_event("Email notifications failed", detail=str(e), is_error=True)
+            raise
+        self.add_event("Email notifications sent", detail=email_addresses, is_error=False)
 
     def _send_http_notifications(self, urls, context):
         if not urls:
             return
-        data = {
-            'message': 'Loom run %s is %s' % (
-                context['run_name_and_id'],
-                context['run_status']),
-            'run_uuid': self.uuid,
-            'run_name': self.name,
-            'run_status': self.status,
-            'run_url': context['run_url'],
-            'run_api_url': context['run_api_url'],
-            'server_name': context['server_name'],
-            'server_url': context['server_url'],
-        }
+        any_failures = False
+        try:
+            data = {
+                'message': 'Loom run %s is %s' % (
+                    context['run_name_and_id'],
+                    context['run_status']),
+                'run_uuid': self.uuid,
+                'run_name': self.name,
+                'run_status': self.status,
+                'run_url': context['run_url'],
+                'run_api_url': context['run_api_url'],
+                'server_name': context['server_name'],
+                'server_url': context['server_url'],
+            }
+        except Exception as e:
+            self.add_event("Http notification failed", detail=str(e), is_error=True)
+            raise
         for url in urls:
-            requests.post(
-                url,
-                data = data,
-                verify=get_setting('NOTIFICATION_HTTPS_VERIFY_CERTIFICATE'))
+            try:
+                response = requests.post(
+                    url,
+                    data = data,
+                    verify=get_setting('NOTIFICATION_HTTPS_VERIFY_CERTIFICATE'))
+                response.raise_for_status()
+            except Exception as e:
+                self.add_event("Http notification failed", detail=str(e), is_error=True)
+                any_failures = True
+        if not any_failures:
+            self.add_event("Http notification succeeded", detail=', '.join(urls), is_error=False)
 
     @classmethod
     def get_notification_context(cls, request):

@@ -218,6 +218,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
 }
 
 TEMPLATES = [
@@ -351,7 +352,7 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
-if DEBUG:
+if DEBUG or (len(sys.argv) > 1 and sys.argv[1] == 'collectstatic'):
     INSTALLED_APPS.append('debug_toolbar')
     MIDDLEWARE_CLASSES.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
