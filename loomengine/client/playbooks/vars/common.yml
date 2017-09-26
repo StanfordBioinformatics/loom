@@ -12,7 +12,7 @@ storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
 
 # General
 debug: "{{lookup('env', 'LOOM_DEBUG')|default(false, true)|bool}}"
-server_name: "{{lookup('env', 'LOOM_SERVER_NAME')|truncate(63)}}"
+server_name: "{{lookup('env', 'LOOM_SERVER_NAME')|truncate(63,true,'')}}"
 log_level: "{{lookup('env', 'LOOM_LOG_LEVEL')|default('INFO', true)|upper}}"
 container_settings_home: /loom-settings
 default_registry: "{{lookup('env', 'LOOM_DEFAULT_DOCKER_REGISTRY')}}"
@@ -41,7 +41,7 @@ ssl_cert_subj: "/C={{ssl_cert_c}}/ST={{ssl_cert_st}}/L={{ssl_cert_l}}/O={{ssl_ce
 
 # Fluentd container settings
 fluentd_image: "{{lookup('env', 'LOOM_FLUENTD_IMAGE')|default('loomengine/fluentd-forest-googlecloud', true)}}"
-fluentd_container_name: "{{server_name|truncate(55)}}-fluentd"
+fluentd_container_name: "{{server_name|truncate(55,true,'')}}-fluentd"
 fluentd_outputs: "{{lookup('env', 'LOOM_FLUENTD_OUTPUTS')|default('elasticsearch,file', true)}}"
 fluentd_port: "{{lookup('env', 'LOOM_FLUENTD_PORT')|default(24224, true)|int}}"
 fluentd_address: "{{server_url|regex_replace('^.*://([^:]+)(?::.+)?$', '\\1')}}:{{fluentd_port}}"
@@ -53,7 +53,7 @@ fluentd_log_opts: "{{{'tag':fluentd_tag,'fluentd-async-connect':fluentd_async_co
 raw_elasticsearch_image: "{{lookup('env', 'LOOM_ELASTICSEARCH_IMAGE')|default('docker.elastic.co/elasticsearch/elasticsearch:5.3.2', true)}}"
 
 elasticsearch_image: "{% if default_registry %}{% if not ('.' in raw_elasticsearch_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_elasticsearch_image}}"
-elasticsearch_container_name: "{{server_name|truncate(49)}}-elasticsearch"
+elasticsearch_container_name: "{{server_name|truncate(49,true,'')}}-elasticsearch"
 elasticsearch_port: "{{lookup('env', 'LOOM_ELASTICSEARCH_PORT')|default(9200, true)|int}}"
 elasticsearch_data_volume: "{{lookup('env', 'LOOM_ELASTICSEARCH_DATA_VOLUME')|default(server_name~'-eslogs', true)}}"
 elasticsearch_java_opts: "{{lookup('env', 'LOOM_ELASTICSEARCH_JAVA_OPTS')|default('-Xms512m -Xmx512m', true)}}"
@@ -64,14 +64,14 @@ kibana_version: "{{lookup('env', 'LOOM_KIBANA_VERSION')|default('5.3.2', true)}}
 default_kibana_image: "docker.elastic.co/kibana/kibana:{{kibana_version}}"
 raw_kibana_image: "{{lookup('env', 'LOOM_KIBANA_IMAGE')|default(default_kibana_image, true)}}"
 kibana_image: "{% if default_registry %}{% if not ('.' in raw_kibana_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_kibana_image}}"
-kibana_container_name: "{{server_name|truncate(56)}}-kibana"
+kibana_container_name: "{{server_name|truncate(56,true,'')}}-kibana"
 kibana_port: "{{lookup('env', 'LOOM_KIBANA_PORT')|default(5601, true)|int}}"
 
 # MySQL container settings
 mysql_create_docker_container: "{{lookup('env', 'LOOM_MYSQL_CREATE_DOCKER_CONTAINER')|default(true, true)|bool}}"
 raw_mysql_image: "{{lookup('env', 'LOOM_MYSQL_IMAGE')|default('mysql:5.7.17', true)}}"
 mysql_image: "{% if default_registry %}{% if not ('.' in raw_mysql_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_mysql_image}}"
-mysql_container_name: "{{server_name|truncate(57)}}-mysql"
+mysql_container_name: "{{server_name|truncate(57,true,'')}}-mysql"
 mysql_data_volume: "{{lookup('env', 'LOOM_MYSQL_DATA_VOLUME')|default(server_name~'-mysqldata', true)}}"
 mysql_random_root_password: >
   "{{lookup('env', 'LOOM_MYSQL_RANDOM_ROOT_PASSWORD')|default(true, true)|bool}}"
@@ -93,7 +93,7 @@ container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+resource_dir
 # Rabbitmq container settings
 raw_rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_MANAGEMENT_IMAGE')|default('rabbitmq:3.6.8', true) if debug else lookup('env', 'LOOM_RABBITMQ_IMAGE')|default('rabbitmq:3.6.8-management', true)}}"
 rabbitmq_image: "{% if default_registry %}{% if not ('.' in raw_rabbitmq_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_rabbitmq_image}}"
-rabbitmq_container_name: "{{server_name|truncate(54)}}-rabbitmq"
+rabbitmq_container_name: "{{server_name|truncate(54,true,'')}}-rabbitmq"
 rabbitmq_user: "{{lookup('env', 'LOOM_RABBITMQ_USER')|default('guest', true)}}"
 rabbitmq_password: "{{lookup('env', 'LOOM_RABBITMQ_PASSWORD')|default('guest', true)}}"
 rabbitmq_port: "{{lookup('env', 'LOOM_RABBITMQ_PORT')|default(5672, true)|int}}"
@@ -102,24 +102,24 @@ rabbitmq_host: "{{rabbitmq_container_name}}"
 rabbitmq_data_volume: "{{lookup('env', 'LOOM_RABBITMQ_DATA_VOLUME')|default(server_name~'-rabbitmqdata', true)}}"
 
 # Celery worker container settings
-worker_container_name: "{{server_name|truncate(56)}}-worker"
+worker_container_name: "{{server_name|truncate(56,true,'')}}-worker"
 
 # Celery scheduler container settings
-scheduler_container_name: "{{server_name|truncate(53)}}-scheduler"
+scheduler_container_name: "{{server_name|truncate(53,true,'')}}-scheduler"
 
 # Flower container settings
-flower_container_name: "{{server_name|truncate(56)}}-flower"
+flower_container_name: "{{server_name|truncate(56,true,'')}}-flower"
 flower_internal_port: "{{lookup('env', 'LOOM_FLOWER_INTERNAL_PORT')|default(5555, true)|int}}"
 
 # NGINX container settings
 nginx_image: "{{lookup('env', 'LOOM_NGINX_IMAGE')|default('nginx:1.11', true)}}"
-nginx_container_name: "{{server_name|truncate(57)}}-nginx"
+nginx_container_name: "{{server_name|truncate(57,true,'')}}-nginx"
   
 nginx_server_name: "{{lookup('env', 'LOOM_NGINX_SERVER_NAME')|default('localhost',true)}}"
 nginx_webportal_root: "{{lookup('env', 'LOOM_NGINX_WEBPORTAL_ROOT')|default('/loomengine/loomengine/portal', true)}}"
 
 # Loom master container settings
-master_container_name: "{{server_name|truncate(56)}}-master"
+master_container_name: "{{server_name|truncate(56,true,'')}}-master"
 master_internal_port: "{{lookup('env', 'LOOM_MASTER_INTERNAL_PORT')|default(8000,true)|int}}"
 master_static_root: "{{lookup('env', 'LOOM_MASTER_STATIC_ROOT')|default('/var/www/loom/static', true)}}"
 
@@ -128,7 +128,7 @@ webportal_data_volume: "{{lookup('env', 'LOOM_WEBPORTAL_DATA_VOLUME')|default(se
 webstatic_data_volume: "{{lookup('env', 'LOOM_STATIC_DATA_VOLUME')|default(server_name~'-webstatic', true)}}"
 
 # Loom task attempt container settings
-task_attempt_container_name: "{{server_name|truncate(55)}}-monitor"
+task_attempt_container_name: "{{server_name|truncate(55,true,'')}}-monitor"
 
 # Google Cloud storage settings
 google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
