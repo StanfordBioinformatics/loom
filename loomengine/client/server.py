@@ -147,7 +147,6 @@ class ServerControls:
             # Hard-coded settings that should not come from the user:
             settings.update({
                 'LOOM_PLAYBOOK_DIR': LOOM_PLAYBOOK_DIR,
-                'LOOM_CONNECTION_FILES_DIR': LOOM_CONNECTION_FILES_DIR,
                 'LOOM_CONNECTION_SETTINGS_FILE': LOOM_CONNECTION_SETTINGS_FILE,
                 'LOOM_RESOURCE_DIR': LOOM_RESOURCE_DIR,
                 'LOOM_SERVER_SETTINGS_FILE': LOOM_SERVER_SETTINGS_FILE,
@@ -243,7 +242,6 @@ class ServerControls:
                 raise SystemExit('ERROR! Loom server not found at "%s".' % server_url)
         elif not is_server_running(url=server_url):
             raise SystemExit('ERROR! Loom server not found at "%s".' % server_url)
-        self._copy_connection_files_to_settings_dir()
         connection_settings = { "LOOM_SERVER_URL": server_url }
         self._save_connection_settings_file(connection_settings)
         print 'Connected to Loom server at "%s".' % server_url
@@ -262,8 +260,6 @@ class ServerControls:
             os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
         server_url = settings.get('LOOM_SERVER_URL')
         os.remove(os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
-        if os.path.exists(LOOM_CONNECTION_FILES_DIR):
-            shutil.rmtree(LOOM_CONNECTION_FILES_DIR)
         try:
             # remove if empty
             os.rmdir(LOOM_SETTINGS_HOME)
@@ -476,14 +472,6 @@ class ServerControls:
                 settings.get(loom_setting_name)))
         return settings
 
-    def _copy_connection_files_to_settings_dir(self):
-        if self.args.connection_files_dir:
-            shutil.copytree(self.args.connection_files_dir,
-                            os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_FILES_DIR))
-        else:
-            # If no files, leave an empty directory
-            os.makedirs(LOOM_CONNECTION_FILES_DIR)
-
     def _parse_extra_settings(self, extra_settings):
         settings_dict = {}
         for setting in extra_settings:
@@ -529,8 +517,6 @@ def get_parser(parser=None):
         'server_url',
         metavar='LOOM_SERVER_URL',
         help='URL of the Loom server you wish to connect to')
-    connect_parser.add_argument('-c', '--connection-files-dir',
-                                metavar='CONNECTION_FILES_DIR')
 
     disconnect_parser = subparsers.add_parser(
         'disconnect',
