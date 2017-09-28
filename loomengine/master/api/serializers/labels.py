@@ -1,4 +1,5 @@
 import copy
+import django.core.exceptions
 from api.models.labels import RunLabel, DataLabel, TemplateLabel
 from api.models.templates import Template
 from api.models.data_objects import DataObject
@@ -21,8 +22,11 @@ class TemplateLabelSerializer(serializers.ModelSerializer):
         template = self.context.get('template')
         validated_data.update({'template': template})
         label = TemplateLabel(**validated_data)
-        label.full_clean()
-        label.save()
+        try:
+            label.full_clean()
+            label.save()
+        except django.core.exceptions.ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
         return label
 
 
@@ -38,8 +42,11 @@ class DataLabelSerializer(serializers.ModelSerializer):
         data_object = self.context.get('data_object')
         validated_data.update({'data_object': data_object})
         label = DataLabel(**validated_data)
-        label.full_clean()
-        label.save()
+        try:
+            label.full_clean()
+            label.save()
+        except django.core.exceptions.ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
         return label
 
 
@@ -55,6 +62,9 @@ class RunLabelSerializer(serializers.ModelSerializer):
         run = self.context.get('run')
         validated_data.update({'run': run})
         label = RunLabel(**validated_data)
-        label.full_clean()
-        label.save()
+        try:
+            label.full_clean()
+            label.save()
+        except django.core.exceptions.ValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
         return label

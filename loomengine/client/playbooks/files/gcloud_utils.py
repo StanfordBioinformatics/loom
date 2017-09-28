@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import requests
@@ -62,28 +63,32 @@ def get_gcloud_pricelist():
     return pricelist
 
 MIN_TASK_ID_CHARS = 8
-def get_worker_name_base(hostname, step_name, attempt_id):
+def _get_base_name(hostname, step_name, attempt_id, max_length):
     """Create a base name for the worker instance that will run the specified task
     run attempt, from this server. Since hostname and step name will be
     duplicated across workers (reruns, etc.), ensure that at least
-    MIN_TASK_ID_CHARS are preserved in the instance name. Also, save 5 characters
-    at the end for '-disk' and '-work' suffixes, which also prevent names from ending with dashes.
+    MIN_TASK_ID_CHARS are preserved in the instance name. Also, prevent names 
+    from ending with dashes.
     """
-    name_base = '-'.join([hostname, step_name])
-    sanitized_name_base = sanitize_instance_name_base(name_base)
-    sanitized_name_base = sanitized_name_base[:63-5-MIN_TASK_ID_CHARS]  # leave characters at the end for task attempt id and suffixes
-    worker_name_base = '-'.join([sanitized_name_base, attempt_id])
-    sanitized_worker_name_base = sanitize_instance_name_base(worker_name_base)[:58] # leave 5 characters for suffixes
-    return sanitized_worker_name_base
+    max_length = int(max_length)
+    if len(hostname)+len(step_name)+MIN_TASK_ID_CHARS+2 > max_length:
+        # round with ceil/floor such that extra char goes to hostname if odd
+        hostname_chars = int(math.ceil((max_length-MIN_TASK_ID_CHARS-2)/float(2)))
+        step_name_chars = int(math.floor((max_length-MIN_TASK_ID_CHARS-2)/float(2)))
+        hostname = hostname[:hostname_chars]
+        step_name = step_name[:step_name_chars]
+    name_base = '-'.join([hostname, step_name, attempt_id])
+    return _sanitize_instance_name(name_base, max_length)
 
-def get_worker_name(hostname, step_name, attempt_id):
-    worker_name = '-'.join([get_worker_name_base(hostname, step_name, attempt_id), 'work'])
+def get_worker_name(hostname, step_name, attempt_id, max_length):
+    worker_name = _get_base_name(hostname, step_name, attempt_id, max_length)
     print worker_name
     return worker_name
 
-def get_scratch_disk_name(hostname, step_name, attempt_id):
+def get_scratch_disk_name(hostname, step_name, attempt_id, max_length):
     """Create a name for the worker scratch disk."""
-    disk_name = '-'.join([get_worker_name_base(hostname, step_name, attempt_id), 'disk'])
+    max_length = int(max_length)
+    disk_name = _get_base_name(hostname, step_name, attempt_id, max_length-5)+'-disk'
     print disk_name
     return disk_name
 
@@ -94,15 +99,18 @@ def get_scratch_disk_device_path(hostname, step_name, attempt_id):
     print device_path
     return device_path
 
-def sanitize_instance_name_base(name):
+def _sanitize_instance_name(name, max_length):
     """Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit."""
     name = str(name).lower()                # make all letters lowercase
     name = re.sub(r'[^-a-z0-9]', '', name)  # remove invalid characters
     name = re.sub(r'^[^a-z]+', '', name)    # remove non-lowercase letters from the beginning
+    name = name[:max_length]
+    name = re.sub(r'-+$', '', name)         # remove hyphens from the end
     return name
 
-def sanitize_server_name(name):
-    server_name = sanitize_instance_name_base(name)[:63]
+def sanitize_server_name(name, max_length):
+    max_length = int(max_length)
+    server_name = _sanitize_instance_name(name, max_length)
     if not server_name:
         raise Exception('Failed to sanitize server name "%s"' % name)
     print server_name

@@ -4,6 +4,8 @@ from loomengine.utils import connection
 
 class MockResponse:
 
+    status_code = 200
+
     def json(self):
         # Return mock data
         return {}
@@ -13,7 +15,7 @@ class MockConnection(connection.Connection):
     # Overrides connection.Connection methods that need a server
     # with mock methods
 
-    def _get(self, relative_url):
+    def _get(self, relative_url, raise_for_status=True, params=None):
         self.method = 'GET'
         self.url = relative_url
         return MockResponse()

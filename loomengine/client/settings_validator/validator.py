@@ -141,6 +141,7 @@ class SettingsValidator(object):
         'LOOM_GCLOUD_SERVER_USES_WORKER_INTERNAL_IP',
         'LOOM_GCLOUD_SERVER_TAGS',
         'LOOM_GCLOUD_WORKER_TAGS',
+        'LOOM_GCLOUD_INSTANCE_NAME_MAX_LENGTH',
     )
 
     def __init__(self, settings):
@@ -173,6 +174,7 @@ class SettingsValidator(object):
                                        'LOOM_HTTPS_PORT_ENABLED=true' % setting)
 
     def _validate_server_name(self):
+        max_len = int(self.settings.get('LOOM_GCLOUD_INSTANCE_NAME_MAX_LENGTH', 63))
         server_name = self.settings.get('LOOM_SERVER_NAME')
         pattern='^[a-z]([-a-z0-9]*[a-z0-9])?$'
         if not re.match(pattern, server_name):
@@ -180,10 +182,10 @@ class SettingsValidator(object):
                 'Invalid LOOM_SERVER_NAME "%s". Must start with a letter, '
                 'contain only alphanumerics and hyphens, and cannot end with a '
                 'hyphen' % server_name)
-        if len(server_name) > 63:
+        if len(server_name) > max_len:
             self.errors.append(
-                'Invalid LOOM_SERVER_NAME "%s". Cannot exceed 63 letters.'
-                % server_name)
+                'Invalid LOOM_SERVER_NAME "%s". Cannot exceed %s letters.'
+                % server_name, max_len)
 
     def _validate_storage_root(self):
         LOOM_STORAGE_ROOT = self.settings.get('LOOM_STORAGE_ROOT')

@@ -116,9 +116,9 @@ def _run_execute_task_attempt_playbook(task_attempt, context):
 
     resources = task_attempt.task.run.template.resources
     if resources:
-        disk_size = resources.get('disk_size', '')
-        cores = resources.get('cores', '')
-        memory = resources.get('memory', '')
+        disk_size = str(resources.get('disk_size', ''))
+        cores = str(resources.get('cores', ''))
+        memory = str(resources.get('memory', ''))
     else:
         disk_size = ''
         cores = ''
@@ -128,12 +128,16 @@ def _run_execute_task_attempt_playbook(task_attempt, context):
     name = task_attempt.task.run.name
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
-                'LOOM_TASK_ATTEMPT_CORES': cores,
-                'LOOM_TASK_ATTEMPT_MEMORY': memory,
-                'LOOM_TASK_ATTEMPT_DISK_SIZE_GB': disk_size,
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': docker_image,
                 'LOOM_TASK_ATTEMPT_STEP_NAME': name,
                 }
+    if cores:
+        new_vars['LOOM_TASK_ATTEMPT_CORES'] = cores
+    if disk_size:
+        new_vars['LOOM_TASK_ATTEMPT_DISK_SIZE_GB'] = disk_size
+    if memory:
+        new_vars['LOOM_TASK_ATTEMPT_MEMORY'] = memory
+
     env.update(new_vars)
 
     p = subprocess.Popen(cmd_list,

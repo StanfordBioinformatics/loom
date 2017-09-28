@@ -202,7 +202,8 @@ class FileResource(BaseModel):
         parts = [cls._get_file_root()]
         parts.extend(cls._get_breadcrumbs(source_type, data_object, task_attempt))
         parts.append(cls._get_subdir(source_type))
-        parts.append(cls._get_expanded_filename(filename, data_object.uuid))
+        parts.append(cls._get_expanded_filename(
+            filename, data_object.uuid, source_type))
         return os.path.join(*parts)
 
     @classmethod
@@ -241,7 +242,7 @@ class FileResource(BaseModel):
             return []
 
         breadcrumbs = [
-            "%s-%s" % (str(run.uuid)[0:8], run.name),
+            run.name,
             "task-%s" % str(task.uuid)[0:8],
             "attempt-%s" % str(task_attempt.uuid)[0:8],
         ]
@@ -249,22 +250,24 @@ class FileResource(BaseModel):
         # Include any ancestors if run is nested
         while run.parent is not None:
             run = run.parent
-            breadcrumbs = [
-                "%s-%s" % (str(run.uuid)[0:8], run.name)] \
-                + breadcrumbs
+            breadcrumbs = [run.name] + breadcrumbs
 
-        # Prepend first breadcrumb with datetime
-        breadcrumbs[0] = "%s-%s" % (
+        # Prepend first breadcrumb with datetime and id
+        breadcrumbs[0] = "%s-%s-%s" % (
             run.datetime_created.strftime('%Y-%m-%dT%H.%M.%SZ'),
+            str(run.uuid)[0:8],
             breadcrumbs[0])
         return breadcrumbs
 
     @classmethod
-    def _get_expanded_filename(cls, filename, data_object_uuid):
-        return "%s_%s_%s" % (
-            timezone.now().strftime('%Y-%m-%dT%H.%M.%SZ'),
-            str(data_object_uuid)[0:8],
-            filename)
+    def _get_expanded_filename(cls, filename, data_object_uuid, source_type):
+        if source_type == 'imported':
+            return "%s_%s_%s" % (
+                timezone.now().strftime('%Y-%m-%dT%H.%M.%SZ'),
+                str(data_object_uuid)[0:8],
+                filename)
+        else:
+            return filename
 
     @classmethod
     def _add_url_prefix(cls, path):

@@ -11,6 +11,8 @@ class DataLabel(BaseModel):
                             on_delete=models.CASCADE,
                             null=True,
                             blank=True)
+    class Meta:
+        unique_together=(('label', 'data_object'))
 
 
 class TemplateLabel(BaseModel):
@@ -20,6 +22,8 @@ class TemplateLabel(BaseModel):
                                  on_delete=models.CASCADE,
                                  null=False,
                                  blank=False)
+    class Meta:
+        unique_together=(('label', 'template'))
 
 
 class RunLabel(BaseModel):
@@ -29,3 +33,5 @@ class RunLabel(BaseModel):
                             on_delete=models.CASCADE,
                             null=False,
                             blank=False)
+    class Meta:
+        unique_together=(('label', 'run'))

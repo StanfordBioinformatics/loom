@@ -8,7 +8,7 @@
   tasks:
     - include: tasks/gcloud_get_worker_instance_name.yml
     - name: Create a GCP-safe name for the worker scratch disk.
-      command: python -c "import gcloud_utils; gcloud_utils.get_scratch_disk_name('{{server_name}}','{{step_name}}','{{task_attempt_id}}')"
+      command: python -c "import gcloud_utils; gcloud_utils.get_scratch_disk_name('{{server_name}}','{{step_name}}','{{task_attempt_id}}','{{instance_name_max_length}}')"
       args:
         chdir: "{{playbook_dir}}/files"
       register: scratch_disk_name_result

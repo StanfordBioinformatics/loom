@@ -316,6 +316,8 @@ class ServerControls:
             settings)
 
     def _save_connection_settings_file(self, settings):
+        if not os.path.exists(LOOM_SETTINGS_HOME):
+            os.makedirs(LOOM_SETTINGS_HOME)
         write_settings_file(
             os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE),
             settings)

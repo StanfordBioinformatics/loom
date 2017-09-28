@@ -38,7 +38,6 @@ class Command(BaseCommand):
     def compare_data(self, raw_data, saved_data):
         if isinstance(raw_data, list):
             if not isinstance(saved_data, list):
-                import pdb; pdb.set_trace()
                 raise Exception(
                     'Data mismatch. Printing raw, then saved: %s /// %s' % (
                         raw_data, saved_data))
