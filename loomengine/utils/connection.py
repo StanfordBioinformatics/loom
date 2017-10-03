@@ -295,10 +295,15 @@ class Connection(object):
             'task-attempts/%s/events/' % task_attempt_id
         )
 
-    def post_task_attempt_fail(self, task_attempt_id):
+    def post_task_attempt_system_error(self, task_attempt_id):
         return self._post_object(
             {},
-            'task-attempts/%s/fail/' % task_attempt_id)
+            'task-attempts/%s/system-error/' % task_attempt_id)
+
+    def post_task_attempt_analysis_error(self, task_attempt_id):
+        return self._post_object(
+            {},
+            'task-attempts/%s/analysis-error/' % task_attempt_id)
 
     def post_task_attempt_finish(self, task_attempt_id):
         return self._post_object(

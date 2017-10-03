@@ -253,12 +253,20 @@ class TaskAttemptViewSet(ExpandableViewSet):
         model = s.save()
         return JsonResponse(s.data, status=201)
 
-    @detail_route(methods=['post'], url_path='fail',
+    @detail_route(methods=['post'], url_path='system-error',
                   # Use base serializer since request has no data. Used by API doc.
                   serializer_class=rest_framework.serializers.Serializer)
-    def fail(self, request, uuid):
+    def system_error(self, request, uuid):
         task_attempt = self._get_task_attempt(request, uuid)
-        task_attempt.fail()
+        task_attempt.system_error()
+        return JsonResponse({}, status=201)
+
+    @detail_route(methods=['post'], url_path='analysis-error',
+                  # Use base serializer since request has no data. Used by API doc.
+                  serializer_class=rest_framework.serializers.Serializer)
+    def analysis_error(self, request, uuid):
+        task_attempt = self._get_task_attempt(request, uuid)
+        task_attempt.analysis_error()
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='finish',

@@ -71,7 +71,7 @@ class TaskMonitor(object):
                 self._init_working_dir()
             except Exception as e:
                 error = self._get_error_text(e)
-                self._fail(
+                self._report_system_error(
                     detail='Initializing TaskMonitor failed. %s'\
                     % error)
                 raise
@@ -144,7 +144,7 @@ class TaskMonitor(object):
                 TaskAttemptInput(input, self).copy()
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Copying inputs failed. %s' % error)
+            self._report_system_error(detail='Copying inputs failed. %s' % error)
             raise
 
     def _create_run_script(self):
@@ -157,7 +157,7 @@ class TaskMonitor(object):
                 f.write(user_command.encode('utf-8') + '\n')
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Creating run script failed. %s' % error)
+            self._report_system_error(detail='Creating run script failed. %s' % error)
             raise
 
     def _pull_image(self):
@@ -178,7 +178,7 @@ class TaskMonitor(object):
             self._save_environment_info(container_info)
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Pulling Docker image failed with "%s" error: "%s"' % (e.__class__, str(e)))
+            self._report_system_error(detail='Pulling Docker image failed with "%s" error: "%s"' % (e.__class__, str(e)))
             raise
 
     def _get_docker_image(self):
@@ -228,7 +228,7 @@ class TaskMonitor(object):
             self._set_container_id(self.container['Id'])
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Creating container failed. %s' % error)
+            self._report_system_error(detail='Creating container failed. %s' % error)
             raise
 
     def _run_container(self):
@@ -238,7 +238,7 @@ class TaskMonitor(object):
             self._verify_container_started_running()
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Starting analysis failed. %s' % error)
+            self._report_system_error(detail='Starting analysis failed. %s' % error)
             raise
 
     def _verify_container_started_running(self):
@@ -273,14 +273,14 @@ class TaskMonitor(object):
                 return
             else:
                 # bad returncode
-                self._fail(
+                self._report_analysis_error(
                     'Analysis finished with returncode %s. '\
                     'Check stderr/stdout logs for errors.'
                     % returncode)
                 # Do not raise error. Attempt to save log files.
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail('Failed to run analysis. %s' % error)
+            self._report_system_error('Failed to run analysis. %s' % error)
             # Do not raise error. Attempt to save log files.
 
     def _poll_for_returncode(self, poll_interval_seconds=1):
@@ -320,7 +320,7 @@ class TaskMonitor(object):
             self._import_log_file(self.settings['STDERR_LOG_FILE'], retry=True)
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Saving log files failed. %s' % error)
+            self._report_system_error(detail='Saving log files failed. %s' % error)
             raise
             
     def _get_stdout(self):
@@ -347,7 +347,7 @@ class TaskMonitor(object):
                 TaskAttemptOutput(output, self).save()
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Saving outputs failed. %s' % error)
+            self._report_system_error(detail='Saving outputs failed. %s' % error)
             raise
 
     def _finish(self):
@@ -355,7 +355,7 @@ class TaskMonitor(object):
             self._finish()
         except Exception as e:
             error = self._get_error_text(e)
-            self._fail(detail='Setting finished status failed. %s' % error)
+            self._report_system_error(detail='Setting finished status failed. %s' % error)
             raise
 
 
@@ -393,11 +393,23 @@ class TaskMonitor(object):
                 'is_error': is_error
             })
 
-    def _fail(self, detail=''):
+    def _report_system_error(self, detail=''):
         self.is_failed=True
         try:
             self._event("TaskAttempt execution failed.", detail=detail, is_error=True)
-            self.connection.post_task_attempt_fail(self.settings['TASK_ATTEMPT_ID'])
+            self.connection.post_task_attempt_system_error(
+                self.settings['TASK_ATTEMPT_ID'])
+        except:
+            # If there is an error reporting failure, don't raise it
+            # because it will mask the root cause of failure
+            pass
+
+    def _report_analysis_error(self, detail=''):
+        self.is_failed=True
+        try:
+            self._event("TaskAttempt execution failed.", detail=detail, is_error=True)
+            self.connection.post_task_attempt_analysis_error(
+                self.settings['TASK_ATTEMPT_ID'])
         except:
             # If there is an error reporting failure, don't raise it
             # because it will mask the root cause of failure

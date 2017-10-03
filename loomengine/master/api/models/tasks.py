@@ -39,6 +39,8 @@ class Task(BaseModel):
                                         on_delete=models.CASCADE,
                                         null=True,
                                         blank=True)
+    analysis_failure_count = models.IntegerField(default=0)
+    system_failure_count = models.IntegerField(default=0)
     data_path = jsonfield.JSONField(
         validators=[validators.validate_data_path],
         blank=True)
@@ -76,16 +78,49 @@ class Task(BaseModel):
             last_heartbeat = self.datetime_created
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
-    def fail(self, detail=''):
+    def _process_error(self, detail, max_retries,
+                       failure_count_attribute, failure_text):
         if self.has_terminal_status():
             return
-        self.setattrs_and_save_with_retries(
-            {'status_is_failed': True,
-             'status_is_running': False,
-             'status_is_waiting': False})
-        self.add_event("Task failed", detail=detail, is_error=True)
-        self._kill_children(detail=detail)
-        self.run.fail(detail='Task %s failed' % self.uuid)
+        failure_count = int(getattr(self, failure_count_attribute)) + 1
+        if failure_count <= max_retries:
+            self.setattrs_and_save_with_retries(
+                {failure_count_attribute: failure_count})
+            if not detail:
+                detail = 'Restarting task after %s (retry %s/%s)'\
+                         %(failure_text.lower(), failure_count, max_retries)
+            self.add_event(failure_text, detail=detail, is_error=True)
+            async.run_task(self.uuid)
+            return
+        else:
+            if not detail:
+                detail='%s. Already used all %s retries' \
+                        % (failure_text, max_retries)
+            self.setattrs_and_save_with_retries(
+                {
+                    failure_count_attribute: failure_count,
+                    'status_is_failed': True,
+                    'status_is_running': False,
+                    'status_is_waiting': False
+                })
+            self.add_event(
+                'Retries exceeded for %s' % failure_text.lower(),
+                detail=detail,
+                is_error=True)
+            self._kill_children(detail=detail)
+            self.run.fail(detail='Task %s failed' % self.uuid)
+    
+    def system_error(self, detail=''):
+        self._process_error(detail,
+                   get_setting('MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE'),
+                   'system_failure_count',
+                   'System error')
+
+    def analysis_error(self, detail=''):
+        self._process_error(detail,
+                   get_setting('MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE'),
+                   'analysis_failure_count',
+                   'Analysis error')
 
     def has_terminal_status(self):
         return self.status_is_finished \
@@ -178,7 +213,8 @@ class Task(BaseModel):
 
     def create_and_activate_attempt(self):
         try:
-            self._kill_children(detail="TaskAttempt timed out and was restarted.")
+            self._kill_children(
+                detail="TaskAttempt errored or timed out and was restarted.")
             task_attempt = TaskAttempt.create_from_task(self)
             self.setattrs_and_save_with_retries({
                 'task_attempt': task_attempt,
@@ -186,7 +222,7 @@ class Task(BaseModel):
                 'status_is_waiting': False})
             return task_attempt
         except Exception as e:
-            self.fail(detail='Error creating TaskAttempt: "%s"' % str(e))
+            self.system_error(detail='Error creating TaskAttempt: "%s"' % str(e))
             raise
 
     def get_input_context(self):

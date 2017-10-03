@@ -188,7 +188,16 @@ def _run_cleanup_task_playbook(task_attempt):
                 }
     env.update(new_vars)
 
-    return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
+    p.wait()
+    if p.returncode != 0:
+        msg = 'Cleanup failed for task_attempt.uuid="%s" with returncode="%s".' % (
+            task_attempt.uuid, p.returncode)
+        logger.error(msg)
+        task_attempt.add_event(msg,
+                               detail=terminal_output,
+                               is_error=True)
+        raise Exception(msg)
 
 @shared_task
 def _finish_task_attempt(task_attempt_uuid):
@@ -222,11 +231,10 @@ def send_run_notifications(*args, **kwargs):
     return _run_with_delay(_send_run_notifications, args, kwargs)
 
 @periodic_task(run_every=timedelta(seconds=60))
-def periodic_cleanup():
+def check_for_stalled_tasks():
     """Check for unexpected state of objects and correct any failures
     """
     from api.models.tasks import Task
     for task in Task.objects.filter(status_is_running=True):
         if task.is_unresponsive():
-            logging.info('Restarting stalled task "%s"' % task.uuid)
-            run_task(task.uuid)
+            task.system_error()

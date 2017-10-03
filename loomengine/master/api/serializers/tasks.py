@@ -64,6 +64,8 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             'status_is_waiting',
             'events',
             'data_path',
+            'analysis_failure_count',
+            'system_failure_count',
         ]
 
 
@@ -87,6 +89,8 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     status_is_killed = serializers.BooleanField(required=False)
     status_is_running = serializers.BooleanField(required=False)
     status_is_waiting = serializers.BooleanField(required=False)
+    analysis_failure_count = serializers.IntegerField(required=False)
+    system_failure_count = serializers.IntegerField(required=False)
     events = TaskEventSerializer(
         many=True, allow_null=True, required=False)
     data_path = serializers.JSONField(required=True)
@@ -136,6 +140,8 @@ class SummaryTaskSerializer(TaskSerializer):
     status_is_killed = serializers.BooleanField(required=False, write_only=True)
     status_is_running = serializers.BooleanField(required=False, write_only=True)
     status_is_waiting = serializers.BooleanField(required=False, write_only=True)
+    analysis_failure_count = serializers.IntegerField(required=False, write_only=True)
+    system_failure_count = serializers.IntegerField(required=False, write_only=True)
     events = TaskEventSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     data_path = serializers.JSONField(required=True, write_only=True)
@@ -177,6 +183,8 @@ class URLTaskSerializer(TaskSerializer):
     status_is_killed = serializers.BooleanField(required=False, write_only=True)
     status_is_running = serializers.BooleanField(required=False, write_only=True)
     status_is_waiting = serializers.BooleanField(required=False, write_only=True)
+    analysis_failure_count = serializers.IntegerField(required=False, write_only=True)
+    system_failure_count = serializers.IntegerField(required=False, write_only=True)
     events = TaskEventSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     data_path = serializers.JSONField(required=True, write_only=True)

@@ -59,15 +59,28 @@ class TaskAttempt(BaseModel):
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
-    def fail(self, detail=''):
+    def _process_error(self, failure_text, detail=''):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
             {'status_is_failed': True,
              'status_is_running': False})
-        self.add_event("TaskAttempt failed", detail=detail, is_error=True)
+        self.add_event(failure_text, detail=detail, is_error=True)
+
+    def system_error(self, detail=''):
+        self._process_error("System error", detail=detail)
         try:
-            self.active_task.fail(
+            self.active_task.system_error(
+                detail="Child TaskAttempt %s failed" % self.uuid)
+        except ObjectDoesNotExist:
+            # This attempt is no longer active
+            # and will be ignored.
+            pass
+
+    def analysis_error(self, detail=''):
+        self._process_error("Analysis error", detail=detail)
+        try:
+            self.active_task.analysis_error(
                 detail="Child TaskAttempt %s failed" % self.uuid)
         except ObjectDoesNotExist:
             # This attempt is no longer active
