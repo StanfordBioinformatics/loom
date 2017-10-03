@@ -55,7 +55,7 @@ class TestTask(TestCase):
 
     def testCreateAttempt(self):
         task = get_task()
-        task_attempt = task.create_and_activate_attempt({})
+        task_attempt = task.create_and_activate_attempt()
         self.assertEqual(task_attempt.command, task.command)
 
     def testGetInputContext(self):
@@ -71,7 +71,7 @@ class TestTaskAttempt(TestCase):
 
     def setUp(self):
         self.task = get_task()
-        self.task_attempt = self.task.create_and_activate_attempt({})
+        self.task_attempt = self.task.create_and_activate_attempt()
 
     def testCreateAttempt(self):
         self.assertEqual(self.task_attempt.outputs.first().channel,

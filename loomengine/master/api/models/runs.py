@@ -365,12 +365,15 @@ class Run(AsyncSafeMPTTModel, BaseModel):
 
     @classmethod
     def get_notification_context(cls, request):
-        return {
-            'server_name': get_setting('SERVER_NAME'),
-            'server_url': '%s://%s' % (
-                request.scheme,
-                request.get_host()),
-        }
+        context = {
+            'server_name': get_setting('SERVER_NAME')}
+        if request:
+            context.update({
+                'server_url': '%s://%s' % (
+                    request.scheme,
+                    request.get_host()),
+            })
+        return context
 
     def set_running_status(self):
         if self.status_is_running and not self.status_is_waiting:

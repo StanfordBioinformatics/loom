@@ -163,7 +163,7 @@ def validate_notification_context(value):
         "type": "object",
         "properties": {"server_name": {"type": "string"},
                        "server_url": {"type": "string"}},
-        "required": ["server_name", "server_url"]
+        "required": ["server_name"]
     }
     try:
         jsonschema.validate(value, schema)
