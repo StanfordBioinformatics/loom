@@ -158,6 +158,17 @@ def validate_notification_addresses(value):
                 'Invalid notification target, must be an email address '\
                 'or an http/https URL: "%s"' % target)
 
+def validate_notification_context(value):
+    schema = {
+        "type": "object",
+        "properties": {"server_name": {"type": "string"},
+                       "server_url": {"type": "string"}},
+        "required": ["server_name", "server_url"]
+    }
+    try:
+        jsonschema.validate(value, schema)
+    except jsonschema.exceptions.ValidationError as e:
+        raise ValidationError(e.message)
 
 class OutputParserValidator(object):
 

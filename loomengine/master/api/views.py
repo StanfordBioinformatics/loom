@@ -258,16 +258,14 @@ class TaskAttemptViewSet(ExpandableViewSet):
                   serializer_class=rest_framework.serializers.Serializer)
     def fail(self, request, uuid):
         task_attempt = self._get_task_attempt(request, uuid)
-        task_attempt.fail(models.Run.get_notification_context(request))
+        task_attempt.fail()
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='finish',
                   serializer_class=rest_framework.serializers.Serializer)
     def finish(self, request, uuid=None):
         task_attempt = self._get_task_attempt(request, uuid)
-        async.finish_task_attempt(
-            task_attempt.uuid,
-            models.Run.get_notification_context(request))
+        async.finish_task_attempt(task_attempt.uuid)
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='events',

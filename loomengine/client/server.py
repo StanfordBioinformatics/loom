@@ -110,7 +110,7 @@ class ServerControls:
 		'ERROR! You are already connected to a server. '\
 		'That lets you view or manage workflows, but you do not have '\
                 'the settings needed to manage the server. If you want to '\
-                'start a new server, first disconnect using "loom disconnect".')
+                'start a new server, first disconnect using "loom server disconnect".')
 
         else:
             # Create new settings from defaults and user input
@@ -434,7 +434,7 @@ class ServerControls:
                     'ERROR! You are already connected to a server. '\
                     'That lets you view or manage workflows, but you do not have '\
                     'the settings needed to manage the server. If you want to '\
-                    'start a new server, first disconnect using "loom disconnect".')
+                    'start a new server, first disconnect using "loom server disconnect".')
         else:
             settings = self._get_start_settings_from_args()
         return settings

@@ -166,8 +166,11 @@
       LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
-    volumes:
-      - "{{server_settings_home}}:{{container_settings_home}}"
+    volumes: "{{[
+      server_settings_home+':'+container_settings_home,
+      '/var/run/docker.sock:/var/run/docker.sock' if loom_remote_user is not defined,
+      '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if loom_remote_user is defined]
+      | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
     log_driver: fluentd

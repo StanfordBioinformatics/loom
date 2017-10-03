@@ -63,6 +63,9 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         validators=[validators.validate_resources])
     notification_addresses = jsonfield.JSONField(
         blank=True, validators=[validators.validate_notification_addresses])
+    notification_context = jsonfield.JSONField(
+        blank=True,
+        validators=[validators.validate_notification_context])
     parent = TreeForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
                             on_delete=models.CASCADE)
@@ -116,7 +119,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         assert len(outputs) == 1, 'missing output for channel %s' % channel
         return outputs[0]
 
-    def finish(self, context):
+    def finish(self):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
@@ -125,10 +128,10 @@ class Run(AsyncSafeMPTTModel, BaseModel):
              'status_is_finished': True})
         if self.parent:
             if self.parent._are_children_finished():
-                self.parent.finish(context)
+                self.parent.finish()
         else:
             # Send notifications only if topmost run
-            async.send_run_notifications(self.uuid, context)
+            async.send_run_notifications(self.uuid)
 
     def _are_children_finished(self):
         return all([step.status_is_finished for step in self.steps.all()])
@@ -138,8 +141,9 @@ class Run(AsyncSafeMPTTModel, BaseModel):
 
     @classmethod
     def create_from_template(cls, template, name=None,
-                             notification_addresses=[], parent=None):
-                             
+                             notification_addresses=[],
+                             notification_context={},
+                             parent=None):
         if name is None:
             name = template.name
         if template.is_leaf:
@@ -152,6 +156,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
                 environment=template.environment,
                 resources=template.resources,
                 notification_addresses=notification_addresses,
+                notification_context=notification_context,
                 parent=parent)
             run.full_clean()
             run.save()
@@ -163,6 +168,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
                 environment=template.environment,
                 resources=template.resources,
                 notification_addresses=notification_addresses,
+                notification_context=notification_context,
                 parent=parent)
             run.full_clean()
             run.save()
@@ -244,7 +250,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             or self.status_is_failed \
             or self.status_is_killed
 
-    def fail(self, context, detail=''):
+    def fail(self, detail=''):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries({
@@ -253,14 +259,13 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             'status_is_waiting': False})
         self.add_event("Run failed", detail=detail, is_error=True)
         if self.parent:
-            self.parent.fail(context,
-                             detail='Failure in step %s@%s' % (
-                                 self.name, self.uuid))
+            self.parent.fail(detail='Failure in step %s@%s' % (
+                self.name, self.uuid))
         else:
             # Send kill signal to children
             self._kill_children(detail='Automatically killed due to failure')
             # Send notifications only if topmost run
-            async.send_run_notifications(self.uuid, context)
+            async.send_run_notifications(self.uuid)
 
     def kill(self, detail=''):
         if self.has_terminal_status():
@@ -278,7 +283,8 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         for task in self.tasks.all():
             task.kill(detail=detail)
 
-    def send_notifications(self, context=None):
+    def send_notifications(self):
+        context = self.notification_context
         if not context:
             context = {}
         server_url = context.get('server_url')
@@ -354,19 +360,18 @@ class Run(AsyncSafeMPTTModel, BaseModel):
                 self.add_event("Http notification failed", detail=str(e), is_error=True)
                 any_failures = True
         if not any_failures:
-            self.add_event("Http notification succeeded", detail=', '.join(urls), is_error=False)
+            self.add_event("Http notification succeeded", detail=', '.join(urls),
+                           is_error=False)
 
     @classmethod
     def get_notification_context(cls, request):
-        if not request:
-            return {}
         return {
             'server_name': get_setting('SERVER_NAME'),
             'server_url': '%s://%s' % (
                 request.scheme,
                 request.get_host()),
         }
-            
+
     def set_running_status(self):
         if self.status_is_running and not self.status_is_waiting:
             return
@@ -411,7 +416,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
                                 'concurrent modification')
 
     @classmethod
-    def postprocess(cls, run_uuid, context=None):
+    def postprocess(cls, run_uuid):
         run = Run.objects.get(uuid=run_uuid)
         if run.postprocessing_status == 'complete':
             # Nothing more to do
@@ -423,21 +428,21 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             return
 
         try:
-            run._push_all_inputs(context)
+            run._push_all_inputs()
             for step in run.steps.all():
-                step.initialize(context)
+                step.initialize()
             run.setattrs_and_save_with_retries({
                 'postprocessing_status': 'complete'})
 
         except Exception as e:
             run.setattrs_and_save_with_retries({'postprocessing_status': 'failed'})
-            run.fail(context, detail='Postprocessing failed with error "%s"' % str(e))
+            run.fail(detail='Postprocessing failed with error "%s"' % str(e))
             raise
 
-    def initialize(self, context=None):
+    def initialize(self):
         self.connect_inputs_to_template_data()
         self.create_steps()
-        async.postprocess_run(self.uuid, context)
+        async.postprocess_run(self.uuid)
 
     def initialize_inputs(self):
         seen = set()
@@ -536,17 +541,17 @@ class Run(AsyncSafeMPTTModel, BaseModel):
                     })
         connector.connect(io_node)
 
-    def _push_all_inputs(self, context):
+    def _push_all_inputs(self):
         if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
             return
         if self.inputs.exists():
             for input in self.inputs.all():
-                self.push(input.channel, [], context)
+                self.push(input.channel, [])
         elif self.is_leaf:
             # Special case: No inputs on leaf node
-            self._push_input_set([], context)
+            self._push_input_set([])
 
-    def push(self, channel, data_path, context):
+    def push(self, channel, data_path):
         """Called when new data is available at the given data_path 
         on the given channel. This will trigger creation of new tasks if 1)
         other input data for those tasks is available, and 2) the task with
@@ -558,12 +563,12 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             return
         for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
             .get_input_sets():
-            self._push_input_set(input_set, context)
+            self._push_input_set(input_set)
 
-    def _push_input_set(self, input_set, context):
+    def _push_input_set(self, input_set):
         try:
-            task = Task.create_from_input_set(input_set, self, context)
-            async.run_task(task.uuid, context)
+            task = Task.create_from_input_set(input_set, self)
+            async.run_task(task.uuid)
         except TaskAlreadyExistsException:
             pass
 

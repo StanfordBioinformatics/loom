@@ -3,11 +3,13 @@
 import argparse
 import copy
 from datetime import datetime
+from dateutil.parser import parse
 import docker
 import errno
 import json
 import logging
 import os
+import pytz
 import requests
 import string
 import sys
@@ -108,14 +110,14 @@ class TaskMonitor(object):
         t = threading.Thread(target=function)
         t.start()
 
-        self._send_heartbeat()
-        last_heartbeat = datetime.now()
+        last_heartbeat = self._send_heartbeat()
 
         while t.is_alive():
             time.sleep(polling_interval)
-            if (datetime.now() - last_heartbeat).total_seconds() > heartbeat_interval:
-                self._send_heartbeat()
-                last_heartbeat = datetime.now()
+            if (datetime.utcnow().replace(tzinfo=pytz.utc) - last_heartbeat)\
+               .total_seconds() > \
+               (heartbeat_interval - polling_interval):
+                last_heartbeat = self._send_heartbeat()
 
     def run(self):
         try:
@@ -360,10 +362,11 @@ class TaskMonitor(object):
     # Updates to TaskAttempt
 
     def _send_heartbeat(self):
-        self.connection.update_task_attempt(
+        task_attempt = self.connection.update_task_attempt(
             self.settings['TASK_ATTEMPT_ID'],
             {}
         )
+        return parse(task_attempt.get('last_heartbeat'))
 
     def _set_container_id(self, container_id):
         self.connection.update_task_attempt(

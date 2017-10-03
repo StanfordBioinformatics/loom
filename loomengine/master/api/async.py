@@ -2,12 +2,13 @@ from __future__ import absolute_import, unicode_literals
 from celery import shared_task
 from celery.decorators import periodic_task
 import copy
-import datetime
+from datetime import datetime, timedelta
 from django import db
 from django.utils import timezone
 import logging
 from api import get_setting
 import os
+import pytz
 import subprocess
 import threading
 import time
@@ -37,9 +38,9 @@ def _run_with_delay(task_function, args, kwargs):
     task_function.delay(*args, **kwargs)
 
 @shared_task
-def _postprocess_run(run_uuid, context):
+def _postprocess_run(run_uuid):
     from api.models import Run
-    Run.postprocess(run_uuid, context)
+    Run.postprocess(run_uuid)
 
 def postprocess_run(*args, **kwargs):
     if get_setting('TEST_NO_POSTPROCESS'):
@@ -49,17 +50,20 @@ def postprocess_run(*args, **kwargs):
     return _run_with_delay(_postprocess_run, args, kwargs)
 
 @shared_task
-def _run_task(task_uuid, context):
+def _run_task(task_uuid):
     # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
-    task_attempt = task.create_and_activate_attempt(context)
+    # Do not run again if already running
+    if task.task_attempt and not task.is_unresponsive():
+        return
+    task_attempt = task.create_and_activate_attempt()
     if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
         logger.debug('Skipping async._run_execute_task_attempt_playbook because'\
                      'TEST_NO_RUN_TASK_ATTEMPT is True')
         return
     _run_with_heartbeats(_run_execute_task_attempt_playbook, task_attempt,
-                         args=[task_attempt, context])
+                         args=[task_attempt])
 
 def run_task(*args, **kwargs):
     return _run_with_delay(_run_task, args, kwargs)
@@ -69,36 +73,25 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
     heartbeat_interval = int(get_setting(
         'TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
     polling_interval = 1
+    if polling_interval > heartbeat_interval:
+        raise Exception(
+            'TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS cannot be less than '\
+            'polling interval "%s"' % polling_interval)
 
     t = threading.Thread(target=function, args=args, kwargs=kwargs)
     t.start()
 
-    last_heartbeat = datetime.datetime(datetime.MINYEAR,1,1,0,0,
-                                       tzinfo=timezone.utc)
-    max_retries = 5
+    last_heartbeat = task_attempt.last_heartbeat
 
     while t.is_alive():
-        if (timezone.now() - last_heartbeat)\
-           .total_seconds() > heartbeat_interval:
-            retry_count = 0
-            while True:
-                try:
-                    task_attempt = TaskAttempt.objects.get(
-                        uuid=task_attempt.uuid)
-                    task_attempt.heartbeat()
-                    break
-                except ConcurrentModificationError:
-                    if retry_count >= max_retries:
-                        logger.warn(
-                            'Failed to send heartbeat for '\
-                            'task_attempt.uuid=%s after %s retries' %
-                            (task_attempt.uuid, max_retries))
-                        break
-                    retry_count += 1
-            last_heartbeat = timezone.now()
+        # Beat if (heartbeat_interval - polling_interval) has elapsed,
+        # to ensure that we never exceed heartbeat_interval between beats.
+        if (datetime.utcnow().replace(tzinfo=pytz.utc) - last_heartbeat)\
+           .total_seconds() > (heartbeat_interval - polling_interval):
+            last_heartbeat = task_attempt.heartbeat()
         time.sleep(polling_interval)
 
-def _run_execute_task_attempt_playbook(task_attempt, context):
+def _run_execute_task_attempt_playbook(task_attempt):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -158,8 +151,7 @@ def _run_execute_task_attempt_playbook(task_attempt, context):
         task_attempt.add_event(msg,
                                detail=terminal_output,
                                is_error=True)
-        task_attempt.fail(context,
-                          detail="Failed to launch worker process")
+        task_attempt.fail(detail="Failed to launch worker process")
 
 @shared_task
 def _cleanup_task_attempt(task_attempt_uuid):
@@ -199,10 +191,10 @@ def _run_cleanup_task_playbook(task_attempt):
     return subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
 
 @shared_task
-def _finish_task_attempt(task_attempt_uuid, context):
+def _finish_task_attempt(task_attempt_uuid):
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    task_attempt.finish(context)
+    task_attempt.finish()
 
 def finish_task_attempt(*args, **kwargs):
     return _run_with_delay(_finish_task_attempt, args, kwargs)
@@ -221,10 +213,20 @@ def kill_task_attempt(*args, **kwargs):
     return _run_with_delay(_kill_task_attempt, args, kwargs)
 
 @shared_task
-def _send_run_notifications(run_uuid, context):
+def _send_run_notifications(run_uuid):
     from api.models.runs import Run
     run = Run.objects.get(uuid=run_uuid)
-    run.send_notifications(context)
+    run.send_notifications()
 
 def send_run_notifications(*args, **kwargs):
     return _run_with_delay(_send_run_notifications, args, kwargs)
+
+@periodic_task(run_every=timedelta(seconds=60))
+def periodic_cleanup():
+    """Check for unexpected state of objects and correct any failures
+    """
+    from api.models.tasks import Task
+    for task in Task.objects.filter(status_is_running=True):
+        if task.is_unresponsive():
+            logging.info('Restarting stalled task "%s"' % task.uuid)
+            run_task(task.uuid)

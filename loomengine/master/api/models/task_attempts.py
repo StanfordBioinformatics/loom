@@ -54,11 +54,12 @@ class TaskAttempt(BaseModel):
         # Saving with an empty set of attributes will update
         # last_heartbeat since auto_now=True
         self.setattrs_and_save_with_retries({})
+        return self.last_heartbeat
 
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
-    def fail(self, context, detail=''):
+    def fail(self, detail=''):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
@@ -67,7 +68,6 @@ class TaskAttempt(BaseModel):
         self.add_event("TaskAttempt failed", detail=detail, is_error=True)
         try:
             self.active_task.fail(
-                context,
                 detail="Child TaskAttempt %s failed" % self.uuid)
         except ObjectDoesNotExist:
             # This attempt is no longer active
@@ -79,7 +79,7 @@ class TaskAttempt(BaseModel):
             or self.status_is_failed \
             or self.status_is_killed
 
-    def finish(self, context):
+    def finish(self):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries({
@@ -92,7 +92,7 @@ class TaskAttempt(BaseModel):
             # This attempt is no longer active
             # and will be ignored.
             return
-        task.finish(context)
+        task.finish()
 
     def add_event(self, event, detail='', is_error=False):
         event = TaskAttemptEvent(
