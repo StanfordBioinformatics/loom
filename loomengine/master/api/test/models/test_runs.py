@@ -3,7 +3,7 @@ import yaml
 
 from api.test.models.test_templates import get_workflow
 from api.models.data_objects import *
-from api.models.runs import Run
+from api.models.runs import Run, TaskNode
 from api.models.input_calculator import InputCalculator
 from api.test.helper import request_run_from_template_file
 
@@ -48,3 +48,77 @@ class TestInputCalculator(TestCase):
         input_items = [item for item in sets[0]]
         self.assertEqual(len(input_items), 1)
         self.assertEqual(input_items[0].channel, 'word_in')
+
+class MockTask(object):
+
+    def __init__(self, data_path=[], status_is_finished=True):
+        self.status_is_finished = status_is_finished
+        self.data_path = data_path
+
+class TestTaskNode(TestCase):
+
+    def testEmpty(self):
+        node = TaskNode()
+        self.assertFalse(node.is_complete())
+
+    def testScalarWithFinishedStatus(self):
+        task = MockTask(status_is_finished=True)
+        tree = TaskNode.create_from_task_list([task])
+        self.assertTrue(tree.is_complete())
+
+    def testScalarWithUnfinishedStatus(self):
+        task = MockTask(status_is_finished=False)
+        tree = TaskNode.create_from_task_list([task])
+        self.assertFalse(tree.is_complete())
+
+    def testArrayWithFinishedStatus(self):
+        task1 = MockTask(status_is_finished=True, data_path=[[0,2]])
+        task2 = MockTask(status_is_finished=True, data_path=[[1,2]])
+        tree = TaskNode.create_from_task_list([task1,task2])
+        self.assertTrue(tree.is_complete())
+
+    def testArrayWithUnfinishedStatus(self):
+        task1 = MockTask(status_is_finished=True, data_path=[[0,2]])
+        task2 = MockTask(status_is_finished=False, data_path=[[1,2]])
+        tree = TaskNode.create_from_task_list([task1,task2])
+        self.assertFalse(tree.is_complete())
+
+    def testArrayWithFinishedStatusAndMissingNodes(self):
+        task1 = MockTask(status_is_finished=True, data_path=[[0,2]])
+        tree = TaskNode.create_from_task_list([task1])
+        self.assertFalse(tree.is_complete())
+
+    def testArrayWithUnfinishedStatusAndMissingNodes(self):
+        task1 = MockTask(status_is_finished=False, data_path=[[0,2]])
+        tree = TaskNode.create_from_task_list([task1])
+        self.assertFalse(tree.is_complete())
+
+    def testTreeWithFinishedStatus(self):
+        task11 = MockTask(status_is_finished=True, data_path=[[0,2],[0,2]])
+        task12 = MockTask(status_is_finished=True, data_path=[[0,2],[1,2]])
+        task21 = MockTask(status_is_finished=True, data_path=[[1,2],[0,2]])
+        task22 = MockTask(status_is_finished=True, data_path=[[1,2],[1,2]])
+        tree = TaskNode.create_from_task_list([task11,task12,task21,task22])
+        self.assertTrue(tree.is_complete())
+
+    def testTreeWithUnfinishedStatus(self):
+        task11 = MockTask(status_is_finished=True, data_path=[[0,2],[0,2]])
+        task12 = MockTask(status_is_finished=True, data_path=[[0,2],[1,2]])
+        task21 = MockTask(status_is_finished=False, data_path=[[1,2],[0,2]])
+        task22 = MockTask(status_is_finished=True, data_path=[[1,2],[1,2]])
+        tree = TaskNode.create_from_task_list([task11,task12,task21,task22])
+        self.assertFalse(tree.is_complete())
+
+    def testTreeWithFinishedStatusAndMissingNodes(self):
+        task11 = MockTask(status_is_finished=True, data_path=[[0,2],[0,2]])
+        task12 = MockTask(status_is_finished=True, data_path=[[0,2],[1,2]])
+        task22 = MockTask(status_is_finished=True, data_path=[[1,2],[1,2]])
+        tree = TaskNode.create_from_task_list([task11,task12,task22])
+        self.assertFalse(tree.is_complete())
+
+    def testTreeWithUnfinishedStatusAndMissingNodes(self):
+        task11 = MockTask(status_is_finished=True, data_path=[[0,2],[0,2]])
+        task21 = MockTask(status_is_finished=False, data_path=[[1,2],[0,2]])
+        task22 = MockTask(status_is_finished=True, data_path=[[1,2],[1,2]])
+        tree = TaskNode.create_from_task_list([task11,task21,task22])
+        self.assertFalse(tree.is_complete())

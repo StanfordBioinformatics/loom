@@ -137,7 +137,8 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         return all([step.status_is_finished for step in self.steps.all()])
 
     def are_tasks_finished(self):
-        return all([task.status_is_finished for task in self.tasks.all()])
+        task_tree = TaskNode.create_from_task_list(self.tasks.all())
+        return task_tree.is_complete()
 
     @classmethod
     def create_from_template(cls, template, name=None,
@@ -655,3 +656,52 @@ class RunConnectorNode(DataChannel):
 
     class Meta:
         unique_together = (("run", "channel"),)
+
+class TaskNode(object):
+    """This converts tasks into a tree for the sole purpose of checking
+    to see if the tree is complete. Each node knows its degree, so the tree
+    is complete if the number of existing children matches the degree, and
+    if all those children are also complete.
+    """
+
+    def __init__(self):
+        self.degree = None
+        self.children = {}
+        self.task = None
+
+    @classmethod
+    def create_from_task_list(cls, tasks):
+        root = TaskNode()
+        for task in tasks:
+            root._extend_to_leaf(task, task.data_path)
+        return root
+
+    def _extend_to_leaf(self, task, data_path):
+        if len(data_path) == 0:
+            self.task = task
+            self.degree = None
+            return
+        else:
+            first_hop = data_path.pop(0)
+            degree = first_hop[1]
+            index = first_hop[0]
+            if self.degree is None:
+                self.degree = degree
+            assert self.degree == degree, 'Degree mismatch in tasks'
+            child = self.children.get(index)
+            if child is None:
+                child = TaskNode()
+                self.children[index] = child
+            child._extend_to_leaf(task, data_path)
+
+    def is_complete(self):
+        if self.degree == None:
+            # leaf
+            if self.task is not None:
+                return self.task.status_is_finished
+            else:
+                return False
+        else:
+            # non-leaf
+            return len(self.children) == self.degree \
+                and all([self.children[i].is_complete() for i in range(self.degree)])
