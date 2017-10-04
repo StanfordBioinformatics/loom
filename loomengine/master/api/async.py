@@ -232,9 +232,27 @@ def send_run_notifications(*args, **kwargs):
 
 @periodic_task(run_every=timedelta(seconds=60))
 def check_for_stalled_tasks():
-    """Check for unexpected state of objects and correct any failures
+    """Check for tasks that are no longer sending a heartbeat
     """
     from api.models.tasks import Task
     for task in Task.objects.filter(status_is_running=True):
         if task.is_unresponsive():
             task.system_error()
+
+@periodic_task(run_every=timedelta(seconds=180))
+def check_for_missed_cleanup():
+    """Check for TaskAttempts that were never cleaned up
+    """
+    if get_setting('PRESERVE_ALL'):
+        return
+    from api.models.tasks import TaskAttempt
+    if get_setting('PRESERVE_ON_FAILURE'):
+        for task_attempt in TaskAttempt.objects.filter(
+                status_is_running=False).filter(
+                    status_is_cleaned_up=False).exclude(
+                        status_is_failed=True):
+            task_attempt.cleanup()
+    else:
+        for task_attempt in TaskAttempt.objects.filter(
+                status_is_running=False).filter(status_is_cleaned_up=False):
+            task_attempt.cleanup()
