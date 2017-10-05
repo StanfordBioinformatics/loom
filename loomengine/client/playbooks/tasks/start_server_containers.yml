@@ -53,7 +53,6 @@
     volumes:
       - "{{server_settings_home}}/kibana.yml:/usr/share/kibana/config/kibana.yml"
       - "{{server_settings_home}}:{{container_settings_home}}"
-    ports: "{{[ kibana_port~':'~kibana_port ]}}"
     env:
       ELASTICSEARCH_URL: http://{{elasticsearch_container_name}}:{{elasticsearch_port}}
     links:
@@ -250,7 +249,7 @@
       - "{{server_settings_home}}/{{resource_dir}}/:{{container_settings_home}}/{{resource_dir}}"
     volumes_from:
       - "{{master_container_name}}"
-    links: "{{[master_container_name,\
+    links: "{{[master_container_name, kibana_container_name,\
             flower_container_name if debug else none,\
             rabbitmq_container_name if debug else none]\
 	    | reject('none') | list}}"

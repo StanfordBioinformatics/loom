@@ -5,6 +5,8 @@ xpack.monitoring.enabled: false
 xpack.graph.enabled: false
 xpack.reporting.enabled: false
 
+server.basePath: /logs
+
 {% if https_port_enabled %}
 server.ssl.enabled: true
 server.ssl.key: {{container_settings_home}}/{{resource_dir}}/{{ssl_cert_key_file}}
