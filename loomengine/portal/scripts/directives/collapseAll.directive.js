@@ -13,12 +13,12 @@ function collapseAll() {
         link: function(scope, element, attrs) {
             element.bind('click', function() {
 		var elements = document.getElementsByClassName("collapse");
-		for (let c of elements) {
-		    c.classList.remove("in");
+		for (var i = 0; i < elements.length; i++) {
+		    elements[i].classList.remove("in");
 		}
 		var buttons = document.querySelectorAll("[aria-expanded]")
-		for (let b of buttons) {
-		    b.setAttribute("aria-expanded", "false");
+		for (var i = 0; i < buttons.length; i++) {
+		    buttons[i].setAttribute("aria-expanded", "false");
 		}
             });
 	}
