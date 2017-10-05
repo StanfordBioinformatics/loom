@@ -12,7 +12,6 @@ from loomengine.client.file_tag import FileTag
 from loomengine.client.file_label import FileLabel
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-from loomengine.utils.exceptions import DuplicateFileError, DuplicateTemplateError
 
 
 class FileImport(object):
@@ -58,16 +57,13 @@ class FileImport(object):
         return parser
 
     def run(self):
-        try:
-            files_imported = self.filemanager.import_from_patterns(
-                self.args.files,
-                self.args.comments,
-                original_copy=self.args.original_copy,
-                force_duplicates=self.args.force_duplicates,
-                retry=self.args.retry,
-            )
-        except DuplicateFileError as e:
-            raise SystemExit(e.message)
+        files_imported = self.filemanager.import_from_patterns(
+            self.args.files,
+            self.args.comments,
+            original_copy=self.args.original_copy,
+            force_duplicates=self.args.force_duplicates,
+            retry=self.args.retry
+        )
         if len(files_imported) == 0:
             raise SystemExit('ERROR! Did not find any files matching "%s"'
                              % '", "'.join(self.args.files))

@@ -39,9 +39,3 @@ class IdMatchedTooManyDataObjectsError(Error):
     
 class ValidationError(Error):
     pass
-
-class DuplicateFileError(Error):
-    pass
-
-class DuplicateTemplateError(Error):
-    pass

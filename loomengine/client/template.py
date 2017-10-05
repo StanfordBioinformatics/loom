@@ -5,6 +5,7 @@ import glob
 import os
 from requests.exceptions import HTTPError
 import sys
+import warnings
 
 from loomengine.client import _render_time
 from loomengine.client.common import verify_server_is_running, get_server_url, \
@@ -13,7 +14,6 @@ from loomengine.client.template_tag import TemplateTag
 from loomengine.client.template_label import TemplateLabel
 from loomengine.utils.filemanager import FileManager
 from loomengine.utils.connection import Connection
-from loomengine.utils.exceptions import DuplicateFileError, DuplicateTemplateError
 
 
 class TemplateImport(object):
@@ -71,10 +71,19 @@ class TemplateImport(object):
             template_file)
         (template, source_url) = cls._get_template(template_file, filemanager, retry)
         if not force_duplicates:
-            try:
-                filemanager.verify_no_template_duplicates(template)
-            except DuplicateTemplateError as e:
-                raise SystemExit(e.message)
+            templates = filemanager.get_template_duplicates(template)
+            if len(templates) > 0:
+                name = templates[-1]['name']
+                md5 = templates[-1]['md5']
+                uuid = templates[-1]['uuid']
+                warnings.warn(
+                    'WARNING! The name and md5 hash "%s$%s" is already in use by one '
+                    'or more templates. '\
+                    'Use "--force-duplicates" to create another copy, but if you '\
+                    'do you will have to use @uuid to reference these templates.'
+                    % (name, md5))
+                print 'Matching template already exists as "%s@%s".' % (name, uuid)
+                return templates[0]
         if comments:
             template.update({'import_comments': comments})
         if source_url:

@@ -1,6 +1,7 @@
 import copy
 import errno
 import glob
+import google.cloud.storage
 import logging
 import os
 import random
@@ -10,7 +11,7 @@ import sys
 import tempfile
 import time
 import urlparse
-import google.cloud.storage
+import warnings
 
 from loomengine.utils import execute_with_retries
 from loomengine.utils import md5calc
@@ -476,7 +477,15 @@ class FileManager:
         md5 = source.calculate_md5()
 
         if not force_duplicates:
-            self._verify_no_file_duplicates(filename, md5)
+            files = self._get_file_duplicates(filename, md5)
+            if len(files) > 0:
+                warnings.warn(
+                    'WARNING! The name and md5 hash "%s$%s" is already in use by one '
+                    'or more files. '\
+                    'Use "--force-duplicates" to create another copy, but if you '\
+                    'do you will have to use @uuid to reference these files.'
+                    % (filename, md5))
+                return files[-1]
 
         value = {
             'filename': filename,
@@ -499,7 +508,15 @@ class FileManager:
         md5 = source.calculate_md5()
 
         if not force_duplicates:
-            self._verify_no_file_duplicates(filename, md5)
+            files = self._get_file_duplicates(filename, md5)
+            if len(files) > 0:
+                warnings.warn(
+                    'WARNING! The name and md5 hash "%s$%s" is already in use by one '
+                    'or more files. '\
+                    'Use "--force-duplicates" to create another copy, but if you '\
+                    'do you will have to use @uuid to reference these files.'
+                    % (filename, md5))
+                return files[-1]
 
         value = {
             'filename': filename,
@@ -521,20 +538,10 @@ class FileManager:
             file_data_object['uuid']))
         return file_data_object
 
-    def _verify_no_file_duplicates(self, filename, md5):
+    def _get_file_duplicates(self, filename, md5):
         files = self.connection.get_data_object_index(
             query_string='%s$%s' % (filename, md5), type='file')
-        if len(files) == 0:
-            return
-        matches = []
-        for file in files:
-            matches.append('%s@%s' % (file['value'].get('filename'), file.get('uuid')))
-        raise DuplicateFileError(
-            'ERROR! The name and md5 hash "%s$%s" is already in use by one '
-            'or more files: "%s". '\
-            'Use "--force-duplicates" to create another copy, but if you '\
-            'do you will have to use @uuid to reference these files.'
-            % (filename, md5, '", "'.join(matches)))
+        return files
 
     def import_result_file(self, task_attempt_output, source_url, retry=False):
         logger.info('Calculating md5 on file "%s"...' % source_url)
@@ -623,7 +630,9 @@ class FileManager:
     def _execute_file_import(self, file_data_object, source, retry=False):
         logger.info('Importing file from %s...' % source.get_url())
         if file_data_object['value']['upload_status'] == 'complete':
-            logger.info('   server already has the file. Skipping upload.')
+            logger.info(
+                '   skipping upload because server already has the file %s@%s.' % (
+                    file_data_object['value']['filename'], file_data_object['uuid']))
             return file_data_object
         try:
             destination = File(
@@ -734,24 +743,13 @@ class FileManager:
     def calculate_md5(self, url, retry=False):
         return File(url, self.settings, retry=retry).calculate_md5()
 
-    def verify_no_template_duplicates(self, template):
+    def get_template_duplicates(self, template):
         md5 = template.get('md5')
         name = template.get('name')
-        
         templates = self.connection.get_template_index(
             query_string='%s$%s' % (name, md5))
-        if len(templates) == 0:
-            return
-        matches = []
-        for template in templates:
-            matches.append('%s@%s' % (template.get('name'), template.get('uuid')))
-        raise DuplicateTemplateError(
-            'ERROR! The name and md5 hash "%s$%s" is already in use by one '
-            'or more templates: "%s". '\
-            'Use "--force-duplicates" to create another copy, but if you '\
-            'do you will have to use @uuid to reference these templates.'
-            % (name, md5, '", "'.join(matches)))
-
+        return templates
+    
     def get_destination_file_url(self, requested_destination, default_name,
                                  retry=False):
         """destination may be a file, a directory, or None
