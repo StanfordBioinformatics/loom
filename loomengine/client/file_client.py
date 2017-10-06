@@ -170,21 +170,27 @@ class FileList(object):
         return parser
 
     def run(self):
-        self._get_files()
-        self._list_files()
-
-    def _get_files(self):
         if self.args.file_id:
             source_type=None
         else:
             source_type=self.args.type
-        self.files = self.connection.get_data_object_index(
-            query_string=self.args.file_id, source_type=source_type,
-            labels=self.args.label, type='file')
+        offset=0
+        limit=10
+        while True:
+            data = self.connection.get_data_object_index_with_limit(
+                limit=limit, offset=offset,
+                query_string=self.args.file_id, source_type=source_type,
+                labels=self.args.label, type='file')
+            if offset == 0:
+                print '[showing %s files]' % data.get('count')
+            self._list_files(data['results'])
+            if data.get('next'):
+                offset += limit
+            else:
+                break
 
-    def _list_files(self):
-        print '[showing %s files]' % len(self.files)
-        for file_data_object in self.files:
+    def _list_files(self, files):
+        for file_data_object in files:
             text = self._render_file(file_data_object)
             if text is not None:
                 print text

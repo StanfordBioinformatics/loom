@@ -204,20 +204,26 @@ class RunList(object):
         return parser
 
     def run(self):
-        runs = self._get_runs()
-        self._list_runs(runs)
-
-    def _get_runs(self):
         if self.args.run_id:
             parent_only = False
         else:
             parent_only = not self.args.all
-        return self.connection.get_run_index(
-            query_string=self.args.run_id,
-            labels=self.args.label, parent_only=parent_only)
+        offset=0
+        limit=10
+        while True:
+            data = self.connection.get_run_index_with_limit(
+                query_string=self.args.run_id,
+                limit=limit, offset=offset,
+                labels=self.args.label, parent_only=parent_only)
+            if offset == 0:
+                print '[showing %s runs]' % data.get('count')
+            self._list_runs(data['results'])
+            if data.get('next'):
+                offset += limit
+            else:
+                break
 
     def _list_runs(self, runs):
-        print '[showing %s runs]' % len(runs)
         for run in runs:
             print self._render_run(run)
 

@@ -129,6 +129,26 @@ class Connection(object):
             data_update,
             'data-objects/%s/' % data_object_id)
 
+    def get_data_object_index_with_limit(
+            self, query_string=None, source_type=None,
+            labels=None,
+            type=None,
+            limit=10, offset=0):
+        url = 'data-objects/'
+        params = {}
+        if query_string:
+            params['q'] = query_string
+        if source_type:
+            params['source_type'] = source_type
+        if type:
+            params['type'] = type
+        if labels:
+            params['labels'] = ','.join(labels)
+        params['limit'] = limit
+        params['offset'] = offset
+        data = self._get_object_index(url, params=params)
+        return data
+
     def get_data_object_index(
             self, query_string=None, source_type=None,
             labels=None,
@@ -199,6 +219,20 @@ class Connection(object):
         return self._get_object(
             'templates/%s/' % template_id, params=params
         )
+    
+    def get_template_index_with_limit(self, query_string=None, imported=False,
+                                 labels=None, limit=10, offset=0):
+        url = 'templates/'
+        params = {}
+        if query_string:
+            params['q'] = query_string
+        if imported:
+            params['imported'] = '1'
+        if labels:
+            params['labels'] = ','.join(labels)
+        params['limit'] = limit
+        params['offset'] = offset
+        return self._get_object_index(url, params=params)
 
     def get_template_index(self, query_string='', imported=False,
                            labels=None, min=0, max=float('inf')):
@@ -226,6 +260,20 @@ class Connection(object):
         return self._get_object(
             'runs/%s/' % run_id
         )
+
+    def get_run_index_with_limit(self, query_string=None, parent_only=False,
+                                 labels=None, limit=10, offset=0):
+        url = 'runs/'
+        params = {}
+        if query_string:
+            params['q'] = query_string
+        if parent_only:
+            params['parent_only'] = '1'
+        if labels:
+            params['labels'] = ','.join(labels)
+        params['limit'] = limit
+        params['offset'] = offset
+        return self._get_object_index(url, params=params)
 
     def get_run_index(self, query_string=None, parent_only=False,
                       labels=None,

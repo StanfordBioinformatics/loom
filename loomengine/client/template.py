@@ -229,22 +229,28 @@ class TemplateList(object):
         return parser
 
     def run(self):
-        self._get_templates()
-        self._list_templates()
-
-    def _get_templates(self):
         if self.args.template_id:
             imported = False
         else:
             imported = not self.args.all
-        self.templates = self.connection.get_template_index(
-            labels=self.args.label,
-            query_string=self.args.template_id,
-            imported=imported)
+        offset=0
+        limit=10
+        while True:
+            data = self.connection.get_template_index_with_limit(
+                labels=self.args.label,
+                limit=limit, offset=offset,
+                query_string=self.args.template_id,
+                imported=imported)
+            if offset == 0:
+                print '[showing %s templates]' % data.get('count')
+            self._list_templates(data['results'])
+            if data.get('next'):
+                offset += limit
+            else:
+                break
 
-    def _list_templates(self):
-        print '[showing %s templates]' % len(self.templates)
-        for template in self.templates:
+    def _list_templates(self, templates):
+        for template in templates:
             print self._render_template(template)
 
     def _render_template(self, template):
