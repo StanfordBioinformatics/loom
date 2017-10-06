@@ -7,6 +7,7 @@ angular
 	'loom.filters',
 	'loom.routes',
 	'loom.services',
+	'bw.paging',
     ]);
 
 angular

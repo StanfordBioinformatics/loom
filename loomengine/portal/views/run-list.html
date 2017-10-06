@@ -1,3 +1,14 @@
+<div class="container-fluid">
+  <div class="row pull-right">
+    <div class="col-xs-12 pull-right">
+      <div paging
+	   page="currentPage"
+	   page-size="pageSize"
+	   total="total">
+      </div>
+    </div>
+  </div>
+</div>
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
 <div ng-hide="loading">
   <div class = "table-responsive" ng-show="runs.length">
@@ -18,4 +29,25 @@
     </div>
   </div>
   <div ng-hide="runs.length">no runs</div>
+</div>
+<div class="container-fluid pull-right" ng-show="total>pageSize">
+  <div class="row">
+    <div class="col-xs-12">
+      <div paging
+	   page="currentPage"
+	   page-size="pageSize"
+	   total="total">
+      </div>
+    </div>
+  </div>
+  <div class="row pull-right">
+    <div class="form-inline col-xs-12">
+      <label>page</label>
+      <input
+	placeholder="page"
+	class="form-control textarea-sm"
+	maxlength="16"
+	ng-model="currentPage"/>
+    </div>
+  </div>
 </div>

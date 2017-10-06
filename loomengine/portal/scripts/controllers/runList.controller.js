@@ -7,10 +7,18 @@ angular
 RunListController.$inject = ['$scope', 'DataService', '$location'];
 
 function RunListController($scope, DataService, $location) {
-    $scope.$location = $location;
-    $scope.loading = true;
-    DataService.getRuns().then(function(runs) {
+    function loadRuns() {
+	var offset = ($scope.currentPage - 1) * $scope.pageSize
+	DataService.getRuns($scope.pageSize, offset).then(function(data) {
+	    $scope.runs = data.results;
+	    $scope.total = data.count;
 	    $scope.loading = false;
-	    $scope.runs = runs;
-    });
+	});
+    }
+    $scope.$location = $location;
+    $scope.$watch('currentPage', loadRuns, true);
+    $scope.pageSize = 10;
+    $scope.currentPage=1;
+    $scope.loading = true;
+    loadRuns();
 };

@@ -101,8 +101,8 @@ function DataService($http, $q) {
 		return response.data;
 	    });
     }
-    function getRuns() {
-        return $http.get("/api/runs/?parent_only")
+    function getRuns(limit, offset) {
+        return $http.get("/api/runs/?parent_only&limit="+limit+"&offset="+offset)
             .then(function(response) {
 		return response.data;
             });

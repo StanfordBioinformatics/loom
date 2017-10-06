@@ -136,3 +136,7 @@ g {
     fill: #333;
     stroke-width: 1.5px;
 }
+
+.textarea-sm {
+  width: 50px !important;
+}
