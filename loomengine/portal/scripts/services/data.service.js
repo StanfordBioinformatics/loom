@@ -108,29 +108,29 @@ function DataService($http, $q) {
             });
     }
 
-    function getTemplates() {
-        return $http.get("/api/templates/?imported")
+    function getTemplates(limit, offset) {
+        return $http.get("/api/templates/?imported&limit="+limit+"&offset="+offset)
             .then(function(response) {
 		return response.data;
             });
     }
 
-    function getImportedFiles() {
-        return $http.get("/api/data-objects/?source_type=imported&type=file")
+    function getImportedFiles(limit, offset) {
+        return $http.get("/api/data-objects/?source_type=imported&type=file&limit="+limit+"&offset="+offset)
             .then(function(response) {
 		return response.data;
             });
     }
 
-    function getResultFiles() {
-        return $http.get("/api/data-objects/?source_type=result&type=file")
+    function getResultFiles(limit, offset) {
+        return $http.get("/api/data-objects/?source_type=result&type=file&limit="+limit+"&offset="+offset)
             .then(function(response) {
 		return response.data;
             });
     }
 
-    function getLogFiles() {
-        return $http.get("/api/data-objects/?source_type=log&type=file")
+    function getLogFiles(limit, offset) {
+        return $http.get("/api/data-objects/?source_type=log&type=file&limit="+limit+"&offset="+offset)
             .then(function(response) {
 		return response.data;
             });

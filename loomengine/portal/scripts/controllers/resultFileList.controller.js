@@ -7,11 +7,16 @@ angular
 ResultFileListController.$inject = ['$scope', 'DataService'];
 
 function ResultFileListController($scope, DataService){
+    function loadFiles() {
+	var offset = ($scope.currentPage - 1) * $scope.pageSize
+	DataService.getResultFiles($scope.pageSize, offset).then(function(data) {
+	    $scope.files = data.results;
+	    $scope.totalItems = data.count;
+	    $scope.loading = false;
+	});
+    }
+    $scope.pageSize = 10;
     $scope.loading = true;
-    DataService.getResultFiles().then(function(files) {
-	$scope.loading = false;
-	$scope.files = files;
-    });
-};    
-
-
+    $scope.$watch('currentPage', loadFiles, true);
+    $scope.currentPage = 1;
+};

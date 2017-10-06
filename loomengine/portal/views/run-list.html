@@ -1,17 +1,27 @@
-<div class="container-fluid">
-  <div class="row pull-right">
-    <div class="col-xs-12 pull-right">
+<div class="container-fluid pull-right">
+  <div class="row pull-right" ng-show="(totalItems/pageSize)>10">
+    <div class="form-inline col-xs-12">
+      <label>page</label>
+      <input
+	placeholder="page"
+	class="form-control textarea-sm"
+	maxlength="16"
+	ng-model="currentPage"/>
+    </div>
+  </div>
+  <div class="row" ng-show="totalItems>pageSize">
+    <div class="col-xs-12">
       <div paging
 	   page="currentPage"
 	   page-size="pageSize"
-	   total="total">
+	   total="totalItems">
       </div>
     </div>
   </div>
 </div>
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
-<div ng-hide="loading">
-  <div class = "table-responsive" ng-show="runs.length">
+<div ng-hide="loading" class="col-xs-12">
+  <div class="table-responsive" ng-show="runs.length">
     <div class="table table-hover table-striped">
       <div class="container-fluid">
 	<div class="row">
@@ -30,17 +40,17 @@
   </div>
   <div ng-hide="runs.length">no runs</div>
 </div>
-<div class="container-fluid pull-right" ng-show="total>pageSize">
-  <div class="row">
+<div class="container-fluid pull-right">
+  <div class="row" ng-show="totalItems>pageSize">
     <div class="col-xs-12">
       <div paging
 	   page="currentPage"
 	   page-size="pageSize"
-	   total="total">
+	   total="totalItems">
       </div>
     </div>
   </div>
-  <div class="row pull-right">
+  <div class="row pull-right" ng-show="(totalItems/pageSize)>10">
     <div class="form-inline col-xs-12">
       <label>page</label>
       <input

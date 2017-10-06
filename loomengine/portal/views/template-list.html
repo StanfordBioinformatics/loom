@@ -1,5 +1,26 @@
+<div class="container-fluid pull-right">
+  <div class="row pull-right" ng-show="(totalItems/pageSize)>10">
+    <div class="form-inline col-xs-12">
+      <label>page</label>
+      <input
+	placeholder="page"
+	class="form-control textarea-sm"
+	maxlength="16"
+	ng-model="currentPage"/>
+    </div>
+  </div>
+  <div class="row" ng-show="totalItems>pageSize">
+    <div class="col-xs-12">
+      <div paging
+	   page="currentPage"
+	   page-size="pageSize"
+	   total="totalItems">
+      </div>
+    </div>
+  </div>
+</div>
 <img src="assets/loading.gif" alt="Loading..." ng-show="loading" class="center-block">
-<div class="table-responsive" ng-hide="loading">
+<div class="table-responsive col-xs-12" ng-hide="loading">
   <table class="table table-striped" ng-show="templates.length">
     <thead>
       <tr>
@@ -21,4 +42,25 @@
     </tbody>
   </table>
   <div ng-hide="templates.length">no templates</div>
+</div>
+<div class="container-fluid pull-right">
+  <div class="row" ng-show="totalItems>pageSize">
+    <div class="col-xs-12">
+      <div paging
+	   page="currentPage"
+	   page-size="pageSize"
+	   total="totalItems">
+      </div>
+    </div>
+  </div>
+  <div class="row pull-right" ng-show="(totalItems/pageSize)>10">
+    <div class="form-inline col-xs-12">
+      <label>page</label>
+      <input
+	placeholder="page"
+	class="form-control textarea-sm"
+	maxlength="16"
+	ng-model="currentPage"/>
+    </div>
+  </div>
 </div>
