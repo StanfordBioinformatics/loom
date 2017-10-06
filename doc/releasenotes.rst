@@ -5,6 +5,21 @@ Release Notes
 Latest
 =============
 
+0.5.3
+------------
+* Retry tasks on failure or lost heartbeat
+* Paginated index views in browser
+* Chunked index view queries by commandline client
+* Migrated kibana logs to same port as Loom under /logs
+* Critical bugfix for corrupted data trees
+* Simplified output filenames and directory structure
+* Periodic check for tasks that failed to clean up
+* Client warns, not errors, for duplicate file or template imports
+* Add setting LOOM_FORCE_DB_MIGRATIONS_ON_START
+
+Previous
+=============
+
 0.5.2
 ------------
 * "loom server start" now starts a local server using default settings
@@ -19,9 +34,6 @@ Latest
 0.5.1
 -------------
 * Enhanced validation of templates and data objects
-
-Archive
-=============
 
 0.5.0
 -------------
