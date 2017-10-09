@@ -64,7 +64,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
     notification_addresses = jsonfield.JSONField(
         blank=True, validators=[validators.validate_notification_addresses])
     notification_context = jsonfield.JSONField(
-        blank=True,
+        null=True, blank=True, default=None,
         validators=[validators.validate_notification_context])
     parent = TreeForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
