@@ -354,7 +354,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             try:
                 response = requests.post(
                     url,
-                    data = data,
+                    json=data,
                     verify=get_setting('NOTIFICATION_HTTPS_VERIFY_CERTIFICATE'))
                 response.raise_for_status()
             except Exception as e:
