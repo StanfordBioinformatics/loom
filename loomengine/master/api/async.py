@@ -188,8 +188,9 @@ def _run_cleanup_task_playbook(task_attempt):
                 }
     env.update(new_vars)
 
-    p = subprocess.Popen(cmd_list, env=env, stderr=subprocess.STDOUT)
-    p.wait()
+    p = subprocess.Popen(
+        cmd_list, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    terminal_output, err_is_empty = p.communicate()
     if p.returncode != 0:
         msg = 'Cleanup failed for task_attempt.uuid="%s" with returncode="%s".' % (
             task_attempt.uuid, p.returncode)
