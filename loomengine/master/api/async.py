@@ -50,7 +50,8 @@ def postprocess_run(*args, **kwargs):
     return _run_with_delay(_postprocess_run, args, kwargs)
 
 @shared_task
-def _run_task(task_uuid):
+def _run_task(task_uuid, delay=0):
+    time.sleep(delay)
     # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
