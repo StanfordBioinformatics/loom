@@ -377,7 +377,7 @@ LOOM_SSL_CERT_CN
 
 Used in subject field if self-signed SSL certificate if LOOM_SSL_CERT_CREATE_NEW==true.
 
-LOOM_MASTER_ALLOWED_HOSTS
+LOOM_SERVER_ALLOWED_HOSTS
 -------------------------
 
 ================ ================
@@ -386,7 +386,7 @@ LOOM_MASTER_ALLOWED_HOSTS
 
 List of hosts from which Loom will accept a connection. Corresponds to the django ALLOWED_HOSTS setting.
 
-LOOM_MASTER_CORS_ORIGIN_ALLOW_ALL
+LOOM_SERVER_CORS_ORIGIN_ALLOW_ALL
 ---------------------------------
 
 ================ ================
@@ -395,7 +395,7 @@ LOOM_MASTER_CORS_ORIGIN_ALLOW_ALL
 
 Whitelist all hosts for cross-origin resource sharing. Corresponds to the django CORS_ORIGIN_ALLOW_ALL setting.
 
-LOOM_MASTER_CORS_ORIGIN_WHITELIST
+LOOM_SERVER_CORS_ORIGIN_WHITELIST
 ---------------------------------
 
 ================ ================
@@ -451,7 +451,7 @@ LOOM_PRESERVE_ALL
 
 Do not clean up instance or containers for any TaskAttempts. May be useful for debugging.
 
-LOOM_MASTER_GUNICORN_WORKERS_COUNT
+LOOM_SERVER_GUNICORN_WORKERS_COUNT
 ----------------------------------
 
 ================ ================

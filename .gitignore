@@ -3,7 +3,5 @@
 *.swp
 .DS_Store
 .idea
-/dist
-/build
-/*.egg-info
-secrets.py
+dist/
+*.egg-info/

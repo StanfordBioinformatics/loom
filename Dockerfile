@@ -1,5 +1,5 @@
 FROM debian:jessie
-MAINTAINER Isaac Liao <iliao@stanford.edu>
+MAINTAINER Nathan Hammond <info@loomengine.org>
 
 # Install gcloud SDK.
 RUN apt-get update && apt-get install -y \
@@ -39,14 +39,13 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Loom and its Python dependencies.
-WORKDIR /loomengine/
-ADD ./requirements.txt /loomengine/
-ADD ./setup.py /loomengine/
-ADD ./README.rst /loomengine/
-ADD ./loomengine/utils/ /loomengine/loomengine/utils/
-ADD ./loomengine/__init__.py /loomengine/loomengine/
-ADD ./loomengine/VERSION /loomengine/loomengine/
-RUN pip install -r requirements.txt
-ADD . /loomengine/
-RUN /loomengine/loomengine/master/manage.py collectstatic --noinput
+# Install python dependencies for Loom
+RUN pip install -U pip
+ADD ./build-tools/ /loom-build/build-tools/
+RUN /loom-build/build-tools/install_vendor_packages.sh
+
+# Install Loom
+ADD . /loom-build/
+RUN cd /loom-build/build-tools/ && ./build_loom_packages.sh
+RUN cd /loom-build/build-tools/ && ./install_loom_packages.sh
+RUN loom-manage collectstatic --noinput

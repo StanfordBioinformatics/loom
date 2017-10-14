@@ -1,6 +1,0 @@
-celerybeat-schedule.db
-*.sqlite3
-secret.txt
-sqlite_dbname.txt
-dbname.txt
-

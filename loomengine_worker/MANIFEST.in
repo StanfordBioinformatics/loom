@@ -1,0 +1,4 @@
+include loomengine_worker/VERSION
+include LICENSE
+include NOTICES
+include README.rst

@@ -45,7 +45,7 @@ How many times do you really need to run the same analysis on the same inputs? L
 Graphical user interface
 ------------------------
 
-While you may want to automate your analysis from the command line, a graphical user interface is invaluable for browsing workflows and results and keeping an eye on current runs.
+While you may want to automate your analysis from the command line, a graphical user interface is useful for interactively browsing workflows and results.
 
 Security and compliance
 -----------------------
@@ -64,14 +64,12 @@ Get started
 
 Check out our Getting Started Guide and give Loom a try.
 
-https://github.com/StanfordBioinformatics/loom/wiki/Getting-Started
-
-Documentation is here: http://loom.readthedocs.io/en/development/
+http://loom.readthedocs.io/en/latest/installing.html
 
 What is the current status?
 ===========================
 
-Loom is under active development. To get involved, contact nhammond@stanford.edu
+Loom is under active development. To get involved, contact info@loomengine.org
 
 Contributors
 ============
