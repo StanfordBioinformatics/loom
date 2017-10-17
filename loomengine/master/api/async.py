@@ -232,7 +232,9 @@ def _send_run_notifications(run_uuid):
 def send_run_notifications(*args, **kwargs):
     return _run_with_delay(_send_run_notifications, args, kwargs)
 
-@periodic_task(run_every=timedelta(seconds=60))
+SYSTEM_CHECK_INTERVAL_MINUTES = get_setting('SYSTEM_CHECK_INTERVAL_MINUTES')
+
+@periodic_task(run_every=timedelta(minutes=SYSTEM_CHECK_INTERVAL_MINUTES))
 def check_for_stalled_tasks():
     """Check for tasks that are no longer sending a heartbeat
     """
@@ -241,7 +243,7 @@ def check_for_stalled_tasks():
         if task.is_unresponsive():
             task.system_error()
 
-@periodic_task(run_every=timedelta(seconds=180))
+@periodic_task(run_every=timedelta(minutes=SYSTEM_CHECK_INTERVAL_MINUTES))
 def check_for_missed_cleanup():
     """Check for TaskAttempts that were never cleaned up
     """
