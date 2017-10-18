@@ -39,13 +39,25 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies for Loom
+# Install Loom's python dependencies
 RUN pip install -U pip
-ADD ./build-tools/ /loom-build/build-tools/
-RUN /loom-build/build-tools/install_vendor_packages.sh
+ADD ./build-tools/requirements.pip /loom/src/build-tools/requirements.pip
+RUN pip install -r /loom/src/build-tools/requirements.pip
 
 # Install Loom
-ADD . /loom-build/
-RUN cd /loom-build/build-tools/ && ./build_loom_packages.sh
-RUN cd /loom-build/build-tools/ && ./install_loom_packages.sh
+ADD ./portal /var/www/loom/portal
+ADD ./client /loom/src/client
+ADD ./server /loom/src/server
+ADD ./utils /loom/src/utils
+ADD ./worker /loom/src/worker
+ADD ./bin /loom/src/bin
+ADD ./VERSION /loom/src/VERSION
+ADD ./NOTICES /loom/src/NOTICES
+ADD ./LICENSE /loom/src/LICENSE
+ADD ./README.rst /loom/src/README.rst
+ADD ./build-tools /loom/src/build-tools
+RUN cd /loom/src/build-tools \
+    && ./build_loom_packages.sh \
+    && ./install_loom_packages.sh \
+    && ./clean.sh
 RUN loom-manage collectstatic --noinput

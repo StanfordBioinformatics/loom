@@ -1,0 +1,7 @@
+- name: Remove webportal volume
+  command: docker volume rm {{portal_data_volume }}
+  ignore_errors: yes
+
+- name: Remove webstatic volume
+  command: docker volume rm {{static_data_volume }}
+  ignore_errors: yes

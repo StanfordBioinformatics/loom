@@ -1,0 +1,49 @@
+- name: Delete the MySQL database container (this is distinct from the data volume)
+  docker_container:
+    name: "{{ mysql_container_name }}"
+    state: absent
+
+- name: Delete the rabbitmq container
+  docker_container:
+    name: "{{ rabbitmq_container_name }}"
+    state: absent
+
+- name: Delete the container with celery workers
+  docker_container:
+    name: "{{ worker_container_name }}"
+    state: absent
+
+- name: Delete the container with celery scheduler
+  docker_container:
+    name: "{{ scheduler_container_name }}"
+    state: absent
+
+- name: Delete the container with flower
+  docker_container:
+    name: "{{ flower_container_name }}"
+    state: absent
+
+- name: Delete the container with the Loom Master webserver
+  docker_container:
+    name: "{{ server_container_name }}"
+    state: absent
+
+- name: Delete the NGINX server container
+  docker_container:
+    name: "{{ nginx_container_name }}"
+    state: absent
+
+- name: Delete the Fluentd server container
+  docker_container:
+    name: "{{ fluentd_container_name }}"
+    state: absent
+
+- name: Delete the Elasticsearch server container
+  docker_container:
+    name: "{{ elasticsearch_container_name }}"
+    state: absent
+
+- name: Delete the Kibana server container
+  docker_container:
+    name: "{{ kibana_container_name }}"
+    state: absent

@@ -1,6 +1,7 @@
 #!/bin/bash
+set -e
 
-# Requires pip
+# Requires twine, setuptools-git
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 version=$(cat $DIR/../VERSION)
@@ -11,10 +12,10 @@ if [ "$version" = "" ]; then
 fi
 
 echo Found version \"$version\" in ../VERSION
-echo Installing packages
+echo Importing Loom packages to pypi
 
-for component in utils server worker client
+for component in utils server worker
 do
-    pip install -U -e $DIR/../$component/
+    twine upload $DIR/../$component/dist/loomengine_$component-$version.tar.gz
 done
-
+twine upload $DIR/../client/dist/loomengine-$version.tar.gz

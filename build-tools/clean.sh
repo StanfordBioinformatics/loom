@@ -1,10 +1,11 @@
 #!/bin/bash
+set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "Cleaning up LICENSE, VERSION, NOTICES, dist/, and *.egg.info/ in each package'"
 
-for package_dir in $DIR/../loomengine_utils $DIR/../loomengine_worker $DIR/../loomengine_server $DIR/../loomengine
+for package_dir in $DIR/../utils $DIR/../worker $DIR/../server $DIR/../client
 
 do
     echo "   $package_dir/"

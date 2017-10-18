@@ -1,6 +1,5 @@
 #!/bin/bash
-
-# Requires pip
+set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 version=$(cat $DIR/../VERSION)
@@ -11,10 +10,5 @@ if [ "$version" = "" ]; then
 fi
 
 echo Found version \"$version\" in ../VERSION
-echo Installing packages
 
-for component in utils server worker client
-do
-    pip install -U -e $DIR/../$component/
-done
-
+docker push loomengine/loom:$version

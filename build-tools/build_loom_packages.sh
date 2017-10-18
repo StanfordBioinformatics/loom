@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Requires these python packages to be installed:
 # * setuptools-git
@@ -15,7 +16,7 @@ fi
 echo Found version \"$version\" in ../VERSION
 echo Copying LICENCE, NOTICES, and README.rst to all packages
 
-for package_dir in $DIR/../loomengine_utils $DIR/../loomengine_worker $DIR/../loomengine_server $DIR/../loomengine
+for package_dir in $DIR/../utils $DIR/../worker $DIR/../server $DIR/../client
 
 do
     echo "   $package_dir/"
@@ -24,7 +25,7 @@ do
     cp ../README.rst $package_dir/README.rst
 done
 
-for package in $DIR/../loomengine_utils $DIR/../loomengine_server $DIR/../loomengine $DIR/../loomengine_worker
+for package in $DIR/../utils $DIR/../server $DIR/../client $DIR/../worker
 do
     echo "$(cd $package; python setup.py sdist;)"
 done

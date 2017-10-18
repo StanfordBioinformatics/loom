@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Requires pip
 
@@ -11,10 +12,10 @@ if [ "$version" = "" ]; then
 fi
 
 echo Found version \"$version\" in ../VERSION
-echo Installing packages
+echo Installing Loom packages
 
 for component in utils server worker
 do
-    pip install -U $DIR/../loomengine_$component/dist/loomengine_$component-$version.tar.gz
+    pip install -U $DIR/../$component/dist/loomengine_$component-$version.tar.gz
 done
-pip install -U $DIR/../loomengine/dist/loomengine-$version.tar.gz
+pip install -U $DIR/../client/dist/loomengine-$version.tar.gz

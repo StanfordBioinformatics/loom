@@ -19,8 +19,7 @@ def get_args():
 
 def migrate(skip_if_initialized=True):
     bin_path = os.path.dirname(os.path.abspath(__file__))
-    manage_executable = os.path.join(
-        bin_path, '..', 'loomengine', 'master', 'manage.py')
+    manage_executable = 'loom-manage'
 
     p = subprocess.Popen([manage_executable, 'showmigrations'],
                          stdout=subprocess.PIPE,

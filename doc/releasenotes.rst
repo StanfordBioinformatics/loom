@@ -5,6 +5,13 @@ Release Notes
 Latest
 =============
 
+0.6.0
+------------
+* Installable from PyPi with "pip install loomengine"
+
+Previous
+=============
+
 0.5.3
 ------------
 * Retry tasks on failure or lost heartbeat
@@ -16,9 +23,6 @@ Latest
 * Periodic check for tasks that failed to clean up
 * Client warns, not errors, for duplicate file or template imports
 * Add setting LOOM_FORCE_DB_MIGRATIONS_ON_START
-
-Previous
-=============
 
 0.5.2
 ------------
