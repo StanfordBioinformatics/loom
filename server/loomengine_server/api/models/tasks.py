@@ -79,7 +79,8 @@ class Task(BaseModel):
         return (timezone.now() - last_heartbeat).total_seconds() > timeout
 
     def _process_error(self, detail, max_retries,
-                       failure_count_attribute, failure_text):
+                       failure_count_attribute, failure_text,
+                       exponential_delay=False):
         if self.has_terminal_status():
             return
         failure_count = int(getattr(self, failure_count_attribute)) + 1
@@ -90,7 +91,11 @@ class Task(BaseModel):
                 detail = 'Restarting task after %s (retry %s/%s)'\
                          %(failure_text.lower(), failure_count, max_retries)
             self.add_event(failure_text, detail=detail, is_error=True)
-            async.run_task(self.uuid)
+            if exponential_delay:
+                delay = 2**failure_count
+            else:
+                delay = 0
+            async.run_task(self.uuid, delay=delay)
             return
         else:
             if not detail:
@@ -111,16 +116,21 @@ class Task(BaseModel):
             self.run.fail(detail='Task %s failed' % self.uuid)
     
     def system_error(self, detail=''):
-        self._process_error(detail,
-                   get_setting('MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE'),
-                   'system_failure_count',
-                   'System error')
+        self._process_error(
+            detail,
+            get_setting('MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE'),
+            'system_failure_count',
+            'System error',
+            exponential_delay=True,
+        )
 
     def analysis_error(self, detail=''):
-        self._process_error(detail,
-                   get_setting('MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE'),
-                   'analysis_failure_count',
-                   'Analysis error')
+        self._process_error(
+            detail,
+            get_setting('MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE'),
+            'analysis_failure_count',
+            'Analysis error')
+        raise Exception(detail)
 
     def has_terminal_status(self):
         return self.status_is_finished \

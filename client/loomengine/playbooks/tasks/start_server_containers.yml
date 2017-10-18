@@ -52,7 +52,6 @@
     api_version: auto
     volumes:
       - "{{server_settings_home}}/kibana.yml:/usr/share/kibana/config/kibana.yml"
-      - "{{server_settings_home}}:{{container_settings_home}}"
     env:
       ELASTICSEARCH_URL: http://{{elasticsearch_container_name}}:{{elasticsearch_port}}
     links:
