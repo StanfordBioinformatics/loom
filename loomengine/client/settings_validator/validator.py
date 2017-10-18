@@ -56,6 +56,7 @@ class SettingsValidator(object):
         'LOOM_SSL_CERT_CN',
         'LOOM_SSL_CERT_KEY_FILE',
         'LOOM_SSL_CERT_FILE',
+        'LOOM_WEBSERVER_TIMEOUT_SECONDS',
         'LOOM_MASTER_INTERNAL_IP',
         'LOOM_MASTER_INTERNAL_PORT',
         'LOOM_MASTER_ALLOWED_HOSTS',

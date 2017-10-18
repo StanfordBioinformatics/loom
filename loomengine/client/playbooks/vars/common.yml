@@ -91,7 +91,7 @@ container_mysql_ssl_client_cert_path: "{{container_settings_home+'/'+resource_di
 container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+resource_dir+'/'+client_key_file if client_key_file else none}}"
 
 # Rabbitmq container settings
-raw_rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_MANAGEMENT_IMAGE')|default('rabbitmq:3.6.8', true) if debug else lookup('env', 'LOOM_RABBITMQ_IMAGE')|default('rabbitmq:3.6.8-management', true)}}"
+raw_rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_MANAGEMENT_IMAGE')|default('rabbitmq:3.6.8-management', true) if debug else lookup('env', 'LOOM_RABBITMQ_IMAGE')|default('rabbitmq:3.6.8', true)}}"
 rabbitmq_image: "{% if default_registry %}{% if not ('.' in raw_rabbitmq_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_rabbitmq_image}}"
 rabbitmq_container_name: "{{server_name|truncate(54,true,'')}}-rabbitmq"
 rabbitmq_user: "{{lookup('env', 'LOOM_RABBITMQ_USER')|default('guest', true)}}"
@@ -122,6 +122,7 @@ nginx_webportal_root: "{{lookup('env', 'LOOM_NGINX_WEBPORTAL_ROOT')|default('/lo
 master_container_name: "{{server_name|truncate(56,true,'')}}-master"
 master_internal_port: "{{lookup('env', 'LOOM_MASTER_INTERNAL_PORT')|default(8000,true)|int}}"
 master_static_root: "{{lookup('env', 'LOOM_MASTER_STATIC_ROOT')|default('/var/www/loom/static', true)}}"
+webserver_timeout_seconds: "{{lookup('env', 'LOOM_WEBSERVER_TIMEOUT_SECONDS')|default('600', true)}}"
 
 # Volume names
 webportal_data_volume: "{{lookup('env', 'LOOM_WEBPORTAL_DATA_VOLUME')|default(server_name~'-webportal', true)}}"
