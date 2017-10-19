@@ -17,40 +17,17 @@ Required
 --------
 * python >= 2.7 < 3.x
 * `pip <http://pip.readthedocs.org/en/stable/installing/>`_
-* `Docker <https://www.docker.com/products/overview>`_
+* `Docker <https://docs.docker.com/engine/installation/>`_ (required in default 'local' mode)
+* `Google Cloud SDK <https://cloud.google.com/sdk/>`_ (required in 'gcloud' mode)
 
-Optional
---------
-* `Google Cloud SDK <https://cloud.google.com/sdk/>`_ (for Google Cloud deployment only)
+Installing
+==========
 
-On Ubuntu 16.04
-========================================
+To install the client, use::
 
-Note: We recommend using Ubuntu 16.04 rather than 14.04, because Python 2.7.9 is not officially supported on 14.04. This leads to InsecurePlatformWarnings and headaches with SSL/TLS.
+  pip install loomengine
 
-* Install Docker: https://docs.docker.com/engine/installation/linux/ubuntu/
-* Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
-
-::
-
-    sudo apt-get update
-    sudo apt-get install -y build-essential libssl-dev libffi-dev python-dev
-    wget https://bootstrap.pypa.io/get-pip.py
-    sudo -H python get-pip.py
-    pip install loomengine
-
-Installing prerequisites on CentOS 7
-====================================
-
-* Install Docker: https://docs.docker.com/engine/installation/linux/centos/
-* Add current user to docker group (may have to log out and back in for change to take effect): http://docs.oracle.com/cd/E52668_01/E75728/html/section_rdz_hmw_2q.html
-
-::
-
-    sudo yum install -y epel-release
-    sudo yum update -y
-    sudo yum install -y gcc python-devel openssl-devel libffi-devel python-pip
-    pip install loomengine
+You do not need to install the loomengine_worker or loomengine_server packages directly. The client can provision a server, and the server can provision workers, either in local docker containers or on newly provisioned VMs.
 
 Tests
 =====
@@ -162,7 +139,7 @@ Note that a unique identifier (a UUID) has been appended to the file, template, 
 readable name, e.g.
 ::
 
-    loom run hello_world@37fa721e hello=hello.txt@17c73d43 world=world.txt@f2fc4af5
+    loom run start hello_world@37fa721e hello=hello.txt@17c73d43 world=world.txt@f2fc4af5
 
 Viewing run progress in a web browser
 =====================================

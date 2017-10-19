@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -8,7 +7,6 @@ echo "Cleaning up LICENSE, VERSION, NOTICES, dist/, and *.egg.info/ in each pack
 for package_dir in $DIR/../utils $DIR/../worker $DIR/../server $DIR/../client
 
 do
-    echo "   $package_dir/"
     rm $package_dir/LICENSE
     rm $package_dir/NOTICES
     rm $package_dir/README.rst
