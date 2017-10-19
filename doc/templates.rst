@@ -15,7 +15,7 @@ To run these examples, you will need access to a running Loom server. See :ref:`
 join_two_words
 ==============
 
-*simplest example, a.k.a. hello world*
+*simplest example*
 
 This example illustrates the minimal set of features in a Loom template: name, command, environment (defined by a docker image), and input/output definitions.
 

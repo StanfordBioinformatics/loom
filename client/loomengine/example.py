@@ -8,7 +8,8 @@ import shutil
 
 EXAMPLE_DIR = os.path.join(os.path.dirname(__file__), 'examples')
 EXAMPLE_INDEX = [
-    ('join_two_words', 'simplest example, a.k.a. hello world'),
+    ('hello_world', 'steps in serial and parallel, file inputs'),
+    ('join_two_words', 'simplest example'),
     ('capitalize_words', 'array data, iterating over an array input'),
     ('join_array_of_words', 'array data, gather mode on an input'),
     ('split_words_into_array', 'array data, scatter mode on an output, output parsers'),

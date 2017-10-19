@@ -85,8 +85,11 @@ Verify that the server is running
 
     loom server status
 
-Example workflows
+Running a workflow
 ==================
+
+Export an example workflow
+--------------------------
 
 Loom ships with example workflows that demonstrate the features of Loom workflow definitions give instructions on how to run a workflow.
 
@@ -104,13 +107,8 @@ To work with an example, export it by name:
 
 This will create a local directory with the example, any input files, and a README.rst file explaining the example and how to execute it.
 
-Running a workflow
-==================
-
 Import the template and input files
 --------------------------------------------
-
-If you run "loom examples export hello_world", Loom will copy a workflow template to your current directory, and you can use that to test loom.
 
 ::
 
@@ -118,28 +116,38 @@ If you run "loom examples export hello_world", Loom will copy a workflow templat
     loom file import hello_world/world.txt
     loom template import hello_world/hello_world.yaml
 
-Start a workflow run
---------------------
+Start a run
+-----------
 ::
 
     loom run start hello_world hello=hello.txt world=world.txt
 
-Listing entities in Loom's database
-===================================
+Listing objects in Loom's database
+==================================
 ::
 
     loom file list
     loom template list
     loom run list
 
-Using unique identifiers
-========================
+Using unique identifiers and hash values
+========================================
 
-Note that a unique identifier (a UUID) has been appended to the file, template, and run names. If you have multiple objects with the same name, it is good practice to use all or part of the UUID along with the human 
-readable name, e.g.
+Note that a unique identifier (a UUID) has been appended to the file, template, and run names, predeeded by the "@" symbol. If you have multiple objects with the same name, it is good practice to use all or part of the UUID along with the human readable name, e.g.
+
 ::
 
     loom run start hello_world@37fa721e hello=hello.txt@17c73d43 world=world.txt@f2fc4af5
+
+(UUIDs are generated randomly at the time of import, so yours will not match those shown in the command above.)
+    
+You can also use hash of the file contents to uniquely identify imported data files or templates. Hashes are preceeded with the "$" symbol.
+
+::
+
+   loom run start hello_world\$11405cbf2599f017c67179c271a064ec hello=hello.txt\$b1946ac92492d2347c6235b4d2611184 world=world.txt\$591785b794601e212b260e25925636fd
+
+Human-readable names are optional when another identifier is used, but including them will improve readability.
 
 Viewing run progress in a web browser
 =====================================

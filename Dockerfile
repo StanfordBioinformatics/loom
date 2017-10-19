@@ -57,7 +57,7 @@ ADD ./LICENSE /loom/src/LICENSE
 ADD ./README.rst /loom/src/README.rst
 ADD ./build-tools /loom/src/build-tools
 RUN cd /loom/src/build-tools \
-    && ./build_loom_packages.sh \
-    && ./install_loom_packages.sh \
+    && ./build-loom-packages.sh \
+    && ./install-loom-packages.sh \
     && ./clean.sh
 RUN loom-manage collectstatic --noinput
