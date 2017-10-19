@@ -11,4 +11,7 @@ def main():
     
 
 if __name__ == "__main__":
+    import sys
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+    sys.path.remove(os.path.abspath(''))
     main()

@@ -132,29 +132,9 @@ class TestRunner:
         loom_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         loom_env = dict(os.environ.copy(), PYTHONPATH=loom_root)
 
-        # Becomes 1 if any tests fail
-        returncode = 0
-
-        manage_script = (os.path.abspath(os.path.join(
-            os.path.dirname(__file__), '..', 'master', 'manage.py')))
-        manage_script_dir = os.path.dirname(manage_script)
-        returncode |= subprocess.call([sys.executable, manage_script, 'test'],
-                                      env=loom_env, cwd=manage_script_dir)
-
-        client_dir = (os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'client')))
-        returncode |= subprocess.call(
+        client_dir = (os.path.abspath(os.path.dirname(__file__)))
+        returncode = subprocess.call(
             [sys.executable, '-m', 'unittest', 'discover', client_dir])
-
-        worker_dir = (os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'worker')))
-        returncode |= subprocess.call(
-            [sys.executable, '-m', 'unittest', 'discover', worker_dir])
-
-        utils_dir = (os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'utils')))
-        returncode |= subprocess.call(
-            [sys.executable, '-m', 'unittest', 'discover', utils_dir])
 
         print 'Return code: %s' % returncode
         return returncode
@@ -179,7 +159,7 @@ class TestRunner:
     def _start_server(self):
         self._started_new_server_named = 'loom-test-server'
         loom_executable = sys.argv[0]
-        cmd = [loom_executable, 'server', 'start', '--settings-file', 'local.conf',
+        cmd = [loom_executable, 'server', 'start',
                '-e' 'LOOM_SERVER_NAME=%s' % self._started_new_server_named]
         returncode = subprocess.call(cmd, env=os.environ)
         if not returncode == 0:
