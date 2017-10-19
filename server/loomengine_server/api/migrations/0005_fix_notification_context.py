@@ -19,4 +19,5 @@ class Migration(migrations.Migration):
             name='notification_context',
             field=jsonfield.fields.JSONField(blank=True, default=None, null=True, validators=[api.models.validators.validate_notification_context]),
         ),
+        migrations.RunSQL("UPDATE api_run SET notification_context = NULL WHERE notification_context = ''"),
     ]

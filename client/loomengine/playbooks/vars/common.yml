@@ -118,7 +118,7 @@ nginx_container_name: "{{server_name|truncate(57,true,'')}}-nginx"
 nginx_server_name: "{{lookup('env', 'LOOM_NGINX_SERVER_NAME')|default('localhost',true)}}"
 
 # Loom server container settings
-server_container_name: "{{server_name|truncate(56,true,'')}}-server"
+server_container_name: "{{server_name|truncate(56,true,'')}}"
 server_internal_port: "{{lookup('env', 'LOOM_SERVER_INTERNAL_PORT')|default(8000,true)|int}}"
 static_root: "{{lookup('env', 'LOOM_STATIC_ROOT')|default('/var/www/loom/static', true)}}"
 portal_root: "{{lookup('env', 'LOOM_PORTAL_ROOT')|default('/var/www/loom/portal', true)}}"

@@ -175,7 +175,7 @@ TIME_ZONE = 'UTC'
 USE_TZ = True
 CELERY_ALWAYS_EAGER = True
 APPEND_SLASH = True
-ROOT_URLCONF = 'loomengine_server.loomengine_server.urls'
+ROOT_URLCONF = 'loomengine_server.core.urls'
 
 # Celery
 CELERY_RESULT_BACKEND = 'django-cache'

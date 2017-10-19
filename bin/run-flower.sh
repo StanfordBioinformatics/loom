@@ -8,4 +8,4 @@ DEFAULT_FLOWER_INTERNAL_PORT=5555
 LOOM_LOG_LEVEL=${LOOM_LOG_LEVEL:-$DEFAULT_LOG_LEVEL}
 LOOM_FLOWER_INTERNAL_PORT=${LOOM_FLOWER_INTERNAL_PORT:-$DEFAULT_FLOWER_INTERNAL_PORT}
 
-celery flower -A loomengine_server.loomengine_server -l ${LOOM_LOG_LEVEL} --address=0.0.0.0 --port=${LOOM_FLOWER_INTERNAL_PORT} --workdir=${BIN_PATH}/../server --url_prefix=flower
+celery flower -A loomengine_server.core -l ${LOOM_LOG_LEVEL} --address=0.0.0.0 --port=${LOOM_FLOWER_INTERNAL_PORT} --workdir=${BIN_PATH}/../server --url_prefix=flower

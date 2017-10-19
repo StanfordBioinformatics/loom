@@ -49,4 +49,4 @@ else
     python $BIN_PATH/migratedb.py --skip-if-initialized
 fi
 
-gunicorn loomengine_server.loomengine_server.wsgi --bind ${LOOM_SERVER_INTERNAL_IP}:${LOOM_SERVER_INTERNAL_PORT} --log-level ${LOOM_LOG_LEVEL} --capture-output -w ${LOOM_SERVER_GUNICORN_WORKERS_COUNT} --timeout 300
+gunicorn loomengine_server.core.wsgi --bind ${LOOM_SERVER_INTERNAL_IP}:${LOOM_SERVER_INTERNAL_PORT} --log-level ${LOOM_LOG_LEVEL} --capture-output -w ${LOOM_SERVER_GUNICORN_WORKERS_COUNT} --timeout 300
