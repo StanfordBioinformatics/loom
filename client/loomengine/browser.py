@@ -15,7 +15,7 @@ from loomengine.common import verify_has_connection_settings, get_server_url, \
 from loomengine.exceptions import *
 
 
-class Browser:
+class Browser(object):
     """Sets up and executes commands under "browser"" on the main parser.
     """
 

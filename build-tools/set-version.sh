@@ -18,9 +18,9 @@ echo Updating version from \"$old_version\" to \"$version\"
 echo "    updating $DIR/../VERSION"
 echo $version > $DIR/../VERSION
 echo "    updating $DIR/../doc/conf.py"
-sed -i.tmp "s/version = u'.*'/version = u'$version'/" ../doc/conf.py
-sed -i.tmp "s/release = u'.*'/release = u'$version'/" ../doc/conf.py
-rm ../doc/conf.py.tmp
+sed -i.tmp "s/version = u'.*'/version = u'$version'/" $DIR/../doc/conf.py
+sed -i.tmp "s/release = u'.*'/release = u'$version'/" $DIR/../doc/conf.py
+rm $DIR/../doc/conf.py.tmp
 
 for package_dir in $DIR/../utils/loomengine_utils $DIR/../worker/loomengine_worker $DIR/../server/loomengine_server $DIR/../client/loomengine
 

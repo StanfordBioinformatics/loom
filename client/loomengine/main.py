@@ -13,6 +13,7 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(rootdir)
 
 from loomengine import browser
+from loomengine import example
 from loomengine import file_client
 from loomengine import run
 from loomengine import server
@@ -64,10 +65,16 @@ class Main(object):
         file_client.FileClient.get_parser(file_subparser)
         file_subparser.set_defaults(SubcommandClass=file_client.FileClient)
 
-        browser_subparser = subparsers.add_parser('browser', help='launch the Loom web browser')
+        browser_subparser = subparsers.add_parser(
+            'browser', help='launch the Loom web browser')
         browser.Browser.get_parser(browser_subparser)
         browser_subparser.set_defaults(SubcommandClass=browser.Browser)
 
+        example_subparser = subparsers.add_parser(
+            'example', help='use demo examples')
+        example.Example.get_parser(example_subparser)
+        example_subparser.set_defaults(SubcommandClass=example.Example)
+        
         server_subparser = subparsers.add_parser(
             'server', help='manage the Loom server')
         server.get_parser(server_subparser)

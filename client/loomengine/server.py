@@ -61,7 +61,7 @@ def loom_settings_transaction(function):
 
     return transaction
 
-class ServerControls:
+class ServerControls(object):
     """Class for managing the Loom server.
     """
     def __init__(self, args=None):

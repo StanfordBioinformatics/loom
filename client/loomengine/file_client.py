@@ -221,7 +221,7 @@ class FileList(object):
         return text
 
 
-class FileClient:
+class FileClient(object):
     """Configures and executes subcommands under "file" on the main parser.
     """
 

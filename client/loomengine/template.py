@@ -281,7 +281,7 @@ class TemplateList(object):
 
 
 
-class Template:
+class Template(object):
     """Configures and executes subcommands under "template" on the main parser.
     """
 
@@ -337,4 +337,4 @@ class Template:
 
 
 if __name__=='__main__':
-    response = FileClient().run()
+    response = Template().run()

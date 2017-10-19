@@ -23,9 +23,9 @@ We use the optional "data" field on the inputs to assign default values.
 
 *join_two_words.yaml:*
 
-.. literalinclude:: examples/join_two_words/join_two_words.yaml
+.. literalinclude:: ../client/loomengine/examples/join_two_words/join_two_words.yaml
 
-:download:`join_two_words.yaml <examples/join_two_words/join_two_words.yaml>`
+:download:`join_two_words.yaml <../client/loomengine/examples/join_two_words/join_two_words.yaml>`
 
 The command "echo {{word1}} {{word2}}" makes use of Jinja2_ notation to substitute input values. "{{word1}}" in the command will be substituted with the value provided on the "word1" input channel. For inputs of type "string", "integer", "boolean", and "float", the value substituted is a string representation of the data. For inputs of type "file", the filename is substituted. The full set of Jinja2 features may be used, including filters, conditional statements, and loops.
 
@@ -35,13 +35,13 @@ The command "echo {{word1}} {{word2}}" makes use of Jinja2_ notation to substitu
 
 ::
    
-   loom import template join_two_words.yaml
+   loom template import join_two_words.yaml
   
    # Run with default input data
-   loom run join_two_words
+   loom run start join_two_words
    
    # Run with custom input data
-   loom run join_two_words word1=foo word2=bar
+   loom run start join_two_words word1=foo word2=bar
 
 capitalize_words
 ================
@@ -56,21 +56,21 @@ Note the use of "as_channel" on the input definition. Since our input channel is
 
 *capitalize_words.yaml:*
 
-.. literalinclude:: examples/capitalize_words/capitalize_words.yaml
+.. literalinclude:: ../client/loomengine/examples/capitalize_words/capitalize_words.yaml
 
-:download:`capitalize_words.yaml <examples/capitalize_words/capitalize_words.yaml>`
+:download:`capitalize_words.yaml <../client/loomengine/examples/capitalize_words/capitalize_words.yaml>`
 
 **Run the capitalize_words example**
 
 ::
    
-   loom import template capitalize_words.yaml
+   loom template import capitalize_words.yaml
    
    # Run with default input data
-   loom run capitalize_words
+   loom run start capitalize_words
    
    # Run with custom input data
-   loom run capitalize_words words=[uno,dos,tres]
+   loom run start capitalize_words words=[uno,dos,tres]
 
 join_array_of_words
 ===================
@@ -85,21 +85,21 @@ In this example we merge the strings and output the result as a string.
 
 *join_array_of_words.yaml:*
 
-.. literalinclude:: examples/join_array_of_words/join_array_of_words.yaml
+.. literalinclude:: ../client/loomengine/examples/join_array_of_words/join_array_of_words.yaml
 
-:download:`join_array_of_words.yaml <examples/join_array_of_words/join_array_of_words.yaml>`
+:download:`join_array_of_words.yaml <../client/loomengine/examples/join_array_of_words/join_array_of_words.yaml>`
 
 **Run the join_array_of_words example**
 
 ::
    
-   loom import template join_array_of_words.yaml
+   loom template import join_array_of_words.yaml
    
    # Run with default input data
-   loom run join_array_of_words
+   loom run start join_array_of_words
    
    # Run with custom input data
-   loom run join_array_of_words wordarray=[uno,dos,tres]
+   loom run start join_array_of_words wordarray=[uno,dos,tres]
 
 split_words_into_array
 ======================
@@ -114,21 +114,21 @@ We also need to instruct Loom how to split the text in stdout to an array. For t
 
 *split_words_into_array.yaml:*
 
-.. literalinclude:: examples/split_words_into_array/split_words_into_array.yaml
+.. literalinclude:: ../client/loomengine/examples/split_words_into_array/split_words_into_array.yaml
 
-:download:`split_words_into_array.yaml <examples/split_words_into_array/split_words_into_array.yaml>`
+:download:`split_words_into_array.yaml <../client/loomengine/examples/split_words_into_array/split_words_into_array.yaml>`
 
 **Run the split_words_into_array example**
 
 ::
    
-   loom import template split_words_into_array.yaml
+   loom template import split_words_into_array.yaml
    
    # Run with default input data
-   loom run split_words_into_array
+   loom run start split_words_into_array
    
    # Run with custom input data
-   loom run split_words_into_array text="one two three"
+   loom run start split_words_into_array text="one two three"
 
 add_then_multiply
 =================
@@ -143,21 +143,21 @@ Notice how the flow of data is defined using shared channel names between inputs
 
 *add_then_multiply.yaml:*
 
-.. literalinclude:: examples/add_then_multiply/add_then_multiply.yaml
+.. literalinclude:: ../client/loomengine/examples/add_then_multiply/add_then_multiply.yaml
 
-:download:`add_then_multiply.yaml <examples/add_then_multiply/add_then_multiply.yaml>`
+:download:`add_then_multiply.yaml <../client/loomengine/examples/add_then_multiply/add_then_multiply.yaml>`
 
 **Run the add_then_multiply example**
 
 ::
    
-   loom import template add_then_multiply.yaml
+   loom template import add_then_multiply.yaml
    
    # Run with default input data
-   loom run add_then_multiply
+   loom run start add_then_multiply
    
    # Run with custom input data
-   loom run add_then_multiply a=1 b=2 c=3
+   loom run start add_then_multiply a=1 b=2 c=3
   
 building_blocks
 ===============
@@ -168,36 +168,36 @@ Let's look at another way to write the previous workflow. The "add" and "multipl
 
 *add.yaml:*
 
-.. literalinclude:: examples/building_blocks/add.yaml
+.. literalinclude:: ../client/loomengine/examples/building_blocks/add.yaml
 
 *multiply.yaml:*
 
-.. literalinclude:: examples/building_blocks/multiply.yaml
+.. literalinclude:: ../client/loomengine/examples/building_blocks/multiply.yaml
 
 *building_blocks.yaml:*
 
-.. literalinclude:: examples/building_blocks/building_blocks.yaml
+.. literalinclude:: ../client/loomengine/examples/building_blocks/building_blocks.yaml
 
-:download:`add.yaml <examples/building_blocks/add.yaml>`
+:download:`add.yaml <../client/loomengine/examples/building_blocks/add.yaml>`
 
-:download:`multiply.yaml <examples/building_blocks/multiply.yaml>`
+:download:`multiply.yaml <../client/loomengine/examples/building_blocks/multiply.yaml>`
 
-:download:`building_blocks.yaml <examples/building_blocks/building_blocks.yaml>`
+:download:`building_blocks.yaml <../client/loomengine/examples/building_blocks/building_blocks.yaml>`
 
 **Run the building_blocks example**
 
 ::
    
    # Import child templates before the parent that references them
-   loom import template add.yaml
-   loom import template multiply.yaml
-   loom import template building_blocks.yaml
+   loom template import add.yaml
+   loom template import multiply.yaml
+   loom template import building_blocks.yaml
    
    # Run with default input data
-   loom run building_blocks
+   loom run start building_blocks
    
    # Run with custom input data
-   loom run building_blocks a=1 b=2 c=3
+   loom run start building_blocks a=1 b=2 c=3
 
 search_file
 ===========
@@ -210,38 +210,38 @@ In this example, the "lorem_ipsum.txt" input file should be imported prior to im
 
 *lorem_ipsum.txt:*
 
-.. literalinclude:: examples/search_file/lorem_ipsum.txt
+.. literalinclude:: ../client/loomengine/examples/search_file/lorem_ipsum.txt
 
 *search_file.yaml:*
 
-.. literalinclude:: examples/search_file/search_file.yaml
+.. literalinclude:: ../client/loomengine/examples/search_file/search_file.yaml
 
-:download:`lorem_ipsum.txt <examples/search_file/lorem_ipsum.txt>`
+:download:`lorem_ipsum.txt <../client/loomengine/examples/search_file/lorem_ipsum.txt>`
 		    
-:download:`search_file.yaml <examples/search_file/search_file.yaml>`
+:download:`search_file.yaml <../client/loomengine/examples/search_file/search_file.yaml>`
 
 Here is an alternative text file not referenced in the template. We can override the default input file and specify beowulf.txt as the input when starting a run.
 
 *beowulf.txt:*
 
-.. literalinclude:: examples/search_file/beowulf.txt
+.. literalinclude:: ../client/loomengine/examples/search_file/beowulf.txt
 
-:download:`beowulf.txt <examples/search_file/beowulf.txt>`
+:download:`beowulf.txt <../client/loomengine/examples/search_file/beowulf.txt>`
 	  
 **Run the search_file example**
 
 ::
    
    # Import the file before the template that references it
-   loom import file lorem_ipsum.txt
-   loom import template search_file.yaml
+   loom file import lorem_ipsum.txt
+   loom template import search_file.yaml
    
    # Run with default input data
-   loom run search_file
+   loom run start search_file
    
    # Run with custom input data
-   loom import file beowulf.txt
-   loom run search_file pattern=we file_to_search=beowulf.txt\$20b8f89484673eae4f121801e1fec28c
+   loom file import beowulf.txt
+   loom run start search_file pattern=we file_to_search=beowulf.txt\$20b8f89484673eae4f121801e1fec28c
 
 word_combinations
 =================
@@ -261,9 +261,9 @@ In this example, we iterate over two inputs, one with an array of adjectives and
 
 *word_combinations.yaml:*
 
-.. literalinclude:: examples/word_combinations/word_combinations.yaml
+.. literalinclude:: ../client/loomengine/examples/word_combinations/word_combinations.yaml
 
-:download:`word_combinations.yaml <examples/word_combinations/word_combinations.yaml>`
+:download:`word_combinations.yaml <../client/loomengine/examples/word_combinations/word_combinations.yaml>`
 
 You may have noticed that we gather the input "word_pair_files" with "mode: gather(2)". This is because word_pair_files is not just an array, but an array of arrays. We wish to gather it to full depth. You may wish to modify this example to use "mode: gather" (or equivalently "mode: gather(1)") to see how it affects the result.
 
@@ -271,36 +271,38 @@ You may have noticed that we gather the input "word_pair_files" with "mode: gath
 
 ::
    
-   loom import template word_combinations.yaml
+   loom template import word_combinations.yaml
 
    # Run with default input data
-   loom run word_combinations
+   loom run start word_combinations
    
    # Run with custom input data
-   loom run word_combinations adjectives=[little,green] nouns=[men,pickles,apples]
+   loom run start word_combinations adjectives=[little,green] nouns=[men,pickles,apples]
 
 sentence_scoring
 ================
+
+*nested scatter-gather*
 
 Why should we bother differentiating between "gather" and "gather(2)"? This example illustrates why, by showing how to construct a scatter-scatter-gather-gather workflow. On the first gather, we do not fully gather the results into an array, but only gather the last level of nested arrays. This lets us group data for the letters in each word while keeping data for different words separate. On the second gather, we combine the data for each word to get an overall result for the sentence.
 
 *sentence_scoring.yaml:*
 
-.. literalinclude:: examples/sentence_scoring/sentence_scoring.yaml
+.. literalinclude:: ../client/loomengine/examples/sentence_scoring/sentence_scoring.yaml
 
-:download:`sentence_scoring.yaml <examples/sentence_scoring/sentence_scoring.yaml>`
+:download:`sentence_scoring.yaml <../client/loomengine/examples/sentence_scoring/sentence_scoring.yaml>`
 
 **Run the sentence_scoring example**
 
 ::
    
-   loom import template sentence_scoring.yaml
+   loom template import sentence_scoring.yaml
    
    # Run with default input data
-   loom run sentence_scoring
+   loom run start sentence_scoring
    
    # Run with custom input data
-   loom run sentence_scoring sentence='To infinity and beyond'
+   loom run start sentence_scoring sentence='To infinity and beyond'
 
 *******
 Schemas

@@ -123,7 +123,7 @@
   docker_container:
     name: "{{worker_container_name}}"
     image: "{{loom_docker_image}}"
-    command: /loom/src/bin/run_worker.sh
+    command: /loom/src/bin/run-worker.sh
     restart_policy: always
     api_version: auto
     env_file: "{{server_settings_home}}/{{server_settings_file}}"
@@ -152,7 +152,7 @@
   docker_container:
     name: "{{scheduler_container_name}}"
     image: "{{loom_docker_image}}"
-    command: /loom/src/bin/run_scheduler.sh
+    command: /loom/src/bin/run-scheduler.sh
     restart_policy: always
     api_version: auto
     env_file: "{{server_settings_home}}/{{server_settings_file}}"
@@ -183,7 +183,7 @@
     name: "{{flower_container_name}}"
     hostname: "{{flower_container_name}}"
     image: "{{loom_docker_image}}"
-    command: /loom/src/bin/run_flower.sh
+    command: /loom/src/bin/run-flower.sh
     restart_policy: always
     api_version: auto
     env_file: "{{server_settings_home}}/{{server_settings_file}}"
@@ -205,7 +205,7 @@
     name: "{{server_container_name}}"
     hostname: "{{server_container_name}}"
     image: "{{loom_docker_image}}"
-    command: /loom/src/bin/run_server.sh
+    command: /loom/src/bin/run-server.sh
     restart_policy: always
     api_version: auto
     env_file: "{{server_settings_home}}/{{server_settings_file}}"

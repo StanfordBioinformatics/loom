@@ -13,7 +13,7 @@ class IntegrationTestFailure(Exception):
     pass
 
 
-class TestRunner:
+class TestRunner(object):
 
     def __init__(self, args=None):
         # Parse arguments
