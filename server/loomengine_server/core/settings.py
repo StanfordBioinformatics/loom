@@ -241,7 +241,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'server.wsgi.application'
+WSGI_APPLICATION = 'loomengine_server.core.wsgi.application'
 
 def _get_sqlite_databases():
     return {
