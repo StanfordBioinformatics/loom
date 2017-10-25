@@ -11,6 +11,7 @@ import rest_framework.response
 import rest_framework.viewsets
 import rest_framework.status
 from rest_framework.decorators import detail_route
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.views import APIView
 from rest_framework import authentication
 from rest_framework import permissions
@@ -38,12 +39,6 @@ class AuthView(APIView):
         login(request, request.user)
         return JsonResponse({'username': request.user.username})
 
-    def get(self, request, *args, **kwargs):
-        if request.user.is_authenticated():
-            return JsonResponse({'username': request.user.username})
-        else:
-            return JsonResponse({'username': None})
-    
     def delete(self, request, *args, **kwargs):
         logout(request)
         return JsonResponse({})
@@ -673,17 +668,25 @@ class RunLabelViewSet(rest_framework.viewsets.ReadOnlyModelViewSet):
 def status(request):
     return JsonResponse({"message": "server is up"}, status=200)
 
-@require_http_methods(["GET"])
-def filemanager_settings(request):
-    return JsonResponse({
-        'GCE_PROJECT': get_setting('GCE_PROJECT'),
-    })
+
+
+class FileManagerSettingsView(RetrieveAPIView):
+
+    def retrieve(self, request):
+        return JsonResponse({
+            'GCE_PROJECT': get_setting('GCE_PROJECT'),
+        })
 
 @require_http_methods(["GET"])
 def info(request):
-    import pdb; pdb.set_trace()
+    if request.user.is_authenticated():
+        username = request.user.username
+    else:
+        username = None
     data = {
-        'version': version.version()
+        'version': version.version(),
+        'username': username,
+        'login_required': get_setting('REQUIRE_LOGIN'),
     }
     return JsonResponse(data, status=200)
 

@@ -8,8 +8,6 @@
 	    'loom.filters',
 	    'loom.routes',
 	    'loom.services',
-	    'loom.interceptors',
-	    'loom.auth',
 	    'bw.paging',
 	])
 	.config(['$locationProvider', function($locationProvider) {
@@ -17,6 +15,8 @@
 	    $locationProvider.hashPrefix('');
 	}])
 	.config(function ($httpProvider) {
+	    $httpProvider.defaults.xsrfCookieName = 'csrftoken';
+	    $httpProvider.defaults.xsrfHeaderName = 'X-CSRFToken';
             $httpProvider.interceptors.push('responseObserver');
 	})
 	.config(function ($provide) {
@@ -39,7 +39,7 @@
 	});
 
     angular
-	.module('loom.controllers', ['loom.services', 'loom.interceptors']);
+	.module('loom.controllers', ['loom.services', 'ngResource']);
 
     angular
 	.module('loom.directives', []);
@@ -52,11 +52,5 @@
 
     angular
 	.module('loom.services', []);
-
-    angular
-	.module('loom.interceptors', [])
-
-    angular
-	.module('loom.auth', ['ngResource'])
 
 }());
