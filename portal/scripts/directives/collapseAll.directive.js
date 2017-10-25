@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.directives')
@@ -24,3 +25,4 @@ function collapseAll() {
 	}
     }
 }
+}());

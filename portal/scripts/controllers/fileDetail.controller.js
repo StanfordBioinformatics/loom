@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.controllers')
@@ -15,3 +16,5 @@ function FileDetailController($scope, DataService, $routeParams) {
 	$scope.loading = false;
     });
 };
+
+}());

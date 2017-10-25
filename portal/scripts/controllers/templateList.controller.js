@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.controllers')
@@ -20,3 +21,4 @@ function TemplateListController($scope, DataService){
     $scope.$watch('currentPage', loadTemplates, true);
     $scope.currentPage = 1;
 };
+}());

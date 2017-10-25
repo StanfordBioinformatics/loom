@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" ng-app="loom">
-<head>
+  <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -49,61 +49,66 @@
 </head>
 
 <body>
-    <div ng-include="'partials/menubar.html'"></div>
-    <div class="container-fluid">
-        <div class="row">
-            <div ng-include="'partials/sidebar.html'" ng-controller="NavbarController"></div>
-            <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-                <div ng-include="'partials/navbar.html'" ng-controller="NavbarController"></div>
-                <div ng-include="'partials/breadcrumb.html'" ng-controller="BreadcrumbController"></div>
-                <div ng-view=""></div>
-            </div>
-        </div>
+  <div ng-include="'partials/menubar.html'"></div>
+  <div class="container-fluid">
+    <div class="row">
+      <div ng-include="'partials/sidebar.html'" ng-controller="NavbarController"></div>
+      <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+        <div ng-include="'partials/navbar.html'" ng-controller="NavbarController"></div>
+        <div ng-include="'partials/breadcrumb.html'" ng-controller="BreadcrumbController"></div>
+        <div ng-view=""></div>
+      </div>
     </div>
+  </div>
 
-    <!-- Bootstrap core JavaScript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="bootstrap/assets/js/vendor/jquery.min.js"></script>
-    <script src="bootstrap/dist/js/bootstrap.min.js"></script>
-    <!-- Just to make our placeholder images work. Don't actually copy the next line! -->
-    <script src="bootstrap/assets/js/vendor/holder.min.js"></script>
-    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
-    <script src="bootstrap/assets/js/ie10-viewport-bug-workaround.js"></script>
+  <!-- Bootstrap core JavaScript
+  ================================================== -->
+  <!-- Placed at the end of the document so the pages load faster -->
+  <script src="bootstrap/assets/js/vendor/jquery.min.js"></script>
+  <script src="bootstrap/dist/js/bootstrap.min.js"></script>
+  <!-- Just to make our placeholder images work. Don't actually copy the next line! -->
+  <script src="bootstrap/assets/js/vendor/holder.min.js"></script>
+  <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+  <script src="bootstrap/assets/js/ie10-viewport-bug-workaround.js"></script>
 
-    <!-- Angular.js -->
-    <script src="angular/1.5.0/angular.min.js"></script>
-    <script src="angular/1.5.0/angular-route.min.js"></script>
+  <!-- Angular.js -->
+  <script src="angular/1.6.6/angular.min.js"></script>
+  <script src="angular/1.6.6/angular-route.min.js"></script>
+  <script src="angular/1.6.6/angular-resource.min.js"></script>
 
-    <!-- d3 and dagre -->
-    <script src="d3/d3.v3.min.js"></script>
-    <script src="d3/dagre-d3.js"></script>
+  <!-- autofill-event -->
+  <script src="autofill-event/autofill-event.js"></script>
 
-    <!-- https://github.com/brantwills/Angular-Paging -->
-    <script src="paging/paging.min.js"></script>
+  <!-- d3 and dagre -->
+  <script src="d3/d3.v3.min.js"></script>
+  <script src="d3/dagre-d3.js"></script>
 
-    <!-- Loom app and controllers -->
-    <script src="scripts/loom.js"></script>
-    <script src="scripts/loom.routes.js"></script>
-    <script src="scripts/services/data.service.js"></script>
-    <script src="scripts/controllers/navbar.controller.js"></script>
-    <script src="scripts/controllers/breadcrumb.controller.js"></script>
-    <script src="scripts/controllers/runList.controller.js"></script>
-    <script src="scripts/controllers/runDetail.controller.js"></script>
-    <script src="scripts/controllers/runContents.controller.js"></script>
-    <script src="scripts/controllers/taskDetail.controller.js"></script>
-    <script src="scripts/controllers/taskAttemptDetail.controller.js"></script>
-    <script src="scripts/controllers/templateList.controller.js"></script>
-    <script src="scripts/controllers/templateDetail.controller.js"></script>
-    <script src="scripts/controllers/importedFileList.controller.js"></script>
-    <script src="scripts/controllers/resultFileList.controller.js"></script>
-    <script src="scripts/controllers/logFileList.controller.js"></script>
-    <script src="scripts/controllers/fileDetail.controller.js"></script>
-    <script src="scripts/directives/collapseAll.directive.js"></script>
-    <script src="scripts/directives/expandAll.directive.js"></script>
-    <script src="scripts/directives/loomData.directive.js"></script>
-    <script src="scripts/filters/parseId.filter.js"></script>
-    <script src="scripts/filters/statusColor.filter.js"></script>
-    <script src="scripts/filters/flattenRun.filter.js"></script>
+  <!-- https://github.com/brantwills/Angular-Paging -->
+  <script src="paging/paging.min.js"></script>
+
+  <!-- Loom app and controllers -->
+  <script src="scripts/loom.js"></script>
+  <script src="scripts/loom.routes.js"></script>
+  <script src="scripts/loom.auth.js"></script>
+  <script src="scripts/services/data.service.js"></script>
+  <script src="scripts/controllers/navbar.controller.js"></script>
+  <script src="scripts/controllers/breadcrumb.controller.js"></script>
+  <script src="scripts/controllers/runList.controller.js"></script>
+  <script src="scripts/controllers/runDetail.controller.js"></script>
+  <script src="scripts/controllers/runContents.controller.js"></script>
+  <script src="scripts/controllers/taskDetail.controller.js"></script>
+  <script src="scripts/controllers/taskAttemptDetail.controller.js"></script>
+  <script src="scripts/controllers/templateList.controller.js"></script>
+  <script src="scripts/controllers/templateDetail.controller.js"></script>
+  <script src="scripts/controllers/importedFileList.controller.js"></script>
+  <script src="scripts/controllers/resultFileList.controller.js"></script>
+  <script src="scripts/controllers/logFileList.controller.js"></script>
+  <script src="scripts/controllers/fileDetail.controller.js"></script>
+  <script src="scripts/directives/collapseAll.directive.js"></script>
+  <script src="scripts/directives/expandAll.directive.js"></script>
+  <script src="scripts/directives/loomData.directive.js"></script>
+  <script src="scripts/filters/parseId.filter.js"></script>
+  <script src="scripts/filters/statusColor.filter.js"></script>
+  <script src="scripts/filters/flattenRun.filter.js"></script>
 </body>
 </html>

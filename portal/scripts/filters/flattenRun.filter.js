@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.filters')
@@ -47,3 +48,4 @@ function flattenRun(){
 	return steps;
     };
 };
+}());

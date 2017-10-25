@@ -53,6 +53,7 @@ router.register('run-labels',
 
 urlpatterns = [
     url(r'^', include(router.urls)),
+    url(r'^auth/$', api.views.AuthView.as_view()),
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
     url(r'^filemanager-settings/$', api.views.filemanager_settings),

@@ -11,6 +11,9 @@ import sys
 import tempfile
 import warnings
 
+SESSION_BACKED = 'django.contrib.sessions.backends.db'
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 def to_boolean(value):
     if value in [None, '', False]:
         return False
@@ -49,7 +52,7 @@ def to_list(value):
 SETTINGS_DIR = os.path.dirname(__file__)
 BASE_DIR = (os.path.join(SETTINGS_DIR, '..'))
 sys.path.append(BASE_DIR)
-PORTAL_ROOT = os.path.join(BASE_DIR, 'portal')
+PORTAL_ROOT = os.path.join(BASE_DIR, '..', '..', 'portal')
 
 # Security settings
 DEBUG = to_boolean(os.getenv('LOOM_DEBUG'))
@@ -62,7 +65,12 @@ CORS_ORIGIN_ALLOW_ALL = to_boolean(
     os.getenv('LOOM_SERVER_CORS_ORIGIN_ALLOW_ALL', 'False'))
 CORS_ORIGIN_WHITELIST = to_list(os.getenv('LOOM_SERVER_CORS_ORIGIN_WHITELIST', '[]'))
 
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_CREDENTIALS = True
+
 ALLOWED_HOSTS = to_list(os.getenv('LOOM_SERVER_ALLOWED_HOSTS', '[*]'))
+
+REQUIRE_LOGIN = to_boolean(os.getenv('LOOM_REQUIRE_LOGIN', 'True'))
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
@@ -186,6 +194,8 @@ CELERY_BROKER_URL = 'amqp://%s:%s@%s:%s/%s' \
 CELERY_BROKER_POOL_LIMIT = 50
 CELERYD_TASK_SOFT_TIME_LIMIT = 60
 
+LOGIN_REDIRECT_URL = '/'
+
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -195,6 +205,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework.authtoken',
     'rest_framework_swagger',
     'django_celery_results',
     'api',
@@ -206,23 +217,31 @@ MIDDLEWARE_CLASSES = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-#    'django.contrib.auth.middleware.AuthenticationMiddleware',
-#    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+if REQUIRE_LOGIN:
+    drf_permission_classes = ('rest_framework.permissions.IsAuthenticated',)
+else:
+    drf_permission_classes = ('rest_framework.permissions.AllowAny',)
+
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny',
-    ),
+    'DEFAULT_PERMISSION_CLASSES': drf_permission_classes,
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+##        'rest_framework.authentication.TokenAuthentication',
+    ),
 }
 
 TEMPLATES = [
@@ -349,8 +368,14 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+#if DEBUG:
+#    CSRF_COOKIE_SECURE = True
+#    SESSION_COOKIE_SECURE = True
+#    HTTP_AUTHORIZATION = True
+#else:
+#    CSRF_COOKIE_SECURE = False
+#    SESSION_COOKIE_SECURE = False
+#    HTTP_AUTHORIZATION = False
 
 INTERNAL_IPS = [
     "127.0.0.1",

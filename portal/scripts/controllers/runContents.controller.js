@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.controllers')
@@ -16,3 +17,5 @@ function RunContentsController($scope, DataService, $routeParams) {
             $scope.expandedRun = run;
     });
 };
+
+}());

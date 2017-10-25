@@ -1,3 +1,4 @@
+from django.contrib.auth import login, logout
 from django.core.exceptions import ObjectDoesNotExist
 import django.core.exceptions
 from django.http import JsonResponse
@@ -10,6 +11,9 @@ import rest_framework.response
 import rest_framework.viewsets
 import rest_framework.status
 from rest_framework.decorators import detail_route
+from rest_framework.views import APIView
+from rest_framework import authentication
+from rest_framework import permissions
 
 from api import get_setting
 from api import models
@@ -19,6 +23,30 @@ from loomengine_utils import version
 
 logger = logging.getLogger(__name__)
 
+class QuietBasicAuthentication(authentication.BasicAuthentication):
+    # disclaimer: once the user is logged in, this should NOT be used as a
+    # substitute for SessionAuthentication, which uses the django session cookie,
+    # rather it can check credentials before a session cookie has been granted.
+    def authenticate_header(self, request):
+        return 'xBasic realm="%s"' % self.www_authenticate_realm
+
+class AuthView(APIView):
+    authentication_classes = (QuietBasicAuthentication,)
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        login(request, request.user)
+        return JsonResponse({'username': request.user.username})
+
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated():
+            return JsonResponse({'username': request.user.username})
+        else:
+            return JsonResponse({'username': None})
+    
+    def delete(self, request, *args, **kwargs):
+        logout(request)
+        return JsonResponse({})
 
 class ExpandableViewSet(rest_framework.viewsets.ModelViewSet):
     """Some models contain nested data that cannot be rendered in an index
@@ -653,6 +681,7 @@ def filemanager_settings(request):
 
 @require_http_methods(["GET"])
 def info(request):
+    import pdb; pdb.set_trace()
     data = {
         'version': version.version()
     }

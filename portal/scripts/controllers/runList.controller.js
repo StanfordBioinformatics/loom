@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.controllers')
@@ -21,3 +22,4 @@ function RunListController($scope, DataService, $location) {
     $scope.$watch('currentPage', loadRuns, true);
     $scope.currentPage= 1;
 };
+}());

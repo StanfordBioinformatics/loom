@@ -1,4 +1,5 @@
-"use strict";
+(function () {
+   'use strict';
 
 angular
 .module("loom.services")
@@ -136,3 +137,4 @@ function DataService($http, $q) {
             });
     }
 }
+}());

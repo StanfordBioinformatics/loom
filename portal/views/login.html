@@ -1,0 +1,19 @@
+<div ng-cloak>
+  <div ng-hide="user" class="col-lg-6 col-md-8 col-sm-10 col-xs-12">
+    <form id="id_auth_form" ng-submit="login()">
+      <div class="form-group">
+	<label for="username">Username:</label>
+	<input id="username" ng-model="username" required name="username"
+	       type="text" placeholder="username" class="form-control">
+      </div>
+      <div class="form-group">
+	<label for="pwd">Password:</label>
+	<input id="pwd" ng-model="password" required name="password" type="password"
+	       placeholder="password" class="form-control">
+      </div>
+      <div class="btn-group">
+	<input type="submit" class="btn btn-default" value="login" formmethod="post">
+      </div>
+    </form>
+  </div>
+</div>

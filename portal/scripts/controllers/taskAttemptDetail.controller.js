@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.controllers')
@@ -16,3 +17,4 @@ function TaskAttemptDetailController($scope, DataService, $routeParams, $locatio
 	$scope.loading = false;
     });
 };
+}());

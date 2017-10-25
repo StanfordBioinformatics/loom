@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.controllers')
@@ -9,3 +10,5 @@ NavbarController.$inject = ['$scope', '$location'];
 function NavbarController($scope, $location){
     $scope.$location = $location;
 };
+
+}());

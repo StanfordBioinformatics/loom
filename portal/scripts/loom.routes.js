@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.routes')
@@ -9,6 +10,10 @@ config.$inject = ['$routeProvider'];
 function config($routeProvider) {
 
     $routeProvider
+        .when('/login', {
+            templateUrl: 'views/login.html',
+            controller: 'AuthController'
+        })
         .when('/runs', {
             templateUrl: 'views/run-list.html',
             controller: 'RunListController'
@@ -52,3 +57,5 @@ function config($routeProvider) {
         })
 	.otherwise('/runs');
 };
+
+}());

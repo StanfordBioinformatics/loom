@@ -1,4 +1,5 @@
-'use strict';
+(function () {
+   'use strict';
 
 angular
     .module('loom.controllers')
@@ -20,3 +21,5 @@ function LogFileListController($scope, DataService){
     $scope.$watch('currentPage', loadFiles, true);
     $scope.currentPage = 1;
 };
+
+}());

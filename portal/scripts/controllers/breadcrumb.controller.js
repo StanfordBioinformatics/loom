@@ -1,5 +1,6 @@
-'use strict';
-
+(function () {
+    'use strict';
+    
 angular
     .module('loom.controllers')
     .controller('BreadcrumbController', BreadcrumbController);
@@ -11,3 +12,5 @@ function BreadcrumbController($scope, DataService, $location, $routeParams) {
     $scope.params = $routeParams;
     $scope.activeData = DataService.getAllActive();
 };
+
+}());
