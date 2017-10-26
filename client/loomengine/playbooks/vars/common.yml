@@ -18,6 +18,7 @@ container_settings_home: /loom-settings
 default_registry: "{{lookup('env', 'LOOM_DEFAULT_DOCKER_REGISTRY')}}"
 raw_image: "{{lookup('env', 'LOOM_DOCKER_IMAGE')}}"
 loom_docker_image: "{% if default_registry %}{% if not ('.' in raw_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_image}}"
+token: "{{lookup('env', 'LOOM_TOKEN')|default('',true)}}"
 
 # HTTP settings
 http_port: "{{lookup('env', 'LOOM_HTTP_PORT')|default(80, true)|int}}"

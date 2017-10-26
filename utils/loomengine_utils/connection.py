@@ -17,19 +17,25 @@ class Connection(object):
     Loom database via the HTTP API
     """
 
-    def __init__(self, master_url):
+    def __init__(self, master_url, token=None):
         self.api_root_url = master_url + '/api/'
+        self.token = token
 
     # ---- General methods ----
-    
+
+    def _add_token(self, headers):
+        if self.token is not None:
+            headers['Authorization'] = 'Token %s' % self.token
+        return headers
+
     def _post(self, data, relative_url):
         url = self.api_root_url + relative_url
-        disable_insecure_request_warning()
+        disable_insecure_request_warning()      
         return self._make_request_to_server(
             lambda: requests.post(
                 url,
                 data=json.dumps(data),
-                headers={'content-type': 'application/json'},
+                headers=self._add_token({'content-type': 'application/json'}),
                 verify=False,
             ))
 
@@ -40,7 +46,7 @@ class Connection(object):
             lambda: requests.put(
                 url,
                 data=json.dumps(data),
-                headers={'content-type': 'application/json'},
+                headers=self._add_token({'content-type': 'application/json'}),
                 verify=False))
 
     def _patch(self, data, relative_url):
@@ -50,7 +56,7 @@ class Connection(object):
             lambda: requests.patch(
                 url,
                 data=json.dumps(data),
-                headers={'content-type': 'application/json'},
+                headers=self._add_token({'content-type': 'application/json'}),
                 verify=False))
 
     def _get(self, relative_url, raise_for_status=True, params=None):
@@ -60,7 +66,8 @@ class Connection(object):
             lambda: requests.get(
                 url,
                 verify=False, # Don't fail on unrecognized SSL certificate
-                params=params), 
+                params=params,
+                headers=self._add_token({})), 
             raise_for_status=raise_for_status)
 
     def _make_request_to_server(self, query_function, raise_for_status=True):
@@ -478,3 +485,11 @@ class Connection(object):
         return self._get_object(
             'filemanager-settings/'
         )
+
+    def create_token(self, username=None, password=None):
+        response = requests.post(
+            self.api_root_url+'tokens/',
+            auth=(username, password),
+        )
+        response.raise_for_status()
+        return response.json().get('token')

@@ -15,6 +15,7 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.views import APIView
 from rest_framework import authentication
 from rest_framework import permissions
+from rest_framework.authtoken.models import Token
 
 from api import get_setting
 from api import models
@@ -24,12 +25,14 @@ from loomengine_utils import version
 
 logger = logging.getLogger(__name__)
 
+
 class QuietBasicAuthentication(authentication.BasicAuthentication):
     # disclaimer: once the user is logged in, this should NOT be used as a
     # substitute for SessionAuthentication, which uses the django session cookie,
     # rather it can check credentials before a session cookie has been granted.
     def authenticate_header(self, request):
         return 'xBasic realm="%s"' % self.www_authenticate_realm
+
 
 class AuthView(APIView):
     authentication_classes = (QuietBasicAuthentication,)
@@ -42,6 +45,20 @@ class AuthView(APIView):
     def delete(self, request, *args, **kwargs):
         logout(request)
         return JsonResponse({})
+
+
+class TokenView(APIView):
+    authentication_classes = (QuietBasicAuthentication,)
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        # DRF allows only 1 token per user, so we only create one if none exists
+        try:
+            token = Token.objects.get(user=request.user)
+        except Token.DoesNotExist:
+            token = Token.objects.create(user=request.user)
+        return JsonResponse({'token': token.key})
+
 
 class ExpandableViewSet(rest_framework.viewsets.ModelViewSet):
     """Some models contain nested data that cannot be rendered in an index

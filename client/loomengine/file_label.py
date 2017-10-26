@@ -10,7 +10,7 @@ import argparse
 
 from loomengine import server
 from loomengine.common import verify_has_connection_settings, \
-    get_server_url, verify_server_is_running
+    get_server_url, verify_server_is_running, get_token
 from loomengine.exceptions import *
 from loomengine_utils.connection import Connection
 
@@ -30,7 +30,7 @@ class FileLabelAdd(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url)
+        self.connection = Connection(server_url, token=get_token())
 
     def _get_args(self):
         self.parser = self.get_parser()
@@ -75,7 +75,7 @@ class FileLabelRemove(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url)
+        self.connection = Connection(server_url, token=get_token())
 
     def _get_args(self):
         self.parser = self.get_parser()
@@ -119,7 +119,7 @@ class FileLabelList(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url)
+        self.connection = Connection(server_url, token=get_token())
 
     def _get_args(self):
         self.parser = self.get_parser()

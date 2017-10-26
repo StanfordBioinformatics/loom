@@ -47,7 +47,8 @@ class TaskMonitor(object):
             self.connection = mock_connection
         else:
             try:
-                self.connection = Connection(self.settings['SERVER_URL'])
+                self.connection = Connection(self.settings['SERVER_URL'],
+                                             token=args.token)
             except Exception as e:
                 error = self._get_error_text(e)
                 self.logger.error(
@@ -65,7 +66,8 @@ class TaskMonitor(object):
             self.filemanager = mock_filemanager
         else:
             try:
-                self.filemanager = FileManager(self.settings['SERVER_URL'])
+                self.filemanager = FileManager(self.settings['SERVER_URL'],
+                                               token=args.token)
                 self.settings.update(self._get_settings())
                 self._init_docker_client()
                 self._init_working_dir()
@@ -461,6 +463,11 @@ class TaskMonitor(object):
                             choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                             default='WARNING',
                             help='Log level')
+        parser.add_argument('-t',
+                            '--token',
+                            required=False,
+                            default=None,
+                            help='Authentication token')
         return parser
 
 def init_directory(directory, new=False):

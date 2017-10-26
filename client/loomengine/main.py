@@ -19,7 +19,7 @@ from loomengine import run
 from loomengine import server
 from loomengine import template
 from loomengine import test_runner
-
+from loomengine import auth
 
 class Version(argparse.Action):
     def __call__(self, parser, namespace, values, option_string):
@@ -65,6 +65,10 @@ class Main(object):
         file_client.FileClient.get_parser(file_subparser)
         file_subparser.set_defaults(SubcommandClass=file_client.FileClient)
 
+        auth_subparser = subparsers.add_parser('auth', help='manage authentication')
+        auth.get_parser(auth_subparser)
+        auth_subparser.set_defaults(SubcommandClass=auth.AuthClient)
+        
         browser_subparser = subparsers.add_parser(
             'browser', help='launch the Loom web browser')
         browser.Browser.get_parser(browser_subparser)

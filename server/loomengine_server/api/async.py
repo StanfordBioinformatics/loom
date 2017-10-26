@@ -93,6 +93,22 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
         time.sleep(polling_interval)
 
 def _run_execute_task_attempt_playbook(task_attempt):
+    from django.contrib.auth.models import User
+    from django.db import IntegrityError
+    from rest_framework.authtoken.models import Token
+
+    if get_setting('REQUIRE_LOGIN'):
+        try:
+            loom_user = User.objects.create(username='loom-system')
+        except IntegrityError:
+            loom_user = User.objects.get(username='loom-system')
+        try:
+            token = Token.objects.get(user=loom_user).key
+        except Token.DoesNotExist:
+            token = Token.objects.create(user=loom_user).key
+    else:
+        token = None
+
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -124,7 +140,9 @@ def _run_execute_task_attempt_playbook(task_attempt):
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': docker_image,
                 'LOOM_TASK_ATTEMPT_STEP_NAME': name,
-                }
+    }
+    if token:
+        new_vars['LOOM_TOKEN'] = token
     if cores:
         new_vars['LOOM_TASK_ATTEMPT_CORES'] = cores
     if disk_size:

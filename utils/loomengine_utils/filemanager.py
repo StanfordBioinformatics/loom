@@ -423,8 +423,8 @@ class FileManager:
     """Manages file import/export
     """
 
-    def __init__(self, master_url):
-        self.connection = Connection(master_url)
+    def __init__(self, master_url, token=None):
+        self.connection = Connection(master_url, token=token)
         self.settings = self.connection.get_filemanager_settings()
 
     def import_from_patterns(self, patterns, comments, original_copy=False,

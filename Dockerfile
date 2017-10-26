@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Loom's python dependencies
-RUN pip install -U pip
+RUN pip install pip==9.0.1
 ADD ./build-tools/requirements.pip /loom/src/build-tools/requirements.pip
 RUN pip install -r /loom/src/build-tools/requirements.pip
 

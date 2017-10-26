@@ -56,11 +56,20 @@ PORTAL_ROOT = os.path.join(BASE_DIR, '..', '..', 'portal')
 
 # Security settings
 DEBUG = to_boolean(os.getenv('LOOM_DEBUG'))
-SECRET_KEY = os.getenv(
-    'LOOM_SERVER_SECRET_KEY',
-    ''.join([random.SystemRandom()\
-             .choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)')
-             for i in range(50)]))
+
+secret_file = os.path.join(os.path.dirname(__file__),'secret.txt')
+if os.path.exists(secret_file):
+    with open(secret_file) as f:
+        SECRET_KEY = f.read()
+else:
+    SECRET_KEY = os.getenv(
+        'LOOM_SERVER_SECRET_KEY',
+        ''.join([random.SystemRandom()\
+                 .choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)')
+                 for i in range(50)]))
+    with open(secret_file, 'w') as f:
+        f.write(SECRET_KEY)
+
 CORS_ORIGIN_ALLOW_ALL = to_boolean(
     os.getenv('LOOM_SERVER_CORS_ORIGIN_ALLOW_ALL', 'False'))
 CORS_ORIGIN_WHITELIST = to_list(os.getenv('LOOM_SERVER_CORS_ORIGIN_WHITELIST', '[]'))
@@ -240,7 +249,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
-##        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ),
 }
 

@@ -23,6 +23,7 @@ LOOM_SETTINGS_SUBDIR = '.loom'
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/'+LOOM_SETTINGS_SUBDIR))
 LOOM_CONNECTION_FILES_DIR = os.path.join(LOOM_SETTINGS_HOME, 'connection-files')
 LOOM_CONNECTION_SETTINGS_FILE = 'client-connection-settings.conf'
+LOOM_TOKEN_FILE = 'token.txt'
 
 def parse_settings_file(settings_file):
     PARSER_SECTION = 'settings' # dummy name because ConfigParser needs sections
@@ -457,3 +458,21 @@ def read_as_json_or_yaml(file):
     except exceptions.InvalidFormatError:
         raise exceptions.InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
 
+def delete_token():
+    token_path = os.path.join(LOOM_SETTINGS_HOME, LOOM_TOKEN_FILE)
+    if os.path.exists(token_path):
+        os.remove(token_path)
+
+def save_token(token):
+    delete_token()
+    with open(os.path.join(LOOM_SETTINGS_HOME, LOOM_TOKEN_FILE), 'w') as f:
+        f.write(token)
+
+def get_token():
+    token_path = os.path.join(LOOM_SETTINGS_HOME, LOOM_TOKEN_FILE)
+    if os.path.exists(token_path):
+        with open(token_path) as f:
+            token = f.read()
+    else:
+        token = None
+    return token

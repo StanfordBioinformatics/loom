@@ -32,6 +32,8 @@ class SettingsValidator(object):
         'LOOM_LOG_LEVEL',
         'LOOM_MODE',
         'LOOM_REQUIRE_LOGIN',
+        'LOOM_ADMIN_USERNAME',
+        'LOOM_ADMIN_PASSWORD',
         'LOOM_ANSIBLE_HOST_KEY_CHECKING',
         'ANSIBLE_HOST_KEY_CHECKING', # copy of LOOM_ANSIBLE_HOST_KEY_CHECKING
         'LOOM_DEFAULT_DOCKER_REGISTRY',

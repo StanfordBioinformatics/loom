@@ -7,7 +7,7 @@ import requests.exceptions
 
 from loomengine import _render_time
 from loomengine.common import get_server_url, read_as_json_or_yaml, \
-    verify_has_connection_settings, verify_server_is_running
+    verify_has_connection_settings, verify_server_is_running, get_token
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
 from loomengine.exceptions import *
@@ -26,8 +26,9 @@ class RunStart(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url)
-        self.filemanager = FileManager(server_url)
+        token = get_token()
+        self.connection = Connection(server_url, token=token)
+        self.filemanager = FileManager(server_url, token=token)
 
     @classmethod
     def _get_args(cls):
@@ -181,7 +182,7 @@ class RunList(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url)
+        self.connection = Connection(server_url, token=get_token())
 
     @classmethod
     def get_parser(cls, parser):

@@ -7,7 +7,7 @@ import sys
 
 from loomengine import _render_time
 from loomengine.common import verify_server_is_running, get_server_url, \
-    verify_has_connection_settings, parse_as_json_or_yaml
+    verify_has_connection_settings, parse_as_json_or_yaml, get_token
 from loomengine.file_tag import FileTag
 from loomengine.file_label import FileLabel
 from loomengine_utils.filemanager import FileManager
@@ -23,8 +23,9 @@ class FileImport(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
-        self.filemanager = FileManager(server_url)
-        self.connection = Connection(server_url)
+        token = get_token()
+        self.filemanager = FileManager(server_url, token=token)
+        self.connection = Connection(server_url, token=token)
 
     @classmethod
     def get_parser(cls, parser):
@@ -109,8 +110,9 @@ class FileExport(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running()
-        self.connection = Connection(server_url)
-        self.filemanager = FileManager(server_url)
+        token = get_token()
+        self.connection = Connection(server_url, token=token)
+        self.filemanager = FileManager(server_url, token=token)
 
     @classmethod
     def get_parser(cls, parser):
@@ -145,7 +147,7 @@ class FileList(object):
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url)
+        self.connection = Connection(server_url, token=get_token())
 
     @classmethod
     def get_parser(cls, parser):

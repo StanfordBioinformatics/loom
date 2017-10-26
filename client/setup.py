@@ -96,6 +96,7 @@ setup(
         'google-api-python-client==1.6.2',
         'google-apitools>=0.5.8',
         'google-cloud==0.26.1',
+        'google-resumable-media==0.3.0',
         'grpcio==1.4',
         'oauth2client==3.0.0',
         'python-dateutil==2.6.0',
