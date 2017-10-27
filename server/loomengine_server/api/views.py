@@ -1,4 +1,5 @@
 from django.contrib.auth import login, logout
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 import django.core.exceptions
 from django.http import JsonResponse
@@ -58,6 +59,13 @@ class TokenView(APIView):
         except Token.DoesNotExist:
             token = Token.objects.create(user=request.user)
         return JsonResponse({'token': token.key})
+
+
+class UserViewSet(rest_framework.viewsets.ModelViewSet):
+    
+    queryset = User.objects.all()
+    serializer_class = serializers.UserSerializer
+    permission_classes = (permissions.IsAdminUser,)
 
 
 class ExpandableViewSet(rest_framework.viewsets.ModelViewSet):

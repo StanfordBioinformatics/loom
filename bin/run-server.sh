@@ -20,6 +20,14 @@ do
     fi
 done
 
+for item in true TRUE True t T yes YES Yes y Y
+do
+    if [ "$LOOM_REQUIRE_LOGIN" == "$item" ]; then
+        REQUIRE_LOGIN=true
+        break
+    fi
+done
+
 BIN_PATH="`dirname \"$0\"`"
 
 # Wait for database to become available
@@ -49,4 +57,8 @@ else
     python $BIN_PATH/migratedb.py --skip-if-initialized
 fi
 
+if [ "$REQUIRE_LOGIN" == "true" ]; then
+    echo "Creating admin user $LOOM_ADMIN_USERNAME"
+    echo "from django.contrib.auth.models import User; User.objects.create_superuser('$LOOM_ADMIN_USERNAME', '', '$LOOM_ADMIN_PASSWORD')" | loom-manage shell || true
+fi
 gunicorn loomengine_server.core.wsgi --bind ${LOOM_SERVER_INTERNAL_IP}:${LOOM_SERVER_INTERNAL_PORT} --log-level ${LOOM_LOG_LEVEL} --capture-output -w ${LOOM_SERVER_GUNICORN_WORKERS_COUNT} --timeout 300

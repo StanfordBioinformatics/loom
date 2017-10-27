@@ -2,6 +2,7 @@ from django.conf import settings
 from django.conf.urls import include, url
 from rest_framework import routers
 from rest_framework_swagger.views import get_swagger_view
+from api import get_setting
 
 import api.views
 
@@ -50,16 +51,23 @@ router.register('run-tags',
 router.register('run-labels',
                 api.views.RunLabelViewSet,
                 base_name='run-label')
+router.register('users',
+                api.views.UserViewSet,
+                base_name='user')
 
 urlpatterns = [
     url(r'^', include(router.urls)),
-    url(r'^auth/$', api.views.AuthView.as_view()),
-    url(r'^tokens/$', api.views.TokenView.as_view()),
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
     url(r'^filemanager-settings/$', api.views.FileManagerSettingsView.as_view()),
     url(r'^doc/$', get_swagger_view(title='Loom API')),
 ]
+
+if get_setting('REQUIRE_LOGIN'):
+    urlpatterns.extend([
+        url(r'^auth/$', api.views.AuthView.as_view()),
+        url(r'^tokens/$', api.views.TokenView.as_view()),
+    ])
 
 if settings.DEBUG:
     # This view is for testing response to a server error, e.g. where

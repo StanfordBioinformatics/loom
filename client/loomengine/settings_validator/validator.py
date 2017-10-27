@@ -162,6 +162,7 @@ class SettingsValidator(object):
         self._validate_server_name()
         self._validate_storage_root()
         self._validate_gcloud_settings()
+        self._validate_auth_settings()
         self.raise_if_errors()
 
     def raise_if_errors(self):
@@ -224,3 +225,20 @@ class SettingsValidator(object):
                     'Invalid value "%s" for LOOM_GCLOUD_WORKER_EXTERNAL_IP. '\
                     'Allowed values are "ephemeral" and "none". If you need to restrict '
                     'the IP address range, use a subnetwork.' % ip)
+
+    def _validate_auth_settings(self):
+        if to_bool(self.settings.get('LOOM_REQUIRE_LOGIN')):
+            for required_setting in [
+                    'LOOM_ADMIN_USERNAME',
+                    'LOOM_ADMIN_PASSWORD']:
+                if not required_setting in self.settings.keys():
+                    self.errors.append(
+                        'Missing setting "%s" is required when '\
+                        'LOOM_REQUIRE_LOGIN=true' % required_setting)
+
+            username_regex = '^[a-zA-Z0-8@\+\.\-]{1,150}$'
+            username = self.settings.get('LOOM_ADMIN_USERNAME')
+            if username and not re.match(username_regex, username):
+                self.errors.append(
+                    'Invalid LOOM_ADMIN_USERNAME "%s". Must match regex %s.' % (
+                        username, username_regex))

@@ -93,3 +93,4 @@ from .tags import *
 from .task_attempts import *
 from .tasks import *
 from .templates import *
+from .users import *
