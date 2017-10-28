@@ -70,6 +70,18 @@ class Connection(object):
                 headers=self._add_token({})), 
             raise_for_status=raise_for_status)
 
+    def _delete(self, relative_url, raise_for_status=True):
+        url = self.api_root_url + relative_url
+        disable_insecure_request_warning()
+        return self._make_request_to_server(
+            lambda: requests.delete(
+                url,
+                headers=self._add_token({'content-type': 'application/json'}),
+                verify=False,
+            ),
+            raise_for_status=raise_for_status
+        )
+
     def _make_request_to_server(self, query_function, raise_for_status=True):
         """Verifies server connection and handles response errors
         for either get or post requests
@@ -105,6 +117,9 @@ class Connection(object):
 
     def _patch_object(self, object_data, relative_url):
         return self._patch(object_data, relative_url).json()
+
+    def _delete_object(self, relative_url):
+        self._delete(relative_url, raise_for_status=True)
 
     def _get_object(self, relative_url, params=None):
         # Do not raise_for_status, because we want to check for 404 here
@@ -493,3 +508,23 @@ class Connection(object):
         )
         response.raise_for_status()
         return response.json().get('token')
+
+    def create_user(self, data):
+        return self._post_object(
+            data,
+            'users/')
+
+    def get_user_index(self, query_string=None):
+        url = 'users/'
+        params = {}
+        if query_string:
+            params['q'] = query_string
+        return self._get_object_index(url, params=params)
+
+    def update_user(self, user_id, data_update):
+        return self._patch_object(
+            data_update,
+            'users/%s/' % user_id)
+
+    def delete_user(self, user_id):
+        self._delete_object('users/%s/' % user_id)

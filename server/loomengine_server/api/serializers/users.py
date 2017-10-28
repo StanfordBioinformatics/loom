@@ -27,3 +27,12 @@ class UserSerializer(serializers.ModelSerializer):
             u.is_staff = True
             u.save()
         return u
+
+    def update(self, instance, validated_data):
+        if validated_data.get('is_staff'):
+            instance.is_staff = validated_data.get('is_staff')
+
+        if validated_data.get('password'):
+            instance.set_password(validated_data.get('password'))
+
+        return instance

@@ -34,8 +34,6 @@ class AuthClient(object):
     def login(self):
         username = self.args.username
         password = self.args.password
-        if username is None:
-            username = raw_input("Username: ")
         if password is None:
             password = getpass("Password: ")
         try:
@@ -64,10 +62,13 @@ def get_parser(parser=None):
     subparsers = parser.add_subparsers(dest='command')
 
     login_parser = subparsers.add_parser('login')
-    login_parser.add_argument('--username', '-u', metavar='USERNAME',
-                              default=None)
-    login_parser.add_argument('--password', '-p', metavar='PASSWORD',
-                              default=None)
+    login_parser.add_argument('username', metavar='USERNAME')
+    login_parser.add_argument(
+        '--password', '-p', metavar='PASSWORD',
+        default=None,
+        help='Optional. Wait for the prompt to avoid displaying '\
+        'password and writing it in your terminal history'
+    )
 
     subparsers.add_parser('logout')
     subparsers.add_parser('print-token')

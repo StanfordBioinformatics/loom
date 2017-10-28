@@ -62,10 +62,17 @@ class TokenView(APIView):
 
 
 class UserViewSet(rest_framework.viewsets.ModelViewSet):
-    
-    queryset = User.objects.all()
+
     serializer_class = serializers.UserSerializer
     permission_classes = (permissions.IsAdminUser,)
+
+    def get_queryset(self):
+        query_string = self.request.query_params.get('q', '')
+        if query_string:
+            queryset = User.objects.filter(username=query_string)
+        else:
+            queryset = User.objects.all()
+        return queryset.exclude(username='loom-system')
 
 
 class ExpandableViewSet(rest_framework.viewsets.ModelViewSet):
