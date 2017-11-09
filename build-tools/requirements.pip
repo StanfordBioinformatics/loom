@@ -32,6 +32,8 @@ flower==0.9.1
 functools32==3.2.3-2
 future==0.16.0
 futures==3.0.5
+elasticsearch==5.4.0
+elasticsearch-curator==5.2.0
 gapic-google-cloud-datastore-v1==0.15.3
 gapic-google-cloud-error-reporting-v1beta1==0.15.3
 gapic-google-cloud-logging-v2==0.91.3
