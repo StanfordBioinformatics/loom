@@ -98,6 +98,8 @@ setup(
                         'djangorestframework==3.6.2',
                         'django-rest-swagger==2.1.2',
                         'docker-py==1.10.6',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
+                        'elasticsearch==5.4.0',
+                        'elasticsearch-curator==5.2.0',
                         'eventlet==0.21.0',
                         'flower==0.9.1',
                         'google-api-python-client==1.6.2',
