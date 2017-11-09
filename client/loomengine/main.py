@@ -51,20 +51,25 @@ class Main(object):
         parser.add_argument('-v', '--version', nargs=0, action=Version)
 
         subparsers = parser.add_subparsers(
-            metavar='{run,file,template,browser,server,test}')
+            metavar='{run,file,template,browser,auth,user,example,server,test}')
 
         run_subparser = subparsers.add_parser('run', help='manage runs')
         run.RunClient.get_parser(run_subparser)
         run_subparser.set_defaults(SubcommandClass=run.RunClient)
         
+        file_subparser = subparsers.add_parser('file', help='manage files')
+        file_client.FileClient.get_parser(file_subparser)
+        file_subparser.set_defaults(SubcommandClass=file_client.FileClient)
+
         template_subparser = subparsers.add_parser('template',
                                                     help='mangage templates')
         template.Template.get_parser(template_subparser)
         template_subparser.set_defaults(SubcommandClass=template.Template)
 
-        file_subparser = subparsers.add_parser('file', help='manage files')
-        file_client.FileClient.get_parser(file_subparser)
-        file_subparser.set_defaults(SubcommandClass=file_client.FileClient)
+        browser_subparser = subparsers.add_parser(
+            'browser', help='launch the Loom web browser')
+        browser.Browser.get_parser(browser_subparser)
+        browser_subparser.set_defaults(SubcommandClass=browser.Browser)
 
         auth_subparser = subparsers.add_parser('auth', help='manage authentication')
         auth.get_parser(auth_subparser)
