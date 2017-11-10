@@ -260,18 +260,3 @@ def check_for_missed_cleanup():
         for task_attempt in TaskAttempt.objects.filter(
                 status_is_running=False).filter(status_is_cleaned_up=False):
             task_attempt.cleanup()
-
-@periodic_task(run_every=timedelta(hours=1))
-def clear_expired_logs():
-    import elasticsearch
-    import curator
-    elasticsearch_host = get_setting('ELASTICSEARCH_HOST')
-    elasticsearch_port = get_setting('ELASTICSEARCH_PORT')
-    elasticsearch_log_expiration_days = get_setting('ELASTICSEARCH_LOG_EXPIRATION_DAYS')
-    client = elasticsearch.Elasticsearch([elasticsearch_host], port=elasticsearch_port)
-    ilo = curator.IndexList(client)
-    ilo.filter_by_regex(kind='prefix', value='logstash-')
-    ilo.filter_by_age(source='name', direction='older', timestring='%Y.%m.%d',
-                      unit='days', unit_count=elasticsearch_log_expiration_days)
-    delete_indices = curator.DeleteIndices(ilo)
-    delete_indices.do_action()

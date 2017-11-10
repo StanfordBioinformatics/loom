@@ -141,9 +141,7 @@
       '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if loom_remote_user is defined]
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
-            rabbitmq_container_name,\
-	    elasticsearch_container_name]|\
-	    reject('none') | list}}"
+            rabbitmq_container_name] | reject('none') | list}}"
     log_driver: fluentd
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
@@ -172,8 +170,7 @@
       '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if loom_remote_user is defined]
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
-            rabbitmq_container_name]|\
-	    reject('none') | list}}"
+            rabbitmq_container_name] | reject('none') | list}}"
     log_driver: fluentd
     log_options:
       fluentd-address: localhost:{{fluentd_port}}

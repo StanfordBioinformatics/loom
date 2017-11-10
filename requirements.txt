@@ -25,8 +25,6 @@ django-rest-swagger==2.1.2
 djangorestframework==3.6.2
 docker-py==1.10.6
 docker-pycreds==0.2.1
-elasticsearch==5.4.0
-elasticsearch-curator==5.2.0
 enum-compat==0.0.2
 enum34==1.1.6
 eventlet==0.21.0
