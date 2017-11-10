@@ -166,7 +166,7 @@ class TaskMonitor(object):
             docker_image = self._get_docker_image()
             raw_pull_data = execute_with_retries(
                 lambda: self.docker_client.pull(docker_image),
-                (docker.errors.NotFound),
+                (docker.errors.NotFound,),
                 self.logger,
                 "Pull docker image")
             pull_data = self._parse_docker_output(raw_pull_data)
