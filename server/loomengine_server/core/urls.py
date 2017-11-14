@@ -8,7 +8,7 @@ urlpatterns = [
     url(r'^api/', include('api.urls')),
     url(r'^$', RedirectView.as_view(url='/api/', permanent=False), name='api'),
 ]
-if settings.REQUIRE_LOGIN:
+if settings.LOGIN_REQUIRED:
     urlpatterns.append(
         url(r'^auth/', include('rest_framework.urls', namespace='rest_framework')))
 

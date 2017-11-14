@@ -718,9 +718,19 @@ def info(request):
     data = {
         'version': version.version(),
         'username': username,
-        'login_required': get_setting('REQUIRE_LOGIN'),
+        'login_required': get_setting('LOGIN_REQUIRED'),
     }
     return JsonResponse(data, status=200)
+
+@require_http_methods(["GET"])
+def auth_status(request):
+    if get_setting('LOGIN_REQUIRED')==False:
+        return JsonResponse({'message': 'Authentication not required'})
+    elif request.user.is_authenticated():
+        return JsonResponse({
+            'message': 'User is authenticated as %s' % request.user.username})
+    else:
+        return JsonResponse({'message': 'User is not authenticated'}, status=401)
 
 @require_http_methods(["GET"])
 def raise_server_error(request):

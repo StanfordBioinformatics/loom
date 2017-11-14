@@ -97,7 +97,7 @@ def _run_execute_task_attempt_playbook(task_attempt):
     from django.db import IntegrityError
     from rest_framework.authtoken.models import Token
 
-    if get_setting('REQUIRE_LOGIN'):
+    if get_setting('LOGIN_REQUIRED'):
         try:
             loom_user = User.objects.create(username='loom-system')
         except IntegrityError:

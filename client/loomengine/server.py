@@ -135,6 +135,8 @@ class ServerControls(object):
                                 self._get_default_storage_root(settings))
             settings.setdefault('LOOM_ANSIBLE_INVENTORY',
                                 self._get_default_ansible_inventory(settings))
+            settings.setdefault('LOOM_LOGIN_REQUIRED',
+                                self._get_default_login_required(settings))
             self._set_default_mysql_settings(settings)
 
             # For environment variables with an effect on third-party software,
@@ -200,6 +202,12 @@ class ServerControls(object):
             return 'gce_inventory_wrapper.py'
         else:
             return 'localhost,'
+
+    def _get_default_login_required(self, settings):
+        if settings.get('LOOM_MODE').lower() == 'local':
+            return 'false'
+        else:
+            return 'true'
 
     def _set_default_mysql_settings(self, settings):
         # If user provides a MySQL server name, assume they don't want to create a new one

@@ -59,11 +59,12 @@ urlpatterns = [
     url(r'^', include(router.urls)),
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
+    url(r'^auth-status/$', api.views.auth_status),
     url(r'^filemanager-settings/$', api.views.FileManagerSettingsView.as_view()),
     url(r'^doc/$', get_swagger_view(title='Loom API')),
 ]
 
-if get_setting('REQUIRE_LOGIN'):
+if get_setting('LOGIN_REQUIRED'):
     urlpatterns.extend([
         url(r'^auth/$', api.views.AuthView.as_view()),
         url(r'^tokens/$', api.views.TokenView.as_view()),

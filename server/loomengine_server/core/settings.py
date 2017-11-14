@@ -79,7 +79,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 ALLOWED_HOSTS = to_list(os.getenv('LOOM_SERVER_ALLOWED_HOSTS', '[*]'))
 
-REQUIRE_LOGIN = to_boolean(os.getenv('LOOM_REQUIRE_LOGIN', 'True'))
+LOGIN_REQUIRED = to_boolean(os.getenv('LOOM_LOGIN_REQUIRED', 'True'))
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'WARNING').upper()
 
@@ -236,7 +236,7 @@ MIDDLEWARE_CLASSES = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-if REQUIRE_LOGIN:
+if LOGIN_REQUIRED:
     drf_permission_classes = ('rest_framework.permissions.IsAuthenticated',)
 else:
     drf_permission_classes = ('rest_framework.permissions.AllowAny',)

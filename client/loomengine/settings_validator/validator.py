@@ -31,7 +31,7 @@ class SettingsValidator(object):
         'LOOM_DEBUG',
         'LOOM_LOG_LEVEL',
         'LOOM_MODE',
-        'LOOM_REQUIRE_LOGIN',
+        'LOOM_LOGIN_REQUIRED',
         'LOOM_ADMIN_USERNAME',
         'LOOM_ADMIN_PASSWORD',
         'LOOM_ANSIBLE_HOST_KEY_CHECKING',
@@ -228,14 +228,14 @@ class SettingsValidator(object):
                     'the IP address range, use a subnetwork.' % ip)
 
     def _validate_auth_settings(self):
-        if to_bool(self.settings.get('LOOM_REQUIRE_LOGIN')):
+        if to_bool(self.settings.get('LOOM_LOGIN_REQUIRED')):
             for required_setting in [
                     'LOOM_ADMIN_USERNAME',
                     'LOOM_ADMIN_PASSWORD']:
                 if not required_setting in self.settings.keys():
                     self.errors.append(
                         'Missing setting "%s" is required when '\
-                        'LOOM_REQUIRE_LOGIN=true' % required_setting)
+                        'LOOM_LOGIN_REQUIRED=true' % required_setting)
 
             username_regex = '^[a-zA-Z0-8@\+\.\-]{1,150}$'
             username = self.settings.get('LOOM_ADMIN_USERNAME')
