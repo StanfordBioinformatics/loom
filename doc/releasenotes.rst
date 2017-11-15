@@ -8,6 +8,7 @@ Latest
 0.6.0
 ------------
 * Installable from PyPi with "pip install loomengine"
+* User authentication and authorization
 
 Previous
 =============
