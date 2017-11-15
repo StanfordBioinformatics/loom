@@ -22,8 +22,8 @@ done
 
 for item in true TRUE True t T yes YES Yes y Y
 do
-    if [ "$LOOM_REQUIRE_LOGIN" == "$item" ]; then
-        REQUIRE_LOGIN=true
+    if [ "$LOOM_LOGIN_REQUIRED" == "$item" ]; then
+        LOGIN_REQUIRED=true
         break
     fi
 done
@@ -57,7 +57,7 @@ else
     python $BIN_PATH/migratedb.py --skip-if-initialized
 fi
 
-if [ "$REQUIRE_LOGIN" == "true" ]; then
+if [ "$LOGIN_REQUIRED" == "true" ]; then
     echo "Creating admin user $LOOM_ADMIN_USERNAME"
     echo "from django.contrib.auth.models import User; User.objects.create_superuser('$LOOM_ADMIN_USERNAME', '', '$LOOM_ADMIN_PASSWORD')" | loom-manage shell || true
 fi
