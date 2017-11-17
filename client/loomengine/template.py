@@ -16,7 +16,7 @@ from loomengine_utils.filemanager import FileManager
 from loomengine_utils.connection import Connection
 
 
-class TemplateImport(object):
+class AbstractTemplateSubcommand(object):
 
     def __init__(self, args):
         self.args = args
@@ -26,6 +26,9 @@ class TemplateImport(object):
         token = get_token()
         self.filemanager = FileManager(server_url, token=token)
         self.connection = Connection(server_url, token=token)
+
+
+class TemplateImport(AbstractTemplateSubcommand):
 
     @classmethod
     def get_parser(cls, parser):
@@ -148,15 +151,7 @@ class TemplateImport(object):
                  label.get('label'))
 
 
-class TemplateExport(object):
-
-    def __init__(self, args):
-        self.args = args
-        verify_has_connection_settings()
-        server_url = get_server_url()
-        verify_server_is_running()
-        self.connection = Connection(server_url, token=get_token())
-        self.filemanager = FileManager(server_url)
+class TemplateExport(AbstractTemplateSubcommand):
 
     @classmethod
     def get_parser(cls, parser):
@@ -200,14 +195,7 @@ class TemplateExport(object):
         print '...finished exporting template'
 
 
-class TemplateList(object):
-
-    def __init__(self, args):
-        self.args = args
-        verify_has_connection_settings()
-        server_url = get_server_url()
-        verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url, token=get_token())
+class TemplateList(AbstractTemplateSubcommand):
 
     @classmethod
     def get_parser(cls, parser):
@@ -280,6 +268,60 @@ class TemplateList(object):
             text = 'Template: %s' % template_identifier
         return text
 
+class TemplateDelete(AbstractTemplateSubcommand):
+
+    @classmethod
+    def get_parser(cls, parser):
+	parser.add_argument(
+            'template_id',
+            metavar='TEMPLATE_IDENTIFIER',
+            help='Name or ID of template(s) to delete.')
+        parser.add_argument('-y', '--yes', action='store_true',
+                            default=False,
+                            help='delete without prompting for confirmation')
+        return parser
+
+    def run(self):
+        data = self.connection.get_template_index(
+            query_string = self.args.template_id,
+            min=1, max=1)
+        self._delete_template(data[0])
+
+    def _delete_template(self, template):
+        template_id = "%s@%s" % (
+            template.get('name'),
+            template.get('uuid'))
+        if not self.args.yes:
+            user_input = raw_input(
+                'Do you really want to permanently delete template "%s"? '\
+                '(y)es, (n)o: '
+                % template_id)
+	    if user_input.lower() == 'n':
+                raise SystemExit('Operation canceled by user')
+            elif user_input.lower() == 'y':
+                pass
+            else:
+                raise SystemExit('Unrecognized response "%s"' % user_input)
+        dependencies = self.connection.get_template_dependencies(
+            template.get('uuid'))
+        if len(dependencies['runs']) == 0 and len(dependencies['templates']) == 0:
+            self.connection.delete_template(template.get('uuid'))
+	    print "Deleted template %s" % template_id
+        else:
+            print "Cannot delete template %s because it is still in use. "\
+                "You must delete the following objects "\
+                "before deleting this template." % template_id
+            print self._render_dependencies(dependencies)
+
+    def _render_dependencies(self, dependencies):
+        text = ''
+        for run in dependencies.get('runs', []):
+            text += "  run %s@%s\n" % (run['name'], run['uuid'])
+        for template in dependencies.get('templates', []):
+            text += "  template %s@%s\n" % (template['name'], template['uuid'])
+        if dependencies.get('truncated'):
+            text += "  ...[results truncated]\n"
+        return text
 
 
 class Template(object):
@@ -323,6 +365,11 @@ class Template(object):
         TemplateList.get_parser(list_subparser)
 	list_subparser.set_defaults(SubSubcommandClass=TemplateList)
 
+        delete_subparser = subparsers.add_parser(
+            'delete', help='delete template(s)')
+        TemplateDelete.get_parser(delete_subparser)
+        delete_subparser.set_defaults(SubSubcommandClass=TemplateDelete)
+        
         tag_subparser = subparsers.add_parser('tag', help='manage template tags')
         TemplateTag.get_parser(tag_subparser)
         tag_subparser.set_defaults(SubSubcommandClass=TemplateTag)

@@ -13,11 +13,10 @@ from loomengine.file_label import FileLabel
 from loomengine_utils.filemanager import FileManager
 from loomengine_utils.connection import Connection
 
-
-class FileImport(object):
+class AbstractFileSubcommand(object):
 
     def __init__(self, args):
-        """Common init tasks for all Importer classes
+        """Common init tasks for all File subcommands
         """
         self.args = args
         verify_has_connection_settings()
@@ -26,6 +25,9 @@ class FileImport(object):
         token = get_token()
         self.filemanager = FileManager(server_url, token=token)
         self.connection = Connection(server_url, token=token)
+
+
+class FileImport(AbstractFileSubcommand):
 
     @classmethod
     def get_parser(cls, parser):
@@ -103,7 +105,7 @@ class FileImport(object):
                      label.get('label'))
 
 
-class FileExport(object):
+class FileExport(AbstractFileSubcommand):
 
     def __init__(self, args):
         self.args = args
@@ -222,6 +224,61 @@ class FileList(object):
             text = 'File: %s' % file_identifier
         return text
 
+class FileDelete(AbstractFileSubcommand):
+
+    @classmethod
+    def get_parser(cls, parser):
+        parser.add_argument(
+            'file_id',
+            metavar='FILE_IDENTIFIER',
+            help='Name or ID of file(s) to delete.')
+        parser.add_argument('-y', '--yes', action='store_true',
+                            default=False,
+                            help='delete without prompting for confirmation')
+        return parser
+
+    def run(self):
+        data = self.connection.get_data_object_index(
+                query_string=self.args.file_id,
+                type='file', min=1, max=1)
+        self._delete_file(data[0])
+
+    def _delete_file(self, file_data_object):
+        file_id = "%s@%s" % (
+            file_data_object.get('value')['filename'],
+            file_data_object.get('uuid'))
+        if not self.args.yes:
+            user_input = raw_input(
+                'Do you really want to permanently delete file "%s"? '\
+                '(y)es, (n)o: '
+                % file_id)
+            if user_input.lower() == 'n':
+                raise SystemExit('Operation canceled by user')
+            elif user_input.lower() == 'y':
+                pass
+            else:
+                raise SystemExit('Unrecognized response "%s"' % user_input)
+        dependencies = self.connection.get_data_object_dependencies(
+            file_data_object.get('uuid'))
+        if len(dependencies['runs']) == 0 and len(dependencies['templates']) == 0:
+            self.connection.delete_data_object(file_data_object.get('uuid'))
+            print "Deleted file %s" % file_id
+        else:
+            print "Cannot delete file %s because it is still in use. "\
+                "You must delete the following objects "\
+                "before deleting this file." % file_id
+            print self._render_dependencies(dependencies)
+
+    def _render_dependencies(self, dependencies):
+        text = ''
+        for run in dependencies.get('runs', []):
+            text += "  run %s@%s\n" % (run['name'], run['uuid'])
+        for template in dependencies.get('templates', []):
+            text += "  template %s@%s\n" % (template['name'], template['uuid'])
+        if dependencies.get('truncated'):
+            text += "  ...[results truncated]\n"
+        return text
+
 
 class FileClient(object):
     """Configures and executes subcommands under "file" on the main parser.
@@ -272,6 +329,10 @@ class FileClient(object):
         FileLabel.get_parser(label_subparser)
         label_subparser.set_defaults(SubSubcommandClass=FileLabel)
 
+        delete_subparser = subparsers.add_parser('delete', help='delete file')
+        FileDelete.get_parser(delete_subparser)
+        delete_subparser.set_defaults(SubSubcommandClass=FileDelete)
+                       
         return parser
 
     def run(self):

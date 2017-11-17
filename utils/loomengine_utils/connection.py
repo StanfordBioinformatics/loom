@@ -151,6 +151,9 @@ class Connection(object):
             data_update,
             'data-objects/%s/' % data_object_id)
 
+    def delete_data_object(self, data_object_id):
+        self._delete_object('data-objects/%s/' % data_object_id)
+
     def get_data_object_index_with_limit(
             self, query_string=None, source_type=None,
             labels=None,
@@ -195,6 +198,10 @@ class Connection(object):
                 'Found %s DataObjects, expected at most %s' \
                 % (len(data_objects), max))
         return data_objects
+
+    def get_data_object_dependencies(self, data_object_id):
+        return self._get_object(
+            'data-objects/%s/dependencies/' % data_object_id)
 
     def get_data_tag_index(self):
         return self._get_object_index('data-tags/')
@@ -278,6 +285,13 @@ class Connection(object):
             template,
             'templates/')
 
+    def get_template_dependencies(self, template_id):
+        return self._get_object(
+            'templates/%s/dependencies/' % template_id)
+    
+    def delete_template(self, template_id):
+        self._delete_object('templates/%s/' % template_id)
+
     def get_run(self, run_id):
         return self._get_object(
             'runs/%s/' % run_id
@@ -320,6 +334,16 @@ class Connection(object):
             run,
             'runs/')
 
+    def get_run_dependencies(self, run_id):
+        return self._get_object(
+            'runs/%s/dependencies/' % run_id)
+
+    def delete_run(self, run_id):
+        self._delete_object('runs/%s/' % run_id)
+
+    def kill_run(self, run_id):
+        self._post_object({}, 'runs/%s/kill/' % run_id)
+    
     def post_task(self, task):
         return self._post_object(
             task,

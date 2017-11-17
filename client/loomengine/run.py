@@ -15,13 +15,10 @@ from loomengine_utils.filemanager import FileManager
 from loomengine_utils.connection import Connection
 
 
-class RunStart(object):
-    """Run a template.
-    """
+class AbstractRunSubcommand(object):
 
     def __init__(self, args=None):
-        if args is None:
-            args = self._get_args()
+        self._validate_args(args)
         self.args = args
         verify_has_connection_settings()
         server_url = get_server_url()
@@ -31,11 +28,13 @@ class RunStart(object):
         self.filemanager = FileManager(server_url, token=token)
 
     @classmethod
-    def _get_args(cls):
-        parser = cls.get_parser()
-        args = parser.parse_args()
-        self._validate_args(args)
-        return args
+    def _validate_args(cls, args):
+        pass
+
+
+class RunStart(AbstractRunSubcommand):
+    """Run a template.
+    """
 
     @classmethod
     def get_parser(cls, parser=None):
@@ -59,7 +58,7 @@ class RunStart(object):
     def _validate_args(cls, args):
         if not args.inputs:
             return
-        for input in arg.inputs:
+        for input in args.inputs:
             vals = input.split('=')
             if not len(vals) == 2 or vals[0] == '':
                 raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
@@ -175,14 +174,7 @@ class RunStart(object):
         return terms
 
 
-class RunList(object):
-
-    def __init__(self, args):
-        self.args = args
-        verify_has_connection_settings()
-        server_url = get_server_url()
-        verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url, token=get_token())
+class RunList(AbstractRunSubcommand):
 
     @classmethod
     def get_parser(cls, parser):
@@ -245,6 +237,84 @@ class RunList(object):
         return text
 
 
+class RunKill(AbstractRunSubcommand):
+
+    @classmethod
+    def get_parser(cls, parser):
+        parser.add_argument(
+            'run_id',
+            metavar='RUN_IDENTIFIER',
+            help='name or ID of run(s) to kill.')
+        parser.add_argument('-y', '--yes', action='store_true',
+                            default=False,
+                            help='kill without prompting for confirmation')
+        return parser
+
+    def run(self):
+        data = self.connection.get_run_index(
+            query_string=self.args.run_id,
+            min=1, max=1)
+        run = data[0]
+        run_id = "%s@%s" % (run['name'], run['uuid'])
+        if not self.args.yes:
+            user_input = raw_input(
+                'Do you really want to permanently kill run "%s"? '\
+                '(y)es, (n)o: '
+                % run_id)
+            if user_input.lower() == 'n':
+                raise SystemExit("Skipping run")
+            elif user_input.lower() == 'y':
+                pass
+            else:
+                raise SystemExit('Unrecognized response "%s"' % user_input)
+        self.connection.kill_run(run['uuid'])
+        print "Killed run %s" % run_id
+
+
+class RunDelete(AbstractRunSubcommand):
+
+    @classmethod
+    def get_parser(cls, parser):
+        parser.add_argument(
+            'run_id',
+            metavar='RUN_IDENTIFIER',
+            help='name or ID of run(s) to kill.')
+        parser.add_argument('-y', '--yes', action='store_true',
+                            default=False,
+                            help='delete without prompting for confirmation')
+        return parser
+
+    def run(self):
+        data = self.connection.get_run_index(
+            query_string=self.args.run_id,
+            min=1, max=1)
+        self._delete_run(data[0])
+
+    def _delete_run(self, run):
+        run_id = "%s@%s" % (run['name'], run['uuid'])
+        if not self.args.yes:
+            user_input = raw_input(
+                'Do you really want to permanently delete run "%s"? '\
+                '(y)es, (n)o: '
+                % run_id)
+            if user_input.lower() == 'n':
+                raise SystemExit("Skipping run")
+            elif user_input.lower() == 'y':
+                pass
+            else:
+                raise SystemExit('Unrecognized response "%s"' % user_input)
+        dependencies = self.connection.get_run_dependencies(
+            run.get('uuid'))
+        if len(dependencies['runs']) == 0:
+            self.connection.delete_run(run.get('uuid'))
+            print "Deleted run %s" % run_id
+        else:
+            print "Cannot delete run %s because it is contained by other run(s). "\
+                "You must delete the following runs before deleting this run." % run_id
+            for run in dependencies.get('runs', []):
+                print "  run %s@%s" % (run['name'], run['uuid'])
+
+
 class RunClient(object):
     """Handles subcommands under "run" on the main parser
     """
@@ -273,6 +343,16 @@ class RunClient(object):
             'list', help='list runs')
         RunList.get_parser(list_subparser)
 	list_subparser.set_defaults(SubSubcommandClass=RunList)
+
+        kill_subparser = subparsers.add_parser(
+            'kill', help='kill runs')
+        RunKill.get_parser(kill_subparser)
+        kill_subparser.set_defaults(SubSubcommandClass=RunKill)
+
+        delete_subparser = subparsers.add_parser(
+            'delete', help='delete runs')
+        RunDelete.get_parser(delete_subparser)
+        delete_subparser.set_defaults(SubSubcommandClass=RunDelete)
 
         tag_subparser = subparsers.add_parser('tag', help='manage run tags')
         RunTag.get_parser(tag_subparser)

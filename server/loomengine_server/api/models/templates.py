@@ -55,7 +55,7 @@ class Template(BaseModel):
         'Template',
         through='TemplateMembership',
         through_fields=('parent_template', 'child_template'),
-        related_name='templates')
+        related_name='parents')
     outputs = jsonfield.JSONField(
         validators=[validators.TemplateValidator.validate_outputs],
         blank=True
@@ -88,6 +88,50 @@ class Template(BaseModel):
             self.add_step(step)
 
 
+    @classmethod
+    def get_dependencies(cls, uuid, request):
+        from api.serializers import URLRunSerializer, URLTemplateSerializer
+
+        context = {'request': request}
+        DEPENDENCY_LIMIT = 10
+        truncated = False
+        runs = set()
+        templates = set()
+
+        template = cls.objects.filter(uuid=uuid)\
+                              .prefetch_related('parent_templates__parent_template')\
+                              .prefetch_related('runs')
+        if template.count() < 1:
+            raise cls.DoesNotExist
+        
+        for run in template.first().runs.all():
+            if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+               and run not in runs:
+                truncated = True
+                break
+            runs.add(run)
+        for template in template.first().parents.all():
+            if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+               and run not in runs:
+                truncated = True
+                break
+            templates.add(template)
+
+        run_dependencies = []
+        for run in runs:
+            run_dependencies.append(
+                URLRunSerializer(run, context=context).data)
+
+        template_dependencies = []
+        for template in templates:
+            template_dependencies.append(
+                URLTemplateSerializer(template, context=context).data)
+
+        return {'runs': run_dependencies,
+                'templates': template_dependencies,
+                'truncated': truncated}
+
+
 class TemplateInput(DataChannel):
 
     template = models.ForeignKey(
@@ -110,9 +154,9 @@ class TemplateInput(DataChannel):
 
 class TemplateMembership(BaseModel):
 
-    parent_template = models.ForeignKey('Template', related_name='children',
+    parent_template = models.ForeignKey('Template', related_name='child_templates',
                                         on_delete=models.CASCADE)
-    child_template = models.ForeignKey('Template', related_name='parents', 
+    child_template = models.ForeignKey('Template', related_name='parent_templates', 
                                        null=True, blank=True,
                                        on_delete=models.CASCADE)
 

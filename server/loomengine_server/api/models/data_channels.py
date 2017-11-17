@@ -28,7 +28,8 @@ class DataChannel(BaseModel):
         'DataNode',
         # related_name would cause conflicts on subclasses
         null=True,
-        blank=True)
+        blank=True,
+        on_delete=models.SET_NULL)
     type = models.CharField(
         max_length=255,
         choices=DataObject.DATA_TYPE_CHOICES)

@@ -137,6 +137,107 @@ class DataObject(BaseModel):
         file_resource.save()
         return data_object
 
+    @classmethod
+    def get_dependencies(cls, uuid, request):
+
+        from .data_nodes import DataNode
+        from api.serializers import URLRunSerializer, URLTemplateSerializer
+
+        context = {'request': request}
+        DEPENDENCY_LIMIT = 10
+        truncated = False
+        runs = set()
+        templates = set()
+
+        data_object = cls.objects.filter(uuid=uuid).prefetch_related('data_nodes')
+        if data_object.count() < 1:
+            raise cls.DoesNotExist
+        prefetched_root_data_nodes = DataNode.objects.filter(
+            tree_id__in=[node.tree_id
+                         for node in data_object.first().data_nodes.all()],
+            parent=None).\
+            prefetch_related('runinput_set__run').\
+            prefetch_related('runoutput_set__run').\
+            prefetch_related('runconnectornode_set__run').\
+            prefetch_related('userinput_set__run').\
+            prefetch_related('taskinput_set__task__run').\
+            prefetch_related('taskoutput_set__task__run').\
+            prefetch_related('taskattemptinput_set__task_attempt__task__run').\
+            prefetch_related('taskattemptoutput_set__task_attempt__task__run').\
+            prefetch_related('templateinput_set__template')
+        
+        for data_node in prefetched_root_data_nodes:
+            for run_input in data_node.runinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and run_input.run not in runs:
+                    truncated = True
+                    break
+                runs.add(run_input.run)
+            for run_output in data_node.runoutput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and run_output.run not in runs:
+                    truncated = True
+                    break
+                runs.add(run_output.run)
+            for connector_node in data_node.runconnectornode_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and connector_node.run not in runs:
+                    truncated = True
+                    break
+                runs.add(connector_node.run)
+            for user_input in data_node.userinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and user_input.run not in runs:
+                    truncated = True
+                    break
+                runs.add(user_input.run)
+            for task_input in data_node.taskinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and task_input.task.run not in runs:
+                    truncated = True
+                    break
+                runs.add(task_input.task.run)
+            for task_output in data_node.taskoutput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and task_output.task.run not in runs:
+                    truncated = True
+                    break
+                runs.add(task_output.task.run)
+            for task_attempt_input in data_node.taskattemptinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and task_attempt_input.task_attempt.task.run not in runs:
+                    truncated = True
+                    break
+                runs.add(task_attempt_input.task_attempt.task.run)
+            for task_attempt_output in data_node.taskattemptoutput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and task_attempt_output.task_attempt.task.run not in runs:
+                    truncated = True
+                    break
+                runs.add(task_attempt_output.task_attempt.task.run)
+            for template_input in data_node.templateinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and template_input.template not in templates:
+                    truncated = True
+                    break
+                templates.append(template_input.template)
+            if truncated == True:
+                break
+
+        run_dependencies = []
+        for run in runs:
+            run_dependencies.append(
+                URLRunSerializer(run, context=context).data)
+
+        template_dependencies = []
+        for template in templates:
+            template_dependencies.append(
+                URLTemplateSerializer(template, context=context).data)
+
+        return {'runs': run_dependencies,
+                'templates': template_dependencies,
+                'truncated': truncated}
+
 
 class FileResource(BaseModel):
 
@@ -154,8 +255,9 @@ class FileResource(BaseModel):
 
     data_object = models.OneToOneField(
         'DataObject',
+        null=True,
         related_name='file_resource',
-        on_delete=models.PROTECT)
+        on_delete=models.SET_NULL)
     filename = models.CharField(
         max_length=255, validators=[validators.validate_filename])
     file_url = models.TextField(

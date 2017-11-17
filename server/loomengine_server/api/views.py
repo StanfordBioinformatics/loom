@@ -253,6 +253,13 @@ class DataObjectViewSet(rest_framework.viewsets.ModelViewSet):
             labels.append(label.label)
         return JsonResponse({'labels': labels}, status=200)
 
+    @detail_route(methods=['get'], url_path='dependencies')
+    def dependencies(self, request, uuid=None):
+        try:
+            dependencies = models.DataObject.get_dependencies(uuid, request)
+        except ObjectDoesNotExist:
+            raise rest_framework.exceptions.NotFound()
+        return JsonResponse(dependencies, status=200)
 
 class DataNodeViewSet(ExpandableViewSet):
     """DataNodes are used to organize DataObjects into arrays or trees to facilitate parallel runs. All nodes in a tree must have the same type. The 'contents' field is a JSON containing a single DataObject, a list of DataObjects, or nested lists. For write actions, each DataObject can be represented in full for as a dict, or as a string, where the string represents a given value (e.g. '3' for type integer), or a reference id (e.g. myfile.txt@22588117-425d-44f9-8a61-0cfd4d241d5e). PARAMS: ?expand or ?summary will show data contents (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
@@ -482,6 +489,14 @@ class TemplateViewSet(ExpandableViewSet):
             labels.append(label.label)
         return JsonResponse({'labels': labels}, status=200)
 
+    @detail_route(methods=['get'], url_path='dependencies')
+    def dependencies(self, request, uuid=None):
+        try:
+            dependencies = models.Template.get_dependencies(uuid, request)
+        except ObjectDoesNotExist:
+            raise rest_framework.exceptions.NotFound()
+        return JsonResponse(dependencies, status=200)
+
 
 class RunViewSet(ExpandableViewSet):
     """A Run represents the execution of a Template on a specific set of inputs. Runs can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, environment, and tasks. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?summary will show a summary version to full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
@@ -599,6 +614,26 @@ class RunViewSet(ExpandableViewSet):
         for label in run.labels.all():
             labels.append(label.label)
         return JsonResponse({'labels': labels}, status=200)
+
+    @detail_route(methods=['post'], url_path='kill',
+                  serializer_class=serializers.RunSerializer)
+    def kill(self, request, uuid=None):
+        data_json = request.body
+        data = json.loads(data_json)
+        try:
+            run = models.Run.objects.get(uuid=uuid)
+        except ObjectDoesNotExist:
+            raise rest_framework.exceptions.NotFound()
+        run.kill(detail='Killed by user')
+        return JsonResponse(serializers.RunSerializer(run).data, status=200)
+
+    @detail_route(methods=['get'], url_path='dependencies')
+    def dependencies(self, request, uuid=None):
+        try:
+            dependencies = models.Run.get_dependencies(uuid, request)
+        except ObjectDoesNotExist:
+            raise rest_framework.exceptions.NotFound()
+        return JsonResponse(dependencies, status=200)
 
 
 class TaskAttemptLogFileViewSet(rest_framework.viewsets.ModelViewSet):
