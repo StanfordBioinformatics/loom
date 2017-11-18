@@ -2,7 +2,6 @@ from django.core import mail
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, \
     ValidationError
 from django.db import models
-from django.dispatch import receiver
 from django.template.loader import render_to_string
 from django.utils import timezone
 import jsonfield
@@ -68,7 +67,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         validators=[validators.validate_notification_context])
     parent = TreeForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
-                            on_delete=models.CASCADE)
+                            on_delete=models.SET_NULL)
     template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT,
@@ -277,6 +276,8 @@ class Run(AsyncSafeMPTTModel, BaseModel):
              'status_is_running': False,
              'status_is_waiting': False})
         self._kill_children(detail=detail)
+        if self.parent:
+            self.parent.kill(detail=detail)
 
     def _kill_children(self, detail=''):
         for step in self.steps.all():
@@ -590,6 +591,30 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         else:
             runs = []
         return {'runs': runs}
+
+    def delete(self):
+        from api.models.data_nodes import DataNode
+        nodes_to_delete = set()
+        for queryset in [
+                DataNode.objects.filter(runconnectornode__run__uuid=self.uuid),
+                DataNode.objects.filter(runinput__run__uuid=self.uuid),
+                DataNode.objects.filter(runoutput__run__uuid=self.uuid),
+                DataNode.objects.filter(userinput__run__uuid=self.uuid),
+                DataNode.objects.filter(taskinput__task__run__uuid=self.uuid),
+                DataNode.objects.filter(taskoutput__task__run__uuid=self.uuid),
+                DataNode.objects.filter(
+                    taskattemptinput__task_attempt__task__run__uuid=self.uuid),
+                DataNode.objects.filter(
+                    taskattemptoutput__task_attempt__task__run__uuid=self.uuid)
+        ]:
+            for item in queryset.all():
+                nodes_to_delete.add(item)
+        super(Run, self).delete()
+        for item in nodes_to_delete:
+            try:
+                item.delete()
+            except models.ProtectedError:
+                pass
 
 
 class RunEvent(BaseModel):

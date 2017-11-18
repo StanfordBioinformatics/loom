@@ -385,15 +385,15 @@ class TemplateViewSet(ExpandableViewSet):
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
-        imported = 'imported' in self.request.query_params
+        parent_only = 'parent_only' in self.request.query_params
         labels = self.request.query_params.get('labels', '')
         Serializer = self.get_serializer_class()
         if query_string:
             queryset = models.Template.filter_by_name_or_id_or_tag_or_hash(query_string)
         else:
             queryset = models.Template.objects.all()
-        if imported:
-            queryset = queryset.exclude(imported=False)
+        if parent_only:
+            queryset = queryset.filter(parent_templates__isnull=True)
         if labels:
             for label in labels.split(','):
                 queryset = queryset.filter(labels__label=label)
@@ -615,8 +615,7 @@ class RunViewSet(ExpandableViewSet):
             labels.append(label.label)
         return JsonResponse({'labels': labels}, status=200)
 
-    @detail_route(methods=['post'], url_path='kill',
-                  serializer_class=serializers.RunSerializer)
+    @detail_route(methods=['post'], url_path='kill')
     def kill(self, request, uuid=None):
         data_json = request.body
         data = json.loads(data_json)
@@ -624,8 +623,8 @@ class RunViewSet(ExpandableViewSet):
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
-        run.kill(detail='Killed by user')
-        return JsonResponse(serializers.RunSerializer(run).data, status=200)
+        async.kill_run(uuid, 'Killed by user')
+        return JsonResponse({'message': 'kill request was received'}, status=200)
 
     @detail_route(methods=['get'], url_path='dependencies')
     def dependencies(self, request, uuid=None):

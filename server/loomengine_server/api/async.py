@@ -34,7 +34,6 @@ def _run_with_delay(task_function, args, kwargs):
         return task_function(*args, **kwargs)
 
     db.connections.close_all()
-    time.sleep(0.0001) # Release the GIL
     task_function.delay(*args, **kwargs)
 
 @shared_task
@@ -240,6 +239,19 @@ def _kill_task_attempt(task_attempt_uuid, kill_message):
 
 def kill_task_attempt(*args, **kwargs):
     return _run_with_delay(_kill_task_attempt, args, kwargs)
+
+@shared_task
+def _kill_run(run_uuid, kill_message):
+    from api.models.runs import Run
+    run = Run.objects.get(uuid=run_uuid)
+    try:
+        run.kill(detail=kill_message)
+    except Exception as e:
+        logger.debug('Failed to kill run.uuid=%s.' % run.uuid)
+        raise
+
+def kill_run(*args, **kwargs):
+    return _run_with_delay(_kill_run, args, kwargs)
 
 @shared_task
 def _send_run_notifications(run_uuid):

@@ -259,7 +259,7 @@ class FileDelete(AbstractFileSubcommand):
             else:
                 raise SystemExit('Unrecognized response "%s"' % user_input)
         dependencies = self.connection.get_data_object_dependencies(
-            file_data_object.get('uuid'))
+            file_data_object['uuid'])
         if len(dependencies['runs']) == 0 and len(dependencies['templates']) == 0:
             self.connection.delete_data_object(file_data_object.get('uuid'))
             print "Deleted file %s" % file_id
@@ -267,9 +267,9 @@ class FileDelete(AbstractFileSubcommand):
             print "Cannot delete file %s because it is still in use. "\
                 "You must delete the following objects "\
                 "before deleting this file." % file_id
-            print self._render_dependencies(dependencies)
+            print self._render_file_dependencies(dependencies)
 
-    def _render_dependencies(self, dependencies):
+    def _render_file_dependencies(self, dependencies):
         text = ''
         for run in dependencies.get('runs', []):
             text += "  run %s@%s\n" % (run['name'], run['uuid'])

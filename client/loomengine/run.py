@@ -282,6 +282,12 @@ class RunDelete(AbstractRunSubcommand):
         parser.add_argument('-y', '--yes', action='store_true',
                             default=False,
                             help='delete without prompting for confirmation')
+        parser.add_argument('-c', '--keep-children', action='store_true',
+                            default=False,
+                            help='do not delete child templates')
+        parser.add_argument('-r', '--keep-result-files', action='store_true',
+                            default=False,
+                            help='do not delete run result files')
         return parser
 
     def run(self):
@@ -292,6 +298,36 @@ class RunDelete(AbstractRunSubcommand):
 
     def _delete_run(self, run):
         run_id = "%s@%s" % (run['name'], run['uuid'])
+        run_children_to_delete = []
+        if not self.args.keep_children and run.get('steps'):
+            for step in run.get('steps'):
+                run_children_to_delete.append(
+                    self.connection.get_run_index(
+                        query_string='@%s' % step['uuid'],
+                        min=1, max=1)[0]
+                )
+        run_outputs_to_delete = []
+        # Only delete outputs on leaf nodes. Otherwise we will try to delete them
+        # more than once. Non-leaf nodes pointing to this output have to be deleted
+        # before we are allowed to delete the leaf anyway, so outputs are always
+        # referenced by at least the leaf leaf until the leaf is deleted.
+        if run.get('is_leaf'):
+            for output in run.get('outputs', []):
+                if output.get('type') != 'file' or not self.args.keep_result_files:
+                    data_node = self.connection.get_data_node(
+                        output['data']['uuid'], expand=True)
+                    run_outputs_to_delete.extend(
+                        self._parse_data_objects_from_data_node_contents(
+                            data_node.get('contents')))
+            if not self.args.keep_result_files:
+                for task in run.get('tasks', []):
+                    task = self.connection.get_task(task['uuid'])
+                    for task_attempt in task.get('all_task_attempts', []):
+                        task_attempt = self.connection.get_task_attempt(
+                            task_attempt['uuid'])
+                        for log_file in task_attempt.get('log_files', []):
+                            if log_file.get('data_object'):
+                                run_outputs_to_delete.append(log_file['data_object'])
         if not self.args.yes:
             user_input = raw_input(
                 'Do you really want to permanently delete run "%s"? '\
@@ -308,11 +344,54 @@ class RunDelete(AbstractRunSubcommand):
         if len(dependencies['runs']) == 0:
             self.connection.delete_run(run.get('uuid'))
             print "Deleted run %s" % run_id
+            for run in run_children_to_delete:
+                self._delete_run(run)
+            for data_object in run_outputs_to_delete:
+                self._delete_data_object(data_object)
         else:
             print "Cannot delete run %s because it is contained by other run(s). "\
                 "You must delete the following runs before deleting this run." % run_id
             for run in dependencies.get('runs', []):
                 print "  run %s@%s" % (run['name'], run['uuid'])
+
+    def _delete_data_object(self, data_object):
+        dependencies = self.connection.get_data_object_dependencies(
+            data_object['uuid'])
+        if len(dependencies['runs']) == 0 and len(dependencies['templates']) == 0:
+            if data_object.get('type') == 'file':
+                file_id = "%s@%s" % (
+                    data_object['value']['filename'], data_object['uuid'])
+                if not self.args.yes:
+                    user_input = raw_input(
+                        'Do you really want to delete result file "%s"? '\
+                        '(y)es, (n)o: ' % file_id)
+                    if user_input.lower() == 'n':
+                        raise SystemExit("Skipping file")
+                    elif user_input.lower() == 'y':
+                        pass
+                    else:
+                        raise SystemExit('Unrecognized response "%s"' % user_input)
+                self.connection.delete_data_object(data_object['uuid'])
+                print "Deleted file %s" % file_id
+            else:
+                self.connection.delete_data_object(data_object['uuid'])
+        else:
+            # Silently skip deleting data_object that has dependencies.
+            # If we print a warning about dependencies it will show every time
+            # we try to delete a step whose output is used by another step,
+            # even when both steps are being deleted.
+            pass
+
+    def _parse_data_objects_from_data_node_contents(self, contents):
+        if not isinstance(contents, list):
+            if not contents:
+                return []
+            else:
+                return [contents,]
+        data_objects = []
+        for child in contents:
+            data_objects.extend(self._parse_data_objects_from_data_node(child))
+        return data_objects
 
 
 class RunClient(object):

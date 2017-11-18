@@ -249,28 +249,28 @@ class Connection(object):
             'templates/%s/' % template_id, params=params
         )
     
-    def get_template_index_with_limit(self, query_string=None, imported=False,
+    def get_template_index_with_limit(self, query_string=None, parent_only=False,
                                  labels=None, limit=10, offset=0):
         url = 'templates/'
         params = {}
         if query_string:
             params['q'] = query_string
-        if imported:
-            params['imported'] = '1'
+        if parent_only:
+            params['parent_only'] = '1'
         if labels:
             params['labels'] = ','.join(labels)
         params['limit'] = limit
         params['offset'] = offset
         return self._get_object_index(url, params=params)
 
-    def get_template_index(self, query_string='', imported=False,
+    def get_template_index(self, query_string='', parent_only=False,
                            labels=None, min=0, max=float('inf')):
         url = 'templates/'
         params = {}
         if query_string:
             params['q'] = query_string
-        if imported:
-            params['imported'] = '1'
+        if parent_only:
+            params['parent_only'] = '1'
         if labels:
             params['labels'] = ','.join(labels)
         templates = self._get_object_index(url, params=params)
@@ -324,9 +324,9 @@ class Connection(object):
             params['labels'] = ','.join(labels)
         runs = self._get_object_index(url, params=params)
         if len(runs) < min:
-            raise Error('Found %s template runs, expected at least %s' %(len(runs), min))
+            raise Error('Found %s runs, expected at least %s' %(len(runs), min))
         if len(runs) > max:
-            raise Error('Found %s template runs, expected at most %s' %(len(runs), max))
+            raise Error('Found %s runs, expected at most %s' %(len(runs), max))
         return runs
 
     def post_run(self, run):
@@ -343,7 +343,11 @@ class Connection(object):
 
     def kill_run(self, run_id):
         self._post_object({}, 'runs/%s/kill/' % run_id)
-    
+
+    def get_task(self, task_id):
+        return self._get_object(
+            'tasks/%s/' % task_id)
+
     def post_task(self, task):
         return self._post_object(
             task,

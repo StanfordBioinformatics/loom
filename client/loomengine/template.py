@@ -219,9 +219,9 @@ class TemplateList(AbstractTemplateSubcommand):
 
     def run(self):
         if self.args.template_id:
-            imported = False
+            parent_only = False
         else:
-            imported = not self.args.all
+            parent_only = not self.args.all
         offset=0
         limit=10
         while True:
@@ -229,7 +229,7 @@ class TemplateList(AbstractTemplateSubcommand):
                 labels=self.args.label,
                 limit=limit, offset=offset,
                 query_string=self.args.template_id,
-                imported=imported)
+                parent_only=parent_only)
             if offset == 0:
                 print '[showing %s templates]' % data.get('count')
             self._list_templates(data['results'])
@@ -279,6 +279,9 @@ class TemplateDelete(AbstractTemplateSubcommand):
         parser.add_argument('-y', '--yes', action='store_true',
                             default=False,
                             help='delete without prompting for confirmation')
+        parser.add_argument('-c', '--keep-children', action='store_true',
+                            default=False,
+                            help='do not delete child templates')
         return parser
 
     def run(self):
@@ -291,6 +294,14 @@ class TemplateDelete(AbstractTemplateSubcommand):
         template_id = "%s@%s" % (
             template.get('name'),
             template.get('uuid'))
+        template_children_to_delete = []
+        if not self.args.keep_children and template.get('steps'):
+            for step in template.get('steps'):
+                template_children_to_delete.append(
+                    self.connection.get_template_index(
+                        query_string='@%s' % step['uuid'],
+                        min=1, max=1)[0]
+                )
         if not self.args.yes:
             user_input = raw_input(
                 'Do you really want to permanently delete template "%s"? '\
@@ -312,6 +323,8 @@ class TemplateDelete(AbstractTemplateSubcommand):
                 "You must delete the following objects "\
                 "before deleting this template." % template_id
             print self._render_dependencies(dependencies)
+        for template in template_children_to_delete:
+            self._delete_template(template)
 
     def _render_dependencies(self, dependencies):
         text = ''
