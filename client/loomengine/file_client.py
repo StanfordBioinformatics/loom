@@ -205,9 +205,15 @@ class FileList(object):
                 file_data_object['value'].get('filename'), file_data_object['uuid'])
         except TypeError:
             file_identifier = '@%s' % file_data_object['uuid']
+
+        status = file_data_object['value'].get('upload_status')
+        status_note = ''
+        if status != 'complete':
+            status_note = ' (%s)' % status
+
         if self.args.detail:
             text = '---------------------------------------\n'
-            text += 'File: %s\n' % file_identifier
+            text += 'File: %s%s\n' % (file_identifier, status_note)
             try:
                 text += '  - Imported: %s\n' % \
                         _render_time(file_data_object['datetime_created'])
@@ -221,7 +227,7 @@ class FileList(object):
             except TypeError:
                 pass
         else:
-            text = 'File: %s' % file_identifier
+            text = 'File: %s%s' % (file_identifier, status_note)
         return text
 
 class FileDelete(AbstractFileSubcommand):

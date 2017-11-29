@@ -24,7 +24,7 @@ class FilterHelper(object):
     def __init__(self, Model):
         self.Model = Model
 
-    def filter_by_name_or_id_or_tag_or_hash(self, query_string):
+    def filter_by_name_or_id_or_tag_or_hash(self, query_string, queryset=None):
         assert self.Model.NAME_FIELD, \
             'NAME_FIELD is missing on model %s' % self.Model.__name__
         assert self.Model.HASH_FIELD, \
@@ -45,9 +45,11 @@ class FilterHelper(object):
             filter_args[self.Model.ID_FIELD+'__startswith'] = uuid
         if tag is not None:
             filter_args[self.Model.TAG_FIELD] = tag
-        return self.Model.objects.filter(**filter_args)
+        if queryset is None:
+            queryset = self.Model.objects.all()
+        return queryset.filter(**filter_args)
 
-    def filter_by_name_or_id_or_tag(self, query_string):
+    def filter_by_name_or_id_or_tag(self, query_string, queryset = None):
         """Find objects that match the identifier of form {name}@{ID}, {name},
         or @{ID}, where ID may be truncated
         """
@@ -66,7 +68,9 @@ class FilterHelper(object):
             filter_args[self.Model.ID_FIELD+'__startswith'] = uuid
         if tag is not None:
             filter_args[self.Model.TAG_FIELD] = tag
-        return self.Model.objects.filter(**filter_args)
+        if queryset is None:
+            queryset = self.Model.objects.all()
+        return queryset.filter(**filter_args)
 
     def _parse_as_name_or_id_or_tag_or_hash(self, query_string):
         name = None
@@ -109,9 +113,10 @@ class _FilterMixin(object):
     ID_FIELD = None
 
     @classmethod
-    def filter_by_name_or_id_or_tag_or_hash(cls, filter_string):
+    def filter_by_name_or_id_or_tag_or_hash(cls, filter_string, queryset=None):
         helper = FilterHelper(cls)
-        return helper.filter_by_name_or_id_or_tag_or_hash(filter_string)
+        return helper.filter_by_name_or_id_or_tag_or_hash(
+            filter_string, queryset=queryset)
 
     @classmethod
     def filter_by_name_or_id_or_tag(cls, filter_string):

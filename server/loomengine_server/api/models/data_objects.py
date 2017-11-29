@@ -86,7 +86,11 @@ class DataObject(BaseModel):
     def _get_file_by_value(cls, value):
         """Look up a file DataObject by name, uuid, and/or md5.
         """
-        matches = FileResource.filter_by_name_or_id_or_tag_or_hash(value)
+        # Ignore any FileResource with no DataObject. This is a typical state
+        # for a deleted file that has not yet been cleaned up.
+        queryset = FileResource.objects.exclude(data_object__isnull=True)
+        matches = FileResource.filter_by_name_or_id_or_tag_or_hash(
+            value, queryset=queryset)
         if matches.count() == 0:
             raise ValidationError(
                 'No file found that matches value "%s"' % value)
@@ -266,7 +270,7 @@ class FileResource(BaseModel):
     file_url = models.TextField(
         validators=[validators.validate_url])
     file_relative_path = models.TextField(
-        validators=[validators.validate_relative_file_path], default='')
+        validators=[validators.validate_relative_file_path], default='', blank=True)
     md5 = models.CharField(
         max_length=32, validators=[validators.validate_md5])
     import_comments = models.TextField(blank=True)

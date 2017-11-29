@@ -190,34 +190,42 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             notification_addresses=validated_data.get('notification_addresses'),
             notification_context=Run.get_notification_context(
                 self.context.get('request')))
-        if user_inputs is not None:
-            for input_data in user_inputs:
-                # The user_input usually won't have data type specified.
-                # We need to know the data type to find or create the
-                # data object from the value given. We get the type from the
-                # corresponding template input.
-                if not input_data.get('channel'):
-                    raise serializers.ValidationError(
-                        'Missing required "channel" field on input: "%s"' % input_data)
-                try:
-                    input = template.get_input(input_data.get('channel'))
-                except ObjectDoesNotExist:
-                    raise serializers.ValidationError(
-                        'Input channel "%s" does not match any channel '\
-                        'on the template.' % input_data.get('channel'))
-                if input_data.get('type') and input_data.get('type') != input.type:
-                    raise serializers.ValidationError(
-                        'Type mismatch: Data with type "%s" does not match '
-                        'input channel "%s" with type "%s".' % (
-                            input_data.get('type'), input_data.get('channel'), type))
-                input_data.update({'type': input.type})
-                s = UserInputSerializer(
-                    data=input_data,
-                    context={'parent_field': 'run',
-                             'parent_instance': run
-                         })
-                s.is_valid(raise_exception=True)
-                s.save()
+        try:
+            if user_inputs is not None:
+                for input_data in user_inputs:
+                    # The user_input usually won't have data type specified.
+                    # We need to know the data type to find or create the
+                    # data object from the value given. We get the type from the
+                    # corresponding template input.
+                    if not input_data.get('channel'):
+                        raise serializers.ValidationError(
+                            'Missing required "channel" field on input: "%s"' % input_data)
+                    try:
+                        input = template.get_input(input_data.get('channel'))
+                    except ObjectDoesNotExist:
+                        raise serializers.ValidationError(
+                            'Input channel "%s" does not match any channel '\
+                            'on the template.' % input_data.get('channel'))
+                    if input_data.get('type') and input_data.get('type') != input.type:
+                        raise serializers.ValidationError(
+                            'Type mismatch: Data with type "%s" does not match '
+                            'input channel "%s" with type "%s".' % (
+                                input_data.get('type'), input_data.get('channel'), type))
+                    input_data.update({'type': input.type})
+                    s = UserInputSerializer(
+                        data=input_data,
+                        context={'parent_field': 'run',
+                                 'parent_instance': run
+                        })
+                    s.is_valid(raise_exception=True)
+                    i = s.save()
+                    if not i.data_node.is_ready():
+                        raise serializers.ValidationError('Data for input "%s" is not ready. (Maybe a file upload failed or is not yet complete?)' % i.channel)
+        except:
+            # Cleanup ill-formed run
+            run.delete()
+            raise
+
         run.initialize_inputs()
         run.initialize_outputs()
         run.initialize()
