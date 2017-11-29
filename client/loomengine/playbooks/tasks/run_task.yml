@@ -4,7 +4,7 @@
       image: "{{loom_docker_image}}"
       cleanup: yes
       volumes:  "{{[ '/var/run/docker.sock:/var/run/docker.sock', \
-                 storage_root~':'~storage_root ]}}"
+                 storage_root~':'~internal_storage_root ]}}"
       api_version: auto
       network_mode: host
       command: /bin/bash -c 'loom-task-monitor --task_attempt_id {{task_attempt_id}} --server_url {{server_url}} --log_level {{log_level}}{% if token %} --token {{token}}{% endif %}'

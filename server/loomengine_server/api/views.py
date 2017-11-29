@@ -18,7 +18,7 @@ from rest_framework import authentication
 from rest_framework import permissions
 from rest_framework.authtoken.models import Token
 
-from api import get_setting
+from api import get_setting, get_filemanager_settings
 from api import models
 from api import serializers
 from api import async
@@ -134,7 +134,6 @@ class DataObjectViewSet(rest_framework.viewsets.ModelViewSet):
     """Each DataObject represents a value of type file, string, boolean, 
     integer, or float.
     """
-
     lookup_field = 'uuid'
 
     def get_serializer_class(self):
@@ -501,7 +500,6 @@ class TemplateViewSet(ExpandableViewSet):
 class RunViewSet(ExpandableViewSet):
     """A Run represents the execution of a Template on a specific set of inputs. Runs can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, environment, and tasks. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?summary will show a summary version to full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
-
     lookup_field = 'uuid'
 
     DEFAULT_SERIALIZER = serializers.RunSerializer
@@ -638,7 +636,6 @@ class RunViewSet(ExpandableViewSet):
 class TaskAttemptLogFileViewSet(rest_framework.viewsets.ModelViewSet):
     """LogFiles represent the logs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating a LogFile without updating the full TaskAttempt. DETAIL_ROUTES: "data-object" allows you to post the file DataObject for the LogFile.
     """
-
     lookup_field = 'uuid'
     serializer_class = serializers.TaskAttemptLogFileSerializer
 
@@ -679,7 +676,6 @@ class TaskAttemptLogFileViewSet(rest_framework.viewsets.ModelViewSet):
 class TaskAttemptOutputViewSet(rest_framework.viewsets.ModelViewSet):
     """Outputs represent the outputs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating an Output without updating the full TaskAttempt.
     """
-    
     lookup_field = 'uuid'
 
     def get_serializer_class(self):
@@ -739,9 +735,7 @@ def status(request):
 class FileManagerSettingsView(RetrieveAPIView):
 
     def retrieve(self, request):
-        return JsonResponse({
-            'GCE_PROJECT': get_setting('GCE_PROJECT'),
-        })
+        return JsonResponse(get_filemanager_settings())
 
 @require_http_methods(["GET"])
 def info(request):

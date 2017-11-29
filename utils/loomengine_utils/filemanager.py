@@ -180,7 +180,7 @@ class AbstractFile:
         raise Exception('Child class must override this method')
     def write(self, content):
         raise Exception('Child class must override this method')
-    def delete(self):
+    def delete(self, pruneto=None):
         raise Exception('Child class must override this method')
 
 class LocalFile(AbstractFile):
@@ -219,8 +219,20 @@ class LocalFile(AbstractFile):
         with open(self.get_path(), 'w') as f:
             f.write(content)
 
-    def delete(self):
+    def delete(self, pruneto=None):
         os.remove(self.get_path())
+        path = os.path.dirname(self.get_path())
+
+        if pruneto is None:
+            return
+
+        # Delete any empty directories up to pruneto
+        while os.path.dirname(path).startswith(pruneto):
+            try:
+                os.rmdir(path)
+                path = os.path.dirname(path)
+            except OSError:
+                return
 
 
 class GoogleStorageFile(AbstractFile):
@@ -314,7 +326,8 @@ class GoogleStorageFile(AbstractFile):
             f.flush()
             File(f.name, self.settings, retry=self.retry).copy_to(self)
 
-    def delete(self):
+    def delete(self, pruneto=None):
+        # pruning is automating in Google Storage
         self.blob.delete()
 
 

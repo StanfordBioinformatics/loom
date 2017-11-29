@@ -182,14 +182,14 @@ class TaskAttempt(BaseModel):
         return output_source        
 
     def get_working_dir(self):
-        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
-                            'runtime_volumes',
+        return os.path.join(get_setting('INTERNAL_STORAGE_ROOT'),
+                            'tmp',
                             str(self.uuid),
                             'work')
 
     def get_log_dir(self):
-        return os.path.join(get_setting('FILE_ROOT_FOR_WORKER'),
-                            'runtime_volumes',
+        return os.path.join(get_setting('INTERNAL_STORAGE_ROOT'),
+                            'tmp',
                             str(self.uuid),
                             'logs')
 

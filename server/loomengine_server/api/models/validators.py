@@ -82,13 +82,29 @@ def validate_filename(value):
     if not re.match(pattern, value):
         raise ValidationError(
             'Invalid filename "%s". Only alphanumberic characters, '
-            '".", "-", and "_" are allowed.' & value)
+            '".", "-", and "_" are allowed.' % value)
+
+def validate_relative_file_path(value):
+    if not value:
+        return
+    if value.startswith('/'):
+        raise ValidationError('Invalid relative path "%s". '\
+                              'Relative path must not start with "/"')
+    if value.endswith('/'):
+        raise ValidationError('Invalid file path "%s". '\
+                              'File path must not end with "/"')
+    for part in value.split('/'):
+        pattern = r'^([a-zA-Z0-9_]|[a-zA-Z0-9._][a-zA-Z0-9.\-_]+)$'
+        if not re.match(pattern, part):
+            raise ValidationError(
+                'Invalid file or directory name "%s". Only alphanumberic characters, '
+                '".", "-", and "_" are allowed.' & part)
 
 def validate_md5(value):
     pattern = r'^[0-9a-z]{32}$'
     if not re.match(pattern, value):
         raise ValidationError('Invalid md5 value "%s"' % value)
-
+    
 def validate_url(value):
     url = urlparse.urlparse(value)
     if not re.match(r'[A-Za-z]+', url.scheme):

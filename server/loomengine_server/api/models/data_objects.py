@@ -248,7 +248,9 @@ class FileResource(BaseModel):
 
     UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
                              ('complete', 'Complete'),
-                             ('failed', 'Failed'))
+                             ('failed', 'Failed'),
+                             ('deleting', 'Deleting'),
+    )
     SOURCE_TYPE_CHOICES = (('imported', 'Imported'),
                            ('result', 'Result'),
                            ('log', 'Log'))
@@ -256,12 +258,15 @@ class FileResource(BaseModel):
     data_object = models.OneToOneField(
         'DataObject',
         null=True,
+        blank=True,
         related_name='file_resource',
         on_delete=models.SET_NULL)
     filename = models.CharField(
         max_length=255, validators=[validators.validate_filename])
     file_url = models.TextField(
         validators=[validators.validate_url])
+    file_relative_path = models.TextField(
+        validators=[validators.validate_relative_file_path], default='')
     md5 = models.CharField(
         max_length=32, validators=[validators.validate_md5])
     import_comments = models.TextField(blank=True)
@@ -289,32 +294,34 @@ class FileResource(BaseModel):
     @classmethod
     def initialize(cls, **kwargs):
         if not kwargs.get('file_url'):
-            kwargs['file_url'] = cls._add_url_prefix(
-                cls._get_path_for_import(
-                    kwargs.get('filename'),
-                    kwargs.get('source_type'),
-                    kwargs.get('data_object'),
-                    kwargs.pop('task_attempt', None)
-                ))
+            file_root = cls.get_file_root()
+            file_relative_path = cls._get_relative_path_for_import(
+                kwargs.get('filename'),
+                kwargs.get('source_type'),
+                kwargs.get('data_object'),
+                kwargs.pop('task_attempt', None)
+            )
+            kwargs['file_url'] = os.path.join(file_root, file_relative_path)
+            kwargs['file_relative_path'] = file_relative_path
         file_resource = cls(**kwargs)
         return file_resource
 
     @classmethod
-    def _get_path_for_import(cls, filename, source_type, data_object, task_attempt):
-        parts = [cls._get_file_root()]
-        parts.extend(cls._get_breadcrumbs(source_type, data_object, task_attempt))
+    def _get_relative_path_for_import(
+            cls, filename, source_type, data_object, task_attempt):
+        parts = cls._get_run_breadcrumbs(source_type, data_object, task_attempt)
         parts.append(cls._get_subdir(source_type))
         parts.append(cls._get_expanded_filename(
             filename, data_object.uuid, source_type))
         return os.path.join(*parts)
 
     @classmethod
-    def _get_file_root(cls):
+    def get_file_root(cls):
         file_root = get_setting('STORAGE_ROOT')
         assert file_root.startswith('/'), \
             'STORAGE_ROOT should be an absolute path, but it is "%s".' \
             % file_root
-        return file_root
+        return cls._add_url_prefix(file_root)
 
     @classmethod
     def _get_subdir(cls, source_type):
@@ -328,7 +335,7 @@ class FileResource(BaseModel):
             assert False, 'Invalid source_type %s' % source_type
 
     @classmethod
-    def _get_breadcrumbs(cls, source_type, data_object, task_attempt):
+    def _get_run_breadcrumbs(cls, source_type, data_object, task_attempt):
         """Create a path for a given file, in such a way
         that files end up being organized and browsable by run
         """
@@ -359,6 +366,8 @@ class FileResource(BaseModel):
             run.datetime_created.strftime('%Y-%m-%dT%H.%M.%SZ'),
             str(run.uuid)[0:8],
             breadcrumbs[0])
+
+        breadcrumbs = ['runs'] + breadcrumbs
         return breadcrumbs
 
     @classmethod

@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 from django import db
 from django.utils import timezone
 import logging
-from api import get_setting
+from api import get_setting, get_filemanager_settings
 import os
 import pytz
+import re
 import subprocess
 import threading
 import time
@@ -305,3 +306,37 @@ def clear_expired_logs():
                       unit='days', unit_count=elasticsearch_log_expiration_days)
     delete_indices = curator.DeleteIndices(ilo)
     delete_indices.do_action()
+
+@shared_task
+def _delete_file_resource(file_resource_id):
+    if get_setting('DELETE_DISABLED'):
+        return
+
+    from api.models import FileResource
+    from loomengine_utils.filemanager import File
+    file_resource = FileResource.objects.get(id=file_resource_id)
+    file_resource.setattrs_and_save_with_retries({'upload_status': 'deleting'})
+
+    # Replace start of URL with path inside Docker container.
+    file_url = file_resource.file_url
+    if file_url.startswith('file:///'):
+        file_url = re.sub(
+            '^'+get_setting('STORAGE_ROOT_WITH_PREFIX'),
+            get_setting('INTERNAL_STORAGE_ROOT_WITH_PREFIX'),
+            file_url)
+
+    file = File(file_url, get_filemanager_settings(), retry=True)
+    file.delete(pruneto=get_setting('INTERNAL_STORAGE_ROOT'))
+    file_resource.delete()
+
+@periodic_task(run_every=timedelta(minutes=14))
+def cleanup_unused_file_resources():
+    if get_setting('DELETE_DISABLED'):
+        return
+    
+    from api.models import FileResource
+    queryset = FileResource.objects.filter(data_object__isnull=True)
+    count = queryset.count()
+    logger.info('Periodic cleanup of unused files. %s files found.' % count)
+    for file_resource in queryset.all():
+        _delete_file_resource(file_resource.id)

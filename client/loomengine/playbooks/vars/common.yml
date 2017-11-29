@@ -7,6 +7,7 @@ server_settings_file: "{{lookup('env', 'LOOM_SERVER_SETTINGS_FILE')}}"
 connection_settings_file: "{{lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE')}}"
 storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"
 storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
+internal_storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
 
 # Non-required settings, with defaults if necessary
 

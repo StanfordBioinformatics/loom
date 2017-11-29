@@ -13,3 +13,8 @@ def get_setting(SETTING, required=True):
     if value is None and required:
         raise Exception('Setting "%s" is not set' % SETTING)
     return value
+
+def get_filemanager_settings():
+    return {
+        'GCE_PROJECT': get_setting('GCE_PROJECT'),
+    }

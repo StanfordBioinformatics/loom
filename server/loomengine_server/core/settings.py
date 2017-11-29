@@ -10,6 +10,7 @@ import socket
 import sys
 import tempfile
 import warnings
+from django.core.exceptions import ValidationError
 
 SESSION_BACKED = 'django.contrib.sessions.backends.db'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -90,9 +91,22 @@ STATIC_ROOT = os.getenv('LOOM_SERVER_STATIC_ROOT', '/var/www/loom/static')
 SERVER_NAME = os.getenv('LOOM_SERVER_NAME', 'loom') # used in attempt container names
 SERVER_URL_FOR_WORKER = os.getenv('SERVER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 SERVER_URL_FOR_CLIENT = os.getenv('SERVER_URL_FOR_CLIENT', 'http://127.0.0.1:8000')
-STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-data'))
-FILE_ROOT_FOR_WORKER = os.path.expanduser(
-    os.getenv('FILE_ROOT_FOR_WORKER', STORAGE_ROOT))
+
+def _add_url_prefix(path):
+    if STORAGE_TYPE.lower() == 'local':
+	return 'file://' + path
+    elif STORAGE_TYPE.lower() == 'google_storage':
+        return 'gs://' + get_setting('GOOGLE_STORAGE_BUCKET') + path
+    else:
+        raise ValidationError(
+            'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
+	    % STORAGE_TYPE)
+STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loomdata'))
+INTERNAL_STORAGE_ROOT = os.path.expanduser(
+    os.getenv('LOOM_INTERNAL_STORAGE_ROOT', STORAGE_ROOT))
+STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(STORAGE_ROOT)
+INTERNAL_STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(INTERNAL_STORAGE_ROOT)
+DELETE_DISABLED = to_boolean(os.getenv('LOOM_DELETE_DISABLED', 'False'))
 
 TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60'))
 TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS*2.5))

@@ -306,6 +306,10 @@ class RunDelete(AbstractRunSubcommand):
                         query_string='@%s' % step['uuid'],
                         min=1, max=1)[0]
                 )
+        # Placing the list in reverse order makes it easier to handle outputs produced
+        # by one step and used by another where both steps are being deleted.
+        run_children_to_delete = sorted(
+            run_children_to_delete, key=lambda x: x['datetime_created'], reverse=True)
         run_outputs_to_delete = []
         # Only delete outputs on leaf nodes. Otherwise we will try to delete them
         # more than once. Non-leaf nodes pointing to this output have to be deleted
@@ -376,11 +380,20 @@ class RunDelete(AbstractRunSubcommand):
             else:
                 self.connection.delete_data_object(data_object['uuid'])
         else:
-            # Silently skip deleting data_object that has dependencies.
-            # If we print a warning about dependencies it will show every time
-            # we try to delete a step whose output is used by another step,
-            # even when both steps are being deleted.
-            pass
+            if len(dependencies['runs']) > 0:
+                print "Cannot delete file %s "\
+                    "because it is contained by other run(s). "\
+                    "You must delete the following runs "\
+                    "before deleting this file." % run_id
+                for run in dependencies.get('runs', []):
+                    print "  run %s@%s" % (run['name'], run['uuid'])
+            if len(dependencies['templates']) > 0:
+                print "Cannot delete file %s "\
+                    "because it is contained by other template(s). "\
+                    "You must delete the following templates "\
+                    "before deleting this file." % run_id
+                for template in dependencies.get('templates', []):
+                    print "  template %s@%s" % (template['name'], template['uuid'])
 
     def _parse_data_objects_from_data_node_contents(self, contents):
         if not isinstance(contents, list):
