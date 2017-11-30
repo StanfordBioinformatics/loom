@@ -47,6 +47,9 @@ ADD ./README.rst /loomengine/
 ADD ./loomengine/utils/ /loomengine/loomengine/utils/
 ADD ./loomengine/__init__.py /loomengine/loomengine/
 ADD ./loomengine/VERSION /loomengine/loomengine/
+RUN pip install pip==9.0.1
 RUN pip install -r requirements.txt
+RUN pip install elasticsearch==5.4.0
+RUN pip install elasticsearch-curator==5.2.0
 ADD . /loomengine/
 RUN /loomengine/loomengine/master/manage.py collectstatic --noinput
