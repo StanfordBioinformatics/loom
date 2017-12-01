@@ -53,6 +53,7 @@ PORTAL_ROOT = os.path.join(BASE_DIR, '..', 'portal')
 
 # Security settings
 DEBUG = to_boolean(os.getenv('LOOM_DEBUG'))
+HTTPS_PORT_ENABLED = os.getenv('LOOM_HTTPS_PORT_ENABLED', False)
 SECRET_KEY = os.getenv(
     'LOOM_MASTER_SECRET_KEY',
     ''.join([random.SystemRandom()\
@@ -353,8 +354,10 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+if HTTPS_PORT_ENABLED:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
 
 INTERNAL_IPS = [
     "127.0.0.1",
