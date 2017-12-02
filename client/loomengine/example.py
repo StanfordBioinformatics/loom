@@ -58,21 +58,6 @@ class ExampleExport(object):
         print 'Exported example "%s"\n    to "%s"' % \
             (os.path.basename(example_path), target_dir)
 
-    def _get_destination_url(self, template, retry=False):
-        default_name = '%s.%s' % (template['name'], self.args.format)
-        return self.filemanager.get_destination_file_url(self.args.destination, default_name, retry=retry)
-
-    def _save_template(self, template, destination, retry=False):
-        print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('uuid'), destination)
-        if self.args.format == 'json':
-            template_text = json.dumps(template, indent=4, separators=(',', ': '))
-        elif self.args.format == 'yaml':
-            template_text = yaml.safe_dump(template, default_flow_style=False)
-        else:
-            raise Exception('Invalid format type %s' % self.args.format)
-        self.filemanager.write_to_file(destination, template_text, retry=retry)
-        print '...finished exporting template'
-
 
 class ExampleList(object):
 

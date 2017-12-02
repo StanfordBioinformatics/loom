@@ -4,7 +4,7 @@ import argparse
 from getpass import getpass
 from requests.exceptions import HTTPError
 from loomengine.common import verify_server_is_running, get_server_url, \
-verify_has_connection_settings, parse_as_json_or_yaml, get_token
+verify_has_connection_settings, get_token
 from loomengine_utils.filemanager import FileManager
 from loomengine_utils.connection import Connection
 

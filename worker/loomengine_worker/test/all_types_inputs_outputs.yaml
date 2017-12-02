@@ -120,9 +120,10 @@ steps:
       - type: integer
         channel: my_integers
         data:
-          contents: 42
-          contents: 13
-          contents: 3
+          contents:
+            - 42
+            - 13
+            - 3
     outputs:
       - type: string
         channel: str_7272
@@ -250,7 +251,7 @@ steps:
 
 # A list of strings taken from a list of files selected by filenames
 
-  - name: file_contents_scatter_output
+  - name: file_array_contents_scatter_output
     command: echo one > file1.txt; echo two > file2.txt;
     environment:
       docker_image: ubuntu

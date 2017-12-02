@@ -7,10 +7,10 @@ import sys
 
 from loomengine import _render_time
 from loomengine.common import verify_server_is_running, get_server_url, \
-    verify_has_connection_settings, parse_as_json_or_yaml, get_token
+    verify_has_connection_settings, get_token
 from loomengine.file_tag import FileTag
 from loomengine.file_label import FileLabel
-from loomengine_utils.filemanager import FileManager
+from loomengine_utils.filemanager import FileManager, FileManagerError
 from loomengine_utils.connection import Connection
 
 class AbstractFileSubcommand(object):
@@ -124,9 +124,20 @@ class FileExport(AbstractFileSubcommand):
             metavar='FILE_ID',
             help='file or list of files to be exported')
         parser.add_argument(
-            '--destination',
+            '-d', '--destination-directory',
             metavar='DESTINATION',
-            help='destination filename or directory')
+            help='destination directory')
+        metadata_group = parser.add_mutually_exclusive_group(required=False)
+        metadata_group.add_argument(
+            '-n', '--no-metadata',
+            default=False,
+            action='store_true',
+            help='Export raw file without metadata')
+        metadata_group.add_argument(
+            '-m', '--metadata-only',
+            default=False,
+            action='store_true',
+            help='Export metadata without raw file')
         parser.add_argument(
             '-r', '--retry', action='store_true',
             default=False,
@@ -135,11 +146,16 @@ class FileExport(AbstractFileSubcommand):
         return parser
 
     def run(self):
-        self.filemanager.export_files(
-            self.args.file_ids,
-            destination_url=self.args.destination,
-            retry=self.args.retry,
-        )
+        try:
+            self.filemanager.export_files(
+                self.args.file_ids,
+                destination_directory=self.args.destination_directory,
+                retry=self.args.retry,
+                export_metadata=not self.args.no_metadata,
+                export_raw_file=not self.args.metadata_only,
+            )
+        except FileManagerError as e:
+            raise SystemExit("ERROR! %s" % e.message)
 
 
 class FileList(object):
@@ -259,18 +275,19 @@ class FileDelete(AbstractFileSubcommand):
                 '(y)es, (n)o: '
                 % file_id)
             if user_input.lower() == 'n':
-                raise SystemExit('Operation canceled by user')
+                raise SystemExit('ERROR! Operation canceled by user')
             elif user_input.lower() == 'y':
                 pass
             else:
-                raise SystemExit('Unrecognized response "%s"' % user_input)
+                raise SystemExit('ERROR! Unrecognized response "%s"' % user_input)
         dependencies = self.connection.get_data_object_dependencies(
             file_data_object['uuid'])
         if len(dependencies['runs']) == 0 and len(dependencies['templates']) == 0:
             self.connection.delete_data_object(file_data_object.get('uuid'))
             print "Deleted file %s" % file_id
         else:
-            print "Cannot delete file %s because it is still in use. "\
+            print "ERROR! You cannot delete file %s "\
+                "because it is still in use. "\
                 "You must delete the following objects "\
                 "before deleting this file." % file_id
             print self._render_file_dependencies(dependencies)

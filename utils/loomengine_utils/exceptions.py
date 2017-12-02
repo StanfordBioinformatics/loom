@@ -22,9 +22,6 @@ class AbsolutePathInFileNameError(Error):
 class WrongNumberOfFileNamesError(Error):
     pass
 
-class FileAlreadyExistsError(Error):
-    pass
-
 class NoFilesMatchError(Error):
     pass
 

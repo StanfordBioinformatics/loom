@@ -1,6 +1,6 @@
 import unittest
 
-from .. import connection
+from loomengine_utils import connection
 
 class MockResponse:
 

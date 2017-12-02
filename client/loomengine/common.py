@@ -426,27 +426,17 @@ def delete_libcloud_cached_credential():
         print 'Deleting %s...' % credential
         os.remove(credential)
 
-def parse_as_json_or_yaml(text):
-    def read_as_json(json_text):
-        try:
-            return json.loads(json_text)
-        except:
-            return None
-
+def parse_as_yaml(text):
     # Try as YAML. If that fails due to bad format, try as JSON
     try:
         data = yaml.load(text)
     except yaml.parser.ParserError:
-        data = read_as_json(text)
-        if data is None:
-            raise exceptions.InvalidFormatError('Text is not valid YAML or JSON format')
+        raise exceptions.InvalidFormatError('Text is not valid YAML format')
     except yaml.scanner.ScannerError as e:
-        data = read_as_json(text)
-        if data is None:
-            raise exceptions.InvalidFormatError(e.message)
+        raise exceptions.InvalidFormatError(e.message)
     return data
 
-def read_as_json_or_yaml(file):
+def read_as_yaml(file):
     try:
         with open(file) as f:
             text = f.read()
@@ -454,9 +444,9 @@ def read_as_json_or_yaml(file):
         raise exceptions.NoFileError('Could not find or could not read file %s' % file)
 
     try:
-        return parse_as_json_or_yaml(text)
+        return parse_as_yaml(text)
     except exceptions.InvalidFormatError:
-        raise exceptions.InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
+        raise exceptions.InvalidFormatError('Input file "%s" is not valid YAML format' % file)
 
 def delete_token():
     token_path = os.path.join(LOOM_SETTINGS_HOME, LOOM_TOKEN_FILE)

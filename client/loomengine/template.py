@@ -9,7 +9,7 @@ import warnings
 
 from loomengine import _render_time
 from loomengine.common import verify_server_is_running, get_server_url, \
-    verify_has_connection_settings, parse_as_json_or_yaml, get_token
+    verify_has_connection_settings, parse_as_yaml, get_token
 from loomengine.template_tag import TemplateTag
 from loomengine.template_label import TemplateLabel
 from loomengine_utils.filemanager import FileManager
@@ -35,7 +35,7 @@ class TemplateImport(AbstractTemplateSubcommand):
         parser.add_argument(
             'template',
             metavar='TEMPLATE_FILE', help='template to be imported, '\
-            'in YAML or JSON format')
+            'in YAML')
         parser.add_argument(
             '-c', '--comments',
             metavar='COMMENTS',
@@ -118,7 +118,7 @@ class TemplateImport(AbstractTemplateSubcommand):
         except Exception as e:
             raise SystemExit('ERROR! Unable to read file "%s". %s'
                             % (template_file, str(e)))
-        template = parse_as_json_or_yaml(template_text)
+        template = parse_as_yaml(template_text)
         try:
             template.update({'md5': md5})
         except AttributeError:
@@ -163,11 +163,6 @@ class TemplateExport(AbstractTemplateSubcommand):
             metavar='DESTINATION',
             help='destination filename or directory')
         parser.add_argument(
-            '-f', '--format',
-            choices=['json', 'yaml'],
-            default='yaml',
-            help='data format for downloaded template')
-        parser.add_argument(
             '-r', '--retry', action='store_true',
             default=False,
             help='allow retries if there is a failure '\
@@ -180,17 +175,12 @@ class TemplateExport(AbstractTemplateSubcommand):
         self._save_template(template, destination_url, retry=self.args.retry)
 
     def _get_destination_url(self, template, retry=False):
-        default_name = '%s.%s' % (template['name'], self.args.format)
+        default_name = template['name']+'.yaml'
         return self.filemanager.get_destination_file_url(self.args.destination, default_name, retry=retry)
 
     def _save_template(self, template, destination, retry=False):
         print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('uuid'), destination)
-        if self.args.format == 'json':
-            template_text = json.dumps(template, indent=4, separators=(',', ': '))
-        elif self.args.format == 'yaml':
-            template_text = yaml.safe_dump(template, default_flow_style=False)
-        else:
-            raise Exception('Invalid format type %s' % self.args.format)
+        template_text = yaml.safe_dump(template, default_flow_style=False)
         self.filemanager.write_to_file(destination, template_text, retry=retry)
         print '...finished exporting template'
 

@@ -5,6 +5,7 @@ import google.cloud.storage
 import logging
 import os
 import random
+import re
 from requests.exceptions import HTTPError
 import shutil
 import sys
@@ -12,6 +13,7 @@ import tempfile
 import time
 import urlparse
 import warnings
+import yaml
 
 from . import execute_with_retries
 from . import md5calc
@@ -24,9 +26,11 @@ from oauth2client.client import ApplicationDefaultCredentialsError
 import apiclient.discovery
 
 
-class Md5ValidationError(Exception):
+class FileManagerError(Exception):
     pass
 
+class Md5ValidationError(FileManagerError):
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +56,10 @@ def FileSet(pattern, settings, retry=False):
         if url.hostname == 'localhost' or url.hostname is None:
             return LocalFileSet(pattern, settings, retry=retry)
         else:
-            raise Exception('Cannot process file pattern %s. '\
+            raise FileManagerError('Cannot process file pattern %s. '\
                             'Remote file hosts not supported.' % pattern)
     else:
-        raise Exception('Cannot recognize file scheme in "%s". '\
+        raise FileManagerError('Cannot recognize file scheme in "%s". '\
                         'Make sure the pattern starts with a '\
                         'supported protocol like gs:// or file://'
                         % pattern)
@@ -67,10 +71,10 @@ class AbstractFileSet:
     """
 
     def __init__(self, pattern, settings, retry=False):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
 
     def __iter__(self):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
 
 
 class LocalFileSet(AbstractFileSet):
@@ -79,8 +83,10 @@ class LocalFileSet(AbstractFileSet):
 
     def __init__(self, pattern, settings, retry=False):
         # retry has no effect
-        url = _urlparse(pattern)
-        matches = self._get_matching_files(url.path)
+        pattern_without_scheme = re.sub('^file://', '', pattern)
+        matches = self._get_matching_files(pattern_without_scheme)
+        if len(matches) == 0:
+            raise FileManagerError('No files matching "%s"' % pattern)
         self.files = [LocalFile('file://' + path, settings, retry=retry)
                         for path in matches]
 
@@ -95,18 +101,24 @@ class LocalFileSet(AbstractFileSet):
         return filter(lambda path: os.path.isfile(path), all_matches)
 
 
+def _contains_wildcard(string):
+    return '*' in string or '?' in string
+
 class GoogleStorageFileSet(AbstractFileSet):
     """A set of Files for files on Google Storage
     """
 
     def __init__(self, pattern, settings, retry=False):
         self.settings = settings
-        self.files = [GoogleStorageFile(pattern, settings, retry=retry)]
+        if _contains_wildcard(pattern):
+            raise FileManagerError(
+                'Wildcard expressions are not supported for GoogleStorage. "%s"'
+                % pattern)
+        self.files = [GoogleStorageFile(pattern, settings,
+                                        retry=retry, must_exist=True)]
 
     def __iter__(self):
         return self.files.__iter__()
-
-    # TODO support wildcards with multiple matches
 
 
 def File(url, settings, retry=False):
@@ -120,11 +132,11 @@ def File(url, settings, retry=False):
         if parsed_url.hostname == 'localhost' or parsed_url.hostname is None:
             return LocalFile(url, settings, retry=retry)
         else:
-            raise Exception(
+            raise FileManagerError(
                 "Cannot process file url %s. Remote file hosts not supported."
                 % url)
     else:
-        raise Exception('Unsupported scheme "%s" in file "%s"'
+        raise FileManagerError('Unsupported scheme "%s" in file "%s"'
                         % (parsed_url.scheme, url))
 
 
@@ -134,7 +146,7 @@ class AbstractFile:
     """
 
     def __init__(self, url, settings, retry=False):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
 
     def copy_to(self, destination, expected_md5=None):
         if self.retry or destination.retry:
@@ -164,24 +176,26 @@ class AbstractFile:
                     'Expected md5 "%s" for file "%s", but found md5 "%s"'
                     % (expected_md5, self.get_url(), md5))
 
-    def calculate_md5(self):
-        raise Exception('Child class must override this method')
-    def get_url(self):
-        raise Exception('Child class must override this method')
     def get_path(self):
-        raise Exception('Child class must override this method')
+        return self.url.path
+
     def get_filename(self):
-        raise Exception('Child class must override this method')
+        return os.path.basename(self.get_path())
+
+    def calculate_md5(self):
+        raise FileManagerError('Child class must override this method')
+    def get_url(self):
+        raise FileManagerError('Child class must override this method')
     def exists(self):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
     def is_dir(self):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
     def read(self, content):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
     def write(self, content):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
     def delete(self, pruneto=None):
-        raise Exception('Child class must override this method')
+        raise FileManagerError('Child class must override this method')
 
 class LocalFile(AbstractFile):
     """For files saved on local storage.
@@ -199,12 +213,6 @@ class LocalFile(AbstractFile):
     def get_url(self):
         return self.url.geturl()
 
-    def get_path(self):
-        return self.url.path
-
-    def get_filename(self):
-        return os.path.basename(self.get_path())
-
     def exists(self):
         return os.path.exists(self.get_path())
 
@@ -216,6 +224,14 @@ class LocalFile(AbstractFile):
             return f.read()
 
     def write(self, content):
+        try:
+            os.makedirs(os.path.dirname(self.get_path()))
+        except OSError as e:
+            # This error just means the dir already exists. Ok.
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise FileManagerError(str(e))
         with open(self.get_path(), 'w') as f:
             f.write(content)
 
@@ -244,7 +260,7 @@ class GoogleStorageFile(AbstractFile):
     # 2016-08-30: With default 1024*1024, download is 20x slower than gsutil.
     CHUNK_SIZE = 1024*1024*100 
 
-    def __init__(self, url, settings, retry=False):
+    def __init__(self, url, settings, retry=False, must_exist=False):
         self.settings = settings
         self.url = _urlparse(url)
         self.retry = retry
@@ -252,14 +268,18 @@ class GoogleStorageFile(AbstractFile):
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
         if not self.bucket_id or not self.blob_id:
-            raise Exception('Could not parse url "%s". Be sure to use the format "gs://bucket/blob_id".' % url)
+            raise FileManagerError('Could not parse url "%s". Be sure to use the format "gs://bucket/blob_id".' % url)
         try:
-            self.client = execute_with_retries(
-                lambda: google.cloud.storage.client.Client(
-                    self.settings['GCE_PROJECT']),
-                (Exception,),
-                logger,
-                'Get client')
+            if self.retry:
+                self.client = execute_with_retries(
+                    lambda: google.cloud.storage.client.Client(
+                        self.settings['GCE_PROJECT']),
+                    (Exception,),
+                    logger,
+                    'Get client')
+            else:
+                self.client = google.cloud.storage.client.Client(
+                    self.settings['GCE_PROJECT'])
         except ApplicationDefaultCredentialsError as e:
             raise SystemExit(
                 'ERROR! '\
@@ -282,10 +302,12 @@ class GoogleStorageFile(AbstractFile):
                 self.bucket = self.client.get_bucket(self.bucket_id)
                 self.blob = self.bucket.get_blob(self.blob_id)
         except HttpAccessTokenRefreshError:
-            raise Exception(
+            raise FileManagerError(
                 'Failed to access bucket "%s". Are you logged in? '\
                 'Try "gcloud auth login"' % self.bucket_id)
         if self.blob is None:
+            if must_exist and not self.blob_id.endswith('/'):
+                raise FileManagerError('File not found: "%s"' % self.url.geturl())
             self.blob = google.cloud.storage.blob.Blob(
                 self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
         if self.blob.size > self.CHUNK_SIZE:
@@ -308,12 +330,12 @@ class GoogleStorageFile(AbstractFile):
     def is_dir(self):
         # No dirs in Google Storage, just blobs.
         # Call it a dir if it ends in /
-        self.url.geturl().endswith('/')
+        return self.url.geturl().endswith('/')
 
     def read(self):
         tempdir = tempfile.mkdtemp()
         dest_file = os.path.join(tempdir, self.get_filename())
-        self.copy_to(File(dest_file, self.settings, retry=retry))
+        self.copy_to(File(dest_file, self.settings, retry=self.retry))
         with open(dest_file) as f:
             text = f.read()
         os.remove(dest_file)
@@ -344,7 +366,7 @@ def Copier(source, destination):
     elif source.type == 'google_storage' and destination.type == 'google_storage':
         return GoogleStorageCopier(source, destination)
     else:
-        raise Exception('Could not find method to copy from source '\
+        raise FileManagerError('Could not find method to copy from source '\
                         '"%s" to destination "%s".' % (source, destination))
 
 
@@ -357,7 +379,7 @@ class AbstractCopier:
         self.retry = self.source.retry or self.destination.retry
             
     def copy(self, path):
-        raise Exception('Child class must override method')
+        raise FileManagerError('Child class must override method')
 
 class LocalCopier(AbstractCopier):
 
@@ -366,10 +388,11 @@ class LocalCopier(AbstractCopier):
         try:
             os.makedirs(os.path.dirname(self.destination.get_path()))
         except OSError as e:
+            # This error just means the dir already exists. Ok.
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise
+                raise FileManagerError(str(e))
         shutil.copy(self.source.get_path(), self.destination.get_path())
 
 
@@ -414,13 +437,11 @@ class GoogleStorage2LocalCopier(AbstractCopier):
         try:
             os.makedirs(os.path.dirname(self.destination.get_path()))
         except OSError as e:
+            # This error just means the dir already exists. Ok.
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise Exception(
-                    'Failed to create local directory "%s": "%s"' %
-                    (os.path.dirname(self.destination.get_path()),
-                     e))
+                raise FileManagerError(str(e))
         if self.retry:
             execute_with_retries(
                 lambda: self.source.blob.download_to_filename(
@@ -681,64 +702,65 @@ class FileManager:
             file_data_object['uuid'],
             file_data_object)
 
-    def export_files(self, file_ids, destination_url=None, retry=False):
-        if destination_url is not None and len(file_ids) > 1:
-            # destination must be a directory
-            if not File(destination_url, self.settings, retry=retry).is_dir():
-                raise Exception(
-                    'Destination must be a directory if multiple files '\
-                    'are exported. "%s" is not a directory.'
-                    % destination_url)
+    def export_files(self, file_ids, destination_directory=None, retry=False,
+                     export_metadata=False, export_raw_file=True):
         for file_id in file_ids:
-            self.export_file(file_id, destination_url=destination_url, retry=retry)
+            self.export_file(
+                file_id, destination_directory=destination_directory, retry=retry,
+                export_metadata=export_metadata, export_raw_file=export_raw_file)
 
-    def export_file(self, file_id, destination_url=None,
-                    destination_filename=None, retry=False):
+    def export_file(self, file_id, destination_directory=None,
+                    destination_filename=None, retry=False,
+                    export_metadata=False, export_raw_file=True):
         """Export a file from Loom to some file storage location.
-        Default destination_url is cwd. Default destination_filename is the 
+        Default destination_directory is cwd. Default destination_filename is the 
         filename from the file data object associated with the given file_id.
-        destination_url may be for a file or a directory. If destination_filename
-        is given, destination_url must be a directory.
         """
         # Error raised if there is not exactly one matching file.
         data_object = self.connection.get_data_object_index(
             query_string=file_id, type='file', max=1, min=1)[0]
 
-        if not destination_url:
-            destination_url = os.getcwd()
-        
-        if File(destination_url, self.settings, retry=retry).is_dir():
-            # Filename not given with destination_url. We get it from inputs
-            # or from the object specified by file_id
-            if not destination_filename:
-                destination_filename = data_object['value']['filename']
-            destination_file_url = os.path.join(destination_url,
-                                                destination_filename)
-        else:
-            if destination_filename:
-                raise Exception('Conflicting args: cannot give both destination_url '
-                                ' and destination_filename unless destination_url '
-                                ' is a directory')
-            # Filename is included with destination_url
-            destination_file_url = destination_url   
+        if not destination_directory:
+            destination_directory = os.getcwd()
 
-        destination = File(destination_file_url, self.settings, retry=retry)
-        if destination.exists():
-            raise FileAlreadyExistsError('File already exists at %s' % destination_url)
+        # We get filename from the dataobject
+        if not destination_filename:
+            destination_filename = data_object['value']['filename']
 
-        logger.info('Exporting file %s@%s to %s...' % (
+        destination_file_url = os.path.join(destination_directory,
+                                            destination_filename)
+
+        logger.info('Exporting file %s@%s ...' % (
             data_object['value']['filename'],
-            data_object['uuid'],
-            destination.get_url()))
+            data_object['uuid']))
 
-        # Copy from the first file location
-        file_resource = data_object.get('value')
-        md5 = file_resource.get('md5')
-        source_url = data_object['value']['file_url']
-        File(source_url, self.settings, retry=retry).copy_to(
-            destination, expected_md5=md5)
+        if export_raw_file:
+            destination = File(destination_file_url, self.settings, retry=retry)
+            if destination.exists():
+                raise FileManagerError(
+                    'File already exists at %s' % destination_file_url)
+            logger.info('...copying file to %s' % (
+                destination.get_url()))
 
-        logger.info('...finished exporting file')
+            # Copy from the first file location
+            file_resource = data_object.get('value')
+            md5 = file_resource.get('md5')
+            source_url = data_object['value']['file_url']
+            File(source_url, self.settings, retry=retry).copy_to(
+                destination, expected_md5=md5)
+        else:
+            logger.info('...skipping raw file')
+
+        if export_metadata:
+            destination_metadata_url = destination_file_url+'.metadata.yaml'
+            logger.info('...writing metadata to %s' % destination_metadata_url)
+            metadata = yaml.safe_dump(data_object, default_flow_style=False)
+            metadata_file = File(destination_metadata_url, self.settings, retry=retry)
+            metadata_file.write(metadata)
+        else:
+            logger.info('...skipping metadata')
+
+        logger.info('...finished file export')
 
     def read_file(self, url, retry=False):
         source = File(url, self.settings, retry=retry)
@@ -747,7 +769,7 @@ class FileManager:
     def write_to_file(self, url, content, retry=False):
         destination = File(url, self.settings, retry=retry)
         if destination.exists():
-            raise FileAlreadyExistsError('File already exists at %s' % url)
+            raise FileManagerError('File already exists at %s' % url)
         destination.write(content)
 
     def normalize_url(self, url):
