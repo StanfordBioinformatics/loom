@@ -284,6 +284,7 @@ class FileResource(BaseModel):
     source_type = models.CharField(
         max_length=16,
         choices=SOURCE_TYPE_CHOICES)
+    in_external_storage = models.BooleanField(default=False)
 
     @property
     def is_ready(self):

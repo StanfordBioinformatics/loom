@@ -317,16 +317,18 @@ def _delete_file_resource(file_resource_id):
     file_resource = FileResource.objects.get(id=file_resource_id)
     file_resource.setattrs_and_save_with_retries({'upload_status': 'deleting'})
 
-    # Replace start of URL with path inside Docker container.
-    file_url = file_resource.file_url
-    if file_url.startswith('file:///'):
-        file_url = re.sub(
-            '^'+get_setting('STORAGE_ROOT_WITH_PREFIX'),
-            get_setting('INTERNAL_STORAGE_ROOT_WITH_PREFIX'),
-            file_url)
+    if not file_resource.in_external_storage:
+        # Replace start of URL with path inside Docker container.
+        file_url = file_resource.file_url
+        if file_url.startswith('file:///'):
+            file_url = re.sub(
+                '^'+get_setting('STORAGE_ROOT_WITH_PREFIX'),
+                get_setting('INTERNAL_STORAGE_ROOT_WITH_PREFIX'),
+                file_url)
 
-    file = File(file_url, get_filemanager_settings(), retry=True)
-    file.delete(pruneto=get_setting('INTERNAL_STORAGE_ROOT'))
+        file = File(file_url, get_filemanager_settings(), retry=True)
+        file.delete(pruneto=get_setting('INTERNAL_STORAGE_ROOT'))
+
     file_resource.delete()
 
 @periodic_task(run_every=timedelta(minutes=14))

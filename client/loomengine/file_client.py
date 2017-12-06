@@ -44,10 +44,19 @@ class FileImport(AbstractFileSubcommand):
                             default=False,
                             help='force upload even if another file with '\
                             'the same name and md5 exists')
-        parser.add_argument('-o', '--original-copy', action='store_true',
+        parser.add_argument('-x', '--no-copy', action='store_true',
                             default=False,
                             help='use existing copy instead of copying to storage '\
                             'managed by Loom')
+        metadata_group = parser.add_mutually_exclusive_group(required=False)
+        metadata_group.add_argument(
+            '-n', '--ignore-metadata', action='store_true',
+            default=False,
+            help='ignore metadata if present')
+        metadata_group.add_argument(
+            '-m', '--from-metadata', action='store_true',
+            default=False,
+            help='import from file URL contained in metadata')
         parser.add_argument('-r', '--retry', action='store_true',
                             default=False,
                             help='allow retries if there is a failure '\
@@ -56,17 +65,21 @@ class FileImport(AbstractFileSubcommand):
                             help='tag the file when it is created')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
                             help='label the file when it is created')
-            
         return parser
 
     def run(self):
-        files_imported = self.filemanager.import_from_patterns(
-            self.args.files,
-            self.args.comments,
-            original_copy=self.args.original_copy,
-            force_duplicates=self.args.force_duplicates,
-            retry=self.args.retry
-        )
+        try:
+            files_imported = self.filemanager.import_from_patterns(
+                self.args.files,
+                self.args.comments,
+                no_copy=self.args.no_copy,
+                ignore_metadata=self.args.ignore_metadata,
+                from_metadata=self.args.from_metadata,
+                force_duplicates=self.args.force_duplicates,
+                retry=self.args.retry
+            )
+        except FileManagerError as e:
+            raise SystemExit(e.message)
         if len(files_imported) == 0:
             raise SystemExit('ERROR! Did not find any files matching "%s"'
                              % '", "'.join(self.args.files))
