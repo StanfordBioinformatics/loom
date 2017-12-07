@@ -6,6 +6,7 @@ import os
 from requests.exceptions import HTTPError
 import sys
 import warnings
+import yaml
 
 from loomengine import _render_time
 from loomengine.common import verify_server_is_running, get_server_url, \
@@ -41,7 +42,7 @@ class TemplateImport(AbstractTemplateSubcommand):
             metavar='COMMENTS',
             help='comments. '\
             'Give enough detail for traceability')
-        parser.add_argument('-d', '--force-duplicates', action='store_true',
+        parser.add_argument('-f', '--force-duplicates', action='store_true',
                             default=False,
                             help='force upload even if another template with '\
                             'the same name and md5 exists')

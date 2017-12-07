@@ -169,7 +169,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
             'imported_from_url',
             'upload_status',
             'source_type',
-            'in_external_storage'
+            'link'
         )
         
     filename = serializers.CharField()
@@ -181,7 +181,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
                                             required=False)
     source_type = serializers.ChoiceField(choices=FileResource.SOURCE_TYPE_CHOICES,
                                           required=False)
-    in_external_storage = serializers.BooleanField(required=False)
+    link = serializers.BooleanField(required=False)
         
 class DataObjectUpdateSerializer(DataObjectSerializer):
 

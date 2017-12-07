@@ -473,7 +473,7 @@ class FileManager:
                                          comments, **kwargs)
                 for pattern in patterns]
 
-    def import_from_pattern(self, pattern, comments, no_copy=False,
+    def import_from_pattern(self, pattern, comments, link=False,
                             ignore_metadata=False, force_duplicates=False,
                             from_metadata=False, retry=False):
         files = []
@@ -483,7 +483,7 @@ class FileManager:
                 files.append(self.import_file_from_metadata(
                     source.get_url(),
                     comments,
-                    no_copy=no_copy,
+                    link=link,
                     force_duplicates=force_duplicates,
                     retry=retry,
                 ))
@@ -492,7 +492,7 @@ class FileManager:
                 files.append(self.import_file(
                     source.get_url(),
                     comments,
-                    no_copy=no_copy,
+                    link=link,
                     ignore_metadata=ignore_metadata,
                     force_duplicates=force_duplicates,
                     retry=retry,
@@ -518,7 +518,7 @@ class FileManager:
                     'Metadata is not valid YAML format: "%s"' % metadata_url)
         return metadata
     
-    def import_file_from_metadata(self, metadata_url, comments, no_copy=False,
+    def import_file_from_metadata(self, metadata_url, comments, link=False,
                                   force_duplicates=False, retry=False):
         metadata = self._get_metadata(metadata_url, retry=retry)
         if not metadata.get('value') or not metadata['value'].get('file_url'):
@@ -528,10 +528,10 @@ class FileManager:
         source_url = metadata['value'].get('file_url')
         source = File(source_url, self.settings, retry=retry)
 
-        self._import_file_and_metadata(source, metadata, comments, no_copy=no_copy,
+        self._import_file_and_metadata(source, metadata, comments, link=link,
                                   force_duplicates=force_duplicates, retry=retry)
 
-    def import_file(self, source_url, comments, no_copy=False,
+    def import_file(self, source_url, comments, link=False,
                     ignore_metadata=False, force_duplicates=False,
                     retry=False):
 
@@ -543,13 +543,13 @@ class FileManager:
         else:
             metadata = self._get_metadata(metadata_url, retry=retry)
 
-        self._import_file_and_metadata(source, metadata, comments, no_copy=no_copy,
+        self._import_file_and_metadata(source, metadata, comments, link=link,
                                   force_duplicates=force_duplicates, retry=retry)
 
-    def _import_file_and_metadata(self, source, metadata, comments, no_copy=False,
+    def _import_file_and_metadata(self, source, metadata, comments, link=False,
                              force_duplicates=False, retry=False):
         try:
-            if no_copy:
+            if link:
                 data_object = self._create_file_data_object_from_original_copy(
                     source, comments, force_duplicates=force_duplicates,
                     metadata=metadata)
@@ -606,7 +606,7 @@ class FileManager:
             'md5': md5,
             'imported_from_url': imported_from_url,
             'source_type': source_type,
-            'in_external_storage': False,
+            'link': False,
         }
         if comments:
             value['import_comments'] = comments
@@ -661,7 +661,7 @@ class FileManager:
             'imported_from_url': imported_from_url,
             'upload_status': 'complete',
             'source_type': 'imported',
-            'in_external_storage': True,
+            'link': True,
         }
         if comments:
             value['import_comments'] = comments

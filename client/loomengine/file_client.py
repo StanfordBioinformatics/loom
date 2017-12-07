@@ -40,13 +40,13 @@ class FileImport(AbstractFileSubcommand):
             metavar='COMMENTS',
             help='comments. '\
             'Give enough detail for traceability.')
-        parser.add_argument('-d', '--force-duplicates', action='store_true',
+        parser.add_argument('-f', '--force-duplicates', action='store_true',
                             default=False,
                             help='force upload even if another file with '\
                             'the same name and md5 exists')
-        parser.add_argument('-x', '--no-copy', action='store_true',
+        parser.add_argument('-k', '--link', action='store_true',
                             default=False,
-                            help='use existing copy instead of copying to storage '\
+                            help='link to existing copy instead of copying to storage '\
                             'managed by Loom')
         metadata_group = parser.add_mutually_exclusive_group(required=False)
         metadata_group.add_argument(
@@ -72,7 +72,7 @@ class FileImport(AbstractFileSubcommand):
             files_imported = self.filemanager.import_from_patterns(
                 self.args.files,
                 self.args.comments,
-                no_copy=self.args.no_copy,
+                link=self.args.link,
                 ignore_metadata=self.args.ignore_metadata,
                 from_metadata=self.args.from_metadata,
                 force_duplicates=self.args.force_duplicates,
