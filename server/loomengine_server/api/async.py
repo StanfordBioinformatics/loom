@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from django import db
 from django.utils import timezone
 import logging
-from api import get_setting, get_filemanager_settings
+from api import get_setting, get_storage_settings
 import os
 import pytz
 import re
@@ -326,7 +326,7 @@ def _delete_file_resource(file_resource_id):
                 get_setting('INTERNAL_STORAGE_ROOT_WITH_PREFIX'),
                 file_url)
 
-        file = File(file_url, get_filemanager_settings(), retry=True)
+        file = File(file_url, get_storage_settings(), retry=True)
         file.delete(pruneto=get_setting('INTERNAL_STORAGE_ROOT'))
 
     file_resource.delete()

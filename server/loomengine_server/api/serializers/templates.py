@@ -624,7 +624,6 @@ class CycleDetector(object):
         self.edges = {}
         self.backtrack = {}
         for step in steps:
-            print "step: %s" % step['name']
             assert step['name'] not in self.white
             self.white.append(step['name'])
             self.edges.setdefault(step['name'], [])

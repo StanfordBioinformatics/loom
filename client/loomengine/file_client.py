@@ -10,8 +10,10 @@ from loomengine.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, get_token
 from loomengine.file_tag import FileTag
 from loomengine.file_label import FileLabel
-from loomengine_utils.filemanager import FileManager, FileManagerError
 from loomengine_utils.connection import Connection
+from loomengine_utils.export_manager import ExportManager, ExportManagerError
+from loomengine_utils.import_manager import ImportManager, ImportManagerError
+
 
 class AbstractFileSubcommand(object):
 
@@ -23,8 +25,9 @@ class AbstractFileSubcommand(object):
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         token = get_token()
-        self.filemanager = FileManager(server_url, token=token)
         self.connection = Connection(server_url, token=token)
+        self.export_manager = ExportManager(connection=self.connection)
+        self.import_manager = ImportManager(connection=self.connection)
 
 
 class FileImport(AbstractFileSubcommand):
@@ -38,29 +41,28 @@ class FileImport(AbstractFileSubcommand):
         parser.add_argument(
             '-c', '--comments',
             metavar='COMMENTS',
-            help='comments. '\
-            'Give enough detail for traceability.')
+            help='add comments to file metadata')
+        parser.add_argument(
+            '-k', '--link', action='store_true',
+            default=False,
+            help='link to existing files instead of copying to storage '\
+            'managed by Loom')
+        metadata_group = parser.add_mutually_exclusive_group(required=False)
+        metadata_group.add_argument(
+            '-m', '--from-metadata', action='store_true',
+            default=False,
+            help='import from link in metadata file')
+        metadata_group.add_argument(
+            '-i', '--ignore-metadata', action='store_true',
+            default=False,
+            help='ignore metadata if present')
         parser.add_argument('-f', '--force-duplicates', action='store_true',
                             default=False,
                             help='force upload even if another file with '\
                             'the same name and md5 exists')
-        parser.add_argument('-k', '--link', action='store_true',
-                            default=False,
-                            help='link to existing copy instead of copying to storage '\
-                            'managed by Loom')
-        metadata_group = parser.add_mutually_exclusive_group(required=False)
-        metadata_group.add_argument(
-            '-n', '--ignore-metadata', action='store_true',
-            default=False,
-            help='ignore metadata if present')
-        metadata_group.add_argument(
-            '-m', '--from-metadata', action='store_true',
-            default=False,
-            help='import from file URL contained in metadata')
         parser.add_argument('-r', '--retry', action='store_true',
                             default=False,
-                            help='allow retries if there is a failure '\
-                            'connecting to storage')
+                            help='allow retries if there is a failure')
         parser.add_argument('-t', '--tag', metavar='TAG', action='append',
                             help='tag the file when it is created')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
@@ -69,7 +71,7 @@ class FileImport(AbstractFileSubcommand):
 
     def run(self):
         try:
-            files_imported = self.filemanager.import_from_patterns(
+            files_imported = self.import_manager.import_from_patterns(
                 self.args.files,
                 self.args.comments,
                 link=self.args.link,
@@ -78,7 +80,7 @@ class FileImport(AbstractFileSubcommand):
                 force_duplicates=self.args.force_duplicates,
                 retry=self.args.retry
             )
-        except FileManagerError as e:
+        except ImportManagerError as e:
             raise SystemExit(e.message)
         if len(files_imported) == 0:
             raise SystemExit('ERROR! Did not find any files matching "%s"'
@@ -120,15 +122,6 @@ class FileImport(AbstractFileSubcommand):
 
 class FileExport(AbstractFileSubcommand):
 
-    def __init__(self, args):
-        self.args = args
-        verify_has_connection_settings()
-        server_url = get_server_url()
-        verify_server_is_running()
-        token = get_token()
-        self.connection = Connection(server_url, token=token)
-        self.filemanager = FileManager(server_url, token=token)
-
     @classmethod
     def get_parser(cls, parser):
         parser.add_argument(
@@ -138,38 +131,66 @@ class FileExport(AbstractFileSubcommand):
             help='file or list of files to be exported')
         parser.add_argument(
             '-d', '--destination-directory',
-            metavar='DESTINATION',
+            metavar='DESTINATION_DIRECTORY',
             help='destination directory')
         metadata_group = parser.add_mutually_exclusive_group(required=False)
         metadata_group.add_argument(
             '-n', '--no-metadata',
             default=False,
             action='store_true',
-            help='Export raw file without metadata')
+            help='export raw file without metadata')
         metadata_group.add_argument(
-            '-m', '--metadata-only',
+            '-k', '--link',
             default=False,
             action='store_true',
-            help='Export metadata without raw file')
+            help='do not export files, just metadata with link to original files')
         parser.add_argument(
             '-r', '--retry', action='store_true',
             default=False,
-            help='allow retries if there is a failure '\
-            'connecting to storage')
+            help='allow retries if there is a failure')
         return parser
 
     def run(self):
+        files = []
+        file_uuids = set()
+        for file_id in self.args.file_ids:
+            found_at_least_one_match = False
+            offset=0
+            limit=10
+            while True:
+                data = self.connection.get_data_object_index_with_limit(
+		    limit=limit, offset=offset,
+                    query_string=file_id, type='file')
+                for data_object in data['results']:
+                    found_at_least_one_match = True
+                    if data_object.get('uuid') not in file_uuids:
+                        file_uuids.add(data_object.get('uuid'))
+                        files.append(data_object)
+                if data.get('next'):
+                    offset += limit
+                else:
+                    break
+            if not found_at_least_one_match:
+                raise SystemExit('ERROR! No files matched "%s"' % file_id)
         try:
-            self.filemanager.export_files(
-                self.args.file_ids,
-                destination_directory=self.args.destination_directory,
-                retry=self.args.retry,
-                export_metadata=not self.args.no_metadata,
-                export_raw_file=not self.args.metadata_only,
-            )
-        except FileManagerError as e:
+            if len(files) > 1:
+                self.export_manager.bulk_export(
+                    files=files,
+                    destination_directory=self.args.destination_directory,
+                    retry=self.args.retry,
+                    export_file_metadata=not self.args.no_metadata,
+                    file_links=self.args.link,
+                )
+            else:
+                self.export_manager.export_file(
+                    '@%s' % files[0].get('uuid'),
+                    destination_directory=self.args.destination_directory,
+                    retry=self.args.retry,
+                    export_metadata=not self.args.no_metadata,
+                    export_raw_file=not self.args.link,
+                )
+        except ExportManagerError as e:
             raise SystemExit("ERROR! %s" % e.message)
-
 
 class FileList(object):
 
@@ -266,7 +287,7 @@ class FileDelete(AbstractFileSubcommand):
         parser.add_argument(
             'file_id',
             metavar='FILE_IDENTIFIER',
-            help='Name or ID of file(s) to delete.')
+            help='Name or ID of file to delete.')
         parser.add_argument('-y', '--yes', action='store_true',
                             default=False,
                             help='delete without prompting for confirmation')
@@ -342,16 +363,6 @@ class FileClient(object):
 
         subparsers = parser.add_subparsers()
 
-        import_subparser = subparsers.add_parser(
-            'import', help='import a file or list files')
-        FileImport.get_parser(import_subparser)
-        import_subparser.set_defaults(SubSubcommandClass=FileImport)
-
-        export_subparser = subparsers.add_parser(
-            'export', help='export a file or list files')
-        FileExport.get_parser(export_subparser)
-        export_subparser.set_defaults(SubSubcommandClass=FileExport)
-
         list_subparser = subparsers.add_parser(
             'list', help='list files')
         FileList.get_parser(list_subparser)
@@ -364,6 +375,16 @@ class FileClient(object):
         label_subparser = subparsers.add_parser('label', help='manage file labels')
         FileLabel.get_parser(label_subparser)
         label_subparser.set_defaults(SubSubcommandClass=FileLabel)
+
+        import_subparser = subparsers.add_parser(
+            'import', help='import files')
+        FileImport.get_parser(import_subparser)
+        import_subparser.set_defaults(SubSubcommandClass=FileImport)
+
+        export_subparser = subparsers.add_parser(
+            'export', help='export files')
+        FileExport.get_parser(export_subparser)
+        export_subparser.set_defaults(SubSubcommandClass=FileExport)
 
         delete_subparser = subparsers.add_parser('delete', help='delete file')
         FileDelete.get_parser(delete_subparser)

@@ -18,7 +18,7 @@ from rest_framework import authentication
 from rest_framework import permissions
 from rest_framework.authtoken.models import Token
 
-from api import get_setting, get_filemanager_settings
+from api import get_setting, get_storage_settings
 from api import models
 from api import serializers
 from api import async
@@ -732,10 +732,10 @@ def status(request):
 
 
 
-class FileManagerSettingsView(RetrieveAPIView):
+class StorageSettingsView(RetrieveAPIView):
 
     def retrieve(self, request):
-        return JsonResponse(get_filemanager_settings())
+        return JsonResponse(get_storage_settings())
 
 @require_http_methods(["GET"])
 def info(request):

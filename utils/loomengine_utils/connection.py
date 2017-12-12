@@ -524,9 +524,9 @@ class Connection(object):
             'task-attempts/%s/settings/' % attempt_id
         )
 
-    def get_filemanager_settings(self):
+    def get_storage_settings(self):
         return self._get_object(
-            'filemanager-settings/'
+            'storage-settings/'
         )
 
     def create_token(self, username=None, password=None):

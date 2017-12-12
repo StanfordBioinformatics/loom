@@ -13,8 +13,10 @@ from loomengine.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, parse_as_yaml, get_token
 from loomengine.template_tag import TemplateTag
 from loomengine.template_label import TemplateLabel
-from loomengine_utils.filemanager import FileManager
 from loomengine_utils.connection import Connection
+from loomengine_utils.file_utils import FileSet, File
+from loomengine_utils.import_manager import ImportManager
+from loomengine_utils.export_manager import ExportManager
 
 
 class AbstractTemplateSubcommand(object):
@@ -25,9 +27,13 @@ class AbstractTemplateSubcommand(object):
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         token = get_token()
-        self.filemanager = FileManager(server_url, token=token)
         self.connection = Connection(server_url, token=token)
-
+        self.storage_settings = self.connection.get_storage_settings()
+        self.import_manager = ImportManager(
+            self.connection, storage_settings=self.storage_settings)
+        self.export_manager = ExportManager(
+            self.connection, storage_settings=self.storage_settings)
+            
 
 class TemplateImport(AbstractTemplateSubcommand):
 
@@ -36,20 +42,24 @@ class TemplateImport(AbstractTemplateSubcommand):
         parser.add_argument(
             'template',
             metavar='TEMPLATE_FILE', help='template to be imported, '\
-            'in YAML')
+            'in YAML format',
+            nargs='+')
         parser.add_argument(
             '-c', '--comments',
             metavar='COMMENTS',
-            help='comments. '\
-            'Give enough detail for traceability')
+            help='add comments to the template')
+        parser.add_argument(
+            '-k', '--link-files', action='store_true',
+            default=False,
+            help='link to existing files instead of copying to storage '\
+            'managed by Loom')
         parser.add_argument('-f', '--force-duplicates', action='store_true',
                             default=False,
                             help='force upload even if another template with '\
                             'the same name and md5 exists')
         parser.add_argument('-r', '--retry', action='store_true',
                             default=False,
-                            help='allow retries if there is a failure '\
-                            'connecting to storage')
+                            help='allow retries if there is a failure')
         parser.add_argument('-t', '--tag', metavar='TAG', action='append',
                             help='tag the template when it is created')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
@@ -57,26 +67,27 @@ class TemplateImport(AbstractTemplateSubcommand):
         return parser
 
     def run(self):
-        template = self.import_template(self.args.template,
-                                    self.args.comments,
-                                    self.filemanager,
-                                    self.connection,
-                                    force_duplicates=self.args.force_duplicates,
-                                    retry=self.args.retry)
-        self._apply_tags(template)
-        self._apply_labels(template)
-        return template
+        imported_templates = []
+        for template_file in FileSet(
+                self.args.template, self.storage_settings, retry=self.args.retry):
+            template = self.import_template(
+                template_file,
+                self.args.comments,
+                self.connection,
+                force_duplicates=self.args.force_duplicates,
+                retry=self.args.retry)
+            self._apply_tags(template)
+            self._apply_labels(template)
+            imported_templates.append(template)
+        return imported_templates
 
-
-    @classmethod
-    def import_template(cls, template_file, comments,
-                        filemanager, connection, force_duplicates=False,
+    def import_template(self, template_file, comments,
+                        connection, force_duplicates=False,
                         retry=False):
-        print 'Importing template from "%s".' % filemanager.normalize_url(
-            template_file)
-        (template, source_url) = cls._get_template(template_file, filemanager, retry)
+        print 'Importing template from "%s".' % template_file.get_url()
+        template = self._get_template(template_file)
         if not force_duplicates:
-            templates = filemanager.get_template_duplicates(template)
+            templates = self._get_template_duplicates(template)
             if len(templates) > 0:
                 name = templates[-1]['name']
                 md5 = templates[-1]['md5']
@@ -89,10 +100,11 @@ class TemplateImport(AbstractTemplateSubcommand):
                     % (name, md5))
                 print 'Matching template already exists as "%s@%s".' % (name, uuid)
                 return templates[0]
-        if comments:
-            template.update({'import_comments': comments})
-        if source_url:
-            template.update({'imported_from_url': source_url})
+        if not template.get('comments'):
+            if comments:
+                template.update({'import_comments': comments})
+        if not template.get('imported_from_url'):
+            template.update({'imported_from_url': template_file.get_url()})
 
         try:
             template_from_server = connection.post_template(template)
@@ -111,23 +123,29 @@ class TemplateImport(AbstractTemplateSubcommand):
         return template_from_server
 
     @classmethod
-    def _get_template(cls, template_file, filemanager, retry):
-        md5 = filemanager.calculate_md5(template_file, retry=retry)
+    def _get_template(self, template_file):
+        md5 = template_file.calculate_md5()
         try:
-            (template_text, source_url) = filemanager.read_file(template_file,
-                                                                retry=retry)
+            template_text = template_file.read()
         except Exception as e:
             raise SystemExit('ERROR! Unable to read file "%s". %s'
-                            % (template_file, str(e)))
+                             % (template_file.get_url(), str(e)))
         template = parse_as_yaml(template_text)
         try:
             template.update({'md5': md5})
         except AttributeError:
             raise SystemExit(
                 'ERROR! Template at "%s" could not be parsed into a dict.'
-                % os.path.abspath(template_file))
-        return template, source_url
+                % template_file.get_url())
+        return template
 
+    def _get_template_duplicates(self, template):
+	md5 = template.get('md5')
+        name = template.get('name')
+        templates = self.connection.get_template_index(
+            query_string='%s$%s' % (name, md5))
+        return templates
+    
     def _apply_tags(self, template):
         if not self.args.tag:
             return
@@ -158,16 +176,25 @@ class TemplateExport(AbstractTemplateSubcommand):
     def get_parser(cls, parser):
         parser.add_argument(
             'template_id',
-            metavar='TEMPLATE_ID', help='template to be downloaded')
+            nargs='+',
+            metavar='TEMPLATE_ID', help='template(s) to be exported')
         parser.add_argument(
-            '-d', '--destination',
-            metavar='DESTINATION',
-            help='destination filename or directory')
+            '-d', '--destination-directory',
+            metavar='DESTINATION_DIRECTORY',
+            help='destination directory')
+        parser.add_argument(
+            '-e', '--editable', action='store_true',
+            default=False,
+            help='exclude uuids so that you can edit the template '\
+            'and import a new version')
+        parser.add_argument(
+            '-k', '--link-files', action='store_true',
+            default=False,
+            help='do not export files, just metadata with link to original file')
         parser.add_argument(
             '-r', '--retry', action='store_true',
             default=False,
-            help='allow retries if there is a failure '\
-            'connecting to storage')
+            help='allow retries if there is a failure')
         return parser
 
     def run(self):
@@ -176,13 +203,17 @@ class TemplateExport(AbstractTemplateSubcommand):
         self._save_template(template, destination_url, retry=self.args.retry)
 
     def _get_destination_url(self, template, retry=False):
-        default_name = template['name']+'.yaml'
-        return self.filemanager.get_destination_file_url(self.args.destination, default_name, retry=retry)
+        filename = template['name'] + '.yaml'
+        if self.args.destination_directory:
+            return os.path.join(self.args.destination_directory, filename)
+        else:
+            return os.path.join(os.getcwd(), filename)
 
     def _save_template(self, template, destination, retry=False):
         print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('uuid'), destination)
         template_text = yaml.safe_dump(template, default_flow_style=False)
-        self.filemanager.write_to_file(destination, template_text, retry=retry)
+        template_file = File(destination, self.storage_settings, retry=retry)
+        template_file.write(template_text)
         print '...finished exporting template'
 
 
@@ -266,7 +297,7 @@ class TemplateDelete(AbstractTemplateSubcommand):
 	parser.add_argument(
             'template_id',
             metavar='TEMPLATE_IDENTIFIER',
-            help='Name or ID of template(s) to delete.')
+            help='Name or ID of template to delete.')
         parser.add_argument('-y', '--yes', action='store_true',
                             default=False,
                             help='delete without prompting for confirmation')
@@ -354,26 +385,11 @@ class Template(object):
 
         subparsers = parser.add_subparsers()
 
-        import_subparser = subparsers.add_parser(
-            'import', help='import a template')
-        TemplateImport.get_parser(import_subparser)
-        import_subparser.set_defaults(SubSubcommandClass=TemplateImport)
-
-        export_subparser = subparsers.add_parser(
-            'export', help='export a template')
-        TemplateExport.get_parser(export_subparser)
-        export_subparser.set_defaults(SubSubcommandClass=TemplateExport)
-
         list_subparser = subparsers.add_parser(
             'list', help='list templates')
         TemplateList.get_parser(list_subparser)
 	list_subparser.set_defaults(SubSubcommandClass=TemplateList)
 
-        delete_subparser = subparsers.add_parser(
-            'delete', help='delete template(s)')
-        TemplateDelete.get_parser(delete_subparser)
-        delete_subparser.set_defaults(SubSubcommandClass=TemplateDelete)
-        
         tag_subparser = subparsers.add_parser('tag', help='manage template tags')
         TemplateTag.get_parser(tag_subparser)
         tag_subparser.set_defaults(SubSubcommandClass=TemplateTag)
@@ -382,6 +398,21 @@ class Template(object):
         TemplateLabel.get_parser(label_subparser)
         label_subparser.set_defaults(SubSubcommandClass=TemplateLabel)
 
+        import_subparser = subparsers.add_parser(
+            'import', help='import templates')
+        TemplateImport.get_parser(import_subparser)
+        import_subparser.set_defaults(SubSubcommandClass=TemplateImport)
+
+        export_subparser = subparsers.add_parser(
+            'export', help='export templates')
+        TemplateExport.get_parser(export_subparser)
+        export_subparser.set_defaults(SubSubcommandClass=TemplateExport)
+
+        delete_subparser = subparsers.add_parser(
+            'delete', help='delete template')
+        TemplateDelete.get_parser(delete_subparser)
+        delete_subparser.set_defaults(SubSubcommandClass=TemplateDelete)
+        
         return parser
 
     def run(self):

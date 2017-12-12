@@ -2,10 +2,10 @@ import os
 
 class BaseInput(object):
 
-    def __init__(self, data_contents, task_attempt):
+    def __init__(self, data_contents, task_monitor):
         self.data_contents = data_contents
-        self.filemanager = task_attempt.filemanager
-        self.settings = task_attempt.settings
+        self.export_manager = task_monitor.export_manager
+        self.settings = task_monitor.settings
 
 
 class FileInput(BaseInput):
@@ -13,9 +13,9 @@ class FileInput(BaseInput):
     def copy(self):
         data_object = self.data_contents
         data_object_id = '@%s' % data_object['uuid']
-        self.filemanager.export_file(
+        self.export_manager.export_file(
             data_object_id,
-            destination_url=self.settings['WORKING_DIR'],
+            destination_directory=self.settings['WORKING_DIR'],
             retry=True)
 
 
@@ -38,9 +38,9 @@ class FileListInput(BaseInput):
                 filename = self._rename_duplicate(filename, counter)
 
             data_object_id = '@%s' % data_object['uuid']
-            self.filemanager.export_file(
+            self.export_manager.export_file(
                 data_object_id,
-                destination_url=os.path.join(
+                destination_directory=os.path.join(
                     self.settings['WORKING_DIR'], filename),
                 retry=True)
 

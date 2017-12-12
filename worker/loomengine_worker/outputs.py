@@ -5,12 +5,12 @@ from loomengine_worker.parsers import OutputParser
 
 class BaseOutput(object):
 
-    def __init__(self, output, task_attempt):
+    def __init__(self, output, task_monitor):
         self.output = output
-        self.connection = task_attempt.connection
-        self.filemanager = task_attempt.filemanager
-        self.settings = task_attempt.settings
-        self.task_attempt = task_attempt
+        self.connection = task_monitor.connection
+        self.import_manager = task_monitor.import_manager
+        self.settings = task_monitor.settings
+        self.task_monitor = task_monitor
 
 
 class FileOutput(BaseOutput):
@@ -19,7 +19,7 @@ class FileOutput(BaseOutput):
         filename = self.output['source']['filename']
         file_path = os.path.join(
 	    self.settings['WORKING_DIR'], filename)
-        self.filemanager.import_result_file(self.output, file_path, retry=True)
+        self.import_manager.import_result_file(self.output, file_path, retry=True)
 
 
 class FileListScatterOutput(BaseOutput):
@@ -30,7 +30,7 @@ class FileListScatterOutput(BaseOutput):
             os.path.join(
 	        self.settings['WORKING_DIR'], filename)
             for filename in filename_list]
-        self.filemanager.import_result_file_list(
+        self.import_manager.import_result_file_list(
             self.output, file_path_list, retry=True)
 
 
@@ -97,10 +97,10 @@ class StreamOutput(BaseOutput):
             self.output)
 
     def _get_stdout(self):
-        return self.task_attempt._get_stdout()
+        return self.task_monitor._get_stdout()
 
     def _get_stderr(self):
-        return self.task_attempt._get_stderr()
+        return self.task_monitor._get_stderr()
 
 
 class StreamScatterOutput(StreamOutput):
@@ -128,7 +128,7 @@ class GlobScatterOutput(BaseOutput):
 	    self.settings['WORKING_DIR'],
             self.output['source']['glob'])
         file_path_list = glob.glob(globstring)
-        self.filemanager.import_result_file_list(
+        self.import_manager.import_result_file_list(
             self.output, file_path_list, retry=True)
 
 

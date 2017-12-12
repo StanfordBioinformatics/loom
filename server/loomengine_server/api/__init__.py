@@ -14,7 +14,7 @@ def get_setting(SETTING, required=True):
         raise Exception('Setting "%s" is not set' % SETTING)
     return value
 
-def get_filemanager_settings():
+def get_storage_settings():
     return {
         'GCE_PROJECT': get_setting('GCE_PROJECT'),
     }

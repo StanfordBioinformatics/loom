@@ -19,7 +19,8 @@ import time
 import uuid
 
 from loomengine_utils import execute_with_retries
-from loomengine_utils.filemanager import FileManager
+from loomengine_utils.export_manager import ExportManager
+from loomengine_utils.import_manager import ImportManager
 from loomengine_utils.connection import Connection
 from loomengine_worker.outputs import TaskAttemptOutput
 from loomengine_worker.inputs import TaskAttemptInput
@@ -30,7 +31,8 @@ class TaskMonitor(object):
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
     LOOM_RUN_SCRIPT_NAME = '.loom_run_script'
 
-    def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
+    def __init__(self, args=None, mock_connection=None,
+                 mock_import_manager=None, mock_export_manager=None):
         if args is None:
             args = self._get_args()
         self.settings = {
@@ -62,12 +64,15 @@ class TaskMonitor(object):
 
         # From here on errors can be reported to Loom
 
-        if mock_filemanager is not None:
-            self.filemanager = mock_filemanager
+        if mock_import_manager is not None:
+            self.import_manager = mock_import_manager
         else:
             try:
-                self.filemanager = FileManager(self.settings['SERVER_URL'],
-                                               token=args.token)
+                self.storage_settings = self.connection.get_storage_settings()
+                self.import_manager = ImportManager(
+                    self.connection, storage_settings=self.storage_settings)
+                self.export_manager = ExportManager(
+                    self.connection, storage_settings=self.storage_settings)
                 self.settings.update(self._get_settings())
                 self._init_docker_client()
                 self._init_working_dir()
@@ -333,7 +338,7 @@ class TaskMonitor(object):
 
     def _import_log_file(self, filepath, retry=True):
         try:
-            self.filemanager.import_log_file(
+            self.import_manager.import_log_file(
                 self.task_attempt,
                 filepath,
                 retry=retry,

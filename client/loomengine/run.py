@@ -11,7 +11,6 @@ from loomengine.common import get_server_url, \
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
 from loomengine.exceptions import *
-from loomengine_utils.filemanager import FileManager
 from loomengine_utils.connection import Connection
 
 
@@ -25,7 +24,6 @@ class AbstractRunSubcommand(object):
         verify_server_is_running(url=server_url)
         token = get_token()
         self.connection = Connection(server_url, token=token)
-        self.filemanager = FileManager(server_url, token=token)
 
     @classmethod
     def _validate_args(cls, args):
@@ -174,6 +172,82 @@ class RunStart(AbstractRunSubcommand):
         return terms
 
 
+class RunImport(AbstractRunSubcommand):
+
+    @classmethod
+    def get_parser(cls, parser):
+        parser.add_argument(
+            'run',
+            metavar='RUN_FILE', help='run to be imported, '\
+            'in YAML format',
+            nargs='+')
+        parser.add_argument(
+            '-k', '--link-files', action='store_true',
+            default=False,
+            help='link to existing files instead of copying to storage '\
+            'managed by Loom')
+        parser.add_argument('-r', '--retry', action='store_true',
+                            default=False,
+                            help='allow retries if there is a failure '\
+                            'connecting to storage')
+        parser.add_argument('-t', '--tag', metavar='TAG', action='append',
+                            help='tag the run when it is imported')
+        parser.add_argument('-l', '--label', metavar='LABEL', action='append',
+                            help='label the run when it is imported')
+        return parser
+
+    def run(self):
+        pass
+
+    def _apply_tags(self, run):
+        if not self.args.tag:
+            return
+        for tagname in self.args.tag:
+            tag_data = {'tag': tagname}
+            tag = self.connection.post_run_tag(run.get('uuid'), tag_data)
+            print 'Run "%s@%s" has been tagged as "%s"' % \
+                (run.get('name'),
+                 run.get('uuid'),
+                 tag.get('tag'))
+
+    def _apply_labels(self, run):
+        if not self.args.label:
+            return
+        for labelname in self.args.label:
+            label_data = {'label': labelname}
+            label = self.connection.post_run_label(
+                run.get('uuid'), label_data)
+            print 'Run "%s@%s" has been labeled as "%s"' % \
+                (run.get('name'),
+                 run.get('uuid'),
+                 label.get('label'))
+
+class RunExport(AbstractRunSubcommand):
+    @classmethod
+    def get_parser(cls, parser):
+        parser.add_argument(
+            'run_id',
+            nargs='+',
+            metavar='RUN_ID', help='run(s) to be exported')
+        parser.add_argument(
+            '-d', '--destination-directory',
+            metavar='DESTINATION_DIRECTORY',
+            help='destination directory')
+        parser.add_argument(
+            '-k', '--link-files', action='store_true',
+            default=False,
+            help='do not export file, just metadata with link to original file')
+        parser.add_argument(
+            '-r', '--retry', action='store_true',
+            default=False,
+            help='allow retries if there is a failure '\
+            'connecting to storage')
+        return parser
+
+    def run(self):
+        pass
+
+
 class RunList(AbstractRunSubcommand):
 
     @classmethod
@@ -244,7 +318,7 @@ class RunKill(AbstractRunSubcommand):
         parser.add_argument(
             'run_id',
             metavar='RUN_IDENTIFIER',
-            help='name or ID of run(s) to kill.')
+            help='name or ID of run to kill.')
         parser.add_argument('-y', '--yes', action='store_true',
                             default=False,
                             help='kill without prompting for confirmation')
@@ -278,13 +352,13 @@ class RunDelete(AbstractRunSubcommand):
         parser.add_argument(
             'run_id',
             metavar='RUN_IDENTIFIER',
-            help='name or ID of run(s) to kill.')
+            help='name or ID of run to kill.')
         parser.add_argument('-y', '--yes', action='store_true',
                             default=False,
                             help='delete without prompting for confirmation')
         parser.add_argument('-c', '--keep-children', action='store_true',
                             default=False,
-                            help='do not delete child templates')
+                            help='do not delete child run')
         parser.add_argument('-r', '--keep-result-files', action='store_true',
                             default=False,
                             help='do not delete run result files')
@@ -431,20 +505,15 @@ class RunClient(object):
         RunStart.get_parser(start_subparser)
         start_subparser.set_defaults(SubSubcommandClass=RunStart)
 
+        kill_subparser = subparsers.add_parser(
+            'kill', help='kill run')
+        RunKill.get_parser(kill_subparser)
+        kill_subparser.set_defaults(SubSubcommandClass=RunKill)
+
         list_subparser = subparsers.add_parser(
             'list', help='list runs')
         RunList.get_parser(list_subparser)
 	list_subparser.set_defaults(SubSubcommandClass=RunList)
-
-        kill_subparser = subparsers.add_parser(
-            'kill', help='kill runs')
-        RunKill.get_parser(kill_subparser)
-        kill_subparser.set_defaults(SubSubcommandClass=RunKill)
-
-        delete_subparser = subparsers.add_parser(
-            'delete', help='delete runs')
-        RunDelete.get_parser(delete_subparser)
-        delete_subparser.set_defaults(SubSubcommandClass=RunDelete)
 
         tag_subparser = subparsers.add_parser('tag', help='manage run tags')
         RunTag.get_parser(tag_subparser)
@@ -453,6 +522,21 @@ class RunClient(object):
         label_subparser = subparsers.add_parser('label', help='manage run labels')
         RunLabel.get_parser(label_subparser)
         label_subparser.set_defaults(SubSubcommandClass=RunLabel)
+
+        import_subparser = subparsers.add_parser(
+            'import', help='import runs')
+        RunImport.get_parser(import_subparser)
+	import_subparser.set_defaults(SubSubcommandClass=RunImport)
+
+        export_subparser = subparsers.add_parser(
+            'export', help='export runs')
+        RunExport.get_parser(export_subparser)
+	export_subparser.set_defaults(SubSubcommandClass=RunExport)
+
+        delete_subparser = subparsers.add_parser(
+            'delete', help='delete run')
+        RunDelete.get_parser(delete_subparser)
+        delete_subparser.set_defaults(SubSubcommandClass=RunDelete)
 
         return parser
 
