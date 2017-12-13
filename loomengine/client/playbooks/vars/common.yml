@@ -91,7 +91,7 @@ container_mysql_ssl_client_cert_path: "{{container_settings_home+'/'+resource_di
 container_mysql_ssl_client_key_path: "{{container_settings_home+'/'+resource_dir+'/'+client_key_file if client_key_file else none}}"
 
 # Rabbitmq container settings
-raw_rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_MANAGEMENT_IMAGE')|default('rabbitmq:3.6.8', true) if debug else lookup('env', 'LOOM_RABBITMQ_IMAGE')|default('rabbitmq:3.6.8-management', true)}}"
+raw_rabbitmq_image: "{{lookup('env', 'LOOM_RABBITMQ_MANAGEMENT_IMAGE')|default('rabbitmq:3.6.8-management', true) if debug else lookup('env', 'LOOM_RABBITMQ_IMAGE')|default('rabbitmq:3.6.8', true)}}"
 rabbitmq_image: "{% if default_registry %}{% if not ('.' in raw_rabbitmq_image.split('/')[0]) %}{{default_registry}}/{% endif %}{% endif %}{{raw_rabbitmq_image}}"
 rabbitmq_container_name: "{{server_name|truncate(54,true,'')}}-rabbitmq"
 rabbitmq_user: "{{lookup('env', 'LOOM_RABBITMQ_USER')|default('guest', true)}}"

@@ -274,4 +274,7 @@ def clear_expired_logs():
     ilo.filter_by_age(source='name', direction='older', timestring='%Y.%m.%d',
                       unit='days', unit_count=elasticsearch_log_expiration_days)
     delete_indices = curator.DeleteIndices(ilo)
-    delete_indices.do_action()
+    try:
+        delete_indices.do_action()
+    except curator.exceptions.NoIndices:
+        pass
