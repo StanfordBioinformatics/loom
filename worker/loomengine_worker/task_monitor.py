@@ -423,7 +423,7 @@ class TaskMonitor(object):
             pass
 
     def _finish(self):
-        self.connection.post_task_attempt_finish(self.settings['TASK_ATTEMPT_ID'])
+        self.connection.finish_task_attempt(self.settings['TASK_ATTEMPT_ID'])
 
     def _delete_container(self):
         try:

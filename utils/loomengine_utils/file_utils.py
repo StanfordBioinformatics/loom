@@ -25,10 +25,10 @@ from oauth2client.client import ApplicationDefaultCredentialsError
 import apiclient.discovery
 
 
-class FileManagerError(Exception):
+class FileUtilsError(LoomengineUtilsError):
     pass
 
-class Md5ValidationError(FileManagerError):
+class Md5ValidationError(FileUtilsError):
     pass
 
 
@@ -57,10 +57,10 @@ def FileSet(patterns, settings, retry=False):
             if url.hostname == 'localhost' or url.hostname is None:
                 new_file_set = LocalFilePattern(pattern, settings, retry=retry)
             else:
-                raise FileManagerError('Cannot process file pattern %s. '\
+                raise FileUtilsError('Cannot process file pattern %s. '\
                                        'Remote file hosts not supported.' % pattern)
         else:
-            raise FileManagerError('Cannot recognize file scheme in "%s". '\
+            raise FileUtilsError('Cannot recognize file scheme in "%s". '\
                                    'Make sure the pattern starts with a '\
                                    'supported protocol like gs:// or file://'
                                    % pattern)
@@ -77,10 +77,10 @@ class AbstractFilePattern:
     """
 
     def __init__(self, pattern, settings, retry=False):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
 
     def __iter__(self):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
 
     def _trim_metadata(self, all_matches):
         # For any file <filename>.metadata.yaml, return just <filename>
@@ -129,7 +129,7 @@ class GoogleStorageFilePattern(AbstractFilePattern):
     def __init__(self, pattern, settings, retry=False):
         self.settings = settings
         if _contains_wildcard(pattern):
-            raise FileManagerError(
+            raise FileUtilsError(
                 'Wildcard expressions are not supported for GoogleStorage. "%s"'
                 % pattern)
         if pattern.endswith('.metadata.yaml'):
@@ -152,11 +152,11 @@ def File(url, settings, retry=False):
         if parsed_url.hostname == 'localhost' or parsed_url.hostname is None:
             return LocalFile(url, settings, retry=retry)
         else:
-            raise FileManagerError(
+            raise FileUtilsError(
                 "Cannot process file url %s. Remote file hosts not supported."
                 % url)
     else:
-        raise FileManagerError('Unsupported scheme "%s" in file "%s"'
+        raise FileUtilsError('Unsupported scheme "%s" in file "%s"'
                         % (parsed_url.scheme, url))
 
 
@@ -166,7 +166,7 @@ class AbstractFile:
     """
 
     def __init__(self, url, settings, retry=False):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
 
     def copy_to(self, destination, expected_md5=None):
         if self.retry or destination.retry:
@@ -203,19 +203,19 @@ class AbstractFile:
         return os.path.basename(self.get_path())
 
     def calculate_md5(self):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
     def get_url(self):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
     def exists(self):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
     def is_dir(self):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
     def read(self, content):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
     def write(self, content):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
     def delete(self, pruneto=None):
-        raise FileManagerError('Child class must override this method')
+        raise FileUtilsError('Child class must override this method')
 
 class LocalFile(AbstractFile):
     """For files saved on local storage.
@@ -244,7 +244,7 @@ class LocalFile(AbstractFile):
             with open(self.get_path()) as f:
                 return f.read()
         except IOError as e:
-            raise FileManagerError(e.message)
+            raise FileUtilsError(e.message)
 
     def write(self, content):
         try:
@@ -254,7 +254,7 @@ class LocalFile(AbstractFile):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise FileManagerError(str(e))
+                raise FileUtilsError(str(e))
         with open(self.get_path(), 'w') as f:
             f.write(content)
 
@@ -291,7 +291,7 @@ class GoogleStorageFile(AbstractFile):
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
         if not self.bucket_id or not self.blob_id:
-            raise FileManagerError('Could not parse url "%s". Be sure to use the format "gs://bucket/blob_id".' % url)
+            raise FileUtilsError('Could not parse url "%s". Be sure to use the format "gs://bucket/blob_id".' % url)
         try:
             if self.retry:
                 self.client = execute_with_retries(
@@ -325,12 +325,12 @@ class GoogleStorageFile(AbstractFile):
                 self.bucket = self.client.get_bucket(self.bucket_id)
                 self.blob = self.bucket.get_blob(self.blob_id)
         except HttpAccessTokenRefreshError:
-            raise FileManagerError(
+            raise FileUtilsError(
                 'Failed to access bucket "%s". Are you logged in? '\
                 'Try "gcloud auth login"' % self.bucket_id)
         if self.blob is None:
             if must_exist and not self.blob_id.endswith('/'):
-                raise FileManagerError('File not found: "%s"' % self.url.geturl())
+                raise FileUtilsError('File not found: "%s"' % self.url.geturl())
             self.blob = google.cloud.storage.blob.Blob(
                 self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
         if self.blob.size > self.CHUNK_SIZE:
@@ -390,7 +390,7 @@ def Copier(source, destination):
     elif source.type == 'google_storage' and destination.type == 'google_storage':
         return GoogleStorageCopier(source, destination)
     else:
-        raise FileManagerError('Could not find method to copy from source '\
+        raise FileUtilsError('Could not find method to copy from source '\
                         '"%s" to destination "%s".' % (source, destination))
 
 
@@ -403,7 +403,7 @@ class AbstractCopier:
         self.retry = self.source.retry or self.destination.retry
             
     def copy(self, path):
-        raise FileManagerError('Child class must override method')
+        raise FileUtilsError('Child class must override method')
 
 class LocalCopier(AbstractCopier):
 
@@ -416,7 +416,7 @@ class LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise FileManagerError(str(e))
+                raise FileUtilsError(str(e))
         shutil.copy(self.source.get_path(), self.destination.get_path())
 
 
@@ -465,7 +465,7 @@ class GoogleStorage2LocalCopier(AbstractCopier):
             if e.errno == errno.EEXIST:
                 pass
             else:
-                raise FileManagerError(str(e))
+                raise FileUtilsError(str(e))
         if self.retry:
             execute_with_retries(
                 lambda: self.source.blob.download_to_filename(

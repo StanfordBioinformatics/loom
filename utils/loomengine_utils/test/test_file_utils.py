@@ -3,7 +3,7 @@ import re
 import shutil
 import tempfile
 import unittest
-from loomengine_utils import filemanager
+from loomengine_utils import file_utils
 
 SAMPLE_GOOGLE_STORAGE_FILE = 'gs://genomics-public-data/1000-genomes/other/sample_info/sample_info.schema'
 SAMPLE_GOOGLE_STORAGE_BUCKET = 'gs://genomics-public-data'
@@ -23,33 +23,33 @@ class TestFileSet(unittest.TestCase):
     def testFactoryGoogleStorageFileSet(self):
         pattern = SAMPLE_GOOGLE_STORAGE_FILE
         settings = {'GCE_PROJECT': ''}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
-        self.assertTrue(isinstance(fileset, filemanager.GoogleStorageFileSet))
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
+        self.assertTrue(isinstance(fileset, file_utils.GoogleStorageFileSet))
 
     def testFactoryLocalFileSet(self):
         pattern = 'file://'+self.filepath
         settings = {}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
-        self.assertTrue(isinstance(fileset, filemanager.LocalFileSet))
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
+        self.assertTrue(isinstance(fileset, file_utils.LocalFileSet))
 
     def testFactoryLocalFileSetNoProtocol(self):
         pattern = self.filepath
         settings = {}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
-        self.assertTrue(isinstance(fileset, filemanager.LocalFileSet))
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
+        self.assertTrue(isinstance(fileset, file_utils.LocalFileSet))
 
     def testFactoryFileSetInvalidProtocol(self):
         pattern = 'tcp://'+self.filepath
         settings = {}
-        with self.assertRaises(filemanager.FileManagerError):
-            fileset = filemanager.FileSet(pattern, settings, retry=False)
+        with self.assertRaises(file_utils.FileUtilsError):
+            fileset = file_utils.FileSet([pattern], settings, retry=False)
 
 class TestGoogleStorageFileSet(unittest.TestCase):
 
     def testInit(self):
         pattern = SAMPLE_GOOGLE_STORAGE_FILE
         settings = {'GCE_PROJECT': ''}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
         files = [file for file in fileset]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0].url.geturl(), SAMPLE_GOOGLE_STORAGE_FILE)
@@ -57,14 +57,14 @@ class TestGoogleStorageFileSet(unittest.TestCase):
     def testInitMissingFile(self):
         pattern = SAMPLE_GOOGLE_STORAGE_FILE+'thisfiledoesntexist'
         settings = {'GCE_PROJECT': ''}
-        with self.assertRaises(filemanager.FileManagerError):
-            fileset = filemanager.FileSet(pattern, settings, retry=False)
+        with self.assertRaises(file_utils.FileUtilsError):
+            fileset = file_utils.FileSet([pattern], settings, retry=False)
 
     def testWildcardNotAllowed(self):
         pattern = 'gs://genomics-public-data/*'
         settings = {'GCE_PROJECT': ''}
-        with self.assertRaises(filemanager.FileManagerError):
-            fileset = filemanager.FileSet(pattern, settings, retry=False)
+        with self.assertRaises(file_utils.FileUtilsError):
+            fileset = file_utils.FileSet([pattern], settings, retry=False)
 
 
 class TestLocalFileSet(unittest.TestCase):
@@ -85,7 +85,7 @@ class TestLocalFileSet(unittest.TestCase):
     def testInit(self):
         pattern = 'file://'+os.path.join(self.tempdir, 'file0.txt')
         settings = {}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
         files = [file for file in fileset]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0].url.geturl(), 'file://'+self.filepaths[0])
@@ -93,7 +93,7 @@ class TestLocalFileSet(unittest.TestCase):
     def testInitNoScheme(self):
         pattern = os.path.join(self.tempdir, 'file0.txt')
         settings = {}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
         files = [file for file in fileset]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0].url.geturl(), 'file://'+self.filepaths[0])
@@ -101,7 +101,7 @@ class TestLocalFileSet(unittest.TestCase):
     def testWildcard(self):
         pattern = 'file://'+os.path.join(self.tempdir, 'file?.txt')
         settings = {}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
         files = [file for file in fileset]
         self.assertEqual(len(files), 3)
         for i in range(len(files)):
@@ -110,7 +110,7 @@ class TestLocalFileSet(unittest.TestCase):
     def testWildcardNoScheme(self):
         pattern = os.path.join(self.tempdir, 'file?.txt')
         settings = {}
-        fileset = filemanager.FileSet(pattern, settings, retry=False)
+        fileset = file_utils.FileSet([pattern], settings, retry=False)
         files = [file for file in fileset]
         self.assertEqual(len(files), 3)
         for i in range(len(files)):
@@ -132,26 +132,26 @@ class TestFile(unittest.TestCase):
     def testFactoryGoogleStorageFile(self):
         url = SAMPLE_GOOGLE_STORAGE_FILE
         settings = {'GCE_PROJECT': ''}
-        file = filemanager.File(url, settings, retry=False)
-        self.assertTrue(isinstance(file, filemanager.GoogleStorageFile))
+        file = file_utils.File(url, settings, retry=False)
+        self.assertTrue(isinstance(file, file_utils.GoogleStorageFile))
 
     def testFactoryLocalFile(self):
         url = 'file://'+self.filepath
         settings = {}
-        file = filemanager.File(url, settings, retry=False)
-        self.assertTrue(isinstance(file, filemanager.LocalFile))
+        file = file_utils.File(url, settings, retry=False)
+        self.assertTrue(isinstance(file, file_utils.LocalFile))
 
     def testFactoryLocalFileNoProtocol(self):
         url = self.filepath
         settings = {}
-        file = filemanager.File(url, settings, retry=False)
-        self.assertTrue(isinstance(file, filemanager.LocalFile))
+        file = file_utils.File(url, settings, retry=False)
+        self.assertTrue(isinstance(file, file_utils.LocalFile))
 
     def testFactoryFileInvalidProtocol(self):
         url = 'tcp://'+self.filepath
         settings = {}
-        with self.assertRaises(filemanager.FileManagerError):
-            file = filemanager.File(url, settings, retry=False)
+        with self.assertRaises(file_utils.FileUtilsError):
+            file = file_utils.File(url, settings, retry=False)
 
 class TestLocalFile(unittest.TestCase):
 
@@ -163,7 +163,7 @@ class TestLocalFile(unittest.TestCase):
             f.write(self.filename)
         self.md5 = '78dcf3b0d4ad2a2b283f7fba8c441faa'
         settings = {}
-        self.file = filemanager.File(self.filepath, settings, retry=False)
+        self.file = file_utils.File(self.filepath, settings, retry=False)
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
@@ -184,11 +184,11 @@ class TestLocalFile(unittest.TestCase):
         self.assertTrue(self.file.exists())
 
     def testExistsNegative(self):
-        file = filemanager.File('/no/file/here/friend', {})
+        file = file_utils.File('/no/file/here/friend', {})
         self.assertFalse(file.exists())
 
     def testIsDir(self):
-        file = filemanager.File(self.tempdir, {})
+        file = file_utils.File(self.tempdir, {})
         self.assertTrue(file.is_dir())
 
     def testIsDirNegative(self):
@@ -198,7 +198,7 @@ class TestLocalFile(unittest.TestCase):
         self.assertEqual(self.file.read(), self.filename)
 
     def testWrite(self):
-        newfile = filemanager.File(os.path.join(self.tempdir, 'newfile'), {})
+        newfile = file_utils.File(os.path.join(self.tempdir, 'newfile'), {})
         newtext = 'newtext'
         newfile.write(newtext)
         self.assertEqual(newfile.read(), newtext)
@@ -214,7 +214,7 @@ class TestLocalFile(unittest.TestCase):
         filepath = os.path.join(self.tempdir, subdir1, subdir2, filename)
         os.mkdir(os.path.join(self.tempdir, subdir1))
         os.mkdir(os.path.join(self.tempdir, subdir1, subdir2))
-        file = filemanager.File(filepath, {})
+        file = file_utils.File(filepath, {})
         file.write('hey')
         file.delete(pruneto=os.path.join(self.tempdir, subdir1))
         self.assertTrue(os.path.exists(
@@ -226,7 +226,7 @@ class TestGoogleStorageFile(unittest.TestCase):
 
     def setUp(self):
         self.settings = {'GCE_PROJECT': ''}
-        self.file = filemanager.File(
+        self.file = file_utils.File(
             SAMPLE_GOOGLE_STORAGE_FILE, self.settings, retry=False)
 
     def testCalculateMd5(self):
@@ -249,13 +249,13 @@ class TestGoogleStorageFile(unittest.TestCase):
         self.assertTrue(self.file.exists())
 
     def testExistsNegative(self):
-        file = filemanager.File(
+        file = file_utils.File(
             SAMPLE_GOOGLE_STORAGE_BUCKET+'/arent/any/files/here/friend',
             self.settings)
         self.assertFalse(file.exists())
 
     def testIsDir(self):
-        file = filemanager.File(os.path.dirname(SAMPLE_GOOGLE_STORAGE_FILE)+'/',
+        file = file_utils.File(os.path.dirname(SAMPLE_GOOGLE_STORAGE_FILE)+'/',
                                 self.settings)
         self.assertTrue(file.is_dir())
 

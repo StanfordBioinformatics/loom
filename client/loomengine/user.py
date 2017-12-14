@@ -38,7 +38,7 @@ class UserAdd(AbstractUserSubcommand):
         password = self.args.password
         if password is None:
             password = getpass("Password: ")
-        user = self.connection.create_user({
+        user = self.connection.post_user({
             'username': self.args.username,
             'password': password,
             'is_staff': self.args.admin

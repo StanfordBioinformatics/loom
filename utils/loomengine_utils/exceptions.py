@@ -1,38 +1,32 @@
-class Error(Exception):
+class LoomengineUtilsError(Exception):
     pass
 
-class ServerConnectionError(Error):
+class ServerConnectionError(LoomengineUtilsError):
     pass
 
-class BadResponseError(Error):
+class ResourceCountError(LoomengineUtilsError):
     pass
 
-class UnrecognizedFileServerTypeError(Error):
+class UnrecognizedFileServerTypeError(LoomengineUtilsError):
     pass
 
-class UndefinedFileIDError(Error):
+class UndefinedFileIDError(LoomengineUtilsError):
     pass
 
-class ObjectNotFoundError(Error):
+class ObjectNotFoundError(LoomengineUtilsError):
     pass
 
-class AbsolutePathInFileNameError(Error):
+class AbsolutePathInFileNameError(LoomengineUtilsError):
     pass
 
-class WrongNumberOfFileNamesError(Error):
+class WrongNumberOfFileNamesError(LoomengineUtilsError):
     pass
 
-class NoFilesMatchError(Error):
+class NoFilesMatchError(LoomengineUtilsError):
     pass
 
-class MultipleFilesMatchError(Error):
+class MultipleFilesMatchError(LoomengineUtilsError):
     pass
 
-class IdMatchedTooFewDataObjectsError(Error):
-    pass
-
-class IdMatchedTooManyDataObjectsError(Error):
-    pass
-    
-class ValidationError(Error):
+class ValidationError(LoomengineUtilsError):
     pass
