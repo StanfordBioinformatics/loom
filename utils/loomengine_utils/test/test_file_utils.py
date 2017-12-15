@@ -5,69 +5,31 @@ import tempfile
 import unittest
 from loomengine_utils import file_utils
 
-SAMPLE_GOOGLE_STORAGE_FILE = 'gs://genomics-public-data/1000-genomes/other/sample_info/sample_info.schema'
 SAMPLE_GOOGLE_STORAGE_BUCKET = 'gs://genomics-public-data'
+SAMPLE_GOOGLE_STORAGE_FILE = 'gs://genomics-public-data/'\
+                             '1000-genomes/other/sample_info/'\
+                             'sample_info.schema'
+
+class TestUrlParse(unittest.TestCase):
+
+    def testValidateUrlWithRemoteHost(self):
+        path = 'file://remotehost/path/file'
+        with self.assertRaises(file_utils.UrlValidationError):
+            file_utils._urlparse(path)
+
+    def testValidateWithUnsupportedScheme(self):
+        path = 'tcp:///path/file'
+        with self.assertRaises(file_utils.UrlValidationError):
+            file_utils._urlparse(path)
+
+    def testUrlParseWithImplicitFileScheme(self):
+        path = '/path/file'
+        url = file_utils._urlparse(path)
+        self.assertEqual(url.scheme, 'file')
+        self.assertEqual(url.path, path)
+
 
 class TestFileSet(unittest.TestCase):
-
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
-        self.filename = 'file0.txt'
-        self.filepath = os.path.join(self.tempdir, self.filename)
-        with open(self.filepath, 'w') as f:
-            f.write(self.filename)
-
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
-
-    def testFactoryGoogleStorageFileSet(self):
-        pattern = SAMPLE_GOOGLE_STORAGE_FILE
-        settings = {'GCE_PROJECT': ''}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        self.assertTrue(isinstance(fileset, file_utils.GoogleStorageFileSet))
-
-    def testFactoryLocalFileSet(self):
-        pattern = 'file://'+self.filepath
-        settings = {}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        self.assertTrue(isinstance(fileset, file_utils.LocalFileSet))
-
-    def testFactoryLocalFileSetNoProtocol(self):
-        pattern = self.filepath
-        settings = {}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        self.assertTrue(isinstance(fileset, file_utils.LocalFileSet))
-
-    def testFactoryFileSetInvalidProtocol(self):
-        pattern = 'tcp://'+self.filepath
-        settings = {}
-        with self.assertRaises(file_utils.FileUtilsError):
-            fileset = file_utils.FileSet([pattern], settings, retry=False)
-
-class TestGoogleStorageFileSet(unittest.TestCase):
-
-    def testInit(self):
-        pattern = SAMPLE_GOOGLE_STORAGE_FILE
-        settings = {'GCE_PROJECT': ''}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        files = [file for file in fileset]
-        self.assertEqual(len(files), 1)
-        self.assertEqual(files[0].url.geturl(), SAMPLE_GOOGLE_STORAGE_FILE)
-    
-    def testInitMissingFile(self):
-        pattern = SAMPLE_GOOGLE_STORAGE_FILE+'thisfiledoesntexist'
-        settings = {'GCE_PROJECT': ''}
-        with self.assertRaises(file_utils.FileUtilsError):
-            fileset = file_utils.FileSet([pattern], settings, retry=False)
-
-    def testWildcardNotAllowed(self):
-        pattern = 'gs://genomics-public-data/*'
-        settings = {'GCE_PROJECT': ''}
-        with self.assertRaises(file_utils.FileUtilsError):
-            fileset = file_utils.FileSet([pattern], settings, retry=False)
-
-
-class TestLocalFileSet(unittest.TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
@@ -82,40 +44,122 @@ class TestLocalFileSet(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
+    def testMixedPatterns(self):
+        local_pattern = os.path.join(self.tempdir, 'file*.txt')
+        gs_pattern = SAMPLE_GOOGLE_STORAGE_FILE
+        settings = {'GCE_PROJECT': ''}
+        file_set = file_utils.FileSet(
+            [local_pattern, gs_pattern], settings)
+        files = [file.get_url() for file in file_set]
+        self.assertEqual(len(files), 4)
+        self.assertTrue(SAMPLE_GOOGLE_STORAGE_FILE in files)
+
+
+class TestFilePatternFactory(unittest.TestCase):
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+        self.filename = 'file0.txt'
+        self.filepath = os.path.join(self.tempdir, self.filename)
+        with open(self.filepath, 'w') as f:
+            f.write(self.filename)
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def testFactoryGoogleStorageFilePattern(self):
+        pattern = SAMPLE_GOOGLE_STORAGE_FILE
+        settings = {'GCE_PROJECT': ''}
+        file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
+        self.assertTrue(
+            isinstance(file_pattern, file_utils.GoogleStorageFilePattern))
+
+    def testFactoryLocalFilePattern(self):
+        pattern = 'file://'+self.filepath
+        settings = {}
+        file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
+        self.assertTrue(isinstance(file_pattern, file_utils.LocalFilePattern))
+
+    def testFactoryLocalFilePatternNoProtocol(self):
+        pattern = self.filepath
+        settings = {}
+        file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
+        self.assertTrue(isinstance(file_pattern, file_utils.LocalFilePattern))
+
+
+class TestGoogleStorageFilePattern(unittest.TestCase):
+
+    def testInit(self):
+        pattern = SAMPLE_GOOGLE_STORAGE_FILE
+        settings = {'GCE_PROJECT': ''}
+        file_pattern = file_utils.GoogleStorageFilePattern(
+            pattern, settings, retry=False)
+        files = [file for file in file_pattern]
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0].url.geturl(), SAMPLE_GOOGLE_STORAGE_FILE)
+    
+    def testInitMissingFile(self):
+        pattern = SAMPLE_GOOGLE_STORAGE_FILE+'thisfiledoesntexist'
+        settings = {'GCE_PROJECT': ''}
+        file_pattern = file_utils.GoogleStorageFilePattern(
+            pattern, settings, retry=False)
+        files = [file for file in file_pattern]
+        self.assertEqual(len(files), 0)
+
+
+class TestLocalFilePattern(unittest.TestCase):
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+        self.filenames = ['file0.txt', 'file1.txt',
+                          'file1.txt.metadata.yaml', 'file2.txt.metadata.yaml']
+        self.filepaths = []
+        for filename in self.filenames:
+            filepath = os.path.join(self.tempdir, filename)
+            self.filepaths.append(filepath)
+            with open(filepath, 'w') as f:
+                f.write(filename)
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
     def testInit(self):
         pattern = 'file://'+os.path.join(self.tempdir, 'file0.txt')
         settings = {}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        files = [file for file in fileset]
+        file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
+        files = [file for file in file_pattern]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0].url.geturl(), 'file://'+self.filepaths[0])
 
     def testInitNoScheme(self):
         pattern = os.path.join(self.tempdir, 'file0.txt')
         settings = {}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        files = [file for file in fileset]
+        file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
+        files = [file for file in file_pattern]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0].url.geturl(), 'file://'+self.filepaths[0])
 
     def testWildcard(self):
         pattern = 'file://'+os.path.join(self.tempdir, 'file?.txt')
         settings = {}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        files = [file for file in fileset]
-        self.assertEqual(len(files), 3)
-        for i in range(len(files)):
-            self.assertEqual(files[i].url.geturl(), 'file://'+self.filepaths[i])
+        file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
+        files = [file for file in file_pattern]
+        self.assertEqual(len(files), 2)
+        self.assertEqual(files[0].get_url(), 'file://'+self.filepaths[0])
+        self.assertEqual(files[1].get_url(), 'file://'+self.filepaths[1])
 
-    def testWildcardNoScheme(self):
-        pattern = os.path.join(self.tempdir, 'file?.txt')
+    def testTrimMetadataSuffix(self):
+        pattern = 'file://'+os.path.join(self.tempdir, 'file?.txt*')
         settings = {}
-        fileset = file_utils.FileSet([pattern], settings, retry=False)
-        files = [file for file in fileset]
+        file_set = file_utils.FileSet([pattern], settings, retry=False,
+                                              trim_metadata_suffix=True)
+        files = [file for file in file_set]
         self.assertEqual(len(files), 3)
-        for i in range(len(files)):
-            self.assertEqual(files[i].url.geturl(), 'file://'+self.filepaths[i])
-
+        self.assertEqual(files[0].get_url(), 'file://'+self.filepaths[0])
+        self.assertEqual(files[1].get_url(), 'file://'+self.filepaths[1])
+        self.assertEqual(files[2].get_url()+'.metadata.yaml',
+                         'file://'+self.filepaths[3])
+        
 
 class TestFile(unittest.TestCase):
 

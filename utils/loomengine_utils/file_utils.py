@@ -1,5 +1,6 @@
 import copy
 import errno
+import fnmatch
 import glob
 import google.cloud.storage
 import os
@@ -16,7 +17,7 @@ import yaml
 
 from . import execute_with_retries
 from . import md5calc
-from .exceptions import *
+from .exceptions import LoomengineUtilsError
 from .connection import Connection
 
 # Google Storage JSON API imports
@@ -31,88 +32,117 @@ class FileUtilsError(LoomengineUtilsError):
 class Md5ValidationError(FileUtilsError):
     pass
 
+class UrlValidationError(FileUtilsError):
+    pass
 
-def _urlparse(pattern):
+def _validate_url(url):
+    if (url.scheme == 'file' or url.scheme == ''):
+        if url.hostname is not None:
+            raise UrlValidationError(
+                'Cannot process URL %s. '\
+                'Remote file hosts not supported.' % url.geturl())
+    if url.scheme not in ['gs', 'file', '']:
+        raise UrlValidationError('Cannot recognize file scheme in "%s". '\
+                             'Make sure the pattern starts with a '\
+                             'supported protocol like gs:// or file://'
+                             % url.geturl())
+
+def _urlparse(path):
     """Like urlparse except it assumes 'file://' if no scheme is specified
     """
-    url = urlparse.urlparse(pattern)
-    if not url.scheme:
-        url = urlparse.urlparse(
-            'file://' + os.path.abspath(os.path.expanduser(pattern)))
+    url = urlparse.urlparse(path)
+    _validate_url(url)
+    if not url.scheme or url.scheme == 'file://':
+        # Normalize path, and set scheme to "file" if missing
+        path = os.path.abspath(
+            os.path.expanduser(path))
+        url = urlparse.urlparse('file://'+path)
     return url
 
 
-def FileSet(patterns, settings, retry=False):
-    """Returns a list of unique Files matching the given patterns.
-    """
-    assert isinstance(patterns, list), 'patterns must be a list'
-    files = []
-    urls = set()
-    for pattern in patterns:
-        url = _urlparse(pattern)
+class FileSet:
 
-        if url.scheme == 'gs':
-            new_file_set = GoogleStorageFilePattern(pattern, settings, retry=retry)
-        elif url.scheme == 'file':
-            if url.hostname == 'localhost' or url.hostname is None:
-                new_file_set = LocalFilePattern(pattern, settings, retry=retry)
-            else:
-                raise FileUtilsError('Cannot process file pattern %s. '\
-                                       'Remote file hosts not supported.' % pattern)
-        else:
-            raise FileUtilsError('Cannot recognize file scheme in "%s". '\
-                                   'Make sure the pattern starts with a '\
-                                   'supported protocol like gs:// or file://'
-                                   % pattern)
-        for file in new_file_set:
-            if file.get_url() not in urls:
-                urls.add(file.get_url())
-                files.append(file)
-    return files
+    def __init__(self, patterns, settings, retry=False, trim_metadata_suffix=False):
+        """Returns a list of unique Files matching the given patterns.
+        """
+        assert isinstance(patterns, list), 'patterns must be a list'
+        self.settings = settings
+        self.retry = retry
+        self.trim_metadata_suffix = trim_metadata_suffix
+        self.files = []
+        self.urls = set()
+        self._parse_patterns(patterns)
+
+    def _parse_patterns(self, patterns):
+        for pattern in patterns:
+            self._parse_pattern(pattern)
+
+    def _parse_pattern(self, pattern):
+        for file in FilePattern(
+                pattern, self.settings, retry=self.retry,
+                trim_metadata_suffix=self.trim_metadata_suffix):
+            self._add_file(file)
+
+    def _add_file(self, file):
+        # Only add a file if it is unique
+        if file.get_url() not in self.urls:
+            self.urls.add(file.get_url())
+            self.files.append(file)
+
+    def __iter__(self):
+        return self.files.__iter__()
+
+
+def FilePattern(pattern, settings, **kwargs):
+    """Factory method returns LocalFilePattern or GoogleStorageFilePattern
+    """
+    url = _urlparse(pattern)
+    if url.scheme == 'gs':
+        return GoogleStorageFilePattern(pattern, settings, **kwargs)
+    else:
+        assert url.scheme == 'file'
+        return LocalFilePattern(pattern, settings, **kwargs)
 
 
 class AbstractFilePattern:
-    """Creates an iterable set of Files that match the given pattern.
-    Pattern may include wildcards.
-    """
 
-    def __init__(self, pattern, settings, retry=False):
-        raise FileUtilsError('Child class must override this method')
+    def _trim_metadata_suffix(self, all_matches):
+        if not self.do_trim_metadata_suffix:
+            return all_matches
 
-    def __iter__(self):
-        raise FileUtilsError('Child class must override this method')
-
-    def _trim_metadata(self, all_matches):
         # For any file <filename>.metadata.yaml, return just <filename>
         return map(lambda path: path[:-len('.metadata.yaml')]
                    if path.endswith('.metadata.yaml')
                    else path,
                    all_matches)
 
-
-class LocalFilePattern(AbstractFilePattern):
-    """A set of Files for files on local storage
-    """
-
-    def __init__(self, pattern, settings, retry=False):
-        # retry has no effect
-        self.files = []
-        pattern_without_scheme = re.sub('^file://', '', pattern)
-        abs_path_pattern = \
-            pattern_without_scheme if pattern_without_scheme.startswith('/') \
-            else os.path.join(os.getcwd(),pattern_without_scheme)
-        matches = self._get_matching_files(abs_path_pattern)
-        self.files = [
-            LocalFile('file://' + match, settings, retry=retry)
-            for match in matches]
+    def _strip_file_scheme(self, path):
+        return re.sub('^file://', '', path)
 
     def __iter__(self):
         return self.files.__iter__()
 
-    def _get_matching_files(self, path):
+
+class LocalFilePattern(AbstractFilePattern):
+    """Creates an iterable set of Files that match the given pattern.
+    Pattern may include wildcards.
+    """
+
+    """A set of Files for files on local storage
+    """
+
+    def __init__(self, pattern, settings, retry=False, trim_metadata_suffix=False):
+        # retry has no effect
+        self.do_trim_metadata_suffix = trim_metadata_suffix
+        self.files = [
+            LocalFile(path, settings, retry=retry)
+            for path in self._get_matching_paths(pattern)]
+
+    def _get_matching_paths(self, path):
+        path = self._strip_file_scheme(path)
         matches = glob.glob(path)
         matches = self._remove_directories(matches)
-        matches = self._trim_metadata(matches)
+        matches = self._trim_metadata_suffix(matches)
         return matches
 
     def _remove_directories(self, all_matches):
@@ -122,20 +152,104 @@ class LocalFilePattern(AbstractFilePattern):
 def _contains_wildcard(string):
     return '*' in string or '?' in string
 
-class GoogleStorageFilePattern(AbstractFilePattern):
+
+class GoogleStorageClient:
+
+    # CHUNK_SIZE must be multiple of 256.
+    # 2016-08-30: With default 1024*1024, download is 20x slower than gsutil.
+    CHUNK_SIZE = 1024*1024*100 
+
+    def get_client(self):
+        try:
+            if self.retry:
+                self.client = execute_with_retries(
+                    lambda: google.cloud.storage.client.Client(
+                        self.settings['GCE_PROJECT']),
+                    (Exception,),
+                    logger,
+                    'Get client')
+            else:
+                self.client = google.cloud.storage.client.Client(
+                    self.settings['GCE_PROJECT'])
+        except ApplicationDefaultCredentialsError as e:
+            raise SystemExit(
+                'ERROR! '\
+                'Google Cloud application default credentials are not set. '\
+                'Please run "gcloud auth application-default login"')
+
+    def get_bucket(self, bucket_id):
+        try:
+            if self.retry:
+                self.bucket = execute_with_retries(
+                    lambda: self.client.get_bucket(bucket_id),
+                    (Exception,),
+                    logger,
+                    'Get bucket')
+            else:
+                self.bucket = self.client.get_bucket(bucket_id)
+        except HttpAccessTokenRefreshError:
+            raise FileUtilsError(
+                'Failed to access bucket "%s". Are you logged in? '\
+                'Try "gcloud auth login"' % bucket_id)
+        
+    def get_blob(self, blob_id, must_exist=False):
+        if self.retry:
+            self.blob = execute_with_retries(
+                lambda: self.bucket.get_blob(blob_id),
+                (Exception,),
+                logger,
+                'Get blob')
+        else:
+            self.blob = self.bucket.get_blob(blob_id)
+
+        if self.blob is None:
+            if must_exist and not blob_id.endswith('/'):
+                raise FileUtilsError('Blob not found: "%s"' % blob_id)
+            self.blob = google.cloud.storage.blob.Blob(
+                self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
+        if self.blob.size > self.CHUNK_SIZE:
+            self.blob.chunk_size = self.CHUNK_SIZE
+
+
+class GoogleStorageFilePattern(AbstractFilePattern, GoogleStorageClient):
     """A set of Files for files on Google Storage
     """
 
-    def __init__(self, pattern, settings, retry=False):
+    def __init__(self, pattern, settings, retry=False, trim_metadata_suffix=False):
+        # retry has no effect
+        self.do_trim_metadata_suffix = trim_metadata_suffix
         self.settings = settings
-        if _contains_wildcard(pattern):
+        self.url = _urlparse(pattern)
+        self.retry = retry
+        assert self.url.scheme == 'gs'
+        self.bucket_id = self.url.hostname
+        self.blob_pattern = self.url.path.lstrip('/')
+        if not self.bucket_id:
             raise FileUtilsError(
-                'Wildcard expressions are not supported for GoogleStorage. "%s"'
-                % pattern)
-        if pattern.endswith('.metadata.yaml'):
-            pattern = pattern[:-len('.metadata.yaml')]
-        self.files = [GoogleStorageFile(pattern, settings,
-                                        retry=retry, must_exist=True)]
+                'Could not parse bucket ID in url "%s". '\
+                'Be sure to use the format "gs://bucket/blob_id".' % url)
+        self.get_client()
+        self.get_bucket(self.bucket_id)
+        self._get_matching_blobs(self.blob_pattern)
+
+        self.files = [
+            GoogleStorageFile('gs://%s/%s' % (self.bucket_id, blob_id),
+                              settings, retry=retry)
+            for blob_id in self._get_matching_blobs(self.blob_pattern)]
+
+    def _get_matching_blobs(self, blob_pattern):
+        # Google doesn't support wildcards, so we need to get
+        # a list of possible blobs and then use fnmatch.filter
+        # to filter by wildcard pattern.
+        # But bucket.list_blobs is slow if there are a lot of blobs, so
+        # we use the only filter available: prefix. Whatever blob_pattern
+        # text comes before the first wildcard gives our prefix.
+        prefix = re.match('(^[^\*\?]*)', blob_pattern).group()
+        blobs = self.bucket.list_blobs(prefix=prefix)
+        blob_ids = [b.name for b in blobs]
+        matches = fnmatch.filter(blob_ids, blob_pattern)
+        matches = self._trim_metadata_suffix(matches)
+        return matches
 
     def __iter__(self):
         return self.files.__iter__()
@@ -274,14 +388,10 @@ class LocalFile(AbstractFile):
                 return
 
 
-class GoogleStorageFile(AbstractFile):
+class GoogleStorageFile(AbstractFile, GoogleStorageClient):
     """For file saved on Google Storage
     """
     type = 'google_storage'
-    
-    # CHUNK_SIZE must be multiple of 256.
-    # 2016-08-30: With default 1024*1024, download is 20x slower than gsutil.
-    CHUNK_SIZE = 1024*1024*100 
 
     def __init__(self, url, settings, retry=False, must_exist=False):
         self.settings = settings
@@ -290,51 +400,13 @@ class GoogleStorageFile(AbstractFile):
         assert self.url.scheme == 'gs'
         self.bucket_id = self.url.hostname
         self.blob_id = self.url.path.lstrip('/')
-        if not self.bucket_id or not self.blob_id:
-            raise FileUtilsError('Could not parse url "%s". Be sure to use the format "gs://bucket/blob_id".' % url)
-        try:
-            if self.retry:
-                self.client = execute_with_retries(
-                    lambda: google.cloud.storage.client.Client(
-                        self.settings['GCE_PROJECT']),
-                    (Exception,),
-                    logger,
-                    'Get client')
-            else:
-                self.client = google.cloud.storage.client.Client(
-                    self.settings['GCE_PROJECT'])
-        except ApplicationDefaultCredentialsError as e:
-            raise SystemExit(
-                'ERROR! '\
-                'Google Cloud application default credentials are not set. '\
-                'Please run "gcloud auth application-default login"')
-
-        try:
-            if self.retry:
-                self.bucket = execute_with_retries(
-                    lambda: self.client.get_bucket(self.bucket_id),
-                    (Exception,),
-                    logger,
-                    'Get bucket')
-                self.blob = execute_with_retries(
-                    lambda: self.bucket.get_blob(self.blob_id),
-                    (Exception,),
-                    logger,
-                    'Get blob')
-            else:
-                self.bucket = self.client.get_bucket(self.bucket_id)
-                self.blob = self.bucket.get_blob(self.blob_id)
-        except HttpAccessTokenRefreshError:
+        if not self.bucket_id:
             raise FileUtilsError(
-                'Failed to access bucket "%s". Are you logged in? '\
-                'Try "gcloud auth login"' % self.bucket_id)
-        if self.blob is None:
-            if must_exist and not self.blob_id.endswith('/'):
-                raise FileUtilsError('File not found: "%s"' % self.url.geturl())
-            self.blob = google.cloud.storage.blob.Blob(
-                self.blob_id, self.bucket, chunk_size=self.CHUNK_SIZE)
-        if self.blob.size > self.CHUNK_SIZE:
-            self.blob.chunk_size = self.CHUNK_SIZE
+                'Could not parse bucket ID in url "%s". '\
+                'Be sure to use the format "gs://bucket/blob_id".' % url)
+        self.get_client()
+        self.get_bucket(self.bucket_id)
+        self.get_blob(self.blob_id, must_exist=must_exist)
 
     def calculate_md5(self):
         md5_base64 = self.blob.md5_hash

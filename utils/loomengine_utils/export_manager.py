@@ -43,23 +43,35 @@ class ExportManager(object):
         runs = _replace_none_with_empty_list(runs)
         if destination_directory is None:
             destination_directory=_get_default_destination_directory()
-        for file in files:
-            this_file_dest_dir = os.path.join(
-                destination_directory,
-                'files',
-                file.get('uuid'))
-            self.export_file('@%s' % file.get('uuid'),
-                             destination_directory=this_file_dest_dir,
-                             retry=retry,
-                             export_metadata=export_file_metadata,
-                             export_raw_file=not file_links)
 
-    def export_files(self, file_ids, destination_directory=None, retry=False,
-                     export_metadata=False, export_raw_file=True):
-        for file_id in file_ids:
-            self.export_file(
-                file_id, destination_directory=destination_directory, retry=retry,
-                export_metadata=export_metadata, export_raw_file=export_raw_file)
+        self._bulk_export_files(
+            files,
+            destination_directory,
+            retry=retry,
+            export_file_metadata=export_file_metadata,
+            file_links=file_links)
+
+    def _bulk_export_files(self, files, bulk_export_dir, **kwargs):
+        for file in files:
+            self._bulk_export_file(file, bulk_export_dir, **kwargs)
+
+    def _bulk_export_file(self, file, bulk_export_dir, **kwargs):
+        dest_dir = os.path.join(
+            bulk_export_dir,
+            'files',
+            file.get('uuid'))
+        self.export_file('@%s' % file.get('uuid'),
+                         destination_directory=dest_dir,
+                         retry=retry,
+                         export_metadata=export_file_metadata,
+                         export_raw_file=not file_links)
+
+#    def export_files(self, file_ids, destination_directory=None, retry=False,
+#                     export_metadata=False, export_raw_file=True):
+#        for file_id in file_ids:
+#            self.export_file(
+#                file_id, destination_directory=destination_directory, retry=retry,
+#                export_metadata=export_metadata, export_raw_file=export_raw_file)
 
     def export_file(self, file_id, destination_directory=None,
                     destination_filename=None, retry=False,
