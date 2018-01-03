@@ -4,7 +4,7 @@ from requests.exceptions import HTTPError
 import yaml
 
 from loomengine_utils.file_utils import File, FileSet
-
+from oauth2client.client import ApplicationDefaultCredentialsError
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,13 @@ class ImportManager(object):
         files_to_import = FileSet(
             [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
             self.storage_settings, retry=retry)
+        imported_files = []
         for file_to_import in files_to_import:
-            self.import_file(
-                file_to_import.get_url(), '', link=link_files, retry=retry)
+            imported_files.append(
+                self.import_file(
+                    file_to_import.get_url(), '', link=link_files, retry=retry)
+            )
+        return imported_files
 
     def _bulk_import_templates(self, directory, link_files=False, retry=False):
         pass
@@ -62,65 +66,84 @@ class ImportManager(object):
                 retry=retry))
         return files
 
-    def _get_metadata(self, metadata_url, retry=False):
+    def _get_file_metadata(self, metadata_url, retry=False, ignore_metadata=False):
+        if ignore_metadata:
+            return None
+
         try:
             raw_metadata = File(
                 metadata_url,
                 self.storage_settings, retry=retry).read()
-        except Exception as e:
-            raw_metadata = None
-            metadata = {}
-        if raw_metadata is not None:
-            try:
-                metadata = yaml.load(raw_metadata)
-            except yaml.parser.ParserError:
-                raise ImportManagerError(
-                    'Metadata is not valid YAML format: "%s"' % metadata_url)
-            except yaml.scanner.ScannerError as e:
-                raise ImportManagerError(
-                    'Metadata is not valid YAML format: "%s"' % metadata_url)
-        return metadata
+        except:
+            return None
 
-    def import_file(self, source_url, comments, link=False,
+        if not raw_metadata:
+            return None
+
+        try:
+            return yaml.load(raw_metadata)
+        except yaml.parser.ParserError:
+            raise ImportManagerError(
+                'Metadata is not valid YAML format: "%s"' % metadata_url)
+        except yaml.scanner.ScannerError as e:
+            raise ImportManagerError(
+                'Metadata is not valid YAML format: "%s"' % metadata_url)
+
+    def import_file(self, requested_source_url, comments, link=False,
                     ignore_metadata=False, force_duplicates=False,
                     retry=False):
+        # A file "mydata.txt" may have a corresponding metadata file
+        # "mydata.txt.metadata.yaml". We use the naming convention to determine
+        # whether requested_source_url points to the raw file or the metadata,
+        # and get the names for the file-metadata pair.
+        source_file_url, metadata_url = self._get_file_and_metadata_urls(
+            requested_source_url)
 
-        if source_url.endswith('.metadata.yaml'):
-            source_url = source_url[:-len('.metadata.yaml')]
-        
-        source = File(source_url, self.storage_settings, retry=retry)
-        metadata_url = source.get_url() + '.metadata.yaml'
+        # Attempt to read metadata from the metadata file, if it exists.
+        metadata = self._get_file_metadata(
+            metadata_url, retry=retry, ignore_metadata=ignore_metadata)
+        source_file = self._get_source_file(source_file_url, metadata, retry=retry)
 
-        if ignore_metadata:
-            metadata = None
-        else:
-            metadata = self._get_metadata(metadata_url, retry=retry)
-            if not source.exists() or source.is_dir():
-                # No file found, so we need find it from the metadata
-                if not metadata.get('value') or not metadata['value'].get('file_url'):
-                    raise ImportManagerError(
-                        'Failed to import because file "%s" was not found, '\
-                        'and file URL was not found '
-                        'in metadata "%s"' % (source_url, metadata_url))
-                source_url = metadata['value'].get('file_url')
-                source = File(source_url, self.storage_settings, retry=retry)
-
-        self._import_file_and_metadata(source, metadata, comments, link=link,
+        self._import_file_and_metadata(source_file, metadata, comments, link=link,
                                   force_duplicates=force_duplicates, retry=retry)
+
+    def _get_file_and_metadata_urls(self, requested_source_url):
+        if requested_source_url.endswith('.metadata.yaml'):
+            source_file_url = requested_source_url[:-len('.metadata.yaml')]
+            metadata_url = requested_source_url
+        else:
+            source_file_url = requested_source_url
+            metadata_url = source_file_url + '.metadata.yaml'
+        return source_file_url, metadata_url
+
+    def _get_source_file(self, source_url, metadata, retry=False):
+        source = File(source_url, self.storage_settings, retry=retry)
+        if not source.exists() or source.is_dir():
+            source = self._get_source_file_from_metadata(
+                source_url, metadata, retry=retry)
+        return source
+        
+    def _get_source_file_from_metadata(
+            self, original_source_url, metadata, retry=False):
+        try:
+            source_url = metadata['value']['file_url']
+        except KeyError:
+            raise ImportManagerError(
+                'Could not find file "%s", and could not find alternative '\
+                'file_url in the metadata file.' % original_source_url)
+        return File(source_url, self.storage_settings, retry=retry)
 
     def _import_file_and_metadata(self, source, metadata, comments, link=False,
                              force_duplicates=False, retry=False):
         try:
-            if link:
-                data_object = self._create_file_data_object_from_original_copy(
-                    source, comments, force_duplicates=force_duplicates,
-                    metadata=metadata)
-                return data_object
-            else:
-                data_object = self._create_file_data_object_for_import(
-                    source, comments, force_duplicates=force_duplicates,
-                    metadata=metadata)
-                return self._execute_file_import(data_object, source, retry=retry)
+            data_object = self._render_file_data_object_dict(
+                source, comments, metadata=metadata, link=link)
+            data_object = self._check_for_duplicates(
+                data_object, force_duplicates=force_duplicates)
+            data_object = self.connection.post_data_object(data_object)
+            data_object = self._execute_file_import(
+                data_object, source, retry=retry)
+            return data_object
         except HTTPError as e:
             if e.response.status_code==400:
                 errors = e.response.json()
@@ -129,118 +152,75 @@ class ImportManager(object):
             else:
                 raise
 
-    def _create_file_data_object_for_import(
-            self, source, comments, force_duplicates=True, metadata=None):
-        if metadata is None:
-            metadata = {}
-        metadata_file_resource = metadata.get('value', {})
-        filename = metadata_file_resource.get('filename', source.get_filename())
-        logger.info('Calculating md5 on file "%s"...' % source.get_url())
-        md5 = source.calculate_md5()
-        metadata_md5 = metadata_file_resource.get('md5')
-        imported_from_url = metadata_file_resource.get(
-            'imported_from_url', source.get_url())
-        source_type = metadata_file_resource.get('source_type', 'imported')
-        if metadata:
-            assert not comments, \
-                'New comments are not allowed if metadata is used'
-            comments = metadata_file_resource.get('import_comments', '')
-        
-        if metadata_md5 and md5 != metadata_md5:
-            raise ImportManagerError(
-                'md5 of file "%s" does not match value in its metadata '\
-                'file. The file may have been corrupted. If it was changed '\
-                'intentionally, you should not use the old metadata.'
-                % source.get_url())
-        if not force_duplicates:
+    def _check_for_duplicates(self, data_object, force_duplicates=False):
+        if force_duplicates:
+            return data_object
+        else:
+            filename = data_object['value']['filename']
+            md5= data_object['value']['md5']
+
             files = self._get_file_duplicates(filename, md5)
             if len(files) > 0:
-                warnings.warn(
+                logger.warn(
                     'WARNING! The name and md5 hash "%s$%s" is already in use by one '
                     'or more files. '\
                     'Use "--force-duplicates" to create another copy, but if you '\
                     'do you will have to use @uuid to reference these files.'
                     % (filename, md5))
                 return files[-1]
-
-        value = {
-            'filename': filename,
-            'md5': md5,
-            'imported_from_url': imported_from_url,
-            'source_type': source_type,
-            'link': False,
-        }
-        if comments:
-            value['import_comments'] = comments
-        file_data_object = {
-            'type': 'file',
-            'value': value
-        }
-        if metadata.get('uuid'):
-            file_data_object['uuid'] = metadata.get('uuid')
-        if metadata.get('datetime_created'):
-            file_data_object['datetime_created'] = metadata.get('datetime_created')
-
-        return self.connection.post_data_object(file_data_object)
-
-    def _create_file_data_object_from_original_copy(
-            self, source, comments, force_duplicates=True, metadata=None):
-        if metadata is None:
-            metadata = {}
-        metadata_file_resource = metadata.get('value', {})
-        filename = metadata_file_resource.get('filename', source.get_filename())
-        logger.info('Calculating md5 on file "%s"...' % source.get_url())
-        md5 = source.calculate_md5()
-        metadata_md5 = metadata_file_resource.get('md5')
-        imported_from_url = metadata_file_resource.get(
-            'imported_from_url', source.get_url())
-        source_type = metadata_file_resource.get('source_type', 'imported')
-        if metadata:
-            assert not comments, \
-                'New comments are not allowed if metadata is used'
-            comments = metadata_file_resource.get('import_comments', '')
-        if metadata_md5 and md5 != metadata_md5:
-            raise ImportManagerError(
-                'md5 of file "%s" does not match value in its metadata '\
-                'file. The file may have been corrupted. If it was changed '\
-                'intentionally, you should not use the old metadata.'
-                % source.get_url())
-        if not force_duplicates:
-            files = self._get_file_duplicates(filename, md5)
-            if len(files) > 0:
-                warnings.warn(
-                    'WARNING! The name and md5 hash "%s$%s" is already in use by one '
-                    'or more files. '\
-                    'Use "--force-duplicates" to create another copy, but if you '\
-                    'do you will have to use @uuid to reference these files.'
-                    % (filename, md5))
-                return files[-1]
-
-        value = {
-            'filename': filename,
-            'md5': md5,
-            'file_url': source.get_url(),
-            'imported_from_url': imported_from_url,
-            'upload_status': 'complete',
-            'source_type': 'imported',
-            'link': True,
-        }
-        if comments:
-            value['import_comments'] = comments
-
-        file_data_object = self.connection.post_data_object({
-            'type': 'file',
-            'value': value
-        })
-        logger.info('   registered file %s@%s' % (
-            file_data_object['value']['filename'],
-            file_data_object['uuid']))
-        return file_data_object
+            else:
+                return data_object
 
     def _get_file_duplicates(self, filename, md5):
         files = self.connection.get_data_object_index(
             query_string='%s$%s' % (filename, md5), type='file')
         return files
+
+    def _render_file_data_object_dict(
+            self, source, comments, metadata=None, link=False):
+        if metadata is None:
+            metadata = {}
+        metadata_file_resource = metadata.get('value', {})
+        if metadata:
+            assert not comments, \
+                'New comments are not allowed if metadata is used'
+            comments = metadata_file_resource.get('import_comments', '')
+        filename = metadata_file_resource.get('filename', source.get_filename())
+        logger.info('Calculating md5 on file "%s"...' % source.get_url())
+        md5 = source.calculate_md5()
+        metadata_md5 = metadata_file_resource.get('md5')
+        imported_from_url = metadata_file_resource.get(
+            'imported_from_url', source.get_url())
+        source_type = metadata_file_resource.get('source_type', 'imported')
+        if metadata_md5 and md5 != metadata_md5:
+            raise ImportManagerError(
+                'md5 of file "%s" does not match value in its metadata '\
+                'file. The file may have been corrupted. If it was changed '\
+                'intentionally, you should not use the old metadata.'
+                % source.get_url())
+        file_data_object = {
+            'type': 'file',
+            'value':{
+                'filename': filename,
+                'md5': md5,
+                'imported_from_url': imported_from_url,
+                'source_type': 'imported',
+                'link': False,
+            }
+        }
+        if link:
+            file_data_object['value'].update({
+                'file_url': source.get_url(),
+                'upload_status': 'complete',
+                'link': True,
+            })
+        if comments:
+            file_data_object['value']['import_comments'] = comments
+        if metadata.get('uuid'):
+            file_data_object['uuid'] = metadata.get('uuid')
+        if metadata.get('datetime_created'):
+            file_data_object['datetime_created'] = metadata.get('datetime_created')
+        return file_data_object
 
     def import_result_file(self, task_attempt_output, source_url, retry=False):
         logger.info('Calculating md5 on file "%s"...' % source_url)
@@ -328,10 +308,11 @@ class ImportManager(object):
 
     def _execute_file_import(self, file_data_object, source, retry=False):
         logger.info('Importing file from %s...' % source.get_url())
-        if file_data_object['value']['upload_status'] == 'complete':
+        if file_data_object['value'].get('upload_status') == 'complete':
             logger.info(
                 '   skipping upload because server already has the file %s@%s.' % (
-                    file_data_object['value']['filename'], file_data_object['uuid']))
+                    file_data_object['value'].get('filename'),
+                    file_data_object.get('uuid')))
             return file_data_object
         try:
             destination = File(
@@ -362,8 +343,8 @@ class ImportManager(object):
     def _set_upload_status(self, file_data_object, upload_status):
         """ Set file_data_object.file_resource.upload_status
         """
-        file_data_object['value']['upload_status'] = upload_status
+        uuid = file_data_object['uuid']
         return self.connection.update_data_object(
-            file_data_object['uuid'],
-            file_data_object)
-
+            uuid,
+            {'uuid': uuid, 'value': { 'upload_status': upload_status}}
+        )

@@ -49,7 +49,7 @@ class TestFileSet(unittest.TestCase):
         gs_pattern = SAMPLE_GOOGLE_STORAGE_FILE
         settings = {'GCE_PROJECT': ''}
         file_set = file_utils.FileSet(
-            [local_pattern, gs_pattern], settings)
+            [local_pattern, gs_pattern], settings, retry=True)
         files = [file.get_url() for file in file_set]
         self.assertEqual(len(files), 4)
         self.assertTrue(SAMPLE_GOOGLE_STORAGE_FILE in files)
@@ -70,7 +70,7 @@ class TestFilePatternFactory(unittest.TestCase):
     def testFactoryGoogleStorageFilePattern(self):
         pattern = SAMPLE_GOOGLE_STORAGE_FILE
         settings = {'GCE_PROJECT': ''}
-        file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
+        file_pattern = file_utils.FilePattern(pattern, settings, retry=True)
         self.assertTrue(
             isinstance(file_pattern, file_utils.GoogleStorageFilePattern))
 
@@ -93,7 +93,7 @@ class TestGoogleStorageFilePattern(unittest.TestCase):
         pattern = SAMPLE_GOOGLE_STORAGE_FILE
         settings = {'GCE_PROJECT': ''}
         file_pattern = file_utils.GoogleStorageFilePattern(
-            pattern, settings, retry=False)
+            pattern, settings, retry=True)
         files = [file for file in file_pattern]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0].url.geturl(), SAMPLE_GOOGLE_STORAGE_FILE)
@@ -102,7 +102,7 @@ class TestGoogleStorageFilePattern(unittest.TestCase):
         pattern = SAMPLE_GOOGLE_STORAGE_FILE+'thisfiledoesntexist'
         settings = {'GCE_PROJECT': ''}
         file_pattern = file_utils.GoogleStorageFilePattern(
-            pattern, settings, retry=False)
+            pattern, settings, retry=True)
         files = [file for file in file_pattern]
         self.assertEqual(len(files), 0)
 
@@ -176,9 +176,15 @@ class TestFile(unittest.TestCase):
     def testFactoryGoogleStorageFile(self):
         url = SAMPLE_GOOGLE_STORAGE_FILE
         settings = {'GCE_PROJECT': ''}
-        file = file_utils.File(url, settings, retry=False)
+        file = file_utils.File(url, settings, retry=True)
         self.assertTrue(isinstance(file, file_utils.GoogleStorageFile))
 
+    def testGoogleStorageFileNoBucket(self):
+        url = 'gs:///blob'
+        settings = {'GCE_PROJECT': ''}
+        with self.assertRaises(file_utils.FileUtilsError):
+            file = file_utils.File(url, settings, retry=True)
+        
     def testFactoryLocalFile(self):
         url = 'file://'+self.filepath
         settings = {}
@@ -271,7 +277,7 @@ class TestGoogleStorageFile(unittest.TestCase):
     def setUp(self):
         self.settings = {'GCE_PROJECT': ''}
         self.file = file_utils.File(
-            SAMPLE_GOOGLE_STORAGE_FILE, self.settings, retry=False)
+            SAMPLE_GOOGLE_STORAGE_FILE, self.settings, retry=True)
 
     def testCalculateMd5(self):
         self.assertEqual(self.file.calculate_md5(), 'f16f91efe578419767b9dadaebcdc158')
@@ -300,7 +306,7 @@ class TestGoogleStorageFile(unittest.TestCase):
 
     def testIsDir(self):
         file = file_utils.File(os.path.dirname(SAMPLE_GOOGLE_STORAGE_FILE)+'/',
-                                self.settings)
+                                self.settings, retry=True)
         self.assertTrue(file.is_dir())
 
     def testIsDirNegative(self):

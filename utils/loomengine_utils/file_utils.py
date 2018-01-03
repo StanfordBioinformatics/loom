@@ -3,6 +3,7 @@ import errno
 import fnmatch
 import glob
 import google.cloud.storage
+import logging
 import os
 import random
 import re
@@ -25,6 +26,7 @@ from oauth2client.client import HttpAccessTokenRefreshError
 from oauth2client.client import ApplicationDefaultCredentialsError
 import apiclient.discovery
 
+logger = logging.getLogger(__name__)
 
 class FileUtilsError(LoomengineUtilsError):
     pass
@@ -147,10 +149,6 @@ class LocalFilePattern(AbstractFilePattern):
 
     def _remove_directories(self, all_matches):
         return filter(lambda path: os.path.isfile(path), all_matches)
-
-
-def _contains_wildcard(string):
-    return '*' in string or '?' in string
 
 
 class GoogleStorageClient:

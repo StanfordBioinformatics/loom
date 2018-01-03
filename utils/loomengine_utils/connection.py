@@ -1,4 +1,5 @@
 import datetime
+import os
 import json
 import logging
 import requests
@@ -23,7 +24,7 @@ class Connection(object):
     """
 
     def __init__(self, master_url, token=None, verify=False):
-        self.api_root_url = os.path.join(master_url + 'api/')
+        self.api_root_url = os.path.join(master_url, 'api/')
         self.token = token
         self.verify = verify
 
@@ -106,6 +107,7 @@ class Connection(object):
         while datetime.datetime.now() - start_time < datetime.timedelta(
                 0, time_limit_seconds):
             error = None
+            response = None
             try:
                 response = query_function()
                 if raise_for_status:
@@ -113,9 +115,10 @@ class Connection(object):
                     response.raise_for_status()
             except requests.exceptions.ConnectionError as e:
                 error = ServerConnectionError(
-                    "No response from server.\n%s" % e.message)
+                    "No response from server.\n%s" % e)
             except:
-                logger.info(response.text)
+                if response:
+                    logger.info(response.text)
                 raise
             if error:
                 time.sleep(retry_delay_seconds)
@@ -131,7 +134,12 @@ class Connection(object):
         return self._patch(object_data, relative_url).json()
 
     def _delete_resource(self, relative_url):
-        return self._delete(relative_url, raise_for_status=True).json()
+        response = self._delete(relative_url, raise_for_status=True)
+        try:
+            return response.json()
+        except ValueError:
+            # ValueError triggered because some delete views return no text
+            return None
 
     def _get_resource(self, relative_url, params=None):
         """Convenience function for retrieving a resource.

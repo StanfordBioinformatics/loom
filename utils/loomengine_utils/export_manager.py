@@ -16,7 +16,7 @@ def _replace_none_with_empty_list(myList):
         return []
     return myList
 
-def _get_default_destination_directory():
+def _get_default_bulk_export_directory():
     dirname = 'loom-bulk-export-%s' % \
               datetime.datetime.now().strftime('%Y-%m-%dT%H.%M.%S.%f')
     return os.path.join(os.getcwd(), dirname)
@@ -42,7 +42,7 @@ class ExportManager(object):
         templates = _replace_none_with_empty_list(templates)
         runs = _replace_none_with_empty_list(runs)
         if destination_directory is None:
-            destination_directory=_get_default_destination_directory()
+            destination_directory=_get_default_bulk_export_directory()
 
         self._bulk_export_files(
             files,
@@ -55,7 +55,8 @@ class ExportManager(object):
         for file in files:
             self._bulk_export_file(file, bulk_export_dir, **kwargs)
 
-    def _bulk_export_file(self, file, bulk_export_dir, **kwargs):
+    def _bulk_export_file(self, file, bulk_export_dir,
+                          retry=False, export_file_metadata=True, file_links=False):
         dest_dir = os.path.join(
             bulk_export_dir,
             'files',
@@ -65,13 +66,6 @@ class ExportManager(object):
                          retry=retry,
                          export_metadata=export_file_metadata,
                          export_raw_file=not file_links)
-
-#    def export_files(self, file_ids, destination_directory=None, retry=False,
-#                     export_metadata=False, export_raw_file=True):
-#        for file_id in file_ids:
-#            self.export_file(
-#                file_id, destination_directory=destination_directory, retry=retry,
-#                export_metadata=export_metadata, export_raw_file=export_raw_file)
 
     def export_file(self, file_id, destination_directory=None,
                     destination_filename=None, retry=False,
