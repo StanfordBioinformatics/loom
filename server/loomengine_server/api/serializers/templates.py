@@ -45,11 +45,12 @@ class TemplateInputSerializer(DataChannelSerializer):
         model = TemplateInput
         fields = ('type', 'channel', 'as_channel', 'data', 'hint', 'mode', 'group')
 
-    hint = serializers.CharField(required=False)
-    mode = serializers.CharField(required=False)
-    group = serializers.IntegerField(required=False)
-    data = serializers.JSONField(required=False) # Override to make non-required
-    as_channel = serializers.CharField(required=False)
+    hint = serializers.CharField(required=False, allow_blank=True)
+    mode = serializers.CharField(required=False, allow_blank=True)
+    group = serializers.IntegerField(required=False, allow_null=True)
+    # Override data to make it non-required
+    data = serializers.JSONField(required=False, allow_null=True) 
+    as_channel = serializers.CharField(required=False, allow_null=True)
 
 
 _template_serializer_fields = (
@@ -538,6 +539,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             template_copy = copy.deepcopy(template_data)
             template_copy.pop('steps', None)
             template_copy.pop('inputs', None)
+            template_copy.pop('url', None)
             template = Template(**template_copy)
             template_models.append(template)
 
@@ -546,9 +548,10 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                     _set_leaf_input_defaults(input_data)
                 input_copy = copy.deepcopy(input_data)
                 input_copy['template'] = template
-                if input_copy.get('data'):
+                data = input_copy.pop('data', None)
+                if data:
                     s = DataNodeSerializer(
-                        data=input_copy.pop('data'),
+                        data=data,
                         context={'type': input_copy.get('type')}
                     )
                     s.is_valid(raise_exception=True)

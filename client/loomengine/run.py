@@ -477,7 +477,7 @@ class RunDelete(AbstractRunSubcommand):
                 return [contents,]
         data_objects = []
         for child in contents:
-            data_objects.extend(self._parse_data_objects_from_data_node(child))
+            data_objects.extend(self._parse_data_objects_from_data_node_contents(child))
         return data_objects
 
 

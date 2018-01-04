@@ -155,8 +155,8 @@ class FileExport(AbstractFileSubcommand):
         file_uuids = set()
         for file_id in self.args.file_ids:
             found_at_least_one_match = False
-            offset=0
-            limit=10
+            offset = 0
+            limit = 10
             while True:
                 data = self.connection.get_data_object_index_with_limit(
 		    limit=limit, offset=offset,
@@ -174,12 +174,12 @@ class FileExport(AbstractFileSubcommand):
                 raise SystemExit('ERROR! No files matched "%s"' % file_id)
         try:
             if len(files) > 1:
-                self.export_manager.bulk_export(
-                    files=files,
+                self.export_manager.bulk_export_files(
+                    files,
                     destination_directory=self.args.destination_directory,
                     retry=self.args.retry,
-                    export_file_metadata=not self.args.no_metadata,
-                    file_links=self.args.link,
+                    export_metadata=not self.args.no_metadata,
+                    link_files=self.args.link,
                 )
             else:
                 self.export_manager.export_file(

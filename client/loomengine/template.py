@@ -175,7 +175,7 @@ class TemplateExport(AbstractTemplateSubcommand):
     @classmethod
     def get_parser(cls, parser):
         parser.add_argument(
-            'template_id',
+            'template_ids',
             nargs='+',
             metavar='TEMPLATE_ID', help='template(s) to be exported')
         parser.add_argument(
@@ -198,23 +198,43 @@ class TemplateExport(AbstractTemplateSubcommand):
         return parser
 
     def run(self):
-        template = self.connection.get_template_index(query_string=self.args.template_id, min=1, max=1)[0]
-        destination_url = self._get_destination_url(template, retry=self.args.retry)
-        self._save_template(template, destination_url, retry=self.args.retry)
-
-    def _get_destination_url(self, template, retry=False):
-        filename = template['name'] + '.yaml'
-        if self.args.destination_directory:
-            return os.path.join(self.args.destination_directory, filename)
+        templates = []
+        template_uuids = set()
+        for template_id in self.args.template_ids:
+            found_at_least_one_match = False
+            offset = 0
+            limit = 10
+            while True:
+                data = self.connection.get_template_index_with_limit(
+                    limit=limit, offset=offset,
+                    query_string=template_id)
+                for template in data['results']:
+                    found_at_least_one_match = True
+                    if template.get('uuid') not in template_uuids:
+                        template_uuids.add(template.get('uuid'))
+                        templates.append(template)
+                if data.get('next'):
+                    offset += limit
+                else:
+                    break
+            if not found_at_least_one_match:
+                raise SystemExit('ERROR! No templates matched "%s"' % template_id)
+        if len(templates) > 1:
+            return self.export_manager.bulk_export_templates(
+                templates,
+                destination_directory=self.args.destination_directory,
+                retry=self.args.retry,
+                link_files=self.args.link_files,
+                editable=self.args.editable
+                )
         else:
-            return os.path.join(os.getcwd(), filename)
-
-    def _save_template(self, template, destination, retry=False):
-        print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('uuid'), destination)
-        template_text = yaml.safe_dump(template, default_flow_style=False)
-        template_file = File(destination, self.storage_settings, retry=retry)
-        template_file.write(template_text)
-        print '...finished exporting template'
+            return self.export_manager.export_template(
+                template,
+                destination_directory=self.args.destination_directory,
+                retry=self.args.retry,
+                link_files=self.args.link_files,
+                editable=self.args.editable
+            )
 
 
 class TemplateList(AbstractTemplateSubcommand):

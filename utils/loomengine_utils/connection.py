@@ -345,6 +345,9 @@ class Connection(object):
             'templates/%s/remove-label/' % template_id)
     # Run
 
+    def post_run(self, run):
+        return self._post_resource(run, 'runs/')
+
     def get_run(self, run_id):
         return self._get_resource('runs/%s/' % run_id)
 

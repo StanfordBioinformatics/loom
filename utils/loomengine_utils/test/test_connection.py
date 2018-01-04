@@ -448,6 +448,12 @@ class TestConnection(unittest.TestCase):
 
     # Run
 
+    def testPostRun(self):
+        self.connection.add_route('runs/', 'POST')
+        response_data = self.connection.post_run(self.mock_request_data)
+        self.assertEqual(response_data, default_response_data)
+        self.assertEqual(self.connection.requests[0].data, self.mock_request_data)
+
     def testGetRun(self):
         self.connection.add_route('runs/123/', 'GET')
         response_data = self.connection.get_run('123')
