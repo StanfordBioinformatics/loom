@@ -142,9 +142,7 @@
       storage_root~':'~internal_storage_root if storage_type == 'local']
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
-            rabbitmq_container_name,\
-	    elasticsearch_container_name]|\
-	    reject('none') | list}}"
+            rabbitmq_container_name] | reject('none') | list}}"
     log_driver: fluentd
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
@@ -170,8 +168,7 @@
     volumes:
       - "{{server_settings_home}}:{{container_settings_home}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
-            rabbitmq_container_name]|\
-	    reject('none') | list}}"
+            rabbitmq_container_name] | reject('none') | list}}"
     log_driver: fluentd
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
