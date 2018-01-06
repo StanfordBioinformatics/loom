@@ -131,6 +131,20 @@ class Template(BaseModel):
                 'templates': template_dependencies,
                 'truncated': truncated}
 
+    def delete(self):
+        from api.models.data_nodes import DataNode
+        nodes_to_delete = set()
+	queryset = DataNode.objects.filter(
+            templateinput__template__uuid=self.uuid)
+        for item in queryset.all():
+            nodes_to_delete.add(item)
+        super(Template, self).delete()
+        for item in nodes_to_delete:
+            try:
+                item.delete()
+            except models.ProtectedError:
+                pass
+
 
 class TemplateInput(DataChannel):
 
@@ -167,5 +181,3 @@ class TemplateMembership(BaseModel):
                 child_template=step)
             template_membership.full_clean()
             template_membership.save()
-
-
