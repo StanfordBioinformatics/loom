@@ -37,6 +37,35 @@ class Md5ValidationError(FileUtilsError):
 class UrlValidationError(FileUtilsError):
     pass
 
+class InvalidYamlError(FileUtilsError):
+    pass
+
+class NoFileError(FileUtilsError):
+    pass
+
+def parse_as_yaml(text):
+    try:
+        data = yaml.load(text)
+    except yaml.parser.ParserError:
+        raise InvalidYamlError('Text is not valid YAML format')
+    except yaml.scanner.ScannerError as e:
+        raise InvalidYamlError(e.message)
+    return data
+
+def read_as_yaml(file):
+    try:
+        with open(file) as f:
+            text = f.read()
+    except IOError:
+        raise NoFileError(
+            'Could not find or could not read file %s' % file)
+
+    try:
+        return parse_as_yaml(text)
+    except InvalidYamlError:
+        raise InvalidYamlError(
+            'Input file "%s" is not valid YAML format' % file)
+
 def _validate_url(url):
     if (url.scheme == 'file' or url.scheme == ''):
         if url.hostname is not None:
@@ -324,7 +353,7 @@ class AbstractFile:
         raise FileUtilsError('Child class must override this method')
     def read(self, content):
         raise FileUtilsError('Child class must override this method')
-    def write(self, content):
+    def write(self, content, overwrite=False):
         raise FileUtilsError('Child class must override this method')
     def delete(self, pruneto=None):
         raise FileUtilsError('Child class must override this method')
@@ -358,7 +387,7 @@ class LocalFile(AbstractFile):
         except IOError as e:
             raise FileUtilsError(e.message)
 
-    def write(self, content):
+    def write(self, content, overwrite=False):
         try:
             os.makedirs(os.path.dirname(self.get_path()))
         except OSError as e:
@@ -367,6 +396,9 @@ class LocalFile(AbstractFile):
                 pass
             else:
                 raise FileUtilsError(str(e))
+        if not overwrite and self.exists():
+            raise FileUtilsError(
+                'Destination file already exists at "%s"' % path)
         with open(self.get_path(), 'w') as f:
             f.write(content)
 
@@ -436,7 +468,10 @@ class GoogleStorageFile(AbstractFile, GoogleStorageClient):
         os.rmdir(tempdir)
         return text
 
-    def write(self, content):
+    def write(self, content, overwrite=False):
+        if not overwrite and self.exists():
+            raise FileUtilsError(
+                'Destination file already exists at "%s"' % path)
         with tempfile.NamedTemporaryFile('w') as f:
             f.write(content)
             f.flush()

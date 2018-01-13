@@ -72,7 +72,7 @@ class ExportManager(object):
             self._save_template(template, template_destination, retry=retry)
         return templates
 
-    def export_template(self, templates, destination_directory=None,
+    def export_template(self, template, destination_directory=None,
                         retry=False, link_files=False, editable=False):
         template = self._expand_template(template)
         files = self._get_files_from_template(template)

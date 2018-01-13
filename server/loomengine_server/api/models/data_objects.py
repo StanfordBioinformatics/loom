@@ -148,6 +148,7 @@ class DataObject(BaseModel):
         from api.serializers import URLRunSerializer, URLTemplateSerializer
 
         context = {'request': request}
+        # We truncate the dependencies listed if we exceed DEPENDENCY_LIMIT
         DEPENDENCY_LIMIT = 10
         truncated = False
         runs = set()
@@ -169,7 +170,7 @@ class DataObject(BaseModel):
             prefetch_related('taskattemptinput_set__task_attempt__task__run').\
             prefetch_related('taskattemptoutput_set__task_attempt__task__run').\
             prefetch_related('templateinput_set__template')
-        
+
         for data_node in prefetched_root_data_nodes:
             for run_input in data_node.runinput_set.all():
                 if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
@@ -224,7 +225,7 @@ class DataObject(BaseModel):
                    and template_input.template not in templates:
                     truncated = True
                     break
-                templates.append(template_input.template)
+                templates.add(template_input.template)
             if truncated == True:
                 break
 
@@ -242,6 +243,22 @@ class DataObject(BaseModel):
                 'templates': template_dependencies,
                 'truncated': truncated}
 
+    def has_dependencies(self):
+        dependencies = self.get_dependencies(self.uuid, {})
+        return any(dependencies.values())
+
+    def delete(self):
+        # Sometimes detached DataNodes can be accidentially created, for example
+        # if there is an error when importing the Template after an input
+        # DataNode was already created. As a precaution we remove any extra
+        # DataNodes after verifying that none are in use.
+        if not self.has_dependencies():
+            self._cleanup_data_nodes()
+        super(DataObject, self).delete()
+
+    def _cleanup_data_nodes(self):
+        for node in self.data_nodes.all():
+            node.delete()
 
 class FileResource(BaseModel):
 

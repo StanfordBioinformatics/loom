@@ -10,7 +10,7 @@ import yaml
 
 from loomengine import _render_time
 from loomengine.common import verify_server_is_running, get_server_url, \
-    verify_has_connection_settings, parse_as_yaml, get_token
+    verify_has_connection_settings, get_token
 from loomengine.template_tag import TemplateTag
 from loomengine.template_label import TemplateLabel
 from loomengine_utils.connection import Connection
@@ -70,7 +70,7 @@ class TemplateImport(AbstractTemplateSubcommand):
         imported_templates = []
         for template_file in FileSet(
                 self.args.template, self.storage_settings, retry=self.args.retry):
-            template = self.import_template(
+            template = self.import_manager.import_template(
                 template_file,
                 self.args.comments,
                 self.connection,
@@ -81,71 +81,6 @@ class TemplateImport(AbstractTemplateSubcommand):
             imported_templates.append(template)
         return imported_templates
 
-    def import_template(self, template_file, comments,
-                        connection, force_duplicates=False,
-                        retry=False):
-        print 'Importing template from "%s".' % template_file.get_url()
-        template = self._get_template(template_file)
-        if not force_duplicates:
-            templates = self._get_template_duplicates(template)
-            if len(templates) > 0:
-                name = templates[-1]['name']
-                md5 = templates[-1]['md5']
-                uuid = templates[-1]['uuid']
-                warnings.warn(
-                    'WARNING! The name and md5 hash "%s$%s" is already in use by one '
-                    'or more templates. '\
-                    'Use "--force-duplicates" to create another copy, but if you '\
-                    'do you will have to use @uuid to reference these templates.'
-                    % (name, md5))
-                print 'Matching template already exists as "%s@%s".' % (name, uuid)
-                return templates[0]
-        if not template.get('comments'):
-            if comments:
-                template.update({'import_comments': comments})
-        if not template.get('imported_from_url'):
-            template.update({'imported_from_url': template_file.get_url()})
-
-        try:
-            template_from_server = connection.post_template(template)
-
-        except HTTPError as e:
-            if e.response.status_code==400:
-                errors = e.response.json()
-                raise SystemExit(
-                    "ERROR! %s" % errors)
-            else:
-                raise
-                
-        print 'Imported template "%s@%s".' % (
-            template_from_server['name'],
-            template_from_server['uuid'])
-        return template_from_server
-
-    @classmethod
-    def _get_template(self, template_file):
-        md5 = template_file.calculate_md5()
-        try:
-            template_text = template_file.read()
-        except Exception as e:
-            raise SystemExit('ERROR! Unable to read file "%s". %s'
-                             % (template_file.get_url(), str(e)))
-        template = parse_as_yaml(template_text)
-        try:
-            template.update({'md5': md5})
-        except AttributeError:
-            raise SystemExit(
-                'ERROR! Template at "%s" could not be parsed into a dict.'
-                % template_file.get_url())
-        return template
-
-    def _get_template_duplicates(self, template):
-	md5 = template.get('md5')
-        name = template.get('name')
-        templates = self.connection.get_template_index(
-            query_string='%s$%s' % (name, md5))
-        return templates
-    
     def _apply_tags(self, template):
         if not self.args.tag:
             return

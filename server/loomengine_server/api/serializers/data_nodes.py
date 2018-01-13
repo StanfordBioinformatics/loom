@@ -49,6 +49,9 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
             contents, type)
         return data_node
 
+    def is_valid(self, **kwargs):
+        return super(DataNodeSerializer, self).is_valid(**kwargs)
+
     def validate_contents(self, value):
         try:
             jsonschema.validate(value, data_node_schema)

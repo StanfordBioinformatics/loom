@@ -401,7 +401,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         template_id = validated_data.get('_template_id')
         if template_id:
             return self._lookup_by_id(template_id)
-
         try:
             root_uuid = self._unsaved_templates[0].uuid
 
