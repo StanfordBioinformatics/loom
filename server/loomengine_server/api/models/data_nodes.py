@@ -389,6 +389,6 @@ class DataNode(AsyncSafeMPTTModel, BaseModel):
             return [self]
 
         leaves = []
-        for child in self.children.all():
+        for child in self.children.order_by('index'):
             leaves.extend(child._get_leaves())
         return leaves
