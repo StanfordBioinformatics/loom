@@ -483,6 +483,6 @@ class TestImportManager(unittest.TestCase):
             file_data_object, upload_status)
         self.assertEqual(result, default_response_data)
 
-        
+
 if __name__=='__main__':
     unittest.main()

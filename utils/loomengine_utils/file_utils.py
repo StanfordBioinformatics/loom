@@ -99,7 +99,7 @@ class FileSet:
         assert isinstance(patterns, list), 'patterns must be a list'
         self.settings = settings
         self.retry = retry
-        self.trim_metadata_suffix = trim_metadata_suffix
+        self.do_trim_metadata_suffix = trim_metadata_suffix
         self.files = []
         self.urls = set()
         self._parse_patterns(patterns)
@@ -111,7 +111,7 @@ class FileSet:
     def _parse_pattern(self, pattern):
         for file in FilePattern(
                 pattern, self.settings, retry=self.retry,
-                trim_metadata_suffix=self.trim_metadata_suffix):
+                trim_metadata_suffix=self.do_trim_metadata_suffix):
             self._add_file(file)
 
     def _add_file(self, file):

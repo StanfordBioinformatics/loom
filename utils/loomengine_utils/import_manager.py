@@ -1,10 +1,12 @@
 import logging
 import os
+import re
 from requests.exceptions import HTTPError
 import warnings
 import yaml
 
 from loomengine_utils.file_utils import File, FileSet, parse_as_yaml
+from loomengine_utils.connection import ServerConnectionError
 from oauth2client.client import ApplicationDefaultCredentialsError
 
 logger = logging.getLogger(__name__)
@@ -15,6 +17,11 @@ class ImportManagerError(Exception):
 class FileDuplicateError(ImportManagerError):
     pass
 
+class DependencyNode(object):
+
+    def __init__(self, parent=None):
+        self.file_data_objects = []
+        self.parent = parent
 
 class ImportManager(object):
 
@@ -59,7 +66,7 @@ class ImportManager(object):
                             ignore_metadata=False, force_duplicates=False,
                             from_metadata=False, retry=False):
         files = []
-        for source in FileSet(patterns, self.storage_settings,retry=retry):
+        for source in FileSet(patterns, self.storage_settings, retry=retry):
             files.append(self.import_file(
                 source.get_url(),
                 comments,
@@ -107,8 +114,9 @@ class ImportManager(object):
             metadata_url, retry=retry, ignore_metadata=ignore_metadata)
         source_file = self._get_source_file(source_file_url, metadata, retry=retry)
 
-        self._import_file_and_metadata(source_file, metadata, comments, link=link,
-                                  force_duplicates=force_duplicates, retry=retry)
+        return self._import_file_and_metadata(
+            source_file, metadata, comments, link=link,
+            force_duplicates=force_duplicates, retry=retry)
 
     def _get_file_and_metadata_urls(self, requested_source_url):
         if requested_source_url.endswith('.metadata.yaml'):
@@ -146,7 +154,12 @@ class ImportManager(object):
                     data_object, force_duplicates=force_duplicates)
             except FileDuplicateError:
                 return
-            data_object = self.connection.post_data_object(data_object)
+            try:
+                data_object = self.connection.post_data_object(data_object)
+            except ServerConnectionError as e:
+                raise ImportManagerError(
+                    "Failed to POST DataObject: '%s'. %s"
+                    % (data_object, e.message))
             data_object = self._execute_file_import(
                 data_object, source, retry=retry)
             return data_object
@@ -356,16 +369,18 @@ class ImportManager(object):
         )
 
     def import_template(self, template_file, comments,
-                        connection, force_duplicates=False,
-                        retry=False):
+                        force_duplicates=False,
+                        retry=False, link_files=False):
         print 'Importing template from "%s".' % template_file.get_url()
-        template = self._get_template(template_file)
+        template = self._recursive_import_template(
+            template_file, force_duplicates=force_duplicates,
+            retry=retry, link_files=link_files)
         if not force_duplicates:
-            templates = self._get_template_duplicates(template)
-            if len(templates) > 0:
-                name = templates[-1]['name']
-                md5 = templates[-1]['md5']
-                uuid = templates[-1]['uuid']
+            duplicates = self._get_template_duplicates(template)
+            if len(duplicates) > 0:
+                name = duplicates[-1]['name']
+                md5 = duplicates[-1]['md5']
+                uuid = duplicates[-1]['uuid']
                 warnings.warn(
                     'WARNING! The name and md5 hash "%s$%s" is already in use by one '
                     'or more templates. '\
@@ -373,7 +388,7 @@ class ImportManager(object):
                     'do you will have to use @uuid to reference these templates.'
                     % (name, md5))
                 print 'Matching template already exists as "%s@%s".' % (name, uuid)
-                return templates[0]
+                return duplicates[0]
         if not template.get('comments'):
             if comments:
                 template.update({'import_comments': comments})
@@ -381,8 +396,7 @@ class ImportManager(object):
             template.update({'imported_from_url': template_file.get_url()})
 
         try:
-            template_from_server = connection.post_template(template)
-
+            template_from_server = self.connection.post_template(template)
         except HTTPError as e:
             if e.response.status_code==400:
                 errors = e.response.json()
@@ -395,6 +409,50 @@ class ImportManager(object):
             template_from_server['name'],
             template_from_server['uuid'])
         return template_from_server
+
+    def _recursive_import_template(
+            self, template_file, force_duplicates=False, retry=False,
+            parent_file_dependency_node=None, link_files=False):
+        template = self._get_template(template_file)
+        file_dependency_node = self._import_template_file_dependencies(
+            template_file, force_duplicates=force_duplicates,
+            retry=retry, link_files=link_files,
+            parent_file_dependency_node=parent_file_dependency_node)
+        self._substitute_file_uuids_throughout_template(template, file_dependency_node)
+        steps = self._get_template_step_dependencies(
+            template_file, force_duplicates=force_duplicates, retry=retry)
+        for step_file in steps:
+            step_template = self._recursive_import_template(
+                step_file, force_duplicates=force_duplicates, retry=retry)
+            self._add_or_replace_step(template, step_template)
+        return template
+
+    def _add_or_replace_step(self, template, step_template):
+        template.setdefault('steps', [])
+        match = False
+        for i in range(len(template['steps'])):
+            if self._does_reference_match_template(
+                    template['steps'][i], step_template):
+                template['steps'][i] = step_template
+                match = True
+                continue
+        if not match:
+            template['steps'].append(step_template)
+
+    def _does_reference_match_template(self, reference, template):
+        if not isinstance(reference, str):
+            return False
+        name, uuid, tag, md5 = self._parse_reference_string(reference)
+        template_name = template.get('name')
+        template_uuid = template.get('uuid')
+        template_md5 = template.get('md5')
+        if uuid and uuid != template_uuid:
+            return False
+        if name and name != template_name:
+            return False
+        if md5 and md5 != template_md5:
+            return False
+        return True
 
     @classmethod
     def _get_template(self, template_file):
@@ -419,3 +477,114 @@ class ImportManager(object):
         templates = self.connection.get_template_index(
             query_string='%s$%s' % (name, md5))
         return templates
+
+    def _import_template_file_dependencies(
+            self, template_file, force_duplicates=False,
+            retry=False, link_files=False,
+            parent_file_dependency_node=None):
+        file_dependencies = DependencyNode(parent=parent_file_dependency_node)
+        pattern = os.path.join(template_file.get_url()+'.dependencies', 'files', '*')
+        files_to_import = FileSet(
+            [pattern,], self.storage_settings, trim_metadata_suffix=True, retry=retry)
+        for file_to_import in files_to_import:
+            file_data_object = self.import_file(
+                file_to_import.get_url(), '', link=link_files, retry=retry)
+            if file_data_object:
+                file_dependencies.file_data_objects.append(file_data_object)
+        return file_dependencies
+
+    def _get_template_step_dependencies(
+            self, template_file, force_duplicates=False, retry=False):
+        step_dependencies = []
+        pattern = os.path.join(template_file.get_url()+'.dependencies', 'steps', '*')
+        step_files = FileSet([pattern,], self.storage_settings, retry=retry)
+        return step_files
+
+    def _substitute_file_uuids_throughout_template(self, template, file_dependencies):
+        """Anywhere in "template" that refers to a data object but does not 
+        give a specific UUID, if a matching file can be found in "file_dependencies",
+        we will change the data object reference to use that UUID. That way templates
+        have a preference to connect to files nested under their ".dependencies" over
+        files that were previously imported to the server.
+        """
+        if not isinstance(template, dict):
+            # Nothing to do if this is a reference to a previously imported template.
+            return
+        for input in template.get('inputs'):
+            self._substitute_file_uuids_in_input(input, file_dependencies)
+        for step in template.get('steps', []):
+            self._substitute_file_uuids_throughout_template(step, file_dependencies)
+
+    def _substitute_file_uuids_in_input(self, input, file_dependencies):
+        if input.get('data'):
+            if input.get('type') != 'file':
+                return input
+            if input['data'].get('uuid'):
+                return input
+            elif input['data'].get('contents'):
+                input['data']['contents'] \
+                    = self._substitute_file_uuids_in_input_data_contents(
+                        input['data']['contents'], file_dependencies)
+        return input
+
+    def _substitute_file_uuids_in_input_data_contents(
+            self, contents, file_dependencies):
+        if isinstance(contents, list):
+            return [self._substitute_file_uuids_in_input_data_contents(item)
+                    for item in contents]
+        elif isinstance(contents, str):
+            name, uuid, tag, md5 = self._parse_reference_string(contents)
+            if uuid or tag:
+                # No need to do the substitution if it's a uuid or tag, since these
+                # unique identifiers can only match one record
+                return contents
+        else:
+            name = contents.get('name')
+            md5 = contents.get('md5')
+        matches = self._get_matches_from_file_dependencies(file_dependencies, name, md5)
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) == 0:
+            return contents
+        else:
+            raise Exception('Multiple files match input: "%s$%s"' % (name, md5))
+
+    def _get_matches_from_file_dependencies(self, file_dependencies, name, md5):
+        file_data_objects = file_dependencies.file_data_objects
+        if name and md5:
+            return filter(lambda do, name=name, md5=md5:
+                          do['value'].get('filename') == name and
+                          do['value'].get('md5') == md5,
+                          file_data_objects)
+        elif name:
+            return filter(lambda do, name=name,:
+                          do['value'].get('filename') == name,
+                          file_data_objects)
+        elif md5:
+            return filter(lambda do, md5=md5:
+                          do['value'].get('md5') == md5,
+                          file_data_objects)
+        else:
+            raise Exception('No name, md5, or uuid found for input')
+
+    def _parse_reference_string(self, input_data_string):
+        name = None
+        uuid = None
+        tag = None
+        hash_value = None
+        name_match = re.match('^(?!\$|@|:)(.+?)($|\$|@|:)', input_data_string)
+        if name_match is not None:
+            name = name_match.groups()[0]
+        # id starts with @ and ends with $ or end of string
+        uuid_match = re.match('^.*?@(.*?)($|\$|:)', input_data_string)
+	if uuid_match is not None:
+            uuid = uuid_match.groups()[0]
+        # tag starts with $ and ends with @ or end of string
+        tag_match = re.match('^.*?:(.*?)($|\$|@)', input_data_string)
+        if tag_match is not None:
+            tag = tag_match.groups()[0]
+        # hash starts with $ and ends with @ or end of string
+        hash_match = re.match('^.*?\$(.*?)($|@|:)', input_data_string)
+        if hash_match is not None:
+            hash_value = hash_match.groups()[0]
+        return name, uuid, tag, hash_value
