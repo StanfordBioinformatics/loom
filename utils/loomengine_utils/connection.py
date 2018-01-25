@@ -151,7 +151,7 @@ class Connection(object):
         """Convenience function for retrieving a resource.
         If resource does not exist, return None.
         """
-        response = self._get(relative_url, params=params)
+        response = self._get(relative_url, params=params, raise_for_status=False)
         if response.status_code == 404:
             return None
         response.raise_for_status()

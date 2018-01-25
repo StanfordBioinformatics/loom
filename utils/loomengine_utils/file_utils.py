@@ -398,7 +398,7 @@ class LocalFile(AbstractFile):
                 raise FileUtilsError(str(e))
         if not overwrite and self.exists():
             raise FileUtilsError(
-                'Destination file already exists at "%s"' % path)
+                'Destination file already exists at "%s"' % self.get_path())
         with open(self.get_path(), 'w') as f:
             f.write(content)
 

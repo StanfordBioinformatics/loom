@@ -62,8 +62,8 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
         return data
 
     def _validate_and_cache_nonfile(self, data):
-        value = data.pop('_value_info')
-        data['value'] = value
+        value = data.get('_value_info')
+        type = data.get('type')
         try:
             self._cached_data_object = DataObject.objects.get(
                 uuid=data.get('uuid'))
@@ -73,8 +73,8 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
         except DataObject.DoesNotExist:
             pass
         self._cached_data_object = DataObjectSerializer\
-            .Meta.model(**data)
-        self._do_create_new_data_object=True
+            .Meta.model.get_by_value(value, type)
+        self._do_create_new_data_object=False # already saved
         try:
             self._cached_data_object.full_clean()
         except django.core.exceptions.ValidationError as e:
@@ -105,8 +105,10 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                         self._cached_data_object, data)
                     return data
                 except DataObject.DoesNotExist:
-                    raise serializers.ValidationError(
-                        'Data Object not found: %s' % data.get('uuid'))
+                    # Create new, with given UUID
+                    data.pop('_value_info')
+                    self._cached_data_object = self.Meta.model(**data)
+                    self._do_create_new_data_object = True
             else:
                 # Otherwise, create new.
                 data.pop('_value_info')
@@ -189,7 +191,6 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                 resource_init_args['task_attempt'] = self.context.get(
                     'task_attempt')
             resource_init_args['data_object'] = self._cached_data_object
-            self._sanitize_resource_init_args(resource_init_args)
             file_resource = FileResource.initialize(**resource_init_args)
             try:
                 file_resource.full_clean()
@@ -200,16 +201,6 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
         except Exception as e:
             self._cleanup(self._cached_data_object)
             raise
-
-    def _sanitize_resource_init_args(self, resource_init_args):
-        # This is called when creating a new resource. But sometimes
-        # the data is coming from an exported resource and has values
-        # that are only valid in another server context. Stript those here.
-        resource_init_args.pop('upload_status', None)
-        resource_init_args.pop('file_url', None)
-        resource_init_args.pop('link', None)
-        resource_init_args.pop('imported_from_url', None)
-        return resource_init_args
 
     def _cleanup(self, data_object):
         try:

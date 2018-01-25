@@ -183,7 +183,7 @@ class FileExport(AbstractFileSubcommand):
                 )
             else:
                 self.export_manager.export_file(
-                    '@%s' % files[0].get('uuid'),
+                    files[0],
                     destination_directory=self.args.destination_directory,
                     retry=self.args.retry,
                     export_metadata=not self.args.no_metadata,

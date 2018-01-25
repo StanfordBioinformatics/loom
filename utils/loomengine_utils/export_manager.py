@@ -1,3 +1,4 @@
+import copy
 import datetime
 import logging
 import os
@@ -33,7 +34,7 @@ class ExportManager(object):
                 destination_directory,
                 'files',
                 file.get('uuid'))
-            self.export_file('@%s' % file.get('uuid'),
+            self.export_file(file,
                              destination_directory=file_directory,
                              retry=retry,
                              export_metadata=export_metadata,
@@ -206,17 +207,13 @@ class ExportManager(object):
         template_file.write(template_text)
         print '...finished exporting template'
 
-    def export_file(self, file_id, destination_directory=None,
+    def export_file(self, data_object, destination_directory=None,
                     destination_filename=None, retry=False,
                     export_metadata=False, export_raw_file=True):
         """Export a file from Loom to some file storage location.
         Default destination_directory is cwd. Default destination_filename is the 
         filename from the file data object associated with the given file_id.
         """
-        # Error raised if there is not exactly one matching file.
-        data_object = self.connection.get_data_object_index(
-            query_string=file_id, type='file', max=1, min=1)[0]
-
         if not destination_directory:
             destination_directory = os.getcwd()
 
@@ -246,10 +243,14 @@ class ExportManager(object):
             source_url = data_object['value']['file_url']
             File(source_url, self.storage_settings, retry=retry).copy_to(
                 destination, expected_md5=md5)
+            data_object['value'] = self._create_new_file_resource(
+                data_object['value'], destination.get_url())
         else:
             logger.info('...skipping raw file')
 
         if export_metadata:
+            data_object['value'].pop('link', None)
+            data_object['value'].pop('upload_status', None)
             destination_metadata_url = os.path.join(
                 destination_file_url + '.metadata.yaml')
             logger.info('...writing metadata to %s' % destination_metadata_url)
@@ -261,3 +262,14 @@ class ExportManager(object):
             logger.info('...skipping metadata')
 
         logger.info('...finished file export')
+
+    def _create_new_file_resource(self, old_resource, new_file_url):
+        # Most fields are the same as old_resource.
+        new_resource = copy.deepcopy(old_resource)
+
+        # "link" boolean affects how the server manages files
+        # and is not meaningful after export
+        new_resource.pop('link', None)
+        new_resource.pop('upload_status', None)
+        new_resource['file_url'] = new_file_url
+        return new_resource

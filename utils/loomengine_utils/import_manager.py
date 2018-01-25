@@ -18,6 +18,13 @@ class FileDuplicateError(ImportManagerError):
     pass
 
 class DependencyNode(object):
+    """This class helps keep track of file dependencies for a
+    template. It maintains a tree of dependencies so that when references to 
+    a file or template (e.g. "step1$8cd1938abdd12dff4d38a0c8dabd7f07") are
+    resolved, we can search the current branch first and then work our way
+    up the tree. This corresponds to searching files/ and steps/ folders
+    at the current level, then searching up the directory tree to find a match.
+    """
 
     def __init__(self, parent=None):
         self.file_data_objects = []
@@ -47,7 +54,8 @@ class ImportManager(object):
         # import all files directory/* and directory/*/*, with metadata if present
         files_to_import = FileSet(
             [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
-            self.storage_settings, retry=retry)
+            self.storage_settings, retry=retry,
+            trim_metadata_suffix=True)
         imported_files = []
         for file_to_import in files_to_import:
             imported_files.append(
@@ -57,7 +65,16 @@ class ImportManager(object):
         return imported_files
 
     def _bulk_import_templates(self, directory, link_files=False, retry=False):
-        pass
+        templates_to_import = FileSet(
+            [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
+            self.storage_settings, retry=retry)
+        imported_templates = []
+        for template_to_import in templates_to_import:
+            imported_templates.append(
+                self.import_template(
+                    template_to_import, link_files=link_files, retry=retry)
+            )
+        return imported_templates
 
     def _bulk_import_runs(self, directory, link_files=False, retry=False):
         pass
@@ -73,7 +90,8 @@ class ImportManager(object):
                 link=link,
                 ignore_metadata=ignore_metadata,
                 force_duplicates=force_duplicates,
-                retry=retry))
+                retry=retry,
+                trim_metadata_suffix=True))
         return files
 
     def _get_file_metadata(self, metadata_url, retry=False, ignore_metadata=False):
@@ -150,10 +168,11 @@ class ImportManager(object):
             data_object = self._render_file_data_object_dict(
                 source, comments, metadata=metadata, link=link)
             try:
-                data_object = self._check_for_duplicates(
+                data_object = self._check_for_file_duplicates(
                     data_object, force_duplicates=force_duplicates)
             except FileDuplicateError:
                 return
+
             try:
                 data_object = self.connection.post_data_object(data_object)
             except ServerConnectionError as e:
@@ -171,24 +190,30 @@ class ImportManager(object):
             else:
                 raise
 
-    def _check_for_duplicates(self, data_object, force_duplicates=False):
+    def _check_for_file_duplicates(self, data_object, force_duplicates=False):
+        # If UUID matches existing object, no duplicate can be created
+        if data_object.get('uuid'):
+            existing_file = self.connection.get_data_object(data_object.get('uuid'))
+            if existing_file:
+                # No need to import, but do not raise warning. This will cause
+                # duplicate warnings when importing templates that reference
+                # the file multiple times.
+                return data_object
+        # No check if "force_duplicates" is set
         if force_duplicates:
             return data_object
-        else:
-            filename = data_object['value']['filename']
-            md5= data_object['value']['md5']
 
-            files = self._get_file_duplicates(filename, md5)
-            if len(files) > 0:
-                logger.warn(
-                    'WARNING! The name and md5 hash "%s$%s" is already in use by one '
-                    'or more files. '\
-                    'Use "--force-duplicates" to create another copy, but if you '\
-                    'do you will have to use @uuid to reference these files.'
-                    % (filename, md5))
-                raise FileDuplicateError
-            else:
-                return data_object
+        filename = data_object['value']['filename']
+        md5= data_object['value']['md5']
+        files = self._get_file_duplicates(filename, md5)
+        if len(files) > 0:
+            logger.warn(
+                'Found existing file that matches name and md5 hash "%s$%s". '\
+                'Using existing file and skipping new file import.'
+                % (filename, md5))
+            raise FileDuplicateError
+        else:
+            return data_object
 
     def _get_file_duplicates(self, filename, md5):
         files = self.connection.get_data_object_index(
@@ -329,7 +354,7 @@ class ImportManager(object):
         logger.info('Importing file from %s...' % source.get_url())
         if file_data_object['value'].get('upload_status') == 'complete':
             logger.info(
-                '   skipping upload because server already has the file %s@%s.' % (
+                '   Skipping upload because server already has the file %s@%s.' % (
                     file_data_object['value'].get('filename'),
                     file_data_object.get('uuid')))
             return file_data_object
@@ -368,35 +393,28 @@ class ImportManager(object):
             {'uuid': uuid, 'value': { 'upload_status': upload_status}}
         )
 
-    def import_template(self, template_file, comments,
+    def import_template(self, template_file, comments=None,
                         force_duplicates=False,
                         retry=False, link_files=False):
         print 'Importing template from "%s".' % template_file.get_url()
-        template = self._recursive_import_template(
-            template_file, force_duplicates=force_duplicates,
+        template = self._get_template(template_file)
+        importable_template = self._recursive_import_template(
+            template, template_file.get_url(),
+            force_duplicates=force_duplicates,
             retry=retry, link_files=link_files)
-        if not force_duplicates:
-            duplicates = self._get_template_duplicates(template)
-            if len(duplicates) > 0:
-                name = duplicates[-1]['name']
-                md5 = duplicates[-1]['md5']
-                uuid = duplicates[-1]['uuid']
-                warnings.warn(
-                    'WARNING! The name and md5 hash "%s$%s" is already in use by one '
-                    'or more templates. '\
-                    'Use "--force-duplicates" to create another copy, but if you '\
-                    'do you will have to use @uuid to reference these templates.'
-                    % (name, md5))
-                print 'Matching template already exists as "%s@%s".' % (name, uuid)
-                return duplicates[0]
-        if not template.get('comments'):
+
+        if importable_template is None:
+            print '  Skipping import because template already exists.'
+            return
+
+        if not importable_template.get('comments'):
             if comments:
-                template.update({'import_comments': comments})
-        if not template.get('imported_from_url'):
-            template.update({'imported_from_url': template_file.get_url()})
+                importable_template.update({'import_comments': comments})
+        if not importable_template.get('imported_from_url'):
+            importable_template.update({'imported_from_url': template_file.get_url()})
 
         try:
-            template_from_server = self.connection.post_template(template)
+            imported_template = self.connection.post_template(importable_template)
         except HTTPError as e:
             if e.response.status_code==400:
                 errors = e.response.json()
@@ -406,24 +424,36 @@ class ImportManager(object):
                 raise
 
         print 'Imported template "%s@%s".' % (
-            template_from_server['name'],
-            template_from_server['uuid'])
-        return template_from_server
+            imported_template['name'],
+            imported_template['uuid'])
+        return imported_template
 
     def _recursive_import_template(
-            self, template_file, force_duplicates=False, retry=False,
+            self, template, template_url, force_duplicates=False, retry=False,
             parent_file_dependency_node=None, link_files=False):
-        template = self._get_template(template_file)
+
+        # If UUID matches existing object, no duplicate can be created
+        if template.get('uuid'):
+            existing_template = self.connection.get_template(template.get('uuid'))
+            if existing_template:
+                # No need to import
+                return None
+
+        template = self._check_for_template_duplicates(
+            template, force_duplicates=force_duplicates)
+
         file_dependency_node = self._import_template_file_dependencies(
-            template_file, force_duplicates=force_duplicates,
+            template_url, force_duplicates=force_duplicates,
             retry=retry, link_files=link_files,
             parent_file_dependency_node=parent_file_dependency_node)
         self._substitute_file_uuids_throughout_template(template, file_dependency_node)
         steps = self._get_template_step_dependencies(
-            template_file, force_duplicates=force_duplicates, retry=retry)
+            template_url, force_duplicates=force_duplicates, retry=retry)
         for step_file in steps:
+            step_template = self._get_template(step_file)
             step_template = self._recursive_import_template(
-                step_file, force_duplicates=force_duplicates, retry=retry)
+                step_template, step_file.get_url(),
+                force_duplicates=force_duplicates, retry=retry)
             self._add_or_replace_step(template, step_template)
         return template
 
@@ -438,6 +468,25 @@ class ImportManager(object):
                 continue
         if not match:
             template['steps'].append(step_template)
+
+
+    def _check_for_template_duplicates(self, template, force_duplicates=False):
+        # No check if "force_duplicates" is set
+        if force_duplicates:
+            return template
+
+        duplicates = self._get_template_duplicates(template)
+        if len(duplicates) > 0:
+            name = duplicates[-1]['name']
+            md5 = duplicates[-1]['md5']
+            uuid = duplicates[-1]['uuid']
+            logger.warn(
+                'Found existing template that matches name and md5 hash "%s$%s". '\
+                'Using existing template and skipping new template import.'
+                % (name, md5))
+            return duplicates[0]
+        else:
+            return template
 
     def _does_reference_match_template(self, reference, template):
         if not isinstance(reference, str):
@@ -479,13 +528,15 @@ class ImportManager(object):
         return templates
 
     def _import_template_file_dependencies(
-            self, template_file, force_duplicates=False,
+            self, template_url, force_duplicates=False,
             retry=False, link_files=False,
             parent_file_dependency_node=None):
         file_dependencies = DependencyNode(parent=parent_file_dependency_node)
-        pattern = os.path.join(template_file.get_url()+'.dependencies', 'files', '*')
+        file_directory = os.path.join(template_url+'.dependencies', 'files')
+        patterns = [os.path.join(file_directory, '*'),
+                    os.path.join(file_directory, '*/*')]
         files_to_import = FileSet(
-            [pattern,], self.storage_settings, trim_metadata_suffix=True, retry=retry)
+            patterns, self.storage_settings, trim_metadata_suffix=True, retry=retry)
         for file_to_import in files_to_import:
             file_data_object = self.import_file(
                 file_to_import.get_url(), '', link=link_files, retry=retry)
@@ -494,9 +545,9 @@ class ImportManager(object):
         return file_dependencies
 
     def _get_template_step_dependencies(
-            self, template_file, force_duplicates=False, retry=False):
+            self, template_url, force_duplicates=False, retry=False):
         step_dependencies = []
-        pattern = os.path.join(template_file.get_url()+'.dependencies', 'steps', '*')
+        pattern = os.path.join(template_url+'.dependencies', 'steps', '*')
         step_files = FileSet([pattern,], self.storage_settings, retry=retry)
         return step_files
 

@@ -72,9 +72,10 @@ class TemplateImport(AbstractTemplateSubcommand):
                 self.args.template, self.storage_settings, retry=self.args.retry):
             template = self.import_manager.import_template(
                 template_file,
-                self.args.comments,
+                comments=self.args.comments,
                 force_duplicates=self.args.force_duplicates,
-                retry=self.args.retry)
+                retry=self.args.retry,
+                link_files=self.args.link_files)
             self._apply_tags(template)
             self._apply_labels(template)
             imported_templates.append(template)
