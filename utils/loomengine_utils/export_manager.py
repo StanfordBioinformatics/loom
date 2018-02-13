@@ -12,10 +12,6 @@ logger = logging.getLogger(__name__)
 class ExportManagerError(Exception):
     pass
 
-def _get_default_bulk_export_directory():
-    dirname = 'loom-bulk-export-%s' % \
-              datetime.datetime.now().strftime('%Y-%m-%dT%H.%M.%S.%f')
-    return os.path.join(os.getcwd(), dirname)
 
 class ExportManager(object):
 
@@ -26,186 +22,25 @@ class ExportManager(object):
         self.storage_settings = storage_settings      
 
     def bulk_export_files(self, files, destination_directory=None,
-                          retry=False, export_metadata=True, link_files=False):
+                          retry=False, export_metadata=True,
+                          link_files=False, editable=False):
+
         if destination_directory == None:
-            destination_directory = _get_default_bulk_export_directory()
+            destination_directory = self._get_default_bulk_export_directory()
         for file in files:
+            if editable:
+                subdir = 'md5_'+file['value'].get('md5')
+            else:
+                subdir = 'uuid_'+file.get('uuid')
             file_directory = os.path.join(
                 destination_directory,
                 'files',
-                file.get('uuid'))
+                subdir)
             self.export_file(file,
                              destination_directory=file_directory,
                              retry=retry,
                              export_metadata=export_metadata,
                              export_raw_file=not link_files)
-
-    def bulk_export_templates(self, templates,
-                              destination_directory=None,
-                              retry=False, link_files=False,
-                              editable=False):
-        if destination_directory is None:
-            destination_directory=_get_default_bulk_export_directory()
-
-        expanded_templates = self._expand_templates(templates)
-        template_files = self._get_files_from_templates(expanded_templates)
-
-        # If templates are editable, UUIDs will be stripped. But to avoid
-        # file collisions, we save the UUIDs to use as a subdirectory that
-        # makes each template's path unique
-        template_uuids = [t['uuid'] for t in expanded_templates]
-
-        if editable:
-            templates = self._convert_templates_to_editable(expanded_templates)
-
-        # If template is editable, exclude file metadata with UUIDs
-        export_file_metadata = not editable
-
-        self.bulk_export_files(template_files,
-                               destination_directory=destination_directory,
-                               retry=retry, link_files=link_files,
-                               export_metadata=export_file_metadata)
-        for template, uuid in zip(expanded_templates, template_uuids):
-            template_destination = self._get_template_destination(
-                template,
-                destination_directory=os.path.join(
-                    destination_directory, 'templates', uuid))
-            self._save_template(template, template_destination, retry=retry)
-        return templates
-
-    def export_template(self, template, destination_directory=None,
-                        retry=False, link_files=False, editable=False):
-        template = self._expand_template(template)
-        files = self._get_files_from_template(template)
-        if editable:
-            template = self._convert_template_to_editable(template)
-        template_destination = self._get_template_destination(
-            template, destination_directory=destination_directory)
-        # If template is editable, exclude file metadata with UUIDs
-        export_file_metadata = not editable
-        self.bulk_export_files(
-            files, destination_directory=template_destination+'.dependencies',
-            retry=retry, link_files=link_files, export_metadata=export_file_metadata)
-        self._save_template(template, template_destination, retry=retry)
-
-    def _expand_template(self, template):
-        for input in template.get('inputs', []):
-            if input['data']:
-                input['data'] = self.connection.get_data_node(
-                    input['data']['uuid'], expand=True)
-        expanded_steps = []
-        for step in template.get('steps', []):
-            step = self.connection.get_template(step['uuid'])
-            step = self._expand_template(step)
-            expanded_steps.append(step)
-        if expanded_steps:
-            template['steps'] = expanded_steps
-        return template
-
-    def _expand_templates(self, templates):
-        return [self._expand_template(t) for t in templates]
-
-    def _convert_template_to_editable(self, template):
-        # Delete data that is unique to the original instance. User can edit
-        # and reimport this template with a new uuid, datetime_created, etc.
-        template.pop('uuid', None)
-        template.pop('url', None)
-        template.pop('datetime_created', None)
-        template.pop('imported_from_url', None)
-
-        for input in template.get('inputs', []):
-            if input['data']:
-                input['data'] = self._convert_data_node_to_editable(input['data'])
-        converted_steps = []
-        for step in template.get('steps', []):
-            converted_steps.append(self._convert_template_to_editable(step))
-        if converted_steps:
-            template['steps'] = converted_steps
-        return template
-
-    def _convert_templates_to_editable(self,templates):
-        return [self._convert_template_to_editable(t) for t in templates]
-
-    def _convert_data_node_to_editable(self, data_node):
-        data_node.pop('uuid', None)
-        data_node.pop('url', None)
-        if data_node.get('contents'):
-            data_node['contents'] = self._convert_data_contents_to_editable(
-                data_node['contents'])
-        return data_node
-
-    def _convert_data_contents_to_editable(self, contents):
-        if isinstance(contents, list):
-            return [self._convert_data_contents_to_editable(item)
-                    for item in contents]
-        else:
-            if contents.get('type') == 'file':
-                new_contents = {
-                    'type': 'file',
-                    'value': {
-                        'filename': contents['value'].get('filename'),
-                        'md5': contents['value'].get('md5')
-                    }
-                }
-            else:
-                new_contents = {
-                    'type': contents.get('type'),
-                    'value': contents.get('value')
-                }
-            return new_contents
-
-    def _get_files_from_template(self, template):
-        return self._get_files_from_templates([template,])
-
-    def _get_files_from_templates(self, templates):
-        files = []
-        file_uuids = set()
-
-        def add_files(new_files, files, file_uuids):
-            for file in new_files:
-                if file.get('uuid') not in file_uuids:
-                    file_uuids.add(file.get('uuid'))
-                    files.append(file)
-
-        for template in templates:
-            inputs = template.get('inputs', None)
-            if inputs:
-                for input in inputs:
-                    if input.get('type') == 'file' and input.get('data'):
-                        add_files(
-                            self._get_files_from_data_contents(
-                                input['data']['contents']),
-                            files,
-                            file_uuids)
-            steps = template.get('steps', None)
-            if steps:
-                add_files(self._get_files_from_templates(steps),
-                          files,
-                          file_uuids)
-        return files
-
-    def _get_files_from_data_contents(self, contents):
-        if isinstance(contents, list):
-            files = []
-            for item in contents:
-                files.extend(self._get_files_from_data_contents(item))
-        else:
-            files = [contents]
-        return files
-
-    def _get_template_destination(
-            self, template, destination_directory=None):
-        if destination_directory == None:
-            destination_directory = os.getcwd()
-        return os.path.join(destination_directory, template['name']+'.yaml')
-
-    def _save_template(self, template, destination, retry=False):
-        print 'Exporting template %s@%s to %s...' % (
-            template.get('name'), template.get('uuid'), destination)
-        template_text = yaml.safe_dump(template, default_flow_style=False)
-        template_file = File(destination, self.storage_settings, retry=retry)
-        template_file.write(template_text)
-        print '...finished exporting template'
 
     def export_file(self, data_object, destination_directory=None,
                     destination_filename=None, retry=False,
@@ -273,3 +108,371 @@ class ExportManager(object):
         new_resource.pop('upload_status', None)
         new_resource['file_url'] = new_file_url
         return new_resource
+
+    def export_template(self, template, destination_directory=None, file_destination_directory=None,
+                        retry=False, link_files=False, editable=False,
+                        save_files=True, file_dict=None):
+
+        template_destination = self._get_template_destination(
+            template, destination_directory=destination_directory)
+        if not file_destination_directory:
+            file_destination_directory = template_destination+'.dependencies'
+
+        template = self._expand_template(template)
+
+        if not file_dict:
+            file_dict = {}
+        if editable:
+            file_id_field = 'md5'
+        else:
+            file_id_field = 'uuid'
+        self._get_files_from_template(template, file_dict, file_id_field)
+
+        if editable:
+            # Must be AFTER _get_files_from_template since that edits file definitions
+            template = self._convert_template_to_editable(template)
+
+        # If template is editable, exclude file metadata with UUIDs
+        export_file_metadata = not editable
+
+        self.bulk_export_files(
+            file_dict.values(), destination_directory=file_destination_directory,
+            retry=retry, link_files=link_files, export_metadata=export_file_metadata)
+        if editable:
+            self._recursively_save_template_and_steps(template, template_destination, retry=retry)
+        else:
+            self._save_template(template, template_destination, retry=retry)
+
+    def bulk_export_templates(self, templates,
+                              destination_directory=None,
+                              retry=False, link_files=False,
+                              editable=False, save_files=True,
+                              file_dict=None):
+        if destination_directory is None:
+            destination_directory = self._get_default_bulk_export_directory()
+
+        expanded_templates = self._expand_templates(templates)
+
+        if not file_dict:
+            file_dict = {}
+        if editable:
+            file_id_field = 'md5'
+        else:
+            file_id_field = 'uuid'
+
+        # If templates are editable, UUIDs will be stripped. But to avoid
+        # file collisions, we save the UUIDs to use as a subdirectory that
+        # makes each template's path unique
+        template_uuids = [t['uuid'] for t in expanded_templates]
+
+        if editable:
+            templates = self._convert_templates_to_editable(expanded_templates)
+
+        # If template is editable, exclude file metadata with UUIDs
+        export_file_metadata = not editable
+
+        if save_files:
+            self._get_files_from_templates(expanded_templates, file_dict, file_id_field)
+            self.bulk_export_files(file_dict.values(),
+                                   destination_directory=destination_directory,
+                                   retry=retry, link_files=link_files,
+                                   export_metadata=export_file_metadata,
+                                   editable=editable)
+        for template in expanded_templates:
+            if editable:
+                subdir = 'md5_'+template.get('md5')
+            else:
+                subdir = 'uuid_'+template.get('uuid')
+            template_destination = self._get_template_destination(
+                template,
+                destination_directory=os.path.join(
+                    destination_directory, 'templates', subdir))
+            if editable:
+                self._recursively_save_template_and_steps(template, template_destination, retry=retry)
+            else:
+                self._save_template(template, template_destination, retry=retry)
+        return templates
+
+    def _recursively_save_template_and_steps(self, template, template_destination, retry=False):
+        steps = template.pop('steps', [])
+        self._save_template(template, template_destination, retry=retry)
+        for step in steps:
+            self._recursively_save_template_and_steps(
+                step,
+                os.path.join(template_destination + '.dependencies', 'steps', '%s.yaml' % step['name']),
+                retry=retry)
+
+    def bulk_export_runs(self, runs,
+                         destination_directory=None,
+                         retry=False, link_files=False):
+        if destination_directory is None:
+            destination_directory = self._get_default_bulk_export_directory()
+
+        expanded_runs = self._expand_runs(runs)
+        templates = [run['template'] for run in runs]
+        templates = [self.connection.get_template(template['uuid']) for template in templates]
+        expanded_templates = self._expand_templates(templates)
+
+        file_dict = {}
+        file_id_field = 'uuid'
+
+        self._get_files_from_templates(expanded_templates, file_dict, file_id_field)
+        self._get_files_from_runs(expanded_runs, file_dict, file_id_field)
+        
+        self.bulk_export_files(file_dict.values(),
+                               destination_directory=destination_directory,
+                               retry=retry, link_files=link_files)
+        self.bulk_export_templates(templates,
+                                   destination_directory=destination_directory,
+                                   retry=retry, link_files=link_files,
+                                   save_files=False)
+
+        for run in expanded_runs:
+            subdir = 'uuid_'+run.get('uuid')
+            run_destination = self._get_run_destination(
+                run,
+                destination_directory=os.path.join(
+                    destination_directory, 'runs', subdir))
+            self._save_run(run, run_destination, retry=retry)
+        return runs
+            
+    def export_run(self, run, destination_directory=None,
+                   retry=False, link_files=False):
+        # We are going to save the full template under templates/ subdir but leave the
+        # abbreviated version in the run. So we Take a copy of the template and  expand it.
+        template = self.connection.get_template(run['template']['uuid'])
+        template = self._expand_template(template)
+
+        run_destination = self._get_run_destination(
+            run, destination_directory=destination_directory)
+        template_destination = self._get_template_destination(
+            template, os.path.join(run_destination+'.dependencies', 'templates'))
+        file_destination_directory = run_destination+'.dependencies'
+
+        file_dict = {}
+        file_id_field = 'uuid'
+        self._get_files_from_template(template, file_dict, file_id_field)
+
+        run = self._expand_run(run)
+        self._get_files_from_run(run, file_dict, file_id_field)
+        
+        self.bulk_export_files(
+            file_dict.values(), destination_directory=file_destination_directory,
+            retry=retry, link_files=link_files)
+        self._save_template(template, template_destination, retry=retry)
+        self._save_run(run, run_destination, retry=retry)
+
+    def _get_run_destination(
+            self, run, destination_directory=None):
+        if destination_directory == None:
+            destination_directory = os.getcwd()
+        return os.path.join(destination_directory, run['name']+'.yaml')
+
+    def _expand_runs(self, runs):
+        return [self._expand_run(r) for r in runs]
+        
+    def _expand_run(self, run):
+        self._expand_inputs_outputs(run)
+        expanded_steps = []
+        for step in run.get('steps', []):
+            step = self.connection.get_run(step['uuid'])
+            step = self._expand_run(step)
+            expanded_steps.append(step)
+        if expanded_steps:
+            run['steps'] = expanded_steps
+        expanded_tasks = []
+        for task in run.get('tasks', []):
+            task = self.connection.get_task(task['uuid'])
+            task = self._expand_task(task)
+            expanded_tasks.append(task)
+        if expanded_tasks:
+            run['tasks'] = expanded_tasks
+        return run
+
+    def _expand_task(self, task):
+        self._expand_inputs_outputs(task)
+        expanded_task_attempts = []
+        for task_attempt in task.get('all_task_attempts', []):
+            task_attempt = self.connection.get_task_attempt(task_attempt['uuid'])
+            task_attempt = self._expand_task_attempt(task_attempt)
+            expanded_task_attempts.append(task_attempt)
+        if expanded_task_attempts:
+            task['all_task_attempts'] = expanded_task_attempts
+        if task.get('task_attempt'):
+            ta = task.get('task_attempt')
+            matches = filter(lambda x, ta=ta: x.get('uuid') == ta.get('uuid'),
+                           task.get('all_task_attempts', []))
+            if len(matches) == 1:
+                task['task_attempt'] = matches[0]
+            else:
+                task['task_attempt'] = self._expand_task_attempt(ta)
+        return task
+
+    def _expand_task_attempt(self, task_attempt):
+        self._expand_inputs_outputs(task_attempt)
+        return task_attempt
+
+    def _save_run(self, run, destination, retry=False):
+        print 'Exporting run %s@%s to %s...' % (
+            run.get('name'), run.get('uuid'), destination)
+        self._save_yaml(run, destination, retry=retry)
+        print '...finished exporting run'
+        
+    def _expand_template(self, template):
+        self._expand_inputs_outputs(template)
+        expanded_steps = []
+        for step in template.get('steps', []):
+            step = self.connection.get_template(step['uuid'])
+            step = self._expand_template(step)
+            expanded_steps.append(step)
+        if expanded_steps:
+            template['steps'] = expanded_steps
+        return template
+
+    def _expand_templates(self, templates):
+        return [self._expand_template(t) for t in templates]
+
+    def _convert_template_to_editable(self, template):
+        # Delete data that is unique to the original instance. User can edit
+        # and reimport this template with a new uuid, datetime_created, etc.
+        template.pop('uuid', None)
+        template.pop('url', None)
+        template.pop('datetime_created', None)
+        template.pop('imported_from_url', None)
+
+        for input in template.get('inputs', []):
+            if input['data']:
+                input['data'] = self._convert_data_node_to_editable(input['data'])
+        converted_steps = []
+        for step in template.get('steps', []):
+            converted_steps.append(self._convert_template_to_editable(step))
+        if converted_steps:
+            template['steps'] = converted_steps
+        return template
+
+    def _convert_templates_to_editable(self,templates):
+        return [self._convert_template_to_editable(t) for t in templates]
+
+    def _convert_data_node_to_editable(self, data_node):
+        data_node.pop('uuid', None)
+        data_node.pop('url', None)
+        if data_node.get('contents'):
+            data_node['contents'] = self._convert_data_contents_to_editable(
+                data_node['contents'])
+        return data_node
+
+    def _convert_data_contents_to_editable(self, contents):
+        if isinstance(contents, list):
+            return [self._convert_data_contents_to_editable(item)
+                    for item in contents]
+        else:
+            if contents.get('type') == 'file':
+                new_contents = '%s$%s' % (
+                    contents['value'].get('filename'), contents['value'].get('md5'))
+            else:
+                new_contents = contents.get('value')
+            return new_contents
+
+    def _get_files_from_run(self, run, file_dict, file_id_field):
+        self._get_files_from_inputs_outputs(run, file_dict, file_id_field)
+        for step in run.get('steps', []):
+            self._get_files_from_run(step, file_dict, file_id_field)
+        for task in run.get('tasks', []):
+            self._get_files_from_task(task, file_dict, file_id_field)
+
+    def _get_files_from_runs(self, runs, file_dict, file_id_field):
+        for run in runs:
+            self._get_files_from_template(run, file_dict, file_id_field)
+
+    def _get_files_from_task(self, task, file_dict, file_id_field):
+        self._get_files_from_inputs_outputs(task, file_dict, file_id_field)
+        for task_attempt in task.get('all_task_attempts', []):
+            self._get_files_from_task_attempt(task_attempt, file_dict, file_id_field)
+
+    def _get_files_from_task_attempt(self, task_attempt, file_dict, file_id_field):
+        self._get_files_from_inputs_outputs(task_attempt, file_dict, file_id_field)
+        self._get_files_from_logs(task_attempt, file_dict, file_id_field)
+
+    def _get_files_from_logs(self, task_attempt, file_dict, file_id_field):
+        for log_file in task_attempt.get('log_files', []):
+            self._add_file_if_unique(log_file.get('data_object'), file_dict, file_id_field)
+            
+    def _get_files_from_template(self, template, file_dict, file_id_field):
+        self._get_files_from_inputs_outputs(template, file_dict, file_id_field)
+        for step in template.get('steps', []):
+            self._get_files_from_template(step, file_dict, file_id_field)
+
+    def _get_files_from_templates(self, templates, file_dict, file_id_field):
+        for template in templates:
+            self._get_files_from_template(template, file_dict, file_id_field)
+
+    def _get_template_destination(
+            self, template, destination_directory=None):
+        if destination_directory == None:
+            destination_directory = os.getcwd()
+        return os.path.join(destination_directory, template['name']+'.yaml')
+
+    def _save_template(self, template, destination, retry=False):
+        print 'Exporting template %s@%s to %s...' % (
+            template.get('name'), template.get('uuid'), destination)
+        self._save_yaml(template, destination, retry=retry)
+        print '...finished exporting template'
+
+    def _save_yaml(self, data, destination, retry=False):
+        text = yaml.safe_dump(data, default_flow_style=False)
+        file = File(destination, self.storage_settings, retry=retry)
+        file.write(text)
+
+    def _get_default_bulk_export_directory(self):
+        dirname = 'loom-bulk-export-%s' % \
+                  datetime.datetime.now().strftime('%Y-%m-%dT%H.%M.%S.%f')
+        return os.path.join(os.getcwd(), dirname)
+
+    def _add_unique_files(self, new_files, file_dict, id_field):
+        for new_file in new_files:
+            self._add_file_if_unique(new_file, file_dict, id_field)
+                
+    def _add_file_if_unique(self, new_file, file_dict, id_field):
+        if id_field == 'md5':
+            file_id = new_file['value'].get('md5')
+        else:
+            file_id = new_file.get('uuid')
+        if file_id not in file_dict:
+            file_dict[file_id] = new_file
+
+    def _expand_inputs_outputs(self, data):
+        for input in data.get('inputs', []):
+            if input.get('data'):
+                input['data'] = self.connection.get_data_node(
+                    input['data']['uuid'], expand=True)
+        for output in data.get('outputs', []):
+            if output.get('data'):
+                output['data'] = self.connection.get_data_node(
+                    output['data']['uuid'], expand=True)
+        for user_input in data.get('user_inputs', []):
+            if user_input.get('data'):
+                user_input['data'] = self.connection.get_data_node(
+                    output['data']['uuid'], expand=True)
+
+    def _get_files_from_data_contents(self, file_dict, file_id_field, contents):
+        if contents is None:
+            return
+        if isinstance(contents, list):
+            for item in contents:
+                self._get_files_from_data_contents(file_dict, file_id_field, item)
+        else:
+            self._add_file_if_unique(contents, file_dict, file_id_field)
+
+    def _get_files_from_inputs_outputs(self, data, file_dict, file_id_field):
+        for input in data.get('inputs', []):
+            if input.get('type') == 'file' and input.get('data'):
+                self._get_files_from_data_contents(
+                    file_dict,
+                    file_id_field,
+                    input['data']['contents'])
+        for output in data.get('outputs', []):
+            if output.get('type') == 'file' and output.get('data'):
+                self._get_files_from_data_contents(
+                    file_dict,
+                    file_id_field,
+                    output['data']['contents'])

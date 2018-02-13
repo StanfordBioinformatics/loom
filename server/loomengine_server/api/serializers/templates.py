@@ -5,7 +5,8 @@ from jinja2.exceptions import UndefinedError
 from rest_framework import serializers
 
 from . import CreateWithParentModelSerializer, RecursiveField, \
-    ProxyWriteSerializer, strip_empty_values
+    ProxyWriteSerializer, strip_empty_values, match_and_update_by_uuid, \
+    reload_models
 from .data_channels import DataChannelSerializer
 from api import async
 from api.models import DummyContext, render_from_template, render_string_or_list
@@ -162,15 +163,29 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         if template_id:
             return data
 
+        if data.get('uuid'):
+            try:
+                t = Template.objects.get(uuid=data.get('uuid'))
+                self._root_template_uuid = t.uuid
+                self._preexisting_templates = [t,]
+                self._unsaved_templates = []
+                self._unsaved_inputs = []
+                self._unsaved_m2m_relationships = []
+                return data
+            except Template.DoesNotExist:
+                pass
+
+        # Did not find template by UUID. Create a new one.
+
         self._validate_template_data_fields(self.initial_data)
 
         # We have to use bulk_create for performance, so create all templates
         # before saving.
         # We need these to validate, and we'll cache them to reuse on create.
+        self._preexisting_templates = []
         self._unsaved_templates = []
         self._unsaved_inputs = []
-        self._unsaved_m2m_relationships = []
-        self._preexisting_templates = []
+        self._unsaved_m2m_relationships = []        
         template_data = copy.deepcopy(self.initial_data)
         root_template = self._create_unsaved_models(
             [template_data,], self._unsaved_templates,
@@ -408,16 +423,16 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         try:
             bulk_templates = Template.objects.bulk_create(self._unsaved_templates)
             # self._new_templates includes pk's needed for cleanup on failure
-            self._new_templates = self._reload(Template, bulk_templates)
+            self._new_templates = reload_models(Template, bulk_templates)
             templates = [template for template in self._new_templates]
             templates.extend(self._preexisting_templates)
 
             # Refresh unsaved objects with their saved counterparts
-            self._match_and_update_by_uuid(
+            match_and_update_by_uuid(
                 self._unsaved_inputs, 'template', templates)
-            self._match_and_update_by_uuid(
+            match_and_update_by_uuid(
                 self._unsaved_m2m_relationships, 'parent_template', templates)
-            self._match_and_update_by_uuid(
+            match_and_update_by_uuid(
                 self._unsaved_m2m_relationships, 'child_template', templates)
 
             # We can clean now that relationships have been defined.
@@ -462,7 +477,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         uuids = [model.uuid for model in models]
         models = ModelClass.objects.filter(uuid__in=uuids)
         return models
-    
+
     def _lookup_by_id(self, template_id):
         matches = Template.filter_by_name_or_id_or_tag_or_hash(template_id)
         if matches.count() < 1:
@@ -688,6 +703,3 @@ class CycleDetector(object):
                 'Cycle detected in steps "%s"' % '", "'.join(cycle_steps))
         elif vertex in self.black:
             return
-
-        
-        

@@ -125,7 +125,7 @@ class Connection(object):
                 try:
                     response.raise_for_status()
                 except requests.exceptions.HTTPError as e:
-                    raise ServerConnectionError(e.message)
+                    raise ServerConnectionError(response.text)
             if error:
                 time.sleep(retry_delay_seconds)
                 continue

@@ -12,6 +12,9 @@ from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
 from loomengine.exceptions import *
 from loomengine_utils.connection import Connection
+from loomengine_utils.file_utils import FileSet
+from loomengine_utils.import_manager import ImportManager
+from loomengine_utils.export_manager import ExportManager
 
 
 class AbstractRunSubcommand(object):
@@ -24,6 +27,11 @@ class AbstractRunSubcommand(object):
         verify_server_is_running(url=server_url)
         token = get_token()
         self.connection = Connection(server_url, token=token)
+        self.storage_settings = self.connection.get_storage_settings()
+        self.import_manager = ImportManager(
+            self.connection, storage_settings=self.storage_settings)
+        self.export_manager = ExportManager(
+            self.connection, storage_settings=self.storage_settings)
 
     @classmethod
     def _validate_args(cls, args):
@@ -197,7 +205,17 @@ class RunImport(AbstractRunSubcommand):
         return parser
 
     def run(self):
-        pass
+        imported_runs = []
+        for run_file in FileSet(
+                self.args.run, self.storage_settings, retry=self.args.retry):
+            run = self.import_manager.import_run(
+                run_file,
+                retry=self.args.retry,
+                link_files=self.args.link_files)
+            self._apply_tags(run)
+            self._apply_labels(run)
+            imported_runs.append(run)
+        return imported_runs
 
     def _apply_tags(self, run):
         if not self.args.tag:
@@ -226,7 +244,7 @@ class RunExport(AbstractRunSubcommand):
     @classmethod
     def get_parser(cls, parser):
         parser.add_argument(
-            'run_id',
+            'run_ids',
             nargs='+',
             metavar='RUN_ID', help='run(s) to be exported')
         parser.add_argument(
@@ -245,7 +263,41 @@ class RunExport(AbstractRunSubcommand):
         return parser
 
     def run(self):
-        pass
+        runs = []
+        run_uuids = set()
+        for run_id in self.args.run_ids:
+            found_at_least_one_match = False
+            offset = 0
+            limit = 10
+            while True:
+                data = self.connection.get_run_index_with_limit(
+                    limit=limit, offset=offset,
+                    query_string=run_id)
+                for run in data['results']:
+                    found_at_least_one_match = True
+                    if run.get('uuid') not in run_uuids:
+                        run_uuids.add(run.get('uuid'))
+                        runs.append(run)
+                if data.get('next'):
+                    offset += limit
+                else:
+                    break
+            if not found_at_least_one_match:
+                raise SystemExit('ERROR! No runs matched %s"' % run_id)
+        if len(runs) > 1:
+            return self.export_manager.bulk_export_runs(
+                runs,
+                destination_directory=self.args.destination_directory,
+                retry=self.args.retry,
+                link_files=self.args.link_files
+            )
+        else:
+            return self.export_manager.export_run(
+                runs[0],
+                destination_directory=self.args.destination_directory,
+                retry=self.args.retry,
+                link_files=self.args.link_files,
+            )
 
 
 class RunList(AbstractRunSubcommand):
@@ -332,7 +384,7 @@ class RunKill(AbstractRunSubcommand):
         run_id = "%s@%s" % (run['name'], run['uuid'])
         if not self.args.yes:
             user_input = raw_input(
-                'Do you really want to permanently kill run "%s"? '\
+                'Do you really want to permanently kill run "%s"?\n'\
                 '(y)es, (n)o: '
                 % run_id)
             if user_input.lower() == 'n':
@@ -408,7 +460,7 @@ class RunDelete(AbstractRunSubcommand):
                                 run_outputs_to_delete.append(log_file['data_object'])
         if not self.args.yes:
             user_input = raw_input(
-                'Do you really want to permanently delete run "%s"? '\
+                'Do you really want to permanently delete run "%s"?\n'\
                 '(y)es, (n)o: '
                 % run_id)
             if user_input.lower() == 'n':
@@ -441,7 +493,7 @@ class RunDelete(AbstractRunSubcommand):
                     data_object['value']['filename'], data_object['uuid'])
                 if not self.args.yes:
                     user_input = raw_input(
-                        'Do you really want to delete result file "%s"? '\
+                        'Do you really want to delete result file "%s"?\n'\
                         '(y)es, (n)o: ' % file_id)
                     if user_input.lower() == 'n':
                         raise SystemExit("Skipping file")

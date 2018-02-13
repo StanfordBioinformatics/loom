@@ -6,6 +6,20 @@ import rest_framework.serializers
 def strip_empty_values(data):
     return dict((k, v) for k, v in data.iteritems() if v not in [None, '', []])
 
+def match_and_update_by_uuid(unsaved_models, field, saved_models):
+    for unsaved_model in unsaved_models:
+        uuid = getattr(unsaved_model, field).uuid
+        match = filter(lambda m: m.uuid==uuid, saved_models)
+        assert len(match) == 1
+        setattr(unsaved_model, field, match[0])
+
+def reload_models(ModelClass, models):
+    # bulk_create doesn't give PK's, so we have to reload the models.
+    # We can look them up by uuid, which is also unique
+    uuids = [model.uuid for model in models]
+    models = ModelClass.objects.filter(uuid__in=uuids)
+    return models
+
 
 class RecursiveField(rest_framework.serializers.Serializer):
 

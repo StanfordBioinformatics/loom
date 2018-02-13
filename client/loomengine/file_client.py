@@ -305,7 +305,7 @@ class FileDelete(AbstractFileSubcommand):
             file_data_object.get('uuid'))
         if not self.args.yes:
             user_input = raw_input(
-                'Do you really want to permanently delete file "%s"? '\
+                'Do you really want to permanently delete file "%s"?\n'\
                 '(y)es, (n)o: '
                 % file_id)
             if user_input.lower() == 'n':

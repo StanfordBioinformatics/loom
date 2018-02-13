@@ -23,7 +23,7 @@ class TaskInputSerializer(DataChannelSerializer):
         fields = ('data', 'type', 'channel', 'as_channel',  'mode')
 
     mode = serializers.CharField()
-    as_channel = serializers.CharField(required=False)
+    as_channel = serializers.CharField(required=False, allow_null=True)
 
 
 class TaskOutputSerializer(DataChannelSerializer):
@@ -34,8 +34,8 @@ class TaskOutputSerializer(DataChannelSerializer):
 
     mode = serializers.CharField()
     source = serializers.JSONField(required=False)
-    parser = serializers.JSONField(required=False)
-    as_channel = serializers.CharField(required=False)
+    parser = serializers.JSONField(required=False, allow_null=True)
+    as_channel = serializers.CharField(required=False, allow_null=True)
 
 
 class TaskSerializer(serializers.HyperlinkedModelSerializer):

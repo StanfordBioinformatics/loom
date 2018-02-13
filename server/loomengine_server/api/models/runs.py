@@ -7,7 +7,6 @@ from django.utils import timezone
 import jsonfield
 import requests
 
-from .async_safe_mptt import AsyncSafeMPTTModel, TreeForeignKey
 from .base import BaseModel
 from api import get_setting
 from api import async
@@ -37,7 +36,7 @@ class RunAlreadyClaimedForPostprocessingException(Exception):
     pass
 
 
-class Run(AsyncSafeMPTTModel, BaseModel):
+class Run(BaseModel):
     """AbstractWorkflowRun represents the process of executing a Workflow on
     a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
@@ -65,7 +64,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
     notification_context = jsonfield.JSONField(
         null=True, blank=True, default=None,
         validators=[validators.validate_notification_context])
-    parent = TreeForeignKey('self', null=True, blank=True,
+    parent = models.ForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
                             on_delete=models.SET_NULL)
     template = models.ForeignKey('Template',
@@ -122,7 +121,8 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
-            {'status_is_running': False,
+            {'datetime_finished': timezone.now(),
+             'status_is_running': False,
              'status_is_waiting': False,
              'status_is_finished': True})
         if self.parent:

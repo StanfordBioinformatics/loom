@@ -12,9 +12,8 @@ class FileInput(BaseInput):
 
     def copy(self):
         data_object = self.data_contents
-        data_object_id = '@%s' % data_object['uuid']
         self.export_manager.export_file(
-            data_object_id,
+            data_object,
             destination_directory=self.settings['WORKING_DIR'],
             retry=True)
 
@@ -37,9 +36,8 @@ class FileListInput(BaseInput):
                 filename_counts[filename] += 1
                 filename = self._rename_duplicate(filename, counter)
 
-            data_object_id = '@%s' % data_object['uuid']
-            self.export_manager.export_file(
-                data_object_id,
+            self.export_manager.export_file_by_uuid(
+                data_object,
                 destination_directory=os.path.join(
                     self.settings['WORKING_DIR'], filename),
                 retry=True)

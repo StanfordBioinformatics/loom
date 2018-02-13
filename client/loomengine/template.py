@@ -164,7 +164,7 @@ class TemplateExport(AbstractTemplateSubcommand):
                 )
         else:
             return self.export_manager.export_template(
-                template,
+                templates[0],
                 destination_directory=self.args.destination_directory,
                 retry=self.args.retry,
                 link_files=self.args.link_files,
@@ -281,7 +281,7 @@ class TemplateDelete(AbstractTemplateSubcommand):
                 )
         if not self.args.yes:
             user_input = raw_input(
-                'Do you really want to permanently delete template "%s"? '\
+                'Do you really want to permanently delete template "%s"?\n'\
                 '(y)es, (n)o: '
                 % template_id)
 	    if user_input.lower() == 'n':

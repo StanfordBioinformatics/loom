@@ -14,7 +14,6 @@ if __name__ == "__main__" and __package__ is None:
 
 from loomengine import browser
 from loomengine import bulk_import
-from loomengine import bulk_export
 from loomengine import example
 from loomengine import file_client
 from loomengine import run
@@ -91,11 +90,6 @@ class Main(object):
             help='import all data from a bulk-export directory')
         bulk_import.BulkImport.get_parser(bulk_import_subparser)
         bulk_import_subparser.set_defaults(SubcommandClass=bulk_import.BulkImport)
-
-        bulk_export_subparser = subparsers.add_parser(
-            'bulk-export', help='export all data from the Loom server')
-        bulk_export.BulkExport.get_parser(bulk_export_subparser)
-        bulk_export_subparser.set_defaults(SubcommandClass=bulk_export.BulkExport)
 
         server_subparser = subparsers.add_parser(
             'server', help='manage the Loom server')

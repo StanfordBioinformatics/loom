@@ -50,7 +50,8 @@ class ImportManager(object):
             os.path.join(directory, 'runs'),
             link_files=link_files, retry=retry)
 
-    def _bulk_import_files(self, directory, link_files=False, retry=False):
+    def _bulk_import_files(self, directory, link_files=False, retry=False,
+                           force_duplicates=False):
         # import all files directory/* and directory/*/*, with metadata if present
         files_to_import = FileSet(
             [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
@@ -60,11 +61,13 @@ class ImportManager(object):
         for file_to_import in files_to_import:
             imported_files.append(
                 self.import_file(
-                    file_to_import.get_url(), '', link=link_files, retry=retry)
+                    file_to_import.get_url(), '', link=link_files, retry=retry,
+                    force_duplicates=force_duplicates)
             )
         return imported_files
 
-    def _bulk_import_templates(self, directory, link_files=False, retry=False):
+    def _bulk_import_templates(self, directory, link_files=False, retry=False,
+                               force_duplicates=False):
         templates_to_import = FileSet(
             [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
             self.storage_settings, retry=retry)
@@ -72,27 +75,37 @@ class ImportManager(object):
         for template_to_import in templates_to_import:
             imported_templates.append(
                 self.import_template(
-                    template_to_import, link_files=link_files, retry=retry)
+                    template_to_import, link_files=link_files, retry=retry,
+                    force_duplicates=force_duplicates)
             )
         return imported_templates
 
     def _bulk_import_runs(self, directory, link_files=False, retry=False):
-        pass
+        runs_to_import = FileSet(
+            [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
+            self.storage_settings, retry=retry)
+        imported_runs = []
+        for run_to_import in runs_to_import:
+            imported_runs.append(
+                self.import_run(
+                    run_to_import, link_files=link_files, retry=retry)
+            )
+        return imported_runs
 
     def import_from_patterns(self, patterns, comments, link=False,
                             ignore_metadata=False, force_duplicates=False,
                             from_metadata=False, retry=False):
         files = []
-        for source in FileSet(patterns, self.storage_settings, retry=retry):
+        for source in FileSet(patterns, self.storage_settings, retry=retry,
+                              trim_metadata_suffix=True):
             files.append(self.import_file(
                 source.get_url(),
                 comments,
                 link=link,
                 ignore_metadata=ignore_metadata,
                 force_duplicates=force_duplicates,
-                retry=retry,
-                trim_metadata_suffix=True))
-        return files
+                retry=retry))
+            return files
 
     def _get_file_metadata(self, metadata_url, retry=False, ignore_metadata=False):
         if ignore_metadata:
@@ -205,13 +218,15 @@ class ImportManager(object):
 
         filename = data_object['value']['filename']
         md5= data_object['value']['md5']
-        files = self._get_file_duplicates(filename, md5)
-        if len(files) > 0:
-            logger.warn(
-                'Found existing file that matches name and md5 hash "%s$%s". '\
-                'Using existing file and skipping new file import.'
-                % (filename, md5))
-            raise FileDuplicateError
+        if data_object.get('uuid') is None:
+            # Skip import if no UUID provided and duplicate is found.
+            files = self._get_file_duplicates(filename, md5)
+            if len(files) > 0:
+                logger.warn(
+                    'Found existing file that matches name and md5 hash "%s$%s". '\
+                    'Using existing file and skipping new file import.'
+                    % (filename, md5))
+                raise FileDuplicateError
         else:
             return data_object
 
@@ -248,7 +263,7 @@ class ImportManager(object):
                 'filename': filename,
                 'md5': md5,
                 'imported_from_url': imported_from_url,
-                'source_type': 'imported',
+                'source_type': source_type,
                 'link': False,
             }
         }
@@ -428,6 +443,35 @@ class ImportManager(object):
             imported_template['uuid'])
         return imported_template
 
+    def import_run(self, run_file,
+                   force_duplicates=False,
+                   retry=False, link_files=False):
+        print 'Importing run from "%s".' % run_file.get_url()
+        run = self._get_run(run_file)
+        dependencies_dir = run_file.get_url()+'.dependencies'
+        files_dir = os.path.join(dependencies_dir, 'files')
+        templates_dir = os.path.join(dependencies_dir, 'templates')
+        self._bulk_import_files(
+            files_dir, force_duplicates=force_duplicates,
+            retry=retry, link_files=link_files)
+        self._bulk_import_templates(
+            templates_dir, force_duplicates=force_duplicates,
+            retry=retry, link_files=link_files)
+        try:
+            imported_run = self.connection.post_run(run)
+        except HTTPError as e:
+            if e.response.status_code==400:
+                errors = e.response.json()
+                raise SystemExit(
+                    "ERROR! %s" % errors)
+            else:
+                raise
+
+        print 'Imported run "%s@%s".' % (
+            run['name'],
+            run['uuid'])
+        return run
+
     def _recursive_import_template(
             self, template, template_url, force_duplicates=False, retry=False,
             parent_file_dependency_node=None, link_files=False):
@@ -438,11 +482,12 @@ class ImportManager(object):
             if existing_template:
                 # No need to import
                 return None
+        else:
+            # If no UUID, check for duplicates based on hash
+            template = self._check_for_template_duplicates(
+                template, force_duplicates=force_duplicates)
 
-        template = self._check_for_template_duplicates(
-            template, force_duplicates=force_duplicates)
-
-        file_dependency_node = self._import_template_file_dependencies(
+        file_dependency_node = self._import_file_dependencies(
             template_url, force_duplicates=force_duplicates,
             retry=retry, link_files=link_files,
             parent_file_dependency_node=parent_file_dependency_node)
@@ -468,7 +513,6 @@ class ImportManager(object):
                 continue
         if not match:
             template['steps'].append(step_template)
-
 
     def _check_for_template_duplicates(self, template, force_duplicates=False):
         # No check if "force_duplicates" is set
@@ -520,6 +564,16 @@ class ImportManager(object):
                 % template_file.get_url())
         return template
 
+    @classmethod
+    def _get_run(self, run_file):
+        try:
+            run_text = run_file.read()
+        except Exception as e:
+            raise SystemExit('ERROR! Unable to read file "%s". %s'
+                             % (run_file.get_url(), str(e)))
+        run = parse_as_yaml(run_text)
+        return run
+
     def _get_template_duplicates(self, template):
 	md5 = template.get('md5')
         name = template.get('name')
@@ -527,12 +581,12 @@ class ImportManager(object):
             query_string='%s$%s' % (name, md5))
         return templates
 
-    def _import_template_file_dependencies(
-            self, template_url, force_duplicates=False,
+    def _import_file_dependencies(
+            self, file_url, force_duplicates=False,
             retry=False, link_files=False,
             parent_file_dependency_node=None):
         file_dependencies = DependencyNode(parent=parent_file_dependency_node)
-        file_directory = os.path.join(template_url+'.dependencies', 'files')
+        file_directory = os.path.join(file_url+'.dependencies', 'files')
         patterns = [os.path.join(file_directory, '*'),
                     os.path.join(file_directory, '*/*')]
         files_to_import = FileSet(

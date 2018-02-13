@@ -24,7 +24,7 @@ class TaskAttemptOutputSerializer(DataChannelSerializer):
         fields = ('uuid', 'type', 'channel', 'data', 'mode', 'source', 'parser')
 
     source = serializers.JSONField(required=False)
-    parser = serializers.JSONField(required=False)
+    parser = serializers.JSONField(required=False, allow_null=True)
     mode = serializers.CharField()
 
 
@@ -45,13 +45,14 @@ class TaskAttemptLogFileSerializer(CreateWithParentModelSerializer):
 
     class Meta:
         model = TaskAttemptLogFile
-        fields = ('uuid', 'url', 'log_name', 'data_object')
+        fields = ('uuid', 'url', 'log_name', 'data_object', 'datetime_created')
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
         view_name='task-attempt-log-file-detail',
         lookup_field='uuid')
     data_object = DataObjectSerializer(allow_null=True, required=False)
+    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
 
     def update(self, instance, validated_data):
         data_object_data = self.initial_data.get('data_object', None)
@@ -124,10 +125,10 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         many=True, allow_null=True, required=False)
     events = TaskAttemptEventSerializer(
         many=True, allow_null=True, required=False)
-    resources = serializers.JSONField(required=False)
-    resources_info = serializers.JSONField(required=False)
-    environment = serializers.JSONField(required=False)
-    environment_info = serializers.JSONField(required=False)
+    resources = serializers.JSONField(required=False, allow_null=True)
+    resources_info = serializers.JSONField(required=False, allow_null=True)
+    environment = serializers.JSONField(required=False, allow_null=True)
+    environment_info = serializers.JSONField(required=False, allow_null=True)
     datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
     datetime_finished = serializers.DateTimeField(required=False, format='iso-8601')
     last_heartbeat = serializers.DateTimeField(required=False, format='iso-8601')
