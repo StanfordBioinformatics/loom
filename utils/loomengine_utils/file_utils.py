@@ -123,6 +123,9 @@ class FileSet:
     def __iter__(self):
         return self.files.__iter__()
 
+    def __len__(self):
+        return self.files.__len__()
+
 
 def FilePattern(pattern, settings, **kwargs):
     """Factory method returns LocalFilePattern or GoogleStorageFilePattern

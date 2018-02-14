@@ -494,6 +494,12 @@ class ImportManager(object):
         self._substitute_file_uuids_throughout_template(template, file_dependency_node)
         steps = self._get_template_step_dependencies(
             template_url, force_duplicates=force_duplicates, retry=retry)
+        if template.get('steps') and len(steps) > 0:
+            raise ImportManagerError(
+                'Error importing template "%s". '\
+                'Template steps can either be in a "steps" subdirectory (editable '\
+                'mode) or included in the template file, but not both.'
+                % template_url)
         for step_file in steps:
             step_template = self._get_template(step_file)
             step_template = self._recursive_import_template(

@@ -12,6 +12,7 @@ def match_and_update_by_uuid(unsaved_models, field, saved_models):
         match = filter(lambda m: m.uuid==uuid, saved_models)
         assert len(match) == 1
         setattr(unsaved_model, field, match[0])
+    return unsaved_models
 
 def reload_models(ModelClass, models):
     # bulk_create doesn't give PK's, so we have to reload the models.

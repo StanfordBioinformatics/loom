@@ -424,29 +424,47 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         try:
             bulk_runs = Run.objects.bulk_create(self._unsaved_runs)
             self._new_runs = reload_models(Run, bulk_runs)
-            runs = [run for run in self._new_runs]
-            runs.extend(self._preexisting_runs)
-            tasks = self._unsaved_tasks
-            task_attempts = self._unsaved_task_attempts
-            for trio in [
-                    (self._unsaved_run_inputs, 'run', runs),
-                    (self._unsaved_run_outputs, 'run', runs),
-                    (self._unsaved_run_user_inputs, 'run', runs),
-                    (self._unsaved_run_events, 'run', runs),
-                    (self._unsaved_tasks, 'run', runs),
-                    (self._unsaved_task_inputs, 'task', tasks),
-                    (self._unsaved_task_outputs, 'task', tasks),
-                    (self._unsaved_task_events, 'task', tasks),
-                    (self._unsaved_task_attempts, 'task', tasks),
-                    (self._unsaved_task_attempt_inputs, 'task_attempt', task_attempts),
-                    (self._unsaved_task_attempt_outputs, 'task_attempt', task_attempts),
-                    (self._unsaved_task_attempt_events, 'task_attempt', task_attempts),
-                    (self._unsaved_log_files, 'task_attempt', task_attempts),
-            ]:
-                match_and_update_by_uuid(*trio)
-            self._connect_runs_to_parents(runs)
+            all_runs = [run for run in self._new_runs]
+            all_runs.extend(self._preexisting_runs)
+            match_and_update_by_uuid(self._unsaved_run_inputs, 'run', self._new_runs)
+            RunInput.objects.bulk_create(self._unsaved_run_inputs)
+            match_and_update_by_uuid(self._unsaved_run_outputs, 'run', self._new_runs)
+            RunOutput.objects.bulk_create(self._unsaved_run_outputs)
+            match_and_update_by_uuid(self._unsaved_run_user_inputs,
+                                     'run', self._new_runs)
+            UserInput.objects.bulk_create(self._unsaved_run_user_inputs)
+            match_and_update_by_uuid(self._unsaved_run_events, 'run', self._new_runs)
+            RunEvent.objects.bulk_create(self._unsaved_run_events)
+            match_and_update_by_uuid(self._unsaved_tasks, 'run', self._new_runs)
+            bulk_tasks = Task.objects.bulk_create(self._unsaved_tasks)
+            self._new_tasks = reload_models(Task, bulk_tasks)
+            match_and_update_by_uuid(self._unsaved_task_inputs, 'task', self._new_tasks)
+            TaskInput.objects.bulk_create(self._unsaved_task_inputs)
+            match_and_update_by_uuid(self._unsaved_task_outputs,
+                                     'task', self._new_tasks)
+            TaskOutput.objects.bulk_create(self._unsaved_task_outputs)
+            match_and_update_by_uuid(self._unsaved_task_events,
+                                     'task', self._new_tasks)
+            TaskEvent.objects.bulk_create(self._unsaved_task_events)
+            match_and_update_by_uuid(self._unsaved_task_attempts,
+                                     'task', self._new_tasks)
+            bulk_attempts = TaskAttempt.objects.bulk_create(self._unsaved_task_attempts)
+            self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
+            match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
+                                     'task_attempt', self._new_task_attempts)
+            TaskAttemptInput.objects.bulk_create(self._unsaved_task_attempt_inputs)
+            match_and_update_by_uuid(self._unsaved_task_attempt_outputs,
+                                     'task_attempt',self._new_task_attempts)
+            TaskAttemptOutput.objects.bulk_create(self._unsaved_task_attempt_outputs)
+            match_and_update_by_uuid(self._unsaved_task_attempt_events,
+                                     'task_attempt', self._new_task_attempts)
+            TaskAttemptEvent.objects.bulk_create(self._unsaved_task_attempt_events)
+            match_and_update_by_uuid(self._unsaved_log_files,
+                                     'task_attempt', self._new_task_attempts)
+            TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
+            self._connect_runs_to_parents(all_runs)
             root_run = filter(
-                lambda r: r.uuid==self._root_run_uuid, runs)
+                lambda r: r.uuid==self._root_run_uuid, all_runs)
             assert len(root_run) == 1, '1 run should match uuid of root'
             return root_run[0]
         except:
@@ -464,13 +482,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         if params:
             case_statement = ' '.join(['WHEN id=%s THEN %s' % pair for pair in params])
             id_list = ', '.join(['%s' % pair[0] for pair in params])
-        
-            #params = [str(pair) for pair in params]
-            #sql = 'INSERT INTO api_run (id, parent_id) VALUES %s ON DUPLICATE KEY '\
-                #      'UPDATE parent_id=VALUES(parent_id)' % values
             sql = 'UPDATE api_run SET parent_id= CASE %s END WHERE id IN (%s)' \
                                              % (case_statement, id_list)
-
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
 

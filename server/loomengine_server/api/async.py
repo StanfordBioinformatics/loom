@@ -316,11 +316,11 @@ def _delete_file_resource(file_resource_id):
         return
 
     from api.models import FileResource
-    from loomengine_utils.filemanager import File
+    from loomengine_utils.file_utils import File
     file_resource = FileResource.objects.get(id=file_resource_id)
     file_resource.setattrs_and_save_with_retries({'upload_status': 'deleting'})
 
-    if not file_resource.in_external_storage:
+    if not file_resource.link:
         # Replace start of URL with path inside Docker container.
         file_url = file_resource.file_url
         if file_url.startswith('file:///'):
