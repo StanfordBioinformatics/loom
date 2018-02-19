@@ -3,7 +3,7 @@ from django.db import models
 
 from . import CreateWithParentModelSerializer
 from api.models.data_channels import DataChannel
-from api.serializers.data_nodes import ExpandedDataNodeSerializer, DataNodeSerializer
+from api.serializers.data_nodes import DataNodeSerializer, ExpandedDataNodeSerializer
 
 class DataChannelSerializer(CreateWithParentModelSerializer):
 
@@ -60,6 +60,7 @@ class DataChannelSerializer(CreateWithParentModelSerializer):
                     context=self.context)
                 representation['data'] = data_node_serializer.data
             return representation
+
 
 class ExpandedDataChannelSerializer(DataChannelSerializer):
 

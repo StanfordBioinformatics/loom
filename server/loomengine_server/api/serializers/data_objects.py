@@ -23,7 +23,7 @@ class DataValueSerializer(serializers.Field):
         return data
 
 
-class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
+class URLDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = DataObject
@@ -32,7 +32,6 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
             'url',
             'type',
             'datetime_created',
-            'value',
         )
 
     uuid = serializers.UUIDField(required=False)
@@ -40,9 +39,9 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
         view_name='data-object-detail',
         lookup_field='uuid'
     )
-    type = serializers.CharField(required=False) # Type can also come from context
-    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
-    value = DataValueSerializer(source='_value_info')
+    type = serializers.CharField(required=False, write_only=True)
+    datetime_created = serializers.DateTimeField(
+        required=False, format='iso-8601', write_only=True)
 
     def validate(self, data):
         # Use a copy to avoid modifying data
@@ -247,8 +246,32 @@ class FileResourceSerializer(serializers.ModelSerializer):
     source_type = serializers.ChoiceField(choices=FileResource.SOURCE_TYPE_CHOICES,
                                           required=False)
     link = serializers.BooleanField(required=False)
-        
-class DataObjectUpdateSerializer(DataObjectSerializer):
+
+
+
+class DataObjectSerializer(URLDataObjectSerializer):
+
+    class Meta:
+        model = DataObject
+        fields = (
+            'uuid',
+            'url',
+            'type',
+            'datetime_created',
+            'value',
+        )
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
+    type = serializers.CharField(required=False) # Type can also come from context
+    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
+    value = DataValueSerializer(source='_value_info')
+
+
+class UpdateDataObjectSerializer(DataObjectSerializer):
 
     # Override to make all fields except value read-only
     uuid = serializers.UUIDField(read_only=True)
@@ -258,6 +281,7 @@ class DataObjectUpdateSerializer(DataObjectSerializer):
     )
     type = serializers.CharField(read_only=True)
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    value = DataValueSerializer(source='_value_info', required=False)
 
     def validate(self, data):
         return data

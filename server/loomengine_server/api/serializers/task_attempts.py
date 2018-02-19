@@ -17,6 +17,15 @@ class TaskAttemptInputSerializer(DataChannelSerializer):
     mode = serializers.CharField()
 
 
+class ExpandedTaskAttemptInputSerializer(ExpandedDataChannelSerializer):
+
+    class Meta:
+        model = TaskAttemptInput
+        fields = ('type', 'channel', 'data', 'mode')
+
+    mode = serializers.CharField()
+
+
 class TaskAttemptOutputSerializer(DataChannelSerializer):
 
     class Meta:
@@ -28,7 +37,18 @@ class TaskAttemptOutputSerializer(DataChannelSerializer):
     mode = serializers.CharField()
 
 
-class TaskAttemptOutputUpdateSerializer(ExpandedDataChannelSerializer):
+class ExpandedTaskAttemptOutputSerializer(ExpandedDataChannelSerializer):
+
+    class Meta:
+        model = TaskAttemptOutput
+        fields = ('uuid', 'type', 'channel', 'data', 'mode', 'source', 'parser')
+
+    source = serializers.JSONField(required=False)
+    parser = serializers.JSONField(required=False, allow_null=True)
+    mode = serializers.CharField()
+
+
+class TaskAttemptOutputUpdateSerializer(DataChannelSerializer):
     """This class is needed because some fields that are allowed
     in "create" are not writable in "update".
     """
@@ -217,6 +237,9 @@ class URLTaskAttemptSerializer(TaskAttemptSerializer):
     status_is_running = serializers.BooleanField(required=False, write_only=True)
     status_is_cleaned_up = serializers.BooleanField(required=False, write_only=True)
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
+class ExpandedTaskAttemptSerializer(TaskAttemptSerializer):
+
+    inputs = ExpandedTaskAttemptInputSerializer(
+        many=True, allow_null=True, required=False)
+    outputs = ExpandedTaskAttemptOutputSerializer(
+        many=True, allow_null=True, required=False)

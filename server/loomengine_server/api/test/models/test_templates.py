@@ -62,5 +62,5 @@ class TestTemplate(TestCase):
 
         workflow = get_workflow()
 
-        self.assertEqual(workflow.children.all()[0].child_template.name, 'step_one')
-        self.assertEqual(workflow.children.all()[1].child_template.name, 'step_two')
+        self.assertEqual(workflow.steps.all()[0].name, 'step_one')
+        self.assertEqual(workflow.steps.all()[1].name, 'step_two')

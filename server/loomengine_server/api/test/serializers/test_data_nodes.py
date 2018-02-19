@@ -2,10 +2,31 @@ from django.test import TestCase
 from rest_framework import serializers
 
 from . import get_mock_context, get_mock_request
-from api.serializers.data_nodes import ExpandedDataNodeSerializer
+from api.serializers.data_nodes import URLDataNodeSerializer, \
+    DataNodeSerializer, ExpandedDataNodeSerializer
 
 
-class TestDataNodeSerializer(TestCase):
+class TestExpandedDataNodeSerializer(TestCase):
+    def testNoContents(self):
+        raw_data = 7
+        s = ExpandedDataNodeSerializer(
+            data={'contents': raw_data}, 
+            context={'type': 'integer'})
+        s.is_valid()
+        data_object = s.save()
+
+        s = ExpandedDataNodeSerializer(
+            data_object,
+            context=get_mock_context())
+        data = s.data
+        
+        # only uuid and url should be rendered
+        self.assertTrue('uuid' in data)
+        self.assertTrue('url' in data)
+        self.assertEqual(len(data.keys()), 2)
+        
+
+class TestExpandedDataNodeSerializer(TestCase):
 
     def testValidateString(self):
         raw_data = "[3,[]]]"

@@ -1,7 +1,6 @@
 import copy
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from .async_safe_mptt import AsyncSafeMPTTModel, TreeForeignKey
 
 from .base import BaseModel
 from .data_objects import DataObject
@@ -45,11 +44,12 @@ class DegreeMismatchException(Exception):
     pass
 
 
-class DataNode(AsyncSafeMPTTModel, BaseModel):
+class DataNode(BaseModel):
 
     uuid = models.CharField(default=uuidstr,
                             unique=True, max_length=255)
-    parent = TreeForeignKey(
+    tree_id = models.CharField(default=uuidstr, max_length=255)
+    parent = models.ForeignKey(
         'self',
         null=True,
         blank=True,
@@ -71,6 +71,11 @@ class DataNode(AsyncSafeMPTTModel, BaseModel):
         choices=DataObject.DATA_TYPE_CHOICES)
 
     EMPTY_BRANCH_VALUE = []
+
+    def save(self, *args, **kwargs):
+        if self.parent:
+            self.tree_id = self.parent.tree_id
+        super(DataNode, self).save(*args, **kwargs)
 
     @property
     def contents(self):

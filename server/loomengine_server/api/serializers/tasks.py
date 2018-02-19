@@ -4,9 +4,10 @@ from . import CreateWithParentModelSerializer
 from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskEvent
-from api.serializers.data_channels import DataChannelSerializer
+from api.serializers.data_channels import DataChannelSerializer, \
+    ExpandedDataChannelSerializer
 from api.serializers.task_attempts import TaskAttemptSerializer, \
-    URLTaskAttemptSerializer
+    URLTaskAttemptSerializer, ExpandedTaskAttemptSerializer
 
 
 class TaskEventSerializer(CreateWithParentModelSerializer):
@@ -26,7 +27,29 @@ class TaskInputSerializer(DataChannelSerializer):
     as_channel = serializers.CharField(required=False, allow_null=True)
 
 
+class ExpandedTaskInputSerializer(ExpandedDataChannelSerializer):
+
+    class Meta:
+        model = TaskInput
+        fields = ('data', 'type', 'channel', 'as_channel',  'mode')
+
+    mode = serializers.CharField()
+    as_channel = serializers.CharField(required=False, allow_null=True)
+
+
 class TaskOutputSerializer(DataChannelSerializer):
+
+    class Meta:
+        model = TaskOutput
+        fields = ('type', 'channel', 'as_channel', 'data', 'mode', 'source', 'parser')
+
+    mode = serializers.CharField()
+    source = serializers.JSONField(required=False)
+    parser = serializers.JSONField(required=False, allow_null=True)
+    as_channel = serializers.CharField(required=False, allow_null=True)
+
+
+class ExpandedTaskOutputSerializer(ExpandedDataChannelSerializer):
 
     class Meta:
         model = TaskOutput
@@ -77,8 +100,8 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     environment = serializers.JSONField(required=False)
     inputs = TaskInputSerializer(many=True)
     outputs = TaskOutputSerializer(many=True)
-    all_task_attempts = URLTaskAttemptSerializer(many=True)
-    task_attempt = URLTaskAttemptSerializer(required=False)
+    all_task_attempts = TaskAttemptSerializer(many=True)
+    task_attempt = TaskAttemptSerializer(required=False)
     raw_command = serializers.CharField(required=False)
     command = serializers.CharField(required=False)
     interpreter = serializers.CharField(required=False)
@@ -106,49 +129,6 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
             .prefetch_related('inputs__data_node')\
             .prefetch_related('outputs')\
             .prefetch_related('outputs__data_node')\
-            .prefetch_related('task_attempt')\
-            .prefetch_related('all_task_attempts')
-
-
-class SummaryTaskSerializer(TaskSerializer):
-
-    """SummaryTaskSerializer is an abbreviated alternative to
-    TaskSerializer. Most fields are write_only.
-    """
-
-    # readable
-    uuid = serializers.CharField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='task-detail',
-        lookup_field='uuid')
-    all_task_attempts = URLTaskAttemptSerializer(many=True)
-    task_attempt = URLTaskAttemptSerializer(required=False)
-    datetime_finished = serializers.DateTimeField(format='iso-8601')
-    datetime_created = serializers.DateTimeField(format='iso-8601')
-    status = serializers.CharField(read_only=True)
-
-    # write-only
-    resources = serializers.JSONField(required=False, write_only=True)
-    environment = serializers.JSONField(required=False, write_only=True)
-    inputs = TaskInputSerializer(many=True, write_only=True)
-    outputs = TaskOutputSerializer(many=True, write_only=True)
-    raw_command = serializers.CharField(required=False, write_only=True)
-    command = serializers.CharField(required=False, write_only=True)
-    interpreter = serializers.CharField(required=False, write_only=True)
-    status_is_finished = serializers.BooleanField(required=False, write_only=True)
-    status_is_failed = serializers.BooleanField(required=False, write_only=True)
-    status_is_killed = serializers.BooleanField(required=False, write_only=True)
-    status_is_running = serializers.BooleanField(required=False, write_only=True)
-    status_is_waiting = serializers.BooleanField(required=False, write_only=True)
-    analysis_failure_count = serializers.IntegerField(required=False, write_only=True)
-    system_failure_count = serializers.IntegerField(required=False, write_only=True)
-    events = TaskEventSerializer(
-        many=True, allow_null=True, required=False, write_only=True)
-    data_path = serializers.JSONField(required=True, write_only=True)
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset\
             .prefetch_related('task_attempt')\
             .prefetch_related('all_task_attempts')
 
@@ -189,12 +169,9 @@ class URLTaskSerializer(TaskSerializer):
         many=True, allow_null=True, required=False, write_only=True)
     data_path = serializers.JSONField(required=True, write_only=True)
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
-
-
 class ExpandedTaskSerializer(TaskSerializer):
 
-#    all_task_attempts = TaskAttemptSerializer(many=True)
-    task_attempt = TaskAttemptSerializer()
+    inputs = ExpandedTaskInputSerializer(many=True)
+    outputs = ExpandedTaskOutputSerializer(many=True)
+    all_task_attempts = ExpandedTaskAttemptSerializer(many=True)
+    task_attempt = ExpandedTaskAttemptSerializer(required=False)

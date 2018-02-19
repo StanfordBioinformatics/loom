@@ -77,7 +77,6 @@ class FilterHelper(object):
         uuid = None
         hash_value = None
         tag = None
-
         # Name comes at the beginning and ends with $, @, :, or end of string
         name_match = re.match('^(?!\$|@|:)(.+?)($|\$|@|:)', query_string)
         if name_match is not None:

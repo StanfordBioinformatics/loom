@@ -3,23 +3,33 @@ from rest_framework import serializers
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import prefetch_related_objects
 import django.db
-from mptt.utils import get_cached_trees
 from . import CreateWithParentModelSerializer, RecursiveField, \
-    strip_empty_values, ProxyWriteSerializer, match_and_update_by_uuid, \
+    strip_empty_values, match_and_update_by_uuid, \
     reload_models
 from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
 from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, TaskAttemptEvent, TaskAttemptLogFile
 from api.serializers.data_objects import DataObjectSerializer
 from api.serializers.templates import TemplateSerializer, URLTemplateSerializer
-from api.serializers.tasks import SummaryTaskSerializer, TaskSerializer, \
-    URLTaskSerializer, ExpandedTaskSerializer
-from api.serializers.data_channels import DataChannelSerializer
+from api.serializers.tasks import TaskSerializer, URLTaskSerializer, \
+    ExpandedTaskSerializer
+from api.serializers.data_channels import DataChannelSerializer, \
+    ExpandedDataChannelSerializer
 from api.serializers.data_nodes import DataNodeSerializer
 from api import async
 
 
 class UserInputSerializer(DataChannelSerializer):
+
+    # type not required because it is inferred from template
+    type = serializers.CharField(required=False)
+
+    class Meta:
+        model = UserInput
+        fields = ('type', 'channel', 'data')
+
+
+class ExpandedUserInputSerializer(ExpandedDataChannelSerializer):
 
     # type not required because it is inferred from template
     type = serializers.CharField(required=False)
@@ -44,6 +54,21 @@ class RunInputSerializer(DataChannelSerializer):
             super(RunInputSerializer, self).to_representation(instance))
 
 
+class ExpandedRunInputSerializer(ExpandedDataChannelSerializer):
+
+    class Meta:
+        model = RunInput
+        fields = ('type', 'channel', 'as_channel', 'data', 'mode', 'group')
+
+    mode = serializers.CharField(required=False)
+    group = serializers.IntegerField(required=False)
+    as_channel = serializers.CharField(required=False)
+
+    def to_representation(self, instance):
+        return strip_empty_values(
+            super(ExpandedRunInputSerializer, self).to_representation(instance))
+
+
 class RunOutputSerializer(DataChannelSerializer):
 
     class Meta:
@@ -58,6 +83,22 @@ class RunOutputSerializer(DataChannelSerializer):
     def to_representation(self, instance):
         return strip_empty_values(
             super(RunOutputSerializer, self).to_representation(instance))
+
+
+class ExpandedRunOutputSerializer(ExpandedDataChannelSerializer):
+
+    class Meta:
+        model = RunOutput
+        fields = ('type', 'channel', 'as_channel', 'data', 'mode', 'source', 'parser')
+
+    mode = serializers.CharField(required=False)
+    source = serializers.JSONField(required=False)
+    parser = serializers.JSONField(required=False)
+    as_channel = serializers.CharField(required=False)
+
+    def to_representation(self, instance):
+        return strip_empty_values(
+            super(ExpandedRunOutputSerializer, self).to_representation(instance))
 
 
 class RunEventSerializer(CreateWithParentModelSerializer):
@@ -96,54 +137,6 @@ _run_serializer_fields = [
     'tasks',]
 
 
-class URLRunSerializer(ProxyWriteSerializer):
-
-    class Meta:
-        model = Run
-        fields = _run_serializer_fields
-
-    # readable fields
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='run-detail',
-        lookup_field='uuid')
-    name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(
-        required=False, format='iso-8601')
-    datetime_finished = serializers.DateTimeField(
-        required=False, format='iso-8601')
-    status = serializers.CharField(read_only=True)
-    is_leaf = serializers.BooleanField(required=False)
-
-    # write-only fields
-    template = TemplateSerializer(required=False, write_only=True)
-    postprocessing_status = serializers.CharField(required=False, write_only=True)
-    status_is_finished = serializers.BooleanField(required=False, write_only=True)
-    status_is_failed = serializers.BooleanField(required=False, write_only=True)
-    status_is_killed = serializers.BooleanField(required=False, write_only=True)
-    status_is_running = serializers.BooleanField(required=False, write_only=True)
-    status_is_waiting = serializers.BooleanField(required=False, write_only=True)
-    command = serializers.CharField(required=False, write_only=True)
-    interpreter = serializers.CharField(required=False, write_only=True)
-    environment = serializers.JSONField(required=False, write_only=True)
-    resources = serializers.JSONField(required=False, write_only=True)
-    notification_addresses = serializers.JSONField(
-        required=False, write_only=True, allow_null=True)
-    notification_context = serializers.JSONField(
-        required=False, write_only=True, allow_null=True)
-    user_inputs = UserInputSerializer(
-        many=True, required=False, write_only=True)
-    inputs = RunInputSerializer(many=True, required=False, write_only=True)
-    outputs = RunOutputSerializer(many=True, required=False, write_only=True)
-    events = RunEventSerializer(many=True, required=False, write_only=True)
-    steps = RecursiveField(many=True, required=False, write_only=True)
-    tasks = URLTaskSerializer(many=True, required=False, write_only=True)
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
-
-
 class RunSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
@@ -178,12 +171,12 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
     inputs = RunInputSerializer(many=True, required=False)
     outputs = RunOutputSerializer(many=True, required=False)
     events = RunEventSerializer(many=True, required=False)
-    steps = URLRunSerializer(many=True, required=False)
-    tasks = URLTaskSerializer(many=True, required=False)
+    steps = RecursiveField(many=True, required=False)
+    tasks = TaskSerializer(many=True, required=False)
 
-#    def to_representation(self, instance):
-#        return strip_empty_values(
-#            super(RunSerializer, self).to_representation(instance))
+    def to_representation(self, instance):
+        return strip_empty_values(
+            super(RunSerializer, self).to_representation(instance))
 
     def validate(self, data):
         if not data.get('uuid'):
@@ -197,6 +190,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._unsaved_run_user_inputs = []
         self._unsaved_run_events = []
         self._run_parent_relationships = []
+        self._task_to_task_attempt_relationships = []
         self._unsaved_tasks = []
         self._unsaved_task_inputs = []
         self._unsaved_task_outputs = []
@@ -325,8 +319,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         return run
 
     def _create_unsaved_task(self, task_data, run):
-        task_attempts = task_data.pop('all_task_attempts')
-        active_task_attempt = task_data.pop('task_attempt')
+        task_attempts = task_data.pop('all_task_attempts', [])
+        active_task_attempt = task_data.pop('task_attempt', None)
         inputs = task_data.pop('inputs', [])
         outputs = task_data.pop('outputs', [])
         events = task_data.pop('events', [])
@@ -363,6 +357,9 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         for event in events:
             event['task'] = task
             self._unsaved_task_events.append(TaskEvent(**event))
+        if active_task_attempt:
+            self._task_to_task_attempt_relationships.append(
+                (task_data.get('uuid'), active_task_attempt.get('uuid')))
         for task_attempt in task_attempts:
             self._create_unsaved_task_attempt(task_attempt, task)
 
@@ -462,6 +459,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             match_and_update_by_uuid(self._unsaved_log_files,
                                      'task_attempt', self._new_task_attempts)
             TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
+            self._connect_tasks_to_active_task_attempts(
+                self._new_tasks, self._new_task_attempts)
             self._connect_runs_to_parents(all_runs)
             root_run = filter(
                 lambda r: r.uuid==self._root_run_uuid, all_runs)
@@ -483,6 +482,21 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             case_statement = ' '.join(['WHEN id=%s THEN %s' % pair for pair in params])
             id_list = ', '.join(['%s' % pair[0] for pair in params])
             sql = 'UPDATE api_run SET parent_id= CASE %s END WHERE id IN (%s)' \
+                                             % (case_statement, id_list)
+            with django.db.connection.cursor() as cursor:
+                cursor.execute(sql)
+
+    def _connect_tasks_to_active_task_attempts(self, tasks, task_attempts):
+        params = []
+        for task_uuid, task_attempt_uuid in self._task_to_task_attempt_relationships:
+            task = filter(lambda t: t.uuid==task_uuid, tasks)[0]
+            task_attempt = filter(
+                lambda ta: ta.uuid==task_attempt_uuid, task_attempts)[0]
+            params.append((task.id, task_attempt.id))
+        if params:
+            case_statement = ' '.join(['WHEN id=%s THEN %s' % pair for pair in params])
+            id_list = ', '.join(['%s' % pair[0] for pair in params])
+            sql = 'UPDATE api_task SET task_attempt_id= CASE %s END WHERE id IN (%s)' \
                                              % (case_statement, id_list)
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
@@ -565,13 +579,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             .prefetch_related('steps')\
             .prefetch_related('tasks')
 
-
-class SummaryRunSerializer(RunSerializer):
-
-    """SummaryRunSerializer differs from RunSerializer in that
-    1. Most fields are write_only
-    2. It displays the full tree of nested runs (in summary form)
-    """
+class URLRunSerializer(RunSerializer):
 
     # readable fields
     uuid = serializers.UUIDField(required=False)
@@ -584,13 +592,10 @@ class SummaryRunSerializer(RunSerializer):
     datetime_finished = serializers.DateTimeField(
         required=False, format='iso-8601')
     status = serializers.CharField(read_only=True)
-    steps = RecursiveField(many=True, required=False,
-                           source='_cached_children')
-    tasks = SummaryTaskSerializer(many=True, required=False)
     is_leaf = serializers.BooleanField(required=False)
 
     # write-only fields
-    template = TemplateSerializer(required=False, write_only=True)
+    template = URLTemplateSerializer(required=False, write_only=True)
     postprocessing_status = serializers.CharField(required=False, write_only=True)
     status_is_finished = serializers.BooleanField(required=False, write_only=True)
     status_is_failed = serializers.BooleanField(required=False, write_only=True)
@@ -606,99 +611,17 @@ class SummaryRunSerializer(RunSerializer):
     notification_context = serializers.JSONField(
         required=False, write_only=True, allow_null=True)
     user_inputs = UserInputSerializer(
-        required=False, many=True, write_only=True)
+        many=True, required=False, write_only=True)
     inputs = RunInputSerializer(many=True, required=False, write_only=True)
     outputs = RunOutputSerializer(many=True, required=False, write_only=True)
     events = RunEventSerializer(many=True, required=False, write_only=True)
-
-    def to_representation(self, instance):
-        instance = self._apply_prefetch_to_instance(instance)
-        return super(SummaryRunSerializer, self).to_representation(instance)
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
-
-    def _apply_prefetch_to_instance(self, instance):
-        if not hasattr(instance, '_cached_children'):
-            descendants = instance.get_descendants(include_self=True)
-            descendants = self._prefetch_on_tree_nodes(descendants)
-            instance = get_cached_trees(descendants)[0]
-        return instance
-
-    @classmethod
-    def _prefetch_on_tree_nodes(cls, queryset):
-        return queryset\
-            .prefetch_related('tasks')\
-            .prefetch_related('tasks__task_attempt')\
-            .prefetch_related('tasks__all_task_attempts')
-
+    steps = RecursiveField(many=True, required=False, write_only=True)
+    tasks = TaskSerializer(many=True, required=False, write_only=True)
 
 class ExpandedRunSerializer(RunSerializer):
 
-    steps = RecursiveField(many=True, source='_cached_children', required=False)
-    tasks = ExpandedTaskSerializer(required=False, many=True)
-
-    def to_representation(self, instance):
-        instance = self._apply_prefetch_to_instance(instance)
-        return  super(
-            ExpandedRunSerializer, self).to_representation(
-                instance)
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
-    
-    def _apply_prefetch_to_instance(self, instance):
-        if not hasattr(instance, '_cached_children'):
-            queryset = Run.objects\
-               .filter(uuid=instance.uuid)\
-               .prefetch_related('steps')\
-               .prefetch_related('steps__steps')\
-	       .prefetch_related('steps__steps__steps')\
-               .prefetch_related('steps__steps__steps__steps')\
-               .prefetch_related('steps__steps__steps__steps__steps')\
-               .prefetch_related('steps__steps__steps__steps__steps__'\
-	                         'steps')\
-               .prefetch_related('steps__steps__steps__steps__steps__'\
-                                 'steps__steps')\
-               .prefetch_related('steps__steps__steps__steps__steps__'\
-                                 'steps__steps__steps')\
-               .prefetch_related('steps__steps__steps__steps__steps__'\
-                                 'steps__steps__steps__steps')\
-               .prefetch_related('steps__steps__steps__steps__steps__'\
-                                 'steps__steps__steps__steps__steps')
-            #descendants = self._prefetch_on_tree_nodes(descendants)
-            #instance = get_cached_trees(descendants)[0]
-        return instance
-
-    @classmethod
-    def _prefetch_on_tree_nodes(cls, queryset):
-        return queryset\
-            .select_related('template')\
-            .prefetch_related('events')\
-            .prefetch_related('inputs')\
-            .prefetch_related('inputs__data_node')\
-            .prefetch_related('outputs')\
-            .prefetch_related('outputs__data_node')\
-            .prefetch_related('user_inputs')\
-            .prefetch_related('user_inputs__data_node')\
-            .prefetch_related('tasks')\
-            .prefetch_related('tasks__events')\
-            .prefetch_related('tasks__inputs')\
-            .prefetch_related('tasks__inputs__data_node')\
-            .prefetch_related('tasks__outputs')\
-            .prefetch_related('tasks__outputs__data_node')\
-            .prefetch_related('tasks__task_attempt')\
-            .prefetch_related('tasks__task_attempt__events')\
-            .prefetch_related('tasks__task_attempt__inputs')\
-            .prefetch_related('tasks__task_attempt__inputs__data_node')\
-            .prefetch_related('tasks__task_attempt__outputs')\
-            .prefetch_related('tasks__task_attempt__outputs__data_node')\
-            .prefetch_related(
-                'tasks__task_attempt__log_files')\
-            .prefetch_related(
-                'tasks__task_attempt__log_files__data_object')\
-            .prefetch_related(
-                'tasks__task_attempt__log_files__data_object__file_resource')\
-            .prefetch_related('tasks__all_task_attempts')
+    user_inputs = ExpandedUserInputSerializer(many=True, required=False)
+    inputs = ExpandedRunInputSerializer(many=True, required=False)
+    outputs = ExpandedRunOutputSerializer(many=True, required=False)
+    steps = RecursiveField(many=True, required=False)
+    tasks = ExpandedTaskSerializer(many=True, required=False)

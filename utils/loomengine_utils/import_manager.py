@@ -185,7 +185,6 @@ class ImportManager(object):
                     data_object, force_duplicates=force_duplicates)
             except FileDuplicateError:
                 return
-
             try:
                 data_object = self.connection.post_data_object(data_object)
             except ServerConnectionError as e:
@@ -215,7 +214,6 @@ class ImportManager(object):
         # No check if "force_duplicates" is set
         if force_duplicates:
             return data_object
-
         filename = data_object['value']['filename']
         md5= data_object['value']['md5']
         if data_object.get('uuid') is None:
@@ -227,7 +225,11 @@ class ImportManager(object):
                     'Using existing file and skipping new file import.'
                     % (filename, md5))
                 raise FileDuplicateError
+            else:
+                # No UUID, no match. Create new data object
+                return data_object
         else:
+            # UUID is new to database. Create new data object
             return data_object
 
     def _get_file_duplicates(self, filename, md5):
@@ -534,7 +536,8 @@ class ImportManager(object):
                 'Found existing template that matches name and md5 hash "%s$%s". '\
                 'Using existing template and skipping new template import.'
                 % (name, md5))
-            return duplicates[0]
+            # Get detail view
+            return self.connection.get_template(duplicates[0].get('uuid'))
         else:
             return template
 
@@ -621,7 +624,7 @@ class ImportManager(object):
         if not isinstance(template, dict):
             # Nothing to do if this is a reference to a previously imported template.
             return
-        for input in template.get('inputs'):
+        for input in template.get('inputs', []):
             self._substitute_file_uuids_in_input(input, file_dependencies)
         for step in template.get('steps', []):
             self._substitute_file_uuids_throughout_template(step, file_dependencies)
