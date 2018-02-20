@@ -7,13 +7,14 @@ from api.serializers.data_nodes import DataNodeSerializer, ExpandedDataNodeSeria
 
 class DataChannelSerializer(CreateWithParentModelSerializer):
 
+    EXPAND = False
+    
     data = serializers.JSONField()
     type = serializers.CharField()
     channel = serializers.CharField()
 
     def create(self, validated_data):
         data = validated_data.pop('data', None)
-
         data_channel = super(DataChannelSerializer, self).create(validated_data)
         if data is not None:
             type = validated_data.get('type')
@@ -52,31 +53,31 @@ class DataChannelSerializer(CreateWithParentModelSerializer):
                 instance)
         else:
             assert isinstance(instance, DataChannel)
+            data_node = instance.data_node
+            if data_node and not hasattr(data_node, '_prefetched_objects_cache'):
+                self._prefetch_instance(instance)
             representation = super(DataChannelSerializer, self)\
                 .to_representation(instance)
             if instance.data_node is not None:
-                data_node_serializer = DataNodeSerializer(
-                    instance.data_node,
-                    context=self.context)
+                if self.EXPAND:
+                    data_node_serializer = ExpandedDataNodeSerializer(
+                        instance.data_node,
+                        context=self.context)
+                else:
+                    data_node_serializer = DataNodeSerializer(
+                        instance.data_node,
+                        context=self.context)
                 representation['data'] = data_node_serializer.data
             return representation
+
+    def _prefetch_instance(self, instance):
+        data_node = instance.data_node
+        if self.EXPAND:
+            ExpandedDataNodeSerializer.prefetch_instances([data_node,])
+        else:
+            DataNodeSerializer.prefetch_instances([data_node,])
 
 
 class ExpandedDataChannelSerializer(DataChannelSerializer):
 
-    def to_representation(self, instance):
-        if not isinstance(instance, models.Model):
-            # If the Serializer was instantiated with data instead of a model,
-            # "instance" is an OrderedDict.
-            return super(DataChannelSerializer, self).to_representation(
-                instance)
-        else:
-            assert isinstance(instance, DataChannel)
-            representation = super(DataChannelSerializer, self)\
-                .to_representation(instance)
-            if instance.data_node is not None:
-                data_node_serializer = ExpandedDataNodeSerializer(
-                    instance.data_node,
-                    context=self.context)
-                representation['data'] = data_node_serializer.data
-            return representation
+    EXPAND = True

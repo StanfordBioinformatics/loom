@@ -5,7 +5,7 @@ from django.db.models import prefetch_related_objects
 import django.db
 from . import CreateWithParentModelSerializer, RecursiveField, \
     strip_empty_values, match_and_update_by_uuid, \
-    reload_models
+    reload_models, flatten_nodes, replace_nodes
 from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
 from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, TaskAttemptEvent, TaskAttemptLogFile
@@ -15,7 +15,7 @@ from api.serializers.tasks import TaskSerializer, URLTaskSerializer, \
     ExpandedTaskSerializer
 from api.serializers.data_channels import DataChannelSerializer, \
     ExpandedDataChannelSerializer
-from api.serializers.data_nodes import DataNodeSerializer
+from api.serializers.data_nodes import DataNodeSerializer, ExpandedDataNodeSerializer
 from api import async
 
 
@@ -108,80 +108,42 @@ class RunEventSerializer(CreateWithParentModelSerializer):
         fields = ('event', 'detail', 'timestamp', 'is_error')
 
 
-_run_serializer_fields = [
-    'uuid',
-    'url',
-    'name',
-    'status',
-    'datetime_created',
-    'datetime_finished',
-    'template',
-    'postprocessing_status',
-    'status_is_finished',
-    'status_is_failed',
-    'status_is_killed',
-    'status_is_running',
-    'status_is_waiting',
-    'is_leaf',
-    'command',
-    'interpreter',
-    'environment',
-    'resources',
-    'notification_addresses',
-    'notification_context',
-    'user_inputs',
-    'inputs',
-    'outputs',
-    'events',
-    'steps',
-    'tasks',]
-
-
-class RunSerializer(serializers.HyperlinkedModelSerializer):
+class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Run
-	fields = _run_serializer_fields
-
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='run-detail',
-        lookup_field='uuid')
-    name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
-    datetime_finished = serializers.DateTimeField(required=False, format='iso-8601')
-    template = URLTemplateSerializer(required=False)
-    postprocessing_status = serializers.CharField(required=False)
-    status = serializers.CharField(read_only=True)
-    status_is_finished = serializers.BooleanField(required=False)
-    status_is_failed = serializers.BooleanField(required=False)
-    status_is_killed = serializers.BooleanField(required=False)
-    status_is_running = serializers.BooleanField(required=False)
-    status_is_waiting = serializers.BooleanField(required=False)
-    is_leaf = serializers.BooleanField(required=False)
-    command = serializers.CharField(required=False,
-                                    allow_null=True, allow_blank=True)
-    interpreter = serializers.CharField(required=False,
-                                        allow_null=True, allow_blank=True)
-    environment = serializers.JSONField(required=False, allow_null=True)
-    resources = serializers.JSONField(required=False, allow_null=True)
-    notification_addresses = serializers.JSONField(required=False, allow_null=True)
-    notification_context = serializers.JSONField(required=False, allow_null=True)
-    user_inputs = UserInputSerializer(many=True, required=False)
-    inputs = RunInputSerializer(many=True, required=False)
-    outputs = RunOutputSerializer(many=True, required=False)
-    events = RunEventSerializer(many=True, required=False)
-    steps = RecursiveField(many=True, required=False)
-    tasks = TaskSerializer(many=True, required=False)
-
-    def to_representation(self, instance):
-        return strip_empty_values(
-            super(RunSerializer, self).to_representation(instance))
+	fields = [
+            'uuid',
+            'url',
+            'name',
+            'status',
+            'datetime_created',
+            'datetime_finished',
+            'template',
+            'postprocessing_status',
+            'status_is_finished',
+            'status_is_failed',
+            'status_is_killed',
+            'status_is_running',
+            'status_is_waiting',
+            'is_leaf',
+            'command',
+            'interpreter',
+            'environment',
+            'resources',
+            'notification_addresses',
+            'notification_context',
+            'user_inputs',
+            'inputs',
+            'outputs',
+            'events',
+            'steps',
+            'tasks',]
 
     def validate(self, data):
         if not data.get('uuid'):
             # No extra validation for creating a new run.
-            return super(RunSerializer, self).validate(data)
+            return super(_AbstractWritableRunSerializer, self).validate(data)
 
         self._preexisting_runs = []
         self._unsaved_runs = []
@@ -565,21 +527,169 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         run.initialize()
         return run
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset\
-            .select_related('template')\
-            .prefetch_related('events')\
+        
+class RunSerializer(_AbstractWritableRunSerializer):
+
+    EXPAND = False
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='run-detail',
+        lookup_field='uuid')
+    name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(required=False, format='iso-8601')
+    template = URLTemplateSerializer(required=False)
+    postprocessing_status = serializers.CharField(required=False)
+    status = serializers.CharField(read_only=True)
+    status_is_finished = serializers.BooleanField(required=False)
+    status_is_failed = serializers.BooleanField(required=False)
+    status_is_killed = serializers.BooleanField(required=False)
+    status_is_running = serializers.BooleanField(required=False)
+    status_is_waiting = serializers.BooleanField(required=False)
+    is_leaf = serializers.BooleanField(required=False)
+    command = serializers.CharField(required=False,
+                                    allow_null=True, allow_blank=True)
+    interpreter = serializers.CharField(required=False,
+                                        allow_null=True, allow_blank=True)
+    environment = serializers.JSONField(required=False, allow_null=True)
+    resources = serializers.JSONField(required=False, allow_null=True)
+    notification_addresses = serializers.JSONField(required=False, allow_null=True)
+    notification_context = serializers.JSONField(required=False, allow_null=True)
+    user_inputs = UserInputSerializer(many=True, required=False)
+    inputs = RunInputSerializer(many=True, required=False)
+    outputs = RunOutputSerializer(many=True, required=False)
+    events = RunEventSerializer(many=True, required=False)
+    steps = RecursiveField(many=True, required=False)
+    tasks = TaskSerializer(many=True, required=False)
+    
+    def to_representation(self, instance):
+        if not hasattr(instance, '_prefetched_objects_cache'):
+            self._prefetch_instance(instance)
+        return strip_empty_values(
+            super(RunSerializer, self).to_representation(instance))
+
+    def _prefetch_instance(self, instance):
+        queryset = Run\
+                   .objects\
+                   .filter(uuid=instance.uuid)\
+                   .prefetch_related('steps')\
+                   .prefetch_related('steps__steps')\
+                   .prefetch_related('steps__steps__steps')\
+                   .prefetch_related('steps__steps__steps__steps')\
+                   .prefetch_related('steps__steps__steps__steps__steps')\
+                   .prefetch_related('steps__steps__steps__steps__steps__'\
+                                     'steps')\
+                   .prefetch_related('steps__steps__steps__steps__steps__'\
+                                     'steps__steps')\
+                   .prefetch_related('steps__steps__steps__steps__steps__'\
+                                     'steps__steps__steps')\
+                   .prefetch_related('steps__steps__steps__steps__steps__'\
+                                     'steps__steps__steps__steps')\
+                   .prefetch_related('steps__steps__steps__steps__steps__'\
+                                     'steps__steps__steps__steps__steps')
+        instance._prefetched_objects_cache = queryset[0]._prefetched_objects_cache
+        node_list = flatten_nodes(instance, 'steps')
+        queryset = Run.objects.filter(uuid__in=[n.uuid for n in node_list])\
             .prefetch_related('inputs')\
             .prefetch_related('inputs__data_node')\
             .prefetch_related('outputs')\
             .prefetch_related('outputs__data_node')\
             .prefetch_related('user_inputs')\
             .prefetch_related('user_inputs__data_node')\
-            .prefetch_related('steps')\
-            .prefetch_related('tasks')
+            .prefetch_related('template')\
+            .prefetch_related('events')\
+            .prefetch_related('tasks')\
+            .prefetch_related('tasks__inputs')\
+            .prefetch_related('tasks__inputs__data_node')\
+            .prefetch_related('tasks__outputs')\
+            .prefetch_related('tasks__outputs__data_node')\
+            .prefetch_related('tasks__events')\
+            .prefetch_related('tasks__all_task_attempts')\
+            .prefetch_related('tasks__all_task_attempts__inputs')\
+            .prefetch_related('tasks__all_task_attempts__inputs__data_node')\
+            .prefetch_related('tasks__all_task_attempts__outputs')\
+            .prefetch_related('tasks__all_task_attempts__outputs__data_node')\
+            .prefetch_related('tasks__all_task_attempts__events')\
+            .prefetch_related('tasks__all_task_attempts__log_files')\
+            .prefetch_related('tasks__all_task_attempts__log_files__data_object')\
+            .prefetch_related(
+                'tasks__all_task_attempts__log_files__data_object__file_resource')\
+            .prefetch_related('tasks__task_attempt')\
+            .prefetch_related('tasks__task_attempt__inputs')\
+            .prefetch_related('tasks__task_attempt__inputs__data_node')\
+            .prefetch_related('tasks__task_attempt__outputs')\
+            .prefetch_related('tasks__task_attempt__outputs__data_node')\
+            .prefetch_related('tasks__task_attempt__events')\
+            .prefetch_related('tasks__task_attempt__log_files')\
+            .prefetch_related('tasks__task_attempt__log_files__data_object')\
+            .prefetch_related(
+                'tasks__task_attempt__log_files__data_object__file_resource')
+        runs = [run for run in queryset]
+        data_nodes = []
+	for run in runs:
+            for input in run._prefetched_objects_cache.get('inputs', []):
+                data_node = input.data_node
+                if data_node:
+                    data_nodes.append(data_node)
+            for user_input in run._prefetched_objects_cache.get('user_inputs', []):
+                data_node = user_input.data_node
+                if data_node:
+                    data_nodes.append(data_node)
+            for output in run._prefetched_objects_cache.get('outputs', []):
+                data_node = output.data_node
+                if data_node:
+                    data_nodes.append(data_node)
+            for task in run._prefetched_objects_cache.get('tasks', []):
+                for input in task._prefetched_objects_cache.get('inputs', []):
+                    data_node = input.data_node
+                    if data_node:
+                        data_nodes.append(data_node)
+                for output in task._prefetched_objects_cache.get('outputs', []):
+                    data_node = output.data_node
+                    if data_node:
+                        data_nodes.append(data_node)
+                for task_attempt in task._prefetched_objects_cache.get(
+                        'all_task_attempts', []):
+                    for input in task_attempt._prefetched_objects_cache.get(
+                            'inputs', []):
+                        data_node = input.data_node
+                        if data_node:
+                            data_nodes.append(data_node)
+                    for output in task_attempt._prefetched_objects_cache.get(
+                            'outputs', []):
+                        data_node = output.data_node
+                        if data_node:
+                            data_nodes.append(data_node)
+                if task.task_attempt:
+                    for input in task.task_attempt._prefetched_objects_cache.get(
+                            'inputs', []):
+                        data_node = input.data_node
+                        if data_node:
+                            data_nodes.append(data_node)
+                    for output in task.task_attempt._prefetched_objects_cache.get(
+                            'outputs', []):
+                        data_node = output.data_node
+                        if data_node:
+                            data_nodes.append(data_node)
+        replace_nodes(instance, runs, 'steps', ['template',])
+	if self.EXPAND:
+            ExpandedDataNodeSerializer.prefetch_instances(data_nodes)
+        else:
+            DataNodeSerializer.prefetch_instances(data_nodes)
 
-class URLRunSerializer(RunSerializer):
+
+class ExpandedRunSerializer(RunSerializer):
+
+    EXPAND = True
+
+    user_inputs = ExpandedUserInputSerializer(many=True, required=False)
+    inputs = ExpandedRunInputSerializer(many=True, required=False)
+    outputs = ExpandedRunOutputSerializer(many=True, required=False)
+    tasks = ExpandedTaskSerializer(many=True, required=False)
+
+
+class URLRunSerializer(_AbstractWritableRunSerializer):
 
     # readable fields
     uuid = serializers.UUIDField(required=False)
@@ -617,11 +727,3 @@ class URLRunSerializer(RunSerializer):
     events = RunEventSerializer(many=True, required=False, write_only=True)
     steps = RecursiveField(many=True, required=False, write_only=True)
     tasks = TaskSerializer(many=True, required=False, write_only=True)
-
-class ExpandedRunSerializer(RunSerializer):
-
-    user_inputs = ExpandedUserInputSerializer(many=True, required=False)
-    inputs = ExpandedRunInputSerializer(many=True, required=False)
-    outputs = ExpandedRunOutputSerializer(many=True, required=False)
-    steps = RecursiveField(many=True, required=False)
-    tasks = ExpandedTaskSerializer(many=True, required=False)

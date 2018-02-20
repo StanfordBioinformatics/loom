@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from . import CreateWithParentModelSerializer
+from . import CreateWithParentModelSerializer, strip_empty_values
 from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskEvent
@@ -61,36 +61,38 @@ class ExpandedTaskOutputSerializer(ExpandedDataChannelSerializer):
     as_channel = serializers.CharField(required=False, allow_null=True)
 
 
+_task_serializer_fields = [
+    'uuid',
+    'url',
+    'status',
+    'resources',
+    'environment',
+    'inputs',
+    'outputs',
+    'all_task_attempts',
+    'task_attempt',
+    'raw_command',
+    'command',
+    'interpreter',
+    'datetime_finished',
+    'datetime_created',
+    'status_is_finished',
+    'status_is_failed',
+    'status_is_killed',
+    'status_is_running',
+    'status_is_waiting',
+    'events',
+    'data_path',
+    'analysis_failure_count',
+    'system_failure_count',
+]
+
+
 class TaskSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Task
-        fields = [
-            'uuid',
-            'url',
-            'status',
-            'resources',
-            'environment',
-            'inputs',
-            'outputs',
-            'all_task_attempts',
-            'task_attempt',
-            'raw_command',
-            'command',
-            'interpreter',
-            'datetime_finished',
-            'datetime_created',
-            'status_is_finished',
-            'status_is_failed',
-            'status_is_killed',
-            'status_is_running',
-            'status_is_waiting',
-            'events',
-            'data_path',
-            'analysis_failure_count',
-            'system_failure_count',
-        ]
-
+        fields = _task_serializer_fields
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -121,23 +123,76 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     # read-only
     status = serializers.CharField(read_only=True)
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset\
-            .prefetch_related('events')\
-            .prefetch_related('inputs')\
-            .prefetch_related('inputs__data_node')\
-            .prefetch_related('outputs')\
-            .prefetch_related('outputs__data_node')\
-            .prefetch_related('task_attempt')\
-            .prefetch_related('all_task_attempts')
+    def to_representation(self, instance):
+        if not hasattr(instance, '_prefetched_objects_cache'):
+            self._prefetch_instance(instance)
+        return strip_empty_values(
+            super(TaskSerializer, self).to_representation(instance))
+
+    def _prefetch_instance(self, instance):
+        queryset = Task\
+                   .objects\
+                   .filter(uuid=instance.uuid)\
+                   .prefetch_related('inputs')\
+                   .prefetch_related('inputs__data_node')\
+                   .prefetch_related('inputs__data_node__data_object')\
+                   .prefetch_related('inputs__data_node__data_object__file_resource')\
+                   .prefetch_related('outputs')\
+                   .prefetch_related('outputs__data_node')\
+                   .prefetch_related('outputs__data_node__data_object')\
+                   .prefetch_related('outputs__data_node__data_object__file_resource')\
+                   .prefetch_related('events')\
+                   .prefetch_related('all_task_attempts')\
+                   .prefetch_related('all_task_attempts__inputs')\
+                   .prefetch_related('all_task_attempts__inputs__data_node')\
+                   .prefetch_related(
+                       'all_task_attempts__inputs__data_node__data_object')\
+                   .prefetch_related(
+                       'all_task_attempts__inputs__data_node__data_object__file_resource')\
+                   .prefetch_related('all_task_attempts__outputs')\
+                   .prefetch_related('all_task_attempts__outputs__data_node')\
+                   .prefetch_related(
+                       'all_task_attempts__outputs__data_node__data_object')\
+                   .prefetch_related(
+                       'all_task_attempts__outputs__data_node__data_object__file_resource')\
+                   .prefetch_related('all_task_attempts__events')\
+                   .prefetch_related('all_task_attempts__log_files')\
+                   .prefetch_related('all_task_attempts__log_files__data_object')\
+                   .prefetch_related(
+                       'all_task_attempts__log_files__data_object__file_resource')\
+                   .prefetch_related('task_attempt')\
+                   .prefetch_related('task_attempt__inputs')\
+                   .prefetch_related('task_attempt__inputs__data_node')\
+                   .prefetch_related(
+                       'task_attempt__inputs__data_node__data_object')\
+                   .prefetch_related(
+                       'task_attempt__inputs__data_node__data_object__file_resource')\
+                   .prefetch_related('task_attempt__outputs')\
+                   .prefetch_related('task_attempt__outputs__data_node')\
+                   .prefetch_related(
+                       'task_attempt__outputs__data_node__data_object')\
+                   .prefetch_related(
+                       'task_attempt__outputs__data_node__data_object__file_resource')\
+                   .prefetch_related('task_attempt__events')\
+                   .prefetch_related('task_attempt__log_files')\
+                   .prefetch_related('task_attempt__log_files__data_object')\
+                   .prefetch_related(
+                       'task_attempt__log_files__data_object__file_resource')
+        instance._prefetched_objects_cache = queryset[0]._prefetched_objects_cache
+        
+class ExpandedTaskSerializer(TaskSerializer):
+
+    inputs = ExpandedTaskInputSerializer(many=True)
+    outputs = ExpandedTaskOutputSerializer(many=True)
+    all_task_attempts = ExpandedTaskAttemptSerializer(many=True)
+    task_attempt = ExpandedTaskAttemptSerializer(required=False)
 
 
-class URLTaskSerializer(TaskSerializer):
+class URLTaskSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Task
-        fields = TaskSerializer.Meta.fields
+        fields = _task_serializer_fields
 
     # readable
     uuid = serializers.CharField(required=False)
@@ -168,10 +223,3 @@ class URLTaskSerializer(TaskSerializer):
     events = TaskEventSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     data_path = serializers.JSONField(required=True, write_only=True)
-
-class ExpandedTaskSerializer(TaskSerializer):
-
-    inputs = ExpandedTaskInputSerializer(many=True)
-    outputs = ExpandedTaskOutputSerializer(many=True)
-    all_task_attempts = ExpandedTaskAttemptSerializer(many=True)
-    task_attempt = ExpandedTaskAttemptSerializer(required=False)

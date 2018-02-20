@@ -238,8 +238,14 @@ class DataNodeViewSet(SelectableSerializerModelViewSet):
 
     SERIALIZERS = {
         'default': serializers.URLDataNodeSerializer,
-        'retrieve': serializers.DataNodeSerializer
+        'retrieve': serializers.DataNodeSerializer,
+        'expand': serializers.ExpandedDataNodeSerializer
     }
+
+    def get_serializer_class(self):
+        if 'expand' in self.request.GET.keys():
+            return self.SERIALIZERS['expand']
+        return super(DataNodeViewSet, self).get_serializer_class()
     
 
 class TaskViewSet(SelectableSerializerModelViewSet):
@@ -262,6 +268,7 @@ class TaskAttemptViewSet(SelectableSerializerModelViewSet):
 
     SERIALIZERS = {
         'default': serializers.URLTaskAttemptSerializer,
+        'partial_update': serializers.TaskAttemptSerializer,
         'retrieve': serializers.TaskAttemptSerializer
     }
 
@@ -353,8 +360,14 @@ class TemplateViewSet(SelectableSerializerModelViewSet):
 
     SERIALIZERS = {
         'default': serializers.URLTemplateSerializer,
-        'retrieve': serializers.TemplateSerializer
+        'retrieve': serializers.TemplateSerializer,
+        'expand': serializers.ExpandedTemplateSerializer
     }
+
+    def get_serializer_class(self):
+        if 'expand' in self.request.GET.keys():
+            return self.SERIALIZERS['expand']
+        return super(TemplateViewSet, self).get_serializer_class()
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
@@ -370,7 +383,6 @@ class TemplateViewSet(SelectableSerializerModelViewSet):
         if labels:
             for label in labels.split(','):
                 queryset = queryset.filter(labels__label=label)
-        queryset = Serializer.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
     @detail_route(methods=['post'], url_path='add-tag',
@@ -501,7 +513,6 @@ class RunViewSet(SelectableSerializerModelViewSet):
         if labels:
             for label in labels.split(','):
                 queryset = queryset.filter(labels__label=label)
-        queryset = Serializer.apply_prefetch(queryset)
         return queryset.order_by('-datetime_created')
 
     @detail_route(methods=['post'], url_path='add-tag',
@@ -664,7 +675,8 @@ class TaskAttemptOutputViewSet(SelectableSerializerModelViewSet):
     queryset = models.TaskAttemptOutput.objects.all()
 
     SERIALIZERS = {
-        'default': serializers.TaskAttemptOutputSerializer,
+        'default': serializers.URLTaskAttemptOutputSerializer,
+        'retrieve': serializers.TaskAttemptOutputSerializer,
         'partial_update': serializers.TaskAttemptOutputUpdateSerializer
     }
 

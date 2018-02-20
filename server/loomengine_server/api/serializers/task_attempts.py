@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from . import CreateWithParentModelSerializer
+from . import CreateWithParentModelSerializer, strip_empty_values
 from api.models.task_attempts import TaskAttempt, TaskAttemptOutput, \
     TaskAttemptInput, TaskAttemptLogFile, TaskAttemptEvent
 from api.serializers.data_objects import DataObjectSerializer
@@ -25,6 +25,16 @@ class ExpandedTaskAttemptInputSerializer(ExpandedDataChannelSerializer):
 
     mode = serializers.CharField()
 
+class URLTaskAttemptOutputSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = TaskAttemptOutput
+        fields = ('uuid', 'url')
+
+    uuid = serializers.CharField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='task-attempt-output-detail',
+        lookup_field='uuid')
 
 class TaskAttemptOutputSerializer(DataChannelSerializer):
 
@@ -35,8 +45,7 @@ class TaskAttemptOutputSerializer(DataChannelSerializer):
     source = serializers.JSONField(required=False)
     parser = serializers.JSONField(required=False, allow_null=True)
     mode = serializers.CharField()
-
-
+        
 class ExpandedTaskAttemptOutputSerializer(ExpandedDataChannelSerializer):
 
     class Meta:
@@ -48,7 +57,7 @@ class ExpandedTaskAttemptOutputSerializer(ExpandedDataChannelSerializer):
     mode = serializers.CharField()
 
 
-class TaskAttemptOutputUpdateSerializer(DataChannelSerializer):
+class TaskAttemptOutputUpdateSerializer(ExpandedTaskAttemptOutputSerializer):
     """This class is needed because some fields that are allowed
     in "create" are not writable in "update".
     """
@@ -104,33 +113,36 @@ class TaskAttemptEventSerializer(CreateWithParentModelSerializer):
         model = TaskAttemptEvent
         fields = ('event', 'detail', 'timestamp', 'is_error')
 
+_task_attempt_fields = [
+    'uuid',
+    'url',
+    'status',
+    'datetime_created',
+    'datetime_finished',
+    'last_heartbeat',
+    'status_is_finished',
+    'status_is_failed',
+    'status_is_killed',
+    'status_is_running',
+    'status_is_cleaned_up',
+    'log_files',
+    'inputs',
+    'outputs',
+    'interpreter',
+    'command',
+    'environment',
+    'environment_info',
+    'resources',
+    'resources_info',
+    'events'
+]
+
 
 class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = TaskAttempt
-        fields = ['uuid',
-                  'url',
-                  'status',
-                  'datetime_created',
-                  'datetime_finished',
-                  'last_heartbeat',
-                  'status_is_finished',
-                  'status_is_failed',
-                  'status_is_killed',
-                  'status_is_running',
-                  'status_is_cleaned_up',
-                  'log_files',
-                  'inputs',
-                  'outputs',
-                  'interpreter',
-                  'command',
-                  'environment',
-                  'environment_info',
-                  'resources',
-                  'resources_info',
-                  'events'
-        ]
+        fields = _task_attempt_fields
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -183,26 +195,50 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         instance = instance.setattrs_and_save_with_retries(attributes)
         return instance
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        queryset = queryset\
-                   .prefetch_related('log_files')\
-                   .prefetch_related('log_files__data_object__file_resource')\
+    def to_representation(self, instance):
+        if not hasattr(instance, '_prefetched_objects_cache'):
+            self._prefetch_instance(instance)
+        return strip_empty_values(
+            super(TaskAttemptSerializer, self).to_representation(instance))
+
+    def _prefetch_instance(self, instance):
+        queryset = TaskAttempt\
+                   .objects\
+                   .filter(uuid=instance.uuid)\
                    .prefetch_related('inputs')\
                    .prefetch_related('inputs__data_node')\
+                   .prefetch_related(
+                       'inputs__data_node__data_object')\
+                   .prefetch_related(
+                       'inputs__data_node__data_object__file_resource')\
                    .prefetch_related('outputs')\
                    .prefetch_related('outputs__data_node')\
-                   .prefetch_related('outputs__data_node')\
-                   .prefetch_related('events')
-        return queryset
+                   .prefetch_related(
+                       'outputs__data_node__data_object')\
+                   .prefetch_related(
+                       'outputs__data_node__data_object__file_resource')\
+                   .prefetch_related('events')\
+                   .prefetch_related('log_files')\
+                   .prefetch_related('log_files__data_object')\
+                   .prefetch_related(
+                       'log_files__data_object__file_resource')
+        instance._prefetched_objects_cache = queryset[0]._prefetched_objects_cache
 
 
-class URLTaskAttemptSerializer(TaskAttemptSerializer):
+class ExpandedTaskAttemptSerializer(TaskAttemptSerializer):
+
+    inputs = ExpandedTaskAttemptInputSerializer(
+        many=True, allow_null=True, required=False)
+    outputs = ExpandedTaskAttemptOutputSerializer(
+        many=True, allow_null=True, required=False)
+
+
+class URLTaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = TaskAttempt
-        fields = TaskAttemptSerializer.Meta.fields
-    
+        fields = _task_attempt_fields
+
     # readable
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -236,10 +272,3 @@ class URLTaskAttemptSerializer(TaskAttemptSerializer):
     status_is_killed = serializers.BooleanField(required=False, write_only=True)
     status_is_running = serializers.BooleanField(required=False, write_only=True)
     status_is_cleaned_up = serializers.BooleanField(required=False, write_only=True)
-
-class ExpandedTaskAttemptSerializer(TaskAttemptSerializer):
-
-    inputs = ExpandedTaskAttemptInputSerializer(
-        many=True, allow_null=True, required=False)
-    outputs = ExpandedTaskAttemptOutputSerializer(
-        many=True, allow_null=True, required=False)

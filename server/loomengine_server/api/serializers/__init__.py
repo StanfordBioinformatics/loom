@@ -21,6 +21,27 @@ def reload_models(ModelClass, models):
     models = ModelClass.objects.filter(uuid__in=uuids)
     return models
 
+def flatten_nodes(node, children_fieldname, node_list=None):
+    if node_list == None:
+        node_list = []
+    node_list.append(node)
+    for child in getattr(node, children_fieldname).all():
+        flatten_nodes(child, children_fieldname, node_list)
+    return node_list
+
+def replace_nodes(instance, nodes, children_fieldname, one_to_x_fields=None):
+    uuid = instance.uuid
+    matches = filter(lambda n: n.uuid==uuid, nodes)
+    assert len(matches) == 1, 'no unique match found'
+    instance._prefetched_objects_cache.update(matches[0]._prefetched_objects_cache)
+    if one_to_x_fields:
+        for field in one_to_x_fields:
+            if hasattr(instance, field):
+                setattr(instance, field, getattr(matches[0], field))
+    for child in getattr(instance, children_fieldname).all():
+        replace_nodes(child, nodes, children_fieldname, one_to_x_fields)
+    return instance
+
 
 class RecursiveField(rest_framework.serializers.Serializer):
 

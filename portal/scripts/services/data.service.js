@@ -16,7 +16,7 @@
 	this.setActiveTemplate = setActiveTemplate;
 	this.setActiveFile = setActiveFile;
 	this.getAllActive = getAllActive;
-	this.getRunSummary = getRunSummary;
+	this.getRunDetail = getRunDetail;
 	this.getRuns = getRuns;
 	this.getTemplates = getTemplates;
 	this.getImportedFiles = getImportedFiles;
@@ -95,8 +95,8 @@
 		});
 	}
 
-	function getRunSummary(runId) {
-	    return $http.get("/api/runs/" + runId + "/?summary")
+	function getRunDetail(runId) {
+	    return $http.get("/api/runs/" + runId + "/")
 		.then(function(response) {
 		    return response.data;
 		});
