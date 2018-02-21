@@ -24,7 +24,6 @@ class ExportManager(object):
     def bulk_export_files(self, files, destination_directory=None,
                           retry=False, export_metadata=True,
                           link_files=False, editable=False):
-
         if destination_directory == None:
             destination_directory = self._get_default_bulk_export_directory()
         for file in files:
@@ -109,7 +108,8 @@ class ExportManager(object):
         new_resource['file_url'] = new_file_url
         return new_resource
 
-    def export_template(self, template, destination_directory=None, file_destination_directory=None,
+    def export_template(self, template, destination_directory=None,
+                        file_destination_directory=None,
                         retry=False, link_files=False, editable=False,
                         save_files=True, file_dict=None):
 
@@ -117,7 +117,6 @@ class ExportManager(object):
             template, destination_directory=destination_directory)
         if not file_destination_directory:
             file_destination_directory = template_destination+'.dependencies'
-
         template = self._expand_template(template)
 
         if not file_dict:
@@ -239,7 +238,9 @@ class ExportManager(object):
     def export_run(self, run, destination_directory=None,
                    retry=False, link_files=False):
         # We are going to save the full template under templates/ subdir but leave the
-        # abbreviated version in the run. So we Take a copy of the template and  expand it.
+        # abbreviated version in the run.
+        #So we Take a copy of the template and expand it.
+        run = self._expand_run(run)
         template = self.connection.get_template(run['template']['uuid'])
         template = self._expand_template(template)
 
@@ -252,8 +253,6 @@ class ExportManager(object):
         file_dict = {}
         file_id_field = 'uuid'
         self._get_files_from_template(template, file_dict, file_id_field)
-
-        run = self._expand_run(run)
         self._get_files_from_run(run, file_dict, file_id_field)
         
         self.bulk_export_files(
@@ -272,45 +271,7 @@ class ExportManager(object):
         return [self._expand_run(r) for r in runs]
         
     def _expand_run(self, run):
-        self._expand_inputs_outputs(run)
-        expanded_steps = []
-        for step in run.get('steps', []):
-            step = self.connection.get_run(step['uuid'])
-            step = self._expand_run(step)
-            expanded_steps.append(step)
-        if expanded_steps:
-            run['steps'] = expanded_steps
-        expanded_tasks = []
-        for task in run.get('tasks', []):
-            task = self.connection.get_task(task['uuid'])
-            task = self._expand_task(task)
-            expanded_tasks.append(task)
-        if expanded_tasks:
-            run['tasks'] = expanded_tasks
-        return run
-
-    def _expand_task(self, task):
-        self._expand_inputs_outputs(task)
-        expanded_task_attempts = []
-        for task_attempt in task.get('all_task_attempts', []):
-            task_attempt = self.connection.get_task_attempt(task_attempt['uuid'])
-            task_attempt = self._expand_task_attempt(task_attempt)
-            expanded_task_attempts.append(task_attempt)
-        if expanded_task_attempts:
-            task['all_task_attempts'] = expanded_task_attempts
-        if task.get('task_attempt'):
-            ta = task.get('task_attempt')
-            matches = filter(lambda x, ta=ta: x.get('uuid') == ta.get('uuid'),
-                           task.get('all_task_attempts', []))
-            if len(matches) == 1:
-                task['task_attempt'] = matches[0]
-            else:
-                task['task_attempt'] = self._expand_task_attempt(ta)
-        return task
-
-    def _expand_task_attempt(self, task_attempt):
-        self._expand_inputs_outputs(task_attempt)
-        return task_attempt
+        return self.connection.get_run(run['uuid'], expand=True)
 
     def _save_run(self, run, destination, retry=False):
         print 'Exporting run %s@%s to %s...' % (
@@ -319,15 +280,7 @@ class ExportManager(object):
         print '...finished exporting run'
         
     def _expand_template(self, template):
-        self._expand_inputs_outputs(template)
-        expanded_steps = []
-        for step in template.get('steps', []):
-            step = self.connection.get_template(step['uuid'])
-            step = self._expand_template(step)
-            expanded_steps.append(step)
-        if expanded_steps:
-            template['steps'] = expanded_steps
-        return template
+        return self.connection.get_template(template.get('uuid'), expand=True)
 
     def _expand_templates(self, templates):
         return [self._expand_template(t) for t in templates]
@@ -439,20 +392,6 @@ class ExportManager(object):
             file_id = new_file.get('uuid')
         if file_id not in file_dict:
             file_dict[file_id] = new_file
-
-    def _expand_inputs_outputs(self, data):
-        for input in data.get('inputs', []):
-            if input.get('data'):
-                input['data'] = self.connection.get_data_node(
-                    input['data']['uuid'], expand=True)
-        for output in data.get('outputs', []):
-            if output.get('data'):
-                output['data'] = self.connection.get_data_node(
-                    output['data']['uuid'], expand=True)
-        for user_input in data.get('user_inputs', []):
-            if user_input.get('data'):
-                user_input['data'] = self.connection.get_data_node(
-                    output['data']['uuid'], expand=True)
 
     def _get_files_from_data_contents(self, file_dict, file_id_field, contents):
         if contents is None:

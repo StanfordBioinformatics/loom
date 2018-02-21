@@ -171,7 +171,7 @@ class Connection(object):
         if expand:
             params['expand'] = '1'
         return self._get_resource(
-            'data-nodes/%s/' % data_node_id, params)
+            'data-nodes/%s/' % data_node_id, params=params)
 
     def get_data_node_index(self):
         return self._get_index('data-nodes/')
@@ -279,11 +279,8 @@ class Connection(object):
             template,
             'templates/')
 
-    def get_template(self, template_id, summary=False,
-                     expand=False):
+    def get_template(self, template_id, expand=False):
         params = {}
-        if summary:
-            params['summary'] = '1'
         if expand:
             params['expand'] = '1'
         return self._get_resource(
@@ -350,12 +347,14 @@ class Connection(object):
             data,
             'templates/%s/remove-label/' % template_id)
     # Run
-
     def post_run(self, run):
         return self._post_resource(run, 'runs/')
 
-    def get_run(self, run_id):
-        return self._get_resource('runs/%s/' % run_id)
+    def get_run(self, run_id, expand=False):
+        params = {}
+        if expand:
+            params['expand'] = 1
+        return self._get_resource('runs/%s/' % run_id, params=params)
 
     def delete_run(self, run_id):
         return self._delete_resource('runs/%s/' % run_id)
