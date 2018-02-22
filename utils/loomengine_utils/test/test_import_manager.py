@@ -15,7 +15,7 @@ from loomengine_utils.test.test_connection \
 class TestImportManager(unittest.TestCase):
 
     token = '12345abcde'
-    
+
     def setUp(self):
         self.connection = MockConnection('root_url', token=self.token)
         self.import_manager = import_manager.ImportManager(
@@ -183,15 +183,15 @@ class TestImportManager(unittest.TestCase):
     def testImportFileAndMetadata(self):
         def mock_render_file_data_object_dict(self, source, comments, **kwargs):
             return {}
-        def mock_check_for_duplicates(self, data_object, **kwargs):
+        def mock_check_for_file_duplicates(self, data_object, **kwargs):
             return data_object
         def mock_execute_file_import(self, data_object, source, **kwargs):
             return data_object
 
         self.import_manager._render_file_data_object_dict \
             = mock_render_file_data_object_dict.__get__(self.import_manager)
-        self.import_manager._check_for_duplicates \
-            = mock_check_for_duplicates.__get__(self.import_manager)
+        self.import_manager._check_for_file_duplicates \
+            = mock_check_for_file_duplicates.__get__(self.import_manager)
         self.import_manager._execute_file_import \
             = mock_execute_file_import.__get__(self.import_manager)
 
@@ -203,10 +203,14 @@ class TestImportManager(unittest.TestCase):
         comments = None
         self.import_manager._import_file_and_metadata(source, metadata, comments)
 
-    def testCheckForDuplicatesForceDuplicaates(self):
+    def testCheckForDuplicatesForceDuplicates(self):
         uuid = 'eebf0f0c-2073-40a9-89f4-caae8ac852f7'
         data_object = {'uuid': uuid}
-        result = self.import_manager._check_for_duplicates(
+        self.import_manager.connection.add_route(
+            'data-objects/*/',
+            'GET',
+            content=[])
+        result = self.import_manager._check_for_file_duplicates(
             data_object, force_duplicates=True)
         self.assertEqual(result, data_object)
 
@@ -224,9 +228,13 @@ class TestImportManager(unittest.TestCase):
             'GET',
             params={'q': '%s$%s' % (filename, md5), 'type': 'file'},
             content=[])
-        result = self.import_manager._check_for_duplicates(
+        self.import_manager.connection.add_route(
+            'data-objects/*/',
+            'GET',
+            content=[])
+        result = self.import_manager._check_for_file_duplicates(
             data_object)
-        self.assertEqual(result, data_object)
+        self.assertEqual(data_object, data_object)
 
     def testCheckForDuplicatesWhenDuplicateExists(self):
         uuid = 'eebf0f0c-2073-40a9-89f4-caae8ac852f7'
@@ -243,9 +251,13 @@ class TestImportManager(unittest.TestCase):
             'GET',
             params={'q': '%s$%s' % (filename, md5), 'type': 'file'},
             content=['first_preexisting', 'second_preexisting'])
-        result = self.import_manager._check_for_duplicates(
+        self.import_manager.connection.add_route(
+            'data-objects/.*/',
+            'GET',
+            content='preexisting_model')
+        result = self.import_manager._check_for_file_duplicates(
             data_object)
-        self.assertEqual(result, 'second_preexisting')
+        self.assertEqual(result, data_object)
 
     def testGetFileDuplicates(self):
         filename = 'file.name'

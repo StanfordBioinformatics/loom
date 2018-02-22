@@ -105,7 +105,7 @@ class ImportManager(object):
                 ignore_metadata=ignore_metadata,
                 force_duplicates=force_duplicates,
                 retry=retry))
-            return files
+        return files
 
     def _get_file_metadata(self, metadata_url, retry=False, ignore_metadata=False):
         if ignore_metadata:

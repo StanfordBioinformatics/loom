@@ -10,9 +10,6 @@ from loomengine_utils.exceptions import *
 
 logger = logging.getLogger(__name__)
 
-class ServerConnectionError(Exception):
-    pass
-
 def disable_insecure_request_warning():
     """Suppress warning about untrusted SSL certificate."""
     import requests
@@ -120,7 +117,7 @@ class Connection(object):
                 if response:
                     logger.info(response.text)
                 raise
-            if raise_for_status:
+            if response is not None and raise_for_status:
                 # raises requests.exceptions.HTTPError
                 try:
                     response.raise_for_status()

@@ -161,7 +161,7 @@ class TestConnection(unittest.TestCase):
         self.assertTrue((tock-tick).total_seconds() > fail_until)
 
     def testMakeRequestToServerFailForStatus(self):
-        with self.assertRaises(requests.exceptions.HTTPError):
+        with self.assertRaises(ServerConnectionError):
             response = self.connection._make_request_to_server(
                 lambda: MockResponse(status_code=500))
 

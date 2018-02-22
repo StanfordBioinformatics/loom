@@ -11,21 +11,6 @@ from loomengine_utils import export_manager, md5calc
 from loomengine_utils.connection import Connection
 from loomengine_utils.test.test_connection import MockConnection
 
-class TestExportManagerFunctions(unittest.TestCase):
-    
-    def testReplaceNoneWithEmptyList(self):
-        empty1 = None
-        not_empty1 = [1,2,3]
-        empty2 = export_manager._replace_none_with_empty_list(empty1)
-        not_empty2 = export_manager._replace_none_with_empty_list(not_empty1)
-        self.assertEqual(empty2, [])
-        self.assertEqual(not_empty1, not_empty2)
-
-    def testGetDefaultDestinationDirectory(self):
-        dir1 = export_manager._get_default_bulk_export_directory()
-        self.assertTrue(dir1.startswith(
-            os.path.join(os.getcwd(), 'loom-bulk-export-')))
-
 
 class TestExportManager(unittest.TestCase):
 
@@ -74,6 +59,11 @@ class TestExportManager(unittest.TestCase):
                 'md5': md5,
             }}
 
+    def testGetDefaultDestinationDirectory(self):
+        dir1 = self.export_manager._get_default_bulk_export_directory()
+        self.assertTrue(dir1.startswith(
+            os.path.join(os.getcwd(), 'loom-bulk-export-')))
+
     def testExportFile(self):
         data_object = self._get_data_object(
             self.filenames[0], self.md5_sums[0], self.file_urls[0])
@@ -83,8 +73,12 @@ class TestExportManager(unittest.TestCase):
             params={'q': '@%s'%data_object.get('uuid'),
                     'type': 'file'},
             content=[data_object,])
+        self.connection.add_route(
+            'data-objects/*/',
+            'GET',
+            content=data_object)
         self.export_manager.export_file(
-            '@%s' % data_object.get('uuid'),
+            data_object,
             destination_directory=self.destination_directory)
 
         destination_file = os.path.join(
@@ -102,8 +96,8 @@ class TestExportManager(unittest.TestCase):
             params={'q': '@%s'%data_object.get('uuid'),
                     'type': 'file'},
             content=[data_object,])
-        self.export_manager.bulk_export(
-            files=[data_object,], destination_directory=self.destination_directory)
+        self.export_manager.bulk_export_files(
+            [data_object,], destination_directory=self.destination_directory)
         destination_file = os.path.join(
             self.destination_directory, 'files', self.file_paths[0])
         self.assertTrue(os.path.exists(destination_file))
