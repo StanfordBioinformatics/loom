@@ -146,12 +146,12 @@ class Task(BaseModel):
               'status_is_running': False,
               'status_is_waiting': False,
             })
-        if self.run.are_tasks_finished():
-            self.run.finish()
         for output in self.outputs.all():
             output.push_data(self.data_path)
         for task_attempt in self.all_task_attempts.all():
             task_attempt.cleanup()
+        if self.run.are_tasks_finished():
+            self.run.finish()
 
     def kill(self, detail=''):
         if self.has_terminal_status():
