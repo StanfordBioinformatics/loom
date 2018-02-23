@@ -92,34 +92,6 @@ SERVER_NAME = os.getenv('LOOM_SERVER_NAME', 'loom') # used in attempt container 
 SERVER_URL_FOR_WORKER = os.getenv('SERVER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 SERVER_URL_FOR_CLIENT = os.getenv('SERVER_URL_FOR_CLIENT', 'http://127.0.0.1:8000')
 
-def _add_url_prefix(path):
-    if STORAGE_TYPE.lower() == 'local':
-	return 'file://' + path
-    elif STORAGE_TYPE.lower() == 'google_storage':
-        return 'gs://' + get_setting('GOOGLE_STORAGE_BUCKET') + path
-    else:
-        raise ValidationError(
-            'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
-	    % STORAGE_TYPE)
-STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loomdata'))
-INTERNAL_STORAGE_ROOT = os.path.expanduser(
-    os.getenv('LOOM_INTERNAL_STORAGE_ROOT', STORAGE_ROOT))
-STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(STORAGE_ROOT)
-INTERNAL_STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(INTERNAL_STORAGE_ROOT)
-DELETE_DISABLED = to_boolean(os.getenv('LOOM_DELETE_DISABLED', 'False'))
-
-TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60'))
-TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS*2.5))
-SYSTEM_CHECK_INTERVAL_MINUTES = int(os.getenv('LOOM_SYSTEM_CHECK_INTERVAL_MINUTES', '15'))
-PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'False'))
-PRESERVE_ALL = to_boolean(os.getenv('LOOM_PRESERVE_ALL', 'False'))
-MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE = int(os.getenv(
-    'LOOM_MAXIMUM_TASK_RETRIES_FOR_ANALYSIS_FAILURE', '1'))
-MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE = int(os.getenv(
-    'LOOM_MAXIMUM_TASK_RETRIES_FOR_SYSTEM_FAILURE', '10'))
-
-DEFAULT_DOCKER_REGISTRY = os.getenv('LOOM_DEFAULT_DOCKER_REGISTRY', '')
-
 # GCP settings
 GCE_EMAIL = os.getenv('GCE_EMAIL')
 GCE_PROJECT = os.getenv('GCE_PROJECT', '')
@@ -143,6 +115,34 @@ SETTINGS_HOME = os.getenv('LOOM_SETTINGS_HOME', os.path.expanduser('~/.loom'))
 PLAYBOOK_PATH = os.path.join(SETTINGS_HOME, os.getenv('LOOM_PLAYBOOK_DIR', 'playbooks'))
 RUN_TASK_ATTEMPT_PLAYBOOK = os.getenv('LOOM_RUN_TASK_ATTEMPT_PLAYBOOK')
 CLEANUP_TASK_ATTEMPT_PLAYBOOK = os.getenv('LOOM_CLEANUP_TASK_ATTEMPT_PLAYBOOK')
+
+def _add_url_prefix(path):
+    if STORAGE_TYPE.lower() == 'local':
+	return 'file://' + path
+    elif STORAGE_TYPE.lower() == 'google_storage':
+        return 'gs://' + GOOGLE_STORAGE_BUCKET + path
+    else:
+        raise ValidationError(
+            'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
+	    % STORAGE_TYPE)
+STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loomdata'))
+INTERNAL_STORAGE_ROOT = os.path.expanduser(
+    os.getenv('LOOM_INTERNAL_STORAGE_ROOT', STORAGE_ROOT))
+STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(STORAGE_ROOT)
+INTERNAL_STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(INTERNAL_STORAGE_ROOT)
+DELETE_DISABLED = to_boolean(os.getenv('LOOM_DELETE_DISABLED', 'False'))
+
+TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60'))
+TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS*2.5))
+SYSTEM_CHECK_INTERVAL_MINUTES = int(os.getenv('LOOM_SYSTEM_CHECK_INTERVAL_MINUTES', '15'))
+PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'False'))
+PRESERVE_ALL = to_boolean(os.getenv('LOOM_PRESERVE_ALL', 'False'))
+MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE = int(os.getenv(
+    'LOOM_MAXIMUM_TASK_RETRIES_FOR_ANALYSIS_FAILURE', '1'))
+MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE = int(os.getenv(
+    'LOOM_MAXIMUM_TASK_RETRIES_FOR_SYSTEM_FAILURE', '10'))
+
+DEFAULT_DOCKER_REGISTRY = os.getenv('LOOM_DEFAULT_DOCKER_REGISTRY', '')
 
 # Database settings
 # Any defaults must match defaults in playbook
