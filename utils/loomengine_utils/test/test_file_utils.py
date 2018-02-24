@@ -5,10 +5,6 @@ import tempfile
 import unittest
 from loomengine_utils import file_utils
 
-SAMPLE_GOOGLE_STORAGE_BUCKET = 'gs://genomics-public-data'
-SAMPLE_GOOGLE_STORAGE_FILE = 'gs://genomics-public-data/'\
-                             '1000-genomes/other/sample_info/'\
-                             'sample_info.schema'
 
 class TestUrlParse(unittest.TestCase):
 
@@ -44,16 +40,6 @@ class TestFileSet(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    def testMixedPatterns(self):
-        local_pattern = os.path.join(self.tempdir, 'file*.txt')
-        gs_pattern = SAMPLE_GOOGLE_STORAGE_FILE
-        settings = {'GCE_PROJECT': ''}
-        file_set = file_utils.FileSet(
-            [local_pattern, gs_pattern], settings, retry=True)
-        files = [file.get_url() for file in file_set]
-        self.assertEqual(len(files), 4)
-        self.assertTrue(SAMPLE_GOOGLE_STORAGE_FILE in files)
-
 
 class TestFilePatternFactory(unittest.TestCase):
 
@@ -67,13 +53,6 @@ class TestFilePatternFactory(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    def testFactoryGoogleStorageFilePattern(self):
-        pattern = SAMPLE_GOOGLE_STORAGE_FILE
-        settings = {'GCE_PROJECT': ''}
-        file_pattern = file_utils.FilePattern(pattern, settings, retry=True)
-        self.assertTrue(
-            isinstance(file_pattern, file_utils.GoogleStorageFilePattern))
-
     def testFactoryLocalFilePattern(self):
         pattern = 'file://'+self.filepath
         settings = {}
@@ -85,26 +64,6 @@ class TestFilePatternFactory(unittest.TestCase):
         settings = {}
         file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
         self.assertTrue(isinstance(file_pattern, file_utils.LocalFilePattern))
-
-
-class TestGoogleStorageFilePattern(unittest.TestCase):
-
-    def testInit(self):
-        pattern = SAMPLE_GOOGLE_STORAGE_FILE
-        settings = {'GCE_PROJECT': ''}
-        file_pattern = file_utils.GoogleStorageFilePattern(
-            pattern, settings, retry=True)
-        files = [file for file in file_pattern]
-        self.assertEqual(len(files), 1)
-        self.assertEqual(files[0].url.geturl(), SAMPLE_GOOGLE_STORAGE_FILE)
-    
-    def testInitMissingFile(self):
-        pattern = SAMPLE_GOOGLE_STORAGE_FILE+'thisfiledoesntexist'
-        settings = {'GCE_PROJECT': ''}
-        file_pattern = file_utils.GoogleStorageFilePattern(
-            pattern, settings, retry=True)
-        files = [file for file in file_pattern]
-        self.assertEqual(len(files), 0)
 
 
 class TestLocalFilePattern(unittest.TestCase):
@@ -154,12 +113,13 @@ class TestLocalFilePattern(unittest.TestCase):
         file_set = file_utils.FileSet([pattern], settings, retry=False,
                                               trim_metadata_suffix=True)
         files = [file for file in file_set]
+        expected_files = ['file://'+self.filepaths[0],
+                          'file://'+self.filepaths[1],
+                          'file://'+self.filepaths[3][:-len('.metadata.yaml')]]
         self.assertEqual(len(files), 3)
-        self.assertEqual(files[0].get_url(), 'file://'+self.filepaths[0])
-        self.assertEqual(files[1].get_url(), 'file://'+self.filepaths[1])
-        self.assertEqual(files[2].get_url()+'.metadata.yaml',
-                         'file://'+self.filepaths[3])
-        
+        for file in files:
+            self.assertTrue(file.get_url() in expected_files)
+
 
 class TestFile(unittest.TestCase):
 
@@ -173,18 +133,6 @@ class TestFile(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    def testFactoryGoogleStorageFile(self):
-        url = SAMPLE_GOOGLE_STORAGE_FILE
-        settings = {'GCE_PROJECT': ''}
-        file = file_utils.File(url, settings, retry=True)
-        self.assertTrue(isinstance(file, file_utils.GoogleStorageFile))
-
-    def testGoogleStorageFileNoBucket(self):
-        url = 'gs:///blob'
-        settings = {'GCE_PROJECT': ''}
-        with self.assertRaises(file_utils.FileUtilsError):
-            file = file_utils.File(url, settings, retry=True)
-        
     def testFactoryLocalFile(self):
         url = 'file://'+self.filepath
         settings = {}
@@ -202,6 +150,7 @@ class TestFile(unittest.TestCase):
         settings = {}
         with self.assertRaises(file_utils.FileUtilsError):
             file = file_utils.File(url, settings, retry=False)
+
 
 class TestLocalFile(unittest.TestCase):
 
@@ -271,56 +220,6 @@ class TestLocalFile(unittest.TestCase):
             os.path.join(self.tempdir, subdir1)))
         self.assertFalse(os.path.exists(
             os.path.join(self.tempdir, subdir1, subdir2)))
-
-class TestGoogleStorageFile(unittest.TestCase):
-
-    def setUp(self):
-        self.settings = {'GCE_PROJECT': ''}
-        self.file = file_utils.File(
-            SAMPLE_GOOGLE_STORAGE_FILE, self.settings, retry=True)
-
-    def testCalculateMd5(self):
-        self.assertEqual(self.file.calculate_md5(), 'f16f91efe578419767b9dadaebcdc158')
-
-    def testGetUrl(self):
-        self.assertEqual(self.file.get_url(), SAMPLE_GOOGLE_STORAGE_FILE)
-
-    def testGetPath(self):
-        bucket_and_path = re.sub('^gs://', '', SAMPLE_GOOGLE_STORAGE_FILE)
-        path = '/'+'/'.join(bucket_and_path.split('/')[1:])
-        self.assertEqual(self.file.get_path(), path)
-
-    def testGetFilename(self):
-        self.assertEqual(self.file.get_filename(),
-                         os.path.basename(SAMPLE_GOOGLE_STORAGE_FILE)
-        )
-
-    def testExists(self):
-        self.assertTrue(self.file.exists())
-
-    def testExistsNegative(self):
-        file = file_utils.File(
-            SAMPLE_GOOGLE_STORAGE_BUCKET+'/arent/any/files/here/friend',
-            self.settings)
-        self.assertFalse(file.exists())
-
-    def testIsDir(self):
-        file = file_utils.File(os.path.dirname(SAMPLE_GOOGLE_STORAGE_FILE)+'/',
-                                self.settings, retry=True)
-        self.assertTrue(file.is_dir())
-
-    def testIsDirNegative(self):
-        self.assertFalse(self.file.is_dir())
-
-    def testRead(self):
-        text = self.file.read()
-        self.assertTrue('Family_ID' in text[0:100])
-
-    def testWrite(self):
-        pass
-
-    def testDelete(self):
-        pass
 
 
 if __name__ == '__main__':

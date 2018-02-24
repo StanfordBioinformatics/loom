@@ -3,3 +3,4 @@ include LICENSE
 include NOTICES
 include README.rst
 recursive-include loomengine_server/static *
+recursive-include loomengine_server/api/test/fixtures *
