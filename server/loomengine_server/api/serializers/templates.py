@@ -236,12 +236,23 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
                 (e, output_source)})
 
     def _validate_channels(self, data, root=False):
+        self._expand_steps(data)
         self._validate_channels_no_duplicates(data)
         self._validate_channels_no_duplicate_sources(data)
         self._validate_channels_check_duplicate_inputs(data)
         self._validate_channels_valid_source(data, root=root)
         self._validate_input_dimensions(data)
         self._validate_no_cycles(data)
+
+    def _expand_steps(self, data):
+        # In order to validate channels, we need to lookup and expand any steps
+        # that are referenced as _template_id. This lets us check if child
+        # input/output channel names line up with the parent.
+        for i in range(len(data.get('steps', []))):
+            template_id = data['steps'][i].get('_template_id')
+            if template_id:
+                step = self._lookup_by_id(template_id)
+                data['steps'][i] = TemplateSerializer(step, context=self.context).data
 
     def _validate_channels_no_duplicates(self, data):
         # Same channel name should never appear twice in a step
