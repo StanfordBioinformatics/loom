@@ -468,7 +468,7 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
                 # template structure
                 templates_data[i] = TemplateSerializer(
                     template, context=self.context).data
-                return template
+                continue
             template = self._create_unsaved_template(
                 template_data, template_models, input_models,
                 m2m_relationship_models, parent_model=parent_model)
