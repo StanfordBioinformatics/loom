@@ -1,8 +1,9 @@
-from django.db import models
+from django.db import models, IntegrityError
 from django.utils import timezone
 import jsonfield
 
-from . import render_from_template, render_string_or_list, ArrayInputContext
+from . import render_from_template, render_string_or_list, ArrayInputContext, \
+    calculate_contents_fingerprint
 from .base import BaseModel
 from .data_channels import DataChannel
 from api import get_setting
@@ -34,11 +35,11 @@ class Task(BaseModel):
                             on_delete=models.CASCADE,
                             null=True, # null for testing only
                             blank=True)
-    task_attempt = models.OneToOneField('TaskAttempt',
-                                        related_name='active_task',
-                                        on_delete=models.CASCADE,
-                                        null=True,
-                                        blank=True)
+    task_attempt = models.ForeignKey('TaskAttempt',
+                                     related_name='active_on_tasks',
+                                     on_delete=models.PROTECT,
+                                     null=True,
+                                     blank=True)
     analysis_failure_count = models.IntegerField(default=0)
     system_failure_count = models.IntegerField(default=0)
     data_path = jsonfield.JSONField(
@@ -52,6 +53,31 @@ class Task(BaseModel):
     status_is_killed = models.BooleanField(default=False)
     status_is_running = models.BooleanField(default=False)
     status_is_waiting = models.BooleanField(default=True)
+
+    def get_fingerprintable_contents(self):
+        inputs = [i.get_fingerprintable_contents() for i in self.inputs.all()]
+        outputs = [o.get_fingerprintable_contents() for o in self.outputs.all()]
+        return {
+            'interpreter': self.interpreter,
+            'raw_comment': self.raw_command,
+            'environment': self.environment,
+            'resources': self.resources,
+            'inputs': inputs,
+            'outputs': outputs,
+        }
+
+    def calculate_contents_fingerprint(self):
+        return calculate_contents_fingerprint(self.get_fingerprintable_contents())
+
+    def get_fingerprint(self):
+        fingerprint_value = self.calculate_contents_fingerprint()
+        try:
+            fingerprint = TaskFingerprint.objects.create(
+                value=fingerprint_value)
+        except IntegrityError:
+            # Fingerprint already exists
+            fingerprint = TaskFingerprint.objects.get(value=fingerprint_value)
+        return fingerprint
 
     @property
     def status(self):
@@ -68,7 +94,7 @@ class Task(BaseModel):
         else:
             return 'Unknown'
 
-    def is_unresponsive(self):
+    def is_responsive(self):
         heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
         timeout = int(get_setting('TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS'))
         try:
@@ -213,7 +239,7 @@ class Task(BaseModel):
                 task_output.full_clean()
                 task_output.save()
             task = task.setattrs_and_save_with_retries(
-                { 'command': task.render_command() })
+                {'command': task.render_command()})
             run.set_running_status()
             return task
         except Exception as e:
@@ -221,20 +247,26 @@ class Task(BaseModel):
                 run.fail(detail='Error creating Task: "%s"' % str(e))
             raise
 
-    def create_and_activate_attempt(self):
+    def create_and_activate_task_attempt(self):
         try:
             self._kill_children(
                 detail="TaskAttempt errored or timed out and was restarted.")
             task_attempt = TaskAttempt.create_from_task(self)
-            self.setattrs_and_save_with_retries({
-                'task_attempt': task_attempt,
-                'status_is_running': True,
-                'status_is_waiting': False})
+            self.activate_task_attempt(task_attempt)
             return task_attempt
         except Exception as e:
             self.system_error(detail='Error creating TaskAttempt: "%s"' % str(e))
             raise
 
+    def activate_task_attempt(self, task_attempt):
+        self.setattrs_and_save_with_retries({
+            'task_attempt': task_attempt,
+            'status_is_running': True,
+            'status_is_waiting': False})
+        self.all_task_attempts.add(task_attempt)
+        if task_attempt.status_is_finished:
+            self.finish()
+        
     def get_input_context(self):
         context = {}
         for input in self.inputs.all():
@@ -296,6 +328,16 @@ class TaskInput(DataChannel):
     mode = models.CharField(max_length=255)
     as_channel = models.CharField(max_length=255, null=True, blank=True)
 
+    def get_fingerprintable_contents(self):
+        return {
+            'mode': self.mode,
+            'type': self.type,
+            'channel': self.as_channel if self.as_channel else self.channel,
+            'data': {
+                'contents': self.data_node.get_fingerprintable_contents()
+            }
+        }
+
 
 class TaskOutput(DataChannel):
 
@@ -323,6 +365,15 @@ class TaskOutput(DataChannel):
         for input in data_root.downstream_run_inputs.all():
             input.run.push(input.channel, data_path)
 
+    def get_fingerprintable_contents(self):
+        return {
+            'mode': self.mode,
+            'type': self.type,
+            'source': self.source,
+            'parser': self.parser,
+            'channel': self.as_channel if self.as_channel else self.channel
+        }
+
 
 class TaskEvent(BaseModel):
     task = models.ForeignKey(
@@ -334,3 +385,12 @@ class TaskEvent(BaseModel):
     event = models.CharField(max_length=255)
     detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
+
+class TaskFingerprint(BaseModel):
+    value = models.CharField(max_length=255, unique=True)
+    active_task_attempt = models.OneToOneField(
+        'TaskAttempt',
+        related_name='fingerprint',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True)

@@ -18,9 +18,8 @@ class TaskAttempt(BaseModel):
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    task = models.ForeignKey('Task',
-                             related_name='all_task_attempts',
-                             on_delete=models.CASCADE)
+    tasks = models.ManyToManyField('Task',
+                                   related_name='all_task_attempts')
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     environment = jsonfield.JSONField()
@@ -59,6 +58,11 @@ class TaskAttempt(BaseModel):
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
 
+    def is_responsive(self):
+        heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
+        timeout = int(get_setting('TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS'))
+        return (timezone.now() - self.last_heartbeat).total_seconds() < timeout
+    
     def _process_error(self, failure_text, detail=''):
         if self.has_terminal_status():
             return
@@ -69,23 +73,15 @@ class TaskAttempt(BaseModel):
 
     def system_error(self, detail=''):
         self._process_error("System error", detail=detail)
-        try:
-            self.active_task.system_error(
+        for task in self.active_on_tasks.all():
+            task.system_error(
                 detail="Child TaskAttempt %s failed" % self.uuid)
-        except ObjectDoesNotExist:
-            # This attempt is no longer active
-            # and will be ignored.
-            pass
 
     def analysis_error(self, detail=''):
         self._process_error("Analysis error", detail=detail)
-        try:
-            self.active_task.analysis_error(
+        for task in self.active_on_tasks.all():
+            task.analysis_error(
                 detail="Child TaskAttempt %s failed" % self.uuid)
-        except ObjectDoesNotExist:
-            # This attempt is no longer active
-            # and will be ignored.
-            pass
 
     def has_terminal_status(self):
         return self.status_is_finished \
@@ -99,13 +95,8 @@ class TaskAttempt(BaseModel):
             'datetime_finished': timezone.now(),
             'status_is_finished': True,
             'status_is_running': False })
-        try:
-            task = self.active_task
-        except ObjectDoesNotExist:
-            # This attempt is no longer active
-            # and will be ignored.
-            return
-        task.finish()
+        for task in self.active_on_tasks.all():
+            task.finish()
 
     def add_event(self, event, detail='', is_error=False):
         event = TaskAttemptEvent(
@@ -116,7 +107,6 @@ class TaskAttempt(BaseModel):
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls(
-            task=task,
             interpreter=task.interpreter,
             command=task.command,
             environment=task.environment,
@@ -124,18 +114,18 @@ class TaskAttempt(BaseModel):
         )
         task_attempt.full_clean()
         task_attempt.save()
-        task_attempt.initialize()
+        task_attempt.initialize(task)
         return task_attempt
 
-    def initialize(self):
-        if self.inputs.count() == 0:
-            self._initialize_inputs()
+    def initialize(self, task):
+        assert self.outputs.count() == 0, 'Already initialized'
+        assert self.inputs.count() == 0, 'Already initialized'
+        self._initialize_inputs(task)
+        self._initialize_outputs(task)
+        self.tasks.add(task)
 
-        if self.outputs.count() == 0:
-            self._initialize_outputs()
-
-    def _initialize_inputs(self):
-        for input in self.task.inputs.all():
+    def _initialize_inputs(self, task):
+        for input in task.inputs.all():
             task_attempt_input = TaskAttemptInput(
                 task_attempt=self,
                 type=input.type,
@@ -145,21 +135,21 @@ class TaskAttempt(BaseModel):
             task_attempt_input.full_clean()
             task_attempt_input.save()
 
-    def _initialize_outputs(self):
-        for task_output in self.task.outputs.all():
+    def _initialize_outputs(self, task):
+        for task_output in task.outputs.all():
             task_attempt_output = TaskAttemptOutput(
                 task_attempt=self,
                 type=task_output.type,
                 channel=task_output.channel,
                 mode=task_output.mode,
-                source=self._render_output_source(task_output.source),
+                source=self._render_output_source(task_output.source, task),
                 parser=task_output.parser
             )
             task_attempt_output.full_clean()
             task_attempt_output.save()
 
-    def _render_output_source(self, task_output_source):
-        input_context = self.task.get_input_context()
+    def _render_output_source(self, task_output_source, task):
+        input_context = task.get_input_context()
 
         stream = task_output_source.get('stream')
         filename = render_from_template(

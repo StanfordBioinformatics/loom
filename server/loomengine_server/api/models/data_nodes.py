@@ -1,7 +1,9 @@
 import copy
+import json
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
+from . import calculate_contents_fingerprint
 from .base import BaseModel
 from .data_objects import DataObject
 from api.models import uuidstr
@@ -397,3 +399,25 @@ class DataNode(BaseModel):
         for child in self.children.order_by('index'):
             leaves.extend(child._get_leaves())
         return leaves
+
+    def calculate_contents_fingerprint(self):
+        return calculate_contents_fingerprint(
+            self.get_fingerprintable_contents())
+
+    def get_fingerprintable_contents(self):
+        return {'contents': self._get_fingerprintable_data_node_struct()}
+
+    def _get_fingerprintable_data_node_struct(self):
+        assert not self._is_blank_node(), 'Node not ready. No fingerprint.'
+        assert not self._is_empty_branch(), 'Node not ready. No fingerprint.'
+	if self.is_leaf:
+            return self.data_object.get_fingerprintable_contents()
+        else:
+            # Passing the list to calculate_contents_fingerprint
+            # does not preserve order, so we freeze the list in the correct
+            # order as a string to be hashed.
+            return json.dumps(
+                [calculate_contents_fingerprint(
+                    n._get_fingerprintable_data_node_struct())
+                 for n in self.children.all()],
+                separators=(',',':'))

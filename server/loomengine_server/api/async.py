@@ -50,21 +50,38 @@ def postprocess_run(*args, **kwargs):
     return _run_with_delay(_postprocess_run, args, kwargs)
 
 @shared_task
-def _run_task(task_uuid, delay=0):
+def _run_task(task_uuid, delay=0, force_rerun=False):
     time.sleep(delay)
     # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
     # Do not run again if already running
-    if task.task_attempt and not task.is_unresponsive():
+    if task.task_attempt and task.is_responsive():
         return
-    task_attempt = task.create_and_activate_attempt()
+
+    # Use TaskFingerprint to see if a valid TaskAttempt for this fingerprint
+    # already exists, or to flag the new TaskAttempt to be reused by other
+    # tasks with this fingerprint
+    fingerprint = task.get_fingerprint()
+
+    task_attempt = None
+    if not force_rerun:
+        # By skipping this, a new TaskAttempt will always be created.
+        # Use existing TaskAttempt if a valid one exists with the same fingerprint
+        if fingerprint.active_task_attempt:
+            task_attempt = fingerprint.active_task_attempt
+            task.activate_task_attempt(task_attempt)
+            return
+
+    task_attempt = task.create_and_activate_task_attempt()
+    fingerprint.setattrs_and_save_with_retries({'active_task_attempt': task_attempt})
     if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
-        logger.debug('Skipping async._run_execute_task_attempt_playbook because'\
-                     'TEST_NO_RUN_TASK_ATTEMPT is True')
+        logger.info('Skipping TaskAttempt execution because'\
+                    'TEST_NO_RUN_TASK_ATTEMPT is True')
         return
-    _run_with_heartbeats(_run_execute_task_attempt_playbook, task_attempt,
-                         args=[task_attempt])
+    else:
+        return _run_with_heartbeats(_run_execute_task_attempt_playbook, task_attempt,
+                                    args=[task_attempt,])
 
 def run_task(*args, **kwargs):
     return _run_with_delay(_run_task, args, kwargs)
@@ -92,7 +109,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
             last_heartbeat = task_attempt.heartbeat()
         time.sleep(polling_interval)
 
-def _run_execute_task_attempt_playbook(task_attempt):
+def _run_execute_task_attempt_playbook(task_attempt, task):
     from django.contrib.auth.models import User
     from django.db import IntegrityError
     from rest_framework.authtoken.models import Token
@@ -124,18 +141,17 @@ def _run_execute_task_attempt_playbook(task_attempt):
     if get_setting('DEBUG'):
         cmd_list.append('-vvvv')
 
-    resources = task_attempt.task.run.template.resources
-    if resources:
-        disk_size = str(resources.get('disk_size', ''))
-        cores = str(resources.get('cores', ''))
-        memory = str(resources.get('memory', ''))
+    if task_attempt.resources:
+        disk_size = str(task_attempt.resources.get('disk_size', ''))
+        cores = str(task_attempt.resources.get('cores', ''))
+        memory = str(task_attempt.resources.get('memory', ''))
     else:
         disk_size = ''
         cores = ''
         memory = ''
-    docker_image = task_attempt.task.run.template.environment.get(
+    docker_image = task_attempt.environment.get(
         'docker_image')
-    name = task_attempt.task.run.name
+    name = task.run.name
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': docker_image,
@@ -174,6 +190,7 @@ def _run_execute_task_attempt_playbook(task_attempt):
 
 @shared_task
 def _cleanup_task_attempt(task_attempt_uuid):
+    return
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     _run_cleanup_task_playbook(task_attempt)
@@ -203,7 +220,7 @@ def _run_cleanup_task_playbook(task_attempt):
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task_attempt.task.run.name,
+                task.run.name,
                 }
     env.update(new_vars)
 

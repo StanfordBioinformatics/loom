@@ -246,3 +246,27 @@ class TestDataNode(TestCase):
         node = tree.get_or_create_node([(2,3),(3,5)])
         new_node = tree.get_node([(2,3),(3,5)])
         self.assertEqual(new_node.uuid, node.uuid)
+
+    def testCalculateContentsFingerprint(self):
+        node = self.getTree(self.INPUT_DATA)
+        self.assertEqual(
+            node.calculate_contents_fingerprint(),
+            'd7405829b255d1dd4af90780a4b20286')
+
+    def testCalculateContentsFingerprintOrderMatters(self):
+        swapped_order_input_data=(
+            ([(0,3),(0,1)], 'i'),
+            ([(1,3),(0,2)], 'a'),
+            ([(1,3),(1,2)], 'm'),
+            ([(2,3),(0,5)], 'r'),
+            ([(2,3),(1,5)], 'o'),
+            ([(2,3),(2,5)], 'b'),
+            ([(2,3),(3,5)], 't'), # order swapped
+            ([(2,3),(4,5)], 'o'), # order swapped
+        )
+        node1 = self.getTree(self.INPUT_DATA)
+        node2 = self.getTree(swapped_order_input_data)
+        
+        self.assertNotEqual(
+            node1.calculate_contents_fingerprint(),
+            node2.calculate_contents_fingerprint())

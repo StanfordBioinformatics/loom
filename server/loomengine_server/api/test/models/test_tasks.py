@@ -55,7 +55,7 @@ class TestTask(TestCase):
 
     def testCreateAttempt(self):
         task = get_task()
-        task_attempt = task.create_and_activate_attempt()
+        task_attempt = task.create_and_activate_task_attempt()
         self.assertEqual(task_attempt.command, task.command)
 
     def testGetInputContext(self):
@@ -66,12 +66,17 @@ class TestTask(TestCase):
         command = task.render_command()
         self.assertEqual(command, 'echo input1; echo salud, amor, dinero')
 
+    def testGetContentsForFingerprint(self):
+        task = get_task()
+        self.assertEqual(task.calculate_contents_fingerprint(),
+                         'ae60c524085e58e8008fe455db3f4ac6')
+
 
 class TestTaskAttempt(TestCase):
 
     def setUp(self):
         self.task = get_task()
-        self.task_attempt = self.task.create_and_activate_attempt()
+        self.task_attempt = self.task.create_and_activate_task_attempt()
 
     def testCreateAttempt(self):
         self.assertEqual(self.task_attempt.outputs.first().channel,

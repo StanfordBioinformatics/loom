@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.core.exceptions import ValidationError
 
 from api.models.data_objects import DataObject, FileResource
+from api.models import calculate_contents_fingerprint
 
 
 md5_1 = 'd8e8fca2dc0f896fd7cb4cb0031ba249'
@@ -103,6 +104,29 @@ class TestDataObject(TestCase):
             filename=filename_1, md5=md5_1, source_type='result')
         with self.assertRaises(ValidationError):
             DataObject.get_by_value(filename_1, 'file')
+
+    def testCalculateContentsFingerprint_integer(self):
+        contents = {'type': 'integer',
+                    'value':17}
+        do = DataObject.get_by_value(contents['value'], contents['type'])
+        self.assertEqual(
+            do.calculate_contents_fingerprint(),
+            calculate_contents_fingerprint(contents))
+
+    def testCalculateContentsFingerprint_file(self):
+        contents = {
+            'type': 'file',
+            'value': {
+                'md5': md5_1,
+                'filename': filename_1
+            }
+        }
+        do = DataObject.create_and_initialize_file_resource(
+            filename=contents['value']['filename'],
+            md5=contents['value']['md5'],
+            source_type='result')
+        self.assertEqual(do.calculate_contents_fingerprint(),
+                         calculate_contents_fingerprint(contents))
 
 
 class TestFileResource(TestCase):

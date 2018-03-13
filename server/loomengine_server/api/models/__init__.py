@@ -1,5 +1,9 @@
+from collections import OrderedDict
+import hashlib
+import json
 import jinja2
 import uuid
+import loomengine_utils.md5calc
 
 def uuidstr():
     return str(uuid.uuid4())
@@ -18,6 +22,24 @@ def render_string_or_list(value, context):
 		for member in value]
     else:
         return render_from_template(value, context)
+
+def calculate_contents_fingerprint(contents):
+    if isinstance(contents, dict):
+        # Sort keys
+        contents_string = json.dumps(
+            OrderedDict([(key, calculate_contents_fingerprint(value))
+                         for key, value in contents.items()]),
+            sort_keys=True,
+            separators=(',',':'))
+    elif isinstance(contents, list):
+        # Sort lexicographically by hash
+        contents_string = json.dumps(
+            sorted([calculate_contents_fingerprint(item)
+                    for item in contents]),
+            separators=(',',':'))
+    else:
+        contents_string = str(contents)
+    return hashlib.md5(contents_string).hexdigest()
 
 
 class ArrayInputContext(object):

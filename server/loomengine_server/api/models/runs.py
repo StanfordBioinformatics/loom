@@ -91,6 +91,8 @@ class Run(BaseModel):
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
 
+    force_rerun = models.BooleanField(default=False)
+
     @property
     def status(self):
         if self.status_is_failed:
@@ -573,7 +575,8 @@ class Run(BaseModel):
     def _push_input_set(self, input_set):
         try:
             task = Task.create_from_input_set(input_set, self)
-            async.run_task(task.uuid)
+            force_rerun = get_setting('FORCE_RERUN') or self.force_rerun
+            async.run_task(task.uuid, force_rerun=force_rerun)
         except TaskAlreadyExistsException:
             pass
 

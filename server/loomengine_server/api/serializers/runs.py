@@ -198,6 +198,10 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             self,
             runs_data,
             parent_model=None):
+        if parent_model:
+            force_rerun = parent_model.force_rerun
+        else:
+            force_rerun = False
         for i in range(len(runs_data)):
             run_data = runs_data[i]
             try:
@@ -205,7 +209,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 self._preexisting_runs.append(run)
             except Run.DoesNotExist:
                 run = self._create_unsaved_run(
-                    run_data, parent_model=parent_model)
+                    run_data, force_rerun)
             if parent_model:
                 self._run_parent_relationships.append((run.uuid, parent_model.uuid))
             children = run_data.get('steps', [])
@@ -216,8 +220,9 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                     children,
                     parent_model=run)
         return run
-                
-    def _create_unsaved_run(self, run_data, parent_model=None):
+
+    def _create_unsaved_run(self, run_data, force_rerun):
+        force_rerun = data.get('force_rerun', False)
         self._validate_run_data_fields(run_data)
         run_copy = copy.deepcopy(run_data)
         inputs = run_copy.pop('inputs', [])
@@ -232,6 +237,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         s = TemplateSerializer(data=template_data)
         s.is_valid()
         run_copy['template'] = s.save()
+        run_copy['force_rerun'] = force_rerun
         run = Run(**run_copy)
         self._unsaved_runs.append(run)
         for task in tasks:

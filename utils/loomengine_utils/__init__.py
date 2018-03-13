@@ -21,7 +21,7 @@ def execute_with_retries(retryable_function,
     10 retries adds up to about 34 minutes total delay before the last attempt.
     "human_readable_action_name" is an option input to customize retry message.
     """
-    max_retries = 10
+    max_retries = 0
     attempt = 0
     while True:
         try:

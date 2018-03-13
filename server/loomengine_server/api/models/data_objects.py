@@ -4,6 +4,7 @@ from django.utils import timezone
 import jsonfield
 import os
 
+from . import calculate_contents_fingerprint
 from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
@@ -260,6 +261,21 @@ class DataObject(BaseModel):
         for node in self.data_nodes.all():
             node.delete()
 
+            
+    def get_fingerprintable_contents(self):
+        if self.type == 'file':
+            return {
+                'type': 'file',
+                'value': self.file_resource.get_fingerprintable_contents()}
+        else:
+            return {
+                'type': self.type,
+                'value': self.value}
+
+    def calculate_contents_fingerprint(self):
+        return calculate_contents_fingerprint(
+            self.get_fingerprintable_contents())
+        
 class FileResource(BaseModel):
 
     NAME_FIELD = 'filename'
@@ -302,6 +318,10 @@ class FileResource(BaseModel):
         max_length=16,
         choices=SOURCE_TYPE_CHOICES)
     link = models.BooleanField(default=False)
+
+    def get_fingerprintable_contents(self):
+        return {'filename': self.filename,
+                'md5': self.md5}
 
     @property
     def is_ready(self):
@@ -365,7 +385,7 @@ class FileResource(BaseModel):
         # and a run
         if not task_attempt:
             return []
-        task = task_attempt.task
+        task = task_attempt.tasks.first()
         if task is None:
             return []
         run = task.run
