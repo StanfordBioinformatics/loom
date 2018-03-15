@@ -168,8 +168,8 @@ class DataObject(BaseModel):
             prefetch_related('userinput_set__run').\
             prefetch_related('taskinput_set__task__run').\
             prefetch_related('taskoutput_set__task__run').\
-            prefetch_related('taskattemptinput_set__task_attempt__task__run').\
-            prefetch_related('taskattemptoutput_set__task_attempt__task__run').\
+            prefetch_related('taskattemptinput_set__task_attempt__tasks__run').\
+            prefetch_related('taskattemptoutput_set__task_attempt__tasks__run').\
             prefetch_related('templateinput_set__template')
 
         for data_node in prefetched_root_data_nodes:
@@ -210,17 +210,19 @@ class DataObject(BaseModel):
                     break
                 runs.add(task_output.task.run)
             for task_attempt_input in data_node.taskattemptinput_set.all():
-                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
-                   and task_attempt_input.task_attempt.task.run not in runs:
-                    truncated = True
-                    break
-                runs.add(task_attempt_input.task_attempt.task.run)
+                for task in task_attempt_input.task_attempt.tasks.all():
+                    if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                       and task.run not in runs:
+                        truncated = True
+                        break
+                    runs.add(task.run)
             for task_attempt_output in data_node.taskattemptoutput_set.all():
-                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
-                   and task_attempt_output.task_attempt.task.run not in runs:
-                    truncated = True
-                    break
-                runs.add(task_attempt_output.task_attempt.task.run)
+                for task in task_attempt_output.task_attempt.tasks.all():
+                    if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                       and task.run not in runs:
+                        truncated = True
+                        break
+                    runs.add(task.run)
             for template_input in data_node.templateinput_set.all():
                 if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
                    and template_input.template not in templates:
@@ -385,7 +387,8 @@ class FileResource(BaseModel):
         # and a run
         if not task_attempt:
             return []
-        task = task_attempt.tasks.first()
+        # If multiple tasks exist, use the original.
+        task = task_attempt.tasks.earliest('datetime_created')
         if task is None:
             return []
         run = task.run

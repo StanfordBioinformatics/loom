@@ -14,6 +14,7 @@ import subprocess
 import threading
 import time
 
+from django.core.exceptions import ObjectDoesNotExist
 from api.exceptions import ConcurrentModificationError
 
 
@@ -74,7 +75,7 @@ def _run_task(task_uuid, delay=0, force_rerun=False):
             return
 
     task_attempt = task.create_and_activate_task_attempt()
-    fingerprint.setattrs_and_save_with_retries({'active_task_attempt': task_attempt})
+    fingerprint.update_task_attempt_maybe(task_attempt)
     if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
         logger.info('Skipping TaskAttempt execution because'\
                     'TEST_NO_RUN_TASK_ATTEMPT is True')
@@ -109,7 +110,7 @@ def _run_with_heartbeats(function, task_attempt, args=None, kwargs=None):
             last_heartbeat = task_attempt.heartbeat()
         time.sleep(polling_interval)
 
-def _run_execute_task_attempt_playbook(task_attempt, task):
+def _run_execute_task_attempt_playbook(task_attempt):
     from django.contrib.auth.models import User
     from django.db import IntegrityError
     from rest_framework.authtoken.models import Token
@@ -151,8 +152,7 @@ def _run_execute_task_attempt_playbook(task_attempt, task):
         memory = ''
     docker_image = task_attempt.environment.get(
         'docker_image')
-    name = task.run.name
-
+    name = task_attempt.tasks.earliest('datetime_created').run.name
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
                 'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': docker_image,
                 'LOOM_TASK_ATTEMPT_STEP_NAME': name,
@@ -193,7 +193,7 @@ def _cleanup_task_attempt(task_attempt_uuid):
     return
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    _run_cleanup_task_playbook(task_attempt)
+    _run_cleanup_task_attempt_playbook(task_attempt)
     task_attempt.add_event('Cleaned up',
                            is_error=False)
     task_attempt.setattrs_and_save_with_retries({
@@ -202,7 +202,7 @@ def _cleanup_task_attempt(task_attempt_uuid):
 def cleanup_task_attempt(*args, **kwargs):
     return _run_with_delay(_cleanup_task_attempt, args, kwargs)
 
-def _run_cleanup_task_playbook(task_attempt):
+def _run_cleanup_task_attempt_playbook(task_attempt):
     env = copy.copy(os.environ)
     playbook = os.path.join(
         get_setting('PLAYBOOK_PATH'),
@@ -219,8 +219,7 @@ def _run_cleanup_task_playbook(task_attempt):
         cmd_list.append('-vvvv')
 
     new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
-                'LOOM_TASK_ATTEMPT_STEP_NAME':
-                task.run.name,
+                'LOOM_TASK_ATTEMPT_STEP_NAME': task_attempt.name
                 }
     env.update(new_vars)
 
@@ -288,7 +287,7 @@ def check_for_stalled_tasks():
     """
     from api.models.tasks import Task
     for task in Task.objects.filter(status_is_running=True):
-        if task.is_unresponsive():
+        if not task.is_responsive():
             task.system_error()
 
 @periodic_task(run_every=timedelta(minutes=SYSTEM_CHECK_INTERVAL_MINUTES))
@@ -352,13 +351,47 @@ def _delete_file_resource(file_resource_id):
     file_resource.delete()
 
 @periodic_task(run_every=timedelta(minutes=14))
-def cleanup_unused_file_resources():
+def cleanup_orphaned_file_resources():
     if get_setting('DELETE_DISABLED'):
         return
-    
+
     from api.models import FileResource
     queryset = FileResource.objects.filter(data_object__isnull=True)
     count = queryset.count()
     logger.info('Periodic cleanup of unused files. %s files found.' % count)
     for file_resource in queryset.all():
         _delete_file_resource(file_resource.id)
+
+@periodic_task(run_every=timedelta(minutes=13))
+def cleanup_orphaned_task_attempts():
+    if get_setting('DELETE_DISABLED'):
+        return
+
+    from api.models import TaskAttempt, DataNode
+    orphaned_task_attempts = TaskAttempt.objects.filter(
+        tasks=None, status_is_initializing=False)
+    logger.info('Periodic cleanup of unused files. %s files found.'
+                % orphaned_task_attempts.count())
+    nodes_to_delete = set()
+    for task_attempt in orphaned_task_attempts:
+        input_data_nodes = DataNode.objects.filter(
+            taskattemptinput__task_attempt__uuid=task_attempt.uuid)
+        output_data_nodes = DataNode.objects.filter(
+            taskattemptoutput__task_attempt__uuid=task_attempt.uuid)
+        for item in input_data_nodes:
+            nodes_to_delete.add(item)
+        for item in output_data_nodes:
+            nodes_to_delete.add(item)
+        task_attempt.delete()
+    for item in nodes_to_delete:
+        try:
+            item.delete()
+        except models.ProtectedError:
+            pass
+
+@shared_task
+def create_fingerprints(run):
+    for step in run.get_leaves():
+        for task in step.tasks.all():
+            fingerprint = task.get_fingerprint()
+            fingerprint.update_task_attempt_maybe(task.task_attempt)

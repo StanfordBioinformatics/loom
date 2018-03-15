@@ -57,7 +57,6 @@ class URLDataObjectSerializer(serializers.HyperlinkedModelSerializer):
             self._validate_and_cache_file(datacopy)
         else:
             self._validate_and_cache_nonfile(datacopy)
-
         return data
 
     def _validate_and_cache_nonfile(self, data):
@@ -82,7 +81,7 @@ class URLDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     def _validate_and_cache_file(self, data):
         value = data.get('_value_info')
-        if not isinstance(value, dict):
+        if value is not None and not isinstance(value, dict):
             # If it's a string, treat it as a data_object identifier and
             # look it up.
             data_objects = DataObject.filter_by_name_or_id_or_tag_or_hash(value)
@@ -268,7 +267,7 @@ class DataObjectSerializer(URLDataObjectSerializer):
     )
     type = serializers.CharField(required=False) # Type can also come from context
     datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
-    value = DataValueSerializer(source='_value_info')
+    value = DataValueSerializer(source='_value_info', required=False)
 
 
 class UpdateDataObjectSerializer(DataObjectSerializer):

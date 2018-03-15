@@ -4,9 +4,9 @@ from rest_framework import serializers
 from . import get_mock_context, get_mock_request
 from api.serializers.data_nodes import URLDataNodeSerializer, \
     DataNodeSerializer, ExpandedDataNodeSerializer
+from api.serializers.data_objects import DataObjectSerializer
 
-
-class TestExpandedDataNodeSerializer(TestCase):
+class TestURLDataNodeSerializer(TestCase):
     def testNoContents(self):
         raw_data = 7
         s = ExpandedDataNodeSerializer(
@@ -15,7 +15,7 @@ class TestExpandedDataNodeSerializer(TestCase):
         s.is_valid()
         data_object = s.save()
 
-        s = ExpandedDataNodeSerializer(
+        s = URLDataNodeSerializer(
             data_object,
             context=get_mock_context())
         data = s.data
@@ -162,6 +162,21 @@ class TestExpandedDataNodeSerializer(TestCase):
         m = s.save()
         data = ExpandedDataNodeSerializer(m, context=get_mock_context()).data
         self.assertEqual(data['contents']['value'], raw_data)
+
+    def testCreateReference(self):
+        value = True
+        s = DataObjectSerializer(data={'type': 'boolean', 'value': value})
+        s.is_valid(raise_exception=True)
+        do = s.save()
+        contents = {'uuid': do.uuid,
+                    'url': 'http://127.0.0.1/data-objects/%s/' % do.uuid}
+
+        s = ExpandedDataNodeSerializer(
+            data={'contents': contents},
+            context={'type': 'boolean'})
+        s.is_valid(raise_exception=True)
+        m = s.save()
+        self.assertEqual(m.data_object.value, value)
 
     def testCreateList(self):
         raw_data = ['word', 'draw']

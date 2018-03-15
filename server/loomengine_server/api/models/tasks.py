@@ -263,9 +263,14 @@ class Task(BaseModel):
             'task_attempt': task_attempt,
             'status_is_running': True,
             'status_is_waiting': False})
-        self.all_task_attempts.add(task_attempt)
+        self.add_to_all_task_attempts(task_attempt)
         if task_attempt.status_is_finished:
             self.finish()
+
+    def add_to_all_task_attempts(self, task_attempt):
+        from api.models.task_attempts import TaskMembership
+        tm = TaskMembership(parent_task=self, child_task_attempt=task_attempt)
+        tm.save()
         
     def get_input_context(self):
         context = {}
@@ -391,6 +396,32 @@ class TaskFingerprint(BaseModel):
     active_task_attempt = models.OneToOneField(
         'TaskAttempt',
         related_name='fingerprint',
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True)
+
+    def update_task_attempt_maybe(self, task_attempt):
+        if task_attempt is None:
+            return
+        if task_attempt.status_is_failed or task_attempt.status_is_killed:
+            return
+        if self.active_task_attempt is None:
+            # Save the valid TaskAttempt:
+            self.setattrs_and_save_with_retries(
+                {'active_task_attempt': task_attempt}
+            )
+            return
+        # Don't update if active_task_attempt already finished
+        if self.active_task_attempt.status_is_finished:
+            return
+        elif task_attempt.status_is_finished:
+            # Finished is better than unfinished
+            self.setattrs_and_save_with_retries(
+                {'active_task_attempt': task_attempt}
+            )
+        elif task_attempt.status_is_running and \
+             not self.active_task_attempt.status_is_running:
+            # Running is better than not running or finished
+            self.setattrs_and_save_with_retries(
+                {'active_task_attempt': task_attempt}
+            )

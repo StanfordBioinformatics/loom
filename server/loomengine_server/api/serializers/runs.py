@@ -8,7 +8,7 @@ from . import CreateWithParentModelSerializer, RecursiveField, \
     reload_models, flatten_nodes, replace_nodes
 from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
-from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, TaskAttemptEvent, TaskAttemptLogFile
+from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, TaskAttemptEvent, TaskAttemptLogFile, TaskMembership
 from api.serializers.data_objects import DataObjectSerializer
 from api.serializers.templates import TemplateSerializer, URLTemplateSerializer
 from api.serializers.tasks import TaskSerializer, URLTaskSerializer, \
@@ -138,13 +138,14 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             'outputs',
             'events',
             'steps',
-            'tasks',]
+            'tasks',
+            'force_rerun',
+        ]
 
     def validate(self, data):
         if not data.get('uuid'):
             # No extra validation for creating a new run.
             return super(_AbstractWritableRunSerializer, self).validate(data)
-
         self._preexisting_runs = []
         self._unsaved_runs = []
         self._unsaved_run_outputs = []
@@ -153,6 +154,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         self._unsaved_run_events = []
         self._run_parent_relationships = []
         self._task_to_task_attempt_relationships = []
+        self._task_to_all_task_attempts_m2m_relationships = []
         self._unsaved_tasks = []
         self._unsaved_task_inputs = []
         self._unsaved_task_outputs = []
@@ -199,9 +201,9 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             runs_data,
             parent_model=None):
         if parent_model:
-            force_rerun = parent_model.force_rerun
+            parent_force_rerun = parent_model.force_rerun
         else:
-            force_rerun = False
+            parent_force_rerun = False
         for i in range(len(runs_data)):
             run_data = runs_data[i]
             try:
@@ -209,7 +211,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 self._preexisting_runs.append(run)
             except Run.DoesNotExist:
                 run = self._create_unsaved_run(
-                    run_data, force_rerun)
+                    run_data, parent_force_rerun)
             if parent_model:
                 self._run_parent_relationships.append((run.uuid, parent_model.uuid))
             children = run_data.get('steps', [])
@@ -221,9 +223,9 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                     parent_model=run)
         return run
 
-    def _create_unsaved_run(self, run_data, force_rerun):
-        force_rerun = data.get('force_rerun', False)
+    def _create_unsaved_run(self, run_data, parent_force_rerun):
         self._validate_run_data_fields(run_data)
+        run_data.setdefault('force_rerun', parent_force_rerun)
         run_copy = copy.deepcopy(run_data)
         inputs = run_copy.pop('inputs', [])
         user_inputs = run_copy.pop('user_inputs', [])
@@ -237,7 +239,6 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         s = TemplateSerializer(data=template_data)
         s.is_valid()
         run_copy['template'] = s.save()
-        run_copy['force_rerun'] = force_rerun
         run = Run(**run_copy)
         self._unsaved_runs.append(run)
         for task in tasks:
@@ -338,7 +339,6 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         log_files = task_attempt_data.pop('log_files', [])
         task_attempt_data.pop('url', None)
         task_attempt_data.pop('status', None)
-        task_attempt_data['task'] = task
         task_attempt = TaskAttempt(**task_attempt_data)
         self._unsaved_task_attempts.append(task_attempt)
         for input_data in inputs:
@@ -378,6 +378,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         for event in events:
             event['task_attempt'] = task_attempt
             self._unsaved_task_attempt_events.append(TaskAttemptEvent(**event))
+        self._task_to_all_task_attempts_m2m_relationships.append(
+            TaskMembership(parent_task=task, child_task_attempt=task_attempt))
 
     def create(self, validated_data):
         if validated_data.get('uuid'):
@@ -411,8 +413,6 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             match_and_update_by_uuid(self._unsaved_task_events,
                                      'task', self._new_tasks)
             TaskEvent.objects.bulk_create(self._unsaved_task_events)
-            match_and_update_by_uuid(self._unsaved_task_attempts,
-                                     'task', self._new_tasks)
             bulk_attempts = TaskAttempt.objects.bulk_create(self._unsaved_task_attempts)
             self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
             match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
@@ -429,12 +429,22 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
             self._connect_tasks_to_active_task_attempts(
                 self._new_tasks, self._new_task_attempts)
+            match_and_update_by_uuid(
+                self._task_to_all_task_attempts_m2m_relationships,
+                'parent_task', self._new_tasks)
+            match_and_update_by_uuid(
+                self._task_to_all_task_attempts_m2m_relationships,
+                'child_task_attempt', self._new_task_attempts)
+            TaskMembership.objects.bulk_create(
+                self._task_to_all_task_attempts_m2m_relationships)
             self._connect_runs_to_parents(all_runs)
             root_run = filter(
                 lambda r: r.uuid==self._root_run_uuid, all_runs)
             assert len(root_run) == 1, '1 run should match uuid of root'
-            return root_run[0]
-        except:
+            run = root_run[0]
+            async.create_fingerprints(run)
+            return run
+        except Exception as e:
             self._cleanup()
             raise
 
@@ -486,6 +496,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             template,
             name=data.get('name'),
             notification_addresses=data.get('notification_addresses'),
+            force_rerun=data.get('force_rerun', False),
             notification_context=Run.get_notification_context(
                 self.context.get('request')))
         try:
@@ -568,6 +579,7 @@ class RunSerializer(_AbstractWritableRunSerializer):
     events = RunEventSerializer(many=True, required=False)
     steps = RecursiveField(many=True, required=False)
     tasks = TaskSerializer(many=True, required=False)
+    force_rerun = serializers.BooleanField(required=False, write_only=True)
     
     def to_representation(self, instance):
         if not hasattr(instance, '_prefetched_objects_cache'):
@@ -733,3 +745,4 @@ class URLRunSerializer(_AbstractWritableRunSerializer):
     events = RunEventSerializer(many=True, required=False, write_only=True)
     steps = RecursiveField(many=True, required=False, write_only=True)
     tasks = TaskSerializer(many=True, required=False, write_only=True)
+    force_rerun = serializers.BooleanField(required=False, write_only=True)

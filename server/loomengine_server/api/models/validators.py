@@ -307,6 +307,14 @@ data_node_schema = {
     # '[["file1.txt@id1", "file2.txt@id2"], ["file3.txt@id3"]]'.
     # A DataObject may be used rather than the primitive type.
     'definitions': {
+        'referenceschema': {
+            'type': [ 'object' ],
+            'properties': {
+                'uuid': { 'type': 'string' }
+            },
+            'required': ['uuid'],
+            'additionalProperties': True,
+        },
         'stringschema': {
             'oneOf': [
                 { 'type': [ 'string' ] },
@@ -373,9 +381,9 @@ data_node_schema = {
                       '$ref': '#/definitions/fileschema'}}
             ]
         },
-
     },
     'anyOf': [
+        {'$ref': '#/definitions/referenceschema'},
         {'$ref': '#/definitions/stringschema'},
         {'$ref': '#/definitions/integerschema'},
         {'$ref': '#/definitions/floatschema'},

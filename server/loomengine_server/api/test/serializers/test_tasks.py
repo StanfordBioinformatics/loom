@@ -47,11 +47,11 @@ def get_task():
     )
     attempt_output_data_node = create_data_node_from_data_object(output_data_object)
     task_attempt = TaskAttempt.objects.create(
-        task=task,
         interpreter = task.interpreter,
         command=task.command,
         environment=task.environment,
         resources=task.resources)
+    task.add_to_all_task_attempts(task_attempt)
     task_attempt_output = TaskAttemptOutput.objects.create(
         task_attempt=task_attempt,
         data_node=attempt_output_data_node,

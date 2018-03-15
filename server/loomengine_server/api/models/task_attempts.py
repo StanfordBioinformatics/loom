@@ -18,8 +18,9 @@ class TaskAttempt(BaseModel):
 
     uuid = models.CharField(default=uuidstr, editable=False,
                             unique=True, max_length=255)
-    tasks = models.ManyToManyField('Task',
+    tasks = models.ManyToManyField('Task', through='TaskMembership',
                                    related_name='all_task_attempts')
+    #task = models.ForeignKey('Task', related_name='deprecated_all_task_attempts')
     interpreter = models.CharField(max_length=1024)
     command = models.TextField()
     environment = jsonfield.JSONField()
@@ -30,14 +31,17 @@ class TaskAttempt(BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
+    status_is_initializing = models.BooleanField(default=False)
     status_is_finished = models.BooleanField(default=False)
     status_is_failed = models.BooleanField(default=False)
     status_is_killed = models.BooleanField(default=False)
-    status_is_running = models.BooleanField(default=True)
+    status_is_running = models.BooleanField(default=False)
     status_is_cleaned_up = models.BooleanField(default=False)
 
     @property
     def status(self):
+        if self.status_is_initializing:
+            return 'Initializing'
         if self.status_is_failed:
             return 'Failed'
         elif self.status_is_finished:
@@ -107,6 +111,7 @@ class TaskAttempt(BaseModel):
     @classmethod
     def create_from_task(cls, task):
         task_attempt = cls(
+            status_is_initializing=True,
             interpreter=task.interpreter,
             command=task.command,
             environment=task.environment,
@@ -118,11 +123,14 @@ class TaskAttempt(BaseModel):
         return task_attempt
 
     def initialize(self, task):
-        assert self.outputs.count() == 0, 'Already initialized'
-        assert self.inputs.count() == 0, 'Already initialized'
         self._initialize_inputs(task)
         self._initialize_outputs(task)
-        self.tasks.add(task)
+        # Must add task before setting status to initialized.
+        # Otherwise the garbage collector may delete it as an orphan.
+        self.setattrs_and_save_with_retries(
+            {'status_is_initializing': False,
+             'status_is_running': True}
+        )
 
     def _initialize_inputs(self, task):
         for input in task.inputs.all():
@@ -268,6 +276,11 @@ class TaskAttemptEvent(BaseModel):
     event = models.CharField(max_length=255)
     detail = models.TextField(blank=True)
     is_error = models.BooleanField(default=False)
+
+
+class TaskMembership(BaseModel):
+    parent_task = models.ForeignKey('Task', on_delete=models.CASCADE)
+    child_task_attempt = models.ForeignKey('TaskAttempt', on_delete=models.CASCADE)
 
 
 class ArrayInputContext(object):

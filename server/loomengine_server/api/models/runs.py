@@ -145,6 +145,7 @@ class Run(BaseModel):
     def create_from_template(cls, template, name=None,
                              notification_addresses=[],
                              notification_context={},
+                             force_rerun=False,
                              parent=None):
         if name is None:
             name = template.name
@@ -159,7 +160,9 @@ class Run(BaseModel):
                 resources=template.resources,
                 notification_addresses=notification_addresses,
                 notification_context=notification_context,
-                parent=parent)
+                parent=parent,
+                force_rerun=force_rerun
+            )
             run.full_clean()
             run.save()
         else:
@@ -171,7 +174,9 @@ class Run(BaseModel):
                 resources=template.resources,
                 notification_addresses=notification_addresses,
                 notification_context=notification_context,
-                parent=parent)
+                parent=parent,
+                force_rerun=force_rerun
+            )
             run.full_clean()
             run.save()
         return run
@@ -516,7 +521,8 @@ class Run(BaseModel):
         if self.is_leaf:
             return
         for step in self.template.steps.all():
-            child_run = self.create_from_template(step, parent=self)
+            child_run = self.create_from_template(step, parent=self,
+                                                  force_rerun=self.force_rerun)
             child_run.initialize_inputs()
             child_run.initialize_outputs()
 
@@ -606,9 +612,9 @@ class Run(BaseModel):
                 DataNode.objects.filter(taskinput__task__run__uuid=self.uuid),
                 DataNode.objects.filter(taskoutput__task__run__uuid=self.uuid),
                 DataNode.objects.filter(
-                    taskattemptinput__task_attempt__task__run__uuid=self.uuid),
+                    taskattemptinput__task_attempt__tasks__run__uuid=self.uuid),
                 DataNode.objects.filter(
-                    taskattemptoutput__task_attempt__task__run__uuid=self.uuid)
+                    taskattemptoutput__task_attempt__tasks__run__uuid=self.uuid)
         ]:
             for item in queryset.all():
                 nodes_to_delete.add(item)
@@ -618,6 +624,16 @@ class Run(BaseModel):
                 item.delete()
             except models.ProtectedError:
                 pass
+
+    def get_leaves(self, leaf_list=None):
+        if leaf_list is None:
+            leaf_list = []
+        if self.is_leaf:
+            leaf_list.append(self)
+        else:
+            for step in self.steps.all():
+                step.get_leaves(leaf_list=leaf_list)
+        return leaf_list
 
 
 class RunEvent(BaseModel):

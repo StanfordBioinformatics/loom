@@ -46,7 +46,7 @@ class RunStart(AbstractRunSubcommand):
     def get_parser(cls, parser=None):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
-        parser.add_argument('template', metavar='TEMPLATE', help='ID of template to run')
+        parser.add_argument('template', metavar='TEMPLATE_ID', help='ID of template to run')
         parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*',
                             help='ID or value of data inputs')
         parser.add_argument('-n', '--name', metavar='RUN_NAME',
@@ -54,6 +54,9 @@ class RunStart(AbstractRunSubcommand):
         parser.add_argument('-e', '--notify', action='append',
                             metavar='EMAIL/URL',
                             help='recipients of completed run notifications')
+        parser.add_argument('-f', '--force-rerun',
+                            action='store_true',
+                            help='ignore any existing results')
         parser.add_argument('-t', '--tag', metavar='TAG', action='append',
                             help='tag the run when it is started')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
@@ -73,7 +76,9 @@ class RunStart(AbstractRunSubcommand):
         run_data = {
             'template': self.args.template,
             'user_inputs': self._get_inputs(),
-            'notification_addresses': self.args.notify,}
+            'notification_addresses': self.args.notify,
+            'force_rerun': self.args.force_rerun,
+        }
         if self.args.name:
             run_data['name'] = self.args.name
         try:
@@ -179,6 +184,89 @@ class RunStart(AbstractRunSubcommand):
             self._parse_string_to_nested_lists(value[leftmost:len(value)]))
         return terms
 
+class RunRestart(RunStart):
+    """Start a new run based on an existing run's template and inputs.
+    """
+
+    @classmethod
+    def get_parser(cls, parser=None):
+        if parser is None:
+            parser = argparse.ArgumentParser(__file__)
+        parser.add_argument('run', metavar='RUN_ID', help='ID of run to restart')
+        parser.add_argument('inputs', metavar='INPUT_NAME=DATA', nargs='*',
+                            help='ID or value of data inputs to override')
+        parser.add_argument('-n', '--name', metavar='RUN_NAME',
+                            help='run name (default is template name)')
+        parser.add_argument('-e', '--notify', action='append',
+                            metavar='EMAIL/URL',
+                            help='recipients of completed run notifications')
+        parser.add_argument('-f', '--force-rerun',
+                            action='store_true',
+                            help='ignore any existing results')
+        parser.add_argument('-t', '--tag', metavar='TAG', action='append',
+                            help='tag the run when it is started')
+        parser.add_argument('-l', '--label', metavar='LABEL', action='append',
+                            help='label the run when it is started')
+        return parser
+
+    def run(self):
+        run = self.connection.get_run_index(
+            query_string=self.args.run,
+            min=0, max=1)[0]
+        run = self.connection.get_run(run.get('uuid'))
+
+        run_data = {
+            'template': run.get('template'),
+            'user_inputs': self._get_inputs(run.get('inputs')),
+            'notification_addresses': self.args.notify,
+            'force_rerun': self.args.force_rerun,
+        }
+        if self.args.name:
+            run_data['name'] = self.args.name
+        try:
+            run = self.connection.post_run(run_data)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code >= 400:
+                try:
+                    message = e.response.json()
+                except:
+                    message = e.response.text
+                if isinstance(message, list):
+                    message = '; '.join(message)
+                raise SystemExit(message)
+            else:
+                raise e
+
+        print 'Created run %s@%s' % (
+            run['name'],
+            run['uuid'])
+        self._apply_tags(run)
+        self._apply_labels(run)
+        return run
+
+    def _get_inputs(self, inputs):
+        """Converts command line args into a list of template inputs
+        """
+        # Convert inputs to dict to facilitate overriding by channel name
+        # Also, drop DataNode ID and keep only contents.
+        input_dict = {}
+        for input in inputs:
+            input['data'] = {'contents': input['data']['contents']}
+            input_dict[input['channel']] = input
+
+        # Override with user inputs if specified
+        if self.args.inputs:
+            for kv_pair in self.args.inputs:
+                (channel, input_id) = kv_pair.split('=')
+                input_dict[channel] = {
+                    'channel': channel,
+                    'data': {
+                        'contents':
+                        self._parse_string_to_nested_lists(input_id)}
+                }
+
+        return input_dict.values()
+
 
 class RunImport(AbstractRunSubcommand):
 
@@ -246,7 +334,7 @@ class RunExport(AbstractRunSubcommand):
         parser.add_argument(
             'run_ids',
             nargs='+',
-            metavar='RUN_ID', help='run(s) to be exported')
+            metavar='RUN_ID', help='ID of run to be exported')
         parser.add_argument(
             '-d', '--destination-directory',
             metavar='DESTINATION_DIRECTORY',
@@ -307,7 +395,7 @@ class RunList(AbstractRunSubcommand):
         parser.add_argument(
             'run_id',
             nargs='?',
-            metavar='RUN_IDENTIFIER',
+            metavar='RUN_ID',
             help='name or ID of run(s) to list.')
         parser.add_argument(
             '-d', '--detail',
@@ -317,7 +405,7 @@ class RunList(AbstractRunSubcommand):
             '-a', '--all',
             action='store_true',
             help='list all runs, including nested children '\
-            '(ignored when RUN_IDENTIFIER is given)')
+            '(ignored when RUN_ID is given)')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',
                             help='filter by label')
         return parser
@@ -556,6 +644,12 @@ class RunClient(object):
         start_subparser = subparsers.add_parser('start', help='start a new run')
         RunStart.get_parser(start_subparser)
         start_subparser.set_defaults(SubSubcommandClass=RunStart)
+
+        restart_subparser = subparsers.add_parser(
+            'restart', help="start a new run, using an existing run's "\
+            "template and inputs")
+        RunRestart.get_parser(restart_subparser)
+        restart_subparser.set_defaults(SubSubcommandClass=RunRestart)
 
         kill_subparser = subparsers.add_parser(
             'kill', help='kill run')

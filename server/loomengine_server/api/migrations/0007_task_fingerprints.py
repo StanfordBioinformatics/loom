@@ -9,9 +9,19 @@ import django.db.models.deletion
 
 def forward(apps, schema_editor):
     TaskAttempt = apps.get_model('api', 'TaskAttempt')
+    Task = apps.get_model('api', 'Task')
+
     for task_attempt in TaskAttempt.objects.all():
+        # Assume all existing TaskAttempts are initialized,
+        # even though default for new TaskAttempts is False
+        task_attempt.status_is_initialized = True
+        task_attempt.save()
+
+        # Move Task.all_task_attempts from deprecated ForeignKey
+        # to new M2M
         if task_attempt.task is not None:
             task_attempt.tasks.add(task_attempt.task)
+
 
 class Migration(migrations.Migration):
 
@@ -20,6 +30,36 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Single-field updates
+        migrations.AddField(
+            model_name='taskattempt',
+            name='status_is_initializing',
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name='run',
+            name='force_rerun',
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AlterField(
+            model_name='task',
+            name='task_attempt',
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='active_on_tasks', to='api.TaskAttempt'),
+        ),
+        migrations.AlterField(
+            model_name='taskattempt',
+            name='status_is_running',
+            field=models.BooleanField(default=False),
+        ),
+
+        # Change related_name to avoid clash "with all_task_attempts"
+        migrations.AlterField(
+            model_name='taskattempt',
+            name='task',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='deprecated_all_task_attempts', to='api.Task'),
+        ),
+
+        # New TaskFingerprint model
         migrations.CreateModel(
             name='TaskFingerprint',
             fields=[
@@ -33,28 +73,43 @@ class Migration(migrations.Migration):
             bases=(models.Model, api.models.base._FilterMixin),
         ),
         migrations.AddField(
+            model_name='taskfingerprint',
+            name='active_task_attempt',
+            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='fingerprint', to='api.TaskAttempt'),
+        ),
+
+        # New M2M task<->task_attempt replaces ForeignKey task_attempt->task
+        migrations.CreateModel(
+            name='TaskMembership',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('_change', models.IntegerField(default=0)),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=(models.Model, api.models.base._FilterMixin),
+        ),
+        migrations.AddField(
+            model_name='taskmembership',
+            name='child_task_attempt',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.TaskAttempt'),
+        ),
+        migrations.AddField(
+            model_name='taskmembership',
+            name='parent_task',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Task'),
+        ),
+        migrations.AddField(
             model_name='taskattempt',
             name='tasks',
-            field=models.ManyToManyField(related_name='all_task_attempts', to='api.Task'),
+            field=models.ManyToManyField(related_name='all_task_attempts', through='api.TaskMembership', to='api.Task'),
         ),
-        migrations.AlterField(
-            model_name='task',
-            name='task_attempt',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='active_on_tasks', to='api.TaskAttempt'),
-        ),
+
+        # Migrate all_task_attempts data before removing deprecated field
         migrations.RunPython(forward),
         migrations.RemoveField(
             model_name='taskattempt',
             name='task',
-        ),
-        migrations.AddField(
-            model_name='run',
-            name='force_rerun',
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name='taskfingerprint',
-            name='active_task_attempt',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='fingerprint', to='api.TaskAttempt'),
         ),
     ]
