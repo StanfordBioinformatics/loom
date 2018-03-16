@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 import argparse
+import jsonschema
 import os
 import re
 import requests.exceptions
+import yaml
 
 from loomengine import _render_time
 from loomengine.common import get_server_url, \
@@ -47,10 +49,13 @@ class RunStart(AbstractRunSubcommand):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('template', metavar='TEMPLATE_ID', help='ID of template to run')
-        parser.add_argument('inputs', metavar='INPUT_NAME=DATA_ID', nargs='*',
-                            help='ID or value of data inputs')
+        parser.add_argument('inputs', metavar='INPUT=DATA', nargs='*',
+                            help='pairs of [channel name]=[ID or value of data inputs]')
         parser.add_argument('-n', '--name', metavar='RUN_NAME',
                             help='run name (default is template name)')
+        parser.add_argument('-i', '--inputs-file', metavar='INPUTS_FILE',
+                            help='JSON file with inputs '\
+                            '{"channel1": "value1",...}')
         parser.add_argument('-e', '--notify', action='append',
                             metavar='EMAIL/URL',
                             help='recipients of completed run notifications')
@@ -105,17 +110,38 @@ class RunStart(AbstractRunSubcommand):
     def _get_inputs(self):
         """Converts command line args into a list of template inputs
         """
-        inputs = []
+        # Convert file inputs to a dict, to make it easier to override
+        # them with commandline inputs
+        file_inputs = self._get_file_inputs()
+        try:
+            jsonschema.validate(file_inputs, file_input_schema)
+        except jsonschema.ValidationError:
+            raise SystemExit("Input file was invalid")
+        input_dict = {}
+        for (channel, input_id) in file_inputs.iteritems():
+            input_dict[channel] = input_id
+
         if self.args.inputs:
             for kv_pair in self.args.inputs:
                 (channel, input_id) = kv_pair.split('=')
-                inputs.append({
-                    'channel': channel,
-                    'data': {
-                        'contents':
-                        self._parse_string_to_nested_lists(input_id)}
-                })
+                input_dict[channel] = self._parse_string_to_nested_lists(input_id)
+
+        inputs = []
+        for (channel, contents) in input_dict.iteritems():
+            inputs.append({
+                'channel': channel,
+                'data': {
+                    'contents': contents
+                }
+            })
         return inputs
+
+    def _get_file_inputs(self):
+        if not self.args.inputs_file:
+            return {}
+        else:
+            with open(self.args.inputs_file) as f:
+                return yaml.load(f)
 
     def _apply_tags(self, run):
         if not self.args.tag:
@@ -193,10 +219,14 @@ class RunRestart(RunStart):
         if parser is None:
             parser = argparse.ArgumentParser(__file__)
         parser.add_argument('run', metavar='RUN_ID', help='ID of run to restart')
-        parser.add_argument('inputs', metavar='INPUT_NAME=DATA', nargs='*',
-                            help='ID or value of data inputs to override')
+        parser.add_argument('inputs', metavar='INPUT=DATA', nargs='*',
+                            help='override inputs, pairs of '\
+                            '[channel name]=[ID or value of data inputs]')
         parser.add_argument('-n', '--name', metavar='RUN_NAME',
                             help='run name (default is template name)')
+        parser.add_argument('-i', '--inputs-file', metavar='INPUTS_FILE',
+                            help='JSON file with inputs '\
+                            '{"channel1": "value1",...}')
         parser.add_argument('-e', '--notify', action='append',
                             metavar='EMAIL/URL',
                             help='recipients of completed run notifications')
@@ -244,17 +274,28 @@ class RunRestart(RunStart):
         self._apply_labels(run)
         return run
 
-    def _get_inputs(self, inputs):
+    def _get_inputs(self, old_inputs):
         """Converts command line args into a list of template inputs
         """
         # Convert inputs to dict to facilitate overriding by channel name
         # Also, drop DataNode ID and keep only contents.
         input_dict = {}
-        for input in inputs:
+        for input in old_inputs:
+            # Strip out DataNode UUID and URL
             input['data'] = {'contents': input['data']['contents']}
             input_dict[input['channel']] = input
 
-        # Override with user inputs if specified
+        file_inputs = self._get_file_inputs()
+        try:
+            jsonschema.validate(file_inputs, file_input_schema)
+        except jsonschema.ValidationError:
+            raise SystemExit("User inputs file is not valid")
+        for (channel, input_id) in file_inputs.iteritems():
+            input_dict[channel] = {
+                'channel': channel,
+                'data': {'contents': input_id}
+            }
+        # Override with cli user inputs if specified
         if self.args.inputs:
             for kv_pair in self.args.inputs:
                 (channel, input_id) = kv_pair.split('=')
@@ -264,7 +305,6 @@ class RunRestart(RunStart):
                         'contents':
                         self._parse_string_to_nested_lists(input_id)}
                 }
-
         return input_dict.values()
 
 
@@ -688,6 +728,19 @@ class RunClient(object):
 
     def run(self):
         self.args.SubSubcommandClass(self.args).run()
-    
+
+
+file_input_schema = {
+    "type": "object",
+    "additionalProperties": {
+        "oneOf": [
+            {"type": "string"},
+            {"type": "number"},
+            {"type": "array"},
+        ],
+    },
+}
+
+
 if __name__=='__main__':
     RunClient().run()
