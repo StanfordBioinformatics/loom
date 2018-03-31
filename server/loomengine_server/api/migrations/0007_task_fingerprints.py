@@ -7,20 +7,21 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def add_to_all_task_attempts(task, task_attempt, TaskMembership):
+    tm = TaskMembership(parent_task=task, child_task_attempt=task_attempt)
+    tm.save()
+
+
 def forward(apps, schema_editor):
     TaskAttempt = apps.get_model('api', 'TaskAttempt')
     Task = apps.get_model('api', 'Task')
+    TaskMembership= apps.get_model('api', 'TaskMembership')
 
     for task_attempt in TaskAttempt.objects.all():
-        # Assume all existing TaskAttempts are initialized,
-        # even though default for new TaskAttempts is False
-        task_attempt.status_is_initialized = True
-        task_attempt.save()
-
         # Move Task.all_task_attempts from deprecated ForeignKey
         # to new M2M
         if task_attempt.task is not None:
-            task_attempt.tasks.add(task_attempt.task)
+            add_to_all_task_attempts(task_attempt.task, task_attempt, TaskMembership)
 
 
 class Migration(migrations.Migration):
