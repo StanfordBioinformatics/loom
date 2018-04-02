@@ -102,7 +102,7 @@ class Task(BaseModel):
         except AttributeError:
             # No TaskAttempt selected
             last_heartbeat = self.datetime_created
-        return (timezone.now() - last_heartbeat).total_seconds() > timeout
+        return (timezone.now() - last_heartbeat).total_seconds() < timeout
 
     def _process_error(self, detail, max_retries,
                        failure_count_attribute, failure_text,
