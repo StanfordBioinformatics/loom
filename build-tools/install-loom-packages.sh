@@ -3,11 +3,11 @@ set -e
 
 # Requires pip
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-version=$(cat $DIR/../VERSION)
+THISDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+version=$(cat $THISDIR/../VERSION)
 
 if [ "$version" = "" ]; then
-    echo Error: Version not found in $DIR/../VERSION
+    echo Error: Version not found in $THISDIR/../VERSION
     exit 1;
 fi
 
@@ -16,6 +16,6 @@ echo Installing Loom packages
 
 for component in utils server worker
 do
-    pip install -U $DIR/../$component/dist/loomengine_$component-$version.tar.gz
+    pip install -U $THISDIR/../$component/dist/loomengine_$component-$version.tar.gz
 done
-pip install -U $DIR/../client/dist/loomengine-$version.tar.gz
+pip install -U $THISDIR/../client/dist/loomengine-$version.tar.gz

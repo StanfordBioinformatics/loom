@@ -3,7 +3,8 @@ python:
   - "2.7"
 # command to install dependencies
 install:
-  - build-tools/install-loom-packages-dev-mode.sh
+  - build-tools/build-loom-packages.sh
+  - build-tools/install-loom-packages.sh
 # command to run tests
 script:
   - bin/run-tests.sh
