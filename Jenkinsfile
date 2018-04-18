@@ -6,7 +6,7 @@ pipeline {
         sh """
           echo "My branch is: ${env.BRANCH_NAME}" && \
 	  virtualenv env && \
-          source env/bin/activate && \
+          . env/bin/activate && \
           build-tools/build-loom-packages.sh && \
           build-tools/install-loom-packages.sh
         """
@@ -15,7 +15,7 @@ pipeline {
     stage('UnitTest') {
       steps {
         sh """
-          source env/bin/activate && \
+          . env/bin/activate && \
           bin/run-tests.sh
         """
       }
