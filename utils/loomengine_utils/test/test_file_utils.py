@@ -104,8 +104,9 @@ class TestLocalFilePattern(unittest.TestCase):
         file_pattern = file_utils.FilePattern(pattern, settings, retry=False)
         files = [file for file in file_pattern]
         self.assertEqual(len(files), 2)
-        self.assertEqual(files[0].get_url(), 'file://'+self.filepaths[0])
-        self.assertEqual(files[1].get_url(), 'file://'+self.filepaths[1])
+        results = ['file://'+self.filepaths[0], 'file://'+self.filepaths[1]]
+        self.assertTrue(files[0].get_url() in results)
+        self.assertTrue(files[1].get_url() in results)
 
     def testTrimMetadataSuffix(self):
         pattern = 'file://'+os.path.join(self.tempdir, 'file?.txt*')
