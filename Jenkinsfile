@@ -1,9 +1,13 @@
 pipeline {
   agent any
+  environment {
+    LOOM_VERSION="${GIT_COMMIT.take(10)}"
+  }
   stages {
     stage('Build Docker image') {
       steps {
-        sh 'version=`echo ${GIT_COMMIT}|cut -c -10` && docker build --build-arg LOOM_VERSION=${version} . -t loomengine/loom:${version}'
+        sh 'echo {$LOOM_VERSION}'
+        sh 'docker build --build-arg LOOM_VERSION=${LOOM_VERSION} . -t loomengine/loom:${LOOM_VERSION} -t loomengine/loom:${GIT_BRANCH}'
       }
     }
     stage('UnitTest') {
@@ -13,7 +17,8 @@ pipeline {
     }
     stage('Push Docker image') {
       steps {
-        sh 'env'
+        sh 'docker push loomengine/loom:${LOOM_VERSION}'
+	sh 'docker push loomengine/loom:${GIT_BRANCH}'
       }
     }
   }
