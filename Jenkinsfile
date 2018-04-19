@@ -1,18 +1,6 @@
 pipeline {
   agent any
   stages {
-    stage('Checkout') {
-      steps {
-        checkout([
-          $class: 'GitSCM',
-          branches: scm.branches,
-          doGenerateSubmoduleConfigurations: scm.doGenerateSubmoduleConfigurations,
-          extensions: scm.extensions + [[$class: 'CloneOption', noTags: false, reference: '', shallow: true]],
-          submoduleCfg: [],
-          userRemoteConfigs: scm.userRemoteConfigs
-        ])
-      }
-    }
     stage('Build Docker image') {
       steps {
         sh 'docker build . -t loomengine/loom'
