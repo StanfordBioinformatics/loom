@@ -17,6 +17,10 @@ pipeline {
     }
     stage('Push Docker image') {
       steps {
+        // "docker push" requires that jenkins user first be authenticated
+	// with "docker login".
+	// Hashed docker credentials are written to ~/.docker/config.json
+	// and remain valid as long as username and password are valid
         sh 'docker push loomengine/loom:${LOOM_VERSION}'
 	sh 'docker push loomengine/loom:${GIT_BRANCH}'
       }

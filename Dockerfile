@@ -51,7 +51,6 @@ ADD ./server /loom/src/server
 ADD ./utils /loom/src/utils
 ADD ./worker /loom/src/worker
 ADD ./bin /loom/src/bin
-ADD ./VERSION /loom/src/VERSION
 ADD ./NOTICES /loom/src/NOTICES
 ADD ./LICENSE /loom/src/LICENSE
 ADD ./README.rst /loom/src/README.rst
