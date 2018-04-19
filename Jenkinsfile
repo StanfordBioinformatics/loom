@@ -1,13 +1,13 @@
 pipeline {
   agent any
   environment {
-    LOOM_VERSION="${GIT_COMMIT.take(10)}"
+    GIT_COMMIT_SHORT="${GIT_COMMIT.take(10)}"
   }
   stages {
     stage('Build Docker image') {
       steps {
         sh 'echo {$LOOM_VERSION}'
-        sh 'docker build --build-arg LOOM_VERSION=${LOOM_VERSION} . -t loomengine/loom:${LOOM_VERSION} -t loomengine/loom:${GIT_BRANCH}'
+        sh 'docker build --build-arg LOOM_VERSION=${GIT_COMMIT_SHORT} . -t loomengine/loom:${GIT_COMMIT_SHORT}'
       }
     }
     stage('UnitTest') {
@@ -22,7 +22,19 @@ pipeline {
 	// Hashed docker credentials are written to ~/.docker/config.json
 	// and remain valid as long as username and password are valid
         sh 'docker push loomengine/loom:${LOOM_VERSION}'
-	sh 'docker push loomengine/loom:${GIT_BRANCH}'
+      }
+    }
+    stage('Integration Test') {
+      when {
+        anyOf {
+	  branch 'master'
+	  branch 'development'
+	  branch '.*kins'
+	  branch '.*prerelease'
+	}
+      }
+      steps {
+        sh 'echo Run Integration Tests'
       }
     }
   }
