@@ -1,23 +1,17 @@
 pipeline {
   agent any
   stages {
-    stage('Build') {
+    stage('Build Docker image') {
       steps {
-        sh """
-          echo "My branch is: ${env.BRANCH_NAME}" && \
-	  virtualenv env && \
-          . env/bin/activate && \
-          build-tools/build-loom-packages.sh && \
-          build-tools/install-loom-packages.sh
-        """
+        sh 'echo "Current branch is: ${env.BRANCH_NAME}'
+        app = docker.build("loomengine/loom")
       }
     }
     stage('UnitTest') {
       steps {
-        sh """
-          . env/bin/activate && \
-          bin/run-tests.sh
-        """
+        app.inside {
+            sh '/loom/src/bin/run-tests.sh'
+        }
       }
     }
   }
