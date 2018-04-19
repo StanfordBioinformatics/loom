@@ -13,8 +13,7 @@ pipeline {
     }
     stage('Push Docker image') {
       steps {
-        sh 'echo "Current branch is: ${env.BRANCH_NAME}"'
-        sh 'echo "Current build is: ${env.BUILD_NUMBER}"'
+        sh 'env'
       }
     }
   }
