@@ -1,3 +1,0 @@
-sut:
-  build: .
-  command: /loom/src/bin/run-tests.sh

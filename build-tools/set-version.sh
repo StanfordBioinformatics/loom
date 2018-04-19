@@ -1,18 +1,17 @@
 #!/bin/bash
-set -e
+set -euxo pipefail
 
 # Usage:
 # ./set_version.sh VERSION
 
-if [ "${LOOM_VERSION}" = "" ]; then
-    LOOM_VERSION=$1
+version=${LOOM_VERSION:-}
+if [ -z $version ]; then
+    version=${1:-}
 fi
 
-if [ "${LOOM_VERSION}" = "" ]; then
-    echo "ERROR! No version provided. Set the LOOM_VERSION env var or provide a command line argument"
-    exit 1
-else
-    version=${LOOM_VERSION}
+if [ -z $version ]; then
+    version=unknown
+    echo "WARNING! Setting version to \"unknown\". Set the LOOM_VERSION env var or provide a command line argument"
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

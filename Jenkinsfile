@@ -12,7 +12,7 @@ pipeline {
     }
     stage('UnitTest') {
       steps {
-        sh 'docker run loomengine/loom /loom/src/bin/run-tests.sh'
+        sh 'docker run loomengine/loom /loom/src/bin/run-unit-tests.sh'
       }
     }
     stage('Push Docker image') {
