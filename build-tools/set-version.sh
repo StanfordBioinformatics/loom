@@ -5,17 +5,15 @@ set -e
 # ./set_version.sh VERSION
 
 if [ "${LOOM_VERSION}" = "" ]; then
-    echo Warning: No action because LOOM_VERSION env var was not set
-    exit 0;
+    echo Warning: Defaulting to version "unset" because LOOM_VERSION env var was not set
+    version="unset"
+else
+    version=${LOOM_VERSION}
 fi
 
-version=${LOOM_VERSION}
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-old_version=$(cat $DIR/../VERSION)
 
-echo Updating version from \"$old_version\" to \"$version\"
-echo "    updating $DIR/../VERSION"
-echo $version > $DIR/../VERSION
+echo Updating version to \"$version\"
 
 if [ -f $DIR/../doc/conf.py ]; then
   echo "    updating $DIR/../doc/conf.py"
