@@ -1,20 +1,18 @@
 #!/bin/bash
-set -e
+set -euxo pipefail
 
 # Requires these python packages to be installed:
 # * setuptools-git
 # * twine
 
 THISDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo $THISDIR
-version=$(cat $THISDIR/../VERSION)
 
-if [ "$version" = "" ]; then
-    echo Error: Version not found in $THISDIR/../VERSION
-    exit 1;
+if [ ! -f $THISDIR/../VERSION ]; then
+    echo ERROR! Aborting because VERSION is not set. \
+         First run ${THISDIR}/set-version.sh
+    exit 1
 fi
 
-echo Found version \"$version\" in ../VERSION
 echo Copying LICENCE, NOTICES, and README.rst to all packages
 
 for package_dir in $THISDIR/../utils $THISDIR/../worker $THISDIR/../server $THISDIR/../client

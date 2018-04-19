@@ -7,9 +7,13 @@ echo "Cleaning up LICENSE, VERSION, NOTICES, dist/, and *.egg.info/ in each pack
 for package_dir in $DIR/../utils $DIR/../worker $DIR/../server $DIR/../client
 
 do
-    rm $package_dir/LICENSE
-    rm $package_dir/NOTICES
-    rm $package_dir/README.rst
-    rm -r $package_dir/dist/
-    rm -r $package_dir/*.egg-info/
+    rm -f $package_dir/VERSION
+    rm -f $package_dir/LICENSE
+    rm -f $package_dir/NOTICES
+    rm -f $package_dir/README.rst
+    rm -rf $package_dir/dist/
+    rm -rf $package_dir/*.egg-info/
 done
+
+echo "Removing $DIR/../VERSION"
+rm -f $DIR/../VERSION
