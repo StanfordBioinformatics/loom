@@ -6,7 +6,7 @@ node {
   }
 
   stage('Build docker image') {
-    echo "Current branch is: ${env.BRANCH_NAME}
+    echo "Current branch is: ${env.BRANCH_NAME}"
     app = docker.build("loomengine/loom")
   }
   
