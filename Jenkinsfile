@@ -20,7 +20,7 @@ pipeline {
     }
     stage('UnitTest') {
       steps {
-        sh 'docker run loomengine/loom /loom/src/bin/run-tests.sh'
+        sh 'docker run -e LOOM_VERSION=`echo ${GIT_COMMIT} | cut -c -7` loomengine/loom /loom/src/bin/run-tests.sh'
       }
     }
     stage('Push Docker image') {

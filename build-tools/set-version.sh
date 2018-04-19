@@ -4,13 +4,12 @@ set -e
 # Usage:
 # ./set_version.sh VERSION
 
-if [ "$1" = "" ]; then
-    echo Error: Version is required
-    echo Usage: $0 VERSION
-    exit 1;
+if [ "${LOOM_VERSION}" = "" ]; then
+    echo Warning: No action because LOOM_VERSION env var was not set
+    exit 0;
 fi
 
-version=$1
+version=${LOOM_VERSION}
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 old_version=$(cat $DIR/../VERSION)
 

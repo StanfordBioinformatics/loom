@@ -57,6 +57,7 @@ ADD ./LICENSE /loom/src/LICENSE
 ADD ./README.rst /loom/src/README.rst
 ADD ./build-tools /loom/src/build-tools
 RUN cd /loom/src/build-tools \
+    && ./set-version.sh \
     && ./build-loom-packages.sh \
     && ./install-loom-packages.sh \
     && ./clean.sh
