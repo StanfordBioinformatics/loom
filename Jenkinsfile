@@ -10,10 +10,11 @@
 //    a. Docker credentials should be saved in Jenkins and applied to "GitHub"
 //       plugin settings
 //    b. Advanced clone behaviors: Fetch tags
-//    c. Build strategies:
+//    c. Clean before checkout
+//    d. Build strategies:
 //       - Regular branches
 //       - Tags
-//    d. Configure other settings as needed
+//    e. Configure other settings as needed
 // 6. Add deployment settings in ~jenkins/.loom-deploy-settings
 //    a. Settings in ~jenkins/.loom-deploy-settings/loom.conf
 //    b. Resources in ~jenkins/.loom-deploy-settings/resources/
@@ -24,6 +25,7 @@ pipeline {
     // If this is a tagged build, version will be TAG_NAME.
     // Otherwise take version from git commit
     LOOM_VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
+    LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
   }
   stages {
     stage('Build Docker Image') {
@@ -56,9 +58,16 @@ pipeline {
       }}
       */
       steps {
-	sh 'if [ ! -f ~/.loom-deploy-settings/ ]; then echo ERROR Loom deployment settings not found; fi'
+        // Install loom client locally
+        sh 'virtualenv env'
+        sh 'bin/build-tools/set-version.sh ${LOOM_VERSION}'
+        sh '. env/bin/activate && pip install -r build-tools/requirements.pip'
+        sh '. env/bin/activate && pip install -r build-tools/requirements-dev.pip'
+        sh '. env/bin/activate && pip install -r build-tools/build-loom-packages.sh'
+	sh '. env/bin/activate && pip install -r build-tools/install-loom-packages.sh'
+        sh 'if [ ! -f ~/.loom-deploy-settings/ ]; then echo ERROR Loom deployment settings not found; fi'
 	sh 'mkdir $WORKSPACE/.loom'
-	sh 'docker run -v ${HOME}/.loom-deploy-settings/:/deploy-settings/ -v $WORKSPACE/.loom/:/root/.loom/ loomengine/loom:${LOOM_VERSION} loom server start -s /deploy-settings/loom.conf -r /deploy-settings/resources/'
+	sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/'
       }
     }
     stage('Integration Tests') {
@@ -72,7 +81,7 @@ pipeline {
       }}
       */
       steps {
-        sh 'docker run -v `$WORKSPACE/.loom/:/root/.loom/ loomengine/loom:${LOOM_VERSION} loom test integration'
+        sh '. env/bin/activate && loom test integration'
       }
     }
     stage('Publish Release') {
@@ -84,11 +93,10 @@ pipeline {
       }
     }
   }
-}
-
-postBuild {
-  always ('Cleanup') {
-    //sh 'docker run -v `$WORKSPACE/.loom/:/root/.loom/ loomengine/loom:${LOOM_VERSION} loom server delete'
-    sh 'echo Cleanup'
+  postBuild {
+    always ('Cleanup') {
+      //sh '. env/bin/activate && loom server delete'
+      sh 'echo Cleanup'
+    }
   }
 }
