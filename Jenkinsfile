@@ -1,6 +1,15 @@
 #!groovy
 
 node {
+  stage('Debug') {
+    sh 'env'
+    checkout scm
+    sh 'env'
+  }
+}
+
+/*
+node {
   stage('Checkout') {
     checkout scm
     env.LOOM_VERSION="${ env.TAG_NAME ? env.TAG_NAME : env.GIT_COMMIT.take(10) }"
@@ -19,7 +28,6 @@ node {
     sh 'docker push loomengine/loom:${LOOM_VERSION}'
   }
 }
-/*
   stage('Integration Test') {
       when { anyOf {
         branch 'master'
