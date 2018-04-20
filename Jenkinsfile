@@ -25,12 +25,12 @@ pipeline {
       }
     }
     stage('Integration Test') {
-      when {
-        env.GIT_BRANCH == 'master' ||
-	env.GIT_BRANCH == 'development' ||
-	env.GIT_BRANCH =~ '^.*kins' ||
-	env.GIT_BRANCH =~ '^.prerelease'
-      }
+      when { anyOf {
+        env.GIT_BRANCH == 'master';
+	env.GIT_BRANCH == 'development';
+	env.GIT_BRANCH =~ '^.*kins';
+	env.GIT_BRANCH =~ '^.prerelease';
+      }}
       steps {
         sh 'echo Run Integration Tests'
       }
