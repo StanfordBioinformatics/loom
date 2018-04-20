@@ -28,11 +28,16 @@ pipeline {
       when { anyOf {
         branch 'master'
 	branch 'development'
-	expression { env.GIT_BRANCH =~ '^.*kins' }
-	expression { env.GIT_BRANCH =~ '^.prerelease' }
+	expression { env.GIT_BRANCH =~ '^.*prerelease' }
+	buildingTag()
       }}
       steps {
         sh 'echo Run Integration Tests'
+      }
+    }
+    stage('Info') {
+      steps {
+        sh 'env'
       }
     }
   }
