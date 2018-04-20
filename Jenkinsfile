@@ -24,7 +24,6 @@ pipeline {
     // If this is a tagged build, version will be TAG_NAME.
     // Otherwise take version from git commit
     LOOM_VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
-    LOOM_DEPLOY_SETTINGS_DIR=
   }
   stages {
     stage('Build Docker Image') {
