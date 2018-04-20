@@ -57,7 +57,7 @@ pipeline {
       */
       steps {
 	sh 'if [ ! -f ~/.loom-deploy-settings/ ]; then echo ERROR Loom deployment settings not found; fi'
-	sh mkdir $WORKSPACE/.loom
+	sh 'mkdir $WORKSPACE/.loom'
 	sh 'docker run -v ${HOME}/.loom-deploy-settings/:/deploy-settings/ -v $WORKSPACE/.loom/:/root/.loom/ loomengine/loom:${LOOM_VERSION} loom server start -s /deploy-settings/loom.conf -r /deploy-settings/resources/'
       }
     }
