@@ -29,8 +29,8 @@ pipeline {
         anyOf {
 	  branch 'master'
 	  branch 'development'
-	  branch :^.*kins
-	  branch :^.*prerelease
+	  branch /^.*kins/
+	  branch /^.*prerelease/
 	}
       }
       steps {
