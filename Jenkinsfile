@@ -1,12 +1,9 @@
 pipeline {
   agent any
   environment {
-    if ( "$TAG_NAME" ) {
-      LOOM_VERSION="$TAG_NAME"
-    }
-    else {
-      LOOM_VERSION="${GIT_COMMIT.take(10)}"
-    }
+    // If this is a tagged build, version will be TAG_NAME.
+    // Otherwise take version from git commit
+    LOOM_VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
   }
   stages {
     stage('Build Docker image') {
