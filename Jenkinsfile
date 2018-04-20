@@ -27,10 +27,10 @@ pipeline {
     stage('Integration Test') {
       when {
         anyOf {
-	  branch 'master'
-	  branch 'development'
-	  branch /^.*kins/
-	  branch /^.*prerelease/
+	  branch 'master';
+	  branch 'development';
+	  branch '^.*kins';
+	  branch '^.*prerelease'
 	}
       }
       steps {
