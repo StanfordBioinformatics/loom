@@ -1,34 +1,48 @@
 #!groovy
 
-node {
-  stage('Debug') {
-    sh 'env'
-    checkout scm
-    sh 'env'
-  }
-}
+// Jenkins configuration
+// 1. Enable Jenkins Pipeline plugins
+// 2. Enable Basic Branch Build Strategies Plugin
+// 3. Enable Git Parameters Plugin
+// 4. Create a MultiBranch Pipeline tracking git repo, and configure git repo
+//    to trigger to Jenkins web-hooks
+// 5. Configure GitHub settings:
+//    a. Docker credentials should be saved in Jenkins and applied to "GitHub"
+//       plugin settings
+//    b. Advanced clone behaviors: Fetch tags
+//    c. Build strategies:
+//       - Regular branches
+//       - Tags
+//    d. Configure other settings as needed
 
-/*
-node {
-  stage('Checkout') {
-    checkout scm
-    env.LOOM_VERSION="${ env.TAG_NAME ? env.TAG_NAME : env.GIT_COMMIT.take(10) }"
+pipeline {
+  agent any
+  environment {
+    // If this is a tagged build, version will be TAG_NAME.
+    // Otherwise take version from git commit
+    LOOM_VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
   }
-  stage('Build Docker Image') {
-    sh 'docker build --build-arg LOOM_VERSION=${LOOM_VERSION} . -t loomengine/loom:${LOOM_VERSION}'
-  }
-  stage('UnitTest') {
-    sh 'docker run loomengine/loom:${LOOM_VERSION} /loom/src/bin/run-unit-tests.sh'
+  stages {
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build --build-arg LOOM_VERSION=${LOOM_VERSION} . -t loomengine/loom:${LOOM_VERSION}'
+      }
     }
-  stage('Push Docker image') {
-    // "docker push" requires that jenkins user first be authenticated
-    // with "docker login".
-    // Hashed docker credentials are written to ~/.docker/config.json
-    // and remain valid as long as username and password are valid
-    sh 'docker push loomengine/loom:${LOOM_VERSION}'
-  }
-}
-  stage('Integration Test') {
+    stage('Unit Tests') {
+      steps {
+        sh 'docker run loomengine/loom:${LOOM_VERSION} /loom/src/bin/run-unit-tests.sh'
+      }
+    }
+    stage('Push Docker Image') {
+      steps {
+        // "docker push" requires that jenkins user first be authenticated
+	// with "docker login" on host OS.
+	// Hashed docker credentials are written to ~/.docker/config.json
+	// and remain valid as long as username and password are valid
+        sh 'docker push loomengine/loom:${LOOM_VERSION}'
+      }
+    }
+    stage('Integration Tests') {
       when { anyOf {
         branch 'master'
 	branch 'development'
@@ -40,19 +54,13 @@ node {
         sh 'echo Run Integration Tests'
       }
     }
-    stage('Release') {
-      when { 
-        // Release if tagged
+    stage('Publish Release') {
+      when {
         expression { env.TAG_NAME }
       }
-      timeout(time: 3 units: 'MINUTES') {
-        def approveRelease = input id: 'approveRelease',
-                              message: 'Publish a new Loom release?'
-      }
       steps {
-        sh 'echo Deploying now'
+        sh 'echo Publish Release'
       }
     }
   }
 }
-*/
