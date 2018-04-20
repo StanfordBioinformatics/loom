@@ -93,7 +93,7 @@ pipeline {
       }
     }
   }
-  postBuild {
+  post {
     always ('Cleanup') {
       //sh '. env/bin/activate && loom server delete'
       sh 'echo Cleanup'
