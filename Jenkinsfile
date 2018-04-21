@@ -87,7 +87,7 @@ pipeline {
       }}
       */
       steps {
-        sh '. env/bin/activate && loom test integration'
+        sh '. env/bin/activate && loom test integration --timeout 900'
       }
     }
     stage('Publish Release') {
