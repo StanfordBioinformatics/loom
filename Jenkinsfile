@@ -70,7 +70,11 @@ pipeline {
         sh 'if [ ! -f ~/.loom-deploy-settings/ ]; then echo ERROR Loom deployment settings not found; fi'
 	sh 'mkdir $WORKSPACE/.loom'
 	sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/'
-	sh '. env/bin/activate && loom auth login $LOOM_ADMIN_USER -p LOOM_ADMIN_PASSWORD'
+	withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId:'loom-admin',
+          usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']
+        ]) {
+          sh '. env/bin/activate && loom auth login $USERNAME -p $PASSWORD'
+	}
       }
     }
     stage('Integration Tests') {
@@ -101,12 +105,5 @@ pipeline {
       //sh '. env/bin/activate && loom server delete'
       sh 'echo Cleanup'
     }
-  }
-}
-
-def pw_generator() {
-  def alphabet = (('A'..'Z')+('0'..'9')).join()
-  new Random().with {
-    (1..9).collect { alphabet[ nextInt( alphabet.length() ) ] }.join()
   }
 }
