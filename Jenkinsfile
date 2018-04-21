@@ -108,4 +108,5 @@ def pw_generator() {
   def alphabet = (('A'..'Z')+('0'..'9')).join()
   new Random().with {
     (1..9).collect { alphabet[ nextInt( alphabet.length() ) ] }.join()
+  }
 }
