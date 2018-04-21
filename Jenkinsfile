@@ -26,8 +26,6 @@ pipeline {
     // Otherwise take version from git commit
     VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
-    LOOM_ADMIN_USERNAME="jenkins"
-    LOOM_ADMIN_PASSWORD="${ pw_generator() }"
   }
   stages {
     stage('Build Docker Image') {
@@ -69,10 +67,10 @@ pipeline {
 	sh '. env/bin/activate && build-tools/install-loom-packages.sh'
         sh 'if [ ! -f ~/.loom-deploy-settings/ ]; then echo ERROR Loom deployment settings not found; fi'
 	sh 'mkdir $WORKSPACE/.loom'
-	sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/'
-	withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId:'loom-admin',
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId:'loom-admin',
           usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']
         ]) {
+          sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/ -e LOOM_ADMIN_USERNAME=${USERNAME} -e LOOM_ADMIN_PASSWORD=${PASSWORD}'
           sh '. env/bin/activate && loom auth login $USERNAME -p $PASSWORD'
 	}
       }
