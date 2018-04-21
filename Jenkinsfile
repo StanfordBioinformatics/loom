@@ -24,18 +24,20 @@ pipeline {
   environment {
     // If this is a tagged build, version will be TAG_NAME.
     // Otherwise take version from git commit
-    LOOM_VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
+    VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
+    LOOM_ADMIN_USERNAME="jenkins"
+    LOOM_ADMIN_PASSWORD="${ pw_generator() }"
   }
   stages {
     stage('Build Docker Image') {
       steps {
-        sh 'docker build --build-arg LOOM_VERSION=${LOOM_VERSION} . -t loomengine/loom:${LOOM_VERSION}'
+        sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION}'
       }
     }
     stage('Unit Tests') {
       steps {
-        sh 'docker run loomengine/loom:${LOOM_VERSION} /loom/src/bin/run-unit-tests.sh'
+        sh 'docker run loomengine/loom:${VERSION} /loom/src/bin/run-unit-tests.sh'
       }
     }
     stage('Push Docker Image') {
@@ -44,7 +46,7 @@ pipeline {
 	// with "docker login" on host OS.
 	// Hashed docker credentials are written to ~/.docker/config.json
 	// and remain valid as long as username and password are valid
-        sh 'docker push loomengine/loom:${LOOM_VERSION}'
+        sh 'docker push loomengine/loom:${VERSION}'
       }
     }
     stage('Deploy Test Environment') {
@@ -60,7 +62,7 @@ pipeline {
       steps {
         // Install loom client locally
         sh 'virtualenv env'
-        sh 'build-tools/set-version.sh ${LOOM_VERSION}'
+        sh 'build-tools/set-version.sh ${VERSION}'
         sh '. env/bin/activate && pip install -r build-tools/requirements.pip'
         sh '. env/bin/activate && pip install -r build-tools/requirements-dev.pip'
         sh '. env/bin/activate && build-tools/build-loom-packages.sh'
@@ -68,6 +70,7 @@ pipeline {
         sh 'if [ ! -f ~/.loom-deploy-settings/ ]; then echo ERROR Loom deployment settings not found; fi'
 	sh 'mkdir $WORKSPACE/.loom'
 	sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/'
+	sh '. env/bin/activate && loom auth login $LOOM_ADMIN_USER -p LOOM_ADMIN_PASSWORD'
       }
     }
     stage('Integration Tests') {
@@ -99,4 +102,10 @@ pipeline {
       sh 'echo Cleanup'
     }
   }
+}
+
+def pw_generator() {
+  def alphabet = (('A'..'Z')+('0'..'9')).join()
+  new Random().with {
+    (1..9).collect { alphabet[ nextInt( alphabet.length() ) ] }.join()
 }
