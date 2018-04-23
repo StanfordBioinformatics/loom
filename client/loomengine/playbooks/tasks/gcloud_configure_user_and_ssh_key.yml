@@ -1,0 +1,26 @@
+  - name: Create user and SSH key if they don't exist
+    user: name={{ ansible_user_id }} generate_ssh_key=yes ssh_key_bits=2048 ssh_key_file={{ ssh_private_key_path }} ssh_key_type=rsa
+
+  - name: Format SSH key for Google Cloud
+    shell: "echo -n {{loom_remote_user}}: | cat - {{ssh_private_key_path}}.pub | cut -f1-2 -d' '"
+    args:
+      executable: /bin/bash
+    register: ssh_key
+
+  - debug:
+      msg: "{{dict(hostvars[instance_name]['gce_metadata'], **{'ssh-keys': hostvars[instance_name]['gce_metadata'].get('ssh-keys','')+'\n'+ssh_key.stdout})}}"
+
+  - name: Add ssh key to ssh-keys on instance metadata
+    gce:
+      name: "{{instance_name}}"
+      metadata: "{{dict(hostvars[instance_name]['gce_metadata'], **{'ssh-keys': hostvars[instance_name]['gce_metadata'].get('ssh-keys','')+'\n'+ssh_key.stdout}) | tojson}}"
+    register: gce_result
+    until: gce_result['state'] is defined
+    retries: 5
+
+  - name: Wait for SSH port to be available.
+    wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
+    with_items: '{{ gce_result.instance_data }}'
+
+  - name: Wait while ssh key propagates to the instance
+    pause: seconds=5

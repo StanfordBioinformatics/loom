@@ -4,12 +4,6 @@
     until: pd_result['state'] is defined and pd_result['state'] == "present"
     retries: 5
 
-  - name: Read SSH key and create a metadata file from it
-    shell: "echo -n {{loom_remote_user}}: | cat - {{ssh_private_key_path}}.pub"
-    args:
-      executable: /bin/bash
-    register: ssh_key
-
   - name: Boot up a new instance using the just-created boot disk.
     gce:
       name: "{{instance_name}}"
@@ -28,7 +22,6 @@
       external_ip: "{{external_ip if external_ip|trim else omit}}"
       # ip_forward is required for by docker containers to access the internet
       ip_forward: true
-      metadata: '{"sshKeys": "{{ssh_key.stdout}}"}'
     register: gce_result
     until: gce_result['state'] is defined and gce_result['state'] == "present"
     retries: 5
@@ -36,10 +29,3 @@
   - name: Add host IP to new_instances for downstream plays. Use internal or external IP depending on setting.
     add_host: hostname={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} groupname=new_instances
     with_items: '{{ gce_result.instance_data }}'
-
-  - name: Wait for SSH port to be available.
-    wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
-    with_items: '{{ gce_result.instance_data }}'
-
-  - name: Wait while ssh keys propagate to the instance
-    pause: seconds=5
