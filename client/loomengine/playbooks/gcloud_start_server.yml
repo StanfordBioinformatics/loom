@@ -16,7 +16,7 @@
 - name: Configure instance user and ssh keys
   hosts: localhost
   connection: local
-  vars_fils:
+  vars_files:
   - vars/common.yml
   - vars/gcloud_server.yml
   tasks:
