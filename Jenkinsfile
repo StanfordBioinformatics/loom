@@ -33,9 +33,11 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION}'
-	if (!env.TAG_NAME) {
-	   sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION} -t loomengine/loom:${GIT_BRANCH}'
-	}
+        script {
+	  if (!env.TAG_NAME) {
+            sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION} -t loomengine/loom:${GIT_BRANCH}'
+          }
+        }
       }
     }
     stage('Unit Tests') {
@@ -50,9 +52,11 @@ pipeline {
 	// Hashed docker credentials are written to ~/.docker/config.json
 	// and remain valid as long as username and password are valid
         sh 'docker push loomengine/loom:${VERSION}'
-        if (!env.TAG_NAME) {
-          sh 'docker push loomengine/loom:${GIT_BRANCH}'
-	}
+	script {
+          if (!env.TAG_NAME) {
+            sh 'docker push loomengine/loom:${GIT_BRANCH}'
+          }
+        }
       }
     }
     stage('Deploy Test Environment') {
