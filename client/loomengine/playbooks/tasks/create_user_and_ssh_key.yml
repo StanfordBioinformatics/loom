@@ -1,0 +1,2 @@
+  - name: Create user and SSH key if they don't exist
+    user: name={{ ansible_user_id }} generate_ssh_key=yes ssh_key_bits=2048 ssh_key_file={{ ssh_private_key_path }} ssh_key_type=rsa

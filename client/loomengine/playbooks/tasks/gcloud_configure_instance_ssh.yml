@@ -1,0 +1,16 @@
+  - name: Read SSH key and create a metadata file from it
+    shell: "echo -n {{loom_remote_user}}: | cat - {{ssh_private_key_path}}.pub > {{settings_home}}/{{resource_dir}}/{{ssh_private_key_path|basename}}.pub.{{instance_name}}.metadata"
+    args:
+      executable: /bin/bash
+  - name: Add SSH key to instance metadata
+    shell: "gcloud compute instances add-metadata {{instance_name}} --zone {{zone}} --metadata-from-file ssh-keys={{settings_home}}/{{resource_dir}}/{{ssh_private_key_path|basename}}.pub.{{instance_name}}.metadata"
+    register: result
+    retries: 30
+    until: result | succeeded
+  - name: Delete temporary instance metadata file.
+    file: path={{settings_home}}/{{resource_dir}}/{{ssh_private_key_path|basename}}.pub.{{instance_name}}.metadata state=absent
+  - name: Wait for SSH port to be available.
+    wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
+    with_items: '{{ gce_result.instance_data }}'
+  - name: Wait while ssh keys propagate to the instance
+    pause: seconds=5
