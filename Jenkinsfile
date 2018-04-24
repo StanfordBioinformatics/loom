@@ -77,13 +77,13 @@ pipeline {
         sh '. env/bin/activate && pip install -r build-tools/requirements-dev.pip'
         sh '. env/bin/activate && build-tools/build-loom-packages.sh'
 	sh '. env/bin/activate && build-tools/install-loom-packages.sh'
-        sh 'if [ ! -f ~/.loom-deploy-settings/ ]; then echo ERROR Loom deployment settings not found; fi'
+        sh 'if [ ! -f ~/.loom-deploy-settings/loom.conf ]; then echo ERROR Loom deployment settings not found; fi'
 	sh 'mkdir $WORKSPACE/.loom'
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId:'loom-admin',
           usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']
         ]) {
 	  script {
-	    var loomServerStarted = True;
+	    var loomServerStarted = true
 	  }
           sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/ -e LOOM_ADMIN_USERNAME=${USERNAME} -e LOOM_ADMIN_PASSWORD=${PASSWORD}'
           sh '. env/bin/activate && loom auth login $USERNAME -p $PASSWORD'
