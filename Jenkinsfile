@@ -26,12 +26,16 @@ pipeline {
     // Otherwise take version from git commit
     VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
+    LOOM_SERVER_NAME="loom_jenkins_test_${VERSION}"
     GOOGLE_APPLICATION_CREDENTIALS="${HOME}/.loom-deploy-settings/resources/gcp-service-account-key.json"
   }
   stages {
     stage('Build Docker Image') {
       steps {
         sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION}'
+	if (!env.TAG_NAME) {
+	   sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION}' -t loomengine/loom:${GIT_BRANCH}'
+	}
       }
     }
     stage('Unit Tests') {
@@ -46,6 +50,9 @@ pipeline {
 	// Hashed docker credentials are written to ~/.docker/config.json
 	// and remain valid as long as username and password are valid
         sh 'docker push loomengine/loom:${VERSION}'
+        if (!env.TAG_NAME) {
+          sh 'docker push loomengine/loom:${GIT_BRANCH}'
+	}
       }
     }
     stage('Deploy Test Environment') {
