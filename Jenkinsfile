@@ -35,7 +35,7 @@ pipeline {
         sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION}'
         script {
 	  if (!env.TAG_NAME) {
-            sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION} -t loomengine/loom:${GIT_BRANCH}'
+            sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${GIT_BRANCH}'
           }
         }
       }
