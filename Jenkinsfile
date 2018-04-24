@@ -82,6 +82,9 @@ pipeline {
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId:'loom-admin',
           usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']
         ]) {
+	  script {
+	    var loomServerStarted = True;
+	  }
           sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/ -e LOOM_ADMIN_USERNAME=${USERNAME} -e LOOM_ADMIN_PASSWORD=${PASSWORD}'
           sh '. env/bin/activate && loom auth login $USERNAME -p $PASSWORD'
 	}
@@ -112,8 +115,10 @@ pipeline {
   }
   post {
     always ('Cleanup') {
-      //sh '. env/bin/activate && loom server delete'
-      sh 'echo Cleanup'
+      script {
+        if (loomServerStarted) {
+          sh '. env/bin/activate && loom server delete'
+	}
     }
     success {
       emailext (
