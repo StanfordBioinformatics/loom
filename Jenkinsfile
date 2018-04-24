@@ -119,6 +119,7 @@ pipeline {
         if (loomServerStarted) {
           sh '. env/bin/activate && loom server delete'
 	}
+      }
     }
     success {
       emailext (
