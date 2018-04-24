@@ -190,7 +190,6 @@ def _run_execute_task_attempt_playbook(task_attempt):
 
 @shared_task
 def _cleanup_task_attempt(task_attempt_uuid):
-    return
     from api.models.tasks import TaskAttempt
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     _run_cleanup_task_attempt_playbook(task_attempt)
