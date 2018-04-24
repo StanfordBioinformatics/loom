@@ -26,7 +26,7 @@ pipeline {
     // Otherwise take version from git commit
     VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
-    LOOM_SERVER_NAME="loom_jenkins_test_${VERSION}"
+    LOOM_SERVER_NAME="loom-jenkins-test-${BUILD_TAG}"
     GOOGLE_APPLICATION_CREDENTIALS="${HOME}/.loom-deploy-settings/resources/gcp-service-account-key.json"
   }
   stages {
