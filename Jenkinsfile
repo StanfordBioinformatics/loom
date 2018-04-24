@@ -26,7 +26,7 @@ pipeline {
     // Otherwise take version from git commit
     VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
-    LOOM_SERVER_NAME="loom-jenkins-test-${BUILD_TAG}"
+    LOOM_SERVER_NAME="${BUILD_TAG}"
     GOOGLE_APPLICATION_CREDENTIALS="${HOME}/.loom-deploy-settings/resources/gcp-service-account-key.json"
   }
   stages {
@@ -114,6 +114,22 @@ pipeline {
     always ('Cleanup') {
       //sh '. env/bin/activate && loom server delete'
       sh 'echo Cleanup'
+    }
+    success {
+      emailext (
+        subject: "SUCCESSFUL: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+        body: """<p>SUCCESSFUL: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
+          <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>""",
+        recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+      )
+    }
+    failure {
+      emailext (
+        subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+        body: """<p>FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
+          <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>""",
+        recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+      )
     }
   }
 }
