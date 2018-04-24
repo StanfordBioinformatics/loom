@@ -83,7 +83,7 @@ pipeline {
           usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']
         ]) {
 	  script {
-	    var loomServerStarted = true
+	    loomServerStarted = true
 	  }
           sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/ -e LOOM_ADMIN_USERNAME=${USERNAME} -e LOOM_ADMIN_PASSWORD=${PASSWORD}'
           sh '. env/bin/activate && loom auth login $USERNAME -p $PASSWORD'
