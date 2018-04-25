@@ -117,7 +117,7 @@ pipeline {
     always ('Cleanup') {
       script {
         if (loomServerStarted) {
-          sh '. env/bin/activate && loom server delete'
+          sh '. env/bin/activate && loom server delete --confirm-server-name ${LOOM_SERVER_NAME}'
 	}
       }
     }
