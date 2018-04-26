@@ -333,6 +333,14 @@ class Task(BaseModel):
         event.full_clean()
         event.save()
 
+    @property
+    def name(self):
+        # In unit tests there may be tasks with no run
+        if self.run:
+            return self.run.name
+        else:
+            return str(self.uuid)
+
 
 class TaskInput(DataChannel):
 
@@ -462,9 +470,4 @@ def _execute_task(task_uuid, delay=0, force_rerun=False):
 
     task_attempt = task.create_and_activate_task_attempt()
     fingerprint.update_task_attempt_maybe(task_attempt)
-    if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
-        logger.info('Skipping TaskAttempt execution because'\
-                    'TEST_NO_RUN_TASK_ATTEMPT is True')
-        return
-    else:
-        return task_attempt.run_with_heartbeats()
+    return task_attempt.run_with_heartbeats()

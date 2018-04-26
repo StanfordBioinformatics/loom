@@ -127,7 +127,7 @@ class TaskAttempt(BaseModel):
             command=task.command,
             environment=task.environment,
             resources=task.resources,
-            name = task.run.name,
+            name = task.name,
         )
         task_attempt.full_clean()
         task_attempt.save()
