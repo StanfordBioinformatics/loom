@@ -17,10 +17,13 @@ if [ -z $version ]; then
 fi
 
 # Make sure version is something like 1.2.3, 1.2a1, 0.1.2.post3, etc.
-# as required by PyPi
+# as required by PyPi.
+# We also allow alphanumeric strings to support using git commit versions in development builds.
 N=\[0-9\]+
 PEP440_VERSION="${N}(\.${N})*((a|b|rc)${N}|\.(post|dev)${N})?"
-if [[ ! "$version" =~ ^${PEP440_VERSION}$ ]]; then
+ALPHANUM_VERSION="[a-zA-Z0-9]+"
+VALID_VERSION="(${PEP440_VERSION}|${ALPHANUM_VERSION})"
+if [[ ! "$version" =~ ^${VALID_VERSION}$ ]]; then
     echo "ERROR! Invalid version" $version "does not follow PEP 440. See https://www.python.org/dev/peps/pep-0440/#public-version-identifiers"
     exit 1
 fi
