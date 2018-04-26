@@ -29,7 +29,7 @@ pipeline {
     // Otherwise take version from git commit
     VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
-    LOOM_SERVER_NAME="${BUILD_TAG}"
+    LOOM_SERVER_NAME="${BUILD_TAG}".replaceAll('_','-').replaceAll('.','-')
     GOOGLE_APPLICATION_CREDENTIALS="${HOME}/.loom-deploy-settings/resources/gcp-service-account-key.json"
   }
   stages {
