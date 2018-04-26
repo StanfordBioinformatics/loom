@@ -18,6 +18,9 @@
 // 6. Add deployment settings in ~jenkins/.loom-deploy-settings
 //    a. Settings in ~jenkins/.loom-deploy-settings/loom.conf
 //    b. Resources in ~jenkins/.loom-deploy-settings/resources/
+// 7. Add pypi credentials in ~jenkins/.pypirc
+// 8. In Jenkins, add credentials for loom admin username and password to be
+//    set on new Loom servers. Use credentials id "loom-admin"
 
 pipeline {
   agent any
@@ -112,6 +115,12 @@ pipeline {
         sh 'echo Publish Release'
       }
     }
+  }
+  stage('Release to PyPi') {
+    when {
+      expression { env.TAG_NAME }
+    }
+    sh '. env/bin/activate && build-tools/pypi-release.sh'
   }
   post {
     always ('Cleanup') {
