@@ -31,7 +31,7 @@ pipeline {
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
     TEST="${BUILD_TAG}"
     TEST2="${BUILD_TAG.replaceAll(/_/,'-')}"
-    TEST3="${BUILD_TAG.replaceAll(/\./','-')}"
+    TEST3="${BUILD_TAG.replaceAll(/\./,'-')}"
     LOOM_SERVER_NAME="${BUILD_TAG.replaceAll(/_/,'-').replaceAll(/\./,'-')}"
     GOOGLE_APPLICATION_CREDENTIALS="${HOME}/.loom-deploy-settings/resources/gcp-service-account-key.json"
   }
