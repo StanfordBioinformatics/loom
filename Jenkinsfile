@@ -115,12 +115,23 @@ pipeline {
         sh 'echo Publish Release'
       }
     }
-  }
-  stage('Release to PyPi') {
-    when {
-      expression { env.TAG_NAME }
+    stage('Release to PyPi') {
+      when {
+        expression { env.TAG_NAME }
+      }
+      sh '. env/bin/activate && build-tools/pypi-release.sh'
     }
-    sh '. env/bin/activate && build-tools/pypi-release.sh'
+    stage('Smoke test PyPi release') {
+      when {
+        expression { env.TAG_NAME }
+      }
+      options { retry(30) } // Retry for up to 600 seconds (plus runtime)
+      sh 'sleep 20'
+      sh 'rm -rf env-pypi && virtualenv env-pypi'
+      sh '. env-pypi/bin/activate && pip install loomengine==$VERSION loomengine_server==$VERSION loomengine_worker==$VERSION'
+      sh '. env-pyp/bin/activate && python -c "import loomengine loomengine_server loomengine_worker loomengine_utils"'
+      sh '. env-pyp/bin/activate && loom -h'
+    }
   }
   post {
     always ('Cleanup') {
