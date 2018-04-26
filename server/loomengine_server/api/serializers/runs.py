@@ -1,3 +1,4 @@
+from celery import shared_task
 import copy
 from rest_framework import serializers
 from django.core.exceptions import ObjectDoesNotExist
@@ -6,6 +7,7 @@ import django.db
 from . import CreateWithParentModelSerializer, RecursiveField, \
     strip_empty_values, match_and_update_by_uuid, \
     reload_models, flatten_nodes, replace_nodes
+from api import get_setting
 from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
 from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, TaskAttemptEvent, TaskAttemptLogFile, TaskMembership
@@ -16,7 +18,7 @@ from api.serializers.tasks import TaskSerializer, URLTaskSerializer, \
 from api.serializers.data_channels import DataChannelSerializer, \
     ExpandedDataChannelSerializer
 from api.serializers.data_nodes import DataNodeSerializer, ExpandedDataNodeSerializer
-from api import async
+from api.async import async_execute
 
 
 class UserInputSerializer(DataChannelSerializer):
@@ -442,7 +444,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 lambda r: r.uuid==self._root_run_uuid, all_runs)
             assert len(root_run) == 1, '1 run should match uuid of root'
             run = root_run[0]
-            async.create_fingerprints(run)
+            async_execute(_create_fingerprints, run.uuid)
             return run
         except Exception as e:
             self._cleanup()
@@ -497,8 +499,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             name=data.get('name'),
             notification_addresses=data.get('notification_addresses'),
             force_rerun=data.get('force_rerun', False),
-            notification_context=Run.get_notification_context(
-                self.context.get('request')))
+            notification_context=self._get_notification_context())
+
         try:
             if user_inputs is not None:
                 for input_data in user_inputs:
@@ -543,6 +545,18 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         run.initialize_outputs()
         run.initialize()
         return run
+
+    def _get_notification_context(self):
+        context = {
+            'server_name': get_setting('SERVER_NAME')}
+        request = self.context.get('request')
+        if request:
+            context.update({
+                'server_url': '%s://%s' % (
+                    request.scheme,
+		    request.get_host()),
+	    })
+        return context
 
         
 class RunSerializer(_AbstractWritableRunSerializer):
@@ -746,3 +760,13 @@ class URLRunSerializer(_AbstractWritableRunSerializer):
     steps = RecursiveField(many=True, required=False, write_only=True)
     tasks = TaskSerializer(many=True, required=False, write_only=True)
     force_rerun = serializers.BooleanField(required=False, write_only=True)
+
+
+# Asynchronous
+@shared_task
+def _create_fingerprints(run_uuid):
+    run = Run.objects.get(run_uuid)
+    for step in run.get_leaves():
+        for task in step.tasks.all():
+            fingerprint = task.get_fingerprint()
+            fingerprint.update_task_attempt_maybe(task.task_attempt)

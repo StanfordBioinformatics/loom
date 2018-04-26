@@ -195,7 +195,6 @@ KEEP_DUPLICATE_FILES = True
 TEST_DISABLE_ASYNC_DELAY = to_boolean(os.getenv('TEST_DISABLE_ASYNC_DELAY', False))
 TEST_NO_CREATE_TASK = to_boolean(os.getenv('TEST_NO_CREATE_TASK', False))
 TEST_NO_RUN_TASK_ATTEMPT = to_boolean(os.getenv('TEST_NO_RUN_TASK_ATTEMPT', False))
-TEST_NO_POSTPROCESS = to_boolean(os.getenv('TEST_NO_POSTPROCESS', False))
 TEST_NO_PUSH_INPUTS_ON_RUN_CREATION = to_boolean(
     os.getenv('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION', False))
 

@@ -1,17 +1,22 @@
+from celery import shared_task
 from django.db import models, IntegrityError
 from django.utils import timezone
+import logging
 import jsonfield
+import time
 
 from . import render_from_template, render_string_or_list, ArrayInputContext, \
     calculate_contents_fingerprint
 from .base import BaseModel
 from .data_channels import DataChannel
 from api import get_setting
-from api import async
+from api.async import async_execute
 from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
 from api.models.task_attempts import TaskAttempt
 from api.models import validators
+
+logger = logging.getLogger(__name__)
 
 
 class TaskAlreadyExistsException(Exception):
@@ -53,6 +58,10 @@ class Task(BaseModel):
     status_is_killed = models.BooleanField(default=False)
     status_is_running = models.BooleanField(default=False)
     status_is_waiting = models.BooleanField(default=True)
+
+    def execute(self, delay=0, force_rerun=False):
+        force_rerun = force_rerun or get_setting('FORCE_RERUN')
+        async_execute(_execute_task, self.uuid, delay=delay, force_rerun=force_rerun)
 
     def get_fingerprintable_contents(self):
         inputs = [i.get_fingerprintable_contents() for i in self.inputs.all()]
@@ -121,7 +130,7 @@ class Task(BaseModel):
                 delay = 2**failure_count
             else:
                 delay = 0
-            async.run_task(self.uuid, delay=delay)
+            self.execute(delay=delay)
             return
         else:
             if not detail:
@@ -192,7 +201,7 @@ class Task(BaseModel):
 
     def _kill_children(self, detail=''):
         for task_attempt in self.all_task_attempts.all():
-            async.kill_task_attempt(task_attempt.uuid, detail)
+            task_attempt.kill(detail)
 
     @classmethod
     def create_from_input_set(cls, input_set, run):
@@ -425,3 +434,37 @@ class TaskFingerprint(BaseModel):
             self.setattrs_and_save_with_retries(
                 {'active_task_attempt': task_attempt}
             )
+
+# Asynchronous
+@shared_task
+def _execute_task(task_uuid, delay=0, force_rerun=False):
+    time.sleep(delay)
+    # If task has been run before, old TaskAttempt will be rendered inactive
+    from api.models.tasks import Task
+    task = Task.objects.get(uuid=task_uuid)
+    # Do not run again if already running
+    if task.task_attempt and task.is_responsive():
+        return
+
+    # Use TaskFingerprint to see if a valid TaskAttempt for this fingerprint
+    # already exists, or to flag the new TaskAttempt to be reused by other
+    # tasks with this fingerprint
+    fingerprint = task.get_fingerprint()
+
+    task_attempt = None
+    if not force_rerun:
+        # By skipping this, a new TaskAttempt will always be created.
+        # Use existing TaskAttempt if a valid one exists with the same fingerprint
+        if fingerprint.active_task_attempt:
+            task_attempt = fingerprint.active_task_attempt
+            task.activate_task_attempt(task_attempt)
+            return
+
+    task_attempt = task.create_and_activate_task_attempt()
+    fingerprint.update_task_attempt_maybe(task_attempt)
+    if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
+        logger.info('Skipping TaskAttempt execution because'\
+                    'TEST_NO_RUN_TASK_ATTEMPT is True')
+        return
+    else:
+        return task_attempt.run_with_heartbeats()
