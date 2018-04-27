@@ -132,8 +132,8 @@ pipeline {
         sh 'sleep 20'
         sh 'rm -rf env-pypi && virtualenv env-pypi'
         sh '. env-pypi/bin/activate && pip install loomengine==$VERSION loomengine_server==$VERSION loomengine_worker==$VERSION'
-        sh '. env-pyp/bin/activate && python -c "import loomengine loomengine_server loomengine_worker loomengine_utils"'
-        sh '. env-pyp/bin/activate && loom -h'
+        sh '. env-pypi/bin/activate && python -c "import loomengine loomengine_server loomengine_worker loomengine_utils"'
+        sh '. env-pypi/bin/activate && loom -h'
       }
     }
   }
