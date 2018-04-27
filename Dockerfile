@@ -51,12 +51,13 @@ ADD ./server /loom/src/server
 ADD ./utils /loom/src/utils
 ADD ./worker /loom/src/worker
 ADD ./bin /loom/src/bin
-ADD ./VERSION /loom/src/VERSION
 ADD ./NOTICES /loom/src/NOTICES
 ADD ./LICENSE /loom/src/LICENSE
 ADD ./README.rst /loom/src/README.rst
 ADD ./build-tools /loom/src/build-tools
+ARG LOOM_VERSION
 RUN cd /loom/src/build-tools \
+    && ./set-version.sh \
     && ./build-loom-packages.sh \
     && ./install-loom-packages.sh \
     && ./clean.sh

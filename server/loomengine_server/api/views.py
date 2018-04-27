@@ -22,6 +22,7 @@ from api import get_setting, get_storage_settings
 from api import models
 from api import serializers
 from api import async
+from api.async import async_execute
 from loomengine_utils import version
 
 logger = logging.getLogger(__name__)
@@ -315,7 +316,7 @@ class TaskAttemptViewSet(SelectableSerializerModelViewSet):
                   serializer_class=rest_framework.serializers.Serializer)
     def finish(self, request, uuid=None):
         task_attempt = self._get_task_attempt(request, uuid)
-        async.finish_task_attempt(task_attempt.uuid)
+        async_execute(models.task_attempts.finish_task_attempt, task_attempt.uuid)
         return JsonResponse({}, status=201)
 
     @detail_route(methods=['post'], url_path='events',
@@ -612,7 +613,7 @@ class RunViewSet(SelectableSerializerModelViewSet):
             run = models.Run.objects.get(uuid=uuid)
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
-        async.kill_run(uuid, 'Killed by user')
+        async_execute(models.runs.kill_run, uuid, 'Killed by user')
         return JsonResponse({'message': 'kill request was received'}, status=200)
 
     @detail_route(methods=['get'], url_path='dependencies')

@@ -36,10 +36,10 @@ class FileListInput(BaseInput):
                 filename_counts[filename] += 1
                 filename = self._rename_duplicate(filename, counter)
 
-            self.export_manager.export_file_by_uuid(
+            self.export_manager.export_file(
                 data_object,
-                destination_directory=os.path.join(
-                    self.settings['WORKING_DIR'], filename),
+                destination_directory=self.settings['WORKING_DIR'],
+                destination_filename=filename,
                 retry=True)
 
     def _get_duplicates(self, array):

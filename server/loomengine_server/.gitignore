@@ -1,9 +1,6 @@
-LICENSE
-NOTICES
-README.rst
-celerybeat-schedule.db
-*.sqlite3
-secret.txt
-sqlite_dbname.txt
-dbname.txt
-
+/LICENSE
+/NOTICES
+/README.rst
+/VERSION
+/celerybeat-schedule.db
+/*.sqlite3

@@ -99,6 +99,7 @@ setup(
         'django-cors-headers==2.0.2',
         'django-debug-toolbar==1.7',
         'django-extensions==1.7.8',
+        'django-mptt==0.8.7',
         'djangorestframework==3.6.2',
         'django-rest-swagger==2.1.2',
         'docker-py==1.10.6',                 # used by Ansible to run Docker modules and Loom server to run NGINX container

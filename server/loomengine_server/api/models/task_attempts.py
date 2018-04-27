@@ -1,18 +1,28 @@
+from celery import shared_task
+import copy
+from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils import timezone
 import jsonfield
+import logging
 import os
+import pytz
+import subprocess
+import threading
+import time
 
 from . import render_from_template, render_string_or_list
 from .base import BaseModel
 from .data_channels import DataChannel
 from api import get_setting
-from api import async
+from api.async import async_execute
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileResource
 from api.models import validators
 
+
+logger = logging.getLogger(__name__)
 
 class TaskAttempt(BaseModel):
 
@@ -22,6 +32,7 @@ class TaskAttempt(BaseModel):
                                    related_name='all_task_attempts')
     #task = models.ForeignKey('Task', related_name='deprecated_all_task_attempts')
     interpreter = models.CharField(max_length=1024)
+    name = models.CharField(max_length=255, blank=True) # used in Docker container name
     command = models.TextField()
     environment = jsonfield.JSONField()
     environment_info = jsonfield.JSONField(blank=True)
@@ -116,6 +127,7 @@ class TaskAttempt(BaseModel):
             command=task.command,
             environment=task.environment,
             resources=task.resources,
+            name = task.name,
         )
         task_attempt.full_clean()
         task_attempt.save()
@@ -219,7 +231,28 @@ class TaskAttempt(BaseModel):
             self.add_event('Skipped cleanup because PRESERVE_ON_FAILURE is True',
                            is_error=False)
             return
-        async.cleanup_task_attempt(self.uuid)
+        async_execute(_cleanup_task_attempt, self.uuid)
+
+    def run_with_heartbeats(self):
+        heartbeat_interval = int(get_setting(
+            'TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
+        # Polling interval should never be less than heartbeat interval
+        polling_interval = min(1, heartbeat_interval)
+
+        t = threading.Thread(target=_run_execute_task_attempt_playbook,
+                             args=[self,],
+                             kwargs=None)
+        t.start()
+
+        last_heartbeat = self.last_heartbeat
+
+        while t.is_alive():
+            # Beat if (heartbeat_interval - polling_interval) has elapsed,
+            # to ensure that we never exceed heartbeat_interval between beats.
+            if (datetime.utcnow().replace(tzinfo=pytz.utc) - last_heartbeat)\
+               .total_seconds() > (heartbeat_interval - polling_interval):
+                last_heartbeat = self.heartbeat()
+            time.sleep(polling_interval)
 
 
 class TaskAttemptInput(DataChannel):
@@ -334,3 +367,131 @@ class ArrayInputContext(object):
 
     def __str__(self):
         return ' '.join([str(item) for item in self.items])
+
+@shared_task
+def _cleanup_task_attempt(task_attempt_uuid):
+    from api.models.tasks import TaskAttempt
+    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
+    _run_cleanup_task_attempt_playbook(task_attempt)
+    task_attempt.add_event('Cleaned up',
+                           is_error=False)
+    task_attempt.setattrs_and_save_with_retries({
+        'status_is_cleaned_up': True })
+
+def _run_cleanup_task_attempt_playbook(task_attempt):
+    env = copy.copy(os.environ)
+    playbook = os.path.join(
+        get_setting('PLAYBOOK_PATH'),
+        get_setting('CLEANUP_TASK_ATTEMPT_PLAYBOOK'))
+    cmd_list = ['ansible-playbook',
+                '-i', get_setting('ANSIBLE_INVENTORY'),
+                playbook,
+                # Without this, ansible uses /usr/bin/python,
+                # which may be missing needed modules
+                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
+    ]
+
+    if get_setting('DEBUG'):
+        cmd_list.append('-vvvv')
+
+    new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
+                'LOOM_TASK_ATTEMPT_STEP_NAME': task_attempt.name
+                }
+    env.update(new_vars)
+
+    p = subprocess.Popen(
+        cmd_list, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    terminal_output, err_is_empty = p.communicate()
+    if p.returncode != 0:
+        msg = 'Cleanup failed for task_attempt.uuid="%s" with returncode="%s".' % (
+            task_attempt.uuid, p.returncode)
+        logger.error(msg)
+        task_attempt.add_event(msg,
+                               detail=terminal_output,
+                               is_error=True)
+        raise Exception(msg)
+
+@shared_task
+def finish_task_attempt(task_attempt_uuid):
+    # Used by views to avoid delaying requests.
+    # Async Not needed otherwise -- use TaskAttempt.finish() directly
+    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
+    task_attempt.finish()
+
+# To run on new thread
+def _run_execute_task_attempt_playbook(task_attempt):
+    from django.contrib.auth.models import User
+    from django.db import IntegrityError
+    from rest_framework.authtoken.models import Token
+
+    if get_setting('LOGIN_REQUIRED'):
+        try:
+            loom_user = User.objects.create(username='loom-system')
+        except IntegrityError:
+            loom_user = User.objects.get(username='loom-system')
+        try:
+            token = Token.objects.get(user=loom_user).key
+        except Token.DoesNotExist:
+            token = Token.objects.create(user=loom_user).key
+    else:
+        token = None
+
+    env = copy.copy(os.environ)
+    playbook = os.path.join(
+        get_setting('PLAYBOOK_PATH'),
+        get_setting('RUN_TASK_ATTEMPT_PLAYBOOK'))
+    cmd_list = ['ansible-playbook',
+                '-i', get_setting('ANSIBLE_INVENTORY'),
+                playbook,
+                # Without this, ansible uses /usr/bin/python,
+                # which may be missing needed modules
+                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
+    ]
+
+    if get_setting('DEBUG'):
+        cmd_list.append('-vvvv')
+
+    if task_attempt.resources:
+        disk_size = str(task_attempt.resources.get('disk_size', ''))
+        cores = str(task_attempt.resources.get('cores', ''))
+        memory = str(task_attempt.resources.get('memory', ''))
+    else:
+        disk_size = ''
+        cores = ''
+        memory = ''
+    docker_image = task_attempt.environment.get(
+        'docker_image')
+    new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
+                'LOOM_TASK_ATTEMPT_DOCKER_IMAGE': docker_image,
+                'LOOM_TASK_ATTEMPT_STEP_NAME': task_attempt.name,
+    }
+    if token:
+        new_vars['LOOM_TOKEN'] = token
+    if cores:
+        new_vars['LOOM_TASK_ATTEMPT_CORES'] = cores
+    if disk_size:
+        new_vars['LOOM_TASK_ATTEMPT_DISK_SIZE_GB'] = disk_size
+    if memory:
+        new_vars['LOOM_TASK_ATTEMPT_MEMORY'] = memory
+
+    env.update(new_vars)
+
+    p = subprocess.Popen(cmd_list,
+                         env=env,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT)
+    terminal_output = ''
+    for line in iter(p.stdout.readline, ''):
+        terminal_output += line
+        print line.strip()
+    p.wait()
+    if p.returncode != 0:
+        logger.error('_run_execute_task_attempt_playbook failed for '\
+                     'task_attempt.uuid="%s" with returncode="%s".'
+                     % (task_attempt.uuid, p.returncode))
+        msg = "Failed to launch worker process for TaskAttempt %s" \
+              % task_attempt.uuid
+        task_attempt.add_event(msg,
+                               detail=terminal_output,
+                               is_error=True)
+        task_attempt.fail(detail="Failed to launch worker process")

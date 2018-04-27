@@ -1,13 +1,4 @@
 ---
-- name: Create storage bucket. Ignore error if bucket already exists.
-  hosts: localhost
-  connection: local
-  vars_files:
-  - vars/common.yml
-  - vars/gcloud_server.yml
-  tasks:
-  - include: tasks/create_google_storage_bucket.yml
-
 - name: Create a new instance for the Loom server and configure SSH.
   hosts: localhost
   connection: local
