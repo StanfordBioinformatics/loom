@@ -35,7 +35,7 @@ pipeline {
   stages {
     stage('Build Docker Image') {
       steps {
-        sh 'env' # for debugging
+        sh 'env' // for debugging
         sh 'docker build --build-arg LOOM_VERSION=${VERSION} . -t loomengine/loom:${VERSION}'
         script {
 	  if (!env.TAG_NAME) {
