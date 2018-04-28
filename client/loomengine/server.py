@@ -268,6 +268,7 @@ class ServerControls(object):
             os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
         server_url = settings.get('LOOM_SERVER_URL')
         os.remove(os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
+        delete_token()
         try:
             # remove if empty
             os.rmdir(LOOM_SETTINGS_HOME)
