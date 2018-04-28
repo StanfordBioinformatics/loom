@@ -11,6 +11,7 @@ import logging
 import os
 import pytz
 import requests
+import shutil
 import string
 import sys
 import threading
@@ -108,7 +109,16 @@ class TaskMonitor(object):
             raise Exception('Failed to connect to Docker daemon')
 
     def _init_working_dir(self):
-        init_directory(self.settings['WORKING_DIR'], new=True)
+        init_directory(self.settings['WORKING_DIR_ROOT'], new=True)
+        self.working_dir = os.path.join(self.settings['WORKING_DIR_ROOT'], 'work')
+        self.log_dir = os.path.join(self.settings['WORKING_DIR_ROOT'], 'logs')
+        init_directory(self.working_dir, new=True)
+        init_directory(self.log_dir, new=True)    
+
+    def _delete_working_dir(self):
+        # Skip delete if blank or root!
+        if self.settings['WORKING_DIR_ROOT'].strip('/'):
+            shutil.rmtree(self.settings['WORKING_DIR_ROOT'])
 
     def run_with_heartbeats(self, function):
         heartbeat_interval = int(self.settings['HEARTBEAT_INTERVAL_SECONDS'])
@@ -140,6 +150,7 @@ class TaskMonitor(object):
                 self._save_outputs()
                 self._finish()
         finally:
+            self._delete_working_dir()
             self._delete_container()
 
     def _copy_inputs(self):
@@ -158,7 +169,7 @@ class TaskMonitor(object):
         try:
             user_command = self.task_attempt['command']
             with open(os.path.join(
-                    self.settings['WORKING_DIR'],
+                    self.working_dir,
                     self.LOOM_RUN_SCRIPT_NAME),
                       'w') as f:
                 f.write(user_command.encode('utf-8') + '\n')
@@ -213,7 +224,7 @@ class TaskMonitor(object):
         try:
             docker_image = self._get_docker_image()
             interpreter = self.task_attempt['interpreter']
-            host_dir = self.settings['WORKING_DIR']
+            host_dir = self.working_dir
             container_dir = '/loom_workspace'
 
             command = interpreter.split(' ')
@@ -315,16 +326,16 @@ class TaskMonitor(object):
     def _save_process_logs(self):
         self._event('Saving logfiles')
         try:
+            stdout_file = os.path.join(self.log_dir, 'stdout.log')
+            stderr_file = os.path.join(self.log_dir, 'stderr.log')
             init_directory(
-                os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
-            with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
+                os.path.dirname(self.log_dir))
+            with open(stdout_file, 'w') as stdoutlog:
                 stdoutlog.write(self._get_stdout())
-            init_directory(
-                os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
-            with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
+            with open(stderr_file, 'w') as stderrlog:
                 stderrlog.write(self._get_stderr())
-            self._import_log_file(self.settings['STDOUT_LOG_FILE'], retry=True)
-            self._import_log_file(self.settings['STDERR_LOG_FILE'], retry=True)
+            self._import_log_file(stderr_file, retry=True)
+            self._import_log_file(stdout_file, retry=True)
         except Exception as e:
             error = self._get_error_text(e)
             self._report_system_error(detail='Saving log files failed. %s' % error)

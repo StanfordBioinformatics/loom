@@ -343,9 +343,8 @@ class TaskAttemptViewSet(SelectableSerializerModelViewSet):
         return JsonResponse({
             'SERVER_NAME': get_setting('SERVER_NAME'),
             'DEBUG': get_setting('DEBUG'),
-            'WORKING_DIR': task_attempt.get_working_dir(),
-            'STDOUT_LOG_FILE': task_attempt.get_stdout_log_file(),
-            'STDERR_LOG_FILE': task_attempt.get_stderr_log_file(),
+            'WORKING_DIR_ROOT': os.path.join(
+                get_setting('INTERNAL_STORAGE_ROOT'), 'tmp', task_attempt.uuid),
             'DEFAULT_DOCKER_REGISTRY': get_setting('DEFAULT_DOCKER_REGISTRY'),
             'PRESERVE_ALL': get_setting('PRESERVE_ON_FAILURE'),
             'PRESERVE_ON_FAILURE': get_setting('PRESERVE_ON_FAILURE'),

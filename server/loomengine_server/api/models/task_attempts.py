@@ -196,27 +196,6 @@ class TaskAttempt(BaseModel):
             output_source['glob'] = glob
         return output_source        
 
-    def get_working_dir(self):
-        return os.path.join(get_setting('INTERNAL_STORAGE_ROOT'),
-                            'tmp',
-                            str(self.uuid),
-                            'work')
-
-    def get_log_dir(self):
-        return os.path.join(get_setting('INTERNAL_STORAGE_ROOT'),
-                            'tmp',
-                            str(self.uuid),
-                            'logs')
-
-    def get_worker_log_file(self):
-        return os.path.join(self.get_log_dir(), 'worker.log')
-
-    def get_stdout_log_file(self):
-        return os.path.join(self.get_log_dir(), 'stdout.log')
-
-    def get_stderr_log_file(self):
-        return os.path.join(self.get_log_dir(), 'stderr.log')
-
     def kill(self, detail):
         if not self.has_terminal_status():
             self.setattrs_and_save_with_retries(
