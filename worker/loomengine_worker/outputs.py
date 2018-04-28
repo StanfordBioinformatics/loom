@@ -9,7 +9,7 @@ class BaseOutput(object):
         self.output = output
         self.connection = task_monitor.connection
         self.import_manager = task_monitor.import_manager
-        self.settings = task_monitor.settings
+        self.working_dir = task_monitor.working_dir
         self.task_monitor = task_monitor
 
 
@@ -18,7 +18,7 @@ class FileOutput(BaseOutput):
     def save(self):
         filename = self.output['source']['filename']
         file_path = os.path.join(
-	    self.settings['WORKING_DIR'], filename)
+	    self.working_dir, filename)
         self.import_manager.import_result_file(self.output, file_path, retry=True)
 
 
@@ -28,7 +28,7 @@ class FileListScatterOutput(BaseOutput):
         filename_list = self.output['source']['filenames']
         file_path_list = [
             os.path.join(
-	        self.settings['WORKING_DIR'], filename)
+	        self.working_dir, filename)
             for filename in filename_list]
         self.import_manager.import_result_file_list(
             self.output, file_path_list, retry=True)
@@ -46,7 +46,7 @@ class FileContentsOutput(BaseOutput):
 
     def _read_file(self, filename):
         file_path = os.path.join(
-	    self.settings['WORKING_DIR'], filename)
+	    self.working_dir, filename)
         with open(file_path, 'r') as f:
             text = f.read()
         return text
@@ -74,7 +74,7 @@ class FileListContentsScatterOutput(FileContentsOutput):
         contents_list = []
         for filename in filename_list:
             file_path = os.path.join(
-	        self.settings['WORKING_DIR'], filename)
+	        self.working_dir, filename)
             contents_list.append(self._read_file(file_path))
         self.output.update({'data': {'contents': contents_list}})
         self.connection.update_task_attempt_output(
@@ -125,7 +125,7 @@ class GlobScatterOutput(BaseOutput):
 
     def save(self):
         globstring = os.path.join(
-	    self.settings['WORKING_DIR'],
+	    self.working_dir,
             self.output['source']['glob'])
         file_path_list = glob.glob(globstring)
         self.import_manager.import_result_file_list(
@@ -136,7 +136,7 @@ class GlobContentsScatterOutput(FileContentsOutput):
 
     def save(self):
         globstring = os.path.join(
-	    self.settings['WORKING_DIR'],
+	    self.working_dir,
             self.output['source']['glob'])
         file_path_list = glob.glob(globstring)
         contents_list = []

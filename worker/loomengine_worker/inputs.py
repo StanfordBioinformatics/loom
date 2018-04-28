@@ -5,7 +5,7 @@ class BaseInput(object):
     def __init__(self, data_contents, task_monitor):
         self.data_contents = data_contents
         self.export_manager = task_monitor.export_manager
-        self.settings = task_monitor.settings
+        self.working_dir = task_monitor.working_dir
 
 
 class FileInput(BaseInput):
@@ -14,7 +14,7 @@ class FileInput(BaseInput):
         data_object = self.data_contents
         self.export_manager.export_file(
             data_object,
-            destination_directory=self.settings['WORKING_DIR'],
+            destination_directory=self.working_dir,
             retry=True)
 
 
@@ -38,7 +38,7 @@ class FileListInput(BaseInput):
 
             self.export_manager.export_file(
                 data_object,
-                destination_directory=self.settings['WORKING_DIR'],
+                destination_directory=self.working_dir,
                 destination_filename=filename,
                 retry=True)
 
