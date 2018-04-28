@@ -104,6 +104,8 @@ class Task(BaseModel):
             return 'Unknown'
 
     def is_responsive(self):
+        if self.task_attempt and not self.task_attempt.might_succeed():
+            return False
         heartbeat = int(get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'))
         timeout = int(get_setting('TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS'))
         try:
@@ -463,9 +465,9 @@ def _execute_task(task_uuid, delay=0, force_rerun=False):
     if not force_rerun:
         # By skipping this, a new TaskAttempt will always be created.
         # Use existing TaskAttempt if a valid one exists with the same fingerprint
-        if fingerprint.active_task_attempt:
-            task_attempt = fingerprint.active_task_attempt
-            task.activate_task_attempt(task_attempt)
+        if fingerprint.active_task_attempt \
+           and fingerprint.active_task_attempt.might_succeed():
+            task.activate_task_attempt(fingerprint.active_task_attempt)
             return
 
     task_attempt = task.create_and_activate_task_attempt()
