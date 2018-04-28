@@ -103,6 +103,11 @@ class TaskAttempt(BaseModel):
             or self.status_is_failed \
             or self.status_is_killed
 
+    def might_succeed(self):
+        return self.status_is_initializing \
+            or self.status_is_finished \
+            or self.status_is_running
+
     def finish(self):
         if self.has_terminal_status():
             return
@@ -476,10 +481,16 @@ def _run_execute_task_attempt_playbook(task_attempt):
 
     env.update(new_vars)
 
-    p = subprocess.Popen(cmd_list,
-                         env=env,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.STDOUT)
+    try:
+        p = subprocess.Popen(cmd_list,
+                             env=env,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+    except Exception as e:
+        logger.error(str(e))
+        task_attempt.system_error(detail=str(e))
+        return
+
     terminal_output = ''
     for line in iter(p.stdout.readline, ''):
         terminal_output += line
@@ -491,7 +502,4 @@ def _run_execute_task_attempt_playbook(task_attempt):
                      % (task_attempt.uuid, p.returncode))
         msg = "Failed to launch worker process for TaskAttempt %s" \
               % task_attempt.uuid
-        task_attempt.add_event(msg,
-                               detail=terminal_output,
-                               is_error=True)
-        task_attempt.fail(detail="Failed to launch worker process")
+        task_attempt.system_error(detail=terminal_output)
