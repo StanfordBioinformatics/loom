@@ -486,6 +486,10 @@ class ServerControls(object):
     def _parse_extra_settings(self, extra_settings):
         settings_dict = {}
         for setting in extra_settings:
+            if '=' not in setting:
+                raise SystemExit(
+                    'Invalid format for extra setting "%s". '\
+                    'Use "-e key=value" format.' % setting)
             (key, value) = setting.split('=', 1)
             settings_dict[key]=value
         return settings_dict
