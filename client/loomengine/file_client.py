@@ -11,8 +11,9 @@ from loomengine.common import verify_server_is_running, get_server_url, \
 from loomengine.file_tag import FileTag
 from loomengine.file_label import FileLabel
 from loomengine_utils.connection import Connection
-from loomengine_utils.export_manager import ExportManager, ExportManagerError
-from loomengine_utils.import_manager import ImportManager, ImportManagerError
+from loomengine_utils.exceptions import LoomengineUtilsError, APIError
+from loomengine_utils.import_manager import ImportManager
+from loomengine_utils.export_manager import ExportManager
 
 
 class AbstractFileSubcommand(object):
@@ -80,11 +81,12 @@ class FileImport(AbstractFileSubcommand):
                 force_duplicates=self.args.force_duplicates,
                 retry=self.args.retry
             )
-        except ImportManagerError as e:
-            raise SystemExit(e.message)
-        if len(files_imported) == 0:
-            raise SystemExit('ERROR! Did not find any files matching "%s"'
-                             % '", "'.join(self.args.files))
+        except APIError as e:
+            raise SystemExit('ERROR! An external API failed. This may be transient. '\
+                             'Try again, and consider using "--retry", especially '\
+                             'if this step is automated. Original error: "%s"' % e)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! %s" % e.message)
         self._apply_tags(files_imported)
         self._apply_labels(files_imported)
         return files_imported
@@ -189,7 +191,11 @@ class FileExport(AbstractFileSubcommand):
                     export_metadata=not self.args.no_metadata,
                     export_raw_file=not self.args.link,
                 )
-        except ExportManagerError as e:
+        except APIError as e:
+            raise SystemExit('ERROR! An external API failed. This may be transient. '\
+                             'Try again, and consider using "--retry", especially '\
+                             'if this step is automated. Original error: "%s"' % e)
+        except LoomengineUtilsError as e:
             raise SystemExit("ERROR! %s" % e.message)
 
 class FileList(object):

@@ -6,7 +6,7 @@ import unittest
 import warnings
 
 from loomengine_utils import connection
-from loomengine_utils.exceptions import *
+from loomengine_utils.connection import ServerConnectionError, ResourceCountError
 
 class MockRoute:
     def __init__(self, route_regex, method, response, params=None):

@@ -12,7 +12,7 @@ from loomengine.common import get_server_url, \
     verify_has_connection_settings, verify_server_is_running, get_token
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
-from loomengine.exceptions import *
+from loomengine_utils.exceptions import APIError, LoomengineUtilsError
 from loomengine_utils.connection import Connection
 from loomengine_utils.file_utils import FileSet
 from loomengine_utils.import_manager import ImportManager
@@ -75,7 +75,7 @@ class RunStart(AbstractRunSubcommand):
         for input in args.inputs:
             vals = input.split('=')
             if not len(vals) == 2 or vals[0] == '':
-                raise InvalidInputError('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
+                raise SystemExit('Invalid input key-value pair "%s". Must be of the form key=value or key=value1,value2,...' % input)
 
     def run(self):
         run_data = {
@@ -334,15 +334,22 @@ class RunImport(AbstractRunSubcommand):
 
     def run(self):
         imported_runs = []
-        for run_file in FileSet(
-                self.args.run, self.storage_settings, retry=self.args.retry):
-            run = self.import_manager.import_run(
-                run_file,
-                retry=self.args.retry,
-                link_files=self.args.link_files)
-            self._apply_tags(run)
-            self._apply_labels(run)
-            imported_runs.append(run)
+        try:
+            for run_file in FileSet(
+                    self.args.run, self.storage_settings, retry=self.args.retry):
+                run = self.import_manager.import_run(
+                    run_file,
+                    retry=self.args.retry,
+                    link_files=self.args.link_files)
+                self._apply_tags(run)
+                self._apply_labels(run)
+                imported_runs.append(run)
+        except APIError as e:
+            raise SystemExit('ERROR! An external API failed. This may be transient. '\
+                             'Try again, and consider using "--retry", especially '\
+                             'if this step is automated. Original error: "%s"' % e)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! %s" % e.message)
         return imported_runs
 
     def _apply_tags(self, run):

@@ -6,7 +6,14 @@ import requests
 import time
 import urllib
 
-from loomengine_utils.exceptions import *
+from .exceptions import LoomengineUtilsError
+
+class ServerConnectionError(LoomengineUtilsError):
+    pass
+
+class ResourceCountError(LoomengineUtilsError):
+    pass
+
 
 logger = logging.getLogger(__name__)
 

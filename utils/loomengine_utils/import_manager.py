@@ -1,21 +1,24 @@
 import logging
+import google.cloud.exceptions
 import os
 import re
 from requests.exceptions import HTTPError
 import warnings
 import yaml
 
-from loomengine_utils.file_utils import File, FileSet, parse_as_yaml
-from loomengine_utils.connection import ServerConnectionError
+from .exceptions import LoomengineUtilsError
+from .file_utils import File, FileSet, parse_as_yaml
+from .connection import ServerConnectionError
 from oauth2client.client import ApplicationDefaultCredentialsError
 
 logger = logging.getLogger(__name__)
 
-class ImportManagerError(Exception):
+class ImportManagerError(LoomengineUtilsError):
     pass
 
 class FileDuplicateError(ImportManagerError):
     pass
+
 
 class DependencyNode(object):
     """This class helps keep track of file dependencies for a
@@ -56,7 +59,7 @@ class ImportManager(object):
         files_to_import = FileSet(
             [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
             self.storage_settings, retry=retry,
-            trim_metadata_suffix=True)
+            trim_metadata_suffix=True, raise_if_missing=False)
         imported_files = []
         for file_to_import in files_to_import:
             imported_files.append(
@@ -70,7 +73,7 @@ class ImportManager(object):
                                force_duplicates=False):
         templates_to_import = FileSet(
             [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
-            self.storage_settings, retry=retry)
+            self.storage_settings, retry=retry, raise_if_missing=False)
         imported_templates = []
         for template_to_import in templates_to_import:
             imported_templates.append(
@@ -83,7 +86,7 @@ class ImportManager(object):
     def _bulk_import_runs(self, directory, link_files=False, retry=False):
         runs_to_import = FileSet(
             [os.path.join(directory, '*'), os.path.join(directory, '*/*')],
-            self.storage_settings, retry=retry)
+            self.storage_settings, retry=retry, raise_if_missing=False)
         imported_runs = []
         for run_to_import in runs_to_import:
             imported_runs.append(
@@ -599,7 +602,8 @@ class ImportManager(object):
         patterns = [os.path.join(file_directory, '*'),
                     os.path.join(file_directory, '*/*')]
         files_to_import = FileSet(
-            patterns, self.storage_settings, trim_metadata_suffix=True, retry=retry)
+            patterns, self.storage_settings, trim_metadata_suffix=True, retry=retry,
+            raise_if_missing=False)
         for file_to_import in files_to_import:
             file_data_object = self.import_file(
                 file_to_import.get_url(), '', link=link_files, retry=retry)
@@ -611,7 +615,8 @@ class ImportManager(object):
             self, template_url, force_duplicates=False, retry=False):
         step_dependencies = []
         pattern = os.path.join(template_url+'.dependencies', 'steps', '*')
-        step_files = FileSet([pattern,], self.storage_settings, retry=retry)
+        step_files = FileSet([pattern,], self.storage_settings, retry=retry,
+                             raise_if_missing=False)
         return step_files
 
     def _substitute_file_uuids_throughout_template(self, template, file_dependencies):

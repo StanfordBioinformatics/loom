@@ -11,7 +11,7 @@ import argparse
 from loomengine import server
 from loomengine.common import verify_has_connection_settings, get_server_url, \
     verify_server_is_running, get_token
-from loomengine.exceptions import *
+from loomengine_utils.exceptions import LoomengineUtilsError, APIError
 from loomengine_utils.connection import Connection
 from loomengine_utils.import_manager import ImportManager
 
@@ -59,10 +59,17 @@ class BulkImport(object):
         return parser
 
     def run(self):
-        self.import_manager.bulk_import(
-            self.args.directory,
-            link_files=self.args.link_files,
-            retry=self.args.retry)
+        try:
+            self.import_manager.bulk_import(
+                self.args.directory,
+                link_files=self.args.link_files,
+                retry=self.args.retry)
+        except APIError as e:
+            raise SystemExit('ERROR! An external API failed. This may be transient. '\
+                             'Try again, and consider using "--retry", especially '\
+                             'if this step is automated. Original error: "%s"' % e)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! %s" % e.message)
 
 
 if __name__=='__main__':

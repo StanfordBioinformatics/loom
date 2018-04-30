@@ -2,6 +2,9 @@ import logging
 import random
 import time
 
+class LoomengineUtilsError(Exception):
+    pass
+
 try:  # Python 2.7+
     from logging import NullHandler
 except ImportError:

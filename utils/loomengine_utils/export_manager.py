@@ -4,12 +4,13 @@ import logging
 import os
 import yaml
 
-from loomengine_utils.file_utils import File
+from .exceptions import LoomengineUtilsError
+from .file_utils import File
 
 logger = logging.getLogger(__name__)
 
 
-class ExportManagerError(Exception):
+class ExportManagerError(LoomengineUtilsError):
     pass
 
 
@@ -208,8 +209,9 @@ class ExportManager(object):
             destination_directory = self._get_default_bulk_export_directory()
 
         expanded_runs = self._expand_runs(runs)
-        templates = [run['template'] for run in runs]
-        templates = [self.connection.get_template(template['uuid']) for template in templates]
+        templates = [run['template'] for run in expanded_runs]
+        templates = [self.connection.get_template(template['uuid'])
+                     for template in templates]
         expanded_templates = self._expand_templates(templates)
 
         file_dict = {}

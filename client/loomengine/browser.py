@@ -12,7 +12,6 @@ import argparse
 from loomengine import server
 from loomengine.common import verify_has_connection_settings, get_server_url, \
     verify_server_is_running
-from loomengine.exceptions import *
 
 
 class Browser(object):

@@ -18,7 +18,7 @@ import yaml
 
 from . import execute_with_retries
 from . import md5calc
-from .exceptions import LoomengineUtilsError
+from .exceptions import LoomengineUtilsError, APIError
 from .connection import Connection
 
 # Google Storage JSON API imports
@@ -93,12 +93,13 @@ def _urlparse(path):
 
 class FileSet:
 
-    def __init__(self, patterns, settings, retry=False, trim_metadata_suffix=False):
+    def __init__(self, patterns, settings, retry=False, trim_metadata_suffix=False, raise_if_missing=True):
         """Returns a list of unique Files matching the given patterns.
         """
         assert isinstance(patterns, list), 'patterns must be a list'
         self.settings = settings
         self.retry = retry
+        self.raise_if_missing=raise_if_missing
         self.do_trim_metadata_suffix = trim_metadata_suffix
         self.files = []
         self.urls = set()
@@ -111,7 +112,8 @@ class FileSet:
     def _parse_pattern(self, pattern):
         for file in FilePattern(
                 pattern, self.settings, retry=self.retry,
-                trim_metadata_suffix=self.do_trim_metadata_suffix):
+                trim_metadata_suffix=self.do_trim_metadata_suffix,
+                raise_if_missing=self.raise_if_missing):
             self._add_file(file)
 
     def _add_file(self, file):
@@ -165,9 +167,10 @@ class LocalFilePattern(AbstractFilePattern):
     """A set of Files for files on local storage
     """
 
-    def __init__(self, pattern, settings, retry=False, trim_metadata_suffix=False):
+    def __init__(self, pattern, settings, retry=False, trim_metadata_suffix=False, raise_if_missing=True):
         # retry has no effect
         self.do_trim_metadata_suffix = trim_metadata_suffix
+        self.raise_if_missing = raise_if_missing
 
         self.files = [
             LocalFile(path, settings, retry=retry)
@@ -177,7 +180,7 @@ class LocalFilePattern(AbstractFilePattern):
         matches = glob.glob(self._strip_file_scheme(pattern))
         matches = self._remove_directories(matches)
         matches = self._trim_metadata_suffix(matches)
-        if len(matches) == 0:
+        if self.raise_if_missing and len(matches) == 0:
             raise NoFileError('No files found for pattern "%s"' % pattern)
         return matches
 
@@ -247,9 +250,10 @@ class GoogleStorageFilePattern(AbstractFilePattern, GoogleStorageClient):
     """A set of Files for files on Google Storage
     """
 
-    def __init__(self, pattern, settings, retry=False, trim_metadata_suffix=False):
+    def __init__(self, pattern, settings, retry=False, trim_metadata_suffix=False, raise_if_missing=True):
         # retry has no effect
         self.do_trim_metadata_suffix = trim_metadata_suffix
+        self.raise_if_missing = raise_if_missing
         self.settings = settings
         self.url = _urlparse(pattern)
         self.retry = retry
@@ -260,14 +264,20 @@ class GoogleStorageFilePattern(AbstractFilePattern, GoogleStorageClient):
             raise FileUtilsError(
                 'Could not parse bucket ID in url "%s". '\
                 'Be sure to use the format "gs://bucket/blob_id".' % url)
-        self.get_client()
-        self.get_bucket(self.bucket_id)
-        self._get_matching_blobs(self.blob_pattern)
+        try:
+            self.get_client()
+            self.get_bucket(self.bucket_id)
+            self._get_matching_blobs(self.blob_pattern)
 
-        self.files = [
-            GoogleStorageFile('gs://%s/%s' % (self.bucket_id, blob_id),
-                              settings, retry=retry)
-            for blob_id in self._get_matching_blobs(self.blob_pattern)]
+            self.files = [
+                GoogleStorageFile('gs://%s/%s' % (self.bucket_id, blob_id),
+                                  settings, retry=retry)
+                for blob_id in self._get_matching_blobs(self.blob_pattern)]
+        except google.cloud.exceptions.InternalServerError as e:
+            raise APIError(
+                "%s.%s: %s" %
+                (e.__class__.__module__, e.__class__.__name__, e))
+
 
     def _get_matching_blobs(self, blob_pattern):
         # Google doesn't support wildcards, so we need to get
@@ -439,9 +449,14 @@ class GoogleStorageFile(AbstractFile, GoogleStorageClient):
             raise FileUtilsError(
                 'Could not parse bucket ID in url "%s". '\
                 'Be sure to use the format "gs://bucket/blob_id".' % url)
-        self.get_client()
-        self.get_bucket(self.bucket_id)
-        self.get_blob(self.blob_id, must_exist=must_exist)
+        try:
+            self.get_client()
+            self.get_bucket(self.bucket_id)
+            self.get_blob(self.blob_id, must_exist=must_exist)
+        except google.cloud.exceptions.InternalServerError as e:
+            raise APIError(
+                "%s.%s: %s" %
+                (e.__class__.__module__, e.__class__.__name__, e))
 
     def calculate_md5(self):
         md5_base64 = self.blob.md5_hash
