@@ -16,7 +16,6 @@ import time
 import yaml
 
 import loomengine_utils.connection
-from loomengine import exceptions
 
 LOOM_SETTINGS_SUBDIR = '.loom'
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/'+LOOM_SETTINGS_SUBDIR))
