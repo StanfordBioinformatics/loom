@@ -591,7 +591,9 @@ class CycleDetector(object):
         self.edges = {}
         self.backtrack = {}
         for step in steps:
-            assert step['name'] not in self.white
+            if step['name'] in self.white:
+                raise serializers.ValidationError(
+                    'Duplicate step was found: "%s"' % step['name'])
             self.white.append(step['name'])
             self.edges.setdefault(step['name'], [])
         for step in steps:
