@@ -3,6 +3,7 @@ import errno
 import fnmatch
 import glob
 import google.cloud.storage
+import google.cloud.exceptions
 import logging
 import os
 import random
@@ -219,7 +220,9 @@ class GoogleStorageClient:
                     lambda: self.client.get_bucket(bucket_id),
                     (Exception,),
                     logger,
-                    'Get bucket')
+                    'Get bucket',
+                    nonretryable_errors=(google.cloud.exceptions.Forbidden,),
+                )
             else:
                 self.bucket = self.client.get_bucket(bucket_id)
         except HttpAccessTokenRefreshError:
@@ -233,7 +236,9 @@ class GoogleStorageClient:
                 lambda: self.bucket.get_blob(blob_id),
                 (Exception,),
                 logger,
-                'Get blob')
+                'Get blob',
+                nonretryable_errors=(google.cloud.exceptions.Forbidden,),
+            )
         else:
             self.blob = self.bucket.get_blob(blob_id)
 
@@ -556,7 +561,9 @@ class GoogleStorageCopier(AbstractCopier):
                         self.source.blob, token=rewrite_token),
                     (Exception,),
                     logger,
-                    'File copy')
+                    'File copy',
+                    nonretryable_errors=(google.cloud.exceptions.Forbidden,),
+                )
             else:
                 rewrite_token, rewritten, size = self.destination.blob.rewrite(
                     self.source.blob, token=rewrite_token)
@@ -575,7 +582,9 @@ class Local2GoogleStorageCopier(AbstractCopier):
                     self.source.get_path()),
                 (Exception,),
                 logger,
-                'File upload')
+                'File upload',
+                nonretryable_errors=(google.cloud.exceptions.Forbidden,),
+            )
         else:
             self.destination.blob.upload_from_filename(self.source.get_path())
 
@@ -597,6 +606,8 @@ class GoogleStorage2LocalCopier(AbstractCopier):
                     self.destination.get_path()),
                 (Exception,),
                 logger,
-                'File download')
+                'File download',
+                nonretryable_errors=(google.cloud.exceptions.Forbidden,),
+            )
         else:
             self.source.blob.download_to_filename(self.destination.get_path())
