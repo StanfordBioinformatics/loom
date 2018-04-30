@@ -168,15 +168,17 @@ class LocalFilePattern(AbstractFilePattern):
     def __init__(self, pattern, settings, retry=False, trim_metadata_suffix=False):
         # retry has no effect
         self.do_trim_metadata_suffix = trim_metadata_suffix
+
         self.files = [
             LocalFile(path, settings, retry=retry)
             for path in self._get_matching_paths(pattern)]
 
-    def _get_matching_paths(self, path):
-        path = self._strip_file_scheme(path)
-        matches = glob.glob(path)
+    def _get_matching_paths(self, pattern):
+        matches = glob.glob(self._strip_file_scheme(pattern))
         matches = self._remove_directories(matches)
         matches = self._trim_metadata_suffix(matches)
+        if len(matches) == 0:
+            raise NoFileError('No files found for pattern "%s"' % pattern)
         return matches
 
     def _remove_directories(self, all_matches):

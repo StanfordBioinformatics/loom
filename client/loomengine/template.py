@@ -13,6 +13,7 @@ from loomengine.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, get_token
 from loomengine.template_tag import TemplateTag
 from loomengine.template_label import TemplateLabel
+from loomengine_utils.exceptions import LoomengineUtilsError
 from loomengine_utils.connection import Connection
 from loomengine_utils.file_utils import FileSet, File
 from loomengine_utils.import_manager import ImportManager
@@ -68,17 +69,20 @@ class TemplateImport(AbstractTemplateSubcommand):
 
     def run(self):
         imported_templates = []
-        for template_file in FileSet(
-                self.args.template, self.storage_settings, retry=self.args.retry):
-            template = self.import_manager.import_template(
-                template_file,
-                comments=self.args.comments,
-                force_duplicates=self.args.force_duplicates,
-                retry=self.args.retry,
-                link_files=self.args.link_files)
-            self._apply_tags(template)
-            self._apply_labels(template)
-            imported_templates.append(template)
+        try:
+            for template_file in FileSet(
+                    self.args.template, self.storage_settings, retry=self.args.retry):
+                template = self.import_manager.import_template(
+                    template_file,
+                    comments=self.args.comments,
+                    force_duplicates=self.args.force_duplicates,
+                    retry=self.args.retry,
+                    link_files=self.args.link_files)
+                self._apply_tags(template)
+                self._apply_labels(template)
+                imported_templates.append(template)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! %s" % e)
         return imported_templates
 
     def _apply_tags(self, template):
