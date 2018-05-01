@@ -1,5 +1,6 @@
 from celery import shared_task
 import copy
+import jsonschema
 from rest_framework import serializers
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import prefetch_related_objects
@@ -189,6 +190,15 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             except django.core.exceptions.ValidationError as e:
                 raise serializers.ValidationError(e.message_dict)
         return data
+
+    def validate_user_inputs(self, value):
+        channels = set()
+        for item in value:
+            if item.get('channel') in channels:
+                raise serializers.ValidationError(
+                    'Found duplicate of channel "%s"' % item.get('channel'))
+            channels.add(item.get('channel'))
+        return value
 
     def _validate_run_data_fields(self, run_data):
         data_keys = run_data.keys()
