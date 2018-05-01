@@ -388,14 +388,8 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-#if DEBUG:
-#    CSRF_COOKIE_SECURE = True
-#    SESSION_COOKIE_SECURE = True
-#    HTTP_AUTHORIZATION = True
-#else:
-#    CSRF_COOKIE_SECURE = False
-#    SESSION_COOKIE_SECURE = False
-#    HTTP_AUTHORIZATION = False
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 INTERNAL_IPS = [
     "127.0.0.1",
