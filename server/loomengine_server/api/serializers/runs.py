@@ -509,8 +509,11 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
     def _cleanup(self):
         if hasattr(self, '_new_runs'):
             self._new_runs.delete()
-        # TODO
-        
+        if hasattr(self, '_new_tasks'):
+            self._new_tasks.delete()
+        if hasattr(self, '_new_task_attempts'):
+            self._new_task_attempts.delete()
+
     def _start_run(self, data):
         user_inputs = self.initial_data.get('user_inputs', None)
         data.pop('user_inputs', None)
