@@ -14,6 +14,8 @@ from django.core.exceptions import ValidationError
 
 SESSION_BACKED = 'django.contrib.sessions.backends.db'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 def to_boolean(value):
     if value in [None, '', False]:
@@ -388,12 +390,8 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
+# This is needed for nginx reverse proxy to work
+INTERNAL_IPS = ["127.0.0.1",]
 
 if DEBUG or (len(sys.argv) > 1 and sys.argv[1] == 'collectstatic'):
     INSTALLED_APPS.append('debug_toolbar')

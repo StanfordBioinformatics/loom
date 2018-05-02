@@ -251,7 +251,7 @@
             rabbitmq_container_name if debug else none]\
 	    | reject('none') | list}}"
     ports: "{{[ http_port~':'~http_port if \
-            (http_port_enabled or http_redirect_to_https) else none,\
+            (http_port_enabled) else none,\
             https_port~':'~https_port if https_port_enabled else none]
             | reject('none') | list}}"
     log_driver: fluentd

@@ -26,7 +26,6 @@ http_port: "{{lookup('env', 'LOOM_HTTP_PORT')|default(80, true)|int}}"
 https_port: "{{lookup('env', 'LOOM_HTTPS_PORT')|default(443, true)|int}}"
 http_port_enabled: "{{lookup('env', 'LOOM_HTTP_PORT_ENABLED')|default(true, true)|bool}}"
 https_port_enabled: "{{lookup('env', 'LOOM_HTTPS_PORT_ENABLED')|default(false, true)|bool}}"
-http_redirect_to_https: "{{lookup('env', 'LOOM_HTTP_REDIRECT_TO_HTTPS')|default(false, true)|bool}}"
 server_port: "{{https_port if https_port_enabled else http_port}}"
 server_protocol: "{{'https' if https_port_enabled else 'http'}}"
 

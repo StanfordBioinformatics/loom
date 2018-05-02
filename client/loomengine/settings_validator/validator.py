@@ -52,7 +52,6 @@ class SettingsValidator(object):
         'LOOM_HTTPS_PORT',
         'LOOM_HTTP_PORT_ENABLED',
         'LOOM_HTTPS_PORT_ENABLED',
-        'LOOM_HTTP_REDIRECT_TO_HTTPS',
         'LOOM_SSL_CERT_CREATE_NEW',
         'LOOM_SSL_CERT_C',
         'LOOM_SSL_CERT_ST',
@@ -244,3 +243,7 @@ class SettingsValidator(object):
                 self.errors.append(
                     'Invalid LOOM_ADMIN_USERNAME "%s". Must match regex %s.' % (
                         username, username_regex))
+            if not to_bool(self.settings.get('LOOM_HTTPS_PORT_ENABLED')):
+                self.errors.append(
+                    'If LOOM_LOGIN_REQUIRED is true, you must set '\
+                    'LOOM_HTTPS_PORT_ENABLED=true')
