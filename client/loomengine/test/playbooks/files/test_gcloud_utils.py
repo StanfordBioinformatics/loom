@@ -38,14 +38,6 @@ class TestGcloudUtils(unittest.TestCase):
         worker_name = gu.get_worker_name(hostname, step_name, attempt_id, max_length)
         self.assertEqual(worker_name, 'hostna-stepn-12345678')
 
-    def testGetScratchDiskName(self):
-        hostname = 'host'
-        step_name = 'step'
-        attempt_id = '123'
-        max_length = 63
-        disk_name = gu.get_scratch_disk_name(hostname, step_name, attempt_id, max_length)
-        self.assertEqual(disk_name, '%s-%s-%s-disk' % (hostname, step_name, attempt_id))
-
     def testSanitizeInstanceName(self):
         name = gu._sanitize_instance_name('--some_?&-things-nevr-change--', 100)
         self.assertEqual(name, 'some-things-nevr-change')

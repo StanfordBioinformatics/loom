@@ -85,20 +85,6 @@ def get_worker_name(hostname, step_name, attempt_id, max_length):
     print worker_name
     return worker_name
 
-def get_scratch_disk_name(hostname, step_name, attempt_id, max_length):
-    """Create a name for the worker scratch disk."""
-    max_length = int(max_length)
-    disk_name = _get_base_name(hostname, step_name, attempt_id, max_length-5)+'-disk'
-    print disk_name
-    return disk_name
-
-def get_scratch_disk_device_path(hostname, step_name, attempt_id):
-    """Get the device path for the worker scratch disk."""
-    disk_name = get_scratch_disk_name(hostname, step_name, attempt_id)
-    device_path = '-'.join(['/dev/disk/by-id/google', disk_name])
-    print device_path
-    return device_path
-
 def _sanitize_instance_name(name, max_length):
     """Instance names must start with a lowercase letter. All following characters must be a dash, lowercase letter, or digit."""
     name = str(name).lower()                # make all letters lowercase
