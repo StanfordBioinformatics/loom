@@ -21,6 +21,9 @@ represent actual analysis Runs. Both leaf and branch nodes are
 represented by the Template class.
 """
 
+class ProtectedByParentError(Exception):
+    pass
+
 
 class Template(BaseModel):
 
@@ -133,16 +136,31 @@ class Template(BaseModel):
 
     def delete(self):
         from api.models.data_nodes import DataNode
+        if self.parents.count() != 0:
+            raise ProtectedByParentError
         nodes_to_delete = set()
 	queryset = DataNode.objects.filter(
             templateinput__template__uuid=self.uuid)
         for item in queryset.all():
             nodes_to_delete.add(item)
+
+        # The "imported" flag handles the scenario where:
+        # Template A contains template B. A user imports B and later imports A,
+        # then deletes A. B should be preserved.
+        # This is done by deleting only children where imported==False
+        templates_to_delete = set()
+        for item in self.steps.filter(imported=False):
+            templates_to_delete.add(item)
         super(Template, self).delete()
         for item in nodes_to_delete:
             try:
                 item.delete()
             except models.ProtectedError:
+                pass
+        for template in templates_to_delete:
+            try:
+                template.delete()
+            except ProtectedByParentError:
                 pass
 
 
