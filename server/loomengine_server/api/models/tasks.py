@@ -132,7 +132,7 @@ class Task(BaseModel):
                 delay = 2**failure_count
             else:
                 delay = 0
-            self.execute(delay=delay)
+            self.execute(delay=delay, force_rerun=self.run.force_rerun)
             return
         else:
             if not detail:
