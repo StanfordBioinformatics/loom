@@ -158,10 +158,14 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         self._run_parent_relationships = []
         self._task_to_task_attempt_relationships = []
         self._task_to_all_task_attempts_m2m_relationships = []
+        # No preexisting tasks expected. Should be deleted with run.
         self._unsaved_tasks = []
         self._unsaved_task_inputs = []
         self._unsaved_task_outputs = []
         self._unsaved_task_events = []
+        self._preexisting_task_attempts = [] # May be shared with other runs \
+                                          # or remnants of a deleted run that \
+                                          # were not yet cleaned up
         self._unsaved_task_attempts = []
         self._unsaved_task_attempt_inputs = []
         self._unsaved_task_attempt_outputs = []
@@ -342,7 +346,15 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             self._task_to_task_attempt_relationships.append(
                 (task_data.get('uuid'), active_task_attempt.get('uuid')))
         for task_attempt in task_attempts:
-            self._create_unsaved_task_attempt(task_attempt, task)
+            try:
+                preexisting_task_attempt = TaskAttempt.objects.get(
+                    uuid=task_attempt.get('uuid'))
+                self._preexisting_task_attempts.append(preexisting_task_attempt)
+                self._task_to_all_task_attempts_m2m_relationships.append(
+                    TaskMembership(parent_task=task,
+                                   child_task_attempt=preexisting_task_attempt))
+            except TaskAttempt.DoesNotExist:
+                self._create_unsaved_task_attempt(task_attempt, task)
 
     def _create_unsaved_task_attempt(self, task_attempt_data, task):
         inputs = task_attempt_data.pop('inputs', [])
@@ -427,6 +439,9 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             TaskEvent.objects.bulk_create(self._unsaved_task_events)
             bulk_attempts = TaskAttempt.objects.bulk_create(self._unsaved_task_attempts)
             self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
+            all_task_attempts = [task_attempt for task_attempt
+                                 in self._new_task_attempts]
+            all_task_attempts.extend(self._preexisting_task_attempts)
             match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
                                      'task_attempt', self._new_task_attempts)
             TaskAttemptInput.objects.bulk_create(self._unsaved_task_attempt_inputs)
@@ -440,13 +455,13 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                                      'task_attempt', self._new_task_attempts)
             TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
             self._connect_tasks_to_active_task_attempts(
-                self._new_tasks, self._new_task_attempts)
+                self._new_tasks, all_task_attempts)
             match_and_update_by_uuid(
                 self._task_to_all_task_attempts_m2m_relationships,
                 'parent_task', self._new_tasks)
             match_and_update_by_uuid(
                 self._task_to_all_task_attempts_m2m_relationships,
-                'child_task_attempt', self._new_task_attempts)
+                'child_task_attempt', all_task_attempts)
             TaskMembership.objects.bulk_create(
                 self._task_to_all_task_attempts_m2m_relationships)
             self._connect_runs_to_parents(all_runs)
@@ -775,7 +790,7 @@ class URLRunSerializer(_AbstractWritableRunSerializer):
 # Asynchronous
 @shared_task
 def _create_fingerprints(run_uuid):
-    run = Run.objects.get(run_uuid)
+    run = Run.objects.get(uuid=run_uuid)
     for step in run.get_leaves():
         for task in step.tasks.all():
             fingerprint = task.get_fingerprint()
