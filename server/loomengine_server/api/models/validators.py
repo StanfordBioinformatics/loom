@@ -308,12 +308,19 @@ data_node_schema = {
     # A DataObject may be used rather than the primitive type.
     'definitions': {
         'referenceschema': {
-            'type': [ 'object' ],
-            'properties': {
-                'uuid': { 'type': 'string' }
-            },
-            'required': ['uuid'],
-            'additionalProperties': True,
+            'oneOf': [
+                {
+                    'type': [ 'object' ],
+                    'properties': {
+                        'uuid': { 'type': 'string' }
+                    },
+                    'required': ['uuid'],
+                    'additionalProperties': True,
+                },
+                { 'type': ['array'], 
+                  'items': {
+                      '$ref': '#/definitions/referenceschema'}}
+            ]
         },
         'stringschema': {
             'oneOf': [

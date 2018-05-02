@@ -118,7 +118,7 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     system_failure_count = serializers.IntegerField(required=False)
     events = TaskEventSerializer(
         many=True, allow_null=True, required=False)
-    data_path = serializers.JSONField(required=True)
+    data_path = serializers.JSONField(required=False)
 
     # read-only
     status = serializers.CharField(read_only=True)
