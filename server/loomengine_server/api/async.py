@@ -81,9 +81,6 @@ def clear_expired_logs():
 
 @shared_task
 def _delete_file_resource(file_resource_id):
-    if get_setting('DELETE_DISABLED'):
-        return
-
     from api.models import FileResource
     from loomengine_utils.file_utils import File
     file_resource = FileResource.objects.get(id=file_resource_id)
@@ -105,7 +102,7 @@ def _delete_file_resource(file_resource_id):
 
 @periodic_task(run_every=timedelta(minutes=14))
 def cleanup_orphaned_file_resources():
-    if get_setting('DELETE_DISABLED'):
+    if get_setting('DISABLE_DELETE'):
         return
 
     from api.models import FileResource
@@ -117,7 +114,7 @@ def cleanup_orphaned_file_resources():
 
 @periodic_task(run_every=timedelta(minutes=13))
 def cleanup_orphaned_task_attempts():
-    if get_setting('DELETE_DISABLED'):
+    if get_setting('DISABLE_DELETE'):
         return
 
     from api.models import TaskAttempt, DataNode

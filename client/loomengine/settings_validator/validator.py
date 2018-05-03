@@ -46,7 +46,7 @@ class SettingsValidator(object):
         'LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS',
         'LOOM_PRESERVE_ON_FAILURE',
         'LOOM_PRESERVE_ALL',
-        'LOOM_DELETE_DISABLED',
+        'LOOM_DISABLE_DELETE',
         'LOOM_FORCE_DB_MIGRATIONS_ON_START',
         'LOOM_HTTP_PORT',
         'LOOM_HTTPS_PORT',

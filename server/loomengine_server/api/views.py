@@ -102,7 +102,18 @@ class SelectableSerializerModelViewSet(rest_framework.viewsets.ModelViewSet):
             return self.SERIALIZERS['default']
 
 
-class DataObjectViewSet(SelectableSerializerModelViewSet):
+class ProtectedDeleteModelViewSet(rest_framework.viewsets.ModelViewSet):
+
+    def destroy(self, *args, **kwargs):
+        if get_setting('DISABLE_DELETE'):
+            return JsonResponse({
+                'message': 'Delete is forbidden because DISABLE_DELETE is True.'},
+                                status=403)
+        else:
+            return super(ProtectedDeleteModelViewSet, self).destroy(*args, **kwargs)
+
+
+class DataObjectViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """Each DataObject represents a value of type file, string, boolean, 
     integer, or float.
     """
@@ -231,7 +242,8 @@ class DataObjectViewSet(SelectableSerializerModelViewSet):
             raise rest_framework.exceptions.NotFound()
         return JsonResponse(dependencies, status=200)
 
-class DataNodeViewSet(SelectableSerializerModelViewSet):
+
+class DataNodeViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """DataNodes are used to organize DataObjects into arrays or trees to facilitate parallel runs. All nodes in a tree must have the same type. The 'contents' field is a JSON containing a single DataObject, a list of DataObjects, or nested lists. For write actions, each DataObject can be represented in full for as a dict, or as a string, where the string represents a given value (e.g. '3' for type integer), or a reference id (e.g. myfile.txt@22588117-425d-44f9-8a61-0cfd4d241d5e). PARAMS: ?expand will show data contents (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
     lookup_field = 'uuid'
@@ -249,7 +261,7 @@ class DataNodeViewSet(SelectableSerializerModelViewSet):
         return super(DataNodeViewSet, self).get_serializer_class()
     
 
-class TaskViewSet(SelectableSerializerModelViewSet):
+class TaskViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """A Task represents a specific combination of runtime environment, command, and inputs that describe a reproducible unit of analysis. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
     lookup_field = 'uuid'
@@ -261,7 +273,7 @@ class TaskViewSet(SelectableSerializerModelViewSet):
     }
 
 
-class TaskAttemptViewSet(SelectableSerializerModelViewSet):
+class TaskAttemptViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """A TaskAttempt represents a single attempt at executing a Task. A Task may have multiple TaskAttempts due to retries. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?url will show only the url and uuid fields (for testing only). DETAIL_ROUTES: "fail" will set a run to failed status. "finish" will set a run to finished status. "log-files" can be used to POST a new LogFile. "events" can be used to POST a new event. "settings" can be used to get settings for loom-task-monitor.
     """
     lookup_field = 'uuid'
@@ -353,7 +365,7 @@ class TaskAttemptViewSet(SelectableSerializerModelViewSet):
         }, status=200)
 
 
-class TemplateViewSet(SelectableSerializerModelViewSet):
+class TemplateViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """A Template is a pattern for analysis to be performed, but without assigned inputs. Templates can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, and environment. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
     lookup_field = 'uuid'
@@ -483,7 +495,7 @@ class TemplateViewSet(SelectableSerializerModelViewSet):
         return JsonResponse(dependencies, status=200)
 
 
-class RunViewSet(SelectableSerializerModelViewSet):
+class RunViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """A Run represents the execution of a Template on a specific set of inputs. Runs can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, environment, and tasks. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
     """
     lookup_field = 'uuid'
@@ -624,7 +636,7 @@ class RunViewSet(SelectableSerializerModelViewSet):
         return JsonResponse(dependencies, status=200)
 
 
-class TaskAttemptLogFileViewSet(SelectableSerializerModelViewSet):
+class TaskAttemptLogFileViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """LogFiles represent the logs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating a LogFile without updating the full TaskAttempt. DETAIL_ROUTES: "data-object" allows you to post the file DataObject for the LogFile.
     """
     lookup_field = 'uuid'
@@ -668,7 +680,7 @@ class TaskAttemptLogFileViewSet(SelectableSerializerModelViewSet):
         return JsonResponse(s.data, status=201)
 
 
-class TaskAttemptOutputViewSet(SelectableSerializerModelViewSet):
+class TaskAttemptOutputViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
     """Outputs represent the outputs for TaskAttempts. The same data is available in the TaskAttempt endpoint. This endpoint is to allow updating an Output without updating the full TaskAttempt.
     """
     lookup_field = 'uuid'

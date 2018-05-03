@@ -119,7 +119,7 @@ INTERNAL_STORAGE_ROOT = os.path.expanduser(
     os.getenv('LOOM_INTERNAL_STORAGE_ROOT', STORAGE_ROOT))
 STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(STORAGE_ROOT)
 INTERNAL_STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(INTERNAL_STORAGE_ROOT)
-DELETE_DISABLED = to_boolean(os.getenv('LOOM_DELETE_DISABLED', 'False'))
+DISABLE_DELETE = to_boolean(os.getenv('LOOM_DISABLE_DELETE', 'False'))
 FORCE_RERUN = to_boolean(os.getenv('LOOM_FORCE_RERUN', 'False'))
 
 TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60'))
@@ -177,8 +177,6 @@ def _get_ansible_inventory():
 
 ANSIBLE_INVENTORY = _get_ansible_inventory()
 LOOM_SSH_PRIVATE_KEY_PATH = os.getenv('LOOM_SSH_PRIVATE_KEY_PATH')
-
-KEEP_DUPLICATE_FILES = True
 
 # For testing only
 TEST_DISABLE_ASYNC_DELAY = to_boolean(os.getenv('TEST_DISABLE_ASYNC_DELAY', False))
