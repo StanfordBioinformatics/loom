@@ -137,8 +137,7 @@
       LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
     volumes: "{{[
       server_settings_home+':'+container_settings_home,
-      '/var/run/docker.sock:/var/run/docker.sock' if loom_remote_user is not defined,
-      '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if loom_remote_user is defined,
+      '/var/run/docker.sock:/var/run/docker.sock',
       storage_root~':'~internal_storage_root if storage_type == 'local']
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\

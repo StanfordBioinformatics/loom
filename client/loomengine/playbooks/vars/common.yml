@@ -134,3 +134,7 @@ task_attempt_container_name: "{{server_name|truncate(55,true,'')}}-monitor"
 # Google Cloud storage settings
 google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
 gce_project: "{{lookup('env','GCE_PROJECT')}}"
+
+# SSH
+ssh_private_key_name: "{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')|default('loom_id_rsa', true)}}"
+ansible_ssh_private_key_file: "{{lookup('env', 'HOME')}}/.ssh/{{ssh_private_key_name}}"
