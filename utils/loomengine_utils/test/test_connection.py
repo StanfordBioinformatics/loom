@@ -6,7 +6,7 @@ import unittest
 import warnings
 
 from loomengine_utils import connection
-from loomengine_utils.connection import ServerConnectionError, ResourceCountError
+from loomengine_utils.exceptions import ServerConnectionError, ResourceCountError
 
 class MockRoute:
     def __init__(self, route_regex, method, response, params=None):
@@ -715,25 +715,11 @@ class TestConnection(unittest.TestCase):
         response_data = self.connection.get_info()
         self.assertEqual(response_data, default_response_data)
 
-    def testGetInfoConnectionFailed(self):
-        def _connection_failed():
-            raise ServerConnectionError
-        self.connection._get = lambda x, timeout=30: _connection_failed()
-        info = self.connection.get_info()
-        self.assertIsNone(info)
-
     def testGetVersion(self):
         self.connection.add_route('info/', 'GET',
                                   content={"version":"123"}, status_code=200)
         version = self.connection.get_version()
         self.assertEqual(version, '123')
-
-    def testGetVersionConnectionFailed(self):
-        def _connection_failed():
-            raise ServerConnectionError
-        self.connection._get = lambda x, timeout=30: _connection_failed()
-        version = self.connection.get_version()
-        self.assertIsNone(version)
 
     def testGetStorageSettings(self):
         self.connection.add_route('storage-settings/', 'GET')

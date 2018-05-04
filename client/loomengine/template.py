@@ -72,12 +72,15 @@ class TemplateImport(AbstractTemplateSubcommand):
         try:
             for template_file in FileSet(
                     self.args.template, self.storage_settings, retry=self.args.retry):
-                template = self.import_manager.import_template(
-                    template_file,
-                    comments=self.args.comments,
-                    force_duplicates=self.args.force_duplicates,
-                    retry=self.args.retry,
-                    link_files=self.args.link_files)
+                try:
+                    template = self.import_manager.import_template(
+                        template_file,
+                        comments=self.args.comments,
+                        force_duplicates=self.args.force_duplicates,
+                        retry=self.args.retry,
+                        link_files=self.args.link_files)
+                except LoomengineUtilsError as e:
+                    raise SystemExit("ERROR! Failed to import template: '%s'" % e)
                 self._apply_tags(template)
                 self._apply_labels(template)
                 imported_templates.append(template)
@@ -90,7 +93,11 @@ class TemplateImport(AbstractTemplateSubcommand):
             return
         for tagname in self.args.tag:
             tag_data = {'tag': tagname}
-            tag = self.connection.post_template_tag(template.get('uuid'), tag_data)
+            try:
+                tag = self.connection.post_template_tag(
+                    template.get('uuid'), tag_data)
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
             print 'Template "%s@%s" has been tagged as "%s"' % \
                 (template.get('name'),
                  template.get('uuid'),
@@ -101,8 +108,11 @@ class TemplateImport(AbstractTemplateSubcommand):
             return
         for labelname in self.args.label:
             label_data = {'label': labelname}
-            label = self.connection.post_template_label(
-                template.get('uuid'), label_data)
+            try:
+                label = self.connection.post_template_label(
+                    template.get('uuid'), label_data)
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to create label: '%s'" % e)
             print 'Template "%s@%s" has been labeled as "%s"' % \
                 (template.get('name'),
                  template.get('uuid'),
@@ -144,9 +154,12 @@ class TemplateExport(AbstractTemplateSubcommand):
             offset = 0
             limit = 10
             while True:
-                data = self.connection.get_template_index_with_limit(
-                    limit=limit, offset=offset,
-                    query_string=template_id)
+                try:
+                    data = self.connection.get_template_index_with_limit(
+                        limit=limit, offset=offset,
+                        query_string=template_id)
+                except LoomengineUtilsError as e:
+                    raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
                 for template in data['results']:
                     found_at_least_one_match = True
                     if template.get('uuid') not in template_uuids:
@@ -159,21 +172,27 @@ class TemplateExport(AbstractTemplateSubcommand):
             if not found_at_least_one_match:
                 raise SystemExit('ERROR! No templates matched "%s"' % template_id)
         if len(templates) > 1:
-            return self.export_manager.bulk_export_templates(
-                templates,
-                destination_directory=self.args.destination_directory,
-                retry=self.args.retry,
-                link_files=self.args.link_files,
-                editable=self.args.editable
+            try:
+                return self.export_manager.bulk_export_templates(
+                    templates,
+                    destination_directory=self.args.destination_directory,
+                    retry=self.args.retry,
+                    link_files=self.args.link_files,
+                    editable=self.args.editable
                 )
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to export templates: '%s'" % e)
         else:
-            return self.export_manager.export_template(
-                templates[0],
-                destination_directory=self.args.destination_directory,
-                retry=self.args.retry,
-                link_files=self.args.link_files,
-                editable=self.args.editable
-            )
+            try:
+                return self.export_manager.export_template(
+                    templates[0],
+                    destination_directory=self.args.destination_directory,
+                    retry=self.args.retry,
+                    link_files=self.args.link_files,
+                    editable=self.args.editable
+                )
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to export template: '%s'" % e)
 
 
 class TemplateList(AbstractTemplateSubcommand):
@@ -206,11 +225,14 @@ class TemplateList(AbstractTemplateSubcommand):
         offset=0
         limit=10
         while True:
-            data = self.connection.get_template_index_with_limit(
-                labels=self.args.label,
-                limit=limit, offset=offset,
-                query_string=self.args.template_id,
-                parent_only=parent_only)
+            try:
+                data = self.connection.get_template_index_with_limit(
+                    labels=self.args.label,
+                    limit=limit, offset=offset,
+                    query_string=self.args.template_id,
+                    parent_only=parent_only)
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
             if offset == 0:
                 print '[showing %s templates]' % data.get('count')
             self._list_templates(data['results'])
@@ -266,9 +288,12 @@ class TemplateDelete(AbstractTemplateSubcommand):
         return parser
 
     def run(self):
-        data = self.connection.get_template_index(
-            query_string = self.args.template_id,
-            min=1, max=1)
+        try:
+            data = self.connection.get_template_index(
+                query_string = self.args.template_id,
+                min=1, max=1)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
         self._delete_template(data[0])
 
     def _delete_template(self, template):
@@ -278,11 +303,14 @@ class TemplateDelete(AbstractTemplateSubcommand):
         template_children_to_delete = []
         if not self.args.keep_children and template.get('steps'):
             for step in template.get('steps'):
-                template_children_to_delete.append(
-                    self.connection.get_template_index(
-                        query_string='@%s' % step['uuid'],
-                        min=1, max=1)[0]
-                )
+                try:
+                    template_children_to_delete.append(
+                        self.connection.get_template_index(
+                            query_string='@%s' % step['uuid'],
+                            min=1, max=1)[0]
+                    )
+                except LoomengineUtilsError as e:
+                    raise SystemExit("ERROR! Failed to get template: '%s'" % e)
         if not self.args.yes:
             user_input = raw_input(
                 'Do you really want to permanently delete template "%s"?\n'\
@@ -294,10 +322,16 @@ class TemplateDelete(AbstractTemplateSubcommand):
                 pass
             else:
                 raise SystemExit('Unrecognized response "%s"' % user_input)
-        dependencies = self.connection.get_template_dependencies(
-            template.get('uuid'))
+        try:
+            dependencies = self.connection.get_template_dependencies(
+                template.get('uuid'))
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get template dependencies: '%s'" % e)
         if len(dependencies['runs']) == 0 and len(dependencies['templates']) == 0:
-            self.connection.delete_template(template.get('uuid'))
+            try:
+                self.connection.delete_template(template.get('uuid'))
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to delete template: '%s'" % e)
 	    print "Deleted template %s" % template_id
         else:
             print "Cannot delete template %s because it is still in use. "\

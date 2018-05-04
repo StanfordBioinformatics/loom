@@ -12,6 +12,7 @@ from loomengine import server
 from loomengine.common import verify_has_connection_settings, \
     get_server_url, verify_server_is_running, get_token
 from loomengine_utils.connection import Connection
+from loomengine_utils.exceptions import LoomengineUtilsError
 
 
 class RunLabelAdd(object):
@@ -52,12 +53,18 @@ class RunLabelAdd(object):
         return parser
 
     def run(self):
-        runs = self.connection.get_run_index(
-            min=1, max=1,
-            query_string=self.args.target)
+        try:
+            runs = self.connection.get_run_index(
+                min=1, max=1,
+                query_string=self.args.target)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
 
         label_data = {'label': self.args.label}
-        label = self.connection.post_run_label(runs[0]['uuid'], label_data)
+        try:
+            label = self.connection.post_run_label(runs[0]['uuid'], label_data)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to create label: '%s'" % e)
         print 'Target "%s@%s" has been labeled as "%s"' % \
             (runs[0].get('name'),
              runs[0].get('uuid'),
@@ -97,12 +104,17 @@ class RunLabelRemove(object):
         return parser
 
     def run(self):
-        runs = self.connection.get_run_index(
-            min=1, max=1,
-            query_string=self.args.target)
-
+        try:
+            runs = self.connection.get_run_index(
+                min=1, max=1,
+                query_string=self.args.target)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
         label_data = {'label': self.args.label}
-        label = self.connection.remove_run_label(runs[0]['uuid'], label_data)
+        try:
+            label = self.connection.remove_run_label(runs[0]['uuid'], label_data)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to remove label: '%s'" % e)
         print 'Label %s has been removed from run "%s@%s"' % \
             (label.get('label'),
              runs[0].get('name'),
@@ -141,16 +153,25 @@ class RunLabelList(object):
 
     def run(self):
         if self.args.target:
-            runs = self.connection.get_run_index(
-                min=1, max=1,
-                query_string=self.args.target)
-            label_data = self.connection.list_run_labels(runs[0]['uuid'])
+            try:
+                runs = self.connection.get_run_index(
+                    min=1, max=1,
+                    query_string=self.args.target)
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+            try:
+                label_data = self.connection.list_run_labels(runs[0]['uuid'])
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
             labels = label_data.get('labels', [])
             print '[showing %s labels]' % len(labels)
             for label in labels:
                 print label
         else:
-            label_list = self.connection.get_run_label_index()
+            try:
+                label_list = self.connection.get_run_label_index()
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
             label_counts = {}
             for item in label_list:
                 label_counts.setdefault(item.get('label'), 0)

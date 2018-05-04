@@ -6,18 +6,12 @@ from requests.exceptions import HTTPError
 import warnings
 import yaml
 
-from .exceptions import LoomengineUtilsError
+from .exceptions import LoomengineUtilsError, ImportManagerError, FileDuplicateError
 from .file_utils import File, FileSet, parse_as_yaml
 from .connection import ServerConnectionError
 from oauth2client.client import ApplicationDefaultCredentialsError
 
 logger = logging.getLogger(__name__)
-
-class ImportManagerError(LoomengineUtilsError):
-    pass
-
-class FileDuplicateError(ImportManagerError):
-    pass
 
 
 class DependencyNode(object):

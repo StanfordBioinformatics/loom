@@ -4,14 +4,10 @@ import logging
 import os
 import yaml
 
-from .exceptions import LoomengineUtilsError
+from .exceptions import LoomengineUtilsError, ExportManagerError
 from .file_utils import File
 
 logger = logging.getLogger(__name__)
-
-
-class ExportManagerError(LoomengineUtilsError):
-    pass
 
 
 class ExportManager(object):

@@ -26,13 +26,9 @@ class TestRunner(object):
         # Map user input command to method
         commands = {
             'unit': self.unit_tests,
-            'profile': self.profile_test,
             'integration': self.integration_test,
         }
         self.run = commands[self.args.command]
-
-    def profile_test(self):
-        raise SystemExit('TODO')
 
     def integration_test(self):
         self._find_or_start_server()
@@ -45,9 +41,9 @@ class TestRunner(object):
         self._cleanup_server()
 
         if failure:
-            raise SystemExit(e.message)
+            raise SystemExit("TEST FAILED: %s" % e)
 
-        print "Test passed"
+        print "TEST PASSED"
 
     def _run_integration_test(self):
         loom_executable = sys.argv[0]
@@ -60,7 +56,7 @@ class TestRunner(object):
                            '--force-duplicates']
         (returncode, stdout) = self._run_command(import_file_cmd)
         if returncode != 0:
-            raise IntegrationTestFailure('ERROR: Failed to import file.')
+            raise IntegrationTestFailure('ERROR! Failed to import file.')
         match = re.search(r'[a-zA-Z0-9\.\-\_]*@[a-z0-9\-]*', stdout)
         if not match:
             raise IntegrationTestFailure('Could not find id of imported file')
@@ -71,19 +67,19 @@ class TestRunner(object):
                                '--force-duplicates']
         (returncode, stdout) = self._run_command(import_template_cmd)
         if returncode != 0:
-            raise IntegrationTestFailure('ERROR: Failed to import template.')
+            raise IntegrationTestFailure('ERROR! Failed to import template.')
         match = re.search(r'[a-zA-Z0-9\.\-\_]*@[a-z0-9\-]*', stdout)
         if not match:
-            raise IntegrationTestFailure('ERROR: Could not find id of imported template')
+            raise IntegrationTestFailure('ERROR! Could not find id of imported template')
         template_id = match.group()
 
         run_cmd = [loom_executable, 'run', 'start', template_id, 'message=%s' % file_id]
         (returncode, stdout) = self._run_command(run_cmd)
         if returncode != 0:
-            raise IntegrationTestFailure('ERROR: Failed to execute run.')
+            raise IntegrationTestFailure('ERROR! Failed to execute run.')
         match = re.search(r'[a-zA-Z0-9\.\-\_]*@[a-z0-9\-]*', stdout)
         if not match:
-            raise IntegrationTestFailure('ERROR: Could not find id of run')
+            raise IntegrationTestFailure('ERROR! Could not find id of run')
         run_id = match.group()
 
         self._wait_for_run(run_id)
@@ -100,7 +96,7 @@ class TestRunner(object):
             p.wait()
             if not p.returncode == 0:
                 raise IntegrationTestFailure(
-                    'ERROR: "loom run list" command failed.')
+                    'ERROR! "loom run list" command failed.')
             (stdout, stderr) = p.communicate()
             match = re.search(r'Run: .* \(([a-zA-Z0-9_\-]*)\)', stdout)
             if match:
@@ -110,9 +106,9 @@ class TestRunner(object):
                     # success
                     return
                 elif status not in ['Running', 'Waiting']:
-                    raise IntegrationTestFailure('Unexpected run status: %s' % status)
+                    raise IntegrationTestFailure('ERROR! Unexpected run status: %s' % status)
             time.sleep(sleep_interval_seconds)
-        raise IntegrationTestFailure('ERROR: Test timed out after %s seconds' % timeout)
+        raise IntegrationTestFailure('ERROR! Test timed out after %s seconds' % timeout)
 
     def _run_command(self, cmd, display=True):
         stdout=''
@@ -163,7 +159,7 @@ class TestRunner(object):
                '-e' 'LOOM_SERVER_NAME=%s' % self._started_new_server_named]
         returncode = subprocess.call(cmd, env=os.environ)
         if not returncode == 0:
-            raise SystemExit('ERROR: Failed to start server')
+            raise SystemExit('ERROR! Failed to start server')
 
     def _cleanup_server(self):
         if self._started_new_server_named:

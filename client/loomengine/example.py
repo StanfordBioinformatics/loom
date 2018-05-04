@@ -54,7 +54,10 @@ class ExampleExport(object):
         if os.path.exists(target_dir):
             raise SystemExit(
                 'ERROR! Target directory already exists: %s' % target_dir)
-        shutil.copytree(example_path, target_dir)
+        try:
+            shutil.copytree(example_path, target_dir)
+        except Exception as e:
+            raise SystemExit('Error exporting example to "%s": %s' % (target_dir, e))
         print 'Exported example "%s"\n    to "%s"' % \
             (os.path.basename(example_path), target_dir)
 

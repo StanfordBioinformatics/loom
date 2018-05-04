@@ -12,7 +12,7 @@ from loomengine import server
 from loomengine.common import verify_has_connection_settings, \
     get_server_url, verify_server_is_running, get_token
 from loomengine_utils.connection import Connection
-
+from loomengine_utils.exceptions import LoomengineUtilsError
 
 class FileLabelAdd(object):
     """Add a new file labels
@@ -52,12 +52,17 @@ class FileLabelAdd(object):
         return parser
 
     def run(self):
-        files = self.connection.get_data_object_index(
-            min=1, max=1,
-            query_string=self.args.target, type='file')
-
+        try:
+            files = self.connection.get_data_object_index(
+                min=1, max=1,
+                query_string=self.args.target, type='file')
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
         label_data = {'label': self.args.label}
-        label = self.connection.post_data_label(files[0]['uuid'], label_data)
+        try:
+            label = self.connection.post_data_label(files[0]['uuid'], label_data)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to create label: '%s'" % e)
         print 'Target "%s@%s" has been labeled as "%s"' % \
             (files[0]['value'].get('filename'),
              files[0].get('uuid'),
@@ -97,12 +102,17 @@ class FileLabelRemove(object):
         return parser
 
     def run(self):
-        files = self.connection.get_data_object_index(
-            min=1, max=1,
-            query_string=self.args.target, type='file')
-
+        try:
+            files = self.connection.get_data_object_index(
+                min=1, max=1,
+                query_string=self.args.target, type='file')
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
         label_data = {'label': self.args.label}
-        label = self.connection.remove_data_label(files[0]['uuid'], label_data)
+        try:
+            label = self.connection.remove_data_label(files[0]['uuid'], label_data)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to remove label: '%s'" % e)
         print 'Label %s has been removed from file "%s@%s"' % \
             (label.get('label'),
              files[0]['value'].get('filename'),
@@ -141,16 +151,25 @@ class FileLabelList(object):
 
     def run(self):
         if self.args.target:
-            files = self.connection.get_data_object_index(
-                min=1, max=1,
-                query_string=self.args.target, type='file')
-            label_data = self.connection.list_data_labels(files[0]['uuid'])
+            try:
+                files = self.connection.get_data_object_index(
+                    min=1, max=1,
+                    query_string=self.args.target, type='file')
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
+            try:
+                label_data = self.connection.list_data_labels(files[0]['uuid'])
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
             labels = label_data.get('labels', [])
             print '[showing %s labels]' % len(labels)
             for label in labels:
                 print label
         else:
-            label_list = self.connection.get_data_label_index()
+            try:
+                label_list = self.connection.get_data_label_index()
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
             label_counts = {}
             for item in label_list:
                 label_counts.setdefault(item.get('label'), 0)

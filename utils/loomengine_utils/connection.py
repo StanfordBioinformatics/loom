@@ -6,14 +6,8 @@ import requests
 import time
 import urllib
 
-from .exceptions import LoomengineUtilsError
-
-class ServerConnectionError(LoomengineUtilsError):
-    pass
-
-class ResourceCountError(LoomengineUtilsError):
-    pass
-
+from .exceptions import LoomengineUtilsError, ServerConnectionError, \
+    ServerConnectionHttpError, ResourceCountError
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +128,7 @@ class Connection(object):
                 try:
                     response.raise_for_status()
                 except requests.exceptions.HTTPError as e:
-                    raise ServerConnectionError(response.text)
+                    raise ServerConnectionHttpError(e)
             if error:
                 time.sleep(retry_delay_seconds)
                 continue
@@ -545,20 +539,12 @@ class Connection(object):
     def get_info(self):
         """Return server info if available, else return None
         """
-        try:
-            response = self._get('info/', timeout=5)
-        except ServerConnectionError:
-            return None
-        try:
-            info = response.json()
-        except ValueError:
-            info = None
+        response = self._get('info/', timeout=5)
+        info = response.json()
         return info
 
     def get_version(self):
         info = self.get_info()
-        if not info:
-            return None
         return info.get('version')
 
     def get_storage_settings(self):

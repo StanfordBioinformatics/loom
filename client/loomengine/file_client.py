@@ -86,7 +86,7 @@ class FileImport(AbstractFileSubcommand):
                              'Try again, and consider using "--retry", especially '\
                              'if this step is automated. Original error: "%s"' % e)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! %s" % e.message)
+            raise SystemExit("ERROR! Failed to import files: '%s'" % e)
         self._apply_tags(files_imported)
         self._apply_labels(files_imported)
         return files_imported
@@ -101,8 +101,11 @@ class FileImport(AbstractFileSubcommand):
         else:
             for tagname in self.args.tag:
                 tag_data = {'tag': tagname}
-                tag = self.connection.post_data_tag(
-                    files_imported[0].get('uuid'), tag_data)
+                try:
+                    tag = self.connection.post_data_tag(
+                        files_imported[0].get('uuid'), tag_data)
+                except LoomengineUtilsError as e:
+                    raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
                 print 'File "%s@%s" has been tagged as "%s"' % \
                     (files_imported[0]['value'].get('filename'),
                      files_imported[0].get('uuid'),
@@ -114,8 +117,11 @@ class FileImport(AbstractFileSubcommand):
         for labelname in self.args.label:
             for file_imported in files_imported:
                 label_data = {'label': labelname}
-                label = self.connection.post_data_label(
-                    file_imported.get('uuid'), label_data)
+                try:
+                    label = self.connection.post_data_label(
+                        file_imported.get('uuid'), label_data)
+                except LoomengineUtilsError as e:
+                    raise SystemExit("ERROR! Failed to create label: '%s'" % e)
                 print 'File "%s@%s" has been labeled as "%s"' % \
                     (file_imported['value'].get('filename'),
                      file_imported.get('uuid'),
@@ -160,9 +166,13 @@ class FileExport(AbstractFileSubcommand):
             offset = 0
             limit = 10
             while True:
-                data = self.connection.get_data_object_index_with_limit(
-		    limit=limit, offset=offset,
-                    query_string=file_id, type='file')
+                try:
+                    data = self.connection.get_data_object_index_with_limit(
+		        limit=limit, offset=offset,
+                        query_string=file_id, type='file')
+                except LoomengineUtilsError as e:
+                    raise SystemExit(
+                        "ERROR! Failed to get data object list: '%s'" % e)
                 for data_object in data['results']:
                     found_at_least_one_match = True
                     if data_object.get('uuid') not in file_uuids:
@@ -176,21 +186,27 @@ class FileExport(AbstractFileSubcommand):
                 raise SystemExit('ERROR! No files matched "%s"' % file_id)
         try:
             if len(files) > 1:
-                self.export_manager.bulk_export_files(
-                    files,
-                    destination_directory=self.args.destination_directory,
-                    retry=self.args.retry,
-                    export_metadata=not self.args.no_metadata,
-                    link_files=self.args.link,
-                )
+                try:
+                    self.export_manager.bulk_export_files(
+                        files,
+                        destination_directory=self.args.destination_directory,
+                        retry=self.args.retry,
+                        export_metadata=not self.args.no_metadata,
+                        link_files=self.args.link,
+                    )
+                except LoomengineUtilsError as e:
+                    raise SystemExit("ERROR! Failed to export files: '%s'" % e)
             else:
-                self.export_manager.export_file(
-                    files[0],
-                    destination_directory=self.args.destination_directory,
-                    retry=self.args.retry,
-                    export_metadata=not self.args.no_metadata,
-                    export_raw_file=not self.args.link,
-                )
+                try:
+                    self.export_manager.export_file(
+                        files[0],
+                        destination_directory=self.args.destination_directory,
+                        retry=self.args.retry,
+                        export_metadata=not self.args.no_metadata,
+                        export_raw_file=not self.args.link,
+                    )
+                except LoomengineUtilsError as e:
+                    raise SystemExit("ERROR! Failed to export files: '%s'" % e)
         except APIError as e:
             raise SystemExit('ERROR! An external API failed. This may be transient. '\
                              'Try again, and consider using "--retry", especially '\
@@ -237,10 +253,13 @@ class FileList(object):
         offset=0
         limit=10
         while True:
-            data = self.connection.get_data_object_index_with_limit(
-                limit=limit, offset=offset,
-                query_string=self.args.file_id, source_type=source_type,
-                labels=self.args.label, type='file')
+            try:
+                data = self.connection.get_data_object_index_with_limit(
+                    limit=limit, offset=offset,
+                    query_string=self.args.file_id, source_type=source_type,
+                    labels=self.args.label, type='file')
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
             if offset == 0:
                 print '[showing %s files]' % data.get('count')
             self._list_files(data['results'])
@@ -300,9 +319,12 @@ class FileDelete(AbstractFileSubcommand):
         return parser
 
     def run(self):
-        data = self.connection.get_data_object_index(
+        try:
+            data = self.connection.get_data_object_index(
                 query_string=self.args.file_id,
                 type='file', min=1, max=1)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
         self._delete_file(data[0])
 
     def _delete_file(self, file_data_object):
@@ -320,17 +342,24 @@ class FileDelete(AbstractFileSubcommand):
                 pass
             else:
                 raise SystemExit('ERROR! Unrecognized response "%s"' % user_input)
-        dependencies = self.connection.get_data_object_dependencies(
-            file_data_object['uuid'])
+        try:
+            dependencies = self.connection.get_data_object_dependencies(
+                file_data_object['uuid'])
+        except LoomengineUtilsError as e:
+            raise SystemExit(
+                "ERROR! Failed to get data object dependencies: '%s'" % e)
         if len(dependencies['runs']) == 0 and len(dependencies['templates']) == 0:
-            self.connection.delete_data_object(file_data_object.get('uuid'))
+            try:
+                self.connection.delete_data_object(file_data_object.get('uuid'))
+            except LoomengineUtilsError as e:
+                raise SystemExit("ERROR! Failed to delete data object: '%s'" % e)
             print "Deleted file %s" % file_id
         else:
-            print "ERROR! You cannot delete file %s "\
+            raise SystemExit("ERROR! You cannot delete file %s "\
                 "because it is still in use. "\
                 "You must delete the following objects "\
-                "before deleting this file." % file_id
-            print self._render_file_dependencies(dependencies)
+                "before deleting this file:\n\n%s" % (
+                    file_id, self._render_file_dependencies(dependencies)))
 
     def _render_file_dependencies(self, dependencies):
         text = ''

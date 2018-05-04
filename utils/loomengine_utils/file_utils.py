@@ -19,7 +19,8 @@ import yaml
 
 from . import execute_with_retries
 from . import md5calc
-from .exceptions import LoomengineUtilsError, APIError
+from .exceptions import LoomengineUtilsError, APIError, FileUtilsError, \
+    Md5ValidationError, UrlValidationError, InvalidYamlError, NoFileError
 from .connection import Connection
 
 # Google Storage JSON API imports
@@ -28,21 +29,6 @@ from oauth2client.client import ApplicationDefaultCredentialsError
 import apiclient.discovery
 
 logger = logging.getLogger(__name__)
-
-class FileUtilsError(LoomengineUtilsError):
-    pass
-
-class Md5ValidationError(FileUtilsError):
-    pass
-
-class UrlValidationError(FileUtilsError):
-    pass
-
-class InvalidYamlError(FileUtilsError):
-    pass
-
-class NoFileError(FileUtilsError):
-    pass
 
 def parse_as_yaml(text):
     try:

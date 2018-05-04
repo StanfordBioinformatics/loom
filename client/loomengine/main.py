@@ -6,7 +6,8 @@ import sys
 
 from loomengine.common import get_server_url, has_connection_settings, is_server_running
 import loomengine_utils.version
-from loomengine_utils.connection import Connection
+from loomengine_utils.connection import Connection, ServerConnectionError, ServerConnectionHttpError
+from loomengine_utils.exceptions import LoomengineUtilsError
 
 if __name__ == "__main__" and __package__ is None:
     rootdir=os.path.abspath('../..')
@@ -29,11 +30,15 @@ class Version(argparse.Action):
             server_version = 'not connected'
         else:
             url = get_server_url()
-            if not is_server_running(url=url):
-                server_version = 'no response'
-            else:
-                connection = Connection(url)
+            connection = Connection(url)
+            try:
                 server_version = connection.get_version()
+            except ServerConnectionHttpError as e:
+                server_version = '[server error! %s]' % e
+            except ServerConnectionError:
+                server_version = '[no response]'
+            except LoomengineUtilsError as e:
+                server_version = '[client error! %s]' % e
 
         print "client version: %s" % loomengine_utils.version.version()
         print "server version: %s" % server_version

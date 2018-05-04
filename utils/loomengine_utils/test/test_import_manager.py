@@ -9,6 +9,7 @@ import yaml
 
 from loomengine_utils import import_manager, file_utils
 from loomengine_utils.connection import Connection
+from loomengine_utils.exceptions import ImportManagerError
 from loomengine_utils.test.test_connection \
     import MockConnection, default_response_data
 
@@ -107,7 +108,7 @@ class TestImportManager(unittest.TestCase):
         metadata_path = os.path.join(self.source_directory, 'test.metadata.yaml')
         with open(metadata_path, 'w') as f:
             f.write('- not a\nvalid yaml')
-        with self.assertRaises(import_manager.ImportManagerError):
+        with self.assertRaises(ImportManagerError):
             metadata = self.import_manager._get_file_metadata('file://'+metadata_path)
 
     def testImportFile(self):
@@ -176,7 +177,7 @@ class TestImportManager(unittest.TestCase):
     def testGetSourceFileFromMetadataNegInvalidMetadata(self):
         original_source_url = '/path/to/file'
         metadata = {'value': {}}
-        with self.assertRaises(import_manager.ImportManagerError):
+        with self.assertRaises(ImportManagerError):
             result = self.import_manager._get_source_file_from_metadata(
                 original_source_url, metadata)
         
@@ -307,7 +308,7 @@ class TestImportManager(unittest.TestCase):
         source_path = os.path.join(self.source_directory, 'file0.txt')
         source = file_utils.File(source_path, {})
         metadata = {'value': {'md5': '123'}}
-        with self.assertRaises(import_manager.ImportManagerError):
+        with self.assertRaises(ImportManagerError):
             file_data_object = self.import_manager._render_file_data_object_dict(
                 source, None, metadata=metadata)
 
