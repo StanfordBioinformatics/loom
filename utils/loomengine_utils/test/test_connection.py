@@ -79,7 +79,8 @@ class MockConnection(connection.Connection):
                 % (request.method, request.url, request.params,
                    request.data, request.auth))
 
-    def _get(self, relative_url, raise_for_status=True, params=None, auth=None):
+    def _get(self, relative_url, raise_for_status=True,
+             params=None, auth=None, timeout=30):
         if params == {}:
             # For MockRoutes, it is standard to use params=None, but
             # some Connection methods  set it to {}, so we standardize it here.
@@ -87,19 +88,19 @@ class MockConnection(connection.Connection):
         request = self._add_request(relative_url, 'GET', params=params, auth=auth)
         return self._get_response(request)
 
-    def _post(self, data, relative_url, auth=None):
+    def _post(self, data, relative_url, auth=None, timeout=30):
         request = self._add_request(relative_url, 'POST', data=data, auth=auth)
         return self._get_response(request)
 
-    def _put(self, data, relative_url, auth=None):
+    def _put(self, data, relative_url, auth=None, timeout=30):
         request = self._add_request(relative_url, 'PUT', data=data, auth=auth)
         return self._get_response(request)
 
-    def _patch(self, data, relative_url, auth=None):
+    def _patch(self, data, relative_url, auth=None, timeout=30):
         request = self._add_request(relative_url, 'PATCH', data=data, auth=auth)
         return self._get_response(request)
 
-    def _delete(self, relative_url, raise_for_status=True, auth=None):
+    def _delete(self, relative_url, raise_for_status=True, auth=None, timeout=30):
         request = self._add_request(relative_url, 'DELETE', auth=auth)
         return self._get_response(request)
 
@@ -717,7 +718,7 @@ class TestConnection(unittest.TestCase):
     def testGetInfoConnectionFailed(self):
         def _connection_failed():
             raise ServerConnectionError
-        self.connection._get = lambda x: _connection_failed()
+        self.connection._get = lambda x, timeout=30: _connection_failed()
         info = self.connection.get_info()
         self.assertIsNone(info)
 
@@ -730,7 +731,7 @@ class TestConnection(unittest.TestCase):
     def testGetVersionConnectionFailed(self):
         def _connection_failed():
             raise ServerConnectionError
-        self.connection._get = lambda x: _connection_failed()
+        self.connection._get = lambda x, timeout=30: _connection_failed()
         version = self.connection.get_version()
         self.assertIsNone(version)
 
