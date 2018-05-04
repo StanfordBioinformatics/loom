@@ -40,7 +40,7 @@ class Connection(object):
             headers['Authorization'] = 'Token %s' % self.token
         return headers
 
-    def _post(self, data, relative_url, auth=None):
+    def _post(self, data, relative_url, auth=None, timeout=30):
         url = self.api_root_url + relative_url
         if not self.verify:
             disable_insecure_request_warning()
@@ -52,9 +52,10 @@ class Connection(object):
                     {'content-type': 'application/json'}),
                 verify=self.verify,
                 auth=auth,
+                timeout=timeout
             ))
 
-    def _put(self, data, relative_url):
+    def _put(self, data, relative_url, timeout=30):
         url = self.api_root_url + relative_url
         if not self.verify:
             disable_insecure_request_warning()
@@ -64,9 +65,10 @@ class Connection(object):
                 data=json.dumps(data),
                 headers=self._add_auth_token_to_headers(
                     {'content-type': 'application/json'}),
-                verify=self.verify))
+                verify=self.verify,
+                timeout=timeout))
 
-    def _patch(self, data, relative_url):
+    def _patch(self, data, relative_url, timeout=30):
         url = self.api_root_url + relative_url
         if not self.verify:
             disable_insecure_request_warning()
@@ -76,9 +78,10 @@ class Connection(object):
                 data=json.dumps(data),
                 headers=self._add_auth_token_to_headers(
                     {'content-type': 'application/json'}),
-                verify=self.verify))
+                verify=self.verify,
+                timeout=timeout))
 
-    def _get(self, relative_url, raise_for_status=True, params=None):
+    def _get(self, relative_url, raise_for_status=True, params=None, timeout=30):
         if params is None:
             params = {}
         url = self.api_root_url + relative_url
@@ -89,10 +92,11 @@ class Connection(object):
                 url,
                 verify=self.verify, # Don't fail on unrecognized SSL certificate
                 params=params,
-                headers=self._add_auth_token_to_headers({})), 
+                headers=self._add_auth_token_to_headers({}),
+                timeout=timeout), 
             raise_for_status=raise_for_status)
 
-    def _delete(self, relative_url, raise_for_status=True):
+    def _delete(self, relative_url, raise_for_status=True, timeout=30):
         url = self.api_root_url + relative_url
         if not self.verify:
             disable_insecure_request_warning()
@@ -102,6 +106,7 @@ class Connection(object):
                 headers=self._add_auth_token_to_headers(
                     {'content-type': 'application/json'}),
                 verify=self.verify,
+                timeout=30
             ),
             raise_for_status=raise_for_status
         )
@@ -541,7 +546,7 @@ class Connection(object):
         """Return server info if available, else return None
         """
         try:
-            response = self._get('info/')
+            response = self._get('info/', timeout=5)
         except ServerConnectionError:
             return None
         try:
