@@ -1,4 +1,4 @@
-  - name: Create user and SSH key if they don't exist
+  - name: Create SSH key if it doesn't exist
     user: name={{ ansible_user_id }} generate_ssh_key=yes ssh_key_bits=2048 ssh_key_file={{ ansible_ssh_private_key_file }} ssh_key_type=rsa
   - name: Read SSH key and create a metadata file from it
     shell: "echo -n {{loom_remote_user}}: | cat - {{ansible_ssh_private_key_file}}.pub | cut -f1-2 -d' ' > {{settings_home}}/{{resource_dir}}/{{ansible_ssh_private_key_file|basename}}.pub.{{instance_name}}.metadata"
@@ -15,4 +15,4 @@
     wait_for: host={{ (use_internal_ip) | ternary(item.private_ip, item.public_ip) }} port=22 delay=10 timeout=300 search_regex=OpenSSH
     with_items: '{{ gce_result.instance_data }}'
   - name: Wait while ssh keys propagate to the instance
-    pause: seconds=5
+    pause: seconds=10

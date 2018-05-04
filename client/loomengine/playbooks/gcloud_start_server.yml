@@ -1,5 +1,5 @@
 ---
-- name: Create a new instance for the Loom server and configure SSH.
+- name: Create a new instance for the Loom server
   hosts: localhost
   connection: local
   vars_files:
