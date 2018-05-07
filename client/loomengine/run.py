@@ -13,6 +13,7 @@ from loomengine.common import get_server_url, \
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
 from loomengine_utils.exceptions import APIError, LoomengineUtilsError
+from loomengine_utils.connection import Connection
 from loomengine_utils.file_utils import FileSet
 from loomengine_utils.import_manager import ImportManager
 from loomengine_utils.export_manager import ExportManager
