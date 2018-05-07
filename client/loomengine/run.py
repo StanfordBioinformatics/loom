@@ -13,7 +13,6 @@ from loomengine.common import get_server_url, \
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
 from loomengine_utils.exceptions import APIError, LoomengineUtilsError
-from loomengine_utils.connection import Connection, ServerConnectionHttpError
 from loomengine_utils.file_utils import FileSet
 from loomengine_utils.import_manager import ImportManager
 from loomengine_utils.export_manager import ExportManager
@@ -88,10 +87,6 @@ class RunStart(AbstractRunSubcommand):
             run_data['name'] = self.args.name
         try:
             run = self.connection.post_run(run_data)
-        except ServerConnectionHttpError as e:
-            raise SystemExit(
-                "ERROR! Failed to start run: (%s) %s"
-                % (e.response.status_code, e.response.text))
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to start run: '%s'" % e)
         
@@ -261,10 +256,6 @@ class RunRestart(RunStart):
             run_data['name'] = self.args.name
         try:
             run = self.connection.post_run(run_data)
-        except ServerConnectionHttpError as e:
-            raise SystemExit(
-                "ERROR! Failed to restart run: (%s) %s"
-                % (e.response.status_code, e.response.text))
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to restart run: '%s'" % e)
         print 'Created run %s@%s' % (

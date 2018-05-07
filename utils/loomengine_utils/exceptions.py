@@ -8,11 +8,7 @@ class ServerConnectionError(LoomengineUtilsError):
     pass
 
 class ServerConnectionHttpError(ServerConnectionError):
-    def __init__(self, http_error):
-        super(ServerConnectionError, self).__init__(http_error)
-        self.request = http_error.request
-        self.response = http_error.response
-        self.message = http_error.response.text
+    pass
 
 class ResourceCountError(LoomengineUtilsError):
     pass

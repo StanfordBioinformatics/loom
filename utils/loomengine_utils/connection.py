@@ -128,7 +128,19 @@ class Connection(object):
                 try:
                     response.raise_for_status()
                 except requests.exceptions.HTTPError as e:
-                    raise ServerConnectionHttpError(e)
+                    if e.response.status_code >= 500:
+                        message = "(%s) %s" % (e.response.status_code, e)
+                        raise ServerConnectionHttpError(message)
+                    elif e.response.status_code >= 400:
+                        try:
+                            message = e.response.json()
+                        except:
+                            message = e.response.text
+                        if isinstance(message, list):
+                            message = '; '.join(message)
+                        raise ServerConnectionHttpError(message)
+                    else:
+                        raise ServerConnectionHttpError(str(e))
             if error:
                 time.sleep(retry_delay_seconds)
                 continue
