@@ -183,7 +183,7 @@ def get_parser(parser=None):
         help='run integration test. If no Loom server is running, '\
         'a temporary local Loom server will be created')
     integration_parser.add_argument('--timeout', '-t', metavar='TIMEOUT_SECONDS',
-                                    default=300)
+                                    default=1800)
 
     return parser
 
