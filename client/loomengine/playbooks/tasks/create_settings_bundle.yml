@@ -1,0 +1,4 @@
+- name: Create settings bundle
+  archive:
+    path: "{{ settings_home }}/*"
+    dest: "{{ settings_home }}/{{settings_bundle_file}}"
