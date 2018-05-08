@@ -197,6 +197,31 @@
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
 
+- name: Apply database migrations and check for connection errors
+  docker_container:
+    name: "{{server_container_name}}-check"
+    hostname: "{{server_container_name}}"
+    image: "{{loom_docker_image}}"
+    command: /loom/src/bin/check-database.sh
+    interactive: yes
+    detach: no
+    cleanup: yes
+    api_version: auto
+    env_file: "{{server_settings_home}}/{{server_settings_file}}"
+    env:
+      LOOM_SETTINGS_HOME: "{{container_settings_home}}"
+      LOOM_MYSQL_HOST: "{{mysql_host}}"
+      LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
+      LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
+    volumes:
+      - "{{portal_data_volume}}:{{portal_root}}"
+      - "{{static_data_volume}}:/{{static_root}}"
+      - "{{server_settings_home}}:{{container_settings_home}}"
+    links: "{{[mysql_container_name if mysql_create_docker_container else none,\
+            rabbitmq_container_name] | reject('none') | list}}"
+
 - name: Start a container with the Loom server
   docker_container:
     name: "{{server_container_name}}"
