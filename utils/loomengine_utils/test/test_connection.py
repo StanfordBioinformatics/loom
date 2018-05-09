@@ -6,7 +6,7 @@ import unittest
 import warnings
 
 from loomengine_utils import connection
-from loomengine_utils.exceptions import ServerConnectionError, ResourceCountError
+from loomengine_utils.exceptions import ServerConnectionError, ResourceCountError, ServerConnectionHttpError
 
 class MockRoute:
     def __init__(self, route_regex, method, response, params=None):
@@ -202,7 +202,7 @@ class TestConnection(unittest.TestCase):
     def testGetResourceWithErrorStatusCode(self):
         url = 'widgets/001/'
         self.connection.add_route(url, 'GET', status_code=500)
-        with self.assertRaises(requests.exceptions.HTTPError):
+        with self.assertRaises(ServerConnectionHttpError):
             response_data = self.connection._get_resource(url)
 
     def testGetIndex(self):
