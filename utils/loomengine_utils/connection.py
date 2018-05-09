@@ -125,28 +125,35 @@ class Connection(object):
                 raise
             if response is not None and raise_for_status:
                 # raises requests.exceptions.HTTPError
-                try:
-                    response.raise_for_status()
-                except requests.exceptions.HTTPError as e:
-                    if e.response.status_code >= 500:
-                        message = "(%s) %s" % (e.response.status_code, e)
-                        raise ServerConnectionHttpError(message)
-                    elif e.response.status_code >= 400:
-                        try:
-                            message = e.response.json()
-                        except:
-                            message = e.response.text
-                        if isinstance(message, list):
-                            message = '; '.join(message)
-                        raise ServerConnectionHttpError(message)
-                    else:
-                        raise ServerConnectionHttpError(str(e))
+                self._raise_for_status(response)
             if error:
                 time.sleep(retry_delay_seconds)
                 continue
             else:
                 return response
         raise error
+
+    def _raise_for_status(self, response):
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                raise ServerConnectionHttpError(
+                    '(403) Permission denied. '\
+                    'Have you logged in with "loom auth login"?')
+            elif e.response.status_code >= 500:
+                message = "(%s) %s" % (e.response.status_code, e)
+                raise ServerConnectionHttpError(message)
+            elif e.response.status_code >= 400:
+                try:
+                    message = e.response.json()
+                except:
+                    message = e.response.text
+                if isinstance(message, list):
+                    message = '; '.join(message)
+                    raise ServerConnectionHttpError(message)
+                else:
+                    raise ServerConnectionHttpError(str(e))
 
     def _post_resource(self, object_data, relative_url):
         return self._post(object_data, relative_url).json()
@@ -167,9 +174,7 @@ class Connection(object):
         If resource does not exist, return None.
         """
         response = self._get(relative_url, params=params, raise_for_status=False)
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
+        self._raise_for_status(response)
         return response.json()
 
     def _get_index(self, relative_url, params=None):
