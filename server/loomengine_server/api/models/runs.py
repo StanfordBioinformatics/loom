@@ -57,6 +57,7 @@ class Run(BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
+    timeout_hours = models.FloatField(null=True, blank=True)
     environment = jsonfield.JSONField(
         blank=True,
         validators=[validators.validate_environment])
@@ -154,6 +155,10 @@ class Run(BaseModel):
                              parent=None):
         if name is None:
             name = template.name
+        # inherit timeout from parent unless it is overwritten
+        timeout_hours = template.timeout_hours
+        if timeout_hours is None and parent is not None:
+            timeout_hours = parent.timeout_hours
         if template.is_leaf:
             run = Run(
                 template=template,
@@ -166,7 +171,8 @@ class Run(BaseModel):
                 notification_addresses=notification_addresses,
                 notification_context=notification_context,
                 parent=parent,
-                force_rerun=force_rerun
+                force_rerun=force_rerun,
+                timeout_hours=timeout_hours,
             )
             run.full_clean()
             run.save()
@@ -180,7 +186,8 @@ class Run(BaseModel):
                 notification_addresses=notification_addresses,
                 notification_context=notification_context,
                 parent=parent,
-                force_rerun=force_rerun
+                force_rerun=force_rerun,
+                timeout_hours=timeout_hours,
             )
             run.full_clean()
             run.save()

@@ -41,6 +41,7 @@ class Template(BaseModel):
     is_leaf = models.BooleanField()
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
+    timeout_hours = models.FloatField(null=True, blank=True)
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
     environment = jsonfield.JSONField(

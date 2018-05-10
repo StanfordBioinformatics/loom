@@ -143,6 +143,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             'steps',
             'tasks',
             'force_rerun',
+            'timeout_hours',
         ]
 
     def validate(self, data):
@@ -621,6 +622,7 @@ class RunSerializer(_AbstractWritableRunSerializer):
     events = RunEventSerializer(many=True, required=False)
     steps = RecursiveField(many=True, required=False)
     tasks = TaskSerializer(many=True, required=False)
+    timeout_hours = serializers.FloatField(required=False, write_only=False)
     force_rerun = serializers.BooleanField(required=False, write_only=True)
     
     def to_representation(self, instance):
@@ -787,8 +789,8 @@ class URLRunSerializer(_AbstractWritableRunSerializer):
     events = RunEventSerializer(many=True, required=False, write_only=True)
     steps = RecursiveField(many=True, required=False, write_only=True)
     tasks = TaskSerializer(many=True, required=False, write_only=True)
+    timeout_hours = serializers.FloatField(required=False, write_only=True)
     force_rerun = serializers.BooleanField(required=False, write_only=True)
-
 
 # Asynchronous
 @shared_task

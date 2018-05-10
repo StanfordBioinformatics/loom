@@ -82,13 +82,15 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
             'command',
             'import_comments',
             'imported_from_url',
+            'timeout_hours',
             'is_leaf',
             'interpreter',
             'environment',
             'resources',
             'inputs',
             'outputs',
-            'steps',)
+            'steps',
+        )
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -100,6 +102,7 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
     command = serializers.CharField(required=False)
     import_comments = serializers.CharField(required=False)
     imported_from_url = serializers.CharField(required=False)
+    timeout_hours = serializers.FloatField(required=False)
     is_leaf = serializers.BooleanField(required=False)
     interpreter = serializers.CharField(required=False)
     environment = serializers.JSONField(required=False)
@@ -107,6 +110,7 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
     inputs = TemplateInputSerializer(many=True, required=False)
     outputs  = serializers.JSONField(required=False)
     steps = RecursiveField(many=True, required=False)
+    
 
     def to_internal_value(self, data):
         """Because we allow template ID string values, where
@@ -709,3 +713,4 @@ class URLTemplateSerializer(_AbstractWritableTemplateSerializer):
     inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     outputs  = serializers.JSONField(required=False, write_only=True)
     steps = RecursiveField(many=True, required=False, write_only=True)
+    timeout_hours = serializers.FloatField(required=False, write_only=True)

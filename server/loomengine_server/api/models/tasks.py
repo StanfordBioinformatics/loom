@@ -45,6 +45,7 @@ class Task(BaseModel):
                                      on_delete=models.PROTECT,
                                      null=True,
                                      blank=True)
+    timeout_failure_count = models.IntegerField(default=0)
     analysis_failure_count = models.IntegerField(default=0)
     system_failure_count = models.IntegerField(default=0)
     data_path = jsonfield.JSONField(
@@ -103,6 +104,14 @@ class Task(BaseModel):
         else:
             return 'Unknown'
 
+    def is_timed_out(self):
+        timeout_hours = self.run.timeout_hours
+        if not timeout_hours:
+            timeout_hours = get_setting('TASK_TIMEOUT_HOURS')
+        return (timezone.now() -
+                self.task_attempt.datetime_created)\
+                .total_seconds()/3600 > timeout_hours
+
     def is_responsive(self):
         if self.task_attempt and not self.task_attempt.might_succeed():
             return False
@@ -158,8 +167,7 @@ class Task(BaseModel):
             get_setting('MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE'),
             'system_failure_count',
             'System error',
-            exponential_delay=True,
-        )
+            exponential_delay=True)
 
     def analysis_error(self, detail=''):
         self._process_error(
@@ -167,8 +175,14 @@ class Task(BaseModel):
             get_setting('MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE'),
             'analysis_failure_count',
             'Analysis error')
-        raise Exception(detail)
 
+    def timeout_error(self, detail=''):
+        self._process_error(
+            detail,
+            get_setting('MAXIMUM_RETRIES_FOR_TIMEOUT_FAILURE'),
+            'timeout_failure_count',
+            'Timeout error')
+    
     def has_terminal_status(self):
         return self.status_is_finished \
             or self.status_is_failed \
@@ -453,7 +467,7 @@ def _execute_task(task_uuid, delay=0, force_rerun=False):
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)
     # Do not run again if already running
-    if task.task_attempt and task.is_responsive():
+    if task.task_attempt and task.is_responsive() and not task.is_timed_out():
         return
 
     # Use TaskFingerprint to see if a valid TaskAttempt for this fingerprint

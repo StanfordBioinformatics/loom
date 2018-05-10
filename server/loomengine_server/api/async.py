@@ -42,6 +42,8 @@ def check_for_stalled_tasks():
     for task in Task.objects.filter(status_is_running=True):
         if not task.is_responsive():
             task.system_error()
+        if task.is_timed_out():
+            task.timeout_error()
 
 @periodic_task(run_every=timedelta(minutes=SYSTEM_CHECK_INTERVAL_MINUTES))
 def check_for_missed_cleanup():
