@@ -27,8 +27,11 @@ class AbstractFileSubcommand(object):
         verify_server_is_running(url=server_url)
         token = get_token()
         self.connection = Connection(server_url, token=token)
-        self.export_manager = ExportManager(connection=self.connection)
-        self.import_manager = ImportManager(connection=self.connection)
+        try:
+            self.export_manager = ExportManager(connection=self.connection)
+            self.import_manager = ImportManager(connection=self.connection)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to initialize client: '%s'" % e)
 
 
 class FileImport(AbstractFileSubcommand):

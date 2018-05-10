@@ -31,12 +31,12 @@ class AbstractRunSubcommand(object):
         self.connection = Connection(server_url, token=token)
         try:
             self.storage_settings = self.connection.get_storage_settings()
+            self.import_manager = ImportManager(
+                self.connection, storage_settings=self.storage_settings)
+            self.export_manager = ExportManager(
+                self.connection, storage_settings=self.storage_settings)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get storage settings: '%s'" % e)
-        self.import_manager = ImportManager(
-            self.connection, storage_settings=self.storage_settings)
-        self.export_manager = ExportManager(
-            self.connection, storage_settings=self.storage_settings)
+            raise SystemExit("ERROR! Failed to initialize client: '%s'" % e)
 
     @classmethod
     def _validate_args(cls, args):
