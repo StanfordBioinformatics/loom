@@ -362,6 +362,9 @@ class TaskAttemptViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelV
             'PRESERVE_ON_FAILURE': get_setting('PRESERVE_ON_FAILURE'),
             'HEARTBEAT_INTERVAL_SECONDS':
             get_setting('TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS'),
+            # container name is duplicated in TaskAttempt cleanup playbook
+            'PROCESS_CONTAINER_NAME': '%s-attempt-%s' % (
+                get_setting('SERVER_NAME'), uuid),
         }, status=200)
 
 

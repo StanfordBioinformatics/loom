@@ -240,8 +240,7 @@ class TaskMonitor(object):
                         'mode': 'rw',
                     }}),
                 working_dir=container_dir,
-                name=self.settings['SERVER_NAME']+'-attempt-'+self.settings[
-                    'TASK_ATTEMPT_ID'],
+                name=self.settings['PROCESS_CONTAINER_NAME'],
             )
             self._set_container_id(self.container['Id'])
         except Exception as e:

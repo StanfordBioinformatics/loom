@@ -1,6 +1,6 @@
   - name: Execute a TaskAttempt
     docker_container:
-      name: "{{task_attempt_container_name}}-{{task_attempt_id}}"
+      name: "{{task_attempt_monitor_container_name}}-{{task_attempt_id}}"
       image: "{{loom_docker_image}}"
       cleanup: yes
       volumes:  "{{[ '/var/run/docker.sock:/var/run/docker.sock', \

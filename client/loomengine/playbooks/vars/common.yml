@@ -130,7 +130,9 @@ portal_data_volume: "{{lookup('env', 'LOOM_PORTAL_DATA_VOLUME')|default(server_n
 static_data_volume: "{{lookup('env', 'LOOM_STATIC_DATA_VOLUME')|default(server_name~'-static', true)}}"
 
 # Loom task attempt container settings
-task_attempt_container_name: "{{server_name|truncate(55,true,'')}}-monitor"
+task_attempt_monitor_container_name: "{{server_name|truncate(55,true,'')}}-monitor"
+# process container name is duplicated in TaskAttempt settings view
+task_attempt_process_container_name: "{{server_name}}-attempt"
 
 # Google Cloud storage settings
 google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
