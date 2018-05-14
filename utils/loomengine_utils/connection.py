@@ -558,7 +558,7 @@ class Connection(object):
     def get_info(self):
         """Return server info if available, else return None
         """
-        response = self._get('info/', timeout=5)
+        response = self._get('info/')
         info = response.json()
         return info
 

@@ -19,7 +19,7 @@ class TemplateTagAdd(object):
     """Add a new template tags
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
 
         # Args may be given as an input argument for testing purposes
         # or from the main parser.
@@ -27,6 +27,7 @@ class TemplateTagAdd(object):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -73,10 +74,11 @@ class TemplateTagRemove(object):
     """Remove a template tag
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -122,10 +124,11 @@ class TemplateTagRemove(object):
 
 class TemplateTagList(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -178,10 +181,11 @@ class TemplateTag(object):
     """Configures and executes subcommands under "tag" on the parent parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -215,7 +219,7 @@ class TemplateTag(object):
         return parser
 
     def run(self):
-        self.args.SubSubSubcommandClass(self.args).run()
+        return self.args.SubSubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

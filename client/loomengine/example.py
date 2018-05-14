@@ -23,8 +23,9 @@ EXAMPLE_INDEX = [
 
 class ExampleExport(object):
 
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         self.args = args
+        self.silent = silent
 
     @classmethod
     def get_parser(cls, parser):
@@ -58,14 +59,16 @@ class ExampleExport(object):
             shutil.copytree(example_path, target_dir)
         except Exception as e:
             raise SystemExit('Error exporting example to "%s": %s' % (target_dir, e))
-        print 'Exported example "%s"\n    to "%s"' % \
-            (os.path.basename(example_path), target_dir)
+        if not self.silent:
+            print 'Exported example "%s"\n    to "%s"' % \
+                (os.path.basename(example_path), target_dir)
 
 
 class ExampleList(object):
 
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         self.args = args
+        self.silent=silent
 
     @classmethod
     def get_parser(cls, parser):
@@ -76,22 +79,25 @@ class ExampleList(object):
             example_name = example[0]
             description = example[1]
             self._render_example(example_name, description)
+        return EXAMPLE_INDEX
 
     def _render_example(self, example_name, description):
-        print '%s:\n    %s\n' % (example_name, description)
+        if not self.silent:
+            print '%s:\n    %s\n' % (example_name, description)
 
 
 class Example(object):
     """Configures and executes subcommands under "example" on the main parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -120,7 +126,7 @@ class Example(object):
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        return self.args.SubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

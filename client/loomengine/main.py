@@ -46,11 +46,12 @@ class Version(argparse.Action):
 
 class Main(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             parser = self.get_parser()
             args = parser.parse_args()
         self.args = args
+        self.silent = silent
 
     def get_parser(cls):
         parser = argparse.ArgumentParser('loom')
@@ -108,11 +109,11 @@ class Main(object):
         return parser
 
     def run(self):
-        return self.args.SubcommandClass(self.args).run()
+        return self.args.SubcommandClass(self.args, silent=self.silent).run()
 
 # pip entrypoint requires a function with no arguments 
 def main():
-    return Main().run()
+    Main().run()
 
 if __name__=='__main__':
     main()

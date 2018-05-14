@@ -21,9 +21,10 @@ from loomengine_utils.export_manager import ExportManager
 
 class AbstractRunSubcommand(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         self._validate_args(args)
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -41,6 +42,10 @@ class AbstractRunSubcommand(object):
     @classmethod
     def _validate_args(cls, args):
         pass
+
+    def _print(self, text):
+        if not self.silent:
+            print text
 
 
 class RunStart(AbstractRunSubcommand):
@@ -93,10 +98,10 @@ class RunStart(AbstractRunSubcommand):
             run = self.connection.post_run(run_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to start run: '%s'" % e)
-        
-        print 'Created run %s@%s' % (
+
+        self._print('Created run %s@%s' % (
             run['name'],
-            run['uuid'])
+            run['uuid']))
         self._apply_tags(run)
         self._apply_labels(run)
         return run
@@ -146,10 +151,10 @@ class RunStart(AbstractRunSubcommand):
                 tag = self.connection.post_run_tag(run.get('uuid'), tag_data)
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-            print 'Run "%s@%s" has been tagged as "%s"' % \
-	        (run.get('name'),
-                 run.get('uuid'),
-                 tag.get('tag'))
+            self._print('Run "%s@%s" has been tagged as "%s"' % \
+	                (run.get('name'),
+                         run.get('uuid'),
+                         tag.get('tag')))
 
     def _apply_labels(self, run):
         if not self.args.label:
@@ -161,10 +166,10 @@ class RunStart(AbstractRunSubcommand):
                     run.get('uuid'), label_data)
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-            print 'Run "%s@%s" has been labeled as "%s"' % \
-	        (run.get('name'),
-                 run.get('uuid'),
-                 label.get('label'))
+            self._print('Run "%s@%s" has been labeled as "%s"' % \
+	                (run.get('name'),
+                         run.get('uuid'),
+                         label.get('label')))
 
     def _parse_string_to_nested_lists(self, value):
         """e.g., convert "[[a,b,c],[d,e],[f,g]]" 
@@ -262,9 +267,9 @@ class RunRestart(RunStart):
             run = self.connection.post_run(run_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to restart run: '%s'" % e)
-        print 'Created run %s@%s' % (
+        self._print('Created run %s@%s' % (
             run['name'],
-            run['uuid'])
+            run['uuid']))
         self._apply_tags(run)
         self._apply_labels(run)
         
@@ -360,10 +365,10 @@ class RunImport(AbstractRunSubcommand):
                 tag = self.connection.post_run_tag(run.get('uuid'), tag_data)
             except LoomengineUtilsError as e:
                 raise SystemExit('ERROR! Failed to create tag: "%s"' % e)
-            print 'Run "%s@%s" has been tagged as "%s"' % \
-                (run.get('name'),
-                 run.get('uuid'),
-                 tag.get('tag'))
+            self._print('Run "%s@%s" has been tagged as "%s"' % \
+                        (run.get('name'),
+                         run.get('uuid'),
+                         tag.get('tag')))
 
     def _apply_labels(self, run):
         if not self.args.label:
@@ -375,10 +380,10 @@ class RunImport(AbstractRunSubcommand):
                     run.get('uuid'), label_data)
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-            print 'Run "%s@%s" has been labeled as "%s"' % \
-                (run.get('name'),
-                 run.get('uuid'),
-                 label.get('label'))
+            self._print('Run "%s@%s" has been labeled as "%s"' % \
+                        (run.get('name'),
+                         run.get('uuid'),
+                         label.get('label')))
 
 class RunExport(AbstractRunSubcommand):
     @classmethod
@@ -487,16 +492,17 @@ class RunList(AbstractRunSubcommand):
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
             if offset == 0:
-                print '[showing %s runs]' % data.get('count')
+                self._print('[showing %s runs]' % data.get('count'))
             self._list_runs(data['results'])
             if data.get('next'):
                 offset += limit
             else:
                 break
+        return data['results']
 
     def _list_runs(self, runs):
         for run in runs:
-            print self._render_run(run)
+            self._print(self._render_run(run))
 
     def _render_run(self, run):
         run_identifier = '%s@%s' % (run['name'], run['uuid'])
@@ -552,7 +558,7 @@ class RunKill(AbstractRunSubcommand):
             self.connection.kill_run(run['uuid'])
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to kill run: '%s'" % e)
-        print "Killed run %s" % run_id
+        self._print("Killed run %s" % run_id)
 
 
 class RunDelete(AbstractRunSubcommand):
@@ -655,16 +661,17 @@ class RunDelete(AbstractRunSubcommand):
                 self.connection.delete_run(run.get('uuid'))
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to delete run: '%s'" % e)
-            print "Deleted run %s" % run_id
+            self._print("Deleted run %s" % run_id)
             for run in run_children_to_delete:
                 self._delete_run(run)
             for data_object in run_outputs_to_delete:
                 self._delete_data_object(data_object)
         else:
-            print "Cannot delete run %s because it is contained by other run(s). "\
-                "You must delete the following runs before deleting this run." % run_id
+            self._print("Cannot delete run %s because it is contained by other "\
+                        "run(s). You must delete the following runs before "\
+                        "deleting this run." % run_id)
             for run in dependencies.get('runs', []):
-                print "  run %s@%s" % (run['name'], run['uuid'])
+                self._print("  run %s@%s" % (run['name'], run['uuid']))
 
     def _delete_data_object(self, data_object):
         try:
@@ -692,7 +699,7 @@ class RunDelete(AbstractRunSubcommand):
                 except LoomengineUtilsError as e:
                     raise SystemExit(
                         "ERROR! Failed to delete data object: '%s'" % e)
-                print "Deleted file %s" % file_id
+                self._print("Deleted file %s" % file_id)
             else:
                 try:
                     self.connection.delete_data_object(data_object['uuid'])
@@ -701,19 +708,20 @@ class RunDelete(AbstractRunSubcommand):
                         "ERROR! Failed to delete data object: '%s'" % e)
         else:
             if len(dependencies['runs']) > 0:
-                print "Cannot delete file %s "\
-                    "because it is contained by other run(s). "\
-                    "You must delete the following runs "\
-                    "before deleting this file." % run_id
+                self._print("Cannot delete file %s "\
+                            "because it is contained by other run(s). "\
+                            "You must delete the following runs "\
+                            "before deleting this file." % run_id)
                 for run in dependencies.get('runs', []):
-                    print "  run %s@%s" % (run['name'], run['uuid'])
+                    self._print("  run %s@%s" % (run['name'], run['uuid']))
             if len(dependencies['templates']) > 0:
-                print "Cannot delete file %s "\
-                    "because it is contained by other template(s). "\
-                    "You must delete the following templates "\
-                    "before deleting this file." % run_id
+                self._print("Cannot delete file %s "\
+                            "because it is contained by other template(s). "\
+                            "You must delete the following templates "\
+                            "before deleting this file." % run_id)
                 for template in dependencies.get('templates', []):
-                    print "  template %s@%s" % (template['name'], template['uuid'])
+                    self._print("  template %s@%s" % (
+                        template['name'], template['uuid']))
 
     def _parse_data_objects_from_data_node_contents(self, contents):
         if not isinstance(contents, list):
@@ -731,10 +739,11 @@ class RunClient(object):
     """Handles subcommands under "run" on the main parser
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent=silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -793,7 +802,7 @@ class RunClient(object):
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        return self.args.SubSubcommandClass(self.args, silent=self.silent).run()
 
 
 file_input_schema = {

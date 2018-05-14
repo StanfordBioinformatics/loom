@@ -18,13 +18,14 @@ class Browser(object):
     """Sets up and executes commands under "browser"" on the main parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
 
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent=silent
         verify_has_connection_settings()
         self.server_url = get_server_url()
         verify_server_is_running(url=self.server_url)

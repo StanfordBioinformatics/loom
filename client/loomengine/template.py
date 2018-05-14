@@ -5,7 +5,6 @@ import glob
 import os
 from requests.exceptions import HTTPError
 import sys
-import warnings
 import yaml
 
 from loomengine import _render_time
@@ -22,8 +21,9 @@ from loomengine_utils.export_manager import ExportManager
 
 class AbstractTemplateSubcommand(object):
 
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -32,11 +32,15 @@ class AbstractTemplateSubcommand(object):
         try:
             self.storage_settings = self.connection.get_storage_settings()
             self.import_manager = ImportManager(
-                self.connection, storage_settings=self.storage_settings)
+                self.connection, storage_settings=self.storage_settings, silent=silent)
             self.export_manager = ExportManager(
-                self.connection, storage_settings=self.storage_settings)
+                self.connection, storage_settings=self.storage_settings, silent=silent)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to initialize client: '%s'" % e)
+
+    def _print(self, text):
+        if not self.silent:
+            print text
 
 
 class TemplateImport(AbstractTemplateSubcommand):
@@ -101,10 +105,10 @@ class TemplateImport(AbstractTemplateSubcommand):
                     template.get('uuid'), tag_data)
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-            print 'Template "%s@%s" has been tagged as "%s"' % \
-                (template.get('name'),
-                 template.get('uuid'),
-                 tag.get('tag'))
+            self._print('Template "%s@%s" has been tagged as "%s"' % \
+                        (template.get('name'),
+                         template.get('uuid'),
+                         tag.get('tag')))
 
     def _apply_labels(self, template):
         if not self.args.label:
@@ -116,10 +120,10 @@ class TemplateImport(AbstractTemplateSubcommand):
                     template.get('uuid'), label_data)
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-            print 'Template "%s@%s" has been labeled as "%s"' % \
-                (template.get('name'),
-                 template.get('uuid'),
-                 label.get('label'))
+            self._print('Template "%s@%s" has been labeled as "%s"' % \
+                        (template.get('name'),
+                         template.get('uuid'),
+                         label.get('label')))
 
 
 class TemplateExport(AbstractTemplateSubcommand):
@@ -237,16 +241,17 @@ class TemplateList(AbstractTemplateSubcommand):
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
             if offset == 0:
-                print '[showing %s templates]' % data.get('count')
+                self._print('[showing %s templates]' % data.get('count'))
             self._list_templates(data['results'])
             if data.get('next'):
                 offset += limit
             else:
                 break
+        return data['results']
 
     def _list_templates(self, templates):
         for template in templates:
-            print self._render_template(template)
+            self._print(self._render_template(template))
 
     def _render_template(self, template):
         template_identifier = '%s@%s' % (template['name'], template['uuid'])
@@ -335,12 +340,12 @@ class TemplateDelete(AbstractTemplateSubcommand):
                 self.connection.delete_template(template.get('uuid'))
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to delete template: '%s'" % e)
-	    print "Deleted template %s" % template_id
+	    self._print("Deleted template %s" % template_id)
         else:
             print "Cannot delete template %s because it is still in use. "\
                 "You must delete the following objects "\
                 "before deleting this template." % template_id
-            print self._render_dependencies(dependencies)
+            self._print(self._render_dependencies(dependencies))
         for template in template_children_to_delete:
             self._delete_template(template)
 
@@ -359,13 +364,14 @@ class Template(object):
     """Configures and executes subcommands under "template" on the main parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -412,7 +418,7 @@ class Template(object):
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        return self.args.SubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

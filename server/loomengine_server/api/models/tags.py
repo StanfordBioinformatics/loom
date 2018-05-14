@@ -5,7 +5,7 @@ import re
 
 from .base import BaseModel
 
-tag_validator = RegexValidator(r'^[0-9a-zA-Z]*$',
+tag_validator = RegexValidator(r'^[0-9a-zA-Z_\-]*$',
                                message='Only alphanumeric characters are allowed.')
 
 class DataTag(BaseModel):

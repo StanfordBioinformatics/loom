@@ -12,11 +12,16 @@ logger = logging.getLogger(__name__)
 
 class ExportManager(object):
 
-    def __init__(self, connection, storage_settings=None):
+    def __init__(self, connection, storage_settings=None, silent=False):
         self.connection = connection
         if storage_settings is None:
             storage_settings = connection.get_storage_settings()
-        self.storage_settings = storage_settings      
+        self.storage_settings = storage_settings
+        self.silent = silent
+
+    def _print(self, text):
+        if not self.silent:
+            print text
 
     def bulk_export_files(self, files, destination_directory=None,
                           retry=False, export_metadata=True,
@@ -272,10 +277,10 @@ class ExportManager(object):
         return self.connection.get_run(run['uuid'], expand=True)
 
     def _save_run(self, run, destination, retry=False):
-        print 'Exporting run %s@%s to %s...' % (
-            run.get('name'), run.get('uuid'), destination)
+        self._print('Exporting run %s@%s to %s...' % (
+            run.get('name'), run.get('uuid'), destination))
         self._save_yaml(run, destination, retry=retry)
-        print '...finished exporting run'
+        self._print('...finished exporting run')
         
     def _expand_template(self, template):
         return self.connection.get_template(template.get('uuid'), expand=True)
@@ -364,10 +369,10 @@ class ExportManager(object):
         return os.path.join(destination_directory, template['name']+'.yaml')
 
     def _save_template(self, template, destination, retry=False):
-        print 'Exporting template %s@%s to %s...' % (
-            template.get('name'), template.get('uuid'), destination)
+        self._print('Exporting template %s@%s to %s...' % (
+            template.get('name'), template.get('uuid'), destination))
         self._save_yaml(template, destination, retry=retry)
-        print '...finished exporting template'
+        self._print('...finished exporting template')
 
     def _save_yaml(self, data, destination, retry=False):
         text = yaml.safe_dump(data, default_flow_style=False)

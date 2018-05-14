@@ -18,13 +18,14 @@ from loomengine_utils.import_manager import ImportManager
 
 class BulkImport(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
 
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent=silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -60,7 +61,7 @@ class BulkImport(object):
 
     def run(self):
         try:
-            self.import_manager.bulk_import(
+            return self.import_manager.bulk_import(
                 self.args.directory,
                 link_files=self.args.link_files,
                 retry=self.args.retry)

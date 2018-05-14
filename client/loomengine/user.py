@@ -9,14 +9,18 @@ from loomengine_utils.connection import Connection
 from loomengine_utils.exceptions import LoomengineUtilsError
 
 class AbstractUserSubcommand(object):
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         token = get_token()
         self.connection = Connection(server_url, token=token)
 
+    def _print(self, text):
+        if not self.silent:
+            print text
 
 class UserAdd(AbstractUserSubcommand):
 
@@ -50,7 +54,7 @@ class UserAdd(AbstractUserSubcommand):
         text = 'Added user "%s"' % user.get('username')
         if user.get('is_staff'):
             text += ' as admin'
-        print text
+        self._print(text)
 
 class UserDelete(AbstractUserSubcommand):
 
@@ -75,7 +79,7 @@ class UserDelete(AbstractUserSubcommand):
             user = self.connection.delete_user(user_id)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to delete user: '%s'" % e)
-        print "deleted user %s" % self.args.username
+        self._print("deleted user %s" % self.args.username)
 
 
 class UserList(AbstractUserSubcommand):
@@ -98,7 +102,7 @@ class UserList(AbstractUserSubcommand):
             text = user.get('username')
             if user.get('is_staff'):
                 text += ' (admin)'
-            print text
+            self._print(text)
 
 class UserGrantAdmin(AbstractUserSubcommand):
 
@@ -124,7 +128,7 @@ class UserGrantAdmin(AbstractUserSubcommand):
             user = self.connection.update_user(user_id, {'is_staff': True})
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to update user: '%s'" % e)
-        print user
+        self._print(user)
 
 
 class UserRevokeAdmin(AbstractUserSubcommand):
@@ -151,7 +155,7 @@ class UserRevokeAdmin(AbstractUserSubcommand):
             user = self.connection.update_user(user_id, {'is_staff': False})
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to update user: '%s'" % e)
-        print user
+        self._print(user)
 
 
 class UserSetPassword(AbstractUserSubcommand):
@@ -188,20 +192,21 @@ class UserSetPassword(AbstractUserSubcommand):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to update user: '%s'" % e)
 
-        print user
+        self._print(user)
 
 
 class UserClient(object):
     """Configures and executes subcommands under "user" on the main parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
 
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -249,7 +254,7 @@ class UserClient(object):
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        return self.args.SubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

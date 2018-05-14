@@ -19,7 +19,7 @@ class FileTagAdd(object):
     """Add a new file tags
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
 
         # Args may be given as an input argument for testing purposes
         # or from the main parser.
@@ -27,6 +27,7 @@ class FileTagAdd(object):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -65,19 +66,21 @@ class FileTagAdd(object):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
 
-        print 'Target "%s@%s" has been tagged as "%s"' % \
-            (files[0]['value'].get('filename'),
-             files[0].get('uuid'),
-             tag.get('tag'))
+        if not self.silent:
+            print 'Target "%s@%s" has been tagged as "%s"' % \
+                (files[0]['value'].get('filename'),
+                 files[0].get('uuid'),
+                 tag.get('tag'))
 
 class FileTagRemove(object):
     """Remove a file tag
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -114,18 +117,20 @@ class FileTagRemove(object):
             tag = self.connection.remove_data_tag(files[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to remove tag: '%s'" % e)
-        print 'Tag %s has been removed from file "%s@%s"' % \
-            (tag.get('tag'),
-             files[0]['value'].get('filename'),
-             files[0].get('uuid'))
+        if not self.silent:
+            print 'Tag %s has been removed from file "%s@%s"' % \
+                (tag.get('tag'),
+                 files[0]['value'].get('filename'),
+                 files[0].get('uuid'))
 
 
 class FileTagList(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -170,19 +175,21 @@ class FileTagList(object):
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
             tags = [item.get('tag') for item in tag_list]
-        print '[showing %s tags]' % len(tags)
-        for tag in tags:
-            print tag
+        if not self.silent:
+            print '[showing %s tags]' % len(tags)
+            for tag in tags:
+                print tag
 
 
 class FileTag(object):
     """Configures and executes subcommands under "tag" on the parent parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -216,7 +223,7 @@ class FileTag(object):
         return parser
 
     def run(self):
-        self.args.SubSubSubcommandClass(self.args).run()
+        return self.args.SubSubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

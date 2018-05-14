@@ -80,9 +80,10 @@ def _get_base_name(hostname, step_name, attempt_id, max_length):
     name_base = '-'.join([hostname, step_name, attempt_id])
     return _sanitize_instance_name(name_base, max_length)
 
-def get_worker_name(hostname, step_name, attempt_id, max_length):
+def get_worker_name(hostname, step_name, attempt_id, max_length, silent=False):
     worker_name = _get_base_name(hostname, step_name, attempt_id, max_length)
-    print worker_name
+    if not silent:
+        print worker_name
     return worker_name
 
 def _sanitize_instance_name(name, max_length):
@@ -94,10 +95,11 @@ def _sanitize_instance_name(name, max_length):
     name = re.sub(r'-+$', '', name)         # remove hyphens from the end
     return name
 
-def sanitize_server_name(name, max_length):
+def sanitize_server_name(name, max_length, silent=False):
     max_length = int(max_length)
     server_name = _sanitize_instance_name(name, max_length)
     if not server_name:
         raise Exception('Failed to sanitize server name "%s"' % name)
-    print server_name
+    if not silent:
+        print server_name
     return server_name

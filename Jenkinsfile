@@ -64,15 +64,6 @@ pipeline {
       }
     }
     stage('Deploy Test Environment') {
-      /*
-      when { anyOf {
-        branch 'master'
-	branch 'development'
-	expression { env.GIT_BRANCH =~ '^.*prerelease' }
-	// If TAG_NAME is defined, this commit is tagged for release
-	expression { env.TAG_NAME }
-      }}
-      */
       steps {
         // Install loom client locally
         sh 'virtualenv env'
@@ -94,18 +85,9 @@ pipeline {
 	}
       }
     }
-    stage('Integration Tests') {
-      /*
-      when { anyOf {
-        branch 'master'
-	branch 'development'
-	expression { env.GIT_BRANCH =~ '^.*prerelease' }
-	// If TAG_NAME is defined, this commit is tagged for release
-	expression { env.TAG_NAME }
-      }}
-      */
+    stage('Smoke Tests') {
       steps {
-        sh '. env/bin/activate && loom test integration --timeout 1800'
+        sh '. env/bin/activate && loom test smoke'
       }
     }
     stage('Publish Release') {

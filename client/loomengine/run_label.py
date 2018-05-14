@@ -19,7 +19,7 @@ class RunLabelAdd(object):
     """Add a new run labels
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
 
         # Args may be given as an input argument for testing purposes
         # or from the main parser.
@@ -27,6 +27,7 @@ class RunLabelAdd(object):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -65,19 +66,21 @@ class RunLabelAdd(object):
             label = self.connection.post_run_label(runs[0]['uuid'], label_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-        print 'Target "%s@%s" has been labeled as "%s"' % \
-            (runs[0].get('name'),
-             runs[0].get('uuid'),
-             label.get('label'))
+        if not self.silent:
+            print 'Target "%s@%s" has been labeled as "%s"' % \
+                (runs[0].get('name'),
+                 runs[0].get('uuid'),
+                 label.get('label'))
 
 class RunLabelRemove(object):
     """Remove a run label
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -115,18 +118,20 @@ class RunLabelRemove(object):
             label = self.connection.remove_run_label(runs[0]['uuid'], label_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to remove label: '%s'" % e)
-        print 'Label %s has been removed from run "%s@%s"' % \
-            (label.get('label'),
-             runs[0].get('name'),
-             runs[0].get('uuid'))
+        if not self.silent:
+            print 'Label %s has been removed from run "%s@%s"' % \
+                (label.get('label'),
+                 runs[0].get('name'),
+                 runs[0].get('uuid'))
 
 
 class RunLabelList(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -164,9 +169,10 @@ class RunLabelList(object):
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
             labels = label_data.get('labels', [])
-            print '[showing %s labels]' % len(labels)
-            for label in labels:
-                print label
+            if not self.silent:
+                print '[showing %s labels]' % len(labels)
+                for label in labels:
+                    print label
         else:
             try:
                 label_list = self.connection.get_run_label_index()
@@ -176,19 +182,21 @@ class RunLabelList(object):
             for item in label_list:
                 label_counts.setdefault(item.get('label'), 0)
                 label_counts[item.get('label')] += 1
-            print '[showing %s labels]' % len(label_counts)
-            for key in label_counts:
-                print "%s (%s)" % (key, label_counts[key])
+            if not self.silent:
+                print '[showing %s labels]' % len(label_counts)
+                for key in label_counts:
+                    print "%s (%s)" % (key, label_counts[key])
 
 
 class RunLabel(object):
     """Configures and executes subcommands under "label" on the parent parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -222,7 +230,7 @@ class RunLabel(object):
         return parser
 
     def run(self):
-        self.args.SubSubSubcommandClass(self.args).run()
+        return self.args.SubSubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

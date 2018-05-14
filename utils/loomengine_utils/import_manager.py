@@ -29,11 +29,16 @@ class DependencyNode(object):
 
 class ImportManager(object):
 
-    def __init__(self, connection, storage_settings=None):
+    def __init__(self, connection, storage_settings=None, silent=False):
         self.connection = connection
+        self.silent = silent
         if storage_settings is None:
             storage_settings = connection.get_storage_settings()
 	self.storage_settings = storage_settings
+
+    def _print(self, text):
+        if not self.silent:
+            print text
 
     def bulk_import(self, directory, link_files=False,
                     retry=False):
@@ -410,7 +415,7 @@ class ImportManager(object):
     def import_template(self, template_file, comments=None,
                         force_duplicates=False,
                         retry=False, link_files=False):
-        print 'Importing template from "%s".' % template_file.get_url()
+        self._print('Importing template from "%s".' % template_file.get_url())
         template = self._get_template(template_file)
         importable_template = self._recursive_import_template(
             template, template_file.get_url(),
@@ -418,7 +423,7 @@ class ImportManager(object):
             retry=retry, link_files=link_files)
 
         if importable_template is None:
-            print '  Skipping import because template already exists.'
+            self._print('  Skipping import because template already exists.')
             return
 
         if not importable_template.get('comments'):
@@ -437,15 +442,15 @@ class ImportManager(object):
             else:
                 raise
 
-        print 'Imported template "%s@%s".' % (
+        self._print('Imported template "%s@%s".' % (
             imported_template['name'],
-            imported_template['uuid'])
+            imported_template['uuid']))
         return imported_template
 
     def import_run(self, run_file,
                    force_duplicates=False,
                    retry=False, link_files=False):
-        print 'Importing run from "%s".' % run_file.get_url()
+        self._print('Importing run from "%s".' % run_file.get_url())
         run = self._get_run(run_file)
         dependencies_dir = run_file.get_url()+'.dependencies'
         files_dir = os.path.join(dependencies_dir, 'files')
@@ -466,9 +471,9 @@ class ImportManager(object):
             else:
                 raise
 
-        print 'Imported run "%s@%s".' % (
+        self._print('Imported run "%s@%s".' % (
             run['name'],
-            run['uuid'])
+            run['uuid']))
         return run
 
     def _recursive_import_template(

@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from .base import BaseModel
 
-label_validator = RegexValidator(r'^[0-9a-zA-Z]*$',
+label_validator = RegexValidator(r'^[0-9a-zA-Z_\-]*$',
                                'Only alphanumeric characters are allowed.')
 
 class DataLabel(BaseModel):

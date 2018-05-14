@@ -11,7 +11,7 @@ from requests.exceptions import HTTPError
 
 class AuthClient(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         # Parse arguments
         if args is None:
             args = _get_args()
@@ -19,8 +19,13 @@ class AuthClient(object):
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         self.args = args
+        self.silent=silent
         self._set_run_function()
         self.connection = Connection(server_url, token=None)
+
+    def _print(self, text):
+        if not self.silent:
+            print text
 
     def _set_run_function(self):
         # Map user input command to method
@@ -42,15 +47,15 @@ class AuthClient(object):
         except HTTPError:
             raise SystemExit("ERROR! Login failed")
         save_token(token)
-        print "Login was successful. Token saved."
+        self._print("Login was successful. Token saved.")
 
     def logout(self):
         token = get_token()
         if token is None:
-            print "No token found. You are logged out."
+            self._print("No token found. You are logged out.")
         else:
             delete_token()
-            print "Token deleted."
+            self._print("Token deleted.")
 
     def print_token(self):
         print get_token()

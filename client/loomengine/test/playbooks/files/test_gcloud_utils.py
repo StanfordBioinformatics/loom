@@ -3,11 +3,8 @@ import sys
 import unittest
 
 playbook_files_path = os.path.abspath(
-    os.path.join(
-        os.path.dirname(
-            os.path.abspath(__file__)),
-        '..','..','..','playbooks','files'))
-
+    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                 '..','..','..','playbooks','files'))
 sys.path.append(playbook_files_path)
 
 import gcloud_utils as gu
@@ -19,7 +16,8 @@ class TestGcloudUtils(unittest.TestCase):
         step_name = 'step'
         attempt_id = '123'
         max_length = 63
-        worker_name = gu.get_worker_name(hostname, step_name, attempt_id, max_length)
+        worker_name = gu.get_worker_name(hostname, step_name, attempt_id,
+                                         max_length, silent=True)
         self.assertEqual(worker_name, '%s-%s-%s' % (hostname, step_name, attempt_id))
 
     def testGetWorkerNameTrimEven(self):
@@ -27,7 +25,8 @@ class TestGcloudUtils(unittest.TestCase):
         step_name = 'stepname'
         attempt_id = '12345678910'
         max_length = 6+6+8+2
-        worker_name = gu.get_worker_name(hostname, step_name, attempt_id, max_length)
+        worker_name = gu.get_worker_name(hostname, step_name, attempt_id,
+                                         max_length, silent=True)
         self.assertEqual(worker_name, 'hostna-stepna-12345678')
 
     def testGetWorkerNameTrimOdd(self):
@@ -35,7 +34,8 @@ class TestGcloudUtils(unittest.TestCase):
         step_name = 'stepname'
         attempt_id = '12345678910'
         max_length = 6+5+8+2
-        worker_name = gu.get_worker_name(hostname, step_name, attempt_id, max_length)
+        worker_name = gu.get_worker_name(hostname, step_name, attempt_id,
+                                         max_length, silent=True)
         self.assertEqual(worker_name, 'hostna-stepn-12345678')
 
     def testSanitizeInstanceName(self):
@@ -43,7 +43,8 @@ class TestGcloudUtils(unittest.TestCase):
         self.assertEqual(name, 'some-things-nevr-change')
     
     def testSanitizeServerName(self):
-        name = gu.sanitize_server_name('--some_?&-things-nevr-change--', 10)
+        name = gu.sanitize_server_name('--some_?&-things-nevr-change--', 10,
+                                       silent=True)
         self.assertEqual(name, 'some-things-nevr-change'[:10])
 
 

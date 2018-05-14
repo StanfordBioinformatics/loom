@@ -18,10 +18,11 @@ from loomengine_utils.export_manager import ExportManager
 
 class AbstractFileSubcommand(object):
 
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         """Common init tasks for all File subcommands
         """
         self.args = args
+        self.silent=silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -32,6 +33,10 @@ class AbstractFileSubcommand(object):
             self.import_manager = ImportManager(connection=self.connection)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to initialize client: '%s'" % e)
+
+    def _print(self, text):
+        if not self.silent:
+            print text
 
 
 class FileImport(AbstractFileSubcommand):
@@ -98,8 +103,8 @@ class FileImport(AbstractFileSubcommand):
         if not self.args.tag:
             return
         if len(files_imported) > 1:
-            print ('WARNING! No tags were applied, because tags '\
-                   'must be unique but multiple files were imported.')
+            print 'WARNING! No tags were applied, because tags '\
+                'must be unique but multiple files were imported.'
             return
         else:
             for tagname in self.args.tag:
@@ -109,10 +114,10 @@ class FileImport(AbstractFileSubcommand):
                         files_imported[0].get('uuid'), tag_data)
                 except LoomengineUtilsError as e:
                     raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-                print 'File "%s@%s" has been tagged as "%s"' % \
-                    (files_imported[0]['value'].get('filename'),
-                     files_imported[0].get('uuid'),
-                     tag.get('tag'))
+                self._print('File "%s@%s" has been tagged as "%s"' % \
+                            (files_imported[0]['value'].get('filename'),
+                             files_imported[0].get('uuid'),
+                             tag.get('tag')))
 
     def _apply_labels(self, files_imported):
         if not self.args.label:
@@ -125,10 +130,10 @@ class FileImport(AbstractFileSubcommand):
                         file_imported.get('uuid'), label_data)
                 except LoomengineUtilsError as e:
                     raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-                print 'File "%s@%s" has been labeled as "%s"' % \
-                    (file_imported['value'].get('filename'),
-                     file_imported.get('uuid'),
-                     label.get('label'))
+                self._print('File "%s@%s" has been labeled as "%s"' % \
+                            (file_imported['value'].get('filename'),
+                             file_imported.get('uuid'),
+                             label.get('label')))
 
 
 class FileExport(AbstractFileSubcommand):
@@ -217,14 +222,8 @@ class FileExport(AbstractFileSubcommand):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! %s" % e.message)
 
-class FileList(object):
 
-    def __init__(self, args):
-        self.args = args
-        verify_has_connection_settings()
-        server_url = get_server_url()
-        verify_server_is_running(url=server_url)
-        self.connection = Connection(server_url, token=get_token())
+class FileList(AbstractFileSubcommand):
 
     @classmethod
     def get_parser(cls, parser):
@@ -264,7 +263,7 @@ class FileList(object):
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
             if offset == 0:
-                print '[showing %s files]' % data.get('count')
+                self._print('[showing %s files]' % data.get('count'))
             self._list_files(data['results'])
             if data.get('next'):
                 offset += limit
@@ -275,7 +274,7 @@ class FileList(object):
         for file_data_object in files:
             text = self._render_file(file_data_object)
             if text is not None:
-                print text
+                self._print(text)
 
     def _render_file(self, file_data_object):
         try:
@@ -307,6 +306,7 @@ class FileList(object):
         else:
             text = 'File: %s%s' % (file_identifier, status_note)
         return text
+
 
 class FileDelete(AbstractFileSubcommand):
 
@@ -356,7 +356,7 @@ class FileDelete(AbstractFileSubcommand):
                 self.connection.delete_data_object(file_data_object.get('uuid'))
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to delete data object: '%s'" % e)
-            print "Deleted file %s" % file_id
+            self._print("Deleted file %s" % file_id)
         else:
             raise SystemExit("ERROR! You cannot delete file %s "\
                 "because it is still in use. "\
@@ -379,13 +379,14 @@ class FileClient(object):
     """Configures and executes subcommands under "file" on the main parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent=silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -431,7 +432,7 @@ class FileClient(object):
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        return self.args.SubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':
