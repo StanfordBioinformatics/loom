@@ -232,7 +232,6 @@ class Run(BaseModel):
             input.setattrs_and_save_with_retries({'data_node': data_node})
         else:
             template_input.data_node.clone(seed=input.data_node)
-            
 
     def _has_user_input(self, channel):
         try:

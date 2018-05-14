@@ -193,7 +193,10 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             try:
                 model.full_clean()
             except django.core.exceptions.ValidationError as e:
-                raise serializers.ValidationError(e.message_dict)
+                if hasattr(e, 'message_dict'):
+                    raise serializers.ValidationError(e.message_dict)
+                else:
+                    raise serializers.ValidationError(e)
         return data
 
     def validate_user_inputs(self, value):
@@ -406,7 +409,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         self._task_to_all_task_attempts_m2m_relationships.append(
             TaskMembership(parent_task=task, child_task_attempt=task_attempt))
 
-    def create(self, validated_data):
+    def create(self, validated_data): 
         if validated_data.get('uuid'):
             return self._post_run(validated_data)
         else:
@@ -516,21 +519,23 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             self._new_task_attempts.delete()
 
     def _start_run(self, data):
-        user_inputs = self.initial_data.get('user_inputs', None)
-        data.pop('user_inputs', None)
-        data.pop('template')
-        s = TemplateSerializer(data=self.initial_data.get('template'))
-        s.is_valid()
-        template = s.save()
-
-        run = Run.create_from_template(
-            template,
-            name=data.get('name'),
-            notification_addresses=data.get('notification_addresses'),
-            force_rerun=data.get('force_rerun', False),
-            notification_context=self._get_notification_context())
-
         try:
+            user_inputs = self.initial_data.get('user_inputs', None)
+            data.pop('user_inputs', None)
+            data.pop('template')
+            s = TemplateSerializer(data=self.initial_data.get('template'))
+            s.is_valid()
+            template = s.save()
+
+            run = Run.create_from_template(
+                template,
+                name=data.get('name'),
+                notification_addresses=data.get('notification_addresses'),
+                force_rerun=data.get('force_rerun', False),
+                notification_context=self._get_notification_context())
+
+            self._new_runs = run # for cleanup if failure
+
             if user_inputs is not None:
                 for input_data in user_inputs:
                     # The user_input usually won't have data type specified.
@@ -565,15 +570,16 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                         raise serializers.ValidationError(
                             'Data for input "%s" is not ready. (Maybe a file '\
                             'upload failed or is not yet complete?)' % i.channel)
-        except:
-            # Cleanup ill-formed run
-            run.delete()
+            run.initialize_inputs()
+            run.initialize_outputs()
+            run.initialize()
+            return run
+        except django.core.exceptions.ValidationError as e:
+            self._cleanup()
+            raise serializers.ValidationError(e)
+        except Exception as e:
+            self._cleanup()
             raise
-
-        run.initialize_inputs()
-        run.initialize_outputs()
-        run.initialize()
-        return run
 
     def _get_notification_context(self):
         context = {
