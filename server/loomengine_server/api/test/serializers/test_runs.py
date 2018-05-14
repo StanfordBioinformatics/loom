@@ -1,7 +1,6 @@
 import datetime
 from django.test import TestCase, TransactionTestCase, override_settings
-from django.core.exceptions import ValidationError
-
+from rest_framework.serializers import ValidationError
 
 from . import fixtures
 from . import get_mock_context
