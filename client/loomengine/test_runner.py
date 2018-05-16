@@ -89,10 +89,10 @@ def get_parser(parser=None):
         'smoke',
         help='run smoke tests (requires a running Loom server)')
 
-    #integration_parser = subparsers.add_parser(
-    #    'integration',
-    #    help='run integration tests (requires a running Loom server)')
-    #return parser
+    integration_parser = subparsers.add_parser(
+        'integration',
+        help='run integration tests (requires a running Loom server)')
+    return parser
 
 def _get_args():
     parser = get_parser()

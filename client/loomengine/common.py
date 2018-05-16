@@ -70,7 +70,7 @@ def is_server_running(url=None):
 
     try:
         loomengine_utils.connection.disable_insecure_request_warning()
-        response = requests.get(url + '/api/status/', verify=False, timeout=5)
+        response = requests.get(url + '/api/status/', verify=False, timeout=30)
     except requests.exceptions.ConnectionError:
         return False
 

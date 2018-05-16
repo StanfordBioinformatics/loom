@@ -605,7 +605,8 @@ class ImportManager(object):
             raise_if_missing=False)
         for file_to_import in files_to_import:
             file_data_object = self.import_file(
-                file_to_import.get_url(), '', link=link_files, retry=retry)
+                file_to_import.get_url(), '', link=link_files, retry=retry,
+                force_duplicates=force_duplicates)
             if file_data_object:
                 file_dependencies.file_data_objects.append(file_data_object)
         return file_dependencies

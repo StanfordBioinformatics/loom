@@ -269,6 +269,7 @@ class FileList(AbstractFileSubcommand):
                 offset += limit
             else:
                 break
+        return data['results']
 
     def _list_files(self, files):
         for file_data_object in files:

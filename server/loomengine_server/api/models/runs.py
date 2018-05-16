@@ -19,6 +19,7 @@ from api.models.data_objects import DataObject
 from api.models.data_channels import DataChannel
 from api.models.input_calculator import InputCalculator
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
+from api.models.task_attempts import TaskAttempt
 from api.models.templates import Template
 from api.exceptions import ConcurrentModificationError
 
@@ -513,6 +514,10 @@ class Run(BaseModel):
             for item in queryset.all():
                 nodes_to_delete.add(item)
 
+        # TaskAttempt will not be deleted if shared with another run
+        task_attempts_to_cleanup = [item for item in TaskAttempt.objects.filter(
+            tasks__run__uuid=self.uuid)]
+
         # The "imported" flag handles the scenario where:
         # Run A contains run B. A user exports run B and imports it into
         # another loom server. Later another user imports A but then deletes it.
@@ -530,6 +535,8 @@ class Run(BaseModel):
                 pass
         for run in runs_to_delete:
             run.delete()
+        for task_attempt in task_attempts_to_cleanup:
+            task_attempt.cleanup()
 
     def get_leaves(self, leaf_list=None):
         if leaf_list is None:
