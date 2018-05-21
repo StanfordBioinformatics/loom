@@ -112,6 +112,7 @@ setup(
         'Jinja2==2.9.6',
         'jsonfield==2.0.1',
         'jsonschema==2.6.0',
+        'kombu==4.0.2',
         'MySQL-python==1.2.5',
         'oauth2client==3.0.0',
         'python-dateutil==2.6.0',
