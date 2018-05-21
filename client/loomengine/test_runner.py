@@ -43,7 +43,7 @@ class TestRunner(object):
         suite = unittest.TestLoader().discover(test_root, pattern='smoketest*.py')
         test_result = unittest.TextTestRunner().run(suite)
         if not test_result.wasSuccessful():
-            raise SystemExit() # To ensure non-zero return code
+            raise SystemExit(1)
         
     def integration_test(self):
         if not self._is_server_running():
@@ -54,13 +54,13 @@ class TestRunner(object):
             test_root, pattern='integrationtest*.py')
         test_result = unittest.TextTestRunner().run(suite)
         if not test_result.wasSuccessful():
-            raise SystemExit() # To ensure non-zero return code
+            raise SystemExit(1)
 
     def unit_tests(self):
         suite = unittest.TestLoader().discover(test_root, pattern='test*.py')
         test_result = unittest.TextTestRunner().run(suite)
         if not test_result.wasSuccessful():
-            raise SystemExit() # To ensure non-zero return code
+            raise SystemExit(1)
 
     def _is_server_running(self):
         loom_executable = sys.argv[0]

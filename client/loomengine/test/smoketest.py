@@ -109,6 +109,8 @@ class SmokeTest(unittest.TestCase):
                     raise Exception("Run failed")
                 elif result[0].get('status') == 'Killed':
                     raise Exception("Run was killed")
+                elif result[0].get('status') == 'Running':
+                    pass
                 elif result[0].get('status') != 'Waiting':
                     raise Exception('Unknown run status "%s"' % result[0].get('status'))
             except SystemExit:

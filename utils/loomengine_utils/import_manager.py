@@ -3,7 +3,6 @@ import google.cloud.exceptions
 import os
 import re
 from requests.exceptions import HTTPError
-import warnings
 import yaml
 
 from .exceptions import LoomengineUtilsError, ImportManagerError, FileDuplicateError
@@ -485,67 +484,55 @@ class ImportManager(object):
             existing_template = self.connection.get_template(template.get('uuid'))
             if existing_template:
                 # No need to import
+                logger.warn(
+                    'Found existing template that matches name and uuid '\
+                    '"%s@%s". Using existing template and skipping new '\
+                    'template import.' \
+                    % (existing_template['name'], existing_template['uuid']))
                 return None
-        else:
-            # If no UUID, check for duplicates based on hash
-            template = self._check_for_template_duplicates(
-                template, force_duplicates=force_duplicates)
-
+        elif not force_duplicates:
+            # If no UUID and force_duplicates==False,
+            # check for duplicates based on hash
+                duplicate = self._get_template_duplicate(template)
+                if duplicate:
+                    logger.warn(
+                        'Found existing template that matches name and md5 hash '\
+                        '"%s$%s". Using existing template and skipping new '\
+                        'template import.' % (duplicate['name'], duplicate['md5']))
+                    return None
         file_dependency_node = self._import_file_dependencies(
             template_url, force_duplicates=force_duplicates,
             retry=retry, link_files=link_files,
             parent_file_dependency_node=parent_file_dependency_node)
         self._substitute_file_uuids_throughout_template(template, file_dependency_node)
-        steps = self._get_template_step_dependencies(
+        template_dependency_files = self._get_template_dependencies(
             template_url, force_duplicates=force_duplicates, retry=retry)
-        if template.get('steps') and len(steps) > 0:
-            raise ImportManagerError(
-                'Error importing template "%s". '\
-                'Template steps can either be in a "steps" subdirectory (editable '\
-                'mode) or included in the template file, but not both.'
-                % template_url)
-        for step_file in steps:
-            step_template = self._get_template(step_file)
-            step_template = self._recursive_import_template(
-                step_template, step_file.get_url(),
+        for template_dependency_file in template_dependency_files:
+            template_dependency = self._get_template(template_dependency_file)
+            imported_template_dependency = self._recursive_import_template(
+                template_dependency, template_dependency_file.get_url(),
                 force_duplicates=force_duplicates, retry=retry)
-            self._add_or_replace_step(template, step_template)
+            self._replace_matching_step(template, imported_template_dependency)
         return template
 
-    def _add_or_replace_step(self, template, step_template):
-        template.setdefault('steps', [])
+    def _replace_matching_step(self, template, step_template):
         match = False
-        for i in range(len(template['steps'])):
-            if self._does_reference_match_template(
+        for i in range(len(template.get('steps', []))):
+            if not isinstance(template['steps'][i], str):
+                match = True
+                continue
+            elif self._does_reference_match_template(
                     template['steps'][i], step_template):
                 template['steps'][i] = step_template
                 match = True
                 continue
         if not match:
-            template['steps'].append(step_template)
-
-    def _check_for_template_duplicates(self, template, force_duplicates=False):
-        # No check if "force_duplicates" is set
-        if force_duplicates:
-            return template
-
-        duplicates = self._get_template_duplicates(template)
-        if len(duplicates) > 0:
-            name = duplicates[-1]['name']
-            md5 = duplicates[-1]['md5']
-            uuid = duplicates[-1]['uuid']
-            logger.warn(
-                'Found existing template that matches name and md5 hash "%s$%s". '\
-                'Using existing template and skipping new template import.'
-                % (name, md5))
-            # Get detail view
-            return self.connection.get_template(duplicates[0].get('uuid'))
-        else:
-            return template
+            logger.warn('WARNING! Template dependency "%s" was not used. '\
+                        'Check "steps" in the parent template' \
+                        % step_template.get('name'))
 
     def _does_reference_match_template(self, reference, template):
-        if not isinstance(reference, str):
-            return False
+        assert isinstance(reference, str)
         name, uuid, tag, md5 = self._parse_reference_string(reference)
         template_name = template.get('name')
         template_uuid = template.get('uuid')
@@ -585,12 +572,16 @@ class ImportManager(object):
         run = parse_as_yaml(run_text)
         return run
 
-    def _get_template_duplicates(self, template):
+    def _get_template_duplicate(self, template):
 	md5 = template.get('md5')
         name = template.get('name')
         templates = self.connection.get_template_index(
             query_string='%s$%s' % (name, md5))
-        return templates
+        if len(templates) > 0:
+            # Get detail view of last duplicate
+            return self.connection.get_template(templates[-1]['uuid'])
+        else:
+            return None
 
     def _import_file_dependencies(
             self, file_url, force_duplicates=False,
@@ -611,10 +602,10 @@ class ImportManager(object):
                 file_dependencies.file_data_objects.append(file_data_object)
         return file_dependencies
 
-    def _get_template_step_dependencies(
+    def _get_template_dependencies(
             self, template_url, force_duplicates=False, retry=False):
         step_dependencies = []
-        pattern = os.path.join(template_url+'.dependencies', 'steps', '*')
+        pattern = os.path.join(template_url+'.dependencies', 'templates', '*')
         step_files = FileSet([pattern,], self.storage_settings, retry=retry,
                              raise_if_missing=False)
         return step_files

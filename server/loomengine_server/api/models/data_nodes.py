@@ -410,7 +410,7 @@ class DataNode(BaseModel):
     def _get_fingerprintable_data_node_struct(self):
         assert not self._is_blank_node(), 'Node not ready. No fingerprint.'
         assert not self._is_empty_branch(), 'Node not ready. No fingerprint.'
-	if self.is_leaf:
+        if self.is_leaf:
             return self.data_object.get_fingerprintable_contents()
         else:
             # Passing the list to calculate_contents_fingerprint

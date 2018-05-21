@@ -140,7 +140,8 @@ class ExportManager(object):
             file_dict.values(), destination_directory=file_destination_directory,
             retry=retry, link_files=link_files, export_metadata=export_file_metadata)
         if editable:
-            self._recursively_save_template_and_steps(template, template_destination, retry=retry)
+            self._recursively_save_template_and_steps(
+                template, template_destination, retry=retry)
         else:
             self._save_template(template, template_destination, retry=retry)
 
@@ -196,11 +197,14 @@ class ExportManager(object):
 
     def _recursively_save_template_and_steps(self, template, template_destination, retry=False):
         steps = template.pop('steps', [])
+        for step in steps:
+            step_labels = template.setdefault('steps', [])
+            step_labels.append(step['name'])
         self._save_template(template, template_destination, retry=retry)
         for step in steps:
             self._recursively_save_template_and_steps(
                 step,
-                os.path.join(template_destination + '.dependencies', 'steps', '%s.yaml' % step['name']),
+                os.path.join(template_destination + '.dependencies', 'templates', '%s.yaml' % step['name']),
                 retry=retry)
 
     def bulk_export_runs(self, runs,
