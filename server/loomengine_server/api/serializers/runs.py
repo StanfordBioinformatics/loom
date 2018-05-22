@@ -68,15 +68,16 @@ class ExpandedRunInputSerializer(ExpandedDataChannelSerializer):
     as_channel = serializers.CharField(required=False)
 
     def to_representation(self, instance):
-        return strip_empty_values(
-            super(ExpandedRunInputSerializer, self).to_representation(instance))
+        return strip_empty_values(super(
+            ExpandedRunInputSerializer, self).to_representation(instance))
 
 
 class RunOutputSerializer(DataChannelSerializer):
 
     class Meta:
         model = RunOutput
-        fields = ('type', 'channel', 'as_channel', 'data', 'mode', 'source', 'parser')
+        fields = ('type', 'channel', 'as_channel', 'data',
+                  'mode', 'source', 'parser')
 
     mode = serializers.CharField(required=False)
     source = serializers.JSONField(required=False)
@@ -92,7 +93,8 @@ class ExpandedRunOutputSerializer(ExpandedDataChannelSerializer):
 
     class Meta:
         model = RunOutput
-        fields = ('type', 'channel', 'as_channel', 'data', 'mode', 'source', 'parser')
+        fields = ('type', 'channel', 'as_channel', 'data',
+                  'mode', 'source', 'parser')
 
     mode = serializers.CharField(required=False)
     source = serializers.JSONField(required=False)
@@ -100,8 +102,8 @@ class ExpandedRunOutputSerializer(ExpandedDataChannelSerializer):
     as_channel = serializers.CharField(required=False)
 
     def to_representation(self, instance):
-        return strip_empty_values(
-            super(ExpandedRunOutputSerializer, self).to_representation(instance))
+        return strip_empty_values(super(
+            ExpandedRunOutputSerializer, self).to_representation(instance))
 
 
 class RunEventSerializer(CreateWithParentModelSerializer):
@@ -167,7 +169,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         self._preexisting_task_attempts = [] # May be shared with other runs \
                                           # or remnants of a deleted run that \
                                           # were not yet cleaned up
-        self._unsaved_task_attempts = []
+        self._unsaved_task_attempts = {} # Use dict keys to avoid duplicates
         self._unsaved_task_attempt_inputs = []
         self._unsaved_task_attempt_outputs = []
         self._unsaved_log_files = []
@@ -211,7 +213,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
     def _validate_run_data_fields(self, run_data):
         data_keys = run_data.keys()
         serializer_keys = self.fields.keys()
-        extra_fields = filter(lambda key: key not in serializer_keys, data_keys)
+        extra_fields = filter(
+            lambda key: key not in serializer_keys, data_keys)
         if extra_fields:
             raise serializers.ValidationError(
                 'Unrecognized fields %s' % extra_fields)
@@ -233,7 +236,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 run = self._create_unsaved_run(
                     run_data, parent_force_rerun)
             if parent_model:
-                self._run_parent_relationships.append((run.uuid, parent_model.uuid))
+                self._run_parent_relationships.append(
+                    (run.uuid, parent_model.uuid))
             children = run_data.get('steps', [])
             has_children = bool(children)
             if has_children:
@@ -353,10 +357,12 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             try:
                 preexisting_task_attempt = TaskAttempt.objects.get(
                     uuid=task_attempt.get('uuid'))
-                self._preexisting_task_attempts.append(preexisting_task_attempt)
+                self._preexisting_task_attempts.append(
+                    preexisting_task_attempt)
                 self._task_to_all_task_attempts_m2m_relationships.append(
-                    TaskMembership(parent_task=task,
-                                   child_task_attempt=preexisting_task_attempt))
+                    TaskMembership(
+                        parent_task=task,
+                        child_task_attempt=preexisting_task_attempt))
             except TaskAttempt.DoesNotExist:
                 self._create_unsaved_task_attempt(task_attempt, task)
 
@@ -368,7 +374,9 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         task_attempt_data.pop('url', None)
         task_attempt_data.pop('status', None)
         task_attempt = TaskAttempt(**task_attempt_data)
-        self._unsaved_task_attempts.append(task_attempt)
+        if task_attempt.uuid in self._unsaved_task_attempts.keys():
+            return
+        self._unsaved_task_attempts[task_attempt.uuid] = task_attempt
         for input_data in inputs:
             input_copy = copy.deepcopy(input_data)
             input_copy['task_attempt'] = task_attempt
@@ -380,7 +388,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 )
                 s.is_valid(raise_exception=True)
                 input_copy['data_node'] = s.save()
-            self._unsaved_task_attempt_inputs.append(TaskAttemptInput(**input_copy))
+            self._unsaved_task_attempt_inputs.append(
+                TaskAttemptInput(**input_copy))
         for output_data in outputs:
             output_copy = copy.deepcopy(output_data)
             output_copy['task_attempt'] = task_attempt
@@ -392,7 +401,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 )
                 s.is_valid(raise_exception=True)
                 output_copy['data_node'] = s.save()
-            self._unsaved_task_attempt_outputs.append(TaskAttemptOutput(**output_copy))
+            self._unsaved_task_attempt_outputs.append(
+                TaskAttemptOutput(**output_copy))
         for log_file in log_files:
             log_file['task_attempt'] = task_attempt
             data_object = log_file.pop('data_object', None)
@@ -421,19 +431,24 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             self._new_runs = reload_models(Run, bulk_runs)
             all_runs = [run for run in self._new_runs]
             all_runs.extend(self._preexisting_runs)
-            match_and_update_by_uuid(self._unsaved_run_inputs, 'run', self._new_runs)
+            match_and_update_by_uuid(
+                self._unsaved_run_inputs, 'run', self._new_runs)
             RunInput.objects.bulk_create(self._unsaved_run_inputs)
-            match_and_update_by_uuid(self._unsaved_run_outputs, 'run', self._new_runs)
+            match_and_update_by_uuid(
+                self._unsaved_run_outputs, 'run', self._new_runs)
             RunOutput.objects.bulk_create(self._unsaved_run_outputs)
             match_and_update_by_uuid(self._unsaved_run_user_inputs,
                                      'run', self._new_runs)
             UserInput.objects.bulk_create(self._unsaved_run_user_inputs)
-            match_and_update_by_uuid(self._unsaved_run_events, 'run', self._new_runs)
+            match_and_update_by_uuid(
+                self._unsaved_run_events, 'run', self._new_runs)
             RunEvent.objects.bulk_create(self._unsaved_run_events)
-            match_and_update_by_uuid(self._unsaved_tasks, 'run', self._new_runs)
+            match_and_update_by_uuid(
+                self._unsaved_tasks, 'run', self._new_runs)
             bulk_tasks = Task.objects.bulk_create(self._unsaved_tasks)
             self._new_tasks = reload_models(Task, bulk_tasks)
-            match_and_update_by_uuid(self._unsaved_task_inputs, 'task', self._new_tasks)
+            match_and_update_by_uuid(
+                self._unsaved_task_inputs, 'task', self._new_tasks)
             TaskInput.objects.bulk_create(self._unsaved_task_inputs)
             match_and_update_by_uuid(self._unsaved_task_outputs,
                                      'task', self._new_tasks)
@@ -441,20 +456,24 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             match_and_update_by_uuid(self._unsaved_task_events,
                                      'task', self._new_tasks)
             TaskEvent.objects.bulk_create(self._unsaved_task_events)
-            bulk_attempts = TaskAttempt.objects.bulk_create(self._unsaved_task_attempts)
+            bulk_attempts = TaskAttempt.objects.bulk_create(
+                self._unsaved_task_attempts.values())
             self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
             all_task_attempts = [task_attempt for task_attempt
                                  in self._new_task_attempts]
             all_task_attempts.extend(self._preexisting_task_attempts)
             match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
                                      'task_attempt', self._new_task_attempts)
-            TaskAttemptInput.objects.bulk_create(self._unsaved_task_attempt_inputs)
+            TaskAttemptInput.objects.bulk_create(
+                self._unsaved_task_attempt_inputs)
             match_and_update_by_uuid(self._unsaved_task_attempt_outputs,
                                      'task_attempt',self._new_task_attempts)
-            TaskAttemptOutput.objects.bulk_create(self._unsaved_task_attempt_outputs)
+            TaskAttemptOutput.objects.bulk_create(
+                self._unsaved_task_attempt_outputs)
             match_and_update_by_uuid(self._unsaved_task_attempt_events,
                                      'task_attempt', self._new_task_attempts)
-            TaskAttemptEvent.objects.bulk_create(self._unsaved_task_attempt_events)
+            TaskAttemptEvent.objects.bulk_create(
+                self._unsaved_task_attempt_events)
             match_and_update_by_uuid(self._unsaved_log_files,
                                      'task_attempt', self._new_task_attempts)
             TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
@@ -488,10 +507,11 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 lambda r: r.uuid==parent_uuid, runs)[0]
             params.append((run.id, parent.id))
         if params:
-            case_statement = ' '.join(['WHEN id=%s THEN %s' % pair for pair in params])
+            case_statement = ' '.join(
+                ['WHEN id=%s THEN %s' % pair for pair in params])
             id_list = ', '.join(['%s' % pair[0] for pair in params])
-            sql = 'UPDATE api_run SET parent_id= CASE %s END WHERE id IN (%s)' \
-                                             % (case_statement, id_list)
+            sql = 'UPDATE api_run SET parent_id= CASE %s END WHERE id IN (%s)'\
+                                                 % (case_statement, id_list)
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
 
@@ -503,10 +523,11 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 lambda ta: ta.uuid==task_attempt_uuid, task_attempts)[0]
             params.append((task.id, task_attempt.id))
         if params:
-            case_statement = ' '.join(['WHEN id=%s THEN %s' % pair for pair in params])
+            case_statement = ' '.join(
+                ['WHEN id=%s THEN %s' % pair for pair in params])
             id_list = ', '.join(['%s' % pair[0] for pair in params])
-            sql = 'UPDATE api_task SET task_attempt_id= CASE %s END WHERE id IN (%s)' \
-                                             % (case_statement, id_list)
+            sql = 'UPDATE api_task SET task_attempt_id= CASE %s END WHERE id IN (%s)'\
+                                                        % (case_statement, id_list)
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
 
@@ -540,8 +561,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                 for input_data in user_inputs:
                     # The user_input usually won't have data type specified.
                     # We need to know the data type to find or create the
-                    # data object from the value given. We get the type from the
-                    # corresponding template input.
+                    # data object from the value given. We get the type from
+                    # the corresponding template input.
                     if not input_data.get('channel'):
                         raise serializers.ValidationError(
                             'Missing required "channel" field on input: "%s"'
@@ -552,10 +573,11 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                         raise serializers.ValidationError(
                             'Input channel "%s" does not match any channel '\
                             'on the template.' % input_data.get('channel'))
-                    if input_data.get('type') and input_data.get('type') != input.type:
+                    if input_data.get('type') \
+                       and input_data.get('type') != input.type:
                         raise serializers.ValidationError(
-                            'Type mismatch: Data with type "%s" does not match '
-                            'input channel "%s" with type "%s".' % (
+                            'Type mismatch: Data with type "%s" does not '
+                            'match input channel "%s" with type "%s".' % (
                                 input_data.get('type'),
                                 input_data.get('channel'), type))
                     input_data.update({'type': input.type})
@@ -569,7 +591,8 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
                     if not i.data_node.is_ready():
                         raise serializers.ValidationError(
                             'Data for input "%s" is not ready. (Maybe a file '\
-                            'upload failed or is not yet complete?)' % i.channel)
+                            'upload failed or is not yet complete?)'
+                            % i.channel)
             run.initialize_inputs()
             run.initialize_outputs()
             run.initialize()
@@ -603,8 +626,10 @@ class RunSerializer(_AbstractWritableRunSerializer):
         view_name='run-detail',
         lookup_field='uuid')
     name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
-    datetime_finished = serializers.DateTimeField(required=False, format='iso-8601')
+    datetime_created = serializers.DateTimeField(
+        required=False, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(
+        required=False, format='iso-8601')
     template = URLTemplateSerializer(required=False)
     postprocessing_status = serializers.CharField(required=False)
     status = serializers.CharField(read_only=True)
@@ -620,8 +645,10 @@ class RunSerializer(_AbstractWritableRunSerializer):
                                         allow_null=True, allow_blank=True)
     environment = serializers.JSONField(required=False, allow_null=True)
     resources = serializers.JSONField(required=False, allow_null=True)
-    notification_addresses = serializers.JSONField(required=False, allow_null=True)
-    notification_context = serializers.JSONField(required=False, allow_null=True)
+    notification_addresses = serializers.JSONField(
+        required=False, allow_null=True)
+    notification_context = serializers.JSONField(
+        required=False, allow_null=True)
     user_inputs = UserInputSerializer(many=True, required=False)
     inputs = RunInputSerializer(many=True, required=False)
     outputs = RunOutputSerializer(many=True, required=False)
