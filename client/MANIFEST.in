@@ -2,3 +2,4 @@ include loomengine/VERSION
 include LICENSE
 include NOTICES
 include README.rst
+recursive-include loomengine/playbooks/ *
