@@ -39,7 +39,7 @@ class TestTemplateLabelSerializer(TestCase):
         return template
 
 @override_settings(TEST_DISABLE_ASYNC_DELAY=True,
-                   TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
+                   TEST_NO_PUSH_INPUTS=True)
 class TestRunLabelSerializer(TransactionTestCase):
 
     def testCreate(self):

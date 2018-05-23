@@ -1,15 +1,15 @@
 from django.test import TestCase, override_settings
 import yaml
 
-from api.test.models.test_templates import get_workflow
+from api.test.models.test_templates import get_template
 from api.models.data_objects import *
 from api.models.runs import Run, TaskNode
 from api.models.input_calculator import InputCalculator
 from api.test.helper import request_run_from_template_file
 
 def get_run():
-    wf = get_workflow()
-    run = Run.create_from_template(wf)
+    template = get_template()
+    run = Run.create_from_template(template)
     run.initialize_inputs()
     run.initialize_outputs()
     run.initialize()
@@ -21,7 +21,7 @@ class TestWorkflowRun(TestCase):
 
     def testCreate(self):
         with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
-                           TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True):
+                           TEST_NO_PUSH_INPUTS=True):
             run = get_run()
         self.assertTrue(run.name == 'one_two')
         self.assertTrue(

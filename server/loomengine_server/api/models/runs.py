@@ -451,7 +451,7 @@ class Run(BaseModel):
         connector.connect(io_node)
 
     def _push_all_inputs(self):
-        if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
+        if get_setting('TEST_NO_PUSH_INPUTS'):
             return
         if self.inputs.exists():
             for input in self.inputs.all():
@@ -466,8 +466,6 @@ class Run(BaseModel):
         other input data for those tasks is available, and 2) the task with
         that data_path was not already created previously.
         """
-        if get_setting('TEST_NO_CREATE_TASK'):
-            return
         if not self.is_leaf:
             return
         for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
@@ -476,7 +474,11 @@ class Run(BaseModel):
 
     def _push_input_set(self, input_set):
         try:
+            if get_setting('TEST_NO_CREATE_TASK'):
+                return
             task = Task.create_from_input_set(input_set, self)
+            if get_setting('TEST_NO_RUN_TASK'):
+                return
             task.execute(force_rerun=self.force_rerun)
         except TaskAlreadyExistsException:
             pass
