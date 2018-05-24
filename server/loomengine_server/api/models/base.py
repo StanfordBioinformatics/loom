@@ -24,6 +24,78 @@ class FilterHelper(object):
     def __init__(self, Model):
         self.Model = Model
 
+    def filter_multiple_by_name_or_id_or_tag_or_hash(
+            self, query_strings, queryset=None):
+        assert isinstance(query_strings, list)
+        if len(query_strings) == 0:
+            return {}
+        results = self.Model._prefetch_for_filter(queryset=queryset)
+        for i in range(len(query_strings)):
+            results = results | self.filter_by_name_or_id_or_tag_or_hash(
+                query_strings[i], queryset=queryset)
+        return self._sort_by_name_or_id_or_tag_or_hash(
+            query_strings, results)
+
+    def _sort_by_name_or_id_or_tag_or_hash(self, query_strings, results):
+        models = [r for r in results]
+        sorted_results = {}
+        for query_string in query_strings:
+            name, uuid, tag, hash_value \
+                = self._parse_as_name_or_id_or_tag_or_hash(query_string)
+            matches = list(filter(
+                lambda model: self._does_model_match(
+                    model, name=name, uuid=uuid,
+                    tag=tag, hash_value=hash_value),
+                results))
+            sorted_results[query_string] = matches
+        return sorted_results
+
+    def filter_multiple_by_name_or_id_or_tag(
+            self, query_strings, queryset=None):
+        assert isinstance(query_strings, list)
+        if len(query_strings) == 0:
+            return {}
+        results = self.Model._prefetch_for_filter(queryset=queryset)
+        for i in range(len(query_strings)):
+            results = results | self.filter_by_name_or_id_or_tag(
+                query_strings[i], queryset=queryset)
+        return self._sort_by_name_or_id_or_tag(
+            query_strings, results)
+
+    def _sort_by_name_or_id_or_tag(self, query_strings, results):
+        models = [r for r in results]
+        sorted_results = {}
+        for query_string in query_strings:
+            name, uuid, tag = self._parse_as_name_or_id_or_tag(query_string)
+            matches = list(filter(
+                lambda model: self._does_model_match(
+                    model, name=name, uuid=uuid,
+                    tag=tag),
+                results))
+            sorted_results[query_string] = matches
+        return sorted_results
+
+    @classmethod
+    def _does_model_match(cls, model, name=None, uuid=None, tag=None, hash_value=None):
+        if name and not cls._get_field_value(
+                model, model.NAME_FIELD)==name:
+            return False
+        if uuid and not cls._get_field_value(
+                model, model.ID_FIELD).startswith(uuid):
+            return False
+        if tag and not tag in [t.tag for t in model.tags.all()]:
+            return False
+        if hash_value and not cls._get_field_value(model, model.HASH_FIELD)==hash_value:
+            return False
+        return True
+
+    @classmethod
+    def _get_field_value(cls, model, field):
+        value = model
+        for attr in field.split('__'):
+            value = getattr(value, attr)
+        return value
+
     def filter_by_name_or_id_or_tag_or_hash(self, query_string, queryset=None):
         assert self.Model.NAME_FIELD, \
             'NAME_FIELD is missing on model %s' % self.Model.__name__
@@ -121,6 +193,24 @@ class _FilterMixin(object):
     def filter_by_name_or_id_or_tag(cls, filter_string):
         helper = FilterHelper(cls)
         return helper.filter_by_name_or_id_or_tag(filter_string)
+
+    @classmethod
+    def filter_multiple_by_name_or_id_or_tag_or_hash(
+            cls, filter_strings, queryset=None):
+        helper = FilterHelper(cls)
+        return helper.filter_multiple_by_name_or_id_or_tag_or_hash(
+            filter_string, queryset=queryset)
+
+    @classmethod
+    def filter_multiple_by_name_or_id_or_tag(cls, filter_strings):
+        helper = FilterHelper(cls)
+        return helper.filter_multiple_by_name_or_id_or_tag(filter_string)
+
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset
 
 
 class BaseModel(models.Model, _FilterMixin):

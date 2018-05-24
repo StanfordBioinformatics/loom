@@ -637,6 +637,12 @@ class Run(BaseModel):
             run._get_data_nodes(data_nodes)
         return data_nodes
 
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.prefetch_related('tags')
+
 
 class RunEvent(BaseModel):
 

@@ -209,6 +209,11 @@ class Template(BaseModel):
                 data_nodes.append(input.data_node)
         return data_nodes
 
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.prefetch_related('tags')
 
 class TemplateInput(DataChannel):
 
