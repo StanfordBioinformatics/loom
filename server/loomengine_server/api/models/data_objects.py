@@ -277,7 +277,8 @@ class DataObject(BaseModel):
     def calculate_contents_fingerprint(self):
         return calculate_contents_fingerprint(
             self.get_fingerprintable_contents())
-        
+
+
 class FileResource(BaseModel):
 
     NAME_FIELD = 'filename'
@@ -339,12 +340,14 @@ class FileResource(BaseModel):
     def initialize(cls, **kwargs):
         if not kwargs.get('file_url'):
             file_root = cls.get_file_root()
-            file_relative_path = cls._get_relative_path_for_import(
-                kwargs.get('filename'),
-                kwargs.get('source_type'),
-                kwargs.get('data_object'),
-                kwargs.pop('task_attempt', None)
-            )
+            file_relative_path = kwargs.setdefault(
+                'file_relative_path',
+                cls._get_relative_path_for_import(
+                    kwargs.get('filename'),
+                    kwargs.get('source_type'),
+                    kwargs.get('data_object'),
+                    kwargs.pop('task_attempt', None)
+                ))
             kwargs['file_url'] = os.path.join(file_root, file_relative_path)
             kwargs['file_relative_path'] = file_relative_path
         file_resource = cls(**kwargs)

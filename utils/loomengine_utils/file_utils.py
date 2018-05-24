@@ -533,7 +533,11 @@ class LocalCopier(AbstractCopier):
                 pass
             else:
                 raise FileUtilsError(str(e))
-        shutil.copy(self.source.get_path(), self.destination.get_path())
+        dest = os.open(self.destination.get_path(),
+                       os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(dest, 'w') as f:
+            with open(self.source.get_path()) as sf:
+                shutil.copyfileobj(sf, f)
 
 
 class GoogleStorageCopier(AbstractCopier):

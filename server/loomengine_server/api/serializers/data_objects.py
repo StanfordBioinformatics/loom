@@ -217,6 +217,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
         fields = (
             'filename',
             'file_url',
+            'file_relative_path',
             'md5',
             'import_comments',
             'imported_from_url',
@@ -227,6 +228,7 @@ class FileResourceSerializer(serializers.ModelSerializer):
         
     filename = serializers.CharField()
     file_url = serializers.CharField(required=False)
+    file_relative_path = serializers.CharField(required=False)
     md5 = serializers.CharField()
     import_comments = serializers.CharField(required=False)
     imported_from_url = serializers.CharField(required=False)
