@@ -261,7 +261,7 @@ class TaskAttempt(BaseModel):
         queried_task_attempts = [item for item in queryset]
         copy_prefetch(queried_task_attempts, instances)
         # Prefetch all data nodes
-        data_nodes = {}
+        data_nodes = []
         for instance in instances:
             instance._get_data_nodes(data_nodes)
         DataNode.prefetch_list(data_nodes)
