@@ -10,6 +10,7 @@ import jsonfield
 import requests
 
 from .base import BaseModel
+from . import flatten_nodes, copy_prefetch
 from api import get_setting
 from api.async import async_execute
 from api.exceptions import *
@@ -17,6 +18,7 @@ from api.models import uuidstr
 from api.models import validators
 from api.models.data_objects import DataObject
 from api.models.data_channels import DataChannel
+from api.models.data_nodes import DataNode
 from api.models.input_calculator import InputCalculator
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
 from api.models.task_attempts import TaskAttempt
@@ -549,6 +551,91 @@ class Run(BaseModel):
             for step in self.steps.all():
                 step.get_leaves(leaf_list=leaf_list)
         return leaf_list
+
+    def prefetch(self):
+        if not hasattr(self, '_prefetched_objects_cache'):
+            self.prefetch_list([self,])
+
+    @classmethod
+    def prefetch_list(cls, instances):
+        queryset = Run\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])
+        MAXIMUM_TREE_DEPTH = get_setting('MAXIMUM_TREE_DEPTH')
+        # Prefetch 'children', 'children__children', etc. up to max depth               
+        # This incurs 1 query per level up to actual depth.                             
+        # No extra queries incurred if we go too deep.)                                 
+        for i in range(1, MAXIMUM_TREE_DEPTH+1):
+            queryset = queryset.prefetch_related('__'.join(['steps']*i))
+        # Transfer prefetched steps to original instances
+        queried_runs_1 = [run for run in queryset]
+        copy_prefetch(queried_runs_1, instances)
+        # Flatten tree so we can simultaneously prefetch related models on all nodes
+        node_list = []
+        for instance in instances:
+            node_list.extend(flatten_nodes(instance, 'steps'))
+        queryset = Run.objects.filter(uuid__in=[n.uuid for n in node_list])\
+            .select_related('template')\
+            .prefetch_related('inputs')\
+            .prefetch_related('inputs__data_node')\
+            .prefetch_related('outputs')\
+            .prefetch_related('outputs__data_node')\
+            .prefetch_related('user_inputs')\
+            .prefetch_related('user_inputs__data_node')\
+            .prefetch_related('events')\
+            .prefetch_related('tasks')\
+            .prefetch_related('tasks__inputs')\
+            .prefetch_related('tasks__inputs__data_node')\
+            .prefetch_related('tasks__outputs')\
+            .prefetch_related('tasks__outputs__data_node')\
+            .prefetch_related('tasks__events')\
+            .prefetch_related('tasks__all_task_attempts')\
+            .prefetch_related('tasks__all_task_attempts__inputs')\
+            .prefetch_related('tasks__all_task_attempts__inputs__data_node')\
+            .prefetch_related('tasks__all_task_attempts__outputs')\
+            .prefetch_related('tasks__all_task_attempts__outputs__data_node')\
+            .prefetch_related('tasks__all_task_attempts__events')\
+            .prefetch_related('tasks__all_task_attempts__log_files')\
+            .prefetch_related('tasks__all_task_attempts__log_files__data_object')\
+            .prefetch_related(
+                'tasks__all_task_attempts__log_files__data_object__file_resource')\
+            .prefetch_related('tasks__task_attempt')\
+            .prefetch_related('tasks__task_attempt__inputs')\
+            .prefetch_related('tasks__task_attempt__inputs__data_node')\
+            .prefetch_related('tasks__task_attempt__outputs')\
+            .prefetch_related('tasks__task_attempt__outputs__data_node')\
+            .prefetch_related('tasks__task_attempt__events')\
+            .prefetch_related('tasks__task_attempt__log_files')\
+            .prefetch_related('tasks__task_attempt__log_files__data_object')\
+            .prefetch_related(
+                'tasks__task_attempt__log_files__data_object__file_resource')
+        # Transfer prefetched data to child nodes on original instances
+        queried_runs_2 = [run for run in queryset]
+        copy_prefetch(queried_runs_2, node_list,
+                      child_field='steps', one_to_x_fields=['template',])
+        # Prefetch all data nodes
+	data_nodes = []
+	for instance in instances:
+            instance._get_data_nodes(data_nodes)
+	DataNode.prefetch_list(data_nodes)
+
+    def _get_data_nodes(self, data_nodes=None):
+        if data_nodes is None:
+            data_nodes = []
+        for input in self.inputs.all():
+            if input.data_node:
+                data_nodes.append(input.data_node)
+        for output in self.outputs.all():
+            if output.data_node:
+                data_nodes.append(output.data_node)
+        for user_input in self.user_inputs.all():
+            if user_input.data_node:
+                data_nodes.append(user_input.data_node)
+        for task in self.tasks.all():
+            task._get_data_nodes(data_nodes)
+        for run in self.steps.all():
+            run._get_data_nodes(data_nodes)
+        return data_nodes
 
 
 class RunEvent(BaseModel):

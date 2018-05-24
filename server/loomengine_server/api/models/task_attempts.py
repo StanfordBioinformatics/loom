@@ -12,13 +12,15 @@ import subprocess
 import threading
 import time
 
-from . import render_from_template, render_string_or_list
+from . import render_from_template, render_string_or_list, copy_prefetch
 from .base import BaseModel
 from .data_channels import DataChannel
+from .data_nodes import DataNode
 from api import get_setting
 from api.async import async_execute
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileResource
+from api.models.data_nodes import DataNode
 from api.models import validators
 
 
@@ -238,6 +240,43 @@ class TaskAttempt(BaseModel):
                 last_heartbeat = self.heartbeat()
             time.sleep(polling_interval)
 
+    def prefetch(self):
+        if not hasattr(self, '_prefetched_objects_cache'):
+            self.prefetch_list([self,])
+
+    def prefetch_list(cls, instances):
+        queryset = TaskAttempt\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])\
+                   .prefetch_related('inputs')\
+                   .prefetch_related('inputs__data_node')\
+                   .prefetch_related('outputs')\
+                   .prefetch_related('outputs__data_node')\
+                   .prefetch_related('events')\
+                   .prefetch_related('log_files')\
+                   .prefetch_related('log_files__data_object')\
+                   .prefetch_related(
+                       'log_files__data_object__file_resource')
+        # Transfer prefetch data to original instances
+        queried_task_attempts = [item for item in queryset]
+        copy_prefetch(queried_task_attempts, instances)
+        # Prefetch all data nodes
+        data_nodes = {}
+        for instance in instances:
+            instance._get_data_nodes(data_nodes)
+        DataNode.prefetch_list(data_nodes)
+
+    def _get_data_nodes(self, data_nodes=None):
+        if data_nodes is None:
+            data_nodes = []
+        for input in self.inputs.all():
+            if input.data_node:
+                data_nodes.append(input.data_node)
+        for output in self.outputs.all():
+            if output.data_node:
+                data_nodes.append(output.data_node)
+        return data_nodes
+
 
 class TaskAttemptInput(DataChannel):
 
@@ -260,6 +299,26 @@ class TaskAttemptOutput(DataChannel):
     parser = jsonfield.JSONField(
         validators=[validators.OutputParserValidator.validate_output_parser],
         blank=True)
+
+    def prefetch(self):
+        if self.data_node and not hasattr(self.data_node, '_prefetched_objects_cache'):
+            self.prefetch_list([self,])
+
+    @classmethod
+    def prefetch_list(cls, instances):
+        queryset = TaskAttemptOutput\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])\
+                   .select_related('data_node')
+        queried_outputs = [o for o in queryset]
+        # Transfer prefetched DataNodes to original instances
+        for output in queried_outputs:
+            # Skip if data_node is null
+            if output.data_node:
+                for instance in filter(lambda i: i.uuid==output.uuid, instances):
+                    instance.data_node = output.data_node
+        # Prefetch nested DataNode data
+        DataNode.prefetch_list([o.data_node for o in queried_outputs])
 
 
 class TaskAttemptLogFile(BaseModel):

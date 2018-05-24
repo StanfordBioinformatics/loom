@@ -4,8 +4,7 @@ from . import CreateWithParentModelSerializer, strip_empty_values
 from api.models.task_attempts import TaskAttempt, TaskAttemptOutput, \
     TaskAttemptInput, TaskAttemptLogFile, TaskAttemptEvent
 from api.serializers.data_objects import DataObjectSerializer
-from api.serializers.data_channels import DataChannelSerializer, \
-    ExpandedDataChannelSerializer
+from api.serializers.data_channels import DataChannelSerializer
 
 
 class TaskAttemptInputSerializer(DataChannelSerializer):
@@ -16,14 +15,6 @@ class TaskAttemptInputSerializer(DataChannelSerializer):
 
     mode = serializers.CharField()
 
-
-class ExpandedTaskAttemptInputSerializer(ExpandedDataChannelSerializer):
-
-    class Meta:
-        model = TaskAttemptInput
-        fields = ('type', 'channel', 'data', 'mode')
-
-    mode = serializers.CharField()
 
 class URLTaskAttemptOutputSerializer(serializers.HyperlinkedModelSerializer):
 
@@ -36,6 +27,7 @@ class URLTaskAttemptOutputSerializer(serializers.HyperlinkedModelSerializer):
         view_name='task-attempt-output-detail',
         lookup_field='uuid')
 
+
 class TaskAttemptOutputSerializer(DataChannelSerializer):
 
     class Meta:
@@ -45,19 +37,9 @@ class TaskAttemptOutputSerializer(DataChannelSerializer):
     source = serializers.JSONField(required=False)
     parser = serializers.JSONField(required=False, allow_null=True)
     mode = serializers.CharField()
-        
-class ExpandedTaskAttemptOutputSerializer(ExpandedDataChannelSerializer):
-
-    class Meta:
-        model = TaskAttemptOutput
-        fields = ('uuid', 'type', 'channel', 'data', 'mode', 'source', 'parser')
-
-    source = serializers.JSONField(required=False)
-    parser = serializers.JSONField(required=False, allow_null=True)
-    mode = serializers.CharField()
 
 
-class TaskAttemptOutputUpdateSerializer(ExpandedTaskAttemptOutputSerializer):
+class TaskAttemptOutputUpdateSerializer(TaskAttemptOutputSerializer):
     """This class is needed because some fields that are allowed
     in "create" are not writable in "update".
     """
@@ -196,41 +178,9 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
         return instance
 
     def to_representation(self, instance):
-        if not hasattr(instance, '_prefetched_objects_cache'):
-            self._prefetch_instance(instance)
+        instance.prefetch()
         return strip_empty_values(
             super(TaskAttemptSerializer, self).to_representation(instance))
-
-    def _prefetch_instance(self, instance):
-        queryset = TaskAttempt\
-                   .objects\
-                   .filter(uuid=instance.uuid)\
-                   .prefetch_related('inputs')\
-                   .prefetch_related('inputs__data_node')\
-                   .prefetch_related(
-                       'inputs__data_node__data_object')\
-                   .prefetch_related(
-                       'inputs__data_node__data_object__file_resource')\
-                   .prefetch_related('outputs')\
-                   .prefetch_related('outputs__data_node')\
-                   .prefetch_related(
-                       'outputs__data_node__data_object')\
-                   .prefetch_related(
-                       'outputs__data_node__data_object__file_resource')\
-                   .prefetch_related('events')\
-                   .prefetch_related('log_files')\
-                   .prefetch_related('log_files__data_object')\
-                   .prefetch_related(
-                       'log_files__data_object__file_resource')
-        instance._prefetched_objects_cache = queryset[0]._prefetched_objects_cache
-
-
-class ExpandedTaskAttemptSerializer(TaskAttemptSerializer):
-
-    inputs = ExpandedTaskAttemptInputSerializer(
-        many=True, allow_null=True, required=False)
-    outputs = ExpandedTaskAttemptOutputSerializer(
-        many=True, allow_null=True, required=False)
 
 
 class URLTaskAttemptSerializer(serializers.HyperlinkedModelSerializer):

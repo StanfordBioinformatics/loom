@@ -1,18 +1,16 @@
 import copy
 import django.core.exceptions
-from django.db.models import Prefetch
 from jinja2.exceptions import UndefinedError
 from rest_framework import serializers
 
-from . import RecursiveField, \
-    strip_empty_values, match_and_update_by_uuid, \
-    reload_models, flatten_nodes, replace_nodes
-from .data_channels import DataChannelSerializer, ExpandedDataChannelSerializer
+from . import RecursiveField, strip_empty_values, match_and_update_by_uuid, \
+    reload_models
+from .data_channels import DataChannelSerializer
 from api import async
 from api.models import DummyContext, render_from_template, render_string_or_list
 from api.models.templates import Template, TemplateInput, TemplateMembership
 from api.models.data_channels import DataChannel
-from api.serializers import DataNodeSerializer, ExpandedDataNodeSerializer
+from api.serializers import DataNodeSerializer
 
 
 DEFAULT_INPUT_GROUP = 0
@@ -54,21 +52,8 @@ class TemplateInputSerializer(DataChannelSerializer):
     data = serializers.JSONField(required=False, allow_null=True) 
     as_channel = serializers.CharField(required=False, allow_null=True)
 
-class ExpandedTemplateInputSerializer(ExpandedDataChannelSerializer):
 
-    class Meta:
-        model = TemplateInput
-        fields = ('type', 'channel', 'as_channel', 'data', 'hint', 'mode', 'group')
-
-    hint = serializers.CharField(required=False, allow_blank=True)
-    mode = serializers.CharField(required=False, allow_blank=True)
-    group = serializers.IntegerField(required=False, allow_null=True)
-    # Override data to make it non-required
-    data = serializers.JSONField(required=False, allow_null=True) 
-    as_channel = serializers.CharField(required=False, allow_null=True)
-
-
-class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer):
+class URLTemplateSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Template
@@ -92,32 +77,40 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
             'steps',
         )
 
+    # readable
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
-            view_name='template-detail',
-            lookup_field='uuid')
-    _template_id = serializers.CharField(write_only=True, required=False)
+        view_name='template-detail',
+        lookup_field='uuid')
     name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(format='iso-8601', required=False)
-    command = serializers.CharField(required=False)
-    import_comments = serializers.CharField(required=False)
-    imported_from_url = serializers.CharField(required=False)
-    timeout_hours = serializers.FloatField(required=False)
+    md5 = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(
+        format='iso-8601', required=False)
     is_leaf = serializers.BooleanField(required=False)
-    interpreter = serializers.CharField(required=False)
-    environment = serializers.JSONField(required=False)
-    resources = serializers.JSONField(required=False)
-    inputs = TemplateInputSerializer(many=True, required=False)
-    outputs  = serializers.JSONField(required=False)
-    steps = RecursiveField(many=True, required=False)
-    
+
+    # write-only
+    _template_id = serializers.CharField(write_only=True, required=False)
+    command = serializers.CharField(required=False, write_only=True)
+    import_comments = serializers.CharField(required=False, write_only=True)
+    imported_from_url = serializers.CharField(required=False, write_only=True)
+    interpreter = serializers.CharField(required=False, write_only=True)
+    environment = serializers.JSONField(required=False, write_only=True)
+    resources = serializers.JSONField(required=False, write_only=True)
+    inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
+    outputs  = serializers.JSONField(required=False, write_only=True)
+    steps = RecursiveField(many=True, required=False, write_only=True)
+    timeout_hours = serializers.FloatField(required=False, write_only=True)
+
+    def to_representation(self, instance):
+        return strip_empty_values(
+            super(URLTemplateSerializer, self).to_representation(instance))
 
     def to_internal_value(self, data):
         """Because we allow template ID string values, where
         serializers normally expect a dict
         """
         converted_data = _convert_template_id_to_dict(data)
-        return super(_AbstractWritableTemplateSerializer, self)\
+        return super(URLTemplateSerializer, self)\
             .to_internal_value(converted_data)
 
     def validate(self, data):
@@ -500,7 +493,7 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
             #template_id = template_data
             template_id = template_data.get('_template_id')
             # Use the serializer to retrive the instance
-            serializer = _AbstractWritableTemplateSerializer(
+            serializer = URLTemplateSerializer(
                 data=template_id)
             serializer.is_valid(raise_exception=True)
             # No new template created here, just a lookup
@@ -586,6 +579,32 @@ class _AbstractWritableTemplateSerializer(serializers.HyperlinkedModelSerializer
                 template_data.get('imported_from_url'))
 
 
+class TemplateSerializer(URLTemplateSerializer):
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+            view_name='template-detail',
+            lookup_field='uuid')
+    _template_id = serializers.CharField(write_only=True, required=False)
+    name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(format='iso-8601', required=False)
+    command = serializers.CharField(required=False)
+    import_comments = serializers.CharField(required=False)
+    imported_from_url = serializers.CharField(required=False)
+    is_leaf = serializers.BooleanField(required=False)
+    interpreter = serializers.CharField(required=False)
+    environment = serializers.JSONField(required=False)
+    resources = serializers.JSONField(required=False)
+    inputs = TemplateInputSerializer(many=True, required=False)
+    outputs  = serializers.JSONField(required=False)
+    steps = RecursiveField(many=True, required=False)
+
+    def to_representation(self, instance):
+        instance.prefetch()
+        return strip_empty_values(
+            super(URLTemplateSerializer, self).to_representation(instance))
+
+
 class CycleDetector(object):
 
     def __init__(self, steps):
@@ -632,85 +651,3 @@ class CycleDetector(object):
                 'Cycle detected in steps "%s"' % '", "'.join(cycle_steps))
         elif vertex in self.black:
             return
-
-
-class TemplateSerializer(_AbstractWritableTemplateSerializer):
-
-    EXPAND=False
-
-    def to_representation(self, instance):
-        if not hasattr(instance, '_prefetched_objects_cache'):
-            self._prefetch_instance(instance)
-        return strip_empty_values(
-            super(TemplateSerializer, self).to_representation(instance))
-
-    def _prefetch_instance(self, instance):
-        queryset = Template\
-                   .objects\
-                   .filter(uuid=instance.uuid)\
-                   .prefetch_related('steps')\
-                   .prefetch_related('steps__steps')\
-                   .prefetch_related('steps__steps__steps')\
-                   .prefetch_related('steps__steps__steps__steps')\
-                   .prefetch_related('steps__steps__steps__steps__steps')\
-                   .prefetch_related('steps__steps__steps__steps__steps__'\
-                                     'steps')\
-                   .prefetch_related('steps__steps__steps__steps__steps__'\
-                                     'steps__steps')\
-                   .prefetch_related('steps__steps__steps__steps__steps__'\
-                                     'steps__steps__steps')\
-                   .prefetch_related('steps__steps__steps__steps__steps__'\
-                                     'steps__steps__steps__steps')\
-                   .prefetch_related('steps__steps__steps__steps__steps__'\
-                                     'steps__steps__steps__steps__steps')
-        instance._prefetched_objects_cache = queryset[0]._prefetched_objects_cache
-        node_list = flatten_nodes(instance, 'steps')
-        queryset = Template.objects.filter(uuid__in=[n.uuid for n in node_list])\
-            .prefetch_related('inputs')\
-            .prefetch_related('inputs__data_node')       
-        templates = [template for template in queryset]
-        replace_nodes(instance, templates, 'steps')
-
-        data_nodes = []
-        for template in templates:
-            for input in template._prefetched_objects_cache.get('inputs', []):
-                data_node = input._prefetched_objects_cache.get('data_node', None)
-                if data_node:
-                    data_nodes.append(data_node)
-        if self.EXPAND:
-            ExpandedDataNodeSerializer.prefetch_instances(data_nodes)
-        else:
-            DataNodeSerializer.prefetch_instances(data_nodes)
-
-
-class ExpandedTemplateSerializer(TemplateSerializer):
-
-    EXPAND = True
-    inputs = ExpandedTemplateInputSerializer(many=True, required=False)
-
-
-class URLTemplateSerializer(_AbstractWritableTemplateSerializer):
-
-    # readable
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='template-detail',
-        lookup_field='uuid')
-    name = serializers.CharField(required=False)
-    md5 = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(
-        format='iso-8601', required=False)
-    is_leaf = serializers.BooleanField(required=False)
-
-    # write-only
-    _template_id = serializers.CharField(write_only=True, required=False)
-    command = serializers.CharField(required=False, write_only=True)
-    import_comments = serializers.CharField(required=False, write_only=True)
-    imported_from_url = serializers.CharField(required=False, write_only=True)
-    interpreter = serializers.CharField(required=False, write_only=True)
-    environment = serializers.JSONField(required=False, write_only=True)
-    resources = serializers.JSONField(required=False, write_only=True)
-    inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
-    outputs  = serializers.JSONField(required=False, write_only=True)
-    steps = RecursiveField(many=True, required=False, write_only=True)
-    timeout_hours = serializers.FloatField(required=False, write_only=True)

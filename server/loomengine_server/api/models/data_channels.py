@@ -102,6 +102,10 @@ class DataChannel(BaseModel):
             data_node = self.data_node
             connected_node.setattrs_and_save_with_retries({'data_node': data_node})
 
+    def prefetch(self):
+        # no-op unless overridden
+        pass
+
     class Meta:
         abstract = True
         app_label = 'api'

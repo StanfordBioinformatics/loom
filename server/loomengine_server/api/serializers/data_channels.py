@@ -3,12 +3,10 @@ from django.db import models
 
 from . import CreateWithParentModelSerializer
 from api.models.data_channels import DataChannel
-from api.serializers.data_nodes import DataNodeSerializer, ExpandedDataNodeSerializer
+from api.serializers.data_nodes import DataNodeSerializer
 
 class DataChannelSerializer(CreateWithParentModelSerializer):
 
-    EXPAND = False
-    
     data = serializers.JSONField()
     type = serializers.CharField()
     channel = serializers.CharField()
@@ -53,31 +51,12 @@ class DataChannelSerializer(CreateWithParentModelSerializer):
                 instance)
         else:
             assert isinstance(instance, DataChannel)
-            data_node = instance.data_node
-            if data_node and not hasattr(data_node, '_prefetched_objects_cache'):
-                self._prefetch_instance(instance)
+            instance.prefetch()
             representation = super(DataChannelSerializer, self)\
-                .to_representation(instance)
+                             .to_representation(instance)
             if instance.data_node is not None:
-                if self.EXPAND:
-                    data_node_serializer = ExpandedDataNodeSerializer(
-                        instance.data_node,
-                        context=self.context)
-                else:
-                    data_node_serializer = DataNodeSerializer(
-                        instance.data_node,
-                        context=self.context)
+                data_node_serializer = DataNodeSerializer(
+                    instance.data_node,
+                    context=self.context)
                 representation['data'] = data_node_serializer.data
             return representation
-
-    def _prefetch_instance(self, instance):
-        data_node = instance.data_node
-        if self.EXPAND:
-            ExpandedDataNodeSerializer.prefetch_instances([data_node,])
-        else:
-            DataNodeSerializer.prefetch_instances([data_node,])
-
-
-class ExpandedDataChannelSerializer(DataChannelSerializer):
-
-    EXPAND = True

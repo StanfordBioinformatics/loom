@@ -120,8 +120,8 @@ class DataObjectViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelVi
     lookup_field = 'uuid'
 
     SERIALIZERS = {
-        'partial_update': serializers.UpdateDataObjectSerializer,
         'default': serializers.DataObjectSerializer,
+        'partial_update': serializers.UpdateDataObjectSerializer,
     }
 
     def get_queryset(self):
@@ -141,7 +141,7 @@ class DataObjectViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelVi
         if labels:
             for label in labels.split(','):
                 queryset = queryset.filter(labels__label=label)
-        queryset = self.get_serializer_class().apply_prefetch(queryset)
+        queryset = queryset.select_related('file_resource')
         return queryset.order_by('-datetime_created')
     
     @detail_route(methods=['post'], url_path='add-tag',
@@ -244,45 +244,39 @@ class DataObjectViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelVi
 
 
 class DataNodeViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
-    """DataNodes are used to organize DataObjects into arrays or trees to facilitate parallel runs. All nodes in a tree must have the same type. The 'contents' field is a JSON containing a single DataObject, a list of DataObjects, or nested lists. For write actions, each DataObject can be represented in full for as a dict, or as a string, where the string represents a given value (e.g. '3' for type integer), or a reference id (e.g. myfile.txt@22588117-425d-44f9-8a61-0cfd4d241d5e). PARAMS: ?expand will show data contents (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
+    """DataNodes are used to organize DataObjects into arrays or trees to facilitate parallel runs. All nodes in a tree must have the same type. The 'contents' field is a JSON containing a single DataObject, a list of DataObjects, or nested lists. For write actions, each DataObject can be represented in full for as a dict, or as a string, where the string represents a given value (e.g. '3' for type integer), or a reference id (e.g. myfile.txt@22588117-425d-44f9-8a61-0cfd4d241d5e).
     """
     lookup_field = 'uuid'
     queryset = models.DataNode.objects.all()
 
     SERIALIZERS = {
-        'default': serializers.URLDataNodeSerializer,
-        'retrieve': serializers.DataNodeSerializer,
-        'expand': serializers.ExpandedDataNodeSerializer
+        'default': serializers.DataNodeSerializer,
+        'list': serializers.URLDataNodeSerializer,
     }
 
-    def get_serializer_class(self):
-        if 'expand' in self.request.GET.keys():
-            return self.SERIALIZERS['expand']
-        return super(DataNodeViewSet, self).get_serializer_class()
-    
 
 class TaskViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
-    """A Task represents a specific combination of runtime environment, command, and inputs that describe a reproducible unit of analysis. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
+    """A Task represents a specific combination of runtime environment, command, 
+    and inputs that describe a reproducible unit of analysis.
     """
     lookup_field = 'uuid'
     queryset = models.Task.objects.all()
 
     SERIALIZERS = {
-        'default': serializers.URLTaskSerializer,
-        'retrieve': serializers.TaskSerializer
+        'default': serializers.TaskSerializer,
+        'list': serializers.URLTaskSerializer,
     }
 
 
 class TaskAttemptViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
-    """A TaskAttempt represents a single attempt at executing a Task. A Task may have multiple TaskAttempts due to retries. PARAMS: ?expand will show expanded version of linked objects (not allowed in index view). ?url will show only the url and uuid fields (for testing only). DETAIL_ROUTES: "fail" will set a run to failed status. "finish" will set a run to finished status. "log-files" can be used to POST a new LogFile. "events" can be used to POST a new event. "settings" can be used to get settings for loom-task-monitor.
+    """A TaskAttempt represents a single attempt at executing a Task. A Task may have multiple TaskAttempts due to retries. DETAIL_ROUTES: "fail" will set a run to failed status. "finish" will set a run to finished status. "log-files" can be used to POST a new LogFile. "events" can be used to POST a new event. "settings" can be used to get settings for loom-task-monitor.
     """
     lookup_field = 'uuid'
     queryset = models.TaskAttempt.objects.all()
 
     SERIALIZERS = {
-        'default': serializers.URLTaskAttemptSerializer,
-        'partial_update': serializers.TaskAttemptSerializer,
-        'retrieve': serializers.TaskAttemptSerializer
+        'default': serializers.TaskAttemptSerializer,
+        'list': serializers.URLTaskAttemptSerializer,
     }
 
     def _get_task_attempt(self, request, uuid):
@@ -369,20 +363,14 @@ class TaskAttemptViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelV
 
 
 class TemplateViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
-    """A Template is a pattern for analysis to be performed, but without assigned inputs. Templates can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, and environment. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
+    """A Template is a pattern for analysis to be performed, but without assigned inputs. Templates can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, and environment.
     """
     lookup_field = 'uuid'
 
     SERIALIZERS = {
-        'default': serializers.URLTemplateSerializer,
-        'retrieve': serializers.TemplateSerializer,
-        'expand': serializers.ExpandedTemplateSerializer
+        'default': serializers.TemplateSerializer,
+        'list': serializers.URLTemplateSerializer,
     }
-
-    def get_serializer_class(self):
-        if 'expand' in self.request.GET.keys():
-            return self.SERIALIZERS['expand']
-        return super(TemplateViewSet, self).get_serializer_class()
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
@@ -499,20 +487,14 @@ class TemplateViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelView
 
 
 class RunViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
-    """A Run represents the execution of a Template on a specific set of inputs. Runs can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, environment, and tasks. PARAMS: ?expand will show expanded version of linked objects to the full nested depth (not allowed in index view). ?url will show only the url and uuid fields (for testing only).
+    """A Run represents the execution of a Template on a specific set of inputs. Runs can be nested under the 'steps' field. Only leaf nodes contain command, interpreter, resources, environment, and tasks.
     """
     lookup_field = 'uuid'
 
     SERIALIZERS = {
         'default': serializers.URLRunSerializer,
         'retrieve': serializers.RunSerializer,
-        'expand': serializers.ExpandedRunSerializer
     }
-
-    def get_serializer_class(self):
-        if 'expand' in self.request.GET.keys():
-            return self.SERIALIZERS['expand']
-        return super(RunViewSet, self).get_serializer_class()
 
     def get_queryset(self):
         query_string = self.request.query_params.get('q', '')
@@ -646,7 +628,7 @@ class TaskAttemptLogFileViewSet(SelectableSerializerModelViewSet, ProtectedDelet
     queryset = models.TaskAttemptLogFile.objects.all()
 
     SERIALIZERS = {
-        'default': serializers.TaskAttemptLogFileSerializer
+        'default': serializers.TaskAttemptLogFileSerializer,
     }
 
     def get_queryset(self):
@@ -690,9 +672,9 @@ class TaskAttemptOutputViewSet(SelectableSerializerModelViewSet, ProtectedDelete
     queryset = models.TaskAttemptOutput.objects.all()
 
     SERIALIZERS = {
-        'default': serializers.URLTaskAttemptOutputSerializer,
-        'retrieve': serializers.TaskAttemptOutputSerializer,
-        'partial_update': serializers.TaskAttemptOutputUpdateSerializer
+        'default': serializers.TaskAttemptOutputSerializer,
+        'list': serializers.URLTaskAttemptOutputSerializer,
+        'partial_update': serializers.TaskAttemptOutputUpdateSerializer,
     }
 
     def get_queryset(self):

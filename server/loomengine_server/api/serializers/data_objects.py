@@ -209,16 +209,6 @@ class URLDataObjectSerializer(serializers.HyperlinkedModelSerializer):
             pass
         data_object.delete()
 
-    @classmethod
-    def get_select_related_list(cls):
-        return ['file_resource']
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        for select_string in cls.get_select_related_list():
-            queryset = queryset.select_related(select_string)
-        return queryset
-
 
 class FileResourceSerializer(serializers.ModelSerializer):
 

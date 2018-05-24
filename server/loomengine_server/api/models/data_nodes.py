@@ -3,9 +3,11 @@ import json
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
-from . import calculate_contents_fingerprint
+from . import calculate_contents_fingerprint, flatten_nodes, \
+    copy_prefetch
 from .base import BaseModel
 from .data_objects import DataObject
+from api import get_setting
 from api.models import uuidstr
 from api.models import validators
 
@@ -421,3 +423,37 @@ class DataNode(BaseModel):
                     n._get_fingerprintable_data_node_struct())
                  for n in self.children.all()],
                 separators=(',',':'))
+
+    def prefetch(self):
+        if hasattr(self, '_prefetched_objects_cache'):
+            return
+        self.prefetch_list([self,])
+
+    @classmethod
+    def prefetch_list(cls, instances):
+        instances = list(filter(lambda i: i is not None, instances))
+        instances = list(filter(
+            lambda i: not hasattr(i, '_prefetched_objects_cache'), instances))
+        queryset = DataNode\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])
+        MAXIMUM_TREE_DEPTH = get_setting('MAXIMUM_TREE_DEPTH')
+        # Prefetch 'children', 'children__children', etc. up to max depth
+        # This incurs 1 query per level up to actual depth.
+        # No extra queries incurred if we go too deep.)
+        for i in range(1, MAXIMUM_TREE_DEPTH+1):
+            queryset = queryset.prefetch_related('__'.join(['children']*i))
+        # Transfer prefetched children to original instances
+        queried_data_nodes_1 = [node for node in queryset]
+        copy_prefetch(queried_data_nodes_1, instances)
+        # Flatten tree so we can simultaneously prefetch related models on all nodes
+        node_list = []
+        for instance in instances:
+            node_list.extend(flatten_nodes(instance, 'children'))
+        queryset = DataNode.objects.filter(uuid__in=[n.uuid for n in node_list])\
+            .prefetch_related('data_object')\
+            .prefetch_related('data_object__file_resource')
+        # Transfer prefetched data to child nodes on original instances
+        queried_data_nodes_2 = [data_node for data_node in queryset]
+        copy_prefetch(queried_data_nodes_2, instances, child_field='children',
+                      one_to_x_fields=['data_object',])

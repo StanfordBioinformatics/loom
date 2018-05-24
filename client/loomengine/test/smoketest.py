@@ -14,7 +14,7 @@ import loomengine.example
 class SmokeTest(unittest.TestCase):
 
     def setUp(self):
-        self.template_name = 'join_two_words'
+        self.template_name = 'hello_world'
         self.run_name = self.template_name
         self.template_tag = 'smoke-test-%s' % uuid.uuid4()
         self.run_tag = 'smoke-test-%s' % uuid.uuid4()

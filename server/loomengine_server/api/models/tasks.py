@@ -13,6 +13,7 @@ from api import get_setting
 from api.async import async_execute
 from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
+from api.models.data_nodes import DataNode
 from api.models.task_attempts import TaskAttempt
 from api.models import validators
 
@@ -356,6 +357,63 @@ class Task(BaseModel):
             return self.run.name
         else:
             return str(self.uuid)
+
+    def prefetch(self):
+        if not hasattr(self, '_prefetched_objects_cache'):
+            self.prefetch_list([self,])
+
+    @classmethod
+    def prefetch_list(cls, instances):
+        queryset = Task\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])\
+                   .prefetch_related('inputs')\
+                   .prefetch_related('inputs__data_node')\
+                   .prefetch_related('outputs')\
+                   .prefetch_related('events')\
+                   .prefetch_related('all_task_attempts')\
+                   .prefetch_related('all_task_attempts__inputs')\
+                   .prefetch_related('all_task_attempts__inputs__data_node')\
+                   .prefetch_related('all_task_attempts__outputs')\
+                   .prefetch_related('all_task_attempts__outputs__data_node')\
+                   .prefetch_related('all_task_attempts__events')\
+                   .prefetch_related('all_task_attempts__log_files')\
+                   .prefetch_related('all_task_attempts__log_files__data_object')\
+                   .prefetch_related(
+                       'all_task_attempts__log_files__data_object__file_resource')\
+                   .prefetch_related('task_attempt')\
+                   .prefetch_related('task_attempt__inputs')\
+                   .prefetch_related('task_attempt__inputs__data_node')\
+                   .prefetch_related('task_attempt__outputs')\
+                   .prefetch_related('task_attempt__outputs__data_node')\
+                   .prefetch_related('task_attempt__events')\
+                   .prefetch_related('task_attempt__log_files')\
+                   .prefetch_related('task_attempt__log_files__data_object')\
+                   .prefetch_related(
+                       'task_attempt__log_files__data_object__file_resource')
+        # Transfer prefetch data to original instances
+        for task in queryset:
+            for instance in filter(lambda i: i.uuid==task.uuid, instances):
+                instance._prefetched_objects_cache = task._prefetched_objects_cache
+        # Prefetch all data nodes
+        data_nodes = []
+	for instance in instances:
+            instance._get_data_nodes(data_nodes)
+	DataNode.prefetch_list(data_nodes)
+
+    def _get_data_nodes(self, data_nodes=None):
+        if data_nodes is None:
+            data_nodes = []
+        for input in self.inputs.all():
+            if input.data_node:
+                data_nodes.append(input.data_node)
+        for output in self.outputs.all():
+            if output.data_node:
+                data_nodes.append(output.data_node)
+        for task_attempt in self.all_task_attempts.all():
+            task_attempt._get_data_nodes(data_nodes)
+        self.task_attempt._get_data_nodes(data_nodes)
+        return data_nodes
 
 
 class TaskInput(DataChannel):

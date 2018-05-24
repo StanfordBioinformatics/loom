@@ -3,8 +3,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import jsonfield
 
+from . import flatten_nodes, copy_prefetch
 from .base import BaseModel
 from .data_channels import DataChannel
+from .data_nodes import DataNode
+from api import get_setting
 from api.models import uuidstr
 from api.models import validators
 
@@ -163,6 +166,48 @@ class Template(BaseModel):
                 template.delete()
             except ProtectedByParentError:
                 pass
+
+    def prefetch(self):
+        if not hasattr(self, '_prefetched_objects_cache'):
+            self.prefetch_list([self,])
+
+    @classmethod
+    def prefetch_list(cls, instances):
+        queryset = Template\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])
+        MAXIMUM_TREE_DEPTH = get_setting('MAXIMUM_TREE_DEPTH')
+        # Prefetch 'children', 'children__children', etc. up to max depth
+        # This incurs 1 query per level up to actual depth.
+        # No extra queries incurred if we go too deep.)
+        for i in range(1, MAXIMUM_TREE_DEPTH+1):
+            queryset = queryset.prefetch_related('__'.join(['steps']*i))
+        # Transfer prefetched steps to original instances
+        queried_templates_1 = [template for template in queryset]
+        copy_prefetch(queried_templates_1, instances)
+        # Flatten tree so we can simultaneously prefetch related models on all nodes
+        node_list = []
+        for instance in instances:
+            node_list.extend(flatten_nodes(instance, 'steps'))
+        queryset = Template.objects.filter(uuid__in=[n.uuid for n in node_list])\
+            .prefetch_related('inputs')\
+            .prefetch_related('inputs__data_node')
+        # Transfer prefetched data to child nodes on original instances
+        queried_templates_2 = [template for template in queryset]
+        copy_prefetch(queried_templates_2, instances, child_field='steps')
+        # Prefetch all data nodes
+        data_nodes = []
+	for instance in instances:
+            instance._get_data_nodes(data_nodes=data_nodes)
+	DataNode.prefetch_list(data_nodes)
+
+    def _get_data_nodes(self, data_nodes=None):
+        if data_nodes is None:
+            data_nodes = []
+        for input in self.inputs.all():
+            if input.data_node:
+                data_nodes.append(input.data_node)
+        return data_nodes
 
 
 class TemplateInput(DataChannel):

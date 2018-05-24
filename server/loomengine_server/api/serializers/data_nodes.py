@@ -3,14 +3,13 @@ from django.db import models
 import jsonschema
 from rest_framework import serializers
 
-from . import flatten_nodes, replace_nodes
 from .data_objects import DataObjectSerializer, URLDataObjectSerializer
 from api.models.data_nodes import DataNode
 from api.models.data_objects import DataObject
 from api.models.validators import data_node_schema
 
 
-class _AbstractWritableDataNodeSerializer(serializers.HyperlinkedModelSerializer):
+class URLDataNodeSerializer(serializers.HyperlinkedModelSerializer):
 
     BLANK_NODE_VALUE = None
     EMPTY_BRANCH_VALUE = []
@@ -45,7 +44,7 @@ class _AbstractWritableDataNodeSerializer(serializers.HyperlinkedModelSerializer
         return data_node
 
     def is_valid(self, **kwargs):
-        return super(_AbstractWritableDataNodeSerializer, self).is_valid(**kwargs)
+        return super(URLDataNodeSerializer, self).is_valid(**kwargs)
 
     def validate_contents(self, value):
         try:
@@ -150,9 +149,7 @@ class _AbstractWritableDataNodeSerializer(serializers.HyperlinkedModelSerializer
                     data_node, contents[i], path_i, data_type)
 
 
-class DataNodeSerializer(_AbstractWritableDataNodeSerializer):
-
-    EXPAND = False
+class DataNodeSerializer(URLDataNodeSerializer):
 
     contents = serializers.JSONField()
 
@@ -162,8 +159,7 @@ class DataNodeSerializer(_AbstractWritableDataNodeSerializer):
                 self.initial_data)
         else:
             assert isinstance(instance, DataNode)
-            if not hasattr(instance, '_prefetched_objects_cache'):
-                self._prefetch_instance(instance)
+            instance.prefetch()
             representation = super(
                 DataNodeSerializer, self).to_representation(instance)
             representation.update({
@@ -176,60 +172,10 @@ class DataNodeSerializer(_AbstractWritableDataNodeSerializer):
         elif data_node._is_empty_branch():
             return self.EMPTY_BRANCH_VALUE
         if data_node.is_leaf:
-            if self.EXPAND:
-                s = DataObjectSerializer(data_node.data_object, context=self.context)
-            else:
-                s = URLDataObjectSerializer(data_node.data_object, context=self.context)
+            s = DataObjectSerializer(data_node.data_object, context=self.context)
             return s.data
         else:
             contents = [self.BLANK_NODE_VALUE] * data_node.degree
             for child in data_node.children.all():
                 contents[child.index] = self._data_node_to_data_struct(child)
             return contents
-
-    @classmethod
-    def _prefetch_instance(cls, instance):
-        cls.prefetch_instances([instance,])
-
-    @classmethod
-    def prefetch_instances(cls, instances):
-        queryset = DataNode\
-                   .objects\
-                   .filter(uuid__in=[i.uuid for i in instances])\
-                   .prefetch_related('children')\
-                   .prefetch_related('children__children')\
-                   .prefetch_related('children__children__children')\
-                   .prefetch_related('children__children__children__children')\
-                   .prefetch_related('children__children__children__children__children')                   .prefetch_related(
-                       'children__children__children__children__children__children')\
-                   .prefetch_related('children__children__children__children__'\
-                                     'children__children__children__children')\
-                   .prefetch_related(
-                       'children__children__children__children__children__'\
-                       'children__children__children__children')\
-                   .prefetch_related(
-                       'children__children__children__children__children__'\
-                       'children__children__children__children__children')
-        for data_node in queryset:
-            for instance in filter(lambda i: i.uuid==data_node.uuid, instances):
-                instance._prefetched_objects_cache = data_node._prefetched_objects_cache
-        node_list = []
-        for instance in instances:
-            node_list.extend(flatten_nodes(instance, 'children'))
-        queryset = DataNode.objects.filter(uuid__in=[n.uuid for n in node_list])\
-            .prefetch_related('data_object')
-        if cls.EXPAND:
-            queryset = queryset.prefetch_related('data_object__file_resource')
-        data_nodes = [node for node in queryset]
-        for instance in instances:
-            replace_nodes(instance, data_nodes, 'children', ['data_object',])
-
-
-class ExpandedDataNodeSerializer(DataNodeSerializer):
-
-    EXPAND = True
-
-
-class URLDataNodeSerializer(_AbstractWritableDataNodeSerializer):
-
-    pass
