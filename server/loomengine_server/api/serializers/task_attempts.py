@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from . import CreateWithParentModelSerializer, strip_empty_values
+from . import CreateWithParentModelSerializer
 from api.models.task_attempts import TaskAttempt, TaskAttemptOutput, \
     TaskAttemptInput, TaskAttemptLogFile, TaskAttemptEvent
 from api.serializers.data_objects import DataObjectSerializer
@@ -179,11 +179,10 @@ class TaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
 
     def to_representation(self, instance):
         instance.prefetch()
-        return strip_empty_values(
-            super(TaskAttemptSerializer, self).to_representation(instance))
+        return super(TaskAttemptSerializer, self).to_representation(instance)
 
 
-class URLTaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
+class URLTaskAttemptSerializer(TaskAttemptSerializer):
 
     class Meta:
         model = TaskAttempt
@@ -222,3 +221,6 @@ class URLTaskAttemptSerializer(serializers.HyperlinkedModelSerializer):
     status_is_killed = serializers.BooleanField(required=False, write_only=True)
     status_is_running = serializers.BooleanField(required=False, write_only=True)
     status_is_cleaned_up = serializers.BooleanField(required=False, write_only=True)
+
+    def to_representation(self, instance):
+        return super(TaskAttemptSerializer, self).to_representation(instance)

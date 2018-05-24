@@ -67,7 +67,7 @@ class RunEventSerializer(CreateWithParentModelSerializer):
         fields = ('event', 'detail', 'timestamp', 'is_error')
 
 
-class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
+class RunSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Run
@@ -102,10 +102,52 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
             'timeout_hours',
         ]
 
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='run-detail',
+        lookup_field='uuid')
+    name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(
+        required=False, format='iso-8601')
+    datetime_finished = serializers.DateTimeField(
+        required=False, format='iso-8601')
+    template = URLTemplateSerializer(required=False)
+    postprocessing_status = serializers.CharField(required=False)
+    status = serializers.CharField(read_only=True)
+    status_is_finished = serializers.BooleanField(required=False)
+    status_is_failed = serializers.BooleanField(required=False)
+    status_is_killed = serializers.BooleanField(required=False)
+    status_is_running = serializers.BooleanField(required=False)
+    status_is_waiting = serializers.BooleanField(required=False)
+    is_leaf = serializers.BooleanField(required=False)
+    command = serializers.CharField(required=False,
+                                    allow_null=True, allow_blank=True)
+    interpreter = serializers.CharField(required=False,
+                                        allow_null=True, allow_blank=True)
+    environment = serializers.JSONField(required=False, allow_null=True)
+    resources = serializers.JSONField(required=False, allow_null=True)
+    notification_addresses = serializers.JSONField(
+        required=False, allow_null=True)
+    notification_context = serializers.JSONField(
+        required=False, allow_null=True)
+    user_inputs = UserInputSerializer(many=True, required=False)
+    inputs = RunInputSerializer(many=True, required=False)
+    outputs = RunOutputSerializer(many=True, required=False)
+    events = RunEventSerializer(many=True, required=False)
+    steps = RecursiveField(many=True, required=False)
+    tasks = TaskSerializer(many=True, required=False)
+    timeout_hours = serializers.FloatField(required=False, write_only=False)
+    force_rerun = serializers.BooleanField(required=False, write_only=True)
+
+    def to_representation(self, instance):
+        instance.prefetch()
+        return strip_empty_values(
+            super(RunSerializer, self).to_representation(instance))
+
     def validate(self, data):
         if not data.get('uuid'):
             # No extra validation for creating a new run.
-            return super(_AbstractWritableRunSerializer, self).validate(data)
+            return super(RunSerializer, self).validate(data)
         self._preexisting_runs = []
         self._unsaved_runs = []
         self._unsaved_run_outputs = []
@@ -571,52 +613,7 @@ class _AbstractWritableRunSerializer(serializers.HyperlinkedModelSerializer):
         return context
 
         
-class RunSerializer(_AbstractWritableRunSerializer):
-
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='run-detail',
-        lookup_field='uuid')
-    name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(
-        required=False, format='iso-8601')
-    datetime_finished = serializers.DateTimeField(
-        required=False, format='iso-8601')
-    template = URLTemplateSerializer(required=False)
-    postprocessing_status = serializers.CharField(required=False)
-    status = serializers.CharField(read_only=True)
-    status_is_finished = serializers.BooleanField(required=False)
-    status_is_failed = serializers.BooleanField(required=False)
-    status_is_killed = serializers.BooleanField(required=False)
-    status_is_running = serializers.BooleanField(required=False)
-    status_is_waiting = serializers.BooleanField(required=False)
-    is_leaf = serializers.BooleanField(required=False)
-    command = serializers.CharField(required=False,
-                                    allow_null=True, allow_blank=True)
-    interpreter = serializers.CharField(required=False,
-                                        allow_null=True, allow_blank=True)
-    environment = serializers.JSONField(required=False, allow_null=True)
-    resources = serializers.JSONField(required=False, allow_null=True)
-    notification_addresses = serializers.JSONField(
-        required=False, allow_null=True)
-    notification_context = serializers.JSONField(
-        required=False, allow_null=True)
-    user_inputs = UserInputSerializer(many=True, required=False)
-    inputs = RunInputSerializer(many=True, required=False)
-    outputs = RunOutputSerializer(many=True, required=False)
-    events = RunEventSerializer(many=True, required=False)
-    steps = RecursiveField(many=True, required=False)
-    tasks = TaskSerializer(many=True, required=False)
-    timeout_hours = serializers.FloatField(required=False, write_only=False)
-    force_rerun = serializers.BooleanField(required=False, write_only=True)
-    
-    def to_representation(self, instance):
-        instance.prefetch()
-        return strip_empty_values(
-            super(RunSerializer, self).to_representation(instance))
-
-
-class URLRunSerializer(_AbstractWritableRunSerializer):
+class URLRunSerializer(RunSerializer):
 
     # readable fields
     uuid = serializers.UUIDField(required=False)
@@ -656,6 +653,11 @@ class URLRunSerializer(_AbstractWritableRunSerializer):
     tasks = TaskSerializer(many=True, required=False, write_only=True)
     timeout_hours = serializers.FloatField(required=False, write_only=True)
     force_rerun = serializers.BooleanField(required=False, write_only=True)
+
+    def to_representation(self, instance):
+        return strip_empty_values(
+            super(RunSerializer, self).to_representation(instance))
+
 
 # Asynchronous
 @shared_task

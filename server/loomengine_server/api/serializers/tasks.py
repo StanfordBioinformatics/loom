@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from . import CreateWithParentModelSerializer, strip_empty_values
+from . import CreateWithParentModelSerializer
 from api.models.data_objects import DataObject
 from api.models.tasks import Task, TaskInput, TaskOutput, \
     TaskEvent
@@ -102,11 +102,10 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
 
     def to_representation(self, instance):
         instance.prefetch()
-        return strip_empty_values(
-            super(TaskSerializer, self).to_representation(instance))
+        return super(TaskSerializer, self).to_representation(instance)
 
 
-class URLTaskSerializer(serializers.HyperlinkedModelSerializer):
+class URLTaskSerializer(TaskSerializer):
 
     class Meta:
         model = Task
@@ -141,3 +140,6 @@ class URLTaskSerializer(serializers.HyperlinkedModelSerializer):
     events = TaskEventSerializer(
         many=True, allow_null=True, required=False, write_only=True)
     data_path = serializers.JSONField(required=True, write_only=True)
+
+    def to_representation(self, instance):
+        return super(TaskSerializer, self).to_representation(instance)

@@ -53,7 +53,7 @@ class TemplateInputSerializer(DataChannelSerializer):
     as_channel = serializers.CharField(required=False, allow_null=True)
 
 
-class URLTemplateSerializer(serializers.HyperlinkedModelSerializer):
+class TemplateSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Template
@@ -77,40 +77,35 @@ class URLTemplateSerializer(serializers.HyperlinkedModelSerializer):
             'steps',
         )
 
-    # readable
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
-        view_name='template-detail',
-        lookup_field='uuid')
-    name = serializers.CharField(required=False)
-    md5 = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(
-        format='iso-8601', required=False)
-    is_leaf = serializers.BooleanField(required=False)
-
-    # write-only
+            view_name='template-detail',
+            lookup_field='uuid')
     _template_id = serializers.CharField(write_only=True, required=False)
-    command = serializers.CharField(required=False, write_only=True)
-    import_comments = serializers.CharField(required=False, write_only=True)
-    imported_from_url = serializers.CharField(required=False, write_only=True)
-    interpreter = serializers.CharField(required=False, write_only=True)
-    environment = serializers.JSONField(required=False, write_only=True)
-    resources = serializers.JSONField(required=False, write_only=True)
-    inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
-    outputs  = serializers.JSONField(required=False, write_only=True)
-    steps = RecursiveField(many=True, required=False, write_only=True)
-    timeout_hours = serializers.FloatField(required=False, write_only=True)
+    name = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(format='iso-8601', required=False)
+    command = serializers.CharField(required=False)
+    import_comments = serializers.CharField(required=False)
+    imported_from_url = serializers.CharField(required=False)
+    is_leaf = serializers.BooleanField(required=False)
+    interpreter = serializers.CharField(required=False)
+    environment = serializers.JSONField(required=False)
+    resources = serializers.JSONField(required=False)
+    inputs = TemplateInputSerializer(many=True, required=False)
+    outputs  = serializers.JSONField(required=False)
+    steps = RecursiveField(many=True, required=False)
 
     def to_representation(self, instance):
+        instance.prefetch()
         return strip_empty_values(
-            super(URLTemplateSerializer, self).to_representation(instance))
+            super(TemplateSerializer, self).to_representation(instance))
 
     def to_internal_value(self, data):
         """Because we allow template ID string values, where
         serializers normally expect a dict
         """
         converted_data = _convert_template_id_to_dict(data)
-        return super(URLTemplateSerializer, self)\
+        return super(TemplateSerializer, self)\
             .to_internal_value(converted_data)
 
     def validate(self, data):
@@ -493,7 +488,7 @@ class URLTemplateSerializer(serializers.HyperlinkedModelSerializer):
             #template_id = template_data
             template_id = template_data.get('_template_id')
             # Use the serializer to retrive the instance
-            serializer = URLTemplateSerializer(
+            serializer = TemplateSerializer(
                 data=template_id)
             serializer.is_valid(raise_exception=True)
             # No new template created here, just a lookup
@@ -579,30 +574,35 @@ class URLTemplateSerializer(serializers.HyperlinkedModelSerializer):
                 template_data.get('imported_from_url'))
 
 
-class TemplateSerializer(URLTemplateSerializer):
+class URLTemplateSerializer(TemplateSerializer):
 
+    # readable
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
-            view_name='template-detail',
-            lookup_field='uuid')
-    _template_id = serializers.CharField(write_only=True, required=False)
+        view_name='template-detail',
+        lookup_field='uuid')
     name = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(format='iso-8601', required=False)
-    command = serializers.CharField(required=False)
-    import_comments = serializers.CharField(required=False)
-    imported_from_url = serializers.CharField(required=False)
+    md5 = serializers.CharField(required=False)
+    datetime_created = serializers.DateTimeField(
+        format='iso-8601', required=False)
     is_leaf = serializers.BooleanField(required=False)
-    interpreter = serializers.CharField(required=False)
-    environment = serializers.JSONField(required=False)
-    resources = serializers.JSONField(required=False)
-    inputs = TemplateInputSerializer(many=True, required=False)
-    outputs  = serializers.JSONField(required=False)
-    steps = RecursiveField(many=True, required=False)
+
+    # write-only
+    _template_id = serializers.CharField(write_only=True, required=False)
+    command = serializers.CharField(required=False, write_only=True)
+    import_comments = serializers.CharField(required=False, write_only=True)
+    imported_from_url = serializers.CharField(required=False, write_only=True)
+    interpreter = serializers.CharField(required=False, write_only=True)
+    environment = serializers.JSONField(required=False, write_only=True)
+    resources = serializers.JSONField(required=False, write_only=True)
+    inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
+    outputs  = serializers.JSONField(required=False, write_only=True)
+    steps = RecursiveField(many=True, required=False, write_only=True)
+    timeout_hours = serializers.FloatField(required=False, write_only=True)
 
     def to_representation(self, instance):
-        instance.prefetch()
         return strip_empty_values(
-            super(URLTemplateSerializer, self).to_representation(instance))
+            super(TemplateSerializer, self).to_representation(instance))
 
 
 class CycleDetector(object):
