@@ -412,15 +412,13 @@ class ExportManager(object):
     def _get_files_from_inputs_outputs(self, data, file_dict, file_id_field):
         for input in data.get('inputs', []):
             if input.get('type') == 'file' and input.get('data'):
-                data_node = self.connection.get_data_node(input['data']['uuid'])
                 self._get_files_from_data_contents(
                     file_dict,
                     file_id_field,
-                    data_node['contents'])
+                    input['data']['contents'])
         for output in data.get('outputs', []):
             if output.get('type') == 'file' and output.get('data'):
-                data_node = self.connection.get_data_node(output['data']['uuid'])
                 self._get_files_from_data_contents(
                     file_dict,
                     file_id_field,
-                    data_node['contents'])
+                    output['data']['contents'])

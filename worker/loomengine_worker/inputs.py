@@ -77,17 +77,12 @@ def _get_input_info(input):
         'input has invalid mode "%s"' % mode
     return (data_type, mode)
 
-def _expand_data_contents(input, connection):
-    input['data'] = connection.get_data_node(input['data']['uuid'], expand=True)
-    
 
 def TaskAttemptInput(input, task_attempt):
     """Returns the correct Input class for a given
     data type and gather mode
     """
 
-    _expand_data_contents(input, task_attempt.connection)
-    
     (data_type, mode) = _get_input_info(input)
 
     if data_type != 'file':

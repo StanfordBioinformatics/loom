@@ -290,9 +290,7 @@ class ImportManager(object):
         md5 = source.calculate_md5()
         task_attempt_output = self._create_task_attempt_output_file(
             task_attempt_output, md5, source.get_filename())
-        data_node = self.connection.get_data_node(
-            task_attempt_output['data']['uuid'])
-        data_object = data_node['contents']
+        data_object = task_attempt_output['data']['contents']
         return self._execute_file_import(data_object, source, retry=retry)
 
     def _create_task_attempt_output_file(
@@ -321,9 +319,7 @@ class ImportManager(object):
             filename_list.append(source.get_filename())
         task_attempt_output = self._create_task_attempt_output_file_array(
             task_attempt_output, md5_list, filename_list)
-        data_node = self.connection.get_data_node(
-            task_attempt_output['data']['uuid'])
-        data_object_array = data_node['contents']
+        data_object_array = task_attempt_output['data']['contents']
         imported_data_objects = []
         for (source_url, data_object) in zip(source_url_list, data_object_array):
             source = File(source_url, self.storage_settings, retry=retry)

@@ -412,7 +412,8 @@ class Task(BaseModel):
                 data_nodes.append(output.data_node)
         for task_attempt in self.all_task_attempts.all():
             task_attempt._get_data_nodes(data_nodes)
-        self.task_attempt._get_data_nodes(data_nodes)
+        if self.task_attempt:
+            self.task_attempt._get_data_nodes(data_nodes)
         return data_nodes
 
 
