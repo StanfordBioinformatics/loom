@@ -282,10 +282,16 @@ class DataObject(BaseModel):
     def _prefetch_for_filter(cls, queryset=None):
         if queryset is None:
             queryset = cls.objects.all()
-        return queryset.prefetch_related('tags')
+        return queryset.prefetch_related('tags').\
+            select_related('file_resource')
 
 
 class FileResource(BaseModel):
+
+    NAME_FIELD = 'filename'
+    HASH_FIELD = 'md5'
+    ID_FIELD = 'data_object__uuid'
+    TAG_FIELD = 'data_object__tags__tag'
 
     UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
                              ('complete', 'Complete'),
@@ -443,3 +449,10 @@ class FileResource(BaseModel):
             raise ValidationError(
                 'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
                 % storage_type)
+
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.select_related('data_object').\
+            prefetch_related('data_object__tags')

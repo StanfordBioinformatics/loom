@@ -145,13 +145,9 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             super(RunSerializer, self).to_representation(instance))
 
     def validate(self, data):
-        # Use initial data to include nested models data
-        run_data = copy.deepcopy(self.initial_data)
-        self._validate_run_data_fields(run_data)
-
-        # In validate(), all unsaved models are created and
-        # stored in self._unsaved_* arrays or dicts.
-        # In create(), these models will be bulk_saved.
+        if not data.get('uuid'):
+            # No extra validation for creating a new run.
+            return super(RunSerializer, self).validate(data)
         self._preexisting_runs = []
         self._unsaved_runs = []
         self._unsaved_run_outputs = []
@@ -174,27 +170,21 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._unsaved_task_attempt_outputs = []
         self._unsaved_log_files = []
         self._unsaved_task_attempt_events = []
-
-        # UUIDs should be ignored if the run is not in
-        # terminal status. Otherwise after completing the run
-        # we could have non-matching runs with the same UUID on
-        # different Loom servers, and that's bad.
-        if not self._has_terminal_status(run_data):
-            self._strip_run_and_task_uuids
-
-        if run_data.get('uuid'):
-            # First check to see if it matches an
-            # existing run.
-            try:
-                r = Run.objects.get(uuid=data.get('uuid'))
-                # If run already exists
-                self._root_run_uuid = r.uuid
-                self._preexisting_runs.append(r)
-                return data
-            except Run.DoesNotExist:
-                pass
+        # This applies to importing a run record
+        try:
+            r = Run.objects.get(uuid=data.get('uuid'))
+            # If run already exists
+            self._root_run_uuid = r.uuid
+            self._preexisting_runs.append(r)
+            return data
+        except Run.DoesNotExist:
+            pass
 
         # Did not find run by UUID. Create a new one.
+
+        self._validate_run_data_fields(self.initial_data)
+
+        run_data = copy.deepcopy(self.initial_data)
         root_run = self._create_unsaved_models([run_data,])
         self._root_run_uuid = root_run.uuid
         for model in self._unsaved_runs:
@@ -206,18 +196,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                 else:
                     raise serializers.ValidationError(e)
         return data
-
-    def _has_terminal_status(self, data):
-        return data.get('status', '') in [
-            'Finished', 'Failed', 'Killed']
-
-    def _strip_run_and_task_uuids(self, data):
-        data.pop('uuid', None)
-        data.pop('url', None)
-        for step in data.get('steps', []):
-            self._strip_run_and_task_uuids(step)
-        for task in data.get('tasks', []):
-            self._strip_run_and_task_uuids(task)
 
     def validate_user_inputs(self, value):
         channels = set()
@@ -252,8 +230,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                 self._preexisting_runs.append(run)
             except Run.DoesNotExist:
                 run = self._create_unsaved_run(
-                    run_data, parent_force_rerun,
-                    parent_model=parent_model)
+                    run_data, parent_force_rerun)
             if parent_model:
                 self._run_parent_relationships.append(
                     (run.uuid, parent_model.uuid))
@@ -266,46 +243,24 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                     parent_model=run)
         return run
 
-    def _create_unsaved_run(self, run_data, parent_force_rerun,
-                            parent_model=None):
+    def _create_unsaved_run(self, run_data, parent_force_rerun):
         self._validate_run_data_fields(run_data)
         run_data.setdefault('force_rerun', parent_force_rerun)
         run_copy = copy.deepcopy(run_data)
-        template_data = run_copy.pop('template')
-        s = TemplateSerializer(data=template_data)
-        s.is_valid(raise_exception=True)
-        template = s.save()
-        run_copy['template'] = template
         inputs = run_copy.pop('inputs', [])
         user_inputs = run_copy.pop('user_inputs', [])
         outputs = run_copy.pop('outputs', [])
+        template_data = run_copy.pop('template')
         tasks = run_copy.pop('tasks', [])
         events = run_copy.pop('events', [])
         run_copy.pop('steps', None)
         run_copy.pop('url', None)
         run_copy.pop('status', None)
-
-        # Other fields are generated from the template
-        # if not already defined in the Run
-        run_copy.setdefault('name', template.name)
-        run_copy.setdefault(
-            'timeout_hours', self._get_timeout_hours(
-                run_copy, template, parent_model=parent_model))
-        run_copy.setdefault('is_leaf', template.is_leaf)
-        run_copy.setdefault('command', template.command)
-        run_copy.setdefault('interpreter', template.interpreter)
-        run_copy.setdefault('environment', template.environment)
-        run_copy.setdefault('resources', template.resources)
-
+        s = TemplateSerializer(data=template_data)
+        s.is_valid(raise_exception=True)
+        run_copy['template'] = s.save()
         run = Run(**run_copy)
         self._unsaved_runs.append(run)
-
-        # Inputs and outputs are generated from the template
-        # if not already defined in the run
-        if not inputs:
-            inputs = self._create_run_inputs_from_template(template)
-        if not outputs:
-            outputs = self._create_run_outputs_from_template(template)
         for task in tasks:
             self._create_unsaved_task(task, run)
         for input_data in inputs:
@@ -351,39 +306,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             event['run'] = run
             self._unsaved_run_events.append(RunEvent(**event))
         return run
-
-    def _get_timeout_hours(self, run_data, template, parent_model=None):
-        if run_data.get('timeout_hours') is not None:
-            return run_data.get('timeout_hours')
-        elif template.timeout_hours:
-            return template.timeout_hours
-        elif parent_model is not None:
-            return parent_model.timeout_hours
-        return None
-
-    def _create_run_inputs_from_template(self, template):
-        inputs = []
-        for template_input in template.inputs.all():
-            inputs.append({
-                'channel': template_input.channel,
-                'as_channel': template_input.as_channel,
-                'type': template_input.type,
-                'group': template_input.group,
-                'mode': template_input.mode,
-            })
-        return inputs
-
-    def _create_run_outputs_from_template(self, template):
-        outputs = []
-        for template_output in template.outputs:
-            outputs.append({
-                'channel': template_output.get('channel'),
-                'as_channel': template_output.get('as_channel'),
-                'type': template_output.get('type'),
-                'source': template_output.get('source'),
-                'parser': template_output.get('parser'),
-            })
-        return outputs
 
     def _create_unsaved_task(self, task_data, run):
         task_attempts = task_data.pop('all_task_attempts', [])
@@ -493,9 +415,13 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._task_to_all_task_attempts_m2m_relationships.append(
             TaskMembership(parent_task=task, child_task_attempt=task_attempt))
 
-    def create(self, validated_data):
-        # In create(), the unsaved models created in validate()
-        # will be bulk_saved.
+    def create(self, validated_data): 
+        if validated_data.get('uuid'):
+            return self._post_run(validated_data)
+        else:
+            return self._start_run(validated_data)
+
+    def _post_run(self, data):
         try:
             bulk_runs = Run.objects.bulk_create(self._unsaved_runs)
             self._new_runs = reload_models(Run, bulk_runs)
@@ -563,9 +489,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             assert len(root_run) == 1, '1 run should match uuid of root'
             run = root_run[0]
             async_execute(_create_fingerprints, run.uuid)
-
-            # TODO start new runs
-        
             return run
         except Exception as e:
             self._cleanup()
@@ -612,7 +535,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         if hasattr(self, '_new_task_attempts'):
             self._new_task_attempts.delete()
 
-    """
     def _start_run(self, data):
         try:
             user_inputs = self.initial_data.get('user_inputs', None)
@@ -677,7 +599,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         except Exception as e:
             self._cleanup()
             raise
-    """
 
     def _get_notification_context(self):
         context = {
