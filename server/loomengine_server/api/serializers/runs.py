@@ -9,7 +9,9 @@ from . import CreateWithParentModelSerializer, RecursiveField, strip_empty_value
 from api import get_setting
 from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
-from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, TaskAttemptEvent, TaskAttemptLogFile, TaskMembership
+from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, \
+    TaskAttemptEvent, TaskAttemptLogFile, TaskMembership
+from api.models.templates import Template
 from api.serializers.data_objects import DataObjectSerializer
 from api.serializers.templates import TemplateSerializer, URLTemplateSerializer
 from api.serializers.tasks import TaskSerializer, URLTaskSerializer
@@ -145,6 +147,301 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             super(RunSerializer, self).to_representation(instance))
 
     def validate(self, data):
+        run_data = copy.deepcopy(self.initial_data)
+        template = self._lookup_template(run_data.get('template'))
+        template.prefetch()
+        self._preexisting_runs = []
+        self._unsaved_runs = []
+        self._run_parent_relationships = []
+        self._unsaved_run_events = []
+        self._unsaved_run_outputs = []
+        self._unsaved_run_inputs = []
+        self._unsaved_user_inputs = []
+        self._unsaved_data_nodes = []
+        self._preexisting_data_nodes = []
+        
+        root_run = self._create_unsaved_run(template, run_data=run_data)
+        self._root_run_uuid = root_run.uuid
+        return run_data
+
+    def _create_unsaved_run(self, template, run_data=None, parent=None):
+        if run_data is None:
+            run_data = {}
+        self._validate_run_data_fields(run_data)
+
+        default_timeout_hours = template.timeout_hours
+        if default_timeout_hours is None and parent is not None:
+            default_timeout_hours = parent.timeout_hours
+        
+        run_data['template'] = template
+        run_data['notification_context'] = self._get_notification_context()
+
+        # Pop read-only values
+        run_data.pop('url', None)
+        run_data.pop('status', None)
+
+        # Set values not given in run_data
+        force_rerun_default = False
+        if parent:
+            force_rerun_default = parent.force_rerun
+        run_data.setdefault('force_rerun', force_rerun_default)
+        run_data.setdefault('name', template.name)
+        run_data.setdefault('is_leaf', template.is_leaf)
+        run_data.setdefault('command', template.command)
+        run_data.setdefault('interpreter', template.interpreter)
+        run_data.setdefault('environment', template.environment)
+        run_data.setdefault('resources', template.resources)
+        run_data.setdefault('timeout_hours', default_timeout_hours)
+        
+        steps = run_data.pop('steps', [])
+        inputs = run_data.pop('inputs', [])
+        user_inputs = run_data.pop('user_inputs', [])
+        outputs = run_data.pop('outputs', [])
+        template_data = run_data.pop('template')
+        tasks = run_data.pop('tasks', [])
+        events = run_data.pop('events', [])
+
+        run = Run(**run_data)
+        self._unsaved_runs.append(run)
+
+        if parent:
+            self._run_parent_relationships.append((run.uuid, parent.uuid))
+
+        for event in events:
+            event['run'] = run
+            self._unsaved_run_events.append(RunEvent(**event))
+
+        for user_input in user_inputs:
+            matches = filter(
+                lambda i: i.get("channel")==template_inputs.all())
+            if len(matches) != 1:
+                raise serializers.ValidationError(
+                    'User input channel "%s" does not match any template inputs'
+                    % user_input.get('channel'))
+            template_input = matches[0]
+            user_input['run'] = run
+            user_input['type'] = template_input.type
+            data = user_input.pop('data', None)
+            user_input['data_node'] = self._create_unsaved_data_node(
+                data, type=template_input.type)
+            self._unsaved_user_inputs.append(UserInput(**user_input))
+
+        for template_input in template.inputs.all():
+            matches = filter(
+                lambda i: i.get("channel")==template_input.channel, inputs)
+            assert len(matches) < 2, \
+                'Too many inputs with channel "%s"' % template_input.channel
+            if len(matches) == 1:
+                run_input = matches[0]
+                run_input['run'] = run
+                data = run_input.pop('data', None)
+                run_input['data_node'] = self._create_unsaved_data_node(data)
+                self._unsaved_run_inputs.append(RunInput(**run_input))
+            else:
+                run_input = self._create_unsaved_run_input(template_input, run)
+
+        for template_output in template.outputs:
+            matches = filter(
+                lambda o: o.get("channel")==template_output.channel, outputs)
+            assert len(matches) < 2, \
+                'Too many outputs with channel "%s"' % template_output.get('channel')
+            if len(matches) == 1:
+                run_output = matches[0]
+                run_input['run'] = run
+                data = run_output.pop('data', None)
+                run_input['data_node'] = self._create_unsaved_data_node(data)
+                self._unsaved_run_outputs.append(RunOutput(**run_output))
+            else:
+                run_output = self._create_unsaved_run_output(template_output, run)
+
+        # If run steps are not given in run_data, assume this is a new run
+        # and create new run steps from template.
+        if steps:
+            for step in steps:
+                # Get the matching template for this step, without
+                # triggering new database queries
+                matches = filter(lambda s: s.name==steps.get('name'),
+                                  template.steps.all())
+                if len(matches) == 0:
+                    raise serializers.ValidationError(
+                        'No template found for step "%s"' % step.get('name'))
+                assert len(matches) == 1, \
+                    'Too many template matches for step "%s"' % step.get('name')
+                template_step = matches[0]
+                if step.get('template'):
+                    if step['template'].get('uuid') != template_step.uuid:
+                        raise serializers.ValidationError(
+                            'Template "%s" in run step "%s" does not match the'\
+                            'template step found from the parent template "%s"'
+                            % (template_step.uuid, step.get('name'), template.uuid))
+                self._create_unsaved_run(
+                    template_step, run_data=step, parent=run)
+        else:
+            for template_step in template.steps.all():
+                self._create_unsaved_run(template_step, parent=run)
+        return run
+
+    def _create_unsaved_data_node(self, data):
+        # TODO handle nested data and create _unsaved_data_nodes
+        # so that numer of trips to the database is finite.
+        s = DataNodeSerializer(data=data)
+        s.is_valid(raise_exception=True)
+        data_node = s.save()
+        self._preexisting_data_nodes.append(data_node)
+
+    def _create_unsaved_run_input(self, template_input, run):
+        run_input = {}
+        run_input['run'] = run
+        run_input['type'] = template_input.type
+        run_input['mode'] = template_input.mode
+        run_input['group'] = template_input.group
+        run_input['channel'] = template_input.channel
+        self._unsaved_run_inputs.append(RunInput(**run_input))
+
+    def _create_unsaved_run_output(self, template_output, run):
+        run_output = {}
+        run_output['run'] = run
+        if template_output.get('type'):
+            run_output['type'] = template_output.get('type')
+        if template_output.get('mode'):
+            run_output['mode'] = template_output.get('mode')
+        if template_output.get('source'):
+            run_output['source'] = template_output.get('source')
+        if template_output.get('parser'):
+            run_output['parser'] = template_output.get('parser')
+        if template_output.get('channel'):
+            run_output['channel'] = template_output.get('channel')
+        if template_output.get('as_channel'):
+            run_output['as_channel'] = template_output.get('as_channel')
+        self._unsaved_run_outputs.append(RunOutput(**run_output))
+
+    def _lookup_template(self, template_data):
+        # This method should retrieve a template, given either a dict with a UUID
+        # or a string/unicode reference. It should never save a new template.
+        # This is expected to be called only once but should complete in a small,
+        # finite number of queries.
+        try:
+            template_data.get('uuid')
+            try:
+                return Template.objects.get(uuid=template_data.get('uuid'))
+            except Template.DoesNotExist:
+                raise serializers.ValidationError(
+                    'No template found with UUID "%s"'
+                    % template_data.get('uuid'))
+        except AttributeError:
+            # The Template should only be defined on the top-level run,
+            # so we only expect this query once.
+            matches = Template.filter_by_name_or_id_or_tag_or_hash(template_data)
+            if len(matches) == 0:
+                raise serializers.ValidationError(
+                    'No template found for identifier "%s"' % template_data)
+            elif len(matches) > 1:
+                raise serializers.ValidationError(
+                    'More than one template matched identifier "%s"' % template_data)
+            else:
+                return matches[0]
+
+    def _validate_run_data_fields(self, run_data):
+        data_keys = run_data.keys()
+        serializer_keys = self.fields.keys()
+        extra_fields = filter(
+            lambda key: key not in serializer_keys, data_keys)
+        if extra_fields:
+            raise serializers.ValidationError(
+                'Unrecognized fields %s' % extra_fields)
+
+    def create(self, instance):
+        #try:
+        bulk_runs = Run.objects.bulk_create(self._unsaved_runs)
+        self._new_runs = reload_models(Run, bulk_runs)
+        all_runs = [run for run in self._new_runs]
+        all_runs.extend(self._preexisting_runs)
+        match_and_update_by_uuid(
+            self._unsaved_run_inputs, 'run', self._new_runs)
+        RunInput.objects.bulk_create(self._unsaved_run_inputs)
+        match_and_update_by_uuid(
+            self._unsaved_run_outputs, 'run', self._new_runs)
+        RunOutput.objects.bulk_create(self._unsaved_run_outputs)
+        match_and_update_by_uuid(self._unsaved_user_inputs,
+                                 'run', self._new_runs)
+        UserInput.objects.bulk_create(self._unsaved_user_inputs)
+        match_and_update_by_uuid(
+            self._unsaved_run_events, 'run', self._new_runs)
+        RunEvent.objects.bulk_create(self._unsaved_run_events)
+        #match_and_update_by_uuid(
+        #    self._unsaved_tasks, 'run', self._new_runs)
+        #bulk_tasks = Task.objects.bulk_create(self._unsaved_tasks)
+        #self._new_tasks = reload_models(Task, bulk_tasks)
+        #match_and_update_by_uuid(
+        #    self._unsaved_task_inputs, 'task', self._new_tasks)
+        #TaskInput.objects.bulk_create(self._unsaved_task_inputs)
+        #match_and_update_by_uuid(self._unsaved_task_outputs,
+        #                         'task', self._new_tasks)
+        #TaskOutput.objects.bulk_create(self._unsaved_task_outputs)
+        #match_and_update_by_uuid(self._unsaved_task_events,
+        #                         'task', self._new_tasks)
+        #TaskEvent.objects.bulk_create(self._unsaved_task_events)
+        #bulk_attempts = TaskAttempt.objects.bulk_create(
+        #    self._unsaved_task_attempts.values())
+        #self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
+        #all_task_attempts = [task_attempt for task_attempt
+        #                     in self._new_task_attempts]
+        #all_task_attempts.extend(self._preexisting_task_attempts)
+        #match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
+        #                         'task_attempt', self._new_task_attempts)
+        #TaskAttemptInput.objects.bulk_create(
+        #    self._unsaved_task_attempt_inputs)
+        #match_and_update_by_uuid(self._unsaved_task_attempt_outputs,
+        #                         'task_attempt',self._new_task_attempts)
+        #TaskAttemptOutput.objects.bulk_create(
+        #    self._unsaved_task_attempt_outputs)
+        #match_and_update_by_uuid(self._unsaved_task_attempt_events,
+        #                         'task_attempt', self._new_task_attempts)
+        #TaskAttemptEvent.objects.bulk_create(
+        #    self._unsaved_task_attempt_events)
+        #match_and_update_by_uuid(self._unsaved_log_files,
+        #                         'task_attempt', self._new_task_attempts)
+        #TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
+        #self._connect_tasks_to_active_task_attempts(
+        #    self._new_tasks, all_task_attempts)
+        #match_and_update_by_uuid(
+        #    self._task_to_all_task_attempts_m2m_relationships,
+        #    'parent_task', self._new_tasks)
+        #match_and_update_by_uuid(
+        #    self._task_to_all_task_attempts_m2m_relationships,
+        #    'child_task_attempt', all_task_attempts)
+        #TaskMembership.objects.bulk_create(
+        #    self._task_to_all_task_attempts_m2m_relationships)
+        self._connect_runs_to_parents(all_runs)
+        root_run = filter(
+            lambda r: r.uuid==self._root_run_uuid, all_runs)
+        assert len(root_run) == 1, '1 run should match uuid of root'
+        run = root_run[0]
+        # async_execute(_create_fingerprints, run.uuid)
+        return run
+        #except Exception as e:
+        #    self._cleanup()
+        #    raise
+
+    def _connect_runs_to_parents(self, runs):
+        params = []
+        for run_uuid, parent_uuid in self._run_parent_relationships:
+            run = filter(
+                lambda r: r.uuid==run_uuid, runs)[0]
+            parent = filter(
+                lambda r: r.uuid==parent_uuid, runs)[0]
+            params.append((run.id, parent.id))
+        if params:
+            case_statement = ' '.join(
+                ['WHEN id=%s THEN %s' % pair for pair in params])
+            id_list = ', '.join(['%s' % pair[0] for pair in params])
+            sql = 'UPDATE api_run SET parent_id= CASE %s END WHERE id IN (%s)'\
+                                                 % (case_statement, id_list)
+            with django.db.connection.cursor() as cursor:
+                cursor.execute(sql)
+
+    """
+    def validate(self, data):
         if not data.get('uuid'):
             # No extra validation for creating a new run.
             return super(RunSerializer, self).validate(data)
@@ -152,7 +449,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._unsaved_runs = []
         self._unsaved_run_outputs = []
         self._unsaved_run_inputs = []
-        self._unsaved_run_user_inputs = []
+        self._unsaved_user_inputs = []
         self._unsaved_run_events = []
         self._run_parent_relationships = []
         self._task_to_task_attempt_relationships = []
@@ -205,15 +502,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                     'Found duplicate of channel "%s"' % item.get('channel'))
             channels.add(item.get('channel'))
         return value
-
-    def _validate_run_data_fields(self, run_data):
-        data_keys = run_data.keys()
-        serializer_keys = self.fields.keys()
-        extra_fields = filter(
-            lambda key: key not in serializer_keys, data_keys)
-        if extra_fields:
-            raise serializers.ValidationError(
-                'Unrecognized fields %s' % extra_fields)
 
     def _create_unsaved_models(
             self,
@@ -288,7 +576,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                 )
                 s.is_valid(raise_exception=True)
                 input_copy['data_node'] = s.save()
-            self._unsaved_run_user_inputs.append(UserInput(**input_copy))
+            self._unsaved_user_inputs.append(UserInput(**input_copy))
         for output_data in outputs:
             # create unsaved outputs
             output_copy = copy.deepcopy(output_data)
@@ -433,9 +721,9 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             match_and_update_by_uuid(
                 self._unsaved_run_outputs, 'run', self._new_runs)
             RunOutput.objects.bulk_create(self._unsaved_run_outputs)
-            match_and_update_by_uuid(self._unsaved_run_user_inputs,
+            match_and_update_by_uuid(self._unsaved_user_inputs,
                                      'run', self._new_runs)
-            UserInput.objects.bulk_create(self._unsaved_run_user_inputs)
+            UserInput.objects.bulk_create(self._unsaved_user_inputs)
             match_and_update_by_uuid(
                 self._unsaved_run_events, 'run', self._new_runs)
             RunEvent.objects.bulk_create(self._unsaved_run_events)
@@ -493,23 +781,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         except Exception as e:
             self._cleanup()
             raise
-
-    def _connect_runs_to_parents(self, runs):
-        params = []
-        for run_uuid, parent_uuid in self._run_parent_relationships:
-            run = filter(
-                lambda r: r.uuid==run_uuid, runs)[0]
-            parent = filter(
-                lambda r: r.uuid==parent_uuid, runs)[0]
-            params.append((run.id, parent.id))
-        if params:
-            case_statement = ' '.join(
-                ['WHEN id=%s THEN %s' % pair for pair in params])
-            id_list = ', '.join(['%s' % pair[0] for pair in params])
-            sql = 'UPDATE api_run SET parent_id= CASE %s END WHERE id IN (%s)'\
-                                                 % (case_statement, id_list)
-            with django.db.connection.cursor() as cursor:
-                cursor.execute(sql)
 
     def _connect_tasks_to_active_task_attempts(self, tasks, task_attempts):
         params = []
@@ -599,6 +870,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         except Exception as e:
             self._cleanup()
             raise
+    """
 
     def _get_notification_context(self):
         context = {
