@@ -7,6 +7,7 @@ import django.db
 from . import CreateWithParentModelSerializer, RecursiveField, strip_empty_values, \
     match_and_update_by_uuid, reload_models
 from api import get_setting
+from api.models.data_nodes import DataNode
 from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
 from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, \
@@ -160,9 +161,22 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._unsaved_data_nodes = []
         self._preexisting_data_nodes = []
         
-        root_run = self._create_unsaved_run(template, run_data=run_data)
+        root_run = self._create_unsaved_run(template, run_data=run_data)       
+        self._connect_inputs_outputs(root_run)
+
+        # Save the UUID so the create() method can retrieve the root run
         self._root_run_uuid = root_run.uuid
+
         return run_data
+
+    def validate_user_inputs(self, value):
+        channels = set()
+        for item in value:
+            if item.get('channel') in channels:
+                raise serializers.ValidationError(
+                    'Found duplicate of channel "%s"' % item.get('channel'))
+            channels.add(item.get('channel'))
+        return value
 
     def _create_unsaved_run(self, template, run_data=None, parent=None):
         if run_data is None:
@@ -172,7 +186,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         default_timeout_hours = template.timeout_hours
         if default_timeout_hours is None and parent is not None:
             default_timeout_hours = parent.timeout_hours
-        
+
         run_data['template'] = template
         run_data['notification_context'] = self._get_notification_context()
 
@@ -197,7 +211,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         inputs = run_data.pop('inputs', [])
         user_inputs = run_data.pop('user_inputs', [])
         outputs = run_data.pop('outputs', [])
-        template_data = run_data.pop('template')
         tasks = run_data.pop('tasks', [])
         events = run_data.pop('events', [])
 
@@ -211,51 +224,64 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             event['run'] = run
             self._unsaved_run_events.append(RunEvent(**event))
 
-        for user_input in user_inputs:
+        run._user_inputs = []
+        for user_input_data in user_inputs:
             matches = filter(
-                lambda i: i.get("channel")==template_inputs.all())
+                lambda i: i.channel==user_input_data.get('channel'),
+                template.inputs.all())
             if len(matches) != 1:
                 raise serializers.ValidationError(
                     'User input channel "%s" does not match any template inputs'
-                    % user_input.get('channel'))
+                    % user_input_data.get('channel'))
             template_input = matches[0]
-            user_input['run'] = run
-            user_input['type'] = template_input.type
-            data = user_input.pop('data', None)
-            user_input['data_node'] = self._create_unsaved_data_node(
-                data, type=template_input.type)
-            self._unsaved_user_inputs.append(UserInput(**user_input))
+            user_input_data['run'] = run
+            user_input_data['type'] = template_input.type
+            data = user_input_data.pop('data', None)
+            user_input_data['data_node'] = self._create_unsaved_data_node(
+                data, template_input.type)
+            user_input = UserInput(**user_input_data)
+            run._user_inputs.append(user_input)
+            self._unsaved_user_inputs.append(user_input)
 
+        run._inputs = []
         for template_input in template.inputs.all():
             matches = filter(
                 lambda i: i.get("channel")==template_input.channel, inputs)
             assert len(matches) < 2, \
                 'Too many inputs with channel "%s"' % template_input.channel
             if len(matches) == 1:
-                run_input = matches[0]
-                run_input['run'] = run
-                data = run_input.pop('data', None)
-                run_input['data_node'] = self._create_unsaved_data_node(data)
-                self._unsaved_run_inputs.append(RunInput(**run_input))
+                run_input_data = matches[0]
+                run_input_data['run'] = run
+                data = run_input_data.pop('data', None)
+                run_input_data['data_node'] = self._create_unsaved_data_node(
+                    data, template_input.type)
+                run_input = RunInput(**run_input_data)
             else:
                 run_input = self._create_unsaved_run_input(template_input, run)
+            run._inputs.append(run_input)
+            self._unsaved_run_inputs.append(run_input)
 
+        run._outputs = []
         for template_output in template.outputs:
             matches = filter(
                 lambda o: o.get("channel")==template_output.channel, outputs)
             assert len(matches) < 2, \
                 'Too many outputs with channel "%s"' % template_output.get('channel')
             if len(matches) == 1:
-                run_output = matches[0]
-                run_input['run'] = run
-                data = run_output.pop('data', None)
-                run_input['data_node'] = self._create_unsaved_data_node(data)
-                self._unsaved_run_outputs.append(RunOutput(**run_output))
+                run_output_data = matches[0]
+                run_output_data['run'] = run
+                data = run_output_data.pop('data', None)
+                run_output_data['data_node'] = self._create_unsaved_data_node(
+                    data, template_output.get('type'))
+                run_output = RunOutput(**run_output_data)
             else:
                 run_output = self._create_unsaved_run_output(template_output, run)
+            run._outputs.append(run_output)
+            self._unsaved_run_outputs.append(run_output)
 
         # If run steps are not given in run_data, assume this is a new run
         # and create new run steps from template.
+        run._steps = []
         if steps:
             for step in steps:
                 # Get the matching template for this step, without
@@ -274,20 +300,34 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                             'Template "%s" in run step "%s" does not match the'\
                             'template step found from the parent template "%s"'
                             % (template_step.uuid, step.get('name'), template.uuid))
-                self._create_unsaved_run(
-                    template_step, run_data=step, parent=run)
+                run._steps.append(
+                    self._create_unsaved_run(
+                        template_step, run_data=step, parent=run)
+                    )
         else:
             for template_step in template.steps.all():
-                self._create_unsaved_run(template_step, parent=run)
+                run._steps.append(
+                    self._create_unsaved_run(template_step, parent=run)
+                )
         return run
 
-    def _create_unsaved_data_node(self, data):
+    def _create_unsaved_data_node_from_contents(self, contents, data_type):
+        return self._create_unsaved_data_node({'contents': contents}, data_type)
+
+    def _create_unsaved_data_node(self, data, data_type):
         # TODO handle nested data and create _unsaved_data_nodes
         # so that numer of trips to the database is finite.
-        s = DataNodeSerializer(data=data)
-        s.is_valid(raise_exception=True)
-        data_node = s.save()
-        self._preexisting_data_nodes.append(data_node)
+        if data.get('contents'):
+            s = DataNodeSerializer(data=data, context={'type': data_type})
+            s.is_valid(raise_exception=True)
+            data_node = s.save()
+            self._preexisting_data_nodes.append(data_node)
+        else:
+            data_node = DataNode(type=data_type)
+            data_node.full_clean()
+            data_node.save()
+            self._preexisting_data_nodes.append(data_node)
+        return data_node
 
     def _create_unsaved_run_input(self, template_input, run):
         run_input = {}
@@ -296,7 +336,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         run_input['mode'] = template_input.mode
         run_input['group'] = template_input.group
         run_input['channel'] = template_input.channel
-        self._unsaved_run_inputs.append(RunInput(**run_input))
+        run_input_model = RunInput(**run_input)
+        return run_input_model
 
     def _create_unsaved_run_output(self, template_output, run):
         run_output = {}
@@ -313,7 +354,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             run_output['channel'] = template_output.get('channel')
         if template_output.get('as_channel'):
             run_output['as_channel'] = template_output.get('as_channel')
-        self._unsaved_run_outputs.append(RunOutput(**run_output))
+        run_output_model = RunOutput(**run_output)
+        return run_output_model
 
     def _lookup_template(self, template_data):
         # This method should retrieve a template, given either a dict with a UUID
@@ -413,12 +455,16 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         #TaskMembership.objects.bulk_create(
         #    self._task_to_all_task_attempts_m2m_relationships)
         self._connect_runs_to_parents(all_runs)
-        root_run = filter(
+
+        # Reload
+        matches = filter(
             lambda r: r.uuid==self._root_run_uuid, all_runs)
-        assert len(root_run) == 1, '1 run should match uuid of root'
-        run = root_run[0]
+        assert len(matches) == 1, '1 run should match uuid of root'
+        root_run = matches[0]
+        root_run.prefetch()
+
         # async_execute(_create_fingerprints, run.uuid)
-        return run
+        return root_run
         #except Exception as e:
         #    self._cleanup()
         #    raise
@@ -440,161 +486,75 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
 
-    """
-    def validate(self, data):
-        if not data.get('uuid'):
-            # No extra validation for creating a new run.
-            return super(RunSerializer, self).validate(data)
-        self._preexisting_runs = []
-        self._unsaved_runs = []
-        self._unsaved_run_outputs = []
-        self._unsaved_run_inputs = []
-        self._unsaved_user_inputs = []
-        self._unsaved_run_events = []
-        self._run_parent_relationships = []
-        self._task_to_task_attempt_relationships = []
-        self._task_to_all_task_attempts_m2m_relationships = []
-        # No preexisting tasks expected. Should be deleted with run.
-        self._unsaved_tasks = []
-        self._unsaved_task_inputs = []
-        self._unsaved_task_outputs = []
-        self._unsaved_task_events = []
-        self._preexisting_task_attempts = [] # May be shared with other runs \
-                                          # or remnants of a deleted run that \
-                                          # were not yet cleaned up
-        self._unsaved_task_attempts = {} # Use dict keys to avoid duplicates
-        self._unsaved_task_attempt_inputs = []
-        self._unsaved_task_attempt_outputs = []
-        self._unsaved_log_files = []
-        self._unsaved_task_attempt_events = []
-        # This applies to importing a run record
-        try:
-            r = Run.objects.get(uuid=data.get('uuid'))
-            # If run already exists
-            self._root_run_uuid = r.uuid
-            self._preexisting_runs.append(r)
-            return data
-        except Run.DoesNotExist:
-            pass
+    def _connect_inputs_outputs(self, run):
+        parent = None
+        self._connect_outputs(run, parent)
+        self._connect_inputs(run, parent)
 
-        # Did not find run by UUID. Create a new one.
+    def _connect_outputs(self, run, parent):
+        run._connectors = {}
 
-        self._validate_run_data_fields(self.initial_data)
+        # Depth-first
+        for step in run._steps:
+            self._connect_outputs(step, run)
 
-        run_data = copy.deepcopy(self.initial_data)
-        root_run = self._create_unsaved_models([run_data,])
-        self._root_run_uuid = root_run.uuid
-        for model in self._unsaved_runs:
-            try:
-                model.full_clean()
-            except django.core.exceptions.ValidationError as e:
-                if hasattr(e, 'message_dict'):
-                    raise serializers.ValidationError(e.message_dict)
+        # Connect run._connectors to outputs, or initialize with new node
+        # Add outputs to parent._connectors
+        for output in run._outputs:
+            if output.data_node is None:
+                if run._connectors.get(output.channel):
+                    output.data_node = run._connectors[output.channel]
                 else:
-                    raise serializers.ValidationError(e)
-        return data
+                    data_node = self._create_unsaved_data_node_from_contents(
+                        None, output.type)
+                    output.data_node = data_node
+            if parent:
+                if parent._connectors.get(output.channel):
+                    raise serializers.ValidationError(
+                        'Too many sources for channel "%s"' % output.channel)
+                parent._connectors[output.channel] = output.data_node
 
-    def validate_user_inputs(self, value):
-        channels = set()
-        for item in value:
-            if item.get('channel') in channels:
+    def _connect_inputs(self, run, parent):
+        # Connect inputs using template, run_inputs, or parent connectors
+        # Add inputs to run._connectors
+        for input in run._inputs:
+            if run._connectors.get(input.channel):
                 raise serializers.ValidationError(
-                    'Found duplicate of channel "%s"' % item.get('channel'))
-            channels.add(item.get('channel'))
-        return value
+                    'Too many sources for channel "%s"' % input.channel)
 
-    def _create_unsaved_models(
-            self,
-            runs_data,
-            parent_model=None):
-        if parent_model:
-            parent_force_rerun = parent_model.force_rerun
-        else:
-            parent_force_rerun = False
-        for i in range(len(runs_data)):
-            run_data = runs_data[i]
-            try:
-                run = Run.objects.get(uuid=run_data.get('uuid'))
-                self._preexisting_runs.append(run)
-            except Run.DoesNotExist:
-                run = self._create_unsaved_run(
-                    run_data, parent_force_rerun)
-            if parent_model:
-                self._run_parent_relationships.append(
-                    (run.uuid, parent_model.uuid))
-            children = run_data.get('steps', [])
-            has_children = bool(children)
-            if has_children:
-                # recurse
-                self._create_unsaved_models(
-                    children,
-                    parent_model=run)
-        return run
+            matches = filter(lambda i: i.channel==input.channel, run._user_inputs)
+            if len(matches) > 1:
+                raise serializers.ValidationError(
+                    'More than one UserInput matched channel "%s"' % input.channel)
+            if len(matches) == 1:
+                user_input = matches[0]
+            else:
+                user_input = None
 
-    def _create_unsaved_run(self, run_data, parent_force_rerun):
-        self._validate_run_data_fields(run_data)
-        run_data.setdefault('force_rerun', parent_force_rerun)
-        run_copy = copy.deepcopy(run_data)
-        inputs = run_copy.pop('inputs', [])
-        user_inputs = run_copy.pop('user_inputs', [])
-        outputs = run_copy.pop('outputs', [])
-        template_data = run_copy.pop('template')
-        tasks = run_copy.pop('tasks', [])
-        events = run_copy.pop('events', [])
-        run_copy.pop('steps', None)
-        run_copy.pop('url', None)
-        run_copy.pop('status', None)
-        s = TemplateSerializer(data=template_data)
-        s.is_valid(raise_exception=True)
-        run_copy['template'] = s.save()
-        run = Run(**run_copy)
-        self._unsaved_runs.append(run)
-        for task in tasks:
-            self._create_unsaved_task(task, run)
-        for input_data in inputs:
-            # create unsaved inputs
-            input_copy = copy.deepcopy(input_data)
-            input_copy['run'] = run
-            data = input_copy.pop('data', None)
-            if data:
-                s = DataNodeSerializer(
-                    data=data,
-                    context={'type': input_copy.get('type')}
-                )
-                s.is_valid(raise_exception=True)
-                input_copy['data_node'] = s.save()
-            self._unsaved_run_inputs.append(RunInput(**input_copy))
-        for user_input in user_inputs:
-            # create unsaved user_inputs
-            input_copy = copy.deepcopy(user_input)
-            input_copy['run'] = run
-            data = input_copy.pop('data', None)
-            if data:
-                s = DataNodeSerializer(
-                    data=data,
-                    context={'type': input_copy.get('type')}
-                )
-                s.is_valid(raise_exception=True)
-                input_copy['data_node'] = s.save()
-            self._unsaved_user_inputs.append(UserInput(**input_copy))
-        for output_data in outputs:
-            # create unsaved outputs
-            output_copy = copy.deepcopy(output_data)
-            output_copy['run'] = run
-            data = output_copy.pop('data', None)
-            if data:
-                s = DataNodeSerializer(
-                    data=data,
-                    context={'type': output_copy.get('type')}
-                )
-                s.is_valid(raise_exception=True)
-                output_copy['data_node'] = s.save()
-            self._unsaved_run_outputs.append(RunOutput(**output_copy))
-        for event in events:
-            event['run'] = run
-            self._unsaved_run_events.append(RunEvent(**event))
-        return run
+            if user_input and parent:
+                raise serializers.ValidationError(
+                    'Invalid user input on channel "%s". User inputs are '\
+                    'not supported on children' % input.channel)
+            if user_input:
+                data_node = user_input.data_node
+            elif parent and parent._connectors.get(input.channel):
+                data_node = parent._connectors[input.channel]
+            else:
+                template_input = run.template.get_input(input.channel)
+                if template_input.data_node:
+                    data_node = template_input.data_node
+                else:
+                    data_node = self._create_unsaved_data_node_from_contents(
+                        None, input.type)
+            input.data_node = data_node
 
+            run._connectors[input.channel] = input.data_node
+
+        # Breadth-first
+        for step in run._steps:
+            self._connect_inputs(step, run)
+
+    """
     def _create_unsaved_task(self, task_data, run):
         task_attempts = task_data.pop('all_task_attempts', [])
         active_task_attempt = task_data.pop('task_attempt', None)
@@ -703,85 +663,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._task_to_all_task_attempts_m2m_relationships.append(
             TaskMembership(parent_task=task, child_task_attempt=task_attempt))
 
-    def create(self, validated_data): 
-        if validated_data.get('uuid'):
-            return self._post_run(validated_data)
-        else:
-            return self._start_run(validated_data)
-
-    def _post_run(self, data):
-        try:
-            bulk_runs = Run.objects.bulk_create(self._unsaved_runs)
-            self._new_runs = reload_models(Run, bulk_runs)
-            all_runs = [run for run in self._new_runs]
-            all_runs.extend(self._preexisting_runs)
-            match_and_update_by_uuid(
-                self._unsaved_run_inputs, 'run', self._new_runs)
-            RunInput.objects.bulk_create(self._unsaved_run_inputs)
-            match_and_update_by_uuid(
-                self._unsaved_run_outputs, 'run', self._new_runs)
-            RunOutput.objects.bulk_create(self._unsaved_run_outputs)
-            match_and_update_by_uuid(self._unsaved_user_inputs,
-                                     'run', self._new_runs)
-            UserInput.objects.bulk_create(self._unsaved_user_inputs)
-            match_and_update_by_uuid(
-                self._unsaved_run_events, 'run', self._new_runs)
-            RunEvent.objects.bulk_create(self._unsaved_run_events)
-            match_and_update_by_uuid(
-                self._unsaved_tasks, 'run', self._new_runs)
-            bulk_tasks = Task.objects.bulk_create(self._unsaved_tasks)
-            self._new_tasks = reload_models(Task, bulk_tasks)
-            match_and_update_by_uuid(
-                self._unsaved_task_inputs, 'task', self._new_tasks)
-            TaskInput.objects.bulk_create(self._unsaved_task_inputs)
-            match_and_update_by_uuid(self._unsaved_task_outputs,
-                                     'task', self._new_tasks)
-            TaskOutput.objects.bulk_create(self._unsaved_task_outputs)
-            match_and_update_by_uuid(self._unsaved_task_events,
-                                     'task', self._new_tasks)
-            TaskEvent.objects.bulk_create(self._unsaved_task_events)
-            bulk_attempts = TaskAttempt.objects.bulk_create(
-                self._unsaved_task_attempts.values())
-            self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
-            all_task_attempts = [task_attempt for task_attempt
-                                 in self._new_task_attempts]
-            all_task_attempts.extend(self._preexisting_task_attempts)
-            match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
-                                     'task_attempt', self._new_task_attempts)
-            TaskAttemptInput.objects.bulk_create(
-                self._unsaved_task_attempt_inputs)
-            match_and_update_by_uuid(self._unsaved_task_attempt_outputs,
-                                     'task_attempt',self._new_task_attempts)
-            TaskAttemptOutput.objects.bulk_create(
-                self._unsaved_task_attempt_outputs)
-            match_and_update_by_uuid(self._unsaved_task_attempt_events,
-                                     'task_attempt', self._new_task_attempts)
-            TaskAttemptEvent.objects.bulk_create(
-                self._unsaved_task_attempt_events)
-            match_and_update_by_uuid(self._unsaved_log_files,
-                                     'task_attempt', self._new_task_attempts)
-            TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
-            self._connect_tasks_to_active_task_attempts(
-                self._new_tasks, all_task_attempts)
-            match_and_update_by_uuid(
-                self._task_to_all_task_attempts_m2m_relationships,
-                'parent_task', self._new_tasks)
-            match_and_update_by_uuid(
-                self._task_to_all_task_attempts_m2m_relationships,
-                'child_task_attempt', all_task_attempts)
-            TaskMembership.objects.bulk_create(
-                self._task_to_all_task_attempts_m2m_relationships)
-            self._connect_runs_to_parents(all_runs)
-            root_run = filter(
-                lambda r: r.uuid==self._root_run_uuid, all_runs)
-            assert len(root_run) == 1, '1 run should match uuid of root'
-            run = root_run[0]
-            async_execute(_create_fingerprints, run.uuid)
-            return run
-        except Exception as e:
-            self._cleanup()
-            raise
-
     def _connect_tasks_to_active_task_attempts(self, tasks, task_attempts):
         params = []
         for task_uuid, task_attempt_uuid in self._task_to_task_attempt_relationships:
@@ -797,79 +678,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                                                         % (case_statement, id_list)
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
-
-    def _cleanup(self):
-        if hasattr(self, '_new_runs'):
-            self._new_runs.delete()
-        if hasattr(self, '_new_tasks'):
-            self._new_tasks.delete()
-        if hasattr(self, '_new_task_attempts'):
-            self._new_task_attempts.delete()
-
-    def _start_run(self, data):
-        try:
-            user_inputs = self.initial_data.get('user_inputs', None)
-            data.pop('user_inputs', None)
-            data.pop('template')
-            s = TemplateSerializer(data=self.initial_data.get('template'))
-            s.is_valid()
-            template = s.save()
-
-            run = Run.create_from_template(
-                template,
-                name=data.get('name'),
-                notification_addresses=data.get('notification_addresses'),
-                force_rerun=data.get('force_rerun', False),
-                notification_context=self._get_notification_context())
-
-            self._new_runs = run # for cleanup if failure
-
-            if user_inputs is not None:
-                for input_data in user_inputs:
-                    # The user_input usually won't have data type specified.
-                    # We need to know the data type to find or create the
-                    # data object from the value given. We get the type from
-                    # the corresponding template input.
-                    if not input_data.get('channel'):
-                        raise serializers.ValidationError(
-                            'Missing required "channel" field on input: "%s"'
-                            % input_data)
-                    try:
-                        input = template.get_input(input_data.get('channel'))
-                    except ObjectDoesNotExist:
-                        raise serializers.ValidationError(
-                            'Input channel "%s" does not match any channel '\
-                            'on the template.' % input_data.get('channel'))
-                    if input_data.get('type') \
-                       and input_data.get('type') != input.type:
-                        raise serializers.ValidationError(
-                            'Type mismatch: Data with type "%s" does not '
-                            'match input channel "%s" with type "%s".' % (
-                                input_data.get('type'),
-                                input_data.get('channel'), type))
-                    input_data.update({'type': input.type})
-                    s = UserInputSerializer(
-                        data=input_data,
-                        context={'parent_field': 'run',
-                                 'parent_instance': run
-                        })
-                    s.is_valid(raise_exception=True)
-                    i = s.save()
-                    if not i.data_node.is_ready():
-                        raise serializers.ValidationError(
-                            'Data for input "%s" is not ready. (Maybe a file '\
-                            'upload failed or is not yet complete?)'
-                            % i.channel)
-            run.initialize_inputs()
-            run.initialize_outputs()
-            run.initialize()
-            return run
-        except django.core.exceptions.ValidationError as e:
-            self._cleanup()
-            raise serializers.ValidationError(e)
-        except Exception as e:
-            self._cleanup()
-            raise
     """
 
     def _get_notification_context(self):

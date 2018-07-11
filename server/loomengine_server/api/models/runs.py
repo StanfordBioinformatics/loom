@@ -128,6 +128,13 @@ class Run(BaseModel):
         assert len(outputs) == 1, 'missing output for channel %s' % channel
         return outputs[0]
 
+    def get_user_input(self, channel):
+        user_inputs = [i for i in self.user_inputs.filter(channel=channel)]
+        assert len(user_inputs) < 2, 'too many user_inputs for channel %s' % channel
+        if len(user_inputs) == 0:
+            return None
+        return inputs[0]
+        
     def finish(self):
         if self.has_terminal_status():
             return
@@ -257,7 +264,6 @@ class Run(BaseModel):
         from api.models.data_nodes import DataNode
         nodes_to_delete = set()
         for queryset in [
-                DataNode.objects.filter(runconnectornode__run__uuid=self.uuid),
                 DataNode.objects.filter(runinput__run__uuid=self.uuid),
                 DataNode.objects.filter(runoutput__run__uuid=self.uuid),
                 DataNode.objects.filter(userinput__run__uuid=self.uuid),
@@ -459,23 +465,6 @@ class RunOutput(DataChannel):
         blank=True)
     as_channel = models.CharField(max_length=255, null=True, blank=True)
 
-
-class RunConnectorNode(DataChannel):
-    # A connector resides in a workflow. All inputs/outputs on the workflow
-    # connect internally to connectors, and all inputs/outputs on the
-    # nested steps connect externally to connectors on their parent workflow.
-    # The primary purpose of this object is to eliminate directly connecting
-    # input/output nodes of siblings since their creation order is uncertain.
-    # Instead, connections between siblings always pass through a connector
-    # in the parent workflow.
-
-    has_source = models.BooleanField(default=False)
-    run = models.ForeignKey('Run',
-                            related_name='connectors',
-                            on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = (("run", "channel"),)
 
 class TaskNode(object):
     """This converts tasks into a tree for the sole purpose of checking

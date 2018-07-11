@@ -164,7 +164,6 @@ class DataObject(BaseModel):
             parent=None).\
             prefetch_related('runinput_set__run').\
             prefetch_related('runoutput_set__run').\
-            prefetch_related('runconnectornode_set__run').\
             prefetch_related('userinput_set__run').\
             prefetch_related('taskinput_set__task__run').\
             prefetch_related('taskoutput_set__task__run').\
@@ -185,12 +184,6 @@ class DataObject(BaseModel):
                     truncated = True
                     break
                 runs.add(run_output.run)
-            for connector_node in data_node.runconnectornode_set.all():
-                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
-                   and connector_node.run not in runs:
-                    truncated = True
-                    break
-                runs.add(connector_node.run)
             for user_input in data_node.userinput_set.all():
                 if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
                    and user_input.run not in runs:
