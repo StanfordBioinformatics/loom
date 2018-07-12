@@ -212,15 +212,16 @@ class Run(BaseModel):
         event.full_clean()
         event.save()
 
-    def _push_all_inputs(self):
+    def push_all_inputs(self):
         if get_setting('TEST_NO_PUSH_INPUTS'):
             return
-        if self.inputs.exists():
-            for input in self.inputs.all():
-                self.push(input.channel, [])
-        elif self.is_leaf:
-            # Special case: No inputs on leaf node
-            self._push_input_set([])
+        for leaf in self.get_leaves():
+            if leaf.inputs.exists():
+                for input in leaf.inputs.all():
+                    leaf.push(input.channel, [])
+            else:
+                # Special case: No inputs on leaf node
+                leaf._push_input_set([])
 
     def push(self, channel, data_path):
         """Called when new data is available at the given data_path 
@@ -516,36 +517,6 @@ class TaskNode(object):
                 and all([self.children[i].is_complete() for i in range(self.degree)])
 
 # Asynchronous
-@shared_task
-def _postprocess_run(run_uuid):
-    run = Run.objects.get(uuid=run_uuid)
-    if run.postprocessing_status == 'complete':
-        # Nothing more to do
-        return
-
-    try:
-        run._claim_for_postprocessing()
-    except RunAlreadyClaimedForPostprocessingException:
-        return
-
-    try:
-        # Order of these steps matters. First create step Run,
-        # then push inputs on parent Run,
-        # then call Run.initialize() on the steps.
-        # Run.initialize() creates uninitialized children (if any) to start the
-        # next cycle. parent Run._push_all_inputs and step Run.initialize will be
-        # called here in postprocessing.
-        run._push_all_inputs()
-        for step in run.steps.all():
-            step.initialize()
-        run.setattrs_and_save_with_retries({
-            'postprocessing_status': 'complete'})
-
-    except Exception as e:
-        run.setattrs_and_save_with_retries({'postprocessing_status': 'failed'})
-        run.fail(detail='Postprocessing failed with error "%s"' % str(e))
-        raise
-
 def _send_email_notifications(run, email_addresses, context):
     if not email_addresses:
         return
@@ -639,3 +610,15 @@ def kill_run(run_uuid, kill_message):
     except Exception as e:
         logger.debug('Failed to kill run.uuid=%s.' % run.uuid)
         raise
+
+@shared_task
+def postprocess_run(run_uuid):
+    from api.models.runs import Run
+    run = Run.objects.get(uuid=run_uuid)
+    run.prefetch()
+    for step in run.get_leaves():
+	for task in step.tasks.all():
+            fingerprint = task.get_fingerprint()
+            fingerprint.update_task_attempt_maybe(task.task_attempt)
+    if not run.has_terminal_status():
+        run.push_all_inputs()

@@ -32,7 +32,6 @@ class TaskAttempt(BaseModel):
                             unique=True, max_length=255)
     tasks = models.ManyToManyField('Task', through='TaskMembership',
                                    related_name='all_task_attempts')
-    #task = models.ForeignKey('Task', related_name='deprecated_all_task_attempts')
     interpreter = models.CharField(max_length=1024)
     name = models.CharField(max_length=255, blank=True) # used in Docker container name
     command = models.TextField()

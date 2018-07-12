@@ -248,6 +248,7 @@ class ImportManager(object):
                 'New comments are not allowed if metadata is used'
             comments = metadata_file_resource.get('import_comments', '')
         filename = metadata_file_resource.get('filename', source.get_filename())
+        file_relative_path = metadata_file_resource.get('file_relative_path', None)
         logger.info('Calculating md5 on file "%s"...' % source.get_url())
         md5 = source.calculate_md5()
         metadata_md5 = metadata_file_resource.get('md5')
@@ -266,6 +267,7 @@ class ImportManager(object):
                 'filename': filename,
                 'md5': md5,
                 'imported_from_url': imported_from_url,
+                'file_relative_path': file_relative_path,
                 'source_type': source_type,
                 'link': False,
             }

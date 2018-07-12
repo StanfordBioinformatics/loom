@@ -8,7 +8,8 @@ from . import CreateWithParentModelSerializer, RecursiveField, strip_empty_value
     match_and_update_by_uuid, reload_models
 from api import get_setting
 from api.models.data_nodes import DataNode
-from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
+from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent, \
+    postprocess_run
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
 from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, \
     TaskAttemptEvent, TaskAttemptLogFile, TaskMembership
@@ -160,8 +161,20 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._unsaved_user_inputs = []
         self._unsaved_data_nodes = []
         self._preexisting_data_nodes = []
-        
-        root_run = self._create_unsaved_run(template, run_data=run_data)       
+        self._unsaved_tasks = []
+        self._unsaved_task_inputs = []
+        self._unsaved_task_outputs = []
+        self._unsaved_task_events = []
+        self._preexisting_task_attempts = []
+        self._unsaved_task_attempts = {}
+        self._unsaved_task_attempt_inputs = []
+        self._unsaved_task_attempt_outputs = []
+        self._unsaved_task_attempt_events = []
+        self._unsaved_log_files = []
+        self._task_to_task_attempt_relationships = []
+        self._task_to_all_task_attempts_m2m_relationships = []
+
+        root_run = self._create_unsaved_run(template, run_data=run_data)
         self._connect_inputs_outputs(root_run)
 
         # Save the UUID so the create() method can retrieve the root run
@@ -220,6 +233,9 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         if parent:
             self._run_parent_relationships.append((run.uuid, parent.uuid))
 
+        for task in tasks:
+            self._create_unsaved_task(task, run)
+
         for event in events:
             event['run'] = run
             self._unsaved_run_events.append(RunEvent(**event))
@@ -264,7 +280,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         run._outputs = []
         for template_output in template.outputs:
             matches = filter(
-                lambda o: o.get("channel")==template_output.channel, outputs)
+                lambda o: o.get("channel")==template_output.get('channel'),
+                outputs)
             assert len(matches) < 2, \
                 'Too many outputs with channel "%s"' % template_output.get('channel')
             if len(matches) == 1:
@@ -286,8 +303,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             for step in steps:
                 # Get the matching template for this step, without
                 # triggering new database queries
-                matches = filter(lambda s: s.name==steps.get('name'),
-                                  template.steps.all())
+                matches = filter(lambda s: s.name==step.get('name'),
+                                 template.steps.all())
                 if len(matches) == 0:
                     raise serializers.ValidationError(
                         'No template found for step "%s"' % step.get('name'))
@@ -309,6 +326,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                 run._steps.append(
                     self._create_unsaved_run(template_step, parent=run)
                 )
+
         return run
 
     def _create_unsaved_data_node_from_contents(self, contents, data_type):
@@ -410,50 +428,50 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         match_and_update_by_uuid(
             self._unsaved_run_events, 'run', self._new_runs)
         RunEvent.objects.bulk_create(self._unsaved_run_events)
-        #match_and_update_by_uuid(
-        #    self._unsaved_tasks, 'run', self._new_runs)
-        #bulk_tasks = Task.objects.bulk_create(self._unsaved_tasks)
-        #self._new_tasks = reload_models(Task, bulk_tasks)
-        #match_and_update_by_uuid(
-        #    self._unsaved_task_inputs, 'task', self._new_tasks)
-        #TaskInput.objects.bulk_create(self._unsaved_task_inputs)
-        #match_and_update_by_uuid(self._unsaved_task_outputs,
-        #                         'task', self._new_tasks)
-        #TaskOutput.objects.bulk_create(self._unsaved_task_outputs)
-        #match_and_update_by_uuid(self._unsaved_task_events,
-        #                         'task', self._new_tasks)
-        #TaskEvent.objects.bulk_create(self._unsaved_task_events)
-        #bulk_attempts = TaskAttempt.objects.bulk_create(
-        #    self._unsaved_task_attempts.values())
-        #self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
-        #all_task_attempts = [task_attempt for task_attempt
-        #                     in self._new_task_attempts]
-        #all_task_attempts.extend(self._preexisting_task_attempts)
-        #match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
-        #                         'task_attempt', self._new_task_attempts)
-        #TaskAttemptInput.objects.bulk_create(
-        #    self._unsaved_task_attempt_inputs)
-        #match_and_update_by_uuid(self._unsaved_task_attempt_outputs,
-        #                         'task_attempt',self._new_task_attempts)
-        #TaskAttemptOutput.objects.bulk_create(
-        #    self._unsaved_task_attempt_outputs)
-        #match_and_update_by_uuid(self._unsaved_task_attempt_events,
-        #                         'task_attempt', self._new_task_attempts)
-        #TaskAttemptEvent.objects.bulk_create(
-        #    self._unsaved_task_attempt_events)
-        #match_and_update_by_uuid(self._unsaved_log_files,
-        #                         'task_attempt', self._new_task_attempts)
-        #TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
-        #self._connect_tasks_to_active_task_attempts(
-        #    self._new_tasks, all_task_attempts)
-        #match_and_update_by_uuid(
-        #    self._task_to_all_task_attempts_m2m_relationships,
-        #    'parent_task', self._new_tasks)
-        #match_and_update_by_uuid(
-        #    self._task_to_all_task_attempts_m2m_relationships,
-        #    'child_task_attempt', all_task_attempts)
-        #TaskMembership.objects.bulk_create(
-        #    self._task_to_all_task_attempts_m2m_relationships)
+        match_and_update_by_uuid(
+            self._unsaved_tasks, 'run', self._new_runs)
+        bulk_tasks = Task.objects.bulk_create(self._unsaved_tasks)
+        self._new_tasks = reload_models(Task, bulk_tasks)
+        match_and_update_by_uuid(
+            self._unsaved_task_inputs, 'task', self._new_tasks)
+        TaskInput.objects.bulk_create(self._unsaved_task_inputs)
+        match_and_update_by_uuid(self._unsaved_task_outputs,
+                                 'task', self._new_tasks)
+        TaskOutput.objects.bulk_create(self._unsaved_task_outputs)
+        match_and_update_by_uuid(self._unsaved_task_events,
+                                 'task', self._new_tasks)
+        TaskEvent.objects.bulk_create(self._unsaved_task_events)
+        bulk_attempts = TaskAttempt.objects.bulk_create(
+            self._unsaved_task_attempts.values())
+        self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
+        all_task_attempts = [task_attempt for task_attempt
+                             in self._new_task_attempts]
+        all_task_attempts.extend(self._preexisting_task_attempts)
+        match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
+                                 'task_attempt', self._new_task_attempts)
+        TaskAttemptInput.objects.bulk_create(
+            self._unsaved_task_attempt_inputs)
+        match_and_update_by_uuid(self._unsaved_task_attempt_outputs,
+                                 'task_attempt',self._new_task_attempts)
+        TaskAttemptOutput.objects.bulk_create(
+            self._unsaved_task_attempt_outputs)
+        match_and_update_by_uuid(self._unsaved_task_attempt_events,
+                                 'task_attempt', self._new_task_attempts)
+        TaskAttemptEvent.objects.bulk_create(
+            self._unsaved_task_attempt_events)
+        match_and_update_by_uuid(self._unsaved_log_files,
+                                 'task_attempt', self._new_task_attempts)
+        TaskAttemptLogFile.objects.bulk_create(self._unsaved_log_files)
+        self._connect_tasks_to_active_task_attempts(
+            self._new_tasks, all_task_attempts)
+        match_and_update_by_uuid(
+            self._task_to_all_task_attempts_m2m_relationships,
+            'parent_task', self._new_tasks)
+        match_and_update_by_uuid(
+            self._task_to_all_task_attempts_m2m_relationships,
+            'child_task_attempt', all_task_attempts)
+        TaskMembership.objects.bulk_create(
+            self._task_to_all_task_attempts_m2m_relationships)
         self._connect_runs_to_parents(all_runs)
 
         # Reload
@@ -461,9 +479,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             lambda r: r.uuid==self._root_run_uuid, all_runs)
         assert len(matches) == 1, '1 run should match uuid of root'
         root_run = matches[0]
-        root_run.prefetch()
-
-        # async_execute(_create_fingerprints, run.uuid)
+        async_execute(postprocess_run, root_run.uuid)
         return root_run
         #except Exception as e:
         #    self._cleanup()
@@ -554,7 +570,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         for step in run._steps:
             self._connect_inputs(step, run)
 
-    """
     def _create_unsaved_task(self, task_data, run):
         task_attempts = task_data.pop('all_task_attempts', [])
         active_task_attempt = task_data.pop('task_attempt', None)
@@ -568,29 +583,19 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         self._unsaved_tasks.append(task)
         for input_data in inputs:
             # create unsaved inputs
-            input_copy = copy.deepcopy(input_data)
-            input_copy['task'] = task
-            data = input_copy.pop('data', None)
+            input_data['task'] = task
+            data = input_data.pop('data', None)
             if data:
-                s = DataNodeSerializer(
-                    data=data,
-                    context={'type': input_copy.get('type')}
-                )
-                s.is_valid(raise_exception=True)
-                input_copy['data_node'] = s.save()
-            self._unsaved_task_inputs.append(TaskInput(**input_copy))
+                input_data['data_node'] = self._create_unsaved_data_node(
+                    data, input_data.get('type'))
+            self._unsaved_task_inputs.append(TaskInput(**input_data))
         for output_data in outputs:
-            output_copy = copy.deepcopy(output_data)
-            output_copy['task'] = task
-            data = output_copy.pop('data', None)
+            output_data['task'] = task
+            data = output_data.pop('data', None)
             if data:
-                s = DataNodeSerializer(
-                    data=data,
-                    context={'type': output_copy.get('type')}
-                )
-                s.is_valid(raise_exception=True)
-                output_copy['data_node'] = s.save()
-            self._unsaved_task_outputs.append(TaskOutput(**output_copy))
+                output_data['data_node'] = self._create_unsaved_data_node(
+                    data, output_data.get('type'))
+            self._unsaved_task_outputs.append(TaskOutput(**output_data))
         for event in events:
             event['task'] = task
             self._unsaved_task_events.append(TaskEvent(**event))
@@ -678,7 +683,6 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
                                                         % (case_statement, id_list)
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
-    """
 
     def _get_notification_context(self):
         context = {
@@ -692,7 +696,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
 	    })
         return context
 
-        
+
 class URLRunSerializer(RunSerializer):
 
     # readable fields
@@ -737,13 +741,3 @@ class URLRunSerializer(RunSerializer):
     def to_representation(self, instance):
         return strip_empty_values(
             super(RunSerializer, self).to_representation(instance))
-
-
-# Asynchronous
-@shared_task
-def _create_fingerprints(run_uuid):
-    run = Run.objects.get(uuid=run_uuid)
-    for step in run.get_leaves():
-        for task in step.tasks.all():
-            fingerprint = task.get_fingerprint()
-            fingerprint.update_task_attempt_maybe(task.task_attempt)
