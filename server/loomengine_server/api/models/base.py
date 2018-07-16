@@ -26,13 +26,14 @@ class FilterHelper(object):
 
     def filter_multiple_by_name_or_id_or_tag_or_hash(
             self, query_strings, queryset=None):
-        assert isinstance(query_strings, list)
+        assert isinstance(query_strings, (list, set))
+        query_strings = set(query_strings)
         if len(query_strings) == 0:
             return {}
-        results = self.Model._prefetch_for_filter(queryset=queryset)
-        for i in range(len(query_strings)):
+        results = self.Model.objects.none()
+        for query_string in query_strings:
             results = results | self.filter_by_name_or_id_or_tag_or_hash(
-                query_strings[i], queryset=queryset)
+                query_string, queryset=queryset)
         return self._sort_by_name_or_id_or_tag_or_hash(
             query_strings, results)
 
@@ -52,13 +53,14 @@ class FilterHelper(object):
 
     def filter_multiple_by_name_or_id_or_tag(
             self, query_strings, queryset=None):
-        assert isinstance(query_strings, list)
+        assert isinstance(query_strings, (list, set))
+        query_strings = set(query_strings)
         if len(query_strings) == 0:
             return {}
-        results = self.Model._prefetch_for_filter(queryset=queryset)
-        for i in range(len(query_strings)):
+        results = self.Model.objects.none()
+        for query_string in query_strings:
             results = results | self.filter_by_name_or_id_or_tag(
-                query_strings[i], queryset=queryset)
+                query_string, queryset=queryset)
         return self._sort_by_name_or_id_or_tag(
             query_strings, results)
 
@@ -199,12 +201,12 @@ class _FilterMixin(object):
             cls, filter_strings, queryset=None):
         helper = FilterHelper(cls)
         return helper.filter_multiple_by_name_or_id_or_tag_or_hash(
-            filter_string, queryset=queryset)
+            filter_strings, queryset=queryset)
 
     @classmethod
     def filter_multiple_by_name_or_id_or_tag(cls, filter_strings):
         helper = FilterHelper(cls)
-        return helper.filter_multiple_by_name_or_id_or_tag(filter_string)
+        return helper.filter_multiple_by_name_or_id_or_tag(filter_strings)
 
     @classmethod
     def _prefetch_for_filter(cls, queryset=None):

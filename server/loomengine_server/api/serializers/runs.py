@@ -13,7 +13,6 @@ from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
 from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, \
     TaskAttemptEvent, TaskAttemptLogFile, TaskMembership
 from api.models.templates import Template
-from api.serializers.data_objects import DataObjectSerializer
 from api.serializers.templates import TemplateSerializer, URLTemplateSerializer
 from api.serializers.tasks import TaskSerializer, URLTaskSerializer
 from api.serializers.data_channels import DataChannelSerializer
@@ -267,6 +266,7 @@ class UnsavedObjectManager(object):
         # already exist in the database, then sort them to 
         # _preexisting_* and _unsaved_* before calling bulk_create.
         self._preexisting_runs = {}
+        self._preexisting_data_objects = {}
         self._preexisting_data_nodes = {}
         self._preexisting_task_attempts = {}
         self._unsaved_runs = {}
@@ -274,6 +274,7 @@ class UnsavedObjectManager(object):
         self._unsaved_run_outputs = []
         self._unsaved_run_inputs = []
         self._unsaved_run_user_inputs = []
+        self._unsaved_data_objects = {}
         self._unsaved_data_nodes = {}
         self._unsaved_root_data_nodes = {}
         self._unsaved_tasks = []
@@ -298,52 +299,70 @@ class UnsavedObjectManager(object):
         self._root_run_uuid = None
 
     def bulk_create_all(self):
+        bulk_data_objects = DataObject.objects.bulk_create(
+            self._unsaved_data_objects.values())
+        self._new_data_objects = reload_models(DataObject, bulk_data_objects)
+        all_data_objects = [data_object for data_object in self._new_data_objects]
+        all_data_objects.extend(self._preexisting_data_objects.values())
+
+        match_and_update_by_uuid(
+            self._unsaved_data_nodes.values(), 'data_object', all_data_objects)
         bulk_data_nodes = DataNode.objects.bulk_create(
             self._unsaved_data_nodes.values())
         self._new_data_nodes = reload_models(DataNode, bulk_data_nodes)
         all_data_nodes = [data_node for data_node in self._new_data_nodes]
         all_data_nodes.extend(self._preexisting_data_nodes.values())
+
         self._connect_data_nodes_to_parents(self._new_data_nodes)
 
         bulk_runs = Run.objects.bulk_create(self._unsaved_runs.values())
         self._new_runs = reload_models(Run, bulk_runs)
         all_runs = [run for run in self._new_runs]
         all_runs.extend(self._preexisting_runs.values())
+
         match_and_update_by_uuid(
             self._unsaved_run_inputs, 'run', self._new_runs)
         match_and_update_by_uuid(
             self._unsaved_run_inputs, 'data_node', all_data_nodes)
         RunInput.objects.bulk_create(self._unsaved_run_inputs)
+
         match_and_update_by_uuid(
             self._unsaved_run_outputs, 'run', self._new_runs)
         match_and_update_by_uuid(
             self._unsaved_run_outputs, 'data_node', all_data_nodes)
         RunOutput.objects.bulk_create(self._unsaved_run_outputs)
+
         match_and_update_by_uuid(self._unsaved_run_user_inputs,
                                  'run', self._new_runs)
         match_and_update_by_uuid(
             self._unsaved_run_user_inputs, 'data_node', all_data_nodes)
         UserInput.objects.bulk_create(self._unsaved_run_user_inputs)
+
         match_and_update_by_uuid(
             self._unsaved_run_events, 'run', self._new_runs)
         RunEvent.objects.bulk_create(self._unsaved_run_events)
+
         match_and_update_by_uuid(
             self._unsaved_tasks, 'run', self._new_runs)
         bulk_tasks = Task.objects.bulk_create(self._unsaved_tasks)
         self._new_tasks = reload_models(Task, bulk_tasks)
+
         match_and_update_by_uuid(
             self._unsaved_task_inputs, 'task', self._new_tasks)
         match_and_update_by_uuid(
             self._unsaved_task_inputs, 'data_node', all_data_nodes)
         TaskInput.objects.bulk_create(self._unsaved_task_inputs)
+
         match_and_update_by_uuid(self._unsaved_task_outputs,
                                  'task', self._new_tasks)
         match_and_update_by_uuid(
             self._unsaved_task_outputs, 'data_node', all_data_nodes)
         TaskOutput.objects.bulk_create(self._unsaved_task_outputs)
+
         match_and_update_by_uuid(self._unsaved_task_events,
                                  'task', self._new_tasks)
         TaskEvent.objects.bulk_create(self._unsaved_task_events)
+
         bulk_attempts = TaskAttempt.objects.bulk_create(
             self._unsaved_task_attempts.values())
         self._new_task_attempts = reload_models(TaskAttempt, bulk_attempts)
@@ -352,25 +371,33 @@ class UnsavedObjectManager(object):
         all_task_attempts.extend(self._preexisting_task_attempts.values())
         match_and_update_by_uuid(self._unsaved_task_attempt_inputs,
                                  'task_attempt', self._new_task_attempts)
+
         match_and_update_by_uuid(
             self._unsaved_task_attempt_inputs, 'data_node', all_data_nodes)
         TaskAttemptInput.objects.bulk_create(
             self._unsaved_task_attempt_inputs)
+
         match_and_update_by_uuid(self._unsaved_task_attempt_outputs,
                                  'task_attempt',self._new_task_attempts)
         match_and_update_by_uuid(
             self._unsaved_task_attempt_outputs, 'data_node', all_data_nodes)
         TaskAttemptOutput.objects.bulk_create(
             self._unsaved_task_attempt_outputs)
+
         match_and_update_by_uuid(self._unsaved_task_attempt_events,
                                  'task_attempt', self._new_task_attempts)
         TaskAttemptEvent.objects.bulk_create(
             self._unsaved_task_attempt_events)
+
+        match_and_update_by_uuid(self._unsaved_task_attempt_log_files,
+                                 'data_object', all_data_objects)
         match_and_update_by_uuid(self._unsaved_task_attempt_log_files,
                                  'task_attempt', self._new_task_attempts)
         TaskAttemptLogFile.objects.bulk_create(self._unsaved_task_attempt_log_files)
+
         self._connect_tasks_to_active_task_attempts(
             self._new_tasks, all_task_attempts)
+
         match_and_update_by_uuid(
             self._unsaved_task_to_all_task_attempts_m2m_relationships,
             'parent_task', self._new_tasks)
@@ -379,6 +406,7 @@ class UnsavedObjectManager(object):
             'child_task_attempt', all_task_attempts)
         TaskMembership.objects.bulk_create(
             self._unsaved_task_to_all_task_attempts_m2m_relationships)
+
         self._connect_runs_to_parents(all_runs)
 
         # Reload
@@ -589,22 +617,52 @@ class UnsavedObjectManager(object):
         for node in preexisting_data_nodes:
             self._preexisting_data_nodes[node.uuid] = node
             self._unsaved_root_data_nodes.pop(node.uuid)
+        # This steps converts from a root node with tree data cached (if parallel)
+        # to nested nodes, each with cached contents for one scalar data object
         for data_node in self._unsaved_root_data_nodes.values():
             self._expand_data_node_contents(data_node, data_node._cached_contents)
+
+        file_references = {}
         for data_node in self._unsaved_data_nodes.values():
+            # Process DataObject
             contents = data_node._cached_expanded_contents
             if not contents:
                 continue
             if isinstance(contents, dict):
-                s = DataObjectSerializer(data=contents,
-                                         context={'type': data_node.type})
-                s.is_valid(raise_exception=True)
-                data_object = s.save()
+                data_node.data_object = self._create_unsaved_data_object(contents)
+                self._unsaved_data_objects[
+                    data_node.data_object.uuid] = data_node.data_object
+            elif data_node.type == 'file':
+                nodes_with_this_reference = file_references.setdefault(contents, [])
+                nodes_with_this_reference.append(data_node)
             else:
-                data_object = DataObject.get_by_value(
-                    contents,
-                    data_node.type)
-            data_node.data_object = data_object
+                # For non-file values, create a new node
+                data_node.data_object = DataObject(
+                    type=data_node.type,
+                    data={'value': contents})
+                self._unsaved_data_objects[
+                    data_node.data_object.uuid] = data_node.data_object
+        file_lookups = DataObject.filter_multiple_by_name_or_id_or_tag_or_hash(
+            file_references.keys())
+        for reference, data_objects in file_lookups.iteritems():
+            if len(data_objects) == 0:
+                raise serializers.ValidationError(
+                    'No file found for reference "%s"' % reference)
+            if len(data_objects) > 1:
+                raise serializers.ValidationError(
+                    'Found %s files for reference "%s", expected 1.'
+                    % (len(dataobjects), reference))
+            for data_node in file_references[reference]:
+                data_node.data_object = data_objects[0]
+                self._preexisting_data_objects[
+                    data_objects[0].uuid] = data_objects[0]
+
+        data_object_uuids = self._unsaved_data_objects.keys()
+        preexisting_data_objects = DataObject.objects.filter(
+            uuid__in=data_object_uuids)
+        for data_object in preexisting_data_objects:
+            self._preexisting_data_objects[data_object.uuid] = data_object
+            self._unsaved_data_objects.pop(data_object.uuid)
 
     def _expand_data_node_contents(
             self, data_node, contents, parent=None, index=None):
@@ -773,9 +831,10 @@ class UnsavedObjectManager(object):
             data_object = log_file.pop('data_object', None)
             log_file.pop('url')
             if data_object:
-                s = DataObjectSerializer(data=data_object)
-                s.is_valid(raise_exception=True)
-                log_file['data_object'] = s.save()
+                log_file['data_object'] = self._create_unsaved_data_object(
+                    data_object)
+                self._unsaved_data_objects[
+                    log_file['data_object'].uuid] = log_file['data_object']
             task_attempt._cached_log_files.append(
                 TaskAttemptLogFile(**log_file))
         task_attempt._cached_events = []
@@ -801,6 +860,14 @@ class UnsavedObjectManager(object):
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)
 
+    def _create_unsaved_data_object(self, contents):
+        contents.pop('url')
+        if 'value' in contents.keys():
+            value = contents.pop('value')
+            contents['data'] = {'value': value}
+        data_object = DataObject(**contents)
+        return data_object
+                
     def _create_unsaved_data_node_from_contents(self, contents, data_type):
         return self._create_unsaved_data_node({'contents': contents}, data_type)
 

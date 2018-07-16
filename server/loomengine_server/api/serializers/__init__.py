@@ -8,6 +8,8 @@ def strip_empty_values(data):
 
 def match_and_update_by_uuid(unsaved_models, field, saved_models):
     for unsaved_model in unsaved_models:
+        if not getattr(unsaved_model, field):
+            continue
         uuid = getattr(unsaved_model, field).uuid
         match = filter(lambda m: m.uuid==uuid, saved_models)
         assert len(match) == 1
