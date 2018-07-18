@@ -340,16 +340,15 @@ class FileResource(BaseModel):
     def initialize(cls, **kwargs):
         if not kwargs.get('file_url'):
             file_root = cls.get_file_root()
-            file_relative_path = kwargs.setdefault(
-                'file_relative_path',
-                cls._get_relative_path_for_import(
+            if not kwargs.get('file_relative_path'):
+                file_relative_path = cls._get_relative_path_for_import(
                     kwargs.get('filename'),
                     kwargs.get('source_type'),
                     kwargs.get('data_object'),
                     kwargs.pop('task_attempt', None)
-                ))
+                )
+                kwargs['file_relative_path']  = file_relative_path
             kwargs['file_url'] = os.path.join(file_root, file_relative_path)
-            kwargs['file_relative_path'] = file_relative_path
         file_resource = cls(**kwargs)
         return file_resource
 

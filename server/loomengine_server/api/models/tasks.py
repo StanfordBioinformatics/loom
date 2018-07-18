@@ -66,15 +66,20 @@ class Task(BaseModel):
                       force_rerun=force_rerun)
 
     def get_fingerprintable_contents(self):
-        inputs = [i.get_fingerprintable_contents() for i in self.inputs.all()]
-        outputs = [o.get_fingerprintable_contents() for o in self.outputs.all()]
+        # Avoid sorted_by because it triggers extra queries
+        inputs = sorted(self.inputs.all(), key=lambda i: i.channel)
+        input_fingerprints = [i.get_fingerprintable_contents()
+                              for i in inputs]
+        outputs = sorted(self.outputs.all(), key=lambda o: o.channel)
+        output_fingerprints = [o.get_fingerprintable_contents()
+                               for o in outputs]
         return {
             'interpreter': self.interpreter,
             'raw_comment': self.raw_command,
             'environment': self.environment,
             'resources': self.resources,
-            'inputs': inputs,
-            'outputs': outputs,
+            'inputs': input_fingerprints,
+            'outputs': output_fingerprints,
         }
 
     def calculate_contents_fingerprint(self):

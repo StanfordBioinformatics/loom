@@ -593,15 +593,14 @@ class UnsavedObjectManager(object):
         for task in self._unsaved_tasks:
             all_task_attempts.extend(task._cached_task_attempts)
         all_task_attempt_uuids = [ta.uuid for ta in all_task_attempts]
-        preexisting_task_attempt_uuids = [
-            ta.uuid for ta in TaskAttempt.objects.filter(
-                uuid__in=all_task_attempt_uuids)]
+        for ta in TaskAttempt.objects.filter(
+                uuid__in=all_task_attempt_uuids):
+            self._preexisting_task_attempts[ta.uuid] = ta
         for task in self._unsaved_tasks:
             for task_attempt in task._cached_task_attempts:
-                if task_attempt.uuid in preexisting_task_attempt_uuids:
-                    # It's ok if we overwrite. Duplicates presumed to be the same.
-                    self._preexisting_task_attempts[task_attempt.uuid] \
-                        = task_attempt
+                if task_attempt.uuid in self._preexisting_task_attempts.keys():
+                    # Use old TaskAttempt if it exists
+                    continue
                 elif task_attempt.uuid in self._unsaved_task_attempts.keys():
                     # Sometimes a run makes double-use of the same task_attempt
                     continue
@@ -1013,9 +1012,12 @@ class UnsavedObjectManager(object):
             self._connect_inputs(step, run)
 
     def cleanup(self):
-        async.execute(
-            async.roll_back_new_run,
-            [r.uuid for r in self._new_runs],
-            [ta.uuid for ta in self._new_task_attempts],
-            [n.uuid for n in self._new_data_nodes],
-            [o.uuid for o in self._new_data_objects])
+        try:
+            async.execute(
+                async.roll_back_new_run,
+                [r.uuid for r in self._new_runs],
+                [ta.uuid for ta in self._new_task_attempts],
+                [n.uuid for n in self._new_data_nodes],
+                [o.uuid for o in self._new_data_objects])
+        except:
+            pass

@@ -418,10 +418,11 @@ class DataNode(BaseModel):
             # Passing the list to calculate_contents_fingerprint
             # does not preserve order, so we freeze the list in the correct
             # order as a string to be hashed.
+            children = sorted(self.children.all(), key=lambda n: n.index)
             return json.dumps(
                 [calculate_contents_fingerprint(
                     n._get_fingerprintable_data_node_struct())
-                 for n in self.children.all()],
+                 for n in children],
                 separators=(',',':'))
 
     def prefetch(self):
