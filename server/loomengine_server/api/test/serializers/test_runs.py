@@ -2,12 +2,11 @@ import datetime
 from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.serializers import ValidationError
 
-from . import fixtures
+from . import fixtures, get_mock_request, create_run_from_template
 from . import get_mock_context
 from api.serializers.templates import *
 from api.serializers.runs import *
 from api.models.runs import Run
-
 
 @override_settings(TEST_DISABLE_ASYNC_DELAY=True,
                    TEST_NO_PUSH_INPUTS=True)
@@ -38,8 +37,8 @@ class TestRunSerializer(TransactionTestCase):
             ]
         }
         s = RunSerializer(data=run_dict)
-        s.is_valid(raise_exception=True)
         try:
+            s.is_valid(raise_exception=True)
             m = s.save()
         except ValidationError:
             pass
@@ -53,7 +52,7 @@ class TestRunSerializer(TransactionTestCase):
         m = s.save()
         # Refresh to update postprocessing_status
         m = Template.objects.get(id=m.id)
-        run = Run.create_from_template(m)
+        run = create_run_from_template(m)
 
         self.assertEqual(
             m.uuid,
@@ -66,7 +65,7 @@ class TestRunSerializer(TransactionTestCase):
         s = TemplateSerializer(data=fixtures.templates.flat_workflow)
         s.is_valid(raise_exception=True)
         m = s.save()
-        run = Run.create_from_template(m)
+        run = create_run_from_template(m)
 
         self.assertEqual(
             m.uuid,
@@ -77,7 +76,7 @@ class TestRunSerializer(TransactionTestCase):
         s = TemplateSerializer(data=fixtures.templates.nested_workflow)
         s.is_valid(raise_exception=True)
         m = s.save()
-        run = Run.create_from_template(m)
+        run = create_run_from_template(m)
 
         self.assertEqual(
             m.uuid,

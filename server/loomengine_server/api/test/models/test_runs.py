@@ -5,19 +5,18 @@ from api.test.models.test_templates import get_template
 from api.models.data_objects import *
 from api.models.runs import Run, TaskNode
 from api.models.input_calculator import InputCalculator
+from api.serializers.runs import  RunSerializer
 from api.test.helper import request_run_from_template_file
 
 def get_run():
     template = get_template()
-    run = Run.create_from_template(template)
-    run.initialize_inputs()
-    run.initialize_outputs()
-    run.initialize()
-    for step in run.steps.all():
-        step.initialize()
+    run_data = {'template': '@%s' % template.uuid}
+    s = RunSerializer(data=run_data)
+    s.is_valid(raise_exception=True)
+    run = s.save()
     return run
 
-class TestWorkflowRun(TestCase):
+class TestRun(TestCase):
 
     def testCreate(self):
         with self.settings(TEST_DISABLE_ASYNC_DELAY=True,

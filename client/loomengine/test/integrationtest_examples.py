@@ -80,11 +80,12 @@ class TestExamples(unittest.TestCase):
 
     def testExamples(self):
         # self._check_examples_list()
+        run_tags = []
         for example in self.examples:
             self._export_example_to_tempdir(example)
             template_tag = self._import_template(example)
-            run_tag = self._start_run(example, template_tag)
-            self._wait_for_run_to_succeed(run_tag)
+            run_tags.append(self._start_run(example, template_tag))
+        self._wait_for_runs_to_succeed()
 
     def _poll_for_n(self, client, n=1, timeout_seconds=30,
                     error_message='ERROR! Timed out'):

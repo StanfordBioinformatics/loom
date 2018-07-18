@@ -5,8 +5,8 @@ from api.models import Run
 from api.serializers import DataObjectSerializer
 from api.serializers import TemplateTagSerializer, DataTagSerializer, RunTagSerializer
 from api.serializers import TemplateSerializer
-from . import fixtures
-from . import get_mock_context
+from . import fixtures, get_mock_context, create_run_from_template
+
 
 class TestTemplateTagSerializer(TestCase):
 
@@ -66,7 +66,7 @@ class TestRunTagSerializer(TransactionTestCase):
             s = TemplateSerializer(data=fixtures.templates.step_a)
             s.is_valid(raise_exception=True)
             template = s.save()
-            run = Run.create_from_template(template)
+            run = create_run_from_template(template)
         return run
 
 
