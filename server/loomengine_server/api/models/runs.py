@@ -1,4 +1,3 @@
-from celery import shared_task
 from django.core import mail
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, \
     ValidationError
@@ -12,7 +11,7 @@ import requests
 from .base import BaseModel
 from . import flatten_nodes, copy_prefetch
 from api import get_setting
-from api.async import async_execute
+from api import async
 from api.exceptions import *
 from api.models import uuidstr
 from api.models import validators
@@ -148,7 +147,7 @@ class Run(BaseModel):
                 self.parent.finish()
         else:
             # Send notifications only if topmost run
-            async_execute(_send_notifications, self.uuid)
+            async.execute(async.send_notifications, self.uuid)
 
     def _are_children_finished(self):
         return all([step.status_is_finished for step in self.steps.all()])
@@ -177,7 +176,7 @@ class Run(BaseModel):
             # Send kill signal to children if topmost run
             self._kill_children(detail='Automatically killed due to failure')
             # Send notifications if topmost run
-            async_execute(_send_notifications, self.uuid)
+            async.execute(async.send_notifications, self.uuid)
 
     def kill(self, detail=''):
         if self.has_terminal_status():
@@ -403,6 +402,67 @@ class Run(BaseModel):
             queryset = cls.objects.all()
         return queryset.prefetch_related('tags')
 
+    def _send_email_notifications(self, email_addresses, context):
+        if not email_addresses:
+            return
+        try:
+            text_content = render_to_string('email/notify_run_completed.txt',
+                                            context)
+            html_content = render_to_string('email/notify_run_completed.html',
+                                            context)
+            connection = mail.get_connection()
+            connection.open()
+            email = mail.EmailMultiAlternatives(
+                'Loom run %s@%s is %s' % (
+                    self.name, self.uuid[0:8], self.status.lower()),
+                text_content,
+                get_setting('DEFAULT_FROM_EMAIL'),
+                email_addresses,
+            )
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+            connection.close()
+        except Exception as e:
+            self.add_event(
+                "Email notifications failed", detail=str(e), is_error=True)
+            raise
+        self.add_event("Email notifications sent",
+                       detail=email_addresses, is_error=False)
+
+    def _send_http_notifications(self, urls, context):
+        if not urls:
+            return
+        any_failures = False
+        try:
+            data = {
+                'message': 'Loom run %s is %s' % (
+                    context['run_name_and_id'],
+                    context['run_status']),
+                'run_uuid': self.uuid,
+                'run_name': self.name,
+                'run_status': self.status,
+                'run_url': context['run_url'],
+                'run_api_url': context['run_api_url'],
+                'server_name': context['server_name'],
+                'server_url': context['server_url'],
+            }
+        except Exception as e:
+            self.add_event("Http notification failed", detail=str(e), is_error=True)
+            raise
+        for url in urls:
+            try:
+                response = requests.post(
+                    url,
+                    json=data,
+                    verify=get_setting('NOTIFICATION_HTTPS_VERIFY_CERTIFICATE'))
+                response.raise_for_status()
+            except Exception as e:
+                self.add_event("Http notification failed", detail=str(e), is_error=True)
+                any_failures = True
+        if not any_failures:
+            self.add_event("Http notification succeeded", detail=', '.join(urls),
+                           is_error=False)
+
 
 class RunEvent(BaseModel):
 
@@ -515,110 +575,3 @@ class TaskNode(object):
             # non-leaf
             return len(self.children) == self.degree \
                 and all([self.children[i].is_complete() for i in range(self.degree)])
-
-# Asynchronous
-def _send_email_notifications(run, email_addresses, context):
-    if not email_addresses:
-        return
-    try:
-        text_content = render_to_string('email/notify_run_completed.txt',
-                                        context)
-        html_content = render_to_string('email/notify_run_completed.html',
-                                        context)
-        connection = mail.get_connection()
-        connection.open()
-        email = mail.EmailMultiAlternatives(
-            'Loom run %s@%s is %s' % (run.name, run.uuid[0:8], run.status.lower()),
-            text_content,
-            get_setting('DEFAULT_FROM_EMAIL'),
-            email_addresses,
-        )
-        email.attach_alternative(html_content, "text/html")
-        email.send()
-        connection.close()
-    except Exception as e:
-        run.add_event("Email notifications failed", detail=str(e), is_error=True)
-        raise
-    run.add_event("Email notifications sent", detail=email_addresses, is_error=False)
-
-def _send_http_notifications(run, urls, context):
-    if not urls:
-        return
-    any_failures = False
-    try:
-        data = {
-            'message': 'Loom run %s is %s' % (
-                context['run_name_and_id'],
-                context['run_status']),
-            'run_uuid': run.uuid,
-            'run_name': run.name,
-            'run_status': run.status,
-            'run_url': context['run_url'],
-            'run_api_url': context['run_api_url'],
-            'server_name': context['server_name'],
-            'server_url': context['server_url'],
-        }
-    except Exception as e:
-        run.add_event("Http notification failed", detail=str(e), is_error=True)
-        raise
-    for url in urls:
-        try:
-            response = requests.post(
-                url,
-                json=data,
-                verify=get_setting('NOTIFICATION_HTTPS_VERIFY_CERTIFICATE'))
-            response.raise_for_status()
-        except Exception as e:
-            run.add_event("Http notification failed", detail=str(e), is_error=True)
-            any_failures = True
-    if not any_failures:
-        run.add_event("Http notification succeeded", detail=', '.join(urls),
-                       is_error=False)
-
-@shared_task
-def _send_notifications(run_uuid):
-    run = Run.objects.get(uuid=run_uuid)
-    context = run.notification_context
-    if not context:
-        context = {}
-    server_url = context.get('server_url')
-    context.update({
-        'run_url': '%s/#/runs/%s/' % (server_url, run.uuid),
-        'run_api_url': '%s/api/runs/%s/' % (server_url, run.uuid),
-        'run_status': run.status,
-        'run_name_and_id': '%s@%s' % (run.name, run.uuid[0:8])
-    })
-    notification_addresses = []
-    if run.notification_addresses:
-        notification_addresses = run.notification_addresses
-    if get_setting('NOTIFICATION_ADDRESSES'):
-        notification_addresses = notification_addresses\
-                                 + get_setting('NOTIFICATION_ADDRESSES')
-    email_addresses = filter(lambda x: '@' in x, notification_addresses)
-    urls = filter(lambda x: '@' not in x, notification_addresses)
-    _send_email_notifications(run, email_addresses, context)
-    _send_http_notifications(run, urls, context)
-
-@shared_task
-def kill_run(run_uuid, kill_message):
-    # Used by views to avoid delaying requests.
-    # Async Not needed otherwise -- use Run.kill directly
-    from api.models.runs import Run
-    run = Run.objects.get(uuid=run_uuid)
-    try:
-        run.kill(detail=kill_message)
-    except Exception as e:
-        logger.debug('Failed to kill run.uuid=%s.' % run.uuid)
-        raise
-
-@shared_task
-def postprocess_run(run_uuid):
-    from api.models.runs import Run
-    run = Run.objects.get(uuid=run_uuid)
-    run.prefetch()
-    for step in run.get_leaves():
-	for task in step.tasks.all():
-            fingerprint = task.get_fingerprint()
-            fingerprint.update_task_attempt_maybe(task.task_attempt)
-    if not run.has_terminal_status():
-        run.push_all_inputs()

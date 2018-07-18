@@ -187,6 +187,7 @@ LOOM_SSH_PRIVATE_KEY_PATH = os.getenv('LOOM_SSH_PRIVATE_KEY_PATH')
 TEST_DISABLE_ASYNC_DELAY = to_boolean(os.getenv('TEST_DISABLE_ASYNC_DELAY', False))
 TEST_NO_CREATE_TASK = to_boolean(os.getenv('TEST_NO_CREATE_TASK', False))
 TEST_NO_RUN_TASK = to_boolean(os.getenv('TEST_NO_RUN_TASK', False))
+TEST_NO_RUN_TASK_ATTEMPT = to_boolean(os.getenv('TEST_NO_RUN_TASK_ATTEMPT', False))
 TEST_NO_PUSH_INPUTS= to_boolean(os.getenv('TEST_NO_PUSH_INPUTS', False))
 
 # Fixed settings

@@ -1,24 +1,27 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task
 from celery.decorators import periodic_task
+import copy
 from datetime import timedelta
 from django import db
+from django.core.exceptions import ObjectDoesNotExist
 import logging
-from api import get_setting, get_storage_settings
+import os
 import re
+import subprocess
 import time
 
-from django.core.exceptions import ObjectDoesNotExist
+from api import get_setting, get_storage_settings
 from api.exceptions import ConcurrentModificationError
 
 
-"""This module contains periodic maintenance tasks and
-the async_execute helper function for running async tasks
+"""This module contains asynchronous tasks
+and the "execute" helper function for running tasks
 """
 
 logger = logging.getLogger(__name__)
 
-def async_execute(task_function, *args, **kwargs):
+def execute(task_function, *args, **kwargs):
     """Run a task asynchronously
     """
 
@@ -82,7 +85,7 @@ def clear_expired_logs():
         pass
 
 @shared_task
-def _delete_file_resource(file_resource_id):
+def delete_file_resource(file_resource_id):
     from api.models import FileResource
     from loomengine_utils.file_utils import File
     file_resource = FileResource.objects.get(id=file_resource_id)
@@ -140,3 +143,145 @@ def cleanup_orphaned_task_attempts():
             item.delete()
         except models.ProtectedError:
             pass
+
+# Runs
+
+@shared_task
+def send_notifications(run_uuid):
+    from api.models import Run
+    run = Run.objects.get(uuid=run_uuid)
+    context = run.notification_context
+    if not context:
+        context = {}
+    server_url = context.get('server_url')
+    context.update({
+        'run_url': '%s/#/runs/%s/' % (server_url, run.uuid),
+        'run_api_url': '%s/api/runs/%s/' % (server_url, run.uuid),
+        'run_status': run.status,
+        'run_name_and_id': '%s@%s' % (run.name, run.uuid[0:8])
+    })
+    notification_addresses = []
+    if run.notification_addresses:
+        notification_addresses = run.notification_addresses
+    if get_setting('NOTIFICATION_ADDRESSES'):
+        notification_addresses = notification_addresses\
+                                 + get_setting('NOTIFICATION_ADDRESSES')
+    email_addresses = filter(lambda x: '@' in x, notification_addresses)
+    urls = filter(lambda x: '@' not in x, notification_addresses)
+    run._send_email_notifications(email_addresses, context)
+    run._send_http_notifications(urls, context)
+
+@shared_task
+def kill_run(run_uuid, kill_message):
+    # Used by views to avoid delaying requests.
+    # Async Not needed otherwise -- use Run.kill directly
+    from api.models.runs import Run
+    run = Run.objects.get(uuid=run_uuid)
+    try:
+        run.kill(detail=kill_message)
+    except Exception as e:
+        logger.debug('Failed to kill run.uuid=%s.' % run.uuid)
+        raise
+
+@shared_task
+def postprocess_run(run_uuid):
+    from api.models.runs import Run
+    run = Run.objects.get(uuid=run_uuid)
+    run.prefetch()
+    for step in run.get_leaves():
+	for task in step.tasks.all():
+            fingerprint = task.get_fingerprint()
+            fingerprint.update_task_attempt_maybe(task.task_attempt)
+    if not run.has_terminal_status():
+        run.push_all_inputs()
+
+@shared_task
+def finish_task_attempt(task_attempt_uuid):
+    from api.models import TaskAttempt
+    # Used by views to avoid delaying requests.
+    # Async Not needed otherwise -- use TaskAttempt.finish() directly
+    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
+    task_attempt.finish()
+
+def _run_cleanup_task_attempt_playbook(task_attempt):
+    env = copy.copy(os.environ)
+    playbook = os.path.join(
+        get_setting('PLAYBOOK_PATH'),
+        get_setting('CLEANUP_TASK_ATTEMPT_PLAYBOOK'))
+    cmd_list = ['ansible-playbook',
+                '-i', get_setting('ANSIBLE_INVENTORY'),
+                playbook,
+                # Without this, ansible uses /usr/bin/python,
+                # which may be missing needed modules
+                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
+    ]
+
+    if get_setting('DEBUG'):
+        cmd_list.append('-vvvv')
+
+    new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
+                'LOOM_TASK_ATTEMPT_STEP_NAME': task_attempt.name
+                }
+    env.update(new_vars)
+
+    p = subprocess.Popen(
+        cmd_list, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    terminal_output, err_is_empty = p.communicate()
+    if p.returncode != 0:
+        msg = 'Cleanup failed for task_attempt.uuid="%s" with returncode="%s".' % (
+            task_attempt.uuid, p.returncode)
+        logger.error(msg)
+        task_attempt.add_event(msg,
+                               detail=terminal_output,
+                               is_error=True)
+        raise Exception(msg)
+
+@shared_task
+def cleanup_task_attempt(task_attempt_uuid):
+    from api.models.tasks import TaskAttempt
+    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
+    _run_cleanup_task_attempt_playbook(task_attempt)
+    task_attempt.add_event('Cleaned up',
+                           is_error=False)
+    task_attempt.setattrs_and_save_with_retries({
+        'status_is_cleaned_up': True })
+
+@shared_task
+def execute_task(task_uuid, delay=0, force_rerun=False):
+    time.sleep(delay)
+    # If task has been run before, old TaskAttempt will be rendered inactive
+    from api.models.tasks import Task
+    task = Task.objects.get(uuid=task_uuid)
+    # Do not run again if already running
+    if task.task_attempt and task.is_responsive() and not task.is_timed_out():
+        return
+
+    # Use TaskFingerprint to see if a valid TaskAttempt for this fingerprint
+    # already exists, or to flag the new TaskAttempt to be reused by other
+    # tasks with this fingerprint
+    fingerprint = task.get_fingerprint()
+
+    task_attempt = None
+    if not force_rerun:
+        # By skipping this, a new TaskAttempt will always be created.
+        # Use existing TaskAttempt if a valid one exists with the same fingerprint
+        if fingerprint.active_task_attempt \
+           and fingerprint.active_task_attempt.might_succeed():
+            task.activate_task_attempt(fingerprint.active_task_attempt)
+            return
+
+    task_attempt = task.create_and_activate_task_attempt()
+    fingerprint.update_task_attempt_maybe(task_attempt)
+    if get_setting('TEST_NO_RUN_TASK_ATTEMPT'):
+        return
+    return task_attempt.run_with_heartbeats()
+
+@shared_task
+def roll_back_new_run(
+        run_uuids, task_attempt_uuids, data_node_uuids, data_object_uuids):
+    from api.models import Run, TaskAttempt, DataNode, DataObject
+    Run.objects.filter(uuid__in=run_uuids).delete()
+    TaskAttempt.objects.filter(uuid__in=task_attempt_uuids).delete()
+    DataNode.objects.filter(uuid__in=data_node_uuids).delete()
+    DataObject.objects.filter(uuid__in=data_object_uuids).delete()
+

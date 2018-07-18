@@ -1,4 +1,3 @@
-from celery import shared_task
 import copy
 from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
@@ -17,7 +16,7 @@ from .base import BaseModel
 from .data_channels import DataChannel
 from .data_nodes import DataNode
 from api import get_setting
-from api.async import async_execute
+from api import async
 from api.models import uuidstr
 from api.models.data_objects import DataObject, FileResource
 from api.models.data_nodes import DataNode
@@ -216,7 +215,7 @@ class TaskAttempt(BaseModel):
             self.add_event('Skipped cleanup because PRESERVE_ON_FAILURE is True',
                            is_error=False)
             return
-        async_execute(_cleanup_task_attempt, self.uuid)
+        async.execute(async.cleanup_task_attempt, self.uuid)
 
     def run_with_heartbeats(self):
         heartbeat_interval = int(get_setting(
@@ -409,56 +408,6 @@ class ArrayInputContext(object):
 
     def __str__(self):
         return ' '.join([str(item) for item in self.items])
-
-@shared_task
-def _cleanup_task_attempt(task_attempt_uuid):
-    from api.models.tasks import TaskAttempt
-    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    _run_cleanup_task_attempt_playbook(task_attempt)
-    task_attempt.add_event('Cleaned up',
-                           is_error=False)
-    task_attempt.setattrs_and_save_with_retries({
-        'status_is_cleaned_up': True })
-
-def _run_cleanup_task_attempt_playbook(task_attempt):
-    env = copy.copy(os.environ)
-    playbook = os.path.join(
-        get_setting('PLAYBOOK_PATH'),
-        get_setting('CLEANUP_TASK_ATTEMPT_PLAYBOOK'))
-    cmd_list = ['ansible-playbook',
-                '-i', get_setting('ANSIBLE_INVENTORY'),
-                playbook,
-                # Without this, ansible uses /usr/bin/python,
-                # which may be missing needed modules
-                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
-    ]
-
-    if get_setting('DEBUG'):
-        cmd_list.append('-vvvv')
-
-    new_vars = {'LOOM_TASK_ATTEMPT_ID': str(task_attempt.uuid),
-                'LOOM_TASK_ATTEMPT_STEP_NAME': task_attempt.name
-                }
-    env.update(new_vars)
-
-    p = subprocess.Popen(
-        cmd_list, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    terminal_output, err_is_empty = p.communicate()
-    if p.returncode != 0:
-        msg = 'Cleanup failed for task_attempt.uuid="%s" with returncode="%s".' % (
-            task_attempt.uuid, p.returncode)
-        logger.error(msg)
-        task_attempt.add_event(msg,
-                               detail=terminal_output,
-                               is_error=True)
-        raise Exception(msg)
-
-@shared_task
-def finish_task_attempt(task_attempt_uuid):
-    # Used by views to avoid delaying requests.
-    # Async Not needed otherwise -- use TaskAttempt.finish() directly
-    task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
-    task_attempt.finish()
 
 # To run on new thread
 def _run_execute_task_attempt_playbook(task_attempt):

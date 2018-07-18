@@ -1,4 +1,3 @@
-from celery import shared_task
 from django.db import models, IntegrityError
 from django.utils import timezone
 import logging
@@ -10,7 +9,7 @@ from . import render_from_template, render_string_or_list, ArrayInputContext, \
 from .base import BaseModel
 from .data_channels import DataChannel
 from api import get_setting
-from api.async import async_execute
+from api import async
 from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
 from api.models.data_nodes import DataNode
@@ -63,7 +62,8 @@ class Task(BaseModel):
 
     def execute(self, delay=0, force_rerun=False):
         force_rerun = force_rerun or get_setting('FORCE_RERUN')
-        async_execute(_execute_task, self.uuid, delay=delay, force_rerun=force_rerun)
+        async.execute(async.execute_task, self.uuid, delay=delay,
+                      force_rerun=force_rerun)
 
     def get_fingerprintable_contents(self):
         inputs = [i.get_fingerprintable_contents() for i in self.inputs.all()]
@@ -517,32 +517,3 @@ class TaskFingerprint(BaseModel):
             self.setattrs_and_save_with_retries(
                 {'active_task_attempt': task_attempt}
             )
-
-# Asynchronous
-@shared_task
-def _execute_task(task_uuid, delay=0, force_rerun=False):
-    time.sleep(delay)
-    # If task has been run before, old TaskAttempt will be rendered inactive
-    from api.models.tasks import Task
-    task = Task.objects.get(uuid=task_uuid)
-    # Do not run again if already running
-    if task.task_attempt and task.is_responsive() and not task.is_timed_out():
-        return
-
-    # Use TaskFingerprint to see if a valid TaskAttempt for this fingerprint
-    # already exists, or to flag the new TaskAttempt to be reused by other
-    # tasks with this fingerprint
-    fingerprint = task.get_fingerprint()
-
-    task_attempt = None
-    if not force_rerun:
-        # By skipping this, a new TaskAttempt will always be created.
-        # Use existing TaskAttempt if a valid one exists with the same fingerprint
-        if fingerprint.active_task_attempt \
-           and fingerprint.active_task_attempt.might_succeed():
-            task.activate_task_attempt(fingerprint.active_task_attempt)
-            return
-
-    task_attempt = task.create_and_activate_task_attempt()
-    fingerprint.update_task_attempt_maybe(task_attempt)
-    return task_attempt.run_with_heartbeats()

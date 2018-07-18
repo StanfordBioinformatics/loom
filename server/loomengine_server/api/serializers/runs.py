@@ -1,4 +1,3 @@
-from celery import shared_task
 import copy
 from rest_framework import serializers
 import django.db
@@ -7,8 +6,7 @@ from . import CreateWithParentModelSerializer, RecursiveField, strip_empty_value
 from api import get_setting
 from api.models.data_nodes import DataNode
 from api.models.data_objects import DataObject
-from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent, \
-    postprocess_run
+from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskEvent
 from api.models.task_attempts import TaskAttempt, TaskAttemptInput, TaskAttemptOutput, \
     TaskAttemptEvent, TaskAttemptLogFile, TaskMembership
@@ -16,7 +14,7 @@ from api.models.templates import Template
 from api.serializers.templates import TemplateSerializer, URLTemplateSerializer
 from api.serializers.tasks import TaskSerializer, URLTaskSerializer
 from api.serializers.data_channels import DataChannelSerializer
-from api.async import async_execute
+from api import async
 
 
 class UserInputSerializer(DataChannelSerializer):
@@ -200,14 +198,14 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             return matches[0]
 
     def create(self, instance):
-        #try:
-        run = self._unsaved_object_manager.bulk_create_all()
-        #except Exception:
+        try:
+            run = self._unsaved_object_manager.bulk_create_all()
+        except Exception:
             # Cleanup for ValidationError or any unexpected errors
-        #    self._unsaved_object_manager.cleanup()
-        #    raise
+            self._unsaved_object_manager.cleanup()
+            raise
 
-        async_execute(postprocess_run, run.uuid)
+        async.execute(async.postprocess_run, run.uuid)
         return run
 
 
@@ -604,6 +602,9 @@ class UnsavedObjectManager(object):
                     # It's ok if we overwrite. Duplicates presumed to be the same.
                     self._preexisting_task_attempts[task_attempt.uuid] \
                         = task_attempt
+                elif task_attempt.uuid in self._unsaved_task_attempts.keys():
+                    # Sometimes a run makes double-use of the same task_attempt
+                    continue
                 else:
                     self._process_unsaved_task_attempt(task_attempt)
 
@@ -886,6 +887,7 @@ class UnsavedObjectManager(object):
         run_input['mode'] = template_input.mode
         run_input['group'] = template_input.group
         run_input['channel'] = template_input.channel
+        run_input['as_channel'] = template_input.as_channel
         run_input_model = RunInput(**run_input)
         return run_input_model
 
@@ -1009,3 +1011,11 @@ class UnsavedObjectManager(object):
         # Breadth-first
         for step in run._cached_steps:
             self._connect_inputs(step, run)
+
+    def cleanup(self):
+        async.execute(
+            async.roll_back_new_run,
+            [r.uuid for r in self._new_runs],
+            [ta.uuid for ta in self._new_task_attempts],
+            [n.uuid for n in self._new_data_nodes],
+            [o.uuid for o in self._new_data_objects])
