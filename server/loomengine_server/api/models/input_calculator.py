@@ -188,7 +188,9 @@ class InputSetGeneratorNode(object):
             # attach it to the task. If gather depth is 1 or 0, the flattened
             # clone is an unchanged copy.
             flat_data_node = data_node.flattened_clone()
-            input_item = InputItem(flat_data_node, data_channel.channel, data_channel.as_channel, mode=data_channel.mode)
+            input_item = InputItem(
+                flat_data_node, data_channel.channel,
+                data_channel.as_channel, mode=data_channel.mode)
             generator._add_input_item(data_path, input_item)
         return generator
 

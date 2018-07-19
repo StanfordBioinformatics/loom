@@ -35,6 +35,20 @@ def execute(task_function, *args, **kwargs):
     db.connections.close_all()
     task_function.delay(*args, **kwargs)
 
+def execute_with_delay(task_function, *args, **kwargs):
+    """Run a task asynchronously after at least delay_seconds
+    """
+    delay = kwargs.pop('delay', 0)
+    if get_setting('TEST_DISABLE_ASYNC_DELAY'):
+        # Delay disabled, run synchronously
+        logger.debug('Running function "%s" synchronously because '\
+                     'TEST_DISABLE_ASYNC_DELAY is True'
+                     % task_function.__name__)
+        return task_function(*args, **kwargs)
+
+    db.connections.close_all()
+    task_function.apply_async(args=args, kwargs=kwargs, countdown=delay)
+
 SYSTEM_CHECK_INTERVAL_MINUTES = get_setting('SYSTEM_CHECK_INTERVAL_MINUTES')
 
 @periodic_task(run_every=timedelta(minutes=SYSTEM_CHECK_INTERVAL_MINUTES))
@@ -239,6 +253,8 @@ def _run_cleanup_task_attempt_playbook(task_attempt):
 @shared_task
 def cleanup_task_attempt(task_attempt_uuid):
     from api.models.tasks import TaskAttempt
+    if get_setting('TEST_NO_TASK_ATTEMPT_CLEANUP'):
+        return
     task_attempt = TaskAttempt.objects.get(uuid=task_attempt_uuid)
     _run_cleanup_task_attempt_playbook(task_attempt)
     task_attempt.add_event('Cleaned up',
@@ -247,8 +263,7 @@ def cleanup_task_attempt(task_attempt_uuid):
         'status_is_cleaned_up': True })
 
 @shared_task
-def execute_task(task_uuid, delay=0, force_rerun=False):
-    time.sleep(delay)
+def execute_task(task_uuid, force_rerun=False):
     # If task has been run before, old TaskAttempt will be rendered inactive
     from api.models.tasks import Task
     task = Task.objects.get(uuid=task_uuid)

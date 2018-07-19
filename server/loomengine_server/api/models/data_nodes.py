@@ -250,11 +250,12 @@ class DataNode(BaseModel):
 
     def _get_child_by_index(self, index):
         self._check_index(index)
-        try:
-            child = self.children.get(index=index)
-        except ObjectDoesNotExist:
-            child = None
-        return child
+        # Don't use filter or get to avoid extra db query
+        matches = filter(lambda c: c.index==index, self.children.all())
+        assert len(matches) <= 1, "Duplicate children with the same index"
+        if len(matches) == 1:
+            return matches[0]
+        return None
 
     def _get_branch_by_index(self, index, degree):
         branch = self._get_child_by_index(index)

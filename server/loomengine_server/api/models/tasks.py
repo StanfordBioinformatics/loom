@@ -60,10 +60,12 @@ class Task(BaseModel):
     status_is_running = models.BooleanField(default=False)
     status_is_waiting = models.BooleanField(default=True)
 
-    def execute(self, delay=0, force_rerun=False):
+    def execute(self, force_rerun=False, delay=0):
         force_rerun = force_rerun or get_setting('FORCE_RERUN')
-        async.execute(async.execute_task, self.uuid, delay=delay,
-                      force_rerun=force_rerun)
+        async.execute_with_delay(
+            async.execute_task, self.uuid, 
+            force_rerun=force_rerun,
+            delay=delay)
 
     def get_fingerprintable_contents(self):
         # Avoid sorted_by because it triggers extra queries

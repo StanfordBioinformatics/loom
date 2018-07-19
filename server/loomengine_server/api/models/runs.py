@@ -239,8 +239,6 @@ class Run(BaseModel):
             if get_setting('TEST_NO_CREATE_TASK'):
                 return
             task = Task.create_from_input_set(input_set, self)
-            if get_setting('TEST_NO_RUN_TASK'):
-                return
             task.execute(force_rerun=self.force_rerun)
         except TaskAlreadyExistsException:
             pass
