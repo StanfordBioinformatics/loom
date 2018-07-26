@@ -63,7 +63,7 @@ class DataChannel(BaseModel):
         # If data_path is length 0, data is scalar
         if self.data_node is None:
             self.initialize_data_node()
-        self.data_node.add_data_object(data_path, data_object)
+        self.data_node.add_data_object(data_path, data_object, save=True)
 
     def is_connected(self, connected_node):
         # Nodes are connected by sharing a common DataNode

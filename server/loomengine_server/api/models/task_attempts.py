@@ -156,7 +156,7 @@ class TaskAttempt(BaseModel):
                 type=input.type,
                 channel=input.channel,
                 mode=input.mode,
-                data_node=input.data_node.flattened_clone())
+                data_node=input.data_node.flattened_clone(save=True))
             task_attempt_input.full_clean()
             task_attempt_input.save()
 

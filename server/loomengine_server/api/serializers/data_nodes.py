@@ -135,7 +135,7 @@ class URLDataNodeSerializer(serializers.HyperlinkedModelSerializer):
                 data_object = DataObject.get_by_value(
                     contents,
                     data_type)
-            data_node.add_data_object(path, data_object)
+            data_node.add_data_object(path, data_object, save=True)
             return
         elif len(contents) == 0:
             # An empty list represents a node of degree 0

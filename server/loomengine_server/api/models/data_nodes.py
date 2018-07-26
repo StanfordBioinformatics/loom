@@ -1,13 +1,14 @@
 import copy
 import json
 from django.core.exceptions import ObjectDoesNotExist
+import django.db
 from django.db import models
 
 from . import calculate_contents_fingerprint, flatten_nodes, \
     copy_prefetch
 from .base import BaseModel
 from .data_objects import DataObject
-from api import get_setting
+from api import get_setting, reload_models, connect_data_nodes_to_parents
 from api.models import uuidstr
 from api.models import validators
 
@@ -86,7 +87,20 @@ class DataNode(BaseModel):
         # Dummy placeholder for serializer
         pass
 
-    def add_leaf(self, index, data_object):
+    def get_children(self):
+        if hasattr(self, '_cached_children'):
+            children = self._cached_children
+        else:
+            children = self.children.all()
+        return sorted(children, key=lambda n: n.index)
+
+    def _add_unsaved_child(self, child):
+        child.tree_id = self.tree_id
+        if not hasattr(self, '_cached_children'):
+            self._cached_children = []
+        self._cached_children.append(child)
+        
+    def add_leaf(self, index, data_object, save=False):
         """Adds a new leaf node at the given index with the given data_object
         """
         assert self.type == data_object.type, 'data type mismatch'
@@ -99,22 +113,26 @@ class DataNode(BaseModel):
                 index=index,
                 data_object=data_object,
                 type=self.type)
-            data_node.full_clean()
-            data_node.save()
+            if save:
+                data_node.full_clean()
+                data_node.save()
+            self._add_unsaved_child(data_node)
             return data_node
 
-    def add_blank(self, index):
+    def add_blank(self, index, save=False):
         if self._get_child_by_index(index):
             raise NodeAlreadyExistsError()
         data_node = DataNode(
             parent=self,
             index=index,
             type=self.type)
-        data_node.full_clean()
-        data_node.save()
+        if save:
+            data_node.full_clean()
+            data_node.save()
+        self._add_unsaved_child(data_node)
         return data_node
 
-    def add_branch(self, index, degree):
+    def add_branch(self, index, degree, save=False):
         existing_branch = self._get_branch_by_index(index, degree)
         if existing_branch is not None:
             return existing_branch
@@ -124,11 +142,13 @@ class DataNode(BaseModel):
                 index=index,
                 degree=degree,
                 type=self.type)
-            data_node.full_clean()
-            data_node.save()
+            if save:
+                data_node.full_clean()
+                data_node.save()
+            self._add_unsaved_child(data_node)
             return data_node
 
-    def add_data_object(self, data_path, data_object):
+    def add_data_object(self, data_path, data_object, save=False):
         # 'data_path' is a list of (index, degree) pairs
         if not data_path:
             # Set the data object on this node
@@ -136,12 +156,18 @@ class DataNode(BaseModel):
                 raise DataAlreadyExistsError(
                     'Failed to add new data to data node %s because '\
                     'data_node is already set' % self.uuid)
-            self.setattrs_and_save_with_retries({'data_object': data_object})
+            if save:
+                self.setattrs_and_save_with_retries({'data_object': data_object})
+            else:
+                self.data_object = data_object
         else:
             if self.degree is None:
-                self.setattrs_and_save_with_retries({'degree': data_path[0][1]})
+                if save:
+                    self.setattrs_and_save_with_retries({'degree': data_path[0][1]})
+                else:
+                    self.degree = data_path[0][1]
             data_path = copy.deepcopy(data_path)
-            self._extend_to_data_path(data_path, leaf_data=data_object)
+            self._extend_to_data_path(data_path, leaf_data=data_object, save=save)
 
     def get_data_object(self, data_path):
         node = self.get_node(data_path)
@@ -185,7 +211,7 @@ class DataNode(BaseModel):
             # Recursively get paths to leaf nodes
             paths = []
             last_paths = None
-            for child in self.children.all():
+            for child in self.get_children():
                 path = seed_path + [(child.index, self.degree),]
                 new_paths = child._get_all_paths(path, gather_depth)
                 if not new_paths == last_paths:
@@ -242,16 +268,16 @@ class DataNode(BaseModel):
                     'Requested branch is missing')
             return child.get_node(data_path)
 
-    def get_or_create_node(self, data_path):
+    def get_or_create_node(self, data_path, save=False):
         if not data_path:
             return self
         data_path = copy.deepcopy(data_path)
-        return self._extend_to_data_path(data_path)
+        return self._extend_to_data_path(data_path, save=save)
 
     def _get_child_by_index(self, index):
         self._check_index(index)
         # Don't use filter or get to avoid extra db query
-        matches = filter(lambda c: c.index==index, self.children.all())
+        matches = filter(lambda c: c.index==index, self.get_children())
         assert len(matches) <= 1, "Duplicate children with the same index"
         if len(matches) == 1:
             return matches[0]
@@ -276,25 +302,28 @@ class DataNode(BaseModel):
     def _is_empty_branch(self):
         return self.degree==0
 
-    def _extend_to_data_path(self, data_path, leaf_data=None):
+    def _extend_to_data_path(self, data_path, leaf_data=None, save=False):
         # 'data_path' is a list of (index, degree) pairs
         index, degree = data_path.pop(0)
         if self.degree:
             if not self.degree == degree:
                 raise DegreeMismatchException()
         else:
-            self.setattrs_and_save_with_retries({'degree': degree})
+            if save:
+                self.setattrs_and_save_with_retries({'degree': degree})
+            else:
+                self.degree = degree
         if len(data_path) == 0:
             if leaf_data:
-                return self.add_leaf(index, leaf_data)
+                return self.add_leaf(index, leaf_data, save=save)
             else:
                 try:
-                    return self.add_blank(index)
+                    return self.add_blank(index, save=save)
                 except NodeAlreadyExistsError:
                     return self._get_child_by_index(index)
         child_degree = data_path[0][1]
-        child = self.add_branch(index, child_degree)
-        return child._extend_to_data_path(data_path, leaf_data=leaf_data)
+        child = self.add_branch(index, child_degree, save=save)
+        return child._extend_to_data_path(data_path, leaf_data=leaf_data, save=save)
 
     def _check_index(self, index):
         """Verify that the given index is consistent with the degree of the node.
@@ -325,7 +354,7 @@ class DataNode(BaseModel):
             return [self.data_object]
         else:
             data_object_list = []
-            for child in self.children.order_by('index'):
+            for child in self.get_children():
                 data_object_list += child._render_as_data_object_list()
             return data_object_list
 
@@ -335,14 +364,14 @@ class DataNode(BaseModel):
             return self.data_object.substitution_value
         else:
             return [child.substitution_value for child
-                    in self.children.order_by('index')]
+                    in self.get_children()]
 
     @property
     def downstream_run_inputs(self):
         assert not self.parent, "RunInputs are connected to the root node"
         return self.runinput_set
 
-    def clone(self, parent=None, seed=None):
+    def clone(self, parent=None, seed=None, save=False):
         assert not (parent and seed)
 
         if seed is not None:
@@ -352,9 +381,13 @@ class DataNode(BaseModel):
             assert clone.data_object is None
             # clone.index may be set because the seed
             # might be connected to a parent.
-            clone.setattrs_and_save_with_retries({
-                'degree': self.degree,
-                'data_object': self.data_object})
+            if save:
+                clone.setattrs_and_save_with_retries({
+                    'degree': self.degree,
+                    'data_object': self.data_object})
+            else:
+                clone.degree = self.degree
+                clone.data_object = self.data_object
         else:
             clone = DataNode(
                 parent=parent,
@@ -362,25 +395,29 @@ class DataNode(BaseModel):
                 degree=self.degree,
                 data_object=self.data_object,
                 type=self.type)
-            clone.full_clean()
-            clone.save()
+            if save:
+                clone.full_clean()
+                clone.save()
+            if parent:
+                parent._add_unsaved_child(clone)
 
-        for child in self.children.all():
-            child.clone(parent=clone)
+        for child in self.get_children():
+            child.clone(parent=clone, save=save)
 
         return clone
 
-    def flattened_clone(self):
+    def flattened_clone(self, save=False):
         if self.is_leaf:
-            return self.clone()
+            return self.clone(save=save)
 
         leaves = self._get_leaves()
 
         clone = DataNode(
             degree=len(leaves),
             type=self.type)
-        clone.full_clean()
-        clone.save()
+        if save:
+            clone.full_clean()
+            clone.save()
 
         index_counter = 0
         for leaf in leaves:
@@ -389,9 +426,11 @@ class DataNode(BaseModel):
                 index=index_counter,
                 data_object=leaf.data_object,
                 type=leaf.type)
-            data_node.full_clean()
-            data_node.save()
+            if save:
+                data_node.full_clean()
+                data_node.save()
             index_counter += 1
+            clone._add_unsaved_child(data_node)
         return clone
 
     def _get_leaves(self):
@@ -399,7 +438,7 @@ class DataNode(BaseModel):
             return [self]
 
         leaves = []
-        for child in self.children.order_by('index'):
+        for child in self.get_children():
             leaves.extend(child._get_leaves())
         return leaves
 
@@ -419,11 +458,10 @@ class DataNode(BaseModel):
             # Passing the list to calculate_contents_fingerprint
             # does not preserve order, so we freeze the list in the correct
             # order as a string to be hashed.
-            children = sorted(self.children.all(), key=lambda n: n.index)
             return json.dumps(
                 [calculate_contents_fingerprint(
                     n._get_fingerprintable_data_node_struct())
-                 for n in children],
+                 for n in self.get_children()],
                 separators=(',',':'))
 
     def prefetch(self):
@@ -433,6 +471,10 @@ class DataNode(BaseModel):
 
     @classmethod
     def prefetch_list(cls, instances):
+        # Since we are prefetching, delete _cached_children to avoid conflicts
+        for instance in instances:
+            if hasattr(instance, '_cached_children'):
+                del instance._cached_children
         instances = list(filter(lambda i: i is not None, instances))
         instances = list(filter(
             lambda i: not hasattr(i, '_prefetched_objects_cache'), instances))
@@ -459,3 +501,82 @@ class DataNode(BaseModel):
         queried_data_nodes_2 = [data_node for data_node in queryset]
         copy_prefetch(queried_data_nodes_2, instances, child_field='children',
                       one_to_x_fields=['data_object',])
+
+    def save_with_children(self):
+        self.save_list_with_children([self,])
+        self.prefetch()
+        return self
+
+    @classmethod
+    def save_list_with_children(cls, root_instances):
+        unsorted_data_nodes, parent_child_relationships \
+            = cls._strip_parent_child_relationships(root_instances)
+        unsaved_data_nodes = {}
+        preexisting_data_nodes = {}
+        for data_node in unsorted_data_nodes.values():
+            if data_node.id is not None:
+                preexisting_data_nodes[data_node.uuid] = data_node
+            else:
+                unsaved_data_nodes[data_node.uuid] = data_node
+        bulk_data_nodes = DataNode.objects.bulk_create(unsaved_data_nodes.values())
+        new_data_nodes = reload_models(DataNode, bulk_data_nodes)
+        all_data_nodes = [n for n in new_data_nodes]
+        all_data_nodes.extend(preexisting_data_nodes.values())
+        connect_data_nodes_to_parents(all_data_nodes, parent_child_relationships)
+        cls._update_degree(preexisting_data_nodes)
+        cls._update_data_object(preexisting_data_nodes)
+
+    @classmethod
+    def _update_degree(cls, preexisting_data_nodes):
+        params = []
+        for node in preexisting_data_nodes.values():
+            if node.degree is not None:
+                params.append((node.id, node.degree))
+        if params:
+            case_statement = ''.join(
+                ['WHEN id="%s" THEN %s' % pair for pair in params])
+            id_list = ', '.join(['%s' % pair[0] for pair in params])
+            sql = 'UPDATE api_datanode SET degree= CASE %s END WHERE id IN (%s)'\
+                                                   % (case_statement, id_list)
+            with django.db.connection.cursor() as cursor:
+                cursor.execute(sql)
+
+    @classmethod
+    def _update_data_object(cls, preexisting_data_nodes):
+        params = []
+        for node in preexisting_data_nodes.values():
+            if node.data_object is not None:
+                params.append((node.id, node.data_object.id))
+        if params:
+            case_statement = ''.join(
+                ['WHEN id="%s" THEN %s' % pair for pair in params])
+            id_list = ', '.join(['%s' % pair[0] for pair in params])
+            sql = \
+                  'UPDATE api_datanode SET data_object_id= '\
+                  'CASE %s END WHERE id IN (%s)'\
+                  % (case_statement, id_list)
+            with django.db.connection.cursor() as cursor:
+                cursor.execute(sql)
+
+    @classmethod
+    def _strip_parent_child_relationships(cls, instances):
+        flattened_instances = {}
+        parent_child_relationships = []
+        if isinstance(instances, list):
+            for item in instances:
+                item_instances, item_relationships \
+                    = cls._strip_parent_child_relationships(item)
+                flattened_instances.update(item_instances)
+                parent_child_relationships.extend(item_relationships)
+        else:
+            parent = instances
+            flattened_instances[parent.uuid] = parent
+            children = parent.get_children()
+            for child in children:
+                child_instances, child_relationships \
+                    = cls._strip_parent_child_relationships(child)
+                flattened_instances.update(child_instances)
+                parent_child_relationships.extend(child_relationships)
+                parent_child_relationships.append((parent.uuid, child.uuid))
+                child.parent = None
+        return flattened_instances, parent_child_relationships

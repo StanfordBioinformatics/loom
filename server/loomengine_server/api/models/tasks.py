@@ -8,7 +8,7 @@ from . import render_from_template, render_string_or_list, ArrayInputContext, \
     calculate_contents_fingerprint
 from .base import BaseModel
 from .data_channels import DataChannel
-from api import get_setting
+from api import get_setting, reload_models, match_and_update_by_uuid
 from api import async
 from api.exceptions import ConcurrentModificationError
 from api.models import uuidstr
@@ -205,8 +205,7 @@ class Task(BaseModel):
               'status_is_running': False,
               'status_is_waiting': False,
             })
-        for output in self.outputs.all():
-            output.push_data(self.data_path)
+        self._push_all_outputs()
         for task_attempt in self.all_task_attempts.all():
             task_attempt.cleanup()
         if self.run.are_tasks_finished():
@@ -227,13 +226,75 @@ class Task(BaseModel):
         for task_attempt in self.all_task_attempts.all():
             task_attempt.kill(detail)
 
+    def _push_all_outputs(self):
+        task_attempt_output_data_nodes = {}
+        for output in self.outputs.all():
+            # Copy data from the TaskAttemptOutput to the TaskOutput
+            # From there, it is already connected to downstream runs.
+            attempt_output = self.task_attempt.get_output(output.channel)
+            attempt_output.data_node.clone(seed=output.data_node, save=False)
+            task_attempt_output_data_nodes[output.data_node.uuid] = output.data_node
+        DataNode.save_list_with_children(
+            task_attempt_output_data_nodes.values())
+
+        unsaved_tasks = {}
+        unsaved_task_inputs = []
+        unsaved_task_outputs = []
+        unsaved_data_nodes = {}
+        for output in self.outputs.all():
+            for run in self._get_downstream_runs(output.channel):
+                tasks, inputs, outputs, data_nodes = run.push(
+                    output.channel, self.data_path)
+                unsaved_tasks.update(tasks)
+                unsaved_task_inputs.extend(inputs)
+                unsaved_task_outputs.extend(outputs)
+                unsaved_data_nodes.update(data_nodes)
+        self.bulk_create_tasks(unsaved_tasks, unsaved_task_inputs,
+                               unsaved_task_outputs, unsaved_data_nodes)
+
     @classmethod
-    def create_from_input_set(cls, input_set, run):
+    def bulk_create_tasks(cls, unsaved_tasks, unsaved_task_inputs,
+                       unsaved_task_outputs, unsaved_data_nodes):
+        DataNode.save_list_with_children(unsaved_data_nodes.values())
+        data_nodes = reload_models(DataNode, unsaved_data_nodes.values())
+
+        bulk_tasks = Task.objects.bulk_create(unsaved_tasks.values())
+        tasks = reload_models(Task, bulk_tasks)
+
+        match_and_update_by_uuid(
+            unsaved_task_inputs, 'task', tasks)
+        match_and_update_by_uuid(
+            unsaved_task_inputs, 'data_node', data_nodes)
+        TaskInput.objects.bulk_create(unsaved_task_inputs)
+
+        match_and_update_by_uuid(
+            unsaved_task_outputs, 'task', tasks)
+        match_and_update_by_uuid(
+            unsaved_task_outputs, 'data_node', data_nodes)
+        TaskOutput.objects.bulk_create(unsaved_task_outputs)
+
+        for task in tasks:
+            task.run.set_running_status()
+
+        for task in tasks:
+            task.execute()
+        return tasks
+
+    def _get_downstream_runs(self, channel):
+        runs = []
+        for run_input in self.run.get_output(channel)\
+                                 .data_node.downstream_run_inputs.all():
+            runs.append(run_input.run)
+        return runs
+            
+    @classmethod
+    def create_unsaved_task_from_input_set(cls, input_set, run):
         try:
             if input_set:
                 data_path = input_set.data_path
-                if run.tasks.filter(data_path=data_path).count() > 0:
-                    raise TaskAlreadyExistsException
+                if len(filter(lambda t: t.data_path==data_path, run.tasks.all())) > 0:
+                    # No-op. Task already exists.
+                    return
             else:
                 # If run has no inputs, we get an empty input_set.
                 # Task will go on the root node.
@@ -246,21 +307,26 @@ class Task(BaseModel):
                 environment=run.template.environment,
                 resources=run.template.resources,
                 data_path=data_path,
+                status_is_running=True,
+                status_is_waiting=False,
             )
-            task.full_clean()
-            task.save()
+            task_inputs = []
+            task_outputs = []
+            data_nodes = {}
             for input_item in input_set:
-                task_input =TaskInput(
+                data_node = input_item.data_node.flattened_clone(save=False)
+                task_inputs.append(TaskInput(
                     task=task,
                     channel=input_item.channel,
                     as_channel=input_item.as_channel,
                     type=input_item.type,
                     mode=input_item.mode,
-                    data_node = input_item.data_node)
-                task_input.full_clean()
-                task_input.save()
+                    data_node = data_node))
+                data_nodes[data_node.uuid] = data_node
             for run_output in run.outputs.all():
-                task_output = TaskOutput(
+                data_node = run_output.data_node.get_or_create_node(
+                    data_path, save=False)
+                task_outputs.append(TaskOutput(
                     channel=run_output.channel,
                     as_channel=run_output.as_channel,
                     type=run_output.type,
@@ -268,16 +334,12 @@ class Task(BaseModel):
                     mode=run_output.mode,
                     source=run_output.source,
                     parser=run_output.parser,
-                    data_node=run_output.data_node.get_or_create_node(data_path))
-                task_output.full_clean()
-                task_output.save()
-            task = task.setattrs_and_save_with_retries(
-                {'command': task.render_command()})
-            run.set_running_status()
-            return task
+                    data_node=data_node))
+                data_nodes[data_node.uuid] = data_node
+            task.command = task.render_command(task_inputs, task_outputs)
+            return task, task_inputs, task_outputs, data_nodes
         except Exception as e:
-            if not isinstance(e,TaskAlreadyExistsException):
-                run.fail(detail='Error creating Task: "%s"' % str(e))
+            run.fail(detail='Error creating Task: "%s"' % str(e))
             raise
 
     def create_and_activate_task_attempt(self):
@@ -305,9 +367,11 @@ class Task(BaseModel):
         tm = TaskMembership(parent_task=self, child_task_attempt=task_attempt)
         tm.save()
         
-    def get_input_context(self):
+    def get_input_context(self, inputs=None):
         context = {}
-        for input in self.inputs.all():
+        if inputs is None:
+            inputs = self.inputs.all()
+        for input in inputs:
             if input.as_channel:
                 channel = input.as_channel
             else:
@@ -322,12 +386,14 @@ class Task(BaseModel):
                 )
         return context
 
-    def get_output_context(self, input_context):
+    def get_output_context(self, input_context, outputs=None):
         # This returns a value only for Files, where the filename
         # is known beforehand and may be used in the command.
         # For other types, nothing is added to the context.
         context = {}
-        for output in self.outputs.all():
+        if outputs is None:
+            outputs = self.outputs.all()
+        for output in outputs:
             if output.as_channel:
                 channel = output.as_channel
             else:
@@ -337,15 +403,15 @@ class Task(BaseModel):
                     output.source.get('filename'), input_context)
         return context
     
-    def get_full_context(self):
-        context = self.get_input_context()
-        context.update(self.get_output_context(context))
+    def get_full_context(self, inputs=None, outputs=None):
+        context = self.get_input_context(inputs=inputs)
+        context.update(self.get_output_context(context, outputs=outputs))
         return context
 
-    def render_command(self):
+    def render_command(self, inputs, outputs):
         return render_from_template(
             self.raw_command,
-            self.get_full_context())
+            self.get_full_context(inputs=inputs, outputs=outputs))
 
     def get_output(self, channel):
         return self.outputs.get(channel=channel)
@@ -454,20 +520,6 @@ class TaskOutput(DataChannel):
 	validators=[validators.OutputParserValidator.validate_output_parser],
         blank=True)
     as_channel = models.CharField(max_length=255, null=True, blank=True)
-
-    def push_data(self, data_path):
-        # Copy data from the TaskAttemptOutput to the TaskOutput
-        # From there, it is already connected to downstream runs.
-        attempt_output = self.task.task_attempt.get_output(self.channel)
-        attempt_output.data_node.clone(seed=self.data_node)
-
-        # To trigger new runs we have to push on the root node,
-        # but the TaskOutput's data tree may be just a subtree.
-        # So we get the root from the run_output.
-        run_output = self.task.run.get_output(self.channel)
-        data_root = run_output.data_node
-        for input in data_root.downstream_run_inputs.all():
-            input.run.push(input.channel, data_path)
 
     def get_fingerprintable_contents(self):
         return {

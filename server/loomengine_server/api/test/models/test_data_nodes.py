@@ -37,6 +37,15 @@ class TestDataNode(TestCase):
         self.assertEqual(root.get_data_object([(1,3),(1,2)]).substitution_value, 'm')
         self.assertEqual(root.get_data_object([(2,3),(4,5)]).substitution_value, 't')
 
+        # Verify that we get the same result after saving
+        self.assertTrue(root.get_children()[0].id is None)
+        root.save_with_children()
+        self.assertEqual(root.get_data_object([(0,3),(0,1)]).substitution_value, 'i')
+        self.assertEqual(root.get_data_object([(1,3),(0,2)]).substitution_value, 'a')
+        self.assertEqual(root.get_data_object([(1,3),(1,2)]).substitution_value, 'm')
+        self.assertEqual(root.get_data_object([(2,3),(4,5)]).substitution_value, 't')
+        self.assertTrue(root.get_children()[0].id is not None)
+
     def testMissingData(self):
         input_data=(
             ([(0,3),(0,1)], 'i'),
@@ -111,12 +120,6 @@ class TestDataNode(TestCase):
             root.add_leaf(degree, data_object)
         with self.assertRaises(IndexOutOfRangeError):
             root.add_leaf(-1, data_object)
-
-    def testDegreeOutOfRangeError(self):
-        data_object = _get_string_data_object('text')
-        root = DataNode.objects.create(degree=2, type='string')
-        with self.assertRaises(ValidationError):
-            root.add_branch(1, -1)
 
     def testDegreeMismatchError(self):
         data_object = _get_string_data_object('text')
@@ -209,7 +212,6 @@ class TestDataNode(TestCase):
         last_grandchild1 = tree1.get_node([(2,3),(4,5)])
 
         tree2 = tree1.flattened_clone()
-
         penult_child2 = tree2.get_node([(6,8)])
         last_child2 = tree2.get_node([(7,8)])
 

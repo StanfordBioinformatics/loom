@@ -1,9 +1,9 @@
 import copy
 from rest_framework import serializers
 import django.db
-from . import CreateWithParentModelSerializer, RecursiveField, strip_empty_values, \
+from . import CreateWithParentModelSerializer, RecursiveField, strip_empty_values
+from api import get_setting, connect_data_nodes_to_parents, \
     match_and_update_by_uuid, reload_models
-from api import get_setting
 from api.models.data_nodes import DataNode
 from api.models.data_objects import DataObject
 from api.models.runs import Run, UserInput, RunInput, RunOutput, RunEvent
@@ -311,7 +311,8 @@ class UnsavedObjectManager(object):
         all_data_nodes = [data_node for data_node in self._new_data_nodes]
         all_data_nodes.extend(self._preexisting_data_nodes.values())
 
-        self._connect_data_nodes_to_parents(self._new_data_nodes)
+        connect_data_nodes_to_parents(
+            self._new_data_nodes, self._data_node_parent_child_relationships)
 
         bulk_runs = Run.objects.bulk_create(self._unsaved_runs.values())
         self._new_runs = reload_models(Run, bulk_runs)
@@ -674,6 +675,7 @@ class UnsavedObjectManager(object):
         if parent:
             self._data_node_parent_child_relationships.append(
                 (parent.uuid, data_node.uuid))
+            data_node.tree_id = parent.tree_id
         if isinstance(contents, list):
             data_node._cached_expanded_contents = None
             data_node.degree = len(contents)
@@ -921,23 +923,6 @@ class UnsavedObjectManager(object):
                 ['WHEN id=%s THEN %s' % pair for pair in params])
             id_list = ', '.join(['%s' % pair[0] for pair in params])
             sql = 'UPDATE api_run SET parent_id= CASE %s END WHERE id IN (%s)'\
-                                                 % (case_statement, id_list)
-            with django.db.connection.cursor() as cursor:
-                cursor.execute(sql)
-
-    def _connect_data_nodes_to_parents(self, data_nodes):
-        params = []
-        for parent_uuid, child_uuid in self._data_node_parent_child_relationships:
-            child = filter(
-                lambda r: r.uuid==child_uuid, data_nodes)[0]
-            parent = filter(
-                lambda r: r.uuid==parent_uuid, data_nodes)[0]
-            params.append((child.id, parent.id))
-        if params:
-            case_statement = ' '.join(
-                ['WHEN id=%s THEN %s' % pair for pair in params])
-            id_list = ', '.join(['%s' % pair[0] for pair in params])
-            sql = 'UPDATE api_datanode SET parent_id= CASE %s END WHERE id IN (%s)'\
                                                  % (case_statement, id_list)
             with django.db.connection.cursor() as cursor:
                 cursor.execute(sql)

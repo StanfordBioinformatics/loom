@@ -5,7 +5,7 @@ from data_nodes import DegreeMismatchError
 
 """InputCalculator analyzes the set of nodes acting as inputs
 for one Run to determine when sufficient data is available to 
-create a new Task. For paralle Runs, many Tasks may be created.
+create a new Task. For parallel Runs, many Tasks may be created.
 
 InputCalculator includes logic for dot-product or cross-product combination
 of array inputs, and complex combinations of the two. This behavior
@@ -16,13 +16,14 @@ is defined by these two properties on a RunInput:
 Any input that is no_gather will provide the TaskInput with a scalar 
 DataObject, while gather* mode will produce an array of DataObjects.
 
-Consider that non-scalar inputs may simply be arrays, or may trees of 
+Consider that non-scalar inputs may simply be arrays, or may be trees of 
 greater hight. When a non-scalar input is provided to a "no_gather" 
 channel, it acts as an iterator and produces one Task for each DataObject.
 
 When a non-scalar input is provided to the a "gather" channel, the TaskInput 
 will receive an array of DataObjects, but the Run will still iterate and 
-produce many Tasks if the gather depth is less than the height of the tree.
+produce many Tasks if the gather depth is less than the height of the DataNode 
+tree.
 
 So every input has the potential to require iteration while producing either 
 scalar or array inputs, and the number of Tasks in the iteration may differ 
@@ -184,10 +185,7 @@ class InputSetGeneratorNode(object):
         generator = InputSetGeneratorNode()
         for (data_path, data_node) in data_channel.get_ready_data_nodes(
                 target_path, gather_depth):
-            # If gather depth > 1, the data has to be flattened before we
-            # attach it to the task. If gather depth is 1 or 0, the flattened
-            # clone is an unchanged copy.
-            flat_data_node = data_node.flattened_clone()
+            flat_data_node = data_node.flattened_clone(save=False)
             input_item = InputItem(
                 flat_data_node, data_channel.channel,
                 data_channel.as_channel, mode=data_channel.mode)
@@ -279,7 +277,6 @@ class InputSetGeneratorNode(object):
 class InputSet(object):
     """All the information needed to create a Task from a given StepRun.
     """
-    
 
     def __iter__(self):
         return self.input_items.__iter__()

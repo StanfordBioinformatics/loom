@@ -214,13 +214,27 @@ class Run(BaseModel):
     def push_all_inputs(self):
         if get_setting('TEST_NO_PUSH_INPUTS'):
             return
+        unsaved_tasks = {}
+        unsaved_task_inputs = []
+        unsaved_task_outputs = []
+        unsaved_data_nodes = {}
         for leaf in self.get_leaves():
             if leaf.inputs.exists():
                 for input in leaf.inputs.all():
-                    leaf.push(input.channel, [])
+                    tasks, inputs, outputs, data_nodes = leaf.push(input.channel, [])
+                    unsaved_tasks.update(tasks)
+                    unsaved_task_inputs.extend(inputs)
+                    unsaved_task_outputs.extend(outputs)
+                    unsaved_data_nodes.update(data_nodes)
             else:
                 # Special case: No inputs on leaf node
-                leaf._push_input_set([])
+                task, inputs, outputs, data_nodes = leaf._push_input_set([])
+                unsaved_tasks[task.uuid] = task
+                unsaved_task_inputs.extend(inputs)
+                unsaved_task_outputs.extend(outputs)
+                unsaved_data_nodes.extend(data_nodes)
+        Task.bulk_create_tasks(unsaved_tasks, unsaved_task_inputs,
+                               unsaved_task_outputs, unsaved_data_nodes)
 
     def push(self, channel, data_path):
         """Called when new data is available at the given data_path 
@@ -230,18 +244,25 @@ class Run(BaseModel):
         """
         if not self.is_leaf:
             return
+        unsaved_tasks = {}
+        unsaved_task_inputs = []
+        unsaved_task_outputs = []
+        unsaved_data_nodes = {}
         for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
             .get_input_sets():
-            self._push_input_set(input_set)
+            task, task_inputs, task_outputs, data_nodes = self._push_input_set(
+                input_set)
+            unsaved_tasks[task.uuid] = task
+            unsaved_task_inputs.extend(task_inputs)
+            unsaved_task_outputs.extend(task_outputs)
+            unsaved_data_nodes.update(data_nodes)
+        return unsaved_tasks, unsaved_task_inputs, \
+            unsaved_task_outputs, unsaved_data_nodes
 
     def _push_input_set(self, input_set):
-        try:
-            if get_setting('TEST_NO_CREATE_TASK'):
-                return
-            task = Task.create_from_input_set(input_set, self)
-            task.execute(force_rerun=self.force_rerun)
-        except TaskAlreadyExistsException:
-            pass
+        if get_setting('TEST_NO_CREATE_TASK'):
+            return
+        return Task.create_unsaved_task_from_input_set(input_set, self)
 
     @classmethod
     def get_dependencies(cls, uuid, request):
