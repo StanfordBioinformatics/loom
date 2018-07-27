@@ -4,7 +4,7 @@ from api.test.models import _get_string_data_object
 from api.models.data_objects import DataObject
 from api.models.data_nodes import DataNode
 from api.models.input_calculator import InputCalculator, InputSetGeneratorNode
-from api.models.runs import RunInput
+from api.models.runs import Run, RunInput
 
 scalar_input_text = 'scalar data'
 
@@ -26,7 +26,8 @@ def getScalarInput(channel_name='channel1',
     data_node = DataNode.objects.create(type='string')
     data_node.add_data_object(
         [],
-        _get_string_data_object(scalar_input_text))
+        _get_string_data_object(scalar_input_text),
+        save=True)
     step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
     step_run_input.data_node = data_node
@@ -39,7 +40,7 @@ def getInputWithPartialTree(channel_name='channel1',
     data_node = DataNode.objects.create(type='string')
     for data_path, letter in partial_input_data:
         data_object = _get_string_data_object(letter)
-        data_node.add_data_object(data_path, data_object)
+        data_node.add_data_object(data_path, data_object, save=True)
     step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
     step_run_input.data_node = data_node
@@ -52,7 +53,7 @@ def getInputWithFullTree(channel_name='channel1',
     data_node = DataNode.objects.create(type='string')
     for data_path, letter in full_input_data:
         data_object = _get_string_data_object(letter)
-        data_node.add_data_object(data_path, data_object)
+        data_node.add_data_object(data_path, data_object, save=True)
     step_run_input = RunInput.objects.create(
         channel=channel_name, group=group, mode=mode, type='string')
     step_run_input.data_node = data_node
@@ -72,90 +73,13 @@ def are_paths_equal(path1, path2):
 
 class TestInputCalculator(TestCase):
 
-    def testGetTargetDataPathNoGather(self):
-        channel = 'channel0'
-        input1 = RunInput.objects.create(
-            channel = channel,
-            group = 0,
-            mode = 'no_gather',
-            type = 'string'
-        )
-        string_data = 'input1_data'
-        data_object = DataObject.get_by_value(string_data, 'string')
-        input_data_path = [(0,2), (1,2), (3,5)]
-        input1.add_data_object(input_data_path, data_object)
-
-        target_data_path = InputCalculator._gather(
-            input_data_path,
-            InputCalculator._get_gather_depth(input1))
-        self.assertTrue(are_paths_equal(target_data_path, input_data_path))
-
-    def testGetTargetDataPathGather(self):
-        channel = 'channel1'
-        input1 = RunInput.objects.create(
-            channel = channel,
-            group = 0,
-            mode = 'gather',
-            type = 'string'
-        )
-        string_data = 'input1_data'
-        data_object = DataObject.get_by_value(string_data, 'string')
-        input_data_path = [(0,2), (1,2), (3,5)]
-        input1.add_data_object(input_data_path, data_object)
-
-        target_data_path = InputCalculator._gather(
-            input_data_path,
-            InputCalculator._get_gather_depth(input1))
-        self.assertTrue(are_paths_equal(target_data_path,
-                                        input_data_path[0:len(input_data_path)-1]))
-
-    def testGetTargetDataPathGatherN(self):
-        gather_n = 2
-        channel = 'channel1'
-        input1 = RunInput.objects.create(
-            channel = channel,
-            group = 0,
-            mode = 'gather(%s)' % gather_n,
-            type = 'string'
-        )
-        string_data = 'input1_data'
-        data_object = DataObject.get_by_value(string_data, 'string')
-        input_data_path = [(0,2), (1,2), (3,5)]
-        input1.add_data_object(input_data_path, data_object)
-
-        target_data_path = InputCalculator._gather(
-            input_data_path,
-            InputCalculator._get_gather_depth(input1))
-        self.assertTrue(are_paths_equal(
-            target_data_path,
-            input_data_path[0:len(input_data_path)-gather_n]))
-
-    def testGetTargetDataPathGatherNExceedDepth(self):
-        gather_depth = 4
-        channel = 'channel1'
-        input1 = getInputWithFullTree(
-            mode='gather(%s)' % gather_depth,
-            channel_name=channel,
-            group=0)
-
-        # We are using a gather depth greater than the tree height.
-        # This should gather the full tree and not issue error or warning.
-        t = InputCalculator([input1], channel, [])
-        input_sets = t.get_input_sets()
-        self.assertEqual(len(input_sets), 1)
-        input_items = input_sets[0].input_items
-        self.assertEqual(len(input_items), 1)
-        data_node = input_items[0].data_node
-        self.assertEqual(data_node.substitution_value,
-                         ['i','a','m','r','o','b','o','t'])
-
     def testSingleScalarInput(self):
         channel = 'a_scalar_channel'
         step_run_input = getScalarInput(
             mode='no_gather', channel_name=channel, group=0)
-
-        input_nodes = [step_run_input]
-        t = InputCalculator(input_nodes, channel, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(step_run_input)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 1)
         self.assertEqual(input_sets[0].data_path, [])
@@ -169,8 +93,9 @@ class TestInputCalculator(TestCase):
         channel = 'a_parallel_channel'
         step_run_input = getInputWithPartialTree(
             mode='no_gather', channel_name=channel, group=0)
-        input_nodes = [step_run_input]
-        t = InputCalculator(input_nodes, channel, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(step_run_input)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
 
         self.assertEqual(len(input_sets), 3)
@@ -185,8 +110,9 @@ class TestInputCalculator(TestCase):
         channel = 'a_parallel_channel'
         step_run_input = getInputWithPartialTree(
             mode='gather(2)', channel_name=channel, group=0)
-        input_nodes = [step_run_input]
-        t = InputCalculator(input_nodes, channel, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(step_run_input)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 0) #Nothing ready
 
@@ -194,8 +120,9 @@ class TestInputCalculator(TestCase):
         channel = 'a_parallel_channel'
         step_run_input = getInputWithFullTree(
             mode='gather(2)', channel_name=channel, group=0)
-        input_nodes = [step_run_input]
-        t = InputCalculator(input_nodes, channel, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(step_run_input)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 1)
         self.assertEqual(input_sets[0].data_path, [])
@@ -214,7 +141,10 @@ class TestInputCalculator(TestCase):
         input2 = getScalarInput(
             mode='no_gather', channel_name=channel2, group=0)
 
-        t = InputCalculator([input1, input2], channel2, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(input1)
+        run.inputs.add(input2)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 3)
         self.assertTrue(are_paths_equal(input_sets[0].data_path, [(0,3),(0,1)]))
@@ -230,7 +160,10 @@ class TestInputCalculator(TestCase):
         input2 = getScalarInput(
             mode='no_gather', channel_name=channel2, group=1)
 
-        t = InputCalculator([input1, input2], channel2, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(input1)
+        run.inputs.add(input2)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 3)
         self.assertTrue(are_paths_equal(input_sets[0].data_path, [(0,3),(0,1)]))
@@ -246,7 +179,10 @@ class TestInputCalculator(TestCase):
         input2 = getInputWithFullTree(
             mode='no_gather', channel_name=channel2, group=1)
 
-        t = InputCalculator([input1, input2], channel2, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(input1)
+        run.inputs.add(input2)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 3*8)
         self.assertTrue(are_paths_equal(
@@ -265,7 +201,10 @@ class TestInputCalculator(TestCase):
         input2 = getInputWithFullTree(
             mode='no_gather', channel_name=channel2, group=0)
 
-        t = InputCalculator([input1, input2], channel2, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(input1)
+        run.inputs.add(input2)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 8*3)
         self.assertTrue(are_paths_equal(
@@ -284,7 +223,10 @@ class TestInputCalculator(TestCase):
         input2 = getInputWithFullTree(
             mode='gather', channel_name=channel2, group=1)
 
-        t = InputCalculator([input1, input2], channel2, [])
+        run = Run.objects.create(is_leaf=True)
+        run.inputs.add(input1)
+        run.inputs.add(input2)
+        t = InputCalculator(run)
         input_sets = t.get_input_sets()
         self.assertEqual(len(input_sets), 1*3)
         self.assertTrue(are_paths_equal(input_sets[0].data_path, [(0,3),(0,3)]))
@@ -304,23 +246,9 @@ class TestInputSetGeneratorNode(TestCase):
     def testCreateFromRootWithGather(self):
         step_run_input = getInputWithFullTree(mode='gather')
         generator = InputSetGeneratorNode.create_from_data_channel(
-            step_run_input, gather_depth=1)
+            step_run_input)
         input_sets = generator.get_input_sets([])
         self.assertEqual(len(input_sets), 3) # 8 letters are merged into 3 arrays
-
-    def testCreateFromTargetPath(self):
-        step_run_input = getInputWithFullTree(mode='no_gather')
-        generator = InputSetGeneratorNode.create_from_data_channel(
-            step_run_input, target_path=[(2,3),])
-        input_sets = generator.get_input_sets([])
-        self.assertEqual(len(input_sets), 5) # 5 letters of last word only
-
-    def testCreateFromTargetPathWithGather(self):
-        step_run_input = getInputWithFullTree(mode='gather')
-        generator = InputSetGeneratorNode.create_from_data_channel(
-            step_run_input, target_path=[(2,3),], gather_depth=1)
-        input_sets = generator.get_input_sets([])
-        self.assertEqual(len(input_sets), 1) # last word gathered into array
 
     def testDotProduct(self):
         # Dot product of full and partial trees should produce a tree
@@ -329,9 +257,9 @@ class TestInputSetGeneratorNode(TestCase):
         step_run_input_full = getInputWithFullTree(mode='no_gather')
         step_run_input_partial = getInputWithPartialTree(mode='no_gather')
         generator_full = InputSetGeneratorNode.create_from_data_channel(
-            step_run_input_full, target_path=[], gather_depth=0)
+            step_run_input_full)
         generator_partial = InputSetGeneratorNode.create_from_data_channel(
-            step_run_input_partial, target_path=[], gather_depth=0)
+            step_run_input_partial)
         generator_combined = generator_full.dot_product(generator_partial)
         generator_reverse = generator_partial.dot_product(generator_full)
         input_sets = generator_combined.get_input_sets([])
@@ -351,9 +279,9 @@ class TestInputSetGeneratorNode(TestCase):
         step_run_input_full = getInputWithFullTree(mode='no_gather')
         step_run_input_partial = getInputWithPartialTree(mode='no_gather')
         generator_full = InputSetGeneratorNode.create_from_data_channel(
-            step_run_input_full, target_path=[], gather_depth=0)
+            step_run_input_full)
         generator_partial = InputSetGeneratorNode.create_from_data_channel(
-            step_run_input_partial, target_path=[], gather_depth=0)
+            step_run_input_partial)
         generator_combined = generator_full.cross_product(generator_partial)
         generator_reverse = generator_partial.cross_product(generator_full)
         input_sets = generator_combined.get_input_sets([])

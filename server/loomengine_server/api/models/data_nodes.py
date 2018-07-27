@@ -525,6 +525,7 @@ class DataNode(BaseModel):
         connect_data_nodes_to_parents(all_data_nodes, parent_child_relationships)
         cls._update_degree(preexisting_data_nodes)
         cls._update_data_object(preexisting_data_nodes)
+        return all_data_nodes
 
     @classmethod
     def _update_degree(cls, preexisting_data_nodes):

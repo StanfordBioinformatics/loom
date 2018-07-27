@@ -236,27 +236,14 @@ class Task(BaseModel):
             task_attempt_output_data_nodes[output.data_node.uuid] = output.data_node
         DataNode.save_list_with_children(
             task_attempt_output_data_nodes.values())
-
-        unsaved_tasks = {}
-        unsaved_task_inputs = []
-        unsaved_task_outputs = []
-        unsaved_data_nodes = {}
-        for output in self.outputs.all():
-            for run in self._get_downstream_runs(output.channel):
-                tasks, inputs, outputs, data_nodes = run.push(
-                    output.channel, self.data_path)
-                unsaved_tasks.update(tasks)
-                unsaved_task_inputs.extend(inputs)
-                unsaved_task_outputs.extend(outputs)
-                unsaved_data_nodes.update(data_nodes)
-        self.bulk_create_tasks(unsaved_tasks, unsaved_task_inputs,
-                               unsaved_task_outputs, unsaved_data_nodes)
+        self.run.push_all_outputs()
 
     @classmethod
     def bulk_create_tasks(cls, unsaved_tasks, unsaved_task_inputs,
                        unsaved_task_outputs, unsaved_data_nodes):
-        DataNode.save_list_with_children(unsaved_data_nodes.values())
-        data_nodes = reload_models(DataNode, unsaved_data_nodes.values())
+        if get_setting('TEST_NO_CREATE_TASK'):
+            return
+        all_data_nodes = DataNode.save_list_with_children(unsaved_data_nodes.values())
 
         bulk_tasks = Task.objects.bulk_create(unsaved_tasks.values())
         tasks = reload_models(Task, bulk_tasks)
@@ -264,13 +251,13 @@ class Task(BaseModel):
         match_and_update_by_uuid(
             unsaved_task_inputs, 'task', tasks)
         match_and_update_by_uuid(
-            unsaved_task_inputs, 'data_node', data_nodes)
+            unsaved_task_inputs, 'data_node', all_data_nodes)
         TaskInput.objects.bulk_create(unsaved_task_inputs)
 
         match_and_update_by_uuid(
             unsaved_task_outputs, 'task', tasks)
         match_and_update_by_uuid(
-            unsaved_task_outputs, 'data_node', data_nodes)
+            unsaved_task_outputs, 'data_node', all_data_nodes)
         TaskOutput.objects.bulk_create(unsaved_task_outputs)
 
         for task in tasks:
@@ -280,13 +267,6 @@ class Task(BaseModel):
             task.execute()
         return tasks
 
-    def _get_downstream_runs(self, channel):
-        runs = []
-        for run_input in self.run.get_output(channel)\
-                                 .data_node.downstream_run_inputs.all():
-            runs.append(run_input.run)
-        return runs
-            
     @classmethod
     def create_unsaved_task_from_input_set(cls, input_set, run):
         try:
@@ -335,7 +315,7 @@ class Task(BaseModel):
                     source=run_output.source,
                     parser=run_output.parser,
                     data_node=data_node))
-                data_nodes[data_node.uuid] = data_node
+                data_nodes[run_output.data_node.uuid] = run_output.data_node
             task.command = task.render_command(task_inputs, task_outputs)
             return task, task_inputs, task_outputs, data_nodes
         except Exception as e:

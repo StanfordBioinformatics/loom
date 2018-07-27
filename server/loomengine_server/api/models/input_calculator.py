@@ -48,20 +48,8 @@ order of the cross-product corresponding to the order of group numbers.
 
 class InputCalculator(object):
 
-    def __init__(self, data_channels, target_channel, triggered_data_path):
-        target_node_list = filter(lambda n: n.channel==target_channel, data_channels)
-        assert len(target_node_list) == 1, \
-            'expected exactly 1 node with channel %s but found %s' \
-            % (target_channel, len(target_node_list))
-        target_node = target_node_list[0]
-        target_group = target_node.group
-        # New data has arrived at triggered_data_path, but if the input
-        # has mode "gather", we have to search for data from a level higher
-        # on the tree. target_data_path represents that adjusted data path.
-        target_data_path = self._gather(
-            triggered_data_path,
-            self._get_gather_depth(target_node))
-
+    def __init__(self, run):
+        data_channels = run.inputs.all()
         groups = set()
         for data_channel in data_channels:
             groups.add(data_channel.group)
@@ -71,24 +59,10 @@ class InputCalculator(object):
             # These will be processed in order of group id, ensuring
             # correct order for cross products.
             group_data_channels = filter(lambda n: n.group==group, data_channels)
-
-            # The target group is restricted to "data_path",
-            # which is where new data has arrived. We will take a cross-
-            # product of data between groups, so we want to check the new
-            # data against all data in other groups. To capture all data
-            # on non-target gropus, we use the root data path (a.k.a. [])
-            if group == target_group:
-                group_data_path = target_data_path
-            else:
-                group_data_path = []
-
             group_generator = None
             for node in group_data_channels:
                 try:
-                    generator = InputSetGeneratorNode.create_from_data_channel(
-                        node,
-                        target_path=group_data_path,
-                        gather_depth=self._get_gather_depth(node))
+                    generator = InputSetGeneratorNode.create_from_data_channel(node)
                 except DegreeMismatchError:
                     raise Exception(
                         'Input dimensions do not match in group %s' % group)
@@ -107,36 +81,6 @@ class InputCalculator(object):
     def get_input_sets(self):
         seed_path = []
         return self.generator.get_input_sets(seed_path)
-
-    @classmethod
-    def _get_gather_depth(cls, node):
-        mode = node.mode
-        if mode == 'no_gather':
-            return 0
-        elif mode == 'gather':
-            return 1
-        else:
-            match = re.match('gather\(([0-9]+)\)', mode)
-            if match is None:
-                raise Exception('Failed to parse input mode %s' % mode)
-            return int(match.groups()[0])
-
-    @classmethod
-    def _gather(cls, data_path, gather_depth):
-        """New data has arrived at "input_data_path", 
-        but this may trigger action at a higher data_path if
-        the input is in a "gather" mode.
-
-        For example, if an input has mode "gather" and just received 
-        the first member of a 5-element 1-dimensional array, the input_data_path
-        is ([0, 5],). That data will not be processed alone, but rather once all 5
-        elements arrive they will be processed as a single array input for
-        downstream tasks. The data_path of that array is up one level, in
-        general, which is at the root node (data_path=[]) in this example.
-        """
-        if len(data_path) < gather_depth:
-            return []
-        return data_path[0:len(data_path)-gather_depth]
 
 
 class InputSetGeneratorNode(object):
@@ -172,19 +116,15 @@ class InputSetGeneratorNode(object):
         self.input_items = [] # list of InputItems, only on leaf nodes
 
     @classmethod
-    def create_from_data_channel(cls, data_channel, target_path=None, gather_depth=0):
+    def create_from_data_channel(cls, data_channel):
         """Scan the data tree on the given data_channel to create a corresponding
         InputSetGenerator tree.
         """
-        # If target_path is given, any data above that path will be ignored.
-        # The path [] represents the root node, so this default value scans
-        # the whole tree
-        if not target_path:
-            target_path = []
+        gather_depth = cls._get_gather_depth(data_channel)
 
         generator = InputSetGeneratorNode()
         for (data_path, data_node) in data_channel.get_ready_data_nodes(
-                target_path, gather_depth):
+                [], gather_depth):
             flat_data_node = data_node.flattened_clone(save=False)
             input_item = InputItem(
                 flat_data_node, data_channel.channel,
@@ -192,6 +132,19 @@ class InputSetGeneratorNode(object):
             generator._add_input_item(data_path, input_item)
         return generator
 
+    @classmethod
+    def _get_gather_depth(cls, node):
+        mode = node.mode
+        if mode == 'no_gather':
+            return 0
+        elif mode == 'gather':
+            return 1
+        else:
+            match = re.match('gather\(([0-9]+)\)', mode)
+            if match is None:
+                raise Exception('Failed to parse input mode %s' % mode)
+            return int(match.groups()[0])
+    
     def _add_input_item(self, data_path, input_item):
         return self._add_input_items(data_path, [input_item,])
 

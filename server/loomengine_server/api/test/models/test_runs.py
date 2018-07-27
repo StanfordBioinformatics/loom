@@ -39,9 +39,8 @@ class TestInputCalculator(TestCase):
                              'fixtures', 'simple', 'simple.yaml'),
                 word_in='puppy')
 
-        sets = InputCalculator(run.inputs.all(), 'word_in', [])\
-               .get_input_sets()
-
+        sets = InputCalculator(run).get_input_sets()
+               
         self.assertEqual(len(sets), 1)
         self.assertEqual(sets[0].data_path, [])
         input_items = [item for item in sets[0]]

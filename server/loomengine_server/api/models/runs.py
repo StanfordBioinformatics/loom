@@ -220,49 +220,35 @@ class Run(BaseModel):
         unsaved_data_nodes = {}
         for leaf in self.get_leaves():
             if leaf.inputs.exists():
-                for input in leaf.inputs.all():
-                    tasks, inputs, outputs, data_nodes = leaf.push(input.channel, [])
-                    unsaved_tasks.update(tasks)
-                    unsaved_task_inputs.extend(inputs)
-                    unsaved_task_outputs.extend(outputs)
+                for input_set in InputCalculator(leaf)\
+                    .get_input_sets():
+                    task, task_inputs, task_outputs, data_nodes \
+                        = Task.create_unsaved_task_from_input_set(input_set, leaf)
+                    unsaved_tasks[task.uuid] = task
+                    unsaved_task_inputs.extend(task_inputs)
+                    unsaved_task_outputs.extend(task_outputs)
                     unsaved_data_nodes.update(data_nodes)
             else:
                 # Special case: No inputs on leaf node
-                task, inputs, outputs, data_nodes = leaf._push_input_set([])
+                task, task_inputs, task_outputs, data_nodes \
+                    = Task.create_unsaved_task_from_input_set([], leaf)
                 unsaved_tasks[task.uuid] = task
-                unsaved_task_inputs.extend(inputs)
-                unsaved_task_outputs.extend(outputs)
-                unsaved_data_nodes.extend(data_nodes)
+                unsaved_task_inputs.extend(task_inputs)
+                unsaved_task_outputs.extend(task_outputs)
+                unsaved_data_nodes.update(data_nodes)
         Task.bulk_create_tasks(unsaved_tasks, unsaved_task_inputs,
                                unsaved_task_outputs, unsaved_data_nodes)
 
-    def push(self, channel, data_path):
-        """Called when new data is available at the given data_path 
-        on the given channel. This will trigger creation of new tasks if 1)
-        other input data for those tasks is available, and 2) the task with
-        that data_path was not already created previously.
-        """
-        if not self.is_leaf:
-            return
-        unsaved_tasks = {}
-        unsaved_task_inputs = []
-        unsaved_task_outputs = []
-        unsaved_data_nodes = {}
-        for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
-            .get_input_sets():
-            task, task_inputs, task_outputs, data_nodes = self._push_input_set(
-                input_set)
-            unsaved_tasks[task.uuid] = task
-            unsaved_task_inputs.extend(task_inputs)
-            unsaved_task_outputs.extend(task_outputs)
-            unsaved_data_nodes.update(data_nodes)
-        return unsaved_tasks, unsaved_task_inputs, \
-            unsaved_task_outputs, unsaved_data_nodes
+    def push_all_outputs(self):
+        for run in self._get_downstream_runs():
+            run.push_all_inputs()
 
-    def _push_input_set(self, input_set):
-        if get_setting('TEST_NO_CREATE_TASK'):
-            return
-        return Task.create_unsaved_task_from_input_set(input_set, self)
+    def _get_downstream_runs(self):
+        runs = set()
+        for output in self.outputs.all():
+            for run_input in output.data_node.downstream_run_inputs.all():
+                runs.add(run_input.run)
+        return runs
 
     @classmethod
     def get_dependencies(cls, uuid, request):

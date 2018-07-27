@@ -63,7 +63,7 @@ class TestTask(TestCase):
         context = task.get_input_context()
         self.assertEqual(context['input3'][2], 'dinero')
         self.assertEqual(str(context['input3']), 'salud amor dinero')
-        command = task.render_command()
+        command = task.render_command(task.inputs.all(), task.outputs.all())
         self.assertEqual(command, 'echo input1; echo salud, amor, dinero')
 
     def testGetContentsForFingerprint(self):
