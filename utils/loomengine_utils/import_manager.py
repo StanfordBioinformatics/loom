@@ -1,11 +1,10 @@
 import logging
-import google.cloud.exceptions
 import os
 import re
 from requests.exceptions import HTTPError
 import yaml
 
-from .exceptions import LoomengineUtilsError, ImportManagerError, FileDuplicateError
+from .exceptions import ImportManagerError, FileDuplicateError
 from .file_utils import File, FileSet, parse_as_yaml
 from .connection import ServerConnectionError
 from oauth2client.client import ApplicationDefaultCredentialsError

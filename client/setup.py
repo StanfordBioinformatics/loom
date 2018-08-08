@@ -90,23 +90,19 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'ansible==2.3.1.0',
-        'apache-libcloud==1.5.0',
-        'google-api-python-client==1.6.2',
+        'ansible',
+        'apache-libcloud',
+        'google-api-python-client',
         'google-apitools>=0.5.8',
-        'google-cloud==0.26.1',
-        'google-resumable-media==0.3.0',
-        'grpcio==1.4',
-        'Jinja2==2.9.6',
-        'jsonfield==2.0.1',
-        'jsonschema==2.6.0',
+        'google-cloud',
+        'Jinja2',
+        'jsonschema',
         'loomengine_utils==%s' % version,
-        'python-dateutil==2.6.0',
-        'PyYAML==3.12',
-        'requests==2.13.0',            # match docker-py dependency
+        'python-dateutil',
+        'PyYAML',
+        'requests',
         # For packaging; make sure desired files are tracked by git and setuptools-git is importable before running setuptools!
-        'setuptools-git==1.2',
-        'SQLAlchemy==1.1.9',
+        'setuptools-git',
     ],
 
     # List additional groups of dependencies here (e.g. development

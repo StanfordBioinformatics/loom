@@ -68,7 +68,6 @@ pipeline {
         // Install loom client locally
         sh 'virtualenv env'
         sh 'build-tools/set-version.sh ${VERSION}'
-        sh '. env/bin/activate && pip install -r build-tools/requirements.pip'
         sh '. env/bin/activate && pip install -r build-tools/requirements-dev.pip'
         sh '. env/bin/activate && build-tools/build-loom-packages.sh'
 	sh '. env/bin/activate && build-tools/install-loom-packages.sh'

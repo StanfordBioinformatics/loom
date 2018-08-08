@@ -90,10 +90,8 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'google-cloud==0.26.1',
-        'google-resumable-media==0.3.0',
-        'grpcio==1.4',
-        'requests==2.13.0',
+        'google-cloud-storage',
+        'requests',
     ],
 
     # List additional groups of dependencies here (e.g. development
