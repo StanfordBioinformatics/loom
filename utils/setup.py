@@ -91,6 +91,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'google-cloud-storage',
+        'pycrypto',
         'requests>=2.5.0',
     ],
 

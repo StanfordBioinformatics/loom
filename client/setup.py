@@ -98,6 +98,7 @@ setup(
         'Jinja2',
         'jsonschema',
         'loomengine_utils==%s' % version,
+        'pycrypto',
         'python-dateutil',
         'PyYAML',
         'requests',

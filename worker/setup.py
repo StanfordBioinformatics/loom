@@ -92,6 +92,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'docker-py',
+        'pycrypto',
         'python-dateutil',
         'requests',
         'loomengine_utils==%s' % version,
