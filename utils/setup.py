@@ -91,7 +91,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'google-cloud-storage',
-        'requests',
+        'requests>=2.5.0',
     ],
 
     # List additional groups of dependencies here (e.g. development
