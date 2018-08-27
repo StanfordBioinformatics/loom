@@ -8,18 +8,18 @@
 //    a. Add github credentials. id="github-loom", kind="SSH Username with private key", passphrase=[blank], username="jenkins". Add the same private key to the github repo.
 //    b. Add dockerhub credentials with access to loomengine dockerhub repo. kind="Username with password", id="dockerhub-loom".
 //    c. Add "loom" credentials, to be applied to loom server started during tests. kind="Username with password", id="loom-admin"
-      d. (Optional) Add github username-password credentials to be used with "Github" plugin. Only supports username-password. Not needed to access a public repo, but the quota for scanning github with no credentials may be too low.
+//    d. (Optional) Add github username-password credentials to be used with "Github" plugin. Only supports username-password. Not needed to access a public repo, but the quota for scanning github with no credentials may be too low.
 // 5. Create a MultiBranch Pipeline named "loom"
 //    a. Add "Branch sources" > "Github"
 //       i. (options) select any valid username/password for github. This is not needed for public repo, but will increase the quota.
-         ii. Select owner and repo ("StanfordBioinformatics", "loom")
-	 iii. Discover branches: strategy = "All branches"
-	 iv. Discover pull requests from origin: strategy = "Merging the pull request with the target branch revision"
-	 v. Trust: "from users with admin or write permission"
-	 vi. Discover tags
-	 vii. Advanced clone behaviors: Fetch tags = True, shallow clone depth = 0.
-	 viii. Clean before checkout.
-	 ix. Build strategies: Change requests, Regular branches, Tags (ignore tags older than 7 days)
+//       ii. Select owner and repo ("StanfordBioinformatics", "loom")
+//       iii. Discover branches: strategy = "All branches"
+//       iv. Discover pull requests from origin: strategy = "Merging the pull request with the target branch revision"
+//       v. Trust: "from users with admin or write permission"
+//       vi. Discover tags
+//       vii. Advanced clone behaviors: Fetch tags = True, shallow clone depth = 0.
+//       viii. Clean before checkout.
+//       ix. Build strategies: Change requests, Regular branches, Tags (ignore tags older than 7 days)
 // 6. In gihub, configure Jenkins web-hooks (e.g. https://jenkins.loomengine.org/github-webhook/)
 // 7. Add deployment settings in ~jenkins/.loom-deploy-settings
 //    a. Settings in ~jenkins/.loom-deploy-settings/loom.conf
