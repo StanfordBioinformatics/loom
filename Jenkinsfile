@@ -105,7 +105,7 @@ pipeline {
         sh '. env/bin/activate && build-tools/pypi-release.sh'
       }
     }
-    stage('Smoke test PyPi release') {
+    stage('Verify PyPi release can be installed') {
       when {
         expression { env.TAG_NAME }
       }
@@ -114,7 +114,7 @@ pipeline {
         sh 'sleep 20'
         sh 'rm -rf env-pypi && virtualenv env-pypi'
         sh '. env-pypi/bin/activate && pip install loomengine==$VERSION loomengine_server==$VERSION loomengine_worker==$VERSION'
-        sh '. env-pypi/bin/activate && python -c "import loomengine loomengine_server loomengine_worker loomengine_utils"'
+        sh '. env-pypi/bin/activate && python -c "import loomengine, loomengine_server, loomengine_worker, loomengine_utils"'
         sh '. env-pypi/bin/activate && loom -h'
       }
     }
