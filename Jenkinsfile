@@ -1,26 +1,31 @@
 #!groovy
 
 // Jenkins configuration
-// 1. Enable Jenkins Pipeline plugins
-// 2. Enable Basic Branch Build Strategies Plugin
-// 3. Enable Git Parameters Plugin
-// 4. Create a MultiBranch Pipeline tracking git repo, and configure git repo
-//    to trigger to Jenkins web-hooks
-// 5. Configure GitHub settings:
-//    a. Docker credentials should be saved in Jenkins and applied to "GitHub"
-//       plugin settings
-//    b. Advanced clone behaviors: Fetch tags
-//    c. Clean before checkout
-//    d. Build strategies:
-//       - Regular branches
-//       - Tags
-//    e. Configure other settings as needed
-// 6. Add deployment settings in ~jenkins/.loom-deploy-settings
+// 1. Install and enable plugin "Pipeline: Multibranch"
+// 2. Install and enable plugin "Basic Branch Build Strategies"
+// 3. Install and enable plugin "Git Parameter"
+// 4. Add credentials in Jenkins
+//    a. Add github credentials. id="github-loom", kind="SSH Username with private key", passphrase=[blank], username="jenkins". Add the same private key to the github repo.
+//    b. Add dockerhub credentials with access to loomengine dockerhub repo. kind="Username with password", id="dockerhub-loom".
+//    c. Add "loom" credentials, to be applied to loom server started during tests. kind="Username with password", id="loom-admin"
+      d. (Optional) Add github username-password credentials to be used with "Github" plugin. Only supports username-password. Not needed to access a public repo, but the quota for scanning github with no credentials may be too low.
+// 5. Create a MultiBranch Pipeline named "loom"
+//    a. Add "Branch sources" > "Github"
+//       i. (options) select any valid username/password for github. This is not needed for public repo, but will increase the quota.
+         ii. Select owner and repo ("StanfordBioinformatics", "loom")
+	 iii. Discover branches: strategy = "All branches"
+	 iv. Discover pull requests from origin: strategy = "Merging the pull request with the target branch revision"
+	 v. Trust: "from users with admin or write permission"
+	 vi. Discover tags
+	 vii. Advanced clone behaviors: Fetch tags = True, shallow clone depth = 0.
+	 viii. Clean before checkout.
+	 ix. Build strategies: Change requests, Regular branches, Tags (ignore tags older than 7 days)
+// 6. In gihub, configure Jenkins web-hooks (e.g. https://jenkins.loomengine.org/github-webhook/)
+// 7. Add deployment settings in ~jenkins/.loom-deploy-settings
 //    a. Settings in ~jenkins/.loom-deploy-settings/loom.conf
 //    b. Resources in ~jenkins/.loom-deploy-settings/resources/
-// 7. Add pypi credentials in ~jenkins/.pypirc
-// 8. In Jenkins, add credentials for loom admin username and password to be
-//    set on new Loom servers. Use credentials id "loom-admin"
+// 8. Add pypi credentials in ~jenkins/.pypirc
+// 9. Install Docker on the Jenkins host
 
 pipeline {
   agent any
