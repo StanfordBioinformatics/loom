@@ -6,9 +6,8 @@
 // 3. Install and enable plugin "Git Parameter"
 // 4. Add credentials in Jenkins
 //    a. Add github credentials. id="github-loom", kind="SSH Username with private key", passphrase=[blank], username="jenkins". Add the same private key to the github repo.
-//    b. Add dockerhub credentials with access to loomengine dockerhub repo. kind="Username with password", id="dockerhub-loom".
-//    c. Add "loom" credentials, to be applied to loom server started during tests. kind="Username with password", id="loom-admin"
-//    d. (Optional) Add github username-password credentials to be used with "Github" plugin. Only supports username-password. Not needed to access a public repo, but the quota for scanning github with no credentials may be too low.
+//    b. Add "loom" credentials, to be applied to loom server started during tests. kind="Username with password", id="loom-admin"
+//    c. (Optional) Add github username-password credentials to be used with "Github" plugin. Only supports username-password. Not needed to access a public repo, but the quota for scanning github with no credentials may be too low.
 // 5. Create a MultiBranch Pipeline named "loom"
 //    a. Add "Branch sources" > "Github"
 //       i. (options) select any valid username/password for github. This is not needed for public repo, but will increase the quota.
@@ -25,7 +24,8 @@
 //    a. Settings in ~jenkins/.loom-deploy-settings/loom.conf
 //    b. Resources in ~jenkins/.loom-deploy-settings/resources/
 // 8. Add pypi credentials in ~jenkins/.pypirc
-// 9. Install Docker on the Jenkins host
+// 9. Install Docker on the Jenkins host, and add "jenkins" user to "docker" group
+// 10. Install pip and virtualenv
 
 pipeline {
   agent any
