@@ -5,8 +5,10 @@ loom_playbook_dir: "{{lookup('env', 'LOOM_PLAYBOOK_DIR')}}"
 loom_inventory_dir: "{{lookup('env', 'LOOM_INVENTORY_DIR')}}"
 server_settings_file: "{{lookup('env', 'LOOM_SERVER_SETTINGS_FILE')}}"
 connection_settings_file: "{{lookup('env', 'LOOM_CONNECTION_SETTINGS_FILE')}}"
+settings_bundle_file: "settings-bundle.tgz"
 storage_type: "{{lookup('env','LOOM_STORAGE_TYPE')}}"
 storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
+internal_storage_root: "{{lookup('env','LOOM_STORAGE_ROOT')}}"
 
 # Non-required settings, with defaults if necessary
 
@@ -25,7 +27,6 @@ http_port: "{{lookup('env', 'LOOM_HTTP_PORT')|default(80, true)|int}}"
 https_port: "{{lookup('env', 'LOOM_HTTPS_PORT')|default(443, true)|int}}"
 http_port_enabled: "{{lookup('env', 'LOOM_HTTP_PORT_ENABLED')|default(true, true)|bool}}"
 https_port_enabled: "{{lookup('env', 'LOOM_HTTPS_PORT_ENABLED')|default(false, true)|bool}}"
-http_redirect_to_https: "{{lookup('env', 'LOOM_HTTP_REDIRECT_TO_HTTPS')|default(false, true)|bool}}"
 server_port: "{{https_port if https_port_enabled else http_port}}"
 server_protocol: "{{'https' if https_port_enabled else 'http'}}"
 
@@ -129,8 +130,14 @@ portal_data_volume: "{{lookup('env', 'LOOM_PORTAL_DATA_VOLUME')|default(server_n
 static_data_volume: "{{lookup('env', 'LOOM_STATIC_DATA_VOLUME')|default(server_name~'-static', true)}}"
 
 # Loom task attempt container settings
-task_attempt_container_name: "{{server_name|truncate(55,true,'')}}-monitor"
+task_attempt_monitor_container_name: "{{server_name|truncate(55,true,'')}}-monitor"
+# process container name is duplicated in TaskAttempt settings view
+task_attempt_process_container_name: "{{server_name}}-attempt"
 
 # Google Cloud storage settings
 google_storage_bucket: "{{lookup('env', 'LOOM_GOOGLE_STORAGE_BUCKET')}}"
 gce_project: "{{lookup('env','GCE_PROJECT')}}"
+
+# SSH
+ssh_private_key_name: "{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')|default('loom_id_rsa', true)}}"
+ansible_ssh_private_key_file: "{{lookup('env', 'HOME')}}/.ssh/{{ssh_private_key_name}}"

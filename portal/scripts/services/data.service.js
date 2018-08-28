@@ -16,13 +16,13 @@
 	this.setActiveTemplate = setActiveTemplate;
 	this.setActiveFile = setActiveFile;
 	this.getAllActive = getAllActive;
-	this.getRunSummary = getRunSummary;
+	this.getRunDetail = getRunDetail;
 	this.getRuns = getRuns;
 	this.getTemplates = getTemplates;
 	this.getImportedFiles = getImportedFiles;
 	this.getResultFiles = getResultFiles;
 	this.getLogFiles = getLogFiles;
-	this.getLoginData = getLoginData;
+	this.getLoginAndVersionInfo = getLoginAndVersionInfo;
 
 	var activeData = {};
 
@@ -95,8 +95,8 @@
 		});
 	}
 
-	function getRunSummary(runId) {
-	    return $http.get("/api/runs/" + runId + "/?summary")
+	function getRunDetail(runId) {
+	    return $http.get("/api/runs/" + runId + "/")
 		.then(function(response) {
 		    return response.data;
 		});
@@ -136,13 +136,13 @@
 		});
 	}
 
-	function getLoginData() {
+	function getLoginAndVersionInfo() {
 	    return $http.get("/api/info/")
 		.then(function(response) {
 		    activeData.username = response.data.username;
-		    activeData.loginRequired = response.data.login_required
+		    activeData.loginRequired = response.data.login_required;
+		    activeData.version = response.data.version
 		});
 	}
     }
-
 }());

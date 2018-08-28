@@ -137,13 +137,11 @@
       LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
     volumes: "{{[
       server_settings_home+':'+container_settings_home,
-      '/var/run/docker.sock:/var/run/docker.sock' if loom_remote_user is not defined,
-      '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if loom_remote_user is defined]
+      '/var/run/docker.sock:/var/run/docker.sock',
+      storage_root~':'~internal_storage_root if storage_type == 'local']
       | reject('undefined') | list}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
-            rabbitmq_container_name,\
-	    elasticsearch_container_name]|\
-	    reject('none') | list}}"
+            rabbitmq_container_name] | reject('none') | list}}"
     log_driver: fluentd
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
@@ -166,14 +164,10 @@
       LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
-    volumes: "{{[
-      server_settings_home+':'+container_settings_home,
-      '/var/run/docker.sock:/var/run/docker.sock' if loom_remote_user is not defined,
-      '/home/'+loom_remote_user+'/.ssh:/root/.ssh' if loom_remote_user is defined]
-      | reject('undefined') | list}}"
+    volumes:
+      - "{{server_settings_home}}:{{container_settings_home}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
-            rabbitmq_container_name]|\
-	    reject('none') | list}}"
+            rabbitmq_container_name] | reject('none') | list}}"
     log_driver: fluentd
     log_options:
       fluentd-address: localhost:{{fluentd_port}}
@@ -199,6 +193,31 @@
       LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
       LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
     volumes:
+      - "{{server_settings_home}}:{{container_settings_home}}"
+    links: "{{[mysql_container_name if mysql_create_docker_container else none,\
+            rabbitmq_container_name] | reject('none') | list}}"
+
+- name: Apply database migrations and check for connection errors
+  docker_container:
+    name: "{{server_container_name}}-check"
+    hostname: "{{server_container_name}}"
+    image: "{{loom_docker_image}}"
+    command: /loom/src/bin/check-database.sh
+    interactive: yes
+    detach: no
+    cleanup: yes
+    api_version: auto
+    env_file: "{{server_settings_home}}/{{server_settings_file}}"
+    env:
+      LOOM_SETTINGS_HOME: "{{container_settings_home}}"
+      LOOM_MYSQL_HOST: "{{mysql_host}}"
+      LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
+      LOOM_MYSQL_SSL_CA_CERT_PATH: "{{container_mysql_ssl_ca_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_CERT_PATH: "{{container_mysql_ssl_client_cert_path}}"
+      LOOM_MYSQL_SSL_CLIENT_KEY_PATH: "{{container_mysql_ssl_client_key_path}}"
+    volumes:
+      - "{{portal_data_volume}}:{{portal_root}}"
+      - "{{static_data_volume}}:/{{static_root}}"
       - "{{server_settings_home}}:{{container_settings_home}}"
     links: "{{[mysql_container_name if mysql_create_docker_container else none,\
             rabbitmq_container_name] | reject('none') | list}}"
@@ -256,7 +275,7 @@
             rabbitmq_container_name if debug else none]\
 	    | reject('none') | list}}"
     ports: "{{[ http_port~':'~http_port if \
-            (http_port_enabled or http_redirect_to_https) else none,\
+            (http_port_enabled) else none,\
             https_port~':'~https_port if https_port_enabled else none]
             | reject('none') | list}}"
     log_driver: fluentd

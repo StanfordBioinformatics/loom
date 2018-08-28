@@ -1,9 +1,10 @@
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 import jsonfield
 import os
 
+from . import calculate_contents_fingerprint
 from .base import BaseModel
 from api import get_setting
 from api.models import uuidstr
@@ -86,7 +87,11 @@ class DataObject(BaseModel):
     def _get_file_by_value(cls, value):
         """Look up a file DataObject by name, uuid, and/or md5.
         """
-        matches = FileResource.filter_by_name_or_id_or_tag_or_hash(value)
+        # Ignore any FileResource with no DataObject. This is a typical state
+        # for a deleted file that has not yet been cleaned up.
+        queryset = FileResource.objects.exclude(data_object__isnull=True)
+        matches = FileResource.filter_by_name_or_id_or_tag_or_hash(
+            value, queryset=queryset)
         if matches.count() == 0:
             raise ValidationError(
                 'No file found that matches value "%s"' % value)
@@ -137,6 +142,142 @@ class DataObject(BaseModel):
         file_resource.save()
         return data_object
 
+    @classmethod
+    def get_dependencies(cls, uuid, request):
+
+        from .data_nodes import DataNode
+        from api.serializers import URLRunSerializer, URLTemplateSerializer
+
+        context = {'request': request}
+        # We truncate the dependencies listed if we exceed DEPENDENCY_LIMIT
+        DEPENDENCY_LIMIT = 10
+        truncated = False
+        runs = set()
+        templates = set()
+
+        data_object = cls.objects.filter(uuid=uuid).prefetch_related('data_nodes')
+        if data_object.count() < 1:
+            raise cls.DoesNotExist
+        prefetched_root_data_nodes = DataNode.objects.filter(
+            tree_id__in=[node.tree_id
+                         for node in data_object.first().data_nodes.all()],
+            parent=None).\
+            prefetch_related('runinput_set__run').\
+            prefetch_related('runoutput_set__run').\
+            prefetch_related('userinput_set__run').\
+            prefetch_related('taskinput_set__task__run').\
+            prefetch_related('taskoutput_set__task__run').\
+            prefetch_related('taskattemptinput_set__task_attempt__tasks__run').\
+            prefetch_related('taskattemptoutput_set__task_attempt__tasks__run').\
+            prefetch_related('templateinput_set__template')
+
+        for data_node in prefetched_root_data_nodes:
+            for run_input in data_node.runinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and run_input.run not in runs:
+                    truncated = True
+                    break
+                runs.add(run_input.run)
+            for run_output in data_node.runoutput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and run_output.run not in runs:
+                    truncated = True
+                    break
+                runs.add(run_output.run)
+            for user_input in data_node.userinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and user_input.run not in runs:
+                    truncated = True
+                    break
+                runs.add(user_input.run)
+            for task_input in data_node.taskinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and task_input.task.run not in runs:
+                    truncated = True
+                    break
+                runs.add(task_input.task.run)
+            for task_output in data_node.taskoutput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and task_output.task.run not in runs:
+                    truncated = True
+                    break
+                runs.add(task_output.task.run)
+            for task_attempt_input in data_node.taskattemptinput_set.all():
+                for task in task_attempt_input.task_attempt.tasks.all():
+                    if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                       and task.run not in runs:
+                        truncated = True
+                        break
+                    runs.add(task.run)
+            for task_attempt_output in data_node.taskattemptoutput_set.all():
+                for task in task_attempt_output.task_attempt.tasks.all():
+                    if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                       and task.run not in runs:
+                        truncated = True
+                        break
+                    runs.add(task.run)
+            for template_input in data_node.templateinput_set.all():
+                if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+                   and template_input.template not in templates:
+                    truncated = True
+                    break
+                templates.add(template_input.template)
+            if truncated == True:
+                break
+
+        run_dependencies = []
+        for run in runs:
+            run_dependencies.append(
+                URLRunSerializer(run, context=context).data)
+
+        template_dependencies = []
+        for template in templates:
+            template_dependencies.append(
+                URLTemplateSerializer(template, context=context).data)
+
+        return {'runs': run_dependencies,
+                'templates': template_dependencies,
+                'truncated': truncated}
+
+    def has_dependencies(self):
+        dependencies = self.get_dependencies(self.uuid, {})
+        return any(dependencies.values())
+
+    def delete(self):
+        # Sometimes detached DataNodes can be accidentially created, for example
+        # if there is an error when importing the Template after an input
+        # DataNode was already created. As a precaution we remove any extra
+        # DataNodes after verifying that none are in use.
+        if not self.has_dependencies():
+            self._cleanup_data_nodes()
+        super(DataObject, self).delete()
+
+    def _cleanup_data_nodes(self):
+        for node in self.data_nodes.all():
+            node.delete()
+
+            
+    def get_fingerprintable_contents(self):
+        if self.type == 'file':
+            return {
+                'type': 'file',
+                'value': self.file_resource.get_fingerprintable_contents()}
+        else:
+            return {
+                'type': self.type,
+                'value': self.value}
+
+    def calculate_contents_fingerprint(self):
+        return calculate_contents_fingerprint(
+            self.get_fingerprintable_contents())
+
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.prefetch_related('tags').\
+            select_related('file_resource')
+
 
 class FileResource(BaseModel):
 
@@ -147,19 +288,25 @@ class FileResource(BaseModel):
 
     UPLOAD_STATUS_CHOICES = (('incomplete', 'Incomplete'),
                              ('complete', 'Complete'),
-                             ('failed', 'Failed'))
+                             ('failed', 'Failed'),
+                             ('deleting', 'Deleting'),
+    )
     SOURCE_TYPE_CHOICES = (('imported', 'Imported'),
                            ('result', 'Result'),
                            ('log', 'Log'))
 
     data_object = models.OneToOneField(
         'DataObject',
+        null=True,
+        blank=True,
         related_name='file_resource',
-        on_delete=models.PROTECT)
+        on_delete=models.SET_NULL)
     filename = models.CharField(
         max_length=255, validators=[validators.validate_filename])
     file_url = models.TextField(
         validators=[validators.validate_url])
+    file_relative_path = models.TextField(
+        validators=[validators.validate_relative_file_path], default='', blank=True)
     md5 = models.CharField(
         max_length=32, validators=[validators.validate_md5])
     import_comments = models.TextField(blank=True)
@@ -173,6 +320,11 @@ class FileResource(BaseModel):
     source_type = models.CharField(
         max_length=16,
         choices=SOURCE_TYPE_CHOICES)
+    link = models.BooleanField(default=False)
+
+    def get_fingerprintable_contents(self):
+        return {'filename': self.filename,
+                'md5': self.md5}
 
     @property
     def is_ready(self):
@@ -187,32 +339,35 @@ class FileResource(BaseModel):
     @classmethod
     def initialize(cls, **kwargs):
         if not kwargs.get('file_url'):
-            kwargs['file_url'] = cls._add_url_prefix(
-                cls._get_path_for_import(
+            file_root = cls.get_file_root()
+            if not kwargs.get('file_relative_path'):
+                file_relative_path = cls._get_relative_path_for_import(
                     kwargs.get('filename'),
                     kwargs.get('source_type'),
                     kwargs.get('data_object'),
                     kwargs.pop('task_attempt', None)
-                ))
+                )
+                kwargs['file_relative_path']  = file_relative_path
+            kwargs['file_url'] = os.path.join(file_root, file_relative_path)
         file_resource = cls(**kwargs)
         return file_resource
 
     @classmethod
-    def _get_path_for_import(cls, filename, source_type, data_object, task_attempt):
-        parts = [cls._get_file_root()]
-        parts.extend(cls._get_breadcrumbs(source_type, data_object, task_attempt))
+    def _get_relative_path_for_import(
+            cls, filename, source_type, data_object, task_attempt):
+        parts = cls._get_run_breadcrumbs(source_type, data_object, task_attempt)
         parts.append(cls._get_subdir(source_type))
         parts.append(cls._get_expanded_filename(
             filename, data_object.uuid, source_type))
         return os.path.join(*parts)
 
     @classmethod
-    def _get_file_root(cls):
+    def get_file_root(cls):
         file_root = get_setting('STORAGE_ROOT')
         assert file_root.startswith('/'), \
             'STORAGE_ROOT should be an absolute path, but it is "%s".' \
             % file_root
-        return file_root
+        return cls._add_url_prefix(file_root)
 
     @classmethod
     def _get_subdir(cls, source_type):
@@ -226,7 +381,7 @@ class FileResource(BaseModel):
             assert False, 'Invalid source_type %s' % source_type
 
     @classmethod
-    def _get_breadcrumbs(cls, source_type, data_object, task_attempt):
+    def _get_run_breadcrumbs(cls, source_type, data_object, task_attempt):
         """Create a path for a given file, in such a way
         that files end up being organized and browsable by run
         """
@@ -234,7 +389,8 @@ class FileResource(BaseModel):
         # and a run
         if not task_attempt:
             return []
-        task = task_attempt.task
+        # If multiple tasks exist, use the original.
+        task = task_attempt.tasks.earliest('datetime_created')
         if task is None:
             return []
         run = task.run
@@ -257,6 +413,8 @@ class FileResource(BaseModel):
             run.datetime_created.strftime('%Y-%m-%dT%H.%M.%SZ'),
             str(run.uuid)[0:8],
             breadcrumbs[0])
+
+        breadcrumbs = ['runs'] + breadcrumbs
         return breadcrumbs
 
     @classmethod
@@ -283,3 +441,10 @@ class FileResource(BaseModel):
             raise ValidationError(
                 'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
                 % storage_type)
+
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.select_related('data_object').\
+            prefetch_related('data_object__tags')

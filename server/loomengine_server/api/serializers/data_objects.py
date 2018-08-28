@@ -23,7 +23,7 @@ class DataValueSerializer(serializers.Field):
         return data
 
 
-class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
+class URLDataObjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = DataObject
@@ -32,7 +32,6 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
             'url',
             'type',
             'datetime_created',
-            'value',
         )
 
     uuid = serializers.UUIDField(required=False)
@@ -40,9 +39,9 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
         view_name='data-object-detail',
         lookup_field='uuid'
     )
-    type = serializers.CharField(required=False) # Type can also come from context
-    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
-    value = DataValueSerializer(source='_value_info')
+    type = serializers.CharField(required=False, write_only=True)
+    datetime_created = serializers.DateTimeField(
+        required=False, format='iso-8601', write_only=True)
 
     def validate(self, data):
         # Use a copy to avoid modifying data
@@ -55,27 +54,34 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
                 'DataObject "type" not found in "type" field or in context')
 
         if datacopy['type'] == 'file':
-            self._validate_file(datacopy)
+            self._validate_and_cache_file(datacopy)
         else:
-            self._validate_nonfile(datacopy)
-
+            self._validate_and_cache_nonfile(datacopy)
         return data
 
-    def _validate_nonfile(self, data):
-        value = data.pop('_value_info')
-        data['data'] = {'value': value}
+    def _validate_and_cache_nonfile(self, data):
+        value = data.get('_value_info')
+        type = data.get('type')
+        try:
+            self._cached_data_object = DataObject.objects.get(
+                uuid=data.get('uuid'))
+            self._do_create_new_data_object=False
+            self._verify_data_object_matches_data(self._cached_data_object, data)
+            return data
+        except DataObject.DoesNotExist:
+            pass
         self._cached_data_object = DataObjectSerializer\
-            .Meta.model(**data)
-        self._do_create_new_data_object=True
+            .Meta.model.get_by_value(value, type)
+        self._do_create_new_data_object=False # already saved
         try:
             self._cached_data_object.full_clean()
         except django.core.exceptions.ValidationError as e:
             raise serializers.ValidationError(e.message_dict)
         return data
 
-    def _validate_file(self, data):
-        value = data.pop('_value_info')
-        if not isinstance(value, dict):
+    def _validate_and_cache_file(self, data):
+        value = data.get('_value_info')
+        if value is not None and not isinstance(value, dict):
             # If it's a string, treat it as a data_object identifier and
             # look it up.
             data_objects = DataObject.filter_by_name_or_id_or_tag_or_hash(value)
@@ -88,14 +94,71 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
             self._cached_data_object = data_objects.first()
             self._do_create_new_data_object = False
         else:
-            # Otherwise, create new.
-            self._cached_data_object = self.Meta.model(**data)
-            self._do_create_new_data_object = True
+            if data.get('uuid'):
+                try:
+                    self._cached_data_object = DataObject.objects.get(
+                        uuid=data.get('uuid'))
+                    self._do_create_new_data_object=False
+                    self._verify_data_object_matches_data(
+                        self._cached_data_object, data)
+                    return data
+                except DataObject.DoesNotExist:
+                    # Create new, with given UUID
+                    data.pop('_value_info')
+                    self._cached_data_object = self.Meta.model(**data)
+                    self._do_create_new_data_object = True
+            else:
+                # Otherwise, create new.
+                data.pop('_value_info')
+                self._cached_data_object = self.Meta.model(**data)
+                self._do_create_new_data_object = True
             try:
                 self._cached_data_object.full_clean()
             except django.core.exceptions.ValidationError as e:
                 raise serializers.ValidationError(e.message_dict)
         return data
+
+    def _verify_data_object_matches_data(self, data_object, data):
+        datetime_created = data.get('datetime_created')
+        value = data.get('_value_info')
+        type = data.get('type')
+        if datetime_created and datetime_created != data_object.datetime_created:
+            raise serializers.ValidationError(
+                'datetime_created mismatch for DataObject "%s"' % data_object.uuid)
+        if type and type != data_object.type:
+            raise serializers.ValidationError(
+                'type mismatch for DataObject "%s"' % data_object.uuid)
+        if data_object.type == 'file':
+            if value:
+                try:
+                    self._verify_file_resource_matches_data(data_object.value, value)
+                except serializers.ValidationError as e:
+                    raise serializers.ValidationError(
+                        'Value mismatch for DataObject "%s"'
+                        % data_object.uuid)
+        else:
+            if value and value != data_object.value:
+                raise serializers.ValidationError(
+                    'Value mismatch for DataObject "%s"' % data_object.uuid)
+
+    def _verify_file_resource_matches_data(self, file_resource, data):
+        filename = data.get('filename')
+        md5 = data.get('md5')
+        source_type = data.get('source_type')
+        import_comments = data.get('import_comments')
+        imported_from_url = data.get('imported_from_url')
+        if filename and filename != file_resource.filename:
+            raise serializers.ValidationError('filename mismatch')
+        if md5 and md5 != file_resource.md5:
+            raise serializers.ValidationError('md5 mismatch')
+        if source_type and source_type != file_resource.source_type:
+            raise serializers.ValidationError('source_type mismatch')
+        if import_comments and import_comments != file_resource.import_comments:
+            raise serializers.ValidationError('import_comments mismatch')
+        if imported_from_url and imported_from_url != file_resource.imported_from_url:
+            raise serializers.ValidationError('imported_from_url mismatch')
+        # Do not check values file_url, upload_status, or link, since these
+        # may vary between systems. when a file is re-imported.
 
     def create(self, validated_data):
         if not self._do_create_new_data_object:
@@ -110,7 +173,7 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
         data_object = self._cached_data_object
         if self._do_create_new_data_object:
             data_object.save()
-            return data_object
+        return data_object
 
     def _create_file(self, validated_data):
         value = validated_data.pop('_value_info')
@@ -146,16 +209,6 @@ class DataObjectSerializer(serializers.HyperlinkedModelSerializer):
             pass
         data_object.delete()
 
-    @classmethod
-    def get_select_related_list(cls):
-        return ['file_resource']
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        for select_string in cls.get_select_related_list():
-            queryset = queryset.select_related(select_string)
-        return queryset
-
 
 class FileResourceSerializer(serializers.ModelSerializer):
 
@@ -164,15 +217,18 @@ class FileResourceSerializer(serializers.ModelSerializer):
         fields = (
             'filename',
             'file_url',
+            'file_relative_path',
             'md5',
             'import_comments',
             'imported_from_url',
             'upload_status',
-            'source_type'
+            'source_type',
+            'link'
         )
         
     filename = serializers.CharField()
     file_url = serializers.CharField(required=False)
+    file_relative_path = serializers.CharField(required=False)
     md5 = serializers.CharField()
     import_comments = serializers.CharField(required=False)
     imported_from_url = serializers.CharField(required=False)
@@ -180,8 +236,33 @@ class FileResourceSerializer(serializers.ModelSerializer):
                                             required=False)
     source_type = serializers.ChoiceField(choices=FileResource.SOURCE_TYPE_CHOICES,
                                           required=False)
-        
-class DataObjectUpdateSerializer(DataObjectSerializer):
+    link = serializers.BooleanField(required=False)
+
+
+
+class DataObjectSerializer(URLDataObjectSerializer):
+
+    class Meta:
+        model = DataObject
+        fields = (
+            'uuid',
+            'url',
+            'type',
+            'datetime_created',
+            'value',
+        )
+
+    uuid = serializers.UUIDField(required=False)
+    url = serializers.HyperlinkedIdentityField(
+        view_name='data-object-detail',
+        lookup_field='uuid'
+    )
+    type = serializers.CharField(required=False) # Type can also come from context
+    datetime_created = serializers.DateTimeField(required=False, format='iso-8601')
+    value = DataValueSerializer(source='_value_info', required=False)
+
+
+class UpdateDataObjectSerializer(DataObjectSerializer):
 
     # Override to make all fields except value read-only
     uuid = serializers.UUIDField(read_only=True)
@@ -191,6 +272,7 @@ class DataObjectUpdateSerializer(DataObjectSerializer):
     )
     type = serializers.CharField(read_only=True)
     datetime_created = serializers.DateTimeField(read_only=True, format='iso-8601')
+    value = DataValueSerializer(source='_value_info', required=False)
 
     def validate(self, data):
         return data

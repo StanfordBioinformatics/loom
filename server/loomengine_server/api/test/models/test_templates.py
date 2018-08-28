@@ -39,8 +39,8 @@ def get_step_two():
         template=step_two)
     return step_two
         
-def get_workflow():
-    workflow = Template.objects.create(
+def get_template():
+    template = Template.objects.create(
         name='one_two',
         outputs = [{'channel': 'three', 'type': 'string'}],
         is_leaf=False)
@@ -50,17 +50,17 @@ def get_workflow():
         type='string',
         mode='no_gather',
         data_node=default,
-        template=workflow)
-    workflow.add_steps([get_step_one(),
+        template=template)
+    template.add_steps([get_step_one(),
                         get_step_two()])
-    return workflow
+    return template
 
 
 class TestTemplate(TestCase):
 
     def testCreate(self):
 
-        workflow = get_workflow()
+        template = get_template()
 
-        self.assertEqual(workflow.children.all()[0].child_template.name, 'step_one')
-        self.assertEqual(workflow.children.all()[1].child_template.name, 'step_two')
+        self.assertEqual(template.steps.all()[0].name, 'step_one')
+        self.assertEqual(template.steps.all()[1].name, 'step_two')

@@ -10,9 +10,12 @@ import socket
 import sys
 import tempfile
 import warnings
+from django.core.exceptions import ValidationError
 
 SESSION_BACKED = 'django.contrib.sessions.backends.db'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 def to_boolean(value):
     if value in [None, '', False]:
@@ -90,21 +93,6 @@ STATIC_ROOT = os.getenv('LOOM_SERVER_STATIC_ROOT', '/var/www/loom/static')
 SERVER_NAME = os.getenv('LOOM_SERVER_NAME', 'loom') # used in attempt container names
 SERVER_URL_FOR_WORKER = os.getenv('SERVER_URL_FOR_WORKER', 'http://127.0.0.1:8000')
 SERVER_URL_FOR_CLIENT = os.getenv('SERVER_URL_FOR_CLIENT', 'http://127.0.0.1:8000')
-STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loom-data'))
-FILE_ROOT_FOR_WORKER = os.path.expanduser(
-    os.getenv('FILE_ROOT_FOR_WORKER', STORAGE_ROOT))
-
-TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60'))
-TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS*2.5))
-SYSTEM_CHECK_INTERVAL_MINUTES = int(os.getenv('LOOM_SYSTEM_CHECK_INTERVAL_MINUTES', '15'))
-PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'False'))
-PRESERVE_ALL = to_boolean(os.getenv('LOOM_PRESERVE_ALL', 'False'))
-MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE = int(os.getenv(
-    'LOOM_MAXIMUM_TASK_RETRIES_FOR_ANALYSIS_FAILURE', '1'))
-MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE = int(os.getenv(
-    'LOOM_MAXIMUM_TASK_RETRIES_FOR_SYSTEM_FAILURE', '10'))
-
-DEFAULT_DOCKER_REGISTRY = os.getenv('LOOM_DEFAULT_DOCKER_REGISTRY', '')
 
 # GCP settings
 GCE_EMAIL = os.getenv('GCE_EMAIL')
@@ -112,23 +100,44 @@ GCE_PROJECT = os.getenv('GCE_PROJECT', '')
 GCE_PEM_FILE_PATH = os.getenv('GCE_PEM_FILE_PATH')
 GOOGLE_STORAGE_BUCKET = os.getenv('LOOM_GOOGLE_STORAGE_BUCKET', '')
 
-WORKER_BOOT_DISK_TYPE = os.getenv('WORKER_BOOT_DISK_TYPE')
-WORKER_BOOT_DISK_SIZE = os.getenv('WORKER_BOOT_DISK_SIZE')
-WORKER_CUSTOM_SUBNET = os.getenv('WORKER_CUSTOM_SUBNET', '')
-WORKER_LOCATION = os.getenv('WORKER_LOCATION')
-WORKER_NETWORK = os.getenv('WORKER_NETWORK')
-WORKER_SCRATCH_DISK_MOUNT_POINT = os.getenv('WORKER_SCRATCH_DISK_MOUNT_POINT')
-WORKER_SCRATCH_DISK_TYPE = os.getenv('WORKER_SCRATCH_DISK_TYPE')
-WORKER_SCRATCH_DISK_SIZE = os.getenv('WORKER_SCRATCH_DISK_SIZE')
-WORKER_SKIP_INSTALLS = os.getenv('WORKER_SKIP_INSTALLS')
-WORKER_TAGS = os.getenv('WORKER_TAGS')
-WORKER_USES_SERVER_INTERNAL_IP = os.getenv('WORKER_USES_SERVER_INTERNAL_IP')
-WORKER_VM_IMAGE = os.getenv('WORKER_VM_IMAGE')
-
 SETTINGS_HOME = os.getenv('LOOM_SETTINGS_HOME', os.path.expanduser('~/.loom'))
 PLAYBOOK_PATH = os.path.join(SETTINGS_HOME, os.getenv('LOOM_PLAYBOOK_DIR', 'playbooks'))
 RUN_TASK_ATTEMPT_PLAYBOOK = os.getenv('LOOM_RUN_TASK_ATTEMPT_PLAYBOOK')
 CLEANUP_TASK_ATTEMPT_PLAYBOOK = os.getenv('LOOM_CLEANUP_TASK_ATTEMPT_PLAYBOOK')
+
+def _add_url_prefix(path):
+    if STORAGE_TYPE.lower() == 'local':
+	return 'file://' + path
+    elif STORAGE_TYPE.lower() == 'google_storage':
+        return 'gs://' + GOOGLE_STORAGE_BUCKET + path
+    else:
+        raise ValidationError(
+            'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
+	    % STORAGE_TYPE)
+STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loomdata'))
+INTERNAL_STORAGE_ROOT = os.path.expanduser(
+    os.getenv('LOOM_INTERNAL_STORAGE_ROOT', STORAGE_ROOT))
+STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(STORAGE_ROOT)
+INTERNAL_STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(INTERNAL_STORAGE_ROOT)
+DISABLE_DELETE = to_boolean(os.getenv('LOOM_DISABLE_DELETE', 'False'))
+FORCE_RERUN = to_boolean(os.getenv('LOOM_FORCE_RERUN', 'False'))
+
+TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS', '60'))
+TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS = int(os.getenv('LOOM_TASKRUNNER_HEARTBEAT_TIMEOUT_SECONDS', TASKRUNNER_HEARTBEAT_INTERVAL_SECONDS*2.5))
+SYSTEM_CHECK_INTERVAL_MINUTES = int(os.getenv('LOOM_SYSTEM_CHECK_INTERVAL_MINUTES', '15'))
+PRESERVE_ON_FAILURE = to_boolean(os.getenv('LOOM_PRESERVE_ON_FAILURE', 'False'))
+PRESERVE_ALL = to_boolean(os.getenv('LOOM_PRESERVE_ALL', 'False'))
+TASK_TIMEOUT_HOURS = float(os.getenv(
+    'LOOM_TASK_TIMEOUT_HOURS', '24.0'))
+MAXIMUM_RETRIES_FOR_ANALYSIS_FAILURE = int(os.getenv(
+    'LOOM_MAXIMUM_TASK_RETRIES_FOR_ANALYSIS_FAILURE', '1'))
+MAXIMUM_RETRIES_FOR_SYSTEM_FAILURE = int(os.getenv(
+    'LOOM_MAXIMUM_TASK_RETRIES_FOR_SYSTEM_FAILURE', '10'))
+MAXIMUM_RETRIES_FOR_TIMEOUT_FAILURE = int(os.getenv(
+    'LOOM_MAXIMUM_TASK_RETRIES_FOR_TIMEOUT_FAILURE', '0'))
+MAXIMUM_TREE_DEPTH = int(os.getenv('LOOM_MAXIMUM_TREE_DEPTH', '10'))
+
+DEFAULT_DOCKER_REGISTRY = os.getenv('LOOM_DEFAULT_DOCKER_REGISTRY', '')
 
 # Database settings
 # Any defaults must match defaults in playbook
@@ -174,20 +183,13 @@ def _get_ansible_inventory():
 ANSIBLE_INVENTORY = _get_ansible_inventory()
 LOOM_SSH_PRIVATE_KEY_PATH = os.getenv('LOOM_SSH_PRIVATE_KEY_PATH')
 
-KEEP_DUPLICATE_FILES = True
-FORCE_RERUN = True
-
-ELASTICSEARCH_HOST = SERVER_NAME[:49] + '-elasticsearch'
-ELASTICSEARCH_PORT = os.getenv('LOOM_ELASTICSEARCH_PORT', '9200')
-ELASTICSEARCH_LOG_EXPIRATION_DAYS = to_int(os.getenv('LOOM_ELASTICSEARCH_LOG_EXPIRATION_DAYS', '7'))
-
 # For testing only
 TEST_DISABLE_ASYNC_DELAY = to_boolean(os.getenv('TEST_DISABLE_ASYNC_DELAY', False))
 TEST_NO_CREATE_TASK = to_boolean(os.getenv('TEST_NO_CREATE_TASK', False))
 TEST_NO_RUN_TASK_ATTEMPT = to_boolean(os.getenv('TEST_NO_RUN_TASK_ATTEMPT', False))
-TEST_NO_POSTPROCESS = to_boolean(os.getenv('TEST_NO_POSTPROCESS', False))
-TEST_NO_PUSH_INPUTS_ON_RUN_CREATION = to_boolean(
-    os.getenv('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION', False))
+TEST_NO_TASK_ATTEMPT_CLEANUP = to_boolean(os.getenv(
+    'TEST_NO_TASK_ATTEMPT_CLEANUP', False))
+TEST_NO_PUSH_INPUTS= to_boolean(os.getenv('TEST_NO_PUSH_INPUTS', False))
 
 # Fixed settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -222,7 +224,6 @@ INSTALLED_APPS = [
     'rest_framework_swagger',
     'django_celery_results',
     'api',
-    'mptt',
 ]
 
 MIDDLEWARE_CLASSES = [
@@ -381,18 +382,8 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-#if DEBUG:
-#    CSRF_COOKIE_SECURE = True
-#    SESSION_COOKIE_SECURE = True
-#    HTTP_AUTHORIZATION = True
-#else:
-#    CSRF_COOKIE_SECURE = False
-#    SESSION_COOKIE_SECURE = False
-#    HTTP_AUTHORIZATION = False
-
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
+# This is needed for nginx reverse proxy to work
+INTERNAL_IPS = ["127.0.0.1",]
 
 if DEBUG or (len(sys.argv) > 1 and sys.argv[1] == 'collectstatic'):
     INSTALLED_APPS.append('debug_toolbar')

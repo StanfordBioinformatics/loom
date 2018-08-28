@@ -25,50 +25,20 @@ LOOM_SERVER_SETTINGS_FILE = 'server-settings.conf'
 
 LOOM_SETTINGS_HOME_TEMP_BACKUP = LOOM_SETTINGS_HOME + '.tmp'
 
-def loom_settings_transaction(function):
-    """A decorator to restore settings to original state if an error is raised.
-    """
-
-    def transaction(*args, **kwargs):
-        # Back up settings
-        try:
-            # Wipe backup dir if it exists
-            shutil.rmtree(LOOM_SETTINGS_HOME_TEMP_BACKUP)
-        except OSError:
-            pass
-        if os.path.exists(LOOM_SETTINGS_HOME):
-            previous_settings_exist=True
-            shutil.copytree(LOOM_SETTINGS_HOME,
-                            LOOM_SETTINGS_HOME_TEMP_BACKUP)
-        else:
-            previous_settings_exist=False
-        try:
-            function(*args, **kwargs)
-        except (Exception, SystemExit) as e:
-            if previous_settings_exist:
-                print ("WARNING! An error occurred. Rolling back changes to settings.")
-            try:
-                shutil.rmtree(LOOM_SETTINGS_HOME)
-            except OSError:
-                pass # dir doesn't exist
-            if previous_settings_exist:
-                shutil.move(LOOM_SETTINGS_HOME_TEMP_BACKUP,
-                                LOOM_SETTINGS_HOME)
-            raise e
-        # Success. Deleting backup.
-        if previous_settings_exist:
-            shutil.rmtree(LOOM_SETTINGS_HOME_TEMP_BACKUP)
-
-    return transaction
 
 class ServerControls(object):
     """Class for managing the Loom server.
     """
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             args=_get_args()
         self.args = args
+        self.silent = silent
         self._set_run_function()
+
+    def _print(self, text):
+        if not self.silent:
+            print text
 
     def _set_run_function(self):
         # Map user input command to method
@@ -85,7 +55,7 @@ class ServerControls(object):
     def status(self):
         verify_has_connection_settings()
         if is_server_running():
-            print 'OK, the server is up at %s' % get_server_url()
+            self._print('OK, the server is up at %s' % get_server_url())
         else:
             raise SystemExit('No response from server at %s' % get_server_url())
 
@@ -101,9 +71,9 @@ class ServerControls(object):
             else:
                 settings = parse_settings_file(
                     os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
-                print 'Found settings for a Loom server named "%s". '\
-                    'Restarting it now.' % self._get_required_setting(
-                        'LOOM_SERVER_NAME', settings)
+                self._print('Found settings for a Loom server named "%s". '\
+                            'Restarting it now.' % self._get_required_setting(
+                                'LOOM_SERVER_NAME', settings))
 
         elif has_connection_settings():
 	    raise SystemExit(
@@ -173,9 +143,8 @@ class ServerControls(object):
             self._save_server_settings_file(settings)
             self._copy_resources_to_settings_dir()
 
-            print 'Starting a Loom server named "%s".' % self._get_required_setting(
-                'LOOM_SERVER_NAME', settings)
-                
+            self._print('Starting a Loom server named "%s".' %
+                        self._get_required_setting('LOOM_SERVER_NAME', settings))
         playbook = self._get_required_setting(
             'LOOM_START_SERVER_PLAYBOOK', settings)
         retcode = self._run_playbook(playbook, settings, verbose=self.args.verbose)
@@ -226,8 +195,8 @@ class ServerControls(object):
 
         settings = parse_settings_file(
             os.path.join(LOOM_SETTINGS_HOME, LOOM_SERVER_SETTINGS_FILE))
-        print 'Stopping Loom server named "%s".' % self._get_required_setting(
-            'LOOM_SERVER_NAME', settings)
+        self._print('Stopping Loom server named "%s".' % self._get_required_setting(
+            'LOOM_SERVER_NAME', settings))
         playbook = self._get_required_setting('LOOM_STOP_SERVER_PLAYBOOK',
                                               settings)
         retcode = self._run_playbook(playbook, settings, verbose=self.args.verbose)
@@ -252,7 +221,7 @@ class ServerControls(object):
             raise SystemExit('ERROR! Loom server not found at "%s".' % server_url)
         connection_settings = { "LOOM_SERVER_URL": server_url }
         self._save_connection_settings_file(connection_settings)
-        print 'Connected to Loom server at "%s".' % server_url
+        self._print('Connected to Loom server at "%s".' % server_url)
 
     def disconnect(self):
         if not has_connection_settings():
@@ -268,13 +237,14 @@ class ServerControls(object):
             os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
         server_url = settings.get('LOOM_SERVER_URL')
         os.remove(os.path.join(LOOM_SETTINGS_HOME, LOOM_CONNECTION_SETTINGS_FILE))
+        delete_token()
         try:
             # remove if empty
             os.rmdir(LOOM_SETTINGS_HOME)
         except OSError:
             pass
-        print 'Disconnected from the Loom server at %s \nTo reconnect, '\
-            'use "loom server connect %s"' % (server_url, server_url)
+        self._print('Disconnected from the Loom server at %s \nTo reconnect, '\
+                    'use "loom server connect %s"' % (server_url, server_url))
 
     def delete(self):
         if not self._has_server_settings():
@@ -293,7 +263,7 @@ class ServerControls(object):
                 'type the name of the server:\n> ')
 
         if user_provided_server_name != server_name:
-            print 'Input did not match current server name \"%s\".' % server_name
+            self._print('Input did not match current server name \"%s\".' % server_name)
             return
         playbook = self._get_required_setting('LOOM_DELETE_SERVER_PLAYBOOK',
                                               settings)
@@ -485,6 +455,10 @@ class ServerControls(object):
     def _parse_extra_settings(self, extra_settings):
         settings_dict = {}
         for setting in extra_settings:
+            if '=' not in setting:
+                raise SystemExit(
+                    'Invalid format for extra setting "%s". '\
+                    'Use "-e key=value" format.' % setting)
             (key, value) = setting.split('=', 1)
             settings_dict[key]=value
         return settings_dict

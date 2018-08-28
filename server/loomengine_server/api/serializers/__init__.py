@@ -1,10 +1,25 @@
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import models
 import rest_framework.serializers
 
 
 def strip_empty_values(data):
     return dict((k, v) for k, v in data.iteritems() if v not in [None, '', []])
+
+def match_and_update_by_uuid(unsaved_models, field, saved_models):
+    for unsaved_model in unsaved_models:
+        if not getattr(unsaved_model, field):
+            continue
+        uuid = getattr(unsaved_model, field).uuid
+        match = filter(lambda m: m.uuid==uuid, saved_models)
+        assert len(match) == 1
+        setattr(unsaved_model, field, match[0])
+    return unsaved_models
+
+def reload_models(ModelClass, models):
+    # bulk_create doesn't give PK's, so we have to reload the models.                    
+    # We can look them up by uuid, which is also unique                                  
+    uuids = [model.uuid for model in models]
+    models = ModelClass.objects.filter(uuid__in=uuids)
+    return models
 
 
 class RecursiveField(rest_framework.serializers.Serializer):
@@ -12,49 +27,6 @@ class RecursiveField(rest_framework.serializers.Serializer):
     def to_representation(self, value):
         serializer = self.parent.parent.__class__(value, context=self.context)
         return serializer.data
-
-
-class ProxyWriteSerializer(rest_framework.serializers.HyperlinkedModelSerializer):
-    """ProxyWriteSerializer acts as a pass-through for another serializer class
-    for all the methods used in deserialization. 
-    When is this useful? Consider that you have a recursive data type like 
-    'Template' and a corresponding TemplateSerializer that handles nested data. 
-    You may want a simplified serializer that renders just the URL of the child 
-    objects but not the full nested structure. So you create a 
-    URLTemplateSerializer that does not render the full nested structure. 
-    That works fine for serialization, but it would be nice to support recursive 
-    deserialization with the TemplateSerializer.
-    Letting URLTemplateSerializer inherit from TemplateSerializer doesn't work
-    because TemplateSerializer uses URLTemplateSerializer as a subfield, and this
-    creates a dependency loop. This ProxyWriteSerializer is our work-around. 
-    It lets URLTemplateSerializer send deserialization tasks to a TemplateSerializer
-    while avoiding the dependency loop.
-    """
-
-    def get_write_serializer(self):
-        raise Exception("Override get_write_serializer to "\
-                        "return the target serializer class")
-
-    def _get_serializer(self):
-        if not hasattr(self, '_cached_serializer'):
-            if self.instance is None:
-                self._cached_serializer = self.get_write_serializer()(
-                    data=self.initial_data, context=self.context)
-            else:
-                self._cached_serializer = self.get_write_serializer()(instance)
-        return self._cached_serializer
-    
-    def is_valid(self, *args, **kwargs):
-        return self._get_serializer().is_valid(*args, **kwargs)
-
-    def create(self, *args, **kwargs):
-        return self._get_serializer().create(*args, **kwargs)
-
-    def update(self, *args, **kwargs):
-        return self._get_serializer().update(*args, **kwargs)
-
-    def save(self, *args, **kwargs):
-        return self._get_serializer().save(*args, **kwargs)
 
 
 class CreateWithParentModelSerializer(

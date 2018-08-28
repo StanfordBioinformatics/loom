@@ -3,18 +3,5 @@
 # Requires pip
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-version=$(cat $DIR/../VERSION)
-
-if [ "$version" = "" ]; then
-    echo Error: Version not found in $DIR/../VERSION
-    exit 1;
-fi
-
-echo Found version \"$version\" in ../VERSION
-echo Installing packages
-
-for component in utils server worker client
-do
-    pip install -U -e $DIR/../$component/
-done
-
+LOOM_DEV_MODE=1
+. $DIR/install-loom-packages.sh

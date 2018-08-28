@@ -16,8 +16,6 @@ import time
 import yaml
 
 import loomengine_utils.connection
-from loomengine import exceptions
-from loomengine_utils.exceptions import ServerConnectionError
 
 LOOM_SETTINGS_SUBDIR = '.loom'
 LOOM_SETTINGS_HOME = os.path.expanduser(os.getenv('LOOM_SETTINGS_HOME', '~/'+LOOM_SETTINGS_SUBDIR))
@@ -72,7 +70,7 @@ def is_server_running(url=None):
 
     try:
         loomengine_utils.connection.disable_insecure_request_warning()
-        response = requests.get(url + '/api/status/', verify=False)
+        response = requests.get(url + '/api/status/', verify=False, timeout=30)
     except requests.exceptions.ConnectionError:
         return False
 
@@ -425,38 +423,6 @@ def delete_libcloud_cached_credential():
     if os.path.exists(credential):
         print 'Deleting %s...' % credential
         os.remove(credential)
-
-def parse_as_json_or_yaml(text):
-    def read_as_json(json_text):
-        try:
-            return json.loads(json_text)
-        except:
-            return None
-
-    # Try as YAML. If that fails due to bad format, try as JSON
-    try:
-        data = yaml.load(text)
-    except yaml.parser.ParserError:
-        data = read_as_json(text)
-        if data is None:
-            raise exceptions.InvalidFormatError('Text is not valid YAML or JSON format')
-    except yaml.scanner.ScannerError as e:
-        data = read_as_json(text)
-        if data is None:
-            raise exceptions.InvalidFormatError(e.message)
-    return data
-
-def read_as_json_or_yaml(file):
-    try:
-        with open(file) as f:
-            text = f.read()
-    except IOError:
-        raise exceptions.NoFileError('Could not find or could not read file %s' % file)
-
-    try:
-        return parse_as_json_or_yaml(text)
-    except exceptions.InvalidFormatError:
-        raise exceptions.InvalidFormatError('Input file "%s" is not valid YAML or JSON format' % file)
 
 def delete_token():
     token_path = os.path.join(LOOM_SETTINGS_HOME, LOOM_TOKEN_FILE)

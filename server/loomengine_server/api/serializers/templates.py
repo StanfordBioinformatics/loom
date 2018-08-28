@@ -1,11 +1,10 @@
 import copy
 import django.core.exceptions
-from django.db.models import Prefetch
 from jinja2.exceptions import UndefinedError
 from rest_framework import serializers
 
-from . import CreateWithParentModelSerializer, RecursiveField, \
-    ProxyWriteSerializer, strip_empty_values
+from . import RecursiveField, strip_empty_values, match_and_update_by_uuid, \
+    reload_models
 from .data_channels import DataChannelSerializer
 from api import async
 from api.models import DummyContext, render_from_template, render_string_or_list
@@ -35,8 +34,9 @@ def _convert_template_id_to_dict(data):
     # set that as _template_id
     if isinstance(data, (str, unicode)):
         return {'_template_id': data}
-    else:
-        return data
+    if data.get('steps'):
+        data['steps'] = [_convert_template_id_to_dict(step) for step in data['steps']]
+    return data
 
 
 class TemplateInputSerializer(DataChannelSerializer):
@@ -45,81 +45,37 @@ class TemplateInputSerializer(DataChannelSerializer):
         model = TemplateInput
         fields = ('type', 'channel', 'as_channel', 'data', 'hint', 'mode', 'group')
 
-    hint = serializers.CharField(required=False)
-    mode = serializers.CharField(required=False)
-    group = serializers.IntegerField(required=False)
-    data = serializers.JSONField(required=False) # Override to make non-required
-    as_channel = serializers.CharField(required=False)
-
-
-_template_serializer_fields = (
-    'uuid',
-    'url',
-    '_template_id',
-    'name',
-    'md5',
-    'datetime_created',
-    'command',
-    'import_comments',
-    'imported_from_url',
-    'is_leaf',
-    'interpreter',
-    'environment',
-    'resources',
-    'inputs',
-    'outputs',
-    'steps',)
-
-
-class URLTemplateSerializer(ProxyWriteSerializer):
-
-    class Meta:
-        model = Template
-        fields = _template_serializer_fields
-
-    # readable
-    uuid = serializers.UUIDField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='template-detail',
-        lookup_field='uuid')
-    name = serializers.CharField(required=False)
-    md5 = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(
-        format='iso-8601', required=False)
-    is_leaf = serializers.BooleanField(required=False)
-
-    # write-only
-    _template_id = serializers.CharField(write_only=True, required=False)
-    command = serializers.CharField(required=False, write_only=True)
-    import_comments = serializers.CharField(required=False, write_only=True)
-    imported_from_url = serializers.CharField(required=False, write_only=True)
-    interpreter = serializers.CharField(required=False, write_only=True)
-    environment = serializers.JSONField(required=False, write_only=True)
-    resources = serializers.JSONField(required=False, write_only=True)
-    inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
-    outputs  = serializers.JSONField(required=False, write_only=True)
-    steps = RecursiveField(many=True, required=False, write_only=True)
-
-    def to_internal_value(self, data):
-        """Because we allow template ID string values, where
-        serializers normally expect a dict
-        """
-        return super(URLTemplateSerializer, self).to_internal_value(
-            _convert_template_id_to_dict(data))
-
-    def get_write_serializer(self):
-        return TemplateSerializer
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
+    hint = serializers.CharField(required=False, allow_blank=True)
+    mode = serializers.CharField(required=False, allow_blank=True)
+    group = serializers.IntegerField(required=False, allow_null=True)
+    # Override data to make it non-required
+    data = serializers.JSONField(required=False, allow_null=True) 
+    as_channel = serializers.CharField(required=False, allow_null=True)
 
 
 class TemplateSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Template
-        fields = _template_serializer_fields
+        fields = (
+            'uuid',
+            'url',
+            '_template_id',
+            'name',
+            'md5',
+            'datetime_created',
+            'command',
+            'import_comments',
+            'imported_from_url',
+            'timeout_hours',
+            'is_leaf',
+            'interpreter',
+            'environment',
+            'resources',
+            'inputs',
+            'outputs',
+            'steps',
+        )
 
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -137,22 +93,20 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     resources = serializers.JSONField(required=False)
     inputs = TemplateInputSerializer(many=True, required=False)
     outputs  = serializers.JSONField(required=False)
-    steps = URLTemplateSerializer(many=True, required=False)
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset\
-            .prefetch_related('steps')\
-            .prefetch_related('inputs')\
-            .prefetch_related('inputs__data_node')
+    steps = RecursiveField(many=True, required=False)
 
     def to_representation(self, instance):
+        instance.prefetch()
         return strip_empty_values(
             super(TemplateSerializer, self).to_representation(instance))
 
     def to_internal_value(self, data):
-        return super(TemplateSerializer, self).to_internal_value(
-            _convert_template_id_to_dict(data))
+        """Because we allow template ID string values, where
+        serializers normally expect a dict
+        """
+        converted_data = _convert_template_id_to_dict(data)
+        return super(TemplateSerializer, self)\
+            .to_internal_value(converted_data)
 
     def validate(self, data):
         # No validation if data is a template_ID. Only validate on create
@@ -161,32 +115,50 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         if template_id:
             return data
 
-        data_keys = self.initial_data.keys()
+        if data.get('uuid'):
+            try:
+                t = Template.objects.get(uuid=data.get('uuid'))
+                self._root_template_uuid = t.uuid
+                self._preexisting_templates = [t,]
+                self._unsaved_templates = []
+                self._unsaved_inputs = []
+                self._unsaved_m2m_relationships = []
+                return data
+            except Template.DoesNotExist:
+                pass
+
+        # Did not find template by UUID. Create a new one.
+
+        self._validate_template_data_fields(self.initial_data)
+
+        # We have to use bulk_create for performance, so create all templates
+        # before saving.
+        # We need these to validate, and we'll cache them to reuse on create.
+        self._preexisting_templates = []
+        self._unsaved_templates = []
+        self._unsaved_inputs = []
+        self._unsaved_m2m_relationships = []        
+        template_data = copy.deepcopy(self.initial_data)
+        root_template = self._create_unsaved_models(
+            [template_data,], self._unsaved_templates,
+            self._unsaved_inputs, self._unsaved_m2m_relationships,
+            self._preexisting_templates)
+        self._root_template_uuid = root_template.uuid
+        for model in self._unsaved_templates:
+            try:
+                model.full_clean()
+            except django.core.exceptions.ValidationError as e:
+                raise serializers.ValidationError(e.message_dict)
+        self._validate_template_data(template_data, root=True)
+        return data
+
+    def _validate_template_data_fields(self, template_data):
+        data_keys = template_data.keys()
         serializer_keys = self.fields.keys()
         extra_fields = filter(lambda key: key not in serializer_keys, data_keys)
         if extra_fields:
             raise serializers.ValidationError(
                 'Unrecognized fields %s' % extra_fields)
-
-        # We have to use bulk_create for performance, so create all templates
-        # before saving.
-        # We need these to validate, and we'll cache them to reuse on create.
-        self._unsaved_templates = []
-        self._unsaved_inputs = []
-        self._unsaved_m2m_relationships = []
-        self._preexisting_templates = []
-        template_data = copy.deepcopy(self.initial_data)
-        self._create_unsaved_models(
-            [template_data,], self._unsaved_templates,
-            self._unsaved_inputs, self._unsaved_m2m_relationships,
-            self._preexisting_templates)
-        try:
-            for model in self._unsaved_templates:
-                model.full_clean()
-        except django.core.exceptions.ValidationError as e:
-            raise serializers.ValidationError(e.message_dict)
-        self._validate_template_data(template_data, root=True)
-        return data
 
     def _validate_template_data(self, data, root=False):
         self._validate_channels(data, root=root)
@@ -256,12 +228,23 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
                 (e, output_source)})
 
     def _validate_channels(self, data, root=False):
+        self._expand_steps(data)
         self._validate_channels_no_duplicates(data)
         self._validate_channels_no_duplicate_sources(data)
         self._validate_channels_check_duplicate_inputs(data)
         self._validate_channels_valid_source(data, root=root)
         self._validate_input_dimensions(data)
         self._validate_no_cycles(data)
+
+    def _expand_steps(self, data):
+        # In order to validate channels, we need to lookup and expand any steps
+        # that are referenced as _template_id. This lets us check if child
+        # input/output channel names line up with the parent.
+        for i in range(len(data.get('steps', []))):
+            template_id = data['steps'][i].get('_template_id')
+            if template_id:
+                step = self._lookup_by_id(template_id)
+                data['steps'][i] = TemplateSerializer(step, context=self.context).data
 
     def _validate_channels_no_duplicates(self, data):
         # Same channel name should never appear twice in a step
@@ -400,22 +383,19 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         template_id = validated_data.get('_template_id')
         if template_id:
             return self._lookup_by_id(template_id)
-
         try:
-            root_uuid = self._unsaved_templates[0].uuid
-
             bulk_templates = Template.objects.bulk_create(self._unsaved_templates)
             # self._new_templates includes pk's needed for cleanup on failure
-            self._new_templates = self._reload(Template, bulk_templates)
+            self._new_templates = reload_models(Template, bulk_templates)
             templates = [template for template in self._new_templates]
             templates.extend(self._preexisting_templates)
 
             # Refresh unsaved objects with their saved counterparts
-            self._match_and_update_by_uuid(
+            match_and_update_by_uuid(
                 self._unsaved_inputs, 'template', templates)
-            self._match_and_update_by_uuid(
+            match_and_update_by_uuid(
                 self._unsaved_m2m_relationships, 'parent_template', templates)
-            self._match_and_update_by_uuid(
+            match_and_update_by_uuid(
                 self._unsaved_m2m_relationships, 'child_template', templates)
 
             # We can clean now that relationships have been defined.
@@ -432,7 +412,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             TemplateInput.objects.bulk_create(self._unsaved_inputs)
             TemplateMembership.objects.bulk_create(self._unsaved_m2m_relationships)
                 
-            root_template = filter(lambda t: t.uuid==root_uuid, templates)
+            root_template = filter(
+                lambda t: t.uuid==self._root_template_uuid, templates)
             assert len(root_template) == 1, '1 template should match uuid of root'
             return root_template[0]
 
@@ -446,20 +427,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         if hasattr(self, '_new_templates'):
             self._new_templates.delete()
 
-    def _match_and_update_by_uuid(self, unsaved_models, field, saved_models):
-        for unsaved_model in unsaved_models:
-            uuid = getattr(unsaved_model, field).uuid
-            match = filter(lambda m: m.uuid==uuid, saved_models)
-            assert len(match) == 1
-            setattr(unsaved_model, field, match[0])
-    
-    def _reload(self, ModelClass, models):
-        # bulk_create doesn't give PK's, so we have to reload the models.
-        # We can look them up by uuid, which is also unique
-        uuids = [model.uuid for model in models]
-        models = ModelClass.objects.filter(uuid__in=uuids)
-        return models
-    
     def _lookup_by_id(self, template_id):
         matches = Template.filter_by_name_or_id_or_tag_or_hash(template_id)
         if matches.count() < 1:
@@ -477,114 +444,150 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     
     def _create_unsaved_models(
             self,
-            child_templates_data,
+            templates_data,
             template_models,
             input_models,
             m2m_relationship_models,
             preexisting_templates,
             parent_model=None):
-
-        for i in range(len(child_templates_data)):
-            template_data = child_templates_data[i]
-            if isinstance(template_data, (unicode, str)):
-                # This is a reference to an existing template.
-                template_id = template_data
-                # Use the serializer to retrive the instance
-                serializer = TemplateSerializer(
-                    data=template_id)
-                serializer.is_valid(raise_exception=True)
-                # No new template created here, just a lookup
-                template = serializer.save()
-                preexisting_templates.append(template)
-                # Link to parent if any
-                if parent_model:
-                    m2m_relationship_models.append(
-                        TemplateMembership(
-                            parent_template=parent_model,
-                            child_template=template)
-                    )
-                    # Do not call full_clean yet.
-                    # Relationships must be added first.
+        for i in range(len(templates_data)):
+            template_data = templates_data[i]
+            template = self._handle_if_existing_template(
+                template_data, preexisting_templates, m2m_relationship_models,
+                parent_model=parent_model)
+            if template:
                 # Replace the template reference with the full
                 # template structure
-                child_data = TemplateSerializer(
+                templates_data[i] = TemplateSerializer(
                     template, context=self.context).data
-                child_data['_template_id'] = template_id
-                child_templates_data[i] = child_data
                 continue
-
-            # Validate fields
-            data_keys = template_data.keys()
-            serializer_keys = self.fields.keys()
-            extra_fields = filter(lambda key: key not in serializer_keys, data_keys)
-            if extra_fields:
-                raise serializers.ValidationError(
-                    'Unrecognized fields %s' % extra_fields)
-
-            # To be processed by recursion
-            grandchildren = template_data.get('steps', [])
-
-            # Set defaults and inferred values
-            if template_data.get('is_leaf') is None:
-                template_data['is_leaf'] = not grandchildren
-            if template_data['is_leaf']:
-                _set_leaf_template_defaults(template_data)
-            if not template_data.get('imported'):
-                template_data['imported'] = bool(
-                    template_data.get('imported_from_url'))
-
-            inputs = template_data.get('inputs', [])
-
-            template_copy = copy.deepcopy(template_data)
-            template_copy.pop('steps', None)
-            template_copy.pop('inputs', None)
-            template = Template(**template_copy)
-            template_models.append(template)
-
-            for input_data in inputs:
-                if template.is_leaf:
-                    _set_leaf_input_defaults(input_data)
-                input_copy = copy.deepcopy(input_data)
-                input_copy['template'] = template
-                if input_copy.get('data'):
-                    s = DataNodeSerializer(
-                        data=input_copy.pop('data'),
-                        context={'type': input_copy.get('type')}
-                    )
-                    s.is_valid(raise_exception=True)
-                    input_copy['data_node'] = s.save()
-                input_models.append(TemplateInput(**input_copy))
-
-            if parent_model:
-                m2m_relationship_models.append(
-                    TemplateMembership(
-                        parent_template=parent_model,
-                        child_template=template))
-
-            if grandchildren:
+            template = self._create_unsaved_template(
+                template_data, template_models, input_models,
+                m2m_relationship_models, parent_model=parent_model)
+            children = template_data.get('steps', [])
+            has_children = bool(children)
+            if has_children:
+                # recurse
                 self._create_unsaved_models(
-                    grandchildren,
+                    children,
                     template_models,
                     input_models,
                     m2m_relationship_models,
                     preexisting_templates,
                     parent_model=template)
+        return template
+
+    def _handle_if_existing_template(self, template_data, preexisting_templates,
+                                     m2m_relationship_models, parent_model=None):
+                                     
+        existing_template = None
+        # If a model already exists with this UUID, use the saved model
+        if template_data.get('_template_id'):
+            #if isinstance(template_data, (unicode, str)):
+            # template_id is a string reference to an existing template.
+            #template_id = template_data
+            template_id = template_data.get('_template_id')
+            # Use the serializer to retrive the instance
+            serializer = TemplateSerializer(
+                data=template_id)
+            serializer.is_valid(raise_exception=True)
+            # No new template created here, just a lookup
+            existing_template = serializer.save()
+        elif template_data.get('uuid'):
+            try:
+                existing_template = Template.objects.get(uuid=template_data.get('uuid'))
+            except Template.DoesNotExist:
+                pass
+        if existing_template:
+            self._add_unsaved_model_from_reference(
+                existing_template, parent_model, preexisting_templates,
+                m2m_relationship_models)
+                
+            return existing_template
+        else:
+            return None
+
+    def _create_unsaved_template(self, template_data, template_models, input_models,
+                                 m2m_relationship_models, parent_model=None):
+        # template_data is a dict and does not match any existing template
+        self._validate_template_data_fields(template_data)
+
+        # Children will be processed by recursion
+        has_children = bool(template_data.get('steps', []))
+
+        self._set_template_data_defaults(template_data, has_children)
+
+        inputs = template_data.get('inputs', [])
+
+        template_copy = copy.deepcopy(template_data)
+        template_copy.pop('steps', None)
+        template_copy.pop('inputs', None)
+        template_copy.pop('url', None)
+        template = Template(**template_copy)
+        template_models.append(template)
+
+        for input_data in inputs:
+            # create unsaved inputs
+            if template.is_leaf:
+                _set_leaf_input_defaults(input_data)
+            input_copy = copy.deepcopy(input_data)
+            input_copy['template'] = template
+            data = input_copy.pop('data', None)
+            if data:
+                s = DataNodeSerializer(
+                    data=data,
+                    context={'type': input_copy.get('type')}
+                )
+                s.is_valid(raise_exception=True)
+                input_copy['data_node'] = s.save()
+            input_models.append(TemplateInput(**input_copy))
+        if parent_model:
+            # create unsaved link to parent
+            m2m_relationship_models.append(
+                TemplateMembership(
+                    parent_template=parent_model,
+                    child_template=template))
+        return template
+
+    def _add_unsaved_model_from_reference(
+            self, template, parent_model, preexisting_templates,
+            m2m_relationship_models):
+        preexisting_templates.append(template)
+        # Link to parent if any
+        if parent_model:
+            m2m_relationship_models.append(
+                TemplateMembership(
+                    parent_template=parent_model,
+                    child_template=template)
+            )
+            # Do not call full_clean yet.
+            # Relationships must be added first.
+        return template
+
+    def _set_template_data_defaults(self, template_data, has_children):
+        if template_data.get('is_leaf') is None:
+            template_data['is_leaf'] = not has_children
+        if template_data['is_leaf']:
+            _set_leaf_template_defaults(template_data)
+        if not template_data.get('imported'):
+            template_data['imported'] = bool(
+                template_data.get('imported_from_url'))
 
 
-class SummaryTemplateSerializer(TemplateSerializer):
+class URLTemplateSerializer(TemplateSerializer):
 
-    #readable fields
+    # readable
     uuid = serializers.UUIDField(required=False)
     url = serializers.HyperlinkedIdentityField(
-            view_name='template-detail',
-            lookup_field='uuid')
+        view_name='template-detail',
+        lookup_field='uuid')
     name = serializers.CharField(required=False)
     md5 = serializers.CharField(required=False)
-    datetime_created = serializers.DateTimeField(format='iso-8601')
+    datetime_created = serializers.DateTimeField(
+        format='iso-8601', required=False)
     is_leaf = serializers.BooleanField(required=False)
-    steps = RecursiveField(many=True, required=False)
 
-    # write-only fields
+    # write-only
     _template_id = serializers.CharField(write_only=True, required=False)
     command = serializers.CharField(required=False, write_only=True)
     import_comments = serializers.CharField(required=False, write_only=True)
@@ -594,26 +597,13 @@ class SummaryTemplateSerializer(TemplateSerializer):
     resources = serializers.JSONField(required=False, write_only=True)
     inputs = TemplateInputSerializer(many=True, required=False, write_only=True)
     outputs  = serializers.JSONField(required=False, write_only=True)
+    steps = RecursiveField(many=True, required=False, write_only=True)
+    timeout_hours = serializers.FloatField(required=False, write_only=True)
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset\
-            .prefetch_related('steps')\
-            .prefetch_related('steps__steps')\
-            .prefetch_related('steps__steps__steps')\
-            .prefetch_related('steps__steps__steps__steps')\
-            .prefetch_related('steps__steps__steps__steps__steps')\
-            .prefetch_related('steps__steps__steps__steps__steps__'\
-                              'steps')\
-            .prefetch_related('steps__steps__steps__steps__steps__'\
-                              'steps__steps')\
-            .prefetch_related('steps__steps__steps__steps__steps__'\
-                              'steps__steps__steps')\
-            .prefetch_related('steps__steps__steps__steps__steps__'\
-                              'steps__steps__steps__steps')\
-            .prefetch_related('steps__steps__steps__steps__steps__'\
-                              'steps__steps__steps__steps__steps')
-            # Warning! This will break down with more than 11 levels
+    def to_representation(self, instance):
+        return strip_empty_values(
+            super(TemplateSerializer, self).to_representation(instance))
+
 
 class CycleDetector(object):
 
@@ -624,7 +614,9 @@ class CycleDetector(object):
         self.edges = {}
         self.backtrack = {}
         for step in steps:
-            assert step['name'] not in self.white
+            if step['name'] in self.white:
+                raise serializers.ValidationError(
+                    'Duplicate step was found: "%s"' % step['name'])
             self.white.append(step['name'])
             self.edges.setdefault(step['name'], [])
         for step in steps:
@@ -659,6 +651,3 @@ class CycleDetector(object):
                 'Cycle detected in steps "%s"' % '", "'.join(cycle_steps))
         elif vertex in self.black:
             return
-
-        
-        

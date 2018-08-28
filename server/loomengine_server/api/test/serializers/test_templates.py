@@ -92,7 +92,7 @@ class TestTemplateSerializer(TestCase):
         step_id = '%s@%s' % (step_obj.name, step_obj.uuid)
         workflow['steps'].append(step_id)
         s = TemplateSerializer(data=workflow, context=get_mock_context())
-        s.is_valid()
+        s.is_valid(raise_exception=True)
         workflow_obj = s.save()
 
         self.assertEqual(workflow_obj.steps.count(), len(workflow['steps']))

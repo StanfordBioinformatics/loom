@@ -2,14 +2,14 @@ from django.core import mail
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, \
     ValidationError
 from django.db import models
-from django.dispatch import receiver
 from django.template.loader import render_to_string
 from django.utils import timezone
+import logging
 import jsonfield
 import requests
 
-from .async_safe_mptt import AsyncSafeMPTTModel, TreeForeignKey
 from .base import BaseModel
+from . import flatten_nodes, copy_prefetch
 from api import get_setting
 from api import async
 from api.exceptions import *
@@ -17,8 +17,10 @@ from api.models import uuidstr
 from api.models import validators
 from api.models.data_objects import DataObject
 from api.models.data_channels import DataChannel
+from api.models.data_nodes import DataNode
 from api.models.input_calculator import InputCalculator
 from api.models.tasks import Task, TaskInput, TaskOutput, TaskAlreadyExistsException
+from api.models.task_attempts import TaskAttempt
 from api.models.templates import Template
 from api.exceptions import ConcurrentModificationError
 
@@ -33,12 +35,14 @@ Depending on the inputs, a Run can produce a single Task or many parallel
 Tasks.
 """
 
+logger = logging.getLogger(__name__)
+
 
 class RunAlreadyClaimedForPostprocessingException(Exception):
     pass
 
 
-class Run(AsyncSafeMPTTModel, BaseModel):
+class Run(BaseModel):
     """AbstractWorkflowRun represents the process of executing a Workflow on
     a particular set of inputs. The workflow may be either a Step or a
     Workflow composed of one or more Steps.
@@ -55,6 +59,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
     datetime_finished = models.DateTimeField(null=True, blank=True)
+    timeout_hours = models.FloatField(null=True, blank=True)
     environment = jsonfield.JSONField(
         blank=True,
         validators=[validators.validate_environment])
@@ -66,9 +71,9 @@ class Run(AsyncSafeMPTTModel, BaseModel):
     notification_context = jsonfield.JSONField(
         null=True, blank=True, default=None,
         validators=[validators.validate_notification_context])
-    parent = TreeForeignKey('self', null=True, blank=True,
+    parent = models.ForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
-                            on_delete=models.CASCADE)
+                            on_delete=models.SET_NULL)
     template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT,
@@ -92,6 +97,9 @@ class Run(AsyncSafeMPTTModel, BaseModel):
     # For leaf nodes only
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
+
+    force_rerun = models.BooleanField(default=False)
+    imported = models.BooleanField(default=False)
 
     @property
     def status(self):
@@ -119,11 +127,19 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         assert len(outputs) == 1, 'missing output for channel %s' % channel
         return outputs[0]
 
+    def get_user_input(self, channel):
+        user_inputs = [i for i in self.user_inputs.filter(channel=channel)]
+        assert len(user_inputs) < 2, 'too many user_inputs for channel %s' % channel
+        if len(user_inputs) == 0:
+            return None
+        return inputs[0]
+        
     def finish(self):
         if self.has_terminal_status():
             return
         self.setattrs_and_save_with_retries(
-            {'status_is_running': False,
+            {'datetime_finished': timezone.now(),
+             'status_is_running': False,
              'status_is_waiting': False,
              'status_is_finished': True})
         if self.parent:
@@ -131,7 +147,7 @@ class Run(AsyncSafeMPTTModel, BaseModel):
                 self.parent.finish()
         else:
             # Send notifications only if topmost run
-            async.send_run_notifications(self.uuid)
+            async.execute(async.send_notifications, self.uuid)
 
     def _are_children_finished(self):
         return all([step.status_is_finished for step in self.steps.all()])
@@ -139,112 +155,6 @@ class Run(AsyncSafeMPTTModel, BaseModel):
     def are_tasks_finished(self):
         task_tree = TaskNode.create_from_task_list(self.tasks.all())
         return task_tree.is_complete()
-
-    @classmethod
-    def create_from_template(cls, template, name=None,
-                             notification_addresses=[],
-                             notification_context={},
-                             parent=None):
-        if name is None:
-            name = template.name
-        if template.is_leaf:
-            run = Run(
-                template=template,
-                is_leaf=template.is_leaf,
-                name=name,
-                command=template.command,
-                interpreter=template.interpreter,
-                environment=template.environment,
-                resources=template.resources,
-                notification_addresses=notification_addresses,
-                notification_context=notification_context,
-                parent=parent)
-            run.full_clean()
-            run.save()
-        else:
-            run = Run(
-                template=template,
-                is_leaf=template.is_leaf,
-                name=name,
-                environment=template.environment,
-                resources=template.resources,
-                notification_addresses=notification_addresses,
-                notification_context=notification_context,
-                parent=parent)
-            run.full_clean()
-            run.save()
-        return run
-
-    def _connect_input_to_parent(self, input):
-        if self.parent:
-            try:
-                parent_connector = self.parent.connectors.get(
-                    channel=input.channel)
-                parent_connector.connect(input)
-            except ObjectDoesNotExist:
-                self.parent._create_connector(input, is_source=False)
-
-    def _connect_input_to_user_input(self, input):
-        try:
-            user_input = self.user_inputs.get(channel=input.channel)
-        except ObjectDoesNotExist:
-            return
-        user_input.connect(input)
-
-    def connect_inputs_to_template_data(self):
-        for input in self.inputs.all():
-            self._connect_input_to_template_data(input)
-
-    def _connect_input_to_template_data(self, input):
-        # Do not connect if parent connector.has_source
-        if self._has_parent_connector_with_source(input.channel):
-            return
-        
-        # Do not connect if UserInput exists
-        if self._has_user_input(input.channel):                
-            return
-
-        template_input = self.template.inputs.get(channel=input.channel)
-
-        if template_input.data_node is None:
-            raise ValidationError(
-                "No input data available on channel %s" % input.channel)
-        if input.data_node is None:
-            data_node = template_input.data_node.clone()
-            input.setattrs_and_save_with_retries({'data_node': data_node})
-        else:
-            template_input.data_node.clone(seed=input.data_node)
-            
-
-    def _has_user_input(self, channel):
-        try:
-            self.user_inputs.get(channel=channel)
-            return True
-        except ObjectDoesNotExist:
-            return False
-
-    def _has_parent_connector_with_source(self, channel):
-        if self.parent is None:
-            return False
-        try:
-            connector = self.parent.connectors.get(channel=channel)
-        except ObjectDoesNotExist:
-            return False
-        return connector.has_source
-
-    def _connect_output_to_parent(self, output):
-        if not self.parent:
-            return
-        try:
-            parent_connector = self.parent.connectors.get(
-                channel=output.channel)
-            if parent_connector.has_source:
-                raise ValidationError(
-                    'Channel "%s" has more than one source' % output.channel)
-            parent_connector.setattrs_and_save_with_retries({'has_source': True})
-            parent_connector.connect(output)
-        except ObjectDoesNotExist:
-            self.parent._create_connector(output, is_source=True)
 
     def has_terminal_status(self):
         return self.status_is_finished \
@@ -263,10 +173,10 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             self.parent.fail(detail='Failure in step %s@%s' % (
                 self.name, self.uuid))
         else:
-            # Send kill signal to children
+            # Send kill signal to children if topmost run
             self._kill_children(detail='Automatically killed due to failure')
-            # Send notifications only if topmost run
-            async.send_run_notifications(self.uuid)
+            # Send notifications if topmost run
+            async.execute(async.send_notifications, self.uuid)
 
     def kill(self, detail=''):
         if self.has_terminal_status():
@@ -277,6 +187,8 @@ class Run(AsyncSafeMPTTModel, BaseModel):
              'status_is_running': False,
              'status_is_waiting': False})
         self._kill_children(detail=detail)
+        if self.parent:
+            self.parent.kill(detail=detail)
 
     def _kill_children(self, detail=''):
         for step in self.steps.all():
@@ -284,27 +196,216 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         for task in self.tasks.all():
             task.kill(detail=detail)
 
-    def send_notifications(self):
-        context = self.notification_context
-        if not context:
-            context = {}
-        server_url = context.get('server_url')
-        context.update({
-            'run_url': '%s/#/runs/%s/' % (server_url, self.uuid),
-            'run_api_url': '%s/api/runs/%s/' % (server_url, self.uuid),
-            'run_status': self.status,
-            'run_name_and_id': '%s@%s' % (self.name, self.uuid[0:8])
-        })
-        notification_addresses = []
-        if self.notification_addresses:
-            notification_addresses = self.notification_addresses
-        if get_setting('NOTIFICATION_ADDRESSES'):
-            notification_addresses = notification_addresses\
-                                     + get_setting('NOTIFICATION_ADDRESSES')
-        email_addresses = filter(lambda x: '@' in x, notification_addresses)
-        urls = filter(lambda x: '@' not in x, notification_addresses)
-        self._send_email_notifications(email_addresses, context)
-        self._send_http_notifications(urls, context)
+    def set_running_status(self):
+        if self.status_is_running and not self.status_is_waiting:
+            return
+        self.setattrs_and_save_with_retries({
+            'status_is_running': True,
+            'status_is_waiting': False})
+        if self.parent:
+            self.parent.set_running_status()
+
+    def add_event(self, event, detail='', is_error=False):
+        event = RunEvent(
+            event=event, run=self, detail=detail[-1000:], is_error=is_error)
+        event.full_clean()
+        event.save()
+
+    def push_all_inputs(self):
+        if get_setting('TEST_NO_PUSH_INPUTS'):
+            return
+        unsaved_tasks = {}
+        unsaved_task_inputs = []
+        unsaved_task_outputs = []
+        unsaved_data_nodes = {}
+        for leaf in self.get_leaves():
+            if leaf.inputs.exists():
+                for input_set in InputCalculator(leaf)\
+                    .get_input_sets():
+                    task, task_inputs, task_outputs, data_nodes \
+                        = Task.create_unsaved_task_from_input_set(input_set, leaf)
+                    unsaved_tasks[task.uuid] = task
+                    unsaved_task_inputs.extend(task_inputs)
+                    unsaved_task_outputs.extend(task_outputs)
+                    unsaved_data_nodes.update(data_nodes)
+            else:
+                # Special case: No inputs on leaf node
+                task, task_inputs, task_outputs, data_nodes \
+                    = Task.create_unsaved_task_from_input_set([], leaf)
+                unsaved_tasks[task.uuid] = task
+                unsaved_task_inputs.extend(task_inputs)
+                unsaved_task_outputs.extend(task_outputs)
+                unsaved_data_nodes.update(data_nodes)
+        Task.bulk_create_tasks(unsaved_tasks, unsaved_task_inputs,
+                               unsaved_task_outputs, unsaved_data_nodes)
+
+    def push_all_outputs(self):
+        for run in self._get_downstream_runs():
+            run.push_all_inputs()
+
+    def _get_downstream_runs(self):
+        runs = set()
+        for output in self.outputs.all():
+            for run_input in output.data_node.downstream_run_inputs.all():
+                runs.add(run_input.run)
+        return runs
+
+    @classmethod
+    def get_dependencies(cls, uuid, request):
+        from api.serializers import URLRunSerializer
+
+        context = {'request': request}
+        run = cls.objects.filter(uuid=uuid)\
+                         .prefetch_related('parent')
+        if run.count() < 1:
+            raise cls.DoesNotExist
+        if run.first().parent:
+            runs = [URLRunSerializer(run.first().parent, context=context).data]
+        else:
+            runs = []
+        return {'runs': runs}
+
+    def delete(self):
+        from api.models.data_nodes import DataNode
+        nodes_to_delete = set()
+        for queryset in [
+                DataNode.objects.filter(runinput__run__uuid=self.uuid),
+                DataNode.objects.filter(runoutput__run__uuid=self.uuid),
+                DataNode.objects.filter(userinput__run__uuid=self.uuid),
+                DataNode.objects.filter(taskinput__task__run__uuid=self.uuid),
+                DataNode.objects.filter(taskoutput__task__run__uuid=self.uuid),
+                DataNode.objects.filter(
+                    taskattemptinput__task_attempt__tasks__run__uuid=self.uuid),
+                DataNode.objects.filter(
+                    taskattemptoutput__task_attempt__tasks__run__uuid=self.uuid)
+        ]:
+            for item in queryset.all():
+                nodes_to_delete.add(item)
+
+        # TaskAttempt will not be deleted if shared with another run
+        task_attempts_to_cleanup = [item for item in TaskAttempt.objects.filter(
+            tasks__run__uuid=self.uuid)]
+
+        # The "imported" flag handles the scenario where:
+        # Run A contains run B. A user exports run B and imports it into
+        # another loom server. Later another user imports A but then deletes it.
+        # B should be preserved. This is done by deleting only children where
+        # imported==False
+        runs_to_delete = set()
+        queryset = Run.objects.filter(parent__uuid=self.uuid, imported=False)
+        for item in queryset.all():
+            runs_to_delete.add(item)
+        super(Run, self).delete()
+        for item in nodes_to_delete:
+            try:
+                item.delete()
+            except models.ProtectedError:
+                pass
+        for run in runs_to_delete:
+            run.delete()
+        for task_attempt in task_attempts_to_cleanup:
+            task_attempt.cleanup()
+
+    def get_leaves(self, leaf_list=None):
+        if leaf_list is None:
+            leaf_list = []
+        if self.is_leaf:
+            leaf_list.append(self)
+        else:
+            for step in self.steps.all():
+                step.get_leaves(leaf_list=leaf_list)
+        return leaf_list
+
+    def prefetch(self):
+        if not hasattr(self, '_prefetched_objects_cache'):
+            self.prefetch_list([self,])
+
+    @classmethod
+    def prefetch_list(cls, instances):
+        queryset = Run\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])
+        MAXIMUM_TREE_DEPTH = get_setting('MAXIMUM_TREE_DEPTH')
+        # Prefetch 'children', 'children__children', etc. up to max depth               
+        # This incurs 1 query per level up to actual depth.                             
+        # No extra queries incurred if we go too deep.)                                 
+        for i in range(1, MAXIMUM_TREE_DEPTH+1):
+            queryset = queryset.prefetch_related('__'.join(['steps']*i))
+        # Transfer prefetched steps to original instances
+        queried_runs_1 = [run for run in queryset]
+        copy_prefetch(queried_runs_1, instances)
+        # Flatten tree so we can simultaneously prefetch related models on all nodes
+        node_list = []
+        for instance in instances:
+            node_list.extend(flatten_nodes(instance, 'steps'))
+        queryset = Run.objects.filter(uuid__in=[n.uuid for n in node_list])\
+            .select_related('template')\
+            .prefetch_related('inputs')\
+            .prefetch_related('inputs__data_node')\
+            .prefetch_related('outputs')\
+            .prefetch_related('outputs__data_node')\
+            .prefetch_related('user_inputs')\
+            .prefetch_related('user_inputs__data_node')\
+            .prefetch_related('events')\
+            .prefetch_related('tasks')\
+            .prefetch_related('tasks__inputs')\
+            .prefetch_related('tasks__inputs__data_node')\
+            .prefetch_related('tasks__outputs')\
+            .prefetch_related('tasks__outputs__data_node')\
+            .prefetch_related('tasks__events')\
+            .prefetch_related('tasks__all_task_attempts')\
+            .prefetch_related('tasks__all_task_attempts__inputs')\
+            .prefetch_related('tasks__all_task_attempts__inputs__data_node')\
+            .prefetch_related('tasks__all_task_attempts__outputs')\
+            .prefetch_related('tasks__all_task_attempts__outputs__data_node')\
+            .prefetch_related('tasks__all_task_attempts__events')\
+            .prefetch_related('tasks__all_task_attempts__log_files')\
+            .prefetch_related('tasks__all_task_attempts__log_files__data_object')\
+            .prefetch_related(
+                'tasks__all_task_attempts__log_files__data_object__file_resource')\
+            .prefetch_related('tasks__task_attempt')\
+            .prefetch_related('tasks__task_attempt__inputs')\
+            .prefetch_related('tasks__task_attempt__inputs__data_node')\
+            .prefetch_related('tasks__task_attempt__outputs')\
+            .prefetch_related('tasks__task_attempt__outputs__data_node')\
+            .prefetch_related('tasks__task_attempt__events')\
+            .prefetch_related('tasks__task_attempt__log_files')\
+            .prefetch_related('tasks__task_attempt__log_files__data_object')\
+            .prefetch_related(
+                'tasks__task_attempt__log_files__data_object__file_resource')
+        # Transfer prefetched data to child nodes on original instances
+        queried_runs_2 = [run for run in queryset]
+        copy_prefetch(queried_runs_2, node_list,
+                      child_field='steps', one_to_x_fields=['template',])
+        # Prefetch all data nodes
+	data_nodes = []
+	for instance in instances:
+            instance._get_data_nodes(data_nodes)
+	DataNode.prefetch_list(data_nodes)
+
+    def _get_data_nodes(self, data_nodes=None):
+        if data_nodes is None:
+            data_nodes = []
+        for input in self.inputs.all():
+            if input.data_node:
+                data_nodes.append(input.data_node)
+        for output in self.outputs.all():
+            if output.data_node:
+                data_nodes.append(output.data_node)
+        for user_input in self.user_inputs.all():
+            if user_input.data_node:
+                data_nodes.append(user_input.data_node)
+        for task in self.tasks.all():
+            task._get_data_nodes(data_nodes)
+        for run in self.steps.all():
+            run._get_data_nodes(data_nodes)
+        return data_nodes
+
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.prefetch_related('tags')
 
     def _send_email_notifications(self, email_addresses, context):
         if not email_addresses:
@@ -317,7 +418,8 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             connection = mail.get_connection()
             connection.open()
             email = mail.EmailMultiAlternatives(
-                'Loom run %s@%s is %s' % (self.name, self.uuid[0:8], self.status.lower()),
+                'Loom run %s@%s is %s' % (
+                    self.name, self.uuid[0:8], self.status.lower()),
                 text_content,
                 get_setting('DEFAULT_FROM_EMAIL'),
                 email_addresses,
@@ -326,9 +428,11 @@ class Run(AsyncSafeMPTTModel, BaseModel):
             email.send()
             connection.close()
         except Exception as e:
-            self.add_event("Email notifications failed", detail=str(e), is_error=True)
+            self.add_event(
+                "Email notifications failed", detail=str(e), is_error=True)
             raise
-        self.add_event("Email notifications sent", detail=email_addresses, is_error=False)
+        self.add_event("Email notifications sent",
+                       detail=email_addresses, is_error=False)
 
     def _send_http_notifications(self, urls, context):
         if not urls:
@@ -363,218 +467,6 @@ class Run(AsyncSafeMPTTModel, BaseModel):
         if not any_failures:
             self.add_event("Http notification succeeded", detail=', '.join(urls),
                            is_error=False)
-
-    @classmethod
-    def get_notification_context(cls, request):
-        context = {
-            'server_name': get_setting('SERVER_NAME')}
-        if request:
-            context.update({
-                'server_url': '%s://%s' % (
-                    request.scheme,
-                    request.get_host()),
-            })
-        return context
-
-    def set_running_status(self):
-        if self.status_is_running and not self.status_is_waiting:
-            return
-        self.setattrs_and_save_with_retries({
-            'status_is_running': True,
-            'status_is_waiting': False})
-        if self.parent:
-            self.parent.set_running_status()
-
-    def add_event(self, event, detail='', is_error=False):
-        event = RunEvent(
-            event=event, run=self, detail=detail[-1000:], is_error=is_error)
-        event.full_clean()
-        event.save()
-
-    def _claim_for_postprocessing(self):
-        # There are two paths to get Run.postprocess():
-        # 1. user calls "run" on a template that is already ready, and
-        #    run is postprocessed right away.
-        # 2. user calls "run" on a template that is not ready, and run
-        #    is postprocessed only after template is ready.
-        # There is a chance of both paths being executed, so we have to
-        # protect against that
-
-        self.postprocessing_status = 'in_progress'
-        try:
-            self.save()
-        except ConcurrentModificationError:
-            # The "save" method is overridden in our base model to have concurrency
-            # protection. This error implies that the run was modified since
-            # it was loaded.
-            # Let's make sure it's being postprocessed by another
-            # process, and we will defer to that process.
-            run = Run.objects.get(uuid=run_uuid)
-            if run.postprocessing_status != 'not_started':
-                # Good, looks like another worker is postprocessing this run,
-                # so we're done here
-                raise RunAlreadyClaimedForPostprocessingException
-            else:
-                # Don't know why this run was modified. Raise an error
-                raise Exception('Postprocessing failed due to unexpected '\
-                                'concurrent modification')
-
-    @classmethod
-    def postprocess(cls, run_uuid):
-        run = Run.objects.get(uuid=run_uuid)
-        if run.postprocessing_status == 'complete':
-            # Nothing more to do
-            return
-
-        try:
-            run._claim_for_postprocessing()
-        except RunAlreadyClaimedForPostprocessingException:
-            return
-
-        try:
-            run._push_all_inputs()
-            for step in run.steps.all():
-                step.initialize()
-            run.setattrs_and_save_with_retries({
-                'postprocessing_status': 'complete'})
-
-        except Exception as e:
-            run.setattrs_and_save_with_retries({'postprocessing_status': 'failed'})
-            run.fail(detail='Postprocessing failed with error "%s"' % str(e))
-            raise
-
-    def initialize(self):
-        self.connect_inputs_to_template_data()
-        self.create_steps()
-        async.postprocess_run(self.uuid)
-
-    def initialize_inputs(self):
-        seen = set()
-        for input in self.template.inputs.all():
-            assert input.channel not in seen, \
-                'Encountered multiple inputs for channel "%s"' \
-                % input.channel
-            seen.add(input.channel)
-
-            run_input = RunInput(
-                run=self,
-                channel=input.channel,
-                as_channel=input.as_channel,
-                type=input.type,
-                group=input.group,
-                mode=input.mode)
-            run_input.full_clean()
-            run_input.save()
-
-            # Create a connector on the current Run so that
-            # children can connect on this channel
-            self._connect_input_to_user_input(run_input)
-            self._connect_input_to_parent(run_input)
-            self._create_connector(run_input, is_source=True)
-
-            # Do not connect to template data (fixed inputs)
-            # yet, because siblings are still initializing
-            # so we don't know if defalt data will be overridden.
-
-    def initialize_outputs(self):
-        if not self.template.outputs:
-            return
-        for output in self.template.outputs:
-            kwargs = {'run': self,
-                      'type': output.get('type'),
-                      'channel': output.get('channel'),
-                      'as_channel': output.get('as_channel'),
-                      'source': output.get('source'),
-                      'parser': output.get('parser')
-            }
-            if output.get('mode'):
-                kwargs.update({'mode': output.get('mode')})
-            run_output = RunOutput(**kwargs)
-            run_output.full_clean()
-            run_output.save()
-
-            # This takes effect only if the WorkflowRun has a parent
-            self._connect_output_to_parent(run_output)
-
-            # Create a connector on the current Run so that
-            # children can connect on this channel
-            if not self.is_leaf:
-                self._create_connector(run_output, is_source=False)
-
-            # If this is a leaf node but has no parents, initialize the
-            # DataNode so it will be available for connection by the TaskOutput
-            if not run_output.data_node:
-                run_output.initialize_data_node()
-
-    def create_steps(self):
-        """This is executed by the parent to ensure that all siblings are initialized
-        before any are postprocessed.
-        """
-        if self.is_leaf:
-            return
-        for step in self.template.steps.all():
-            child_run = self.create_from_template(step, parent=self)
-            child_run.initialize_inputs()
-            child_run.initialize_outputs()
-
-    def _create_connector(self, io_node, is_source):
-        if self.is_leaf:
-            return
-        try:
-            connector = RunConnectorNode(
-                run=self,
-                channel=io_node.channel,
-                type=io_node.type,
-                has_source=is_source
-            )
-            connector.full_clean()
-            connector.save()
-        except ValidationError:
-            # Connector already exists. Just use it.
-            connector = self.connectors.get(channel=io_node.channel)
-
-            # But first make sure it doesn't have multiple data sources
-            if is_source:
-                if connector.has_source:
-                    raise ValidationError(
-                        'Channel "%s" has more than one source'
-                        % io_node.channel_name)
-                else:
-                    connector.setattrs_and_save_with_retries({
-                        'has_source': True
-                    })
-        connector.connect(io_node)
-
-    def _push_all_inputs(self):
-        if get_setting('TEST_NO_PUSH_INPUTS_ON_RUN_CREATION'):
-            return
-        if self.inputs.exists():
-            for input in self.inputs.all():
-                self.push(input.channel, [])
-        elif self.is_leaf:
-            # Special case: No inputs on leaf node
-            self._push_input_set([])
-
-    def push(self, channel, data_path):
-        """Called when new data is available at the given data_path 
-        on the given channel. This will trigger creation of new tasks if 1)
-        other input data for those tasks is available, and 2) the task with
-        that data_path was not already created previously.
-        """
-        if get_setting('TEST_NO_CREATE_TASK'):
-            return
-        if not self.is_leaf:
-            return
-        for input_set in InputCalculator(self.inputs.all(), channel, data_path)\
-            .get_input_sets():
-            self._push_input_set(input_set)
-
-    def _push_input_set(self, input_set):
-        try:
-            task = Task.create_from_input_set(input_set, self)
-            async.run_task(task.uuid)
-        except TaskAlreadyExistsException:
-            pass
 
 
 class RunEvent(BaseModel):
@@ -639,23 +531,6 @@ class RunOutput(DataChannel):
         blank=True)
     as_channel = models.CharField(max_length=255, null=True, blank=True)
 
-
-class RunConnectorNode(DataChannel):
-    # A connector resides in a workflow. All inputs/outputs on the workflow
-    # connect internally to connectors, and all inputs/outputs on the
-    # nested steps connect externally to connectors on their parent workflow.
-    # The primary purpose of this object is to eliminate directly connecting
-    # input/output nodes of siblings since their creation order is uncertain.
-    # Instead, connections between siblings always pass through a connector
-    # in the parent workflow.
-
-    has_source = models.BooleanField(default=False)
-    run = models.ForeignKey('Run',
-                            related_name='connectors',
-                            on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = (("run", "channel"),)
 
 class TaskNode(object):
     """This converts tasks into a tree for the sole purpose of checking

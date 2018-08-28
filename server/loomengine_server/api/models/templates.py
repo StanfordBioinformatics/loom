@@ -3,8 +3,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import jsonfield
 
+from . import flatten_nodes, copy_prefetch
 from .base import BaseModel
 from .data_channels import DataChannel
+from .data_nodes import DataNode
+from api import get_setting
 from api.models import uuidstr
 from api.models import validators
 
@@ -20,6 +23,9 @@ Templates may be nested to arbitrary depth. Only the leaf nodes
 represent actual analysis Runs. Both leaf and branch nodes are
 represented by the Template class.
 """
+
+class ProtectedByParentError(Exception):
+    pass
 
 
 class Template(BaseModel):
@@ -38,6 +44,7 @@ class Template(BaseModel):
     is_leaf = models.BooleanField()
     datetime_created = models.DateTimeField(default=timezone.now,
                                             editable=False)
+    timeout_hours = models.FloatField(null=True, blank=True)
     command = models.TextField(blank=True)
     interpreter = models.CharField(max_length=1024, blank=True)
     environment = jsonfield.JSONField(
@@ -55,7 +62,7 @@ class Template(BaseModel):
         'Template',
         through='TemplateMembership',
         through_fields=('parent_template', 'child_template'),
-        related_name='templates')
+        related_name='parents')
     outputs = jsonfield.JSONField(
         validators=[validators.TemplateValidator.validate_outputs],
         blank=True
@@ -88,6 +95,126 @@ class Template(BaseModel):
             self.add_step(step)
 
 
+    @classmethod
+    def get_dependencies(cls, uuid, request):
+        from api.serializers import URLRunSerializer, URLTemplateSerializer
+
+        context = {'request': request}
+        DEPENDENCY_LIMIT = 10
+        truncated = False
+        runs = set()
+        templates = set()
+
+        template = cls.objects.filter(uuid=uuid)\
+                              .prefetch_related('parent_templates__parent_template')\
+                              .prefetch_related('runs')
+        if template.count() < 1:
+            raise cls.DoesNotExist
+        
+        for run in template.first().runs.all():
+            if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+               and run not in runs:
+                truncated = True
+                break
+            runs.add(run)
+        for template in template.first().parents.all():
+            if len(runs)+len(templates) >= DEPENDENCY_LIMIT \
+               and run not in runs:
+                truncated = True
+                break
+            templates.add(template)
+
+        run_dependencies = []
+        for run in runs:
+            run_dependencies.append(
+                URLRunSerializer(run, context=context).data)
+
+        template_dependencies = []
+        for template in templates:
+            template_dependencies.append(
+                URLTemplateSerializer(template, context=context).data)
+
+        return {'runs': run_dependencies,
+                'templates': template_dependencies,
+                'truncated': truncated}
+
+    def delete(self):
+        from api.models.data_nodes import DataNode
+        if self.parents.count() != 0:
+            raise ProtectedByParentError
+        nodes_to_delete = set()
+	queryset = DataNode.objects.filter(
+            templateinput__template__uuid=self.uuid)
+        for item in queryset.all():
+            nodes_to_delete.add(item)
+
+        # The "imported" flag handles the scenario where:
+        # Template A contains template B. A user imports B and later imports A,
+        # then deletes A. B should be preserved.
+        # This is done by deleting only children where imported==False
+        templates_to_delete = set()
+        for item in self.steps.filter(imported=False):
+            templates_to_delete.add(item)
+        super(Template, self).delete()
+        for item in nodes_to_delete:
+            try:
+                item.delete()
+            except models.ProtectedError:
+                pass
+        for template in templates_to_delete:
+            try:
+                template.delete()
+            except ProtectedByParentError:
+                pass
+
+    def prefetch(self):
+        if not hasattr(self, '_prefetched_objects_cache'):
+            self.prefetch_list([self,])
+
+    @classmethod
+    def prefetch_list(cls, instances):
+        queryset = Template\
+                   .objects\
+                   .filter(uuid__in=[i.uuid for i in instances])
+        MAXIMUM_TREE_DEPTH = get_setting('MAXIMUM_TREE_DEPTH')
+        # Prefetch 'children', 'children__children', etc. up to max depth
+        # This incurs 1 query per level up to actual depth.
+        # No extra queries incurred if we go too deep.)
+        for i in range(1, MAXIMUM_TREE_DEPTH+1):
+            queryset = queryset.prefetch_related('__'.join(['steps']*i))
+        # Transfer prefetched steps to original instances
+        queried_templates_1 = [template for template in queryset]
+        copy_prefetch(queried_templates_1, instances)
+        # Flatten tree so we can simultaneously prefetch related models on all nodes
+        node_list = []
+        for instance in instances:
+            node_list.extend(flatten_nodes(instance, 'steps'))
+        queryset = Template.objects.filter(uuid__in=[n.uuid for n in node_list])\
+            .prefetch_related('inputs')\
+            .prefetch_related('inputs__data_node')
+        # Transfer prefetched data to child nodes on original instances
+        queried_templates_2 = [template for template in queryset]
+        copy_prefetch(queried_templates_2, instances, child_field='steps')
+        # Prefetch all data nodes
+        data_nodes = []
+	for instance in instances:
+            instance._get_data_nodes(data_nodes=data_nodes)
+	DataNode.prefetch_list(data_nodes)
+
+    def _get_data_nodes(self, data_nodes=None):
+        if data_nodes is None:
+            data_nodes = []
+        for input in self.inputs.all():
+            if input.data_node:
+                data_nodes.append(input.data_node)
+        return data_nodes
+
+    @classmethod
+    def _prefetch_for_filter(cls, queryset=None):
+        if queryset is None:
+            queryset = cls.objects.all()
+        return queryset.prefetch_related('tags')
+
 class TemplateInput(DataChannel):
 
     template = models.ForeignKey(
@@ -110,9 +237,9 @@ class TemplateInput(DataChannel):
 
 class TemplateMembership(BaseModel):
 
-    parent_template = models.ForeignKey('Template', related_name='children',
+    parent_template = models.ForeignKey('Template', related_name='child_templates',
                                         on_delete=models.CASCADE)
-    child_template = models.ForeignKey('Template', related_name='parents', 
+    child_template = models.ForeignKey('Template', related_name='parent_templates', 
                                        null=True, blank=True,
                                        on_delete=models.CASCADE)
 
@@ -123,5 +250,3 @@ class TemplateMembership(BaseModel):
                 child_template=step)
             template_membership.full_clean()
             template_membership.save()
-
-

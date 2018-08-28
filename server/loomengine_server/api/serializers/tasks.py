@@ -23,7 +23,7 @@ class TaskInputSerializer(DataChannelSerializer):
         fields = ('data', 'type', 'channel', 'as_channel',  'mode')
 
     mode = serializers.CharField()
-    as_channel = serializers.CharField(required=False)
+    as_channel = serializers.CharField(required=False, allow_null=True)
 
 
 class TaskOutputSerializer(DataChannelSerializer):
@@ -34,40 +34,42 @@ class TaskOutputSerializer(DataChannelSerializer):
 
     mode = serializers.CharField()
     source = serializers.JSONField(required=False)
-    parser = serializers.JSONField(required=False)
-    as_channel = serializers.CharField(required=False)
+    parser = serializers.JSONField(required=False, allow_null=True)
+    as_channel = serializers.CharField(required=False, allow_null=True)
+
+
+_task_serializer_fields = [
+    'uuid',
+    'url',
+    'status',
+    'resources',
+    'environment',
+    'inputs',
+    'outputs',
+    'all_task_attempts',
+    'task_attempt',
+    'raw_command',
+    'command',
+    'interpreter',
+    'datetime_finished',
+    'datetime_created',
+    'status_is_finished',
+    'status_is_failed',
+    'status_is_killed',
+    'status_is_running',
+    'status_is_waiting',
+    'events',
+    'data_path',
+    'analysis_failure_count',
+    'system_failure_count',
+]
 
 
 class TaskSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Task
-        fields = [
-            'uuid',
-            'url',
-            'status',
-            'resources',
-            'environment',
-            'inputs',
-            'outputs',
-            'all_task_attempts',
-            'task_attempt',
-            'raw_command',
-            'command',
-            'interpreter',
-            'datetime_finished',
-            'datetime_created',
-            'status_is_finished',
-            'status_is_failed',
-            'status_is_killed',
-            'status_is_running',
-            'status_is_waiting',
-            'events',
-            'data_path',
-            'analysis_failure_count',
-            'system_failure_count',
-        ]
-
+        fields = _task_serializer_fields
 
     uuid = serializers.CharField(required=False)
     url = serializers.HyperlinkedIdentityField(
@@ -77,8 +79,8 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     environment = serializers.JSONField(required=False)
     inputs = TaskInputSerializer(many=True)
     outputs = TaskOutputSerializer(many=True)
-    all_task_attempts = URLTaskAttemptSerializer(many=True)
-    task_attempt = URLTaskAttemptSerializer(required=False)
+    all_task_attempts = TaskAttemptSerializer(many=True)
+    task_attempt = TaskAttemptSerializer(required=False)
     raw_command = serializers.CharField(required=False)
     command = serializers.CharField(required=False)
     interpreter = serializers.CharField(required=False)
@@ -93,71 +95,21 @@ class TaskSerializer(serializers.HyperlinkedModelSerializer):
     system_failure_count = serializers.IntegerField(required=False)
     events = TaskEventSerializer(
         many=True, allow_null=True, required=False)
-    data_path = serializers.JSONField(required=True)
+    data_path = serializers.JSONField(required=False)
 
     # read-only
     status = serializers.CharField(read_only=True)
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset\
-            .prefetch_related('events')\
-            .prefetch_related('inputs')\
-            .prefetch_related('inputs__data_node')\
-            .prefetch_related('outputs')\
-            .prefetch_related('outputs__data_node')\
-            .prefetch_related('task_attempt')\
-            .prefetch_related('all_task_attempts')
-
-
-class SummaryTaskSerializer(TaskSerializer):
-
-    """SummaryTaskSerializer is an abbreviated alternative to
-    TaskSerializer. Most fields are write_only.
-    """
-
-    # readable
-    uuid = serializers.CharField(required=False)
-    url = serializers.HyperlinkedIdentityField(
-        view_name='task-detail',
-        lookup_field='uuid')
-    all_task_attempts = URLTaskAttemptSerializer(many=True)
-    task_attempt = URLTaskAttemptSerializer(required=False)
-    datetime_finished = serializers.DateTimeField(format='iso-8601')
-    datetime_created = serializers.DateTimeField(format='iso-8601')
-    status = serializers.CharField(read_only=True)
-
-    # write-only
-    resources = serializers.JSONField(required=False, write_only=True)
-    environment = serializers.JSONField(required=False, write_only=True)
-    inputs = TaskInputSerializer(many=True, write_only=True)
-    outputs = TaskOutputSerializer(many=True, write_only=True)
-    raw_command = serializers.CharField(required=False, write_only=True)
-    command = serializers.CharField(required=False, write_only=True)
-    interpreter = serializers.CharField(required=False, write_only=True)
-    status_is_finished = serializers.BooleanField(required=False, write_only=True)
-    status_is_failed = serializers.BooleanField(required=False, write_only=True)
-    status_is_killed = serializers.BooleanField(required=False, write_only=True)
-    status_is_running = serializers.BooleanField(required=False, write_only=True)
-    status_is_waiting = serializers.BooleanField(required=False, write_only=True)
-    analysis_failure_count = serializers.IntegerField(required=False, write_only=True)
-    system_failure_count = serializers.IntegerField(required=False, write_only=True)
-    events = TaskEventSerializer(
-        many=True, allow_null=True, required=False, write_only=True)
-    data_path = serializers.JSONField(required=True, write_only=True)
-
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset\
-            .prefetch_related('task_attempt')\
-            .prefetch_related('all_task_attempts')
+    def to_representation(self, instance):
+        instance.prefetch()
+        return super(TaskSerializer, self).to_representation(instance)
 
 
 class URLTaskSerializer(TaskSerializer):
 
     class Meta:
         model = Task
-        fields = TaskSerializer.Meta.fields
+        fields = _task_serializer_fields
 
     # readable
     uuid = serializers.CharField(required=False)
@@ -189,12 +141,5 @@ class URLTaskSerializer(TaskSerializer):
         many=True, allow_null=True, required=False, write_only=True)
     data_path = serializers.JSONField(required=True, write_only=True)
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset
-
-
-class ExpandedTaskSerializer(TaskSerializer):
-
-#    all_task_attempts = TaskAttemptSerializer(many=True)
-    task_attempt = TaskAttemptSerializer()
+    def to_representation(self, instance):
+        return super(TaskSerializer, self).to_representation(instance)

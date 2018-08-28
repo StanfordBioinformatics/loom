@@ -1,27 +1,26 @@
 from django.test import TestCase, override_settings
 import yaml
 
-from api.test.models.test_templates import get_workflow
+from api.test.models.test_templates import get_template
 from api.models.data_objects import *
 from api.models.runs import Run, TaskNode
 from api.models.input_calculator import InputCalculator
+from api.serializers.runs import  RunSerializer
 from api.test.helper import request_run_from_template_file
 
 def get_run():
-    wf = get_workflow()
-    run = Run.create_from_template(wf)
-    run.initialize_inputs()
-    run.initialize_outputs()
-    run.initialize()
-    for step in run.steps.all():
-        step.initialize()
+    template = get_template()
+    run_data = {'template': '@%s' % template.uuid}
+    s = RunSerializer(data=run_data)
+    s.is_valid(raise_exception=True)
+    run = s.save()
     return run
 
-class TestWorkflowRun(TestCase):
+class TestRun(TestCase):
 
     def testCreate(self):
         with self.settings(TEST_DISABLE_ASYNC_DELAY=True,
-                           TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True):
+                           TEST_NO_PUSH_INPUTS=True):
             run = get_run()
         self.assertTrue(run.name == 'one_two')
         self.assertTrue(
@@ -40,9 +39,8 @@ class TestInputCalculator(TestCase):
                              'fixtures', 'simple', 'simple.yaml'),
                 word_in='puppy')
 
-        sets = InputCalculator(run.inputs.all(), 'word_in', [])\
-               .get_input_sets()
-
+        sets = InputCalculator(run).get_input_sets()
+               
         self.assertEqual(len(sets), 1)
         self.assertEqual(sets[0].data_path, [])
         input_items = [item for item in sets[0]]

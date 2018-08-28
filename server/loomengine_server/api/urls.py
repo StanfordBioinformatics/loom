@@ -60,7 +60,7 @@ urlpatterns = [
     url(r'^status/$', api.views.status),
     url(r'^info/$', api.views.info),
     url(r'^auth-status/$', api.views.auth_status),
-    url(r'^filemanager-settings/$', api.views.FileManagerSettingsView.as_view()),
+    url(r'^storage-settings/$', api.views.StorageSettingsView.as_view()),
     url(r'^doc/$', get_swagger_view(title='Loom API')),
 ]
 

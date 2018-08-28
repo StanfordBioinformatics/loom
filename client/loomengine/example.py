@@ -23,8 +23,9 @@ EXAMPLE_INDEX = [
 
 class ExampleExport(object):
 
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         self.args = args
+        self.silent = silent
 
     @classmethod
     def get_parser(cls, parser):
@@ -54,30 +55,20 @@ class ExampleExport(object):
         if os.path.exists(target_dir):
             raise SystemExit(
                 'ERROR! Target directory already exists: %s' % target_dir)
-        shutil.copytree(example_path, target_dir)
-        print 'Exported example "%s"\n    to "%s"' % \
-            (os.path.basename(example_path), target_dir)
-
-    def _get_destination_url(self, template, retry=False):
-        default_name = '%s.%s' % (template['name'], self.args.format)
-        return self.filemanager.get_destination_file_url(self.args.destination, default_name, retry=retry)
-
-    def _save_template(self, template, destination, retry=False):
-        print 'Exporting template %s@%s to %s...' % (template.get('name'), template.get('uuid'), destination)
-        if self.args.format == 'json':
-            template_text = json.dumps(template, indent=4, separators=(',', ': '))
-        elif self.args.format == 'yaml':
-            template_text = yaml.safe_dump(template, default_flow_style=False)
-        else:
-            raise Exception('Invalid format type %s' % self.args.format)
-        self.filemanager.write_to_file(destination, template_text, retry=retry)
-        print '...finished exporting template'
+        try:
+            shutil.copytree(example_path, target_dir)
+        except Exception as e:
+            raise SystemExit('Error exporting example to "%s": %s' % (target_dir, e))
+        if not self.silent:
+            print 'Exported example "%s"\n    to "%s"' % \
+                (os.path.basename(example_path), target_dir)
 
 
 class ExampleList(object):
 
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         self.args = args
+        self.silent=silent
 
     @classmethod
     def get_parser(cls, parser):
@@ -88,22 +79,25 @@ class ExampleList(object):
             example_name = example[0]
             description = example[1]
             self._render_example(example_name, description)
+        return EXAMPLE_INDEX
 
     def _render_example(self, example_name, description):
-        print '%s:\n    %s\n' % (example_name, description)
+        if not self.silent:
+            print '%s:\n    %s\n' % (example_name, description)
 
 
 class Example(object):
     """Configures and executes subcommands under "example" on the main parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -132,7 +126,7 @@ class Example(object):
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        return self.args.SubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

@@ -1,16 +1,12 @@
 loom_remote_user: loom
 server_settings_home: "/home/{{loom_remote_user}}/.loom"
-ssh_private_key_name: "{{lookup('env', 'LOOM_SSH_PRIVATE_KEY_NAME')|default('loom_id_rsa', true)}}"
-server_ssh_private_key_path_on_client: "{{lookup('env', 'HOME')}}/.ssh/{{ssh_private_key_name}}"
-worker_ssh_private_key_path_on_server: "/home/{{loom_remote_user}}/.ssh/{{ssh_private_key_name}}"
-ansible_ssh_private_key_file: "{{server_ssh_private_key_path_on_client}}"
 client_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_CLIENT_USES_SERVER_INTERNAL_IP')|default(false, true)|bool}}"
 worker_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_WORKER_USES_SERVER_INTERNAL_IP')|default(false, true)|bool}}"
 worker_connection_settings_file: "{{lookup('env','LOOM_GCLOUD_WORKER_CONNECTION_SETTINGS_FILE')|default('worker-connection-settings.conf', true)}}"
 
 # GCE settings
-boot_disk_type: "{{lookup('env','LOOM_GCLOUD_SERVER_BOOT_DISK_TYPE')|default('pd-standard', true)}}"
-boot_disk_size_gb: "{{lookup('env','LOOM_GCLOUD_SERVER_BOOT_DISK_SIZE_GB')|default('10', true)}}"
+disk_type: "{{lookup('env','LOOM_GCLOUD_SERVER_DISK_TYPE')|default('pd-standard', true)}}"
+disk_size_gb: "{{lookup('env','LOOM_GCLOUD_SERVER_DISK_SIZE_GB')|default('10', true)}}"
 gce_credential: "{{settings_home}}/{{resource_dir}}/{{lookup('env','LOOM_GCE_PEM_FILE')}}"
 gce_email: "{{lookup('env','LOOM_GCE_EMAIL')}}"
 gce_project: "{{lookup('env','LOOM_GCE_PROJECT')}}"

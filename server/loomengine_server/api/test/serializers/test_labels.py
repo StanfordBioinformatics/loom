@@ -5,8 +5,8 @@ from api.models import Run
 from api.serializers import DataObjectSerializer
 from api.serializers import TemplateLabelSerializer, DataLabelSerializer, RunLabelSerializer
 from api.serializers import TemplateSerializer
-from . import fixtures
-from . import get_mock_context
+from . import fixtures, get_mock_context, create_run_from_template
+
 
 class TestTemplateLabelSerializer(TestCase):
 
@@ -39,7 +39,7 @@ class TestTemplateLabelSerializer(TestCase):
         return template
 
 @override_settings(TEST_DISABLE_ASYNC_DELAY=True,
-                   TEST_NO_PUSH_INPUTS_ON_RUN_CREATION=True)
+                   TEST_NO_PUSH_INPUTS=True)
 class TestRunLabelSerializer(TransactionTestCase):
 
     def testCreate(self):
@@ -66,7 +66,7 @@ class TestRunLabelSerializer(TransactionTestCase):
             s = TemplateSerializer(data=fixtures.templates.step_a)
             s.is_valid(raise_exception=True)
             template = s.save()
-            run = Run.create_from_template(template)
+            run = create_run_from_template(template)
         return run
 
 

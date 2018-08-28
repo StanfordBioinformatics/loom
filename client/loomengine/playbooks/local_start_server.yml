@@ -9,6 +9,6 @@
     - host: 127.0.0.1
   tasks:
     - include: tasks/create_connection_settings.yml
-    - include: tasks/create_google_storage_bucket.yml
+    - include: tasks/create_settings_bundle.yml
     - include: tasks/start_server_containers.yml
     - include: tasks/wait_for_server_to_start.yml

@@ -1,5 +1,10 @@
-  - name: Delete the Loom task attempt container.
+  - name: Delete the Loom task attempt monitor container.
     docker_container:
-      name: "{{task_attempt_container_name}}-{{task_attempt_id}}"
+      name: "{{task_attempt_monitor_container_name}}-{{task_attempt_id}}"
+      state: absent
+      force_kill: yes
+  - name: Delete the Loom task attempt process container.
+    docker_container:
+      name: "{{task_attempt_process_container_name}}-{{task_attempt_id}}"
       state: absent
       force_kill: yes

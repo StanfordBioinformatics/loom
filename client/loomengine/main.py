@@ -6,13 +6,15 @@ import sys
 
 from loomengine.common import get_server_url, has_connection_settings, is_server_running
 import loomengine_utils.version
-from loomengine_utils.connection import Connection
+from loomengine_utils.connection import Connection, ServerConnectionError, ServerConnectionHttpError
+from loomengine_utils.exceptions import LoomengineUtilsError
 
 if __name__ == "__main__" and __package__ is None:
     rootdir=os.path.abspath('../..')
     sys.path.append(rootdir)
 
 from loomengine import browser
+from loomengine import bulk_import
 from loomengine import example
 from loomengine import file_client
 from loomengine import run
@@ -28,11 +30,15 @@ class Version(argparse.Action):
             server_version = 'not connected'
         else:
             url = get_server_url()
-            if not is_server_running(url=url):
-                server_version = 'no response'
-            else:
-                connection = Connection(url)
+            connection = Connection(url)
+            try:
                 server_version = connection.get_version()
+            except ServerConnectionHttpError as e:
+                server_version = '[server error! %s]' % e
+            except ServerConnectionError:
+                server_version = '[no response]'
+            except LoomengineUtilsError as e:
+                server_version = '[client error! %s]' % e
 
         print "client version: %s" % loomengine_utils.version.version()
         print "server version: %s" % server_version
@@ -40,11 +46,12 @@ class Version(argparse.Action):
 
 class Main(object):
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
         if args is None:
             parser = self.get_parser()
             args = parser.parse_args()
         self.args = args
+        self.silent = silent
 
     def get_parser(cls):
         parser = argparse.ArgumentParser('loom')
@@ -84,6 +91,12 @@ class Main(object):
         example.Example.get_parser(example_subparser)
         example_subparser.set_defaults(SubcommandClass=example.Example)
         
+        bulk_import_subparser = subparsers.add_parser(
+            'bulk-import',
+            help='import all data from a bulk-export directory')
+        bulk_import.BulkImport.get_parser(bulk_import_subparser)
+        bulk_import_subparser.set_defaults(SubcommandClass=bulk_import.BulkImport)
+
         server_subparser = subparsers.add_parser(
             'server', help='manage the Loom server')
         server.get_parser(server_subparser)
@@ -96,11 +109,11 @@ class Main(object):
         return parser
 
     def run(self):
-        return self.args.SubcommandClass(self.args).run()
+        return self.args.SubcommandClass(self.args, silent=self.silent).run()
 
 # pip entrypoint requires a function with no arguments 
 def main():
-    return Main().run()
+    Main().run()
 
 if __name__=='__main__':
     main()

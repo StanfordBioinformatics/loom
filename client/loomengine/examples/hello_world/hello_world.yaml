@@ -3,9 +3,13 @@ inputs:
 - type: file
   hint: Enter the 'hello' file
   channel: hello
+  data:
+    contents: hello.txt
 - type: file
   hint: Enter the 'world' file
   channel: world
+  data:
+    contents: world.txt
 - type: string
   channel: punctuation
   data:

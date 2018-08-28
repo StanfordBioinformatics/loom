@@ -2,20 +2,19 @@ import os
 
 class BaseInput(object):
 
-    def __init__(self, data_contents, task_attempt):
+    def __init__(self, data_contents, task_monitor):
         self.data_contents = data_contents
-        self.filemanager = task_attempt.filemanager
-        self.settings = task_attempt.settings
+        self.export_manager = task_monitor.export_manager
+        self.working_dir = task_monitor.working_dir
 
 
 class FileInput(BaseInput):
 
     def copy(self):
         data_object = self.data_contents
-        data_object_id = '@%s' % data_object['uuid']
-        self.filemanager.export_file(
-            data_object_id,
-            destination_url=self.settings['WORKING_DIR'],
+        self.export_manager.export_file(
+            data_object,
+            destination_directory=self.working_dir,
             retry=True)
 
 
@@ -37,11 +36,10 @@ class FileListInput(BaseInput):
                 filename_counts[filename] += 1
                 filename = self._rename_duplicate(filename, counter)
 
-            data_object_id = '@%s' % data_object['uuid']
-            self.filemanager.export_file(
-                data_object_id,
-                destination_url=os.path.join(
-                    self.settings['WORKING_DIR'], filename),
+            self.export_manager.export_file(
+                data_object,
+                destination_directory=self.working_dir,
+                destination_filename=filename,
                 retry=True)
 
     def _get_duplicates(self, array):
@@ -79,17 +77,12 @@ def _get_input_info(input):
         'input has invalid mode "%s"' % mode
     return (data_type, mode)
 
-def _expand_data_contents(input, connection):
-    input['data'] = connection.get_data_node(input['data']['uuid'], expand=True)
-    
 
 def TaskAttemptInput(input, task_attempt):
     """Returns the correct Input class for a given
     data type and gather mode
     """
 
-    _expand_data_contents(input, task_attempt.connection)
-    
     (data_type, mode) = _get_input_info(input)
 
     if data_type != 'file':

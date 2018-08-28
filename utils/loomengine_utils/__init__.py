@@ -2,6 +2,9 @@ import logging
 import random
 import time
 
+class LoomengineUtilsError(Exception):
+    pass
+
 try:  # Python 2.7+
     from logging import NullHandler
 except ImportError:
@@ -15,7 +18,8 @@ logging.getLogger(__name__).addHandler(NullHandler())
 def execute_with_retries(retryable_function,
                          retryable_errors,
                          logger,
-                         human_readable_action_name='Action'):
+                         human_readable_action_name='Action',
+                         nonretryable_errors=None):
     """This attempts to execute "retryable_function" with exponential backoff
     on delay time.
     10 retries adds up to about 34 minutes total delay before the last attempt.
@@ -23,9 +27,13 @@ def execute_with_retries(retryable_function,
     """
     max_retries = 10
     attempt = 0
+    if not nonretryable_errors:
+        nonretryable_errors = ()
     while True:
         try:
             return retryable_function()
+        except tuple(nonretryable_errors):
+            raise
         except tuple(retryable_errors) as e:
             attempt += 1
             if attempt > max_retries:

@@ -11,6 +11,7 @@ import logging
 import os
 import pytz
 import requests
+import shutil
 import string
 import sys
 import threading
@@ -19,8 +20,10 @@ import time
 import uuid
 
 from loomengine_utils import execute_with_retries
-from loomengine_utils.filemanager import FileManager
 from loomengine_utils.connection import Connection
+from loomengine_utils.exceptions import FileAlreadyExistsError
+from loomengine_utils.export_manager import ExportManager
+from loomengine_utils.import_manager import ImportManager
 from loomengine_worker.outputs import TaskAttemptOutput
 from loomengine_worker.inputs import TaskAttemptInput
 
@@ -30,7 +33,8 @@ class TaskMonitor(object):
     DOCKER_SOCKET = 'unix://var/run/docker.sock'
     LOOM_RUN_SCRIPT_NAME = '.loom_run_script'
 
-    def __init__(self, args=None, mock_connection=None, mock_filemanager=None):
+    def __init__(self, args=None, mock_connection=None,
+                 mock_import_manager=None, mock_export_manager=None):
         if args is None:
             args = self._get_args()
         self.settings = {
@@ -62,12 +66,15 @@ class TaskMonitor(object):
 
         # From here on errors can be reported to Loom
 
-        if mock_filemanager is not None:
-            self.filemanager = mock_filemanager
+        if mock_import_manager is not None:
+            self.import_manager = mock_import_manager
         else:
             try:
-                self.filemanager = FileManager(self.settings['SERVER_URL'],
-                                               token=args.token)
+                self.storage_settings = self.connection.get_storage_settings()
+                self.import_manager = ImportManager(
+                    self.connection, storage_settings=self.storage_settings)
+                self.export_manager = ExportManager(
+                    self.connection, storage_settings=self.storage_settings)
                 self.settings.update(self._get_settings())
                 self._init_docker_client()
                 self._init_working_dir()
@@ -103,7 +110,16 @@ class TaskMonitor(object):
             raise Exception('Failed to connect to Docker daemon')
 
     def _init_working_dir(self):
-        init_directory(self.settings['WORKING_DIR'], new=True)
+        init_directory(self.settings['WORKING_DIR_ROOT'], new=True)
+        self.working_dir = os.path.join(self.settings['WORKING_DIR_ROOT'], 'work')
+        self.log_dir = os.path.join(self.settings['WORKING_DIR_ROOT'], 'logs')
+        init_directory(self.working_dir, new=True)
+        init_directory(self.log_dir, new=True)    
+
+    def _delete_working_dir(self):
+        # Skip delete if blank or root!
+        if self.settings['WORKING_DIR_ROOT'].strip('/'):
+            shutil.rmtree(self.settings['WORKING_DIR_ROOT'])
 
     def run_with_heartbeats(self, function):
         heartbeat_interval = int(self.settings['HEARTBEAT_INTERVAL_SECONDS'])
@@ -135,6 +151,7 @@ class TaskMonitor(object):
                 self._save_outputs()
                 self._finish()
         finally:
+            self._delete_working_dir()
             self._delete_container()
 
     def _copy_inputs(self):
@@ -144,6 +161,12 @@ class TaskMonitor(object):
         try:
             for input in self.task_attempt['inputs']:
                 TaskAttemptInput(input, self).copy()
+        except FileAlreadyExistsError as e:
+            error = self._get_error_text(e)
+            self._report_system_error(
+                detail='Copying inputs failed because file already exists. '\
+                'Are there multiple inputs with the same name? %s' % error)
+            raise
         except Exception as e:
             error = self._get_error_text(e)
             self._report_system_error(detail='Copying inputs failed. %s' % error)
@@ -153,7 +176,7 @@ class TaskMonitor(object):
         try:
             user_command = self.task_attempt['command']
             with open(os.path.join(
-                    self.settings['WORKING_DIR'],
+                    self.working_dir,
                     self.LOOM_RUN_SCRIPT_NAME),
                       'w') as f:
                 f.write(user_command.encode('utf-8') + '\n')
@@ -168,7 +191,7 @@ class TaskMonitor(object):
             docker_image = self._get_docker_image()
             raw_pull_data = execute_with_retries(
                 lambda: self.docker_client.pull(docker_image),
-                (docker.errors.NotFound),
+                (docker.errors.NotFound,),
                 self.logger,
                 "Pull docker image")
             pull_data = self._parse_docker_output(raw_pull_data)
@@ -208,7 +231,7 @@ class TaskMonitor(object):
         try:
             docker_image = self._get_docker_image()
             interpreter = self.task_attempt['interpreter']
-            host_dir = self.settings['WORKING_DIR']
+            host_dir = self.working_dir
             container_dir = '/loom_workspace'
 
             command = interpreter.split(' ')
@@ -224,8 +247,7 @@ class TaskMonitor(object):
                         'mode': 'rw',
                     }}),
                 working_dir=container_dir,
-                name=self.settings['SERVER_NAME']+'-attempt-'+self.settings[
-                    'TASK_ATTEMPT_ID'],
+                name=self.settings['PROCESS_CONTAINER_NAME'],
             )
             self._set_container_id(self.container['Id'])
         except Exception as e:
@@ -310,16 +332,16 @@ class TaskMonitor(object):
     def _save_process_logs(self):
         self._event('Saving logfiles')
         try:
+            stdout_file = os.path.join(self.log_dir, 'stdout.log')
+            stderr_file = os.path.join(self.log_dir, 'stderr.log')
             init_directory(
-                os.path.dirname(os.path.abspath(self.settings['STDOUT_LOG_FILE'])))
-            with open(self.settings['STDOUT_LOG_FILE'], 'w') as stdoutlog:
+                os.path.dirname(self.log_dir))
+            with open(stdout_file, 'w') as stdoutlog:
                 stdoutlog.write(self._get_stdout())
-            init_directory(
-                os.path.dirname(os.path.abspath(self.settings['STDERR_LOG_FILE'])))
-            with open(self.settings['STDERR_LOG_FILE'], 'w') as stderrlog:
+            with open(stderr_file, 'w') as stderrlog:
                 stderrlog.write(self._get_stderr())
-            self._import_log_file(self.settings['STDOUT_LOG_FILE'], retry=True)
-            self._import_log_file(self.settings['STDERR_LOG_FILE'], retry=True)
+            self._import_log_file(stderr_file, retry=True)
+            self._import_log_file(stdout_file, retry=True)
         except Exception as e:
             error = self._get_error_text(e)
             self._report_system_error(detail='Saving log files failed. %s' % error)
@@ -333,7 +355,7 @@ class TaskMonitor(object):
 
     def _import_log_file(self, filepath, retry=True):
         try:
-            self.filemanager.import_log_file(
+            self.import_manager.import_log_file(
                 self.task_attempt,
                 filepath,
                 retry=retry,
@@ -418,7 +440,7 @@ class TaskMonitor(object):
             pass
 
     def _finish(self):
-        self.connection.post_task_attempt_finish(self.settings['TASK_ATTEMPT_ID'])
+        self.connection.finish_task_attempt(self.settings['TASK_ATTEMPT_ID'])
 
     def _delete_container(self):
         try:

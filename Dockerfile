@@ -40,9 +40,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Loom's python dependencies
-RUN pip install pip==9.0.1
-ADD ./build-tools/requirements.pip /loom/src/build-tools/requirements.pip
-RUN pip install -r /loom/src/build-tools/requirements.pip
+RUN pip install -U pip
 
 # Install Loom
 ADD ./portal /var/www/loom/portal
@@ -51,12 +49,13 @@ ADD ./server /loom/src/server
 ADD ./utils /loom/src/utils
 ADD ./worker /loom/src/worker
 ADD ./bin /loom/src/bin
-ADD ./VERSION /loom/src/VERSION
 ADD ./NOTICES /loom/src/NOTICES
 ADD ./LICENSE /loom/src/LICENSE
 ADD ./README.rst /loom/src/README.rst
 ADD ./build-tools /loom/src/build-tools
+ARG LOOM_VERSION
 RUN cd /loom/src/build-tools \
+    && ./set-version.sh \
     && ./build-loom-packages.sh \
     && ./install-loom-packages.sh \
     && ./clean.sh

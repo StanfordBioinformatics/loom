@@ -19,6 +19,12 @@ class TestDataObjectSerializer(TestCase):
         self.assertEqual(data_object.file_resource.filename,
                          data['value']['filename'])
 
+    def testCreate_countQueries(self):
+        data = fixtures.data_objects.file_data_object
+        s = DataObjectSerializer(data=data)
+        s.is_valid(raise_exception=True)
+        self.assertNumQueries(4, lambda: s.save())
+
     def testRender_file(self):
         file_data = fixtures.data_objects.file_data_object['value']
         data_object = DataObject.create_and_initialize_file_resource(**file_data)
@@ -72,18 +78,40 @@ class TestDataObjectSerializer(TestCase):
         self.assertEqual(rendered_1['value']['file_url'],
                             rendered_2['value']['file_url'])
 
-    def testCreate_errorUuidCollision(self):
+    def testCreate_AlreadyExists(self):
         file_data = copy.deepcopy(fixtures.data_objects.file_data_object)['value']
         data_object = DataObject.create_and_initialize_file_resource(**file_data)
         s = DataObjectSerializer(data_object,
                                  context=get_mock_context())
         rendered_1 = s.data
 
+        data_object_count_before = DataObject.objects.count()
+        s = DataObjectSerializer(data=rendered_1)
+        s.is_valid(raise_exception=True)
+        data_object = s.save()
+
+        # Verify that no new object was created
+        data_object_count_after = DataObject.objects.count()
+        self.assertEqual(data_object_count_before, data_object_count_after)
+
+    def testCreate_ErrorAlreadyExistsWithMismatch(self):
+        file_data = copy.deepcopy(fixtures.data_objects.file_data_object)['value']
+        data_object = DataObject.create_and_initialize_file_resource(**file_data)
+        s = DataObjectSerializer(data_object,
+                                 context=get_mock_context())
+        data_object_count_before = DataObject.objects.count()
+
+        rendered_1 = s.data
+        rendered_1['value']['md5'] = '192f08c86f675deca469ea50ffac38e0'
         s = DataObjectSerializer(data=rendered_1)
         with self.assertRaises(ValidationError):
             s.is_valid(raise_exception=True)
             data_object = s.save()
 
+        # Verify that no new object was created
+        data_object_count_after = DataObject.objects.count()
+        self.assertEqual(data_object_count_before, data_object_count_after)
+            
     def testCreate_noDroolOnFail(self):
         file_data = copy.deepcopy(fixtures.data_objects.file_data_object)
         file_data['value']['md5'] = 'invalid_md5'
@@ -130,3 +158,30 @@ class TestDataObjectSerializer(TestCase):
             s2.is_valid(raise_exception=True)
             data_object_2 = s2.save()
             self.assertEqual(data_object_1.value, data_object_2.value)
+
+def TestDataObjectUpdateSerializer(TestCase):
+
+    def testUpdateUploadStatus(self):
+        file_data = fixtures.data_objects.file_data_object['value']
+        data_object = DataObject.create_and_initialize_file_resource(**file_data)
+        s = DataObjectSerializer(data_object,
+                                 context=get_mock_context())
+        s.save()
+
+        s2 = DataObjectUpdateSerializer(data_object)
+        s2.update(
+            data_object, {'value': {'upload_status': 'error'}})
+        self.assertEqual(s2.data['value']['upload_status'], 'error')
+
+
+    def testUpdateProtectedValue(self):
+        file_data = fixtures.data_objects.file_data_object['value']
+        data_object = DataObject.create_and_initialize_file_resource(**file_data)
+        s = DataObjectSerializer(data_object,
+                                 context=get_mock_context())
+        s.save()
+
+        s2 = DataObjectUpdateSerializer(data_object)
+        with self.assertRaises(ValidationError):
+            s2.update(
+                data_object, {'type': 'string'})

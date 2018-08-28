@@ -1,16 +1,15 @@
 import copy
 from django.db import models
-from mptt.utils import get_cached_trees
 import jsonschema
 from rest_framework import serializers
 
-from .data_objects import DataObjectSerializer
+from .data_objects import DataObjectSerializer, URLDataObjectSerializer
 from api.models.data_nodes import DataNode
 from api.models.data_objects import DataObject
 from api.models.validators import data_node_schema
 
 
-class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
+class URLDataNodeSerializer(serializers.HyperlinkedModelSerializer):
 
     BLANK_NODE_VALUE = None
     EMPTY_BRANCH_VALUE = []
@@ -33,11 +32,6 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
         model = DataNode
         fields = ('uuid', 'url', 'contents',)
 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        return queryset.select_related('data_object')\
-                       .select_related('data_object__file_resource')
-
     def create(self, validated_data):
         type = self.context.get('type')
         if not type:
@@ -48,6 +42,9 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
         data_node = self._create_data_node_from_data_objects(
             contents, type)
         return data_node
+
+    def is_valid(self, **kwargs):
+        return super(URLDataNodeSerializer, self).is_valid(**kwargs)
 
     def validate_contents(self, value):
         try:
@@ -138,7 +135,7 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
                 data_object = DataObject.get_by_value(
                     contents,
                     data_type)
-            data_node.add_data_object(path, data_object)
+            data_node.add_data_object(path, data_object, save=True)
             return
         elif len(contents) == 0:
             # An empty list represents a node of degree 0
@@ -152,7 +149,7 @@ class DataNodeSerializer(serializers.HyperlinkedModelSerializer):
                     data_node, contents[i], path_i, data_type)
 
 
-class ExpandedDataNodeSerializer(DataNodeSerializer):
+class DataNodeSerializer(URLDataNodeSerializer):
 
     contents = serializers.JSONField()
 
@@ -162,7 +159,7 @@ class ExpandedDataNodeSerializer(DataNodeSerializer):
                 self.initial_data)
         else:
             assert isinstance(instance, DataNode)
-            instance = self._apply_prefetch_to_instance(instance)
+            instance.prefetch()
             representation = super(
                 DataNodeSerializer, self).to_representation(instance)
             representation.update({
@@ -179,19 +176,6 @@ class ExpandedDataNodeSerializer(DataNodeSerializer):
             return s.data
         else:
             contents = [self.BLANK_NODE_VALUE] * data_node.degree
-            for child in data_node._cached_children:
+            for child in data_node.children.all():
                 contents[child.index] = self._data_node_to_data_struct(child)
             return contents
- 
-    @classmethod
-    def apply_prefetch(cls, queryset):
-        # no-op
-        return queryset
-
-    def _apply_prefetch_to_instance(self, instance):
-        if not hasattr(instance, '_cached_children'):
-            descendants = instance.get_descendants(include_self=True)
-            descendants = descendants.select_related('data_object')
-            descendants = descendants.select_related('data_object__file_resource')
-            instance = get_cached_trees(descendants)[0]
-        return instance

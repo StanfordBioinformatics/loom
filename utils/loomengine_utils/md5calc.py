@@ -9,3 +9,6 @@ def calculate_md5sum(file_path):
                 break
             m.update(data)
     return m.hexdigest()
+
+def calculate_md5sum_from_string(string):
+    m = hashlib.md5(string)

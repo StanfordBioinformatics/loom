@@ -28,7 +28,8 @@ class DataChannel(BaseModel):
         'DataNode',
         # related_name would cause conflicts on subclasses
         null=True,
-        blank=True)
+        blank=True,
+        on_delete=models.PROTECT)
     type = models.CharField(
         max_length=255,
         choices=DataObject.DATA_TYPE_CHOICES)
@@ -62,7 +63,7 @@ class DataChannel(BaseModel):
         # If data_path is length 0, data is scalar
         if self.data_node is None:
             self.initialize_data_node()
-        self.data_node.add_data_object(data_path, data_object)
+        self.data_node.add_data_object(data_path, data_object, save=True)
 
     def is_connected(self, connected_node):
         # Nodes are connected by sharing a common DataNode
@@ -100,6 +101,10 @@ class DataChannel(BaseModel):
         elif connected_node.data_node is None:
             data_node = self.data_node
             connected_node.setattrs_and_save_with_retries({'data_node': data_node})
+
+    def prefetch(self):
+        # no-op unless overridden
+        pass
 
     class Meta:
         abstract = True

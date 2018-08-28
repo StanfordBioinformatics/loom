@@ -2,16 +2,15 @@
 Release Notes
 #############
 
-Latest
-=============
+0.7.0
+------------
+* Import/export runs and templates with dependencies
+* Re-use existing results if an identical Task has already been run
 
 0.6.0
 ------------
 * Installable from PyPi with "pip install loomengine"
 * User authentication and authorization
-
-Previous
-=============
 
 0.5.3
 ------------

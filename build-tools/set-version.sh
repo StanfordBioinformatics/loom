@@ -1,26 +1,39 @@
 #!/bin/bash
-set -e
+set -euxo pipefail
 
 # Usage:
 # ./set_version.sh VERSION
 
-if [ "$1" = "" ]; then
-    echo Error: Version is required
-    echo Usage: $0 VERSION
-    exit 1;
+
+version=${1:-}
+
+if [ -z $version ]; then
+    version=${LOOM_VERSION:-}
 fi
 
-version=$1
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-old_version=$(cat $DIR/../VERSION)
+if [ -z $version ]; then
+    version=0.0.0.dev0
+    echo "WARNING! Setting version to default \"0.0.0.dev0\". Set the LOOM_VERSION env var or provide a command line argument"
+fi
 
-echo Updating version from \"$old_version\" to \"$version\"
+# Make sure version is something like 1.2.3, 1.2a1, 0.1.2.post3, etc.
+# as required by PyPi.
+# We also allow alphanumeric strings to support using git commit versions in development builds.
+N=\[0-9\]+
+PEP440_VERSION="${N}(\.${N})*((a|b|rc)${N}|\.(post|dev)${N})?"
+ALPHANUM_VERSION="[a-zA-Z0-9]+"
+VALID_VERSION="(${PEP440_VERSION}|${ALPHANUM_VERSION})"
+if [[ ! "$version" =~ ^${VALID_VERSION}$ ]]; then
+    echo "ERROR! Invalid version" $version "does not follow PEP 440. See https://www.python.org/dev/peps/pep-0440/#public-version-identifiers"
+    exit 1
+fi
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+echo Updating version to \"$version\"
+
 echo "    updating $DIR/../VERSION"
 echo $version > $DIR/../VERSION
-echo "    updating $DIR/../doc/conf.py"
-sed -i.tmp "s/version = u'.*'/version = u'$version'/" $DIR/../doc/conf.py
-sed -i.tmp "s/release = u'.*'/release = u'$version'/" $DIR/../doc/conf.py
-rm $DIR/../doc/conf.py.tmp
 
 for package_dir in $DIR/../utils/loomengine_utils $DIR/../worker/loomengine_worker $DIR/../server/loomengine_server $DIR/../client/loomengine
 

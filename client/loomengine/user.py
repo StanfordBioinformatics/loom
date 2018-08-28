@@ -4,20 +4,23 @@ import argparse
 from getpass import getpass
 from requests.exceptions import HTTPError
 from loomengine.common import verify_server_is_running, get_server_url, \
-verify_has_connection_settings, parse_as_json_or_yaml, get_token
-from loomengine_utils.filemanager import FileManager
+verify_has_connection_settings, get_token
 from loomengine_utils.connection import Connection
+from loomengine_utils.exceptions import LoomengineUtilsError
 
 class AbstractUserSubcommand(object):
-    def __init__(self, args):
+    def __init__(self, args, silent=False):
         self.args = args
+        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
         token = get_token()
-        self.filemanager = FileManager(server_url, token=token)
         self.connection = Connection(server_url, token=token)
 
+    def _print(self, text):
+        if not self.silent:
+            print text
 
 class UserAdd(AbstractUserSubcommand):
 
@@ -40,15 +43,18 @@ class UserAdd(AbstractUserSubcommand):
         password = self.args.password
         if password is None:
             password = getpass("Password: ")
-        user = self.connection.create_user({
-            'username': self.args.username,
-            'password': password,
-            'is_staff': self.args.admin
-        })
+        try:
+            user = self.connection.post_user({
+                'username': self.args.username,
+                'password': password,
+                'is_staff': self.args.admin
+            })
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to create user: '%s'" % e)
         text = 'Added user "%s"' % user.get('username')
         if user.get('is_staff'):
             text += ' as admin'
-        print text
+        self._print(text)
 
 class UserDelete(AbstractUserSubcommand):
 
@@ -60,13 +66,20 @@ class UserDelete(AbstractUserSubcommand):
         return parser
 
     def run(self):
-        users = self.connection.get_user_index(query_string=self.args.username)
+        try:
+            users = self.connection.get_user_index(query_string=self.args.username)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get user list: '%s'" % e)
         if len(users) == 0:
-            raise SystemExit('User "%s" not found' % self.args.username)
-        assert len(users) == 1, 'ERROR! username %s is not unique' % self.args.username
+            raise SystemExit('ERROR! User "%s" not found' % self.args.username)
+        assert len(users) == 1, 'ERROR! username %s is not unique' \
+            % self.args.username
         user_id = users[0].get('id')
-        user = self.connection.delete_user(user_id)
-        print "deleted user %s" % self.args.username
+        try:
+            user = self.connection.delete_user(user_id)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to delete user: '%s'" % e)
+        self._print("deleted user %s" % self.args.username)
 
 
 class UserList(AbstractUserSubcommand):
@@ -81,12 +94,15 @@ class UserList(AbstractUserSubcommand):
         return parser
 
     def run(self):
-        users = self.connection.get_user_index(query_string=self.args.username)
+        try:
+            users = self.connection.get_user_index(query_string=self.args.username)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get user list: '%s'" % e)
         for user in users:
             text = user.get('username')
             if user.get('is_staff'):
                 text += ' (admin)'
-            print text
+            self._print(text)
 
 class UserGrantAdmin(AbstractUserSubcommand):
 
@@ -99,13 +115,20 @@ class UserGrantAdmin(AbstractUserSubcommand):
         return parser
 
     def run(self):
-        users = self.connection.get_user_index(query_string=self.args.username)
+        try:
+            users = self.connection.get_user_index(query_string=self.args.username)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get user list: '%s'" % e)
         if len(users) == 0:
-            raise SystemExit('User "%s" not found' % self.args.username)
-        assert len(users) == 1, 'ERROR! username %s is not unique' % self.args.username
+            raise SystemExit('ERROR! User "%s" not found' % self.args.username)
+        assert len(users) == 1, 'ERROR! username %s is not unique' \
+            % self.args.username
         user_id = users[0].get('id')
-        user = self.connection.update_user(user_id, {'is_staff': True})
-        print user
+        try:
+            user = self.connection.update_user(user_id, {'is_staff': True})
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to update user: '%s'" % e)
+        self._print(user)
 
 
 class UserRevokeAdmin(AbstractUserSubcommand):
@@ -119,13 +142,20 @@ class UserRevokeAdmin(AbstractUserSubcommand):
         return parser
 
     def run(self):
-        users = self.connection.get_user_index(query_string=self.args.username)
+        try:
+            users = self.connection.get_user_index(query_string=self.args.username)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get user list: '%s'" % e)
         if len(users) == 0:
-            raise SystemExit('User "%s" not found' % self.args.username)
-        assert len(users) == 1, 'ERROR! username %s is not unique' % self.args.username
+            raise SystemExit('ERROR! User "%s" not found' % self.args.username)
+        assert len(users) == 1, 'ERROR! username %s is not unique' \
+            % self.args.username
         user_id = users[0].get('id')
-        user = self.connection.update_user(user_id, {'is_staff': False})
-        print user
+        try:
+            user = self.connection.update_user(user_id, {'is_staff': False})
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to update user: '%s'" % e)
+        self._print(user)
 
 
 class UserSetPassword(AbstractUserSubcommand):
@@ -148,27 +178,35 @@ class UserSetPassword(AbstractUserSubcommand):
         password = self.args.password
         if password is None:
             password = getpass("Password: ")
-        users = self.connection.get_user_index(query_string=self.args.username)
+        try:
+            users = self.connection.get_user_index(query_string=self.args.username)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to get user list: '%s'" % e)
         if len(users) == 0:
-            raise SystemExit('User "%s" not found' % self.args.username)
-        assert len(users) == 1, 'ERROR! username %s is not unique' % self.args.username
+            raise SystemExit('ERROR! User "%s" not found' % self.args.username)
+        assert len(users) == 1, 'ERROR! username %s is not unique' \
+            % self.args.username
         user_id = users[0].get('id')
+        try:
+            user = self.connection.update_user(user_id, {'password': password})
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to update user: '%s'" % e)
 
-        user = self.connection.update_user(user_id, {'password': password})
-        print user
+        self._print(user)
 
 
 class UserClient(object):
     """Configures and executes subcommands under "user" on the main parser.
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, silent=False):
 
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
+        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -216,7 +254,7 @@ class UserClient(object):
         return parser
 
     def run(self):
-        self.args.SubSubcommandClass(self.args).run()
+        return self.args.SubSubcommandClass(self.args, silent=self.silent).run()
 
 
 if __name__=='__main__':

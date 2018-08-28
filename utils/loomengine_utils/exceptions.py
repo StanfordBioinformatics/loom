@@ -1,41 +1,41 @@
-class Error(Exception):
+class LoomengineUtilsError(Exception):
     pass
 
-class ServerConnectionError(Error):
+class APIError(LoomengineUtilsError):
     pass
 
-class BadResponseError(Error):
+class ServerConnectionError(LoomengineUtilsError):
     pass
 
-class UnrecognizedFileServerTypeError(Error):
+class ServerConnectionHttpError(ServerConnectionError):
     pass
 
-class UndefinedFileIDError(Error):
+class ResourceCountError(LoomengineUtilsError):
     pass
 
-class ObjectNotFoundError(Error):
+class ExportManagerError(LoomengineUtilsError):
     pass
 
-class AbsolutePathInFileNameError(Error):
+class FileAlreadyExistsError(ExportManagerError):
     pass
 
-class WrongNumberOfFileNamesError(Error):
+class FileUtilsError(LoomengineUtilsError):
     pass
 
-class FileAlreadyExistsError(Error):
+class Md5ValidationError(FileUtilsError):
     pass
 
-class NoFilesMatchError(Error):
+class UrlValidationError(FileUtilsError):
     pass
 
-class MultipleFilesMatchError(Error):
+class InvalidYamlError(FileUtilsError):
     pass
 
-class IdMatchedTooFewDataObjectsError(Error):
+class NoFileError(FileUtilsError):
     pass
 
-class IdMatchedTooManyDataObjectsError(Error):
+class ImportManagerError(LoomengineUtilsError):
     pass
-    
-class ValidationError(Error):
+
+class FileDuplicateError(ImportManagerError):
     pass

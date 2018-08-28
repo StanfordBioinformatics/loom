@@ -5,8 +5,7 @@ Most of these examples use non-file inputs for convenience, but files can be use
 In this example, the “lorem_ipsum.txt” input file should be imported prior to importing the “search_file.yaml” template that references it.
 
 --------------------------------------------------------
-# Import the file before the template that references it
-loom file import lorem_ipsum.txt
+# Import the template along with its dependencies (lorem_ipsum.txt)
 loom template import search_file.yaml
 
 # Run with default input data

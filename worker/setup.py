@@ -91,15 +91,10 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'apache-libcloud==1.5.0',
-        'docker-py==1.10.6',                 # used by Ansible to run Docker modules and Loom server to run NGINX container
-        'google-api-python-client==1.6.2',
-        'google-apitools>=0.5.8',
-        'google-cloud==0.26.1',
-        'google-resumable-media==0.3.0',
-        'python-dateutil==2.6.0',
-        'PyYAML==3.12',
-        'requests==2.13.0',            # match docker-py dependency
+        'docker-py',
+        'pycrypto',
+        'python-dateutil',
+        'requests',
         'loomengine_utils==%s' % version,
     ],
 
