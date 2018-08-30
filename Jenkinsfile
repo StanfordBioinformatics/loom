@@ -94,7 +94,7 @@ pipeline {
         sh '. env/bin/activate && loom test smoke'
       }
     }
-    stage('Verify PyPi release can be installed') {
+    stage('Integration Tests') {
       when {
         expression { env.TAG_NAME }
       }
