@@ -377,8 +377,8 @@ class DataNode(BaseModel):
         if seed is not None:
             clone = seed
             assert clone.type == self.type, 'type mismatch'
-            assert clone.degree is None
-            assert clone.data_object is None
+            assert clone.degree is None, '"degree" already set on DataNode clone target'
+            assert clone.data_object is None, '"data_object" already set on DataNode clone target'
             # clone.index may be set because the seed
             # might be connected to a parent.
             if save:

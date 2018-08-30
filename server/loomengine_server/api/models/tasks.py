@@ -316,6 +316,7 @@ class Task(BaseModel):
                     parser=run_output.parser,
                     data_node=data_node))
                 data_nodes[run_output.data_node.uuid] = run_output.data_node
+                data_nodes[data_node.uuid] = data_node
             task.command = task.render_command(task_inputs, task_outputs)
             return task, task_inputs, task_outputs, data_nodes
         except Exception as e:

@@ -26,7 +26,7 @@ def match_and_update_by_uuid(unsaved_models, field, saved_models):
             continue
         uuid = getattr(unsaved_model, field).uuid
         match = filter(lambda m: m.uuid==uuid, saved_models)
-        assert len(match) == 1
+        assert len(match) == 1, 'Failed to match object by UUID'
         setattr(unsaved_model, field, match[0])
     return unsaved_models
 
