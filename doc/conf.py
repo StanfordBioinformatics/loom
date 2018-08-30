@@ -57,6 +57,7 @@ author = u'Nathan Hammond, Isaac Liao'
 
 # Define "release" and "version" based on git tag, as described
 # here: https://protips.readthedocs.io/git-tag-version.html
+import os
 import re
 # The full version, including alpha/beta/rc tags.
 release = re.sub('^v', '', os.popen('git describe').read().strip())

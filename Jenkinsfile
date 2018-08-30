@@ -70,6 +70,9 @@ pipeline {
     }
     stage('Deploy Test Environment') {
       steps {
+        // Create doc building environment
+	sh 'virtualenv doc-env'
+	sh '. doc-env/bin/activate && pip install -r doc/requirements.pip'
         // Install loom client locally
         sh 'virtualenv env'
         sh 'build-tools/set-version.sh ${VERSION}'
@@ -87,6 +90,11 @@ pipeline {
           sh '. env/bin/activate && loom server start -s ${HOME}/.loom-deploy-settings/loom.conf -r ${HOME}/.loom-deploy-settings/resources/ -e LOOM_ADMIN_USERNAME=${USERNAME} -e LOOM_ADMIN_PASSWORD=${PASSWORD}'
           sh '. env/bin/activate && loom auth login $USERNAME -p $PASSWORD'
 	}
+      }
+    }
+    stage('Doc build tests') {
+      steps {
+        sh '. doc-env/bin/activate && cd doc && make html'
       }
     }
     stage('Smoke Tests') {
