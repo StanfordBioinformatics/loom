@@ -274,7 +274,7 @@ class Task(BaseModel):
                 data_path = input_set.data_path
                 if len(filter(lambda t: t.data_path==data_path, run.tasks.all())) > 0:
                     # No-op. Task already exists.
-                    return
+                    return None, [], [], {}
             else:
                 # If run has no inputs, we get an empty input_set.
                 # Task will go on the root node.

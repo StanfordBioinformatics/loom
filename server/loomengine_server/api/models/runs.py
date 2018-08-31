@@ -224,6 +224,9 @@ class Run(BaseModel):
                     .get_input_sets():
                     task, task_inputs, task_outputs, data_nodes \
                         = Task.create_unsaved_task_from_input_set(input_set, leaf)
+                    if task is None:
+                        # Task already exists, none to create
+                        continue
                     unsaved_tasks[task.uuid] = task
                     unsaved_task_inputs.extend(task_inputs)
                     unsaved_task_outputs.extend(task_outputs)
@@ -232,6 +235,8 @@ class Run(BaseModel):
                 # Special case: No inputs on leaf node
                 task, task_inputs, task_outputs, data_nodes \
                     = Task.create_unsaved_task_from_input_set([], leaf)
+                if task is None:
+                    continue
                 unsaved_tasks[task.uuid] = task
                 unsaved_task_inputs.extend(task_inputs)
                 unsaved_task_outputs.extend(task_outputs)
