@@ -268,7 +268,7 @@ class Task(BaseModel):
         return tasks
 
     @classmethod
-    def create_unsaved_task_from_input_set(cls, input_set, run):
+    def create_unsaved_task_from_input_set(cls, input_set, run, run_outputs):
         try:
             if input_set:
                 data_path = input_set.data_path
@@ -303,7 +303,7 @@ class Task(BaseModel):
                     mode=input_item.mode,
                     data_node = data_node))
                 data_nodes[data_node.uuid] = data_node
-            for run_output in run.outputs.all():
+            for run_output in run_outputs:
                 data_node = run_output.data_node.get_or_create_node(
                     data_path, save=False)
                 task_outputs.append(TaskOutput(

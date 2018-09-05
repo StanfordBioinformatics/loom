@@ -220,10 +220,12 @@ class Run(BaseModel):
         unsaved_data_nodes = {}
         for leaf in self.get_leaves():
             if leaf.inputs.exists():
+                leaf_outputs = leaf.outputs.all()
                 for input_set in InputCalculator(leaf)\
                     .get_input_sets():
                     task, task_inputs, task_outputs, data_nodes \
-                        = Task.create_unsaved_task_from_input_set(input_set, leaf)
+                        = Task.create_unsaved_task_from_input_set(
+                            input_set, leaf, leaf_outputs)
                     if task is None:
                         # Task already exists, none to create
                         continue
