@@ -377,8 +377,8 @@ class DataNode(BaseModel):
         if seed is not None:
             clone = seed
             assert clone.type == self.type, 'type mismatch'
-            assert clone.degree is None
-            assert clone.data_object is None
+            assert clone.degree is None, '"degree" already set on DataNode clone target'
+            assert clone.data_object is None, '"data_object" already set on DataNode clone target'
             # clone.index may be set because the seed
             # might be connected to a parent.
             if save:
@@ -534,7 +534,7 @@ class DataNode(BaseModel):
             if node.degree is not None:
                 params.append((node.id, node.degree))
         if params:
-            case_statement = ''.join(
+            case_statement = ' '.join(
                 ['WHEN id="%s" THEN %s' % pair for pair in params])
             id_list = ', '.join(['%s' % pair[0] for pair in params])
             sql = 'UPDATE api_datanode SET degree= CASE %s END WHERE id IN (%s)'\
@@ -549,7 +549,7 @@ class DataNode(BaseModel):
             if node.data_object is not None:
                 params.append((node.id, node.data_object.id))
         if params:
-            case_statement = ''.join(
+            case_statement = ' '.join(
                 ['WHEN id="%s" THEN %s' % pair for pair in params])
             id_list = ', '.join(['%s' % pair[0] for pair in params])
             sql = \

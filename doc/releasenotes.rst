@@ -2,6 +2,13 @@
 Release Notes
 #############
 
+0.7.1
+------------
+* Bug fixes:
+  - critical bug affecting all runs with multiple outputs
+  - bug that prevented setting disk size for server or workers in Google Cloud
+  - bug that prevented old logs from being automatically deleted
+
 0.7.0
 ------------
 * Import/export runs and templates with dependencies

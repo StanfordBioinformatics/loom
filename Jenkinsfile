@@ -32,7 +32,7 @@ pipeline {
   environment {
     // If this is a tagged build, version will be TAG_NAME.
     // Otherwise take version from git commit
-    VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT.take(10) }"
+    VERSION="${ TAG_NAME ? TAG_NAME : GIT_COMMIT }"
     LOOM_SETTINGS_HOME="${WORKSPACE}/.loom/"
     LOOM_SERVER_NAME="${BUILD_TAG.replaceAll(/_/,'-').replaceAll(/\./,'-').toLowerCase()}"
     GOOGLE_APPLICATION_CREDENTIALS="${HOME}/.loom-deploy-settings/resources/gcp-service-account-key.json"
@@ -70,6 +70,9 @@ pipeline {
     }
     stage('Deploy Test Environment') {
       steps {
+        // Create doc building environment
+	sh 'virtualenv doc-env'
+	sh '. doc-env/bin/activate && pip install -r doc/requirements.pip'
         // Install loom client locally
         sh 'virtualenv env'
         sh 'build-tools/set-version.sh ${VERSION}'
@@ -89,9 +92,22 @@ pipeline {
 	}
       }
     }
+    stage('Doc build tests') {
+      steps {
+        sh '. doc-env/bin/activate && cd doc && make html'
+      }
+    }
     stage('Smoke Tests') {
       steps {
         sh '. env/bin/activate && loom test smoke'
+      }
+    }
+    stage('Integration Tests') {
+      when {
+        expression { env.TAG_NAME }
+      }
+      steps {
+        sh '. env/bin/activate && loom test integration'
       }
     }
     stage('Publish Release') {
