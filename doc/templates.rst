@@ -168,19 +168,19 @@ Let's look at another way to write the previous workflow. The "add" and "multipl
 
 *add.yaml:*
 
-.. literalinclude:: ../client/loomengine/examples/building_blocks/add.yaml
+.. literalinclude:: ../client/loomengine/examples/building_blocks/building_blocks.yaml.dependencies/templates/add.yaml
 
 *multiply.yaml:*
 
-.. literalinclude:: ../client/loomengine/examples/building_blocks/multiply.yaml
+.. literalinclude:: ../client/loomengine/examples/building_blocks/building_blocks.yaml.dependencies/templates/multiply.yaml
 
 *building_blocks.yaml:*
 
 .. literalinclude:: ../client/loomengine/examples/building_blocks/building_blocks.yaml
 
-:download:`add.yaml <../client/loomengine/examples/building_blocks/add.yaml>`
+:download:`add.yaml <../client/loomengine/examples/building_blocks/building_blocks.yaml.dependencies/templates/add.yaml>`
 
-:download:`multiply.yaml <../client/loomengine/examples/building_blocks/multiply.yaml>`
+:download:`multiply.yaml <../client/loomengine/examples/building_blocks/building_blocks.yaml.dependencies/templates/multiply.yaml>`
 
 :download:`building_blocks.yaml <../client/loomengine/examples/building_blocks/building_blocks.yaml>`
 
@@ -188,9 +188,7 @@ Let's look at another way to write the previous workflow. The "add" and "multipl
 
 ::
    
-   # Import child templates before the parent that references them
-   loom template import add.yaml
-   loom template import multiply.yaml
+   # Import the parent template along with any dependencies
    loom template import building_blocks.yaml
    
    # Run with default input data
@@ -210,13 +208,13 @@ In this example, the "lorem_ipsum.txt" input file should be imported prior to im
 
 *lorem_ipsum.txt:*
 
-.. literalinclude:: ../client/loomengine/examples/search_file/lorem_ipsum.txt
+.. literalinclude:: ../client/loomengine/examples/search_file/search_file.yaml.dependencies/files/lorem_ipsum.txt
 
 *search_file.yaml:*
 
 .. literalinclude:: ../client/loomengine/examples/search_file/search_file.yaml
 
-:download:`lorem_ipsum.txt <../client/loomengine/examples/search_file/lorem_ipsum.txt>`
+:download:`lorem_ipsum.txt <../client/loomengine/examples/search_file/search_file.yaml.dependencies/files/lorem_ipsum.txt>`
 		    
 :download:`search_file.yaml <../client/loomengine/examples/search_file/search_file.yaml>`
 
@@ -232,8 +230,7 @@ Here is an alternative text file not referenced in the template. We can override
 
 ::
    
-   # Import the file before the template that references it
-   loom file import lorem_ipsum.txt
+   # Import the template along with dependencies
    loom template import search_file.yaml
    
    # Run with default input data
@@ -382,9 +379,9 @@ field         required  default                  type               example
 ============  ========  =======================  =================  ===============
 channel       yes                                string             'sampleid'
 type          yes                                string             'file'
-mode*         no        no_gather                string             'gather'
-parser*       no        null                     OutputParser       {'type': 'delimited', 'options': {'delimiter': ','}
-source*       yes                                OutputSource       {'glob': '*.dat'}
+mode\*         no        no_gather                string             'gather'
+parser\*       no        null                     OutputParser       {'type': 'delimited', 'options': {'delimiter': ','}
+source\*       yes                                OutputSource       {'glob': '\*.dat'}
 ============  ========  =======================  =================  ===============
 
 \* only on executable steps (leaf nodes)
@@ -395,7 +392,7 @@ OutputParser schema
 ============  ========  =======================  =================  ===============
 field         required  default                  type               example
 ============  ========  =======================  =================  ===============
-type*          yes                                string             'delimited'
+type\*         yes                                string             'delimited'
 options       no                                 ParserOptions      {'delimiter':' ','trim':true}
 ============  ========  =======================  =================  ===============
 
@@ -407,9 +404,9 @@ OutputSource schema
 ============  ========  =======================  =================  ===============
 field         required  default                  type               example
 ============  ========  =======================  =================  ===============
-filename*     false                              string             'out.txt'
-stream*       false                              string             'stderr'
-glob+         false                              string             '*.txt'
+filename\*     false                              string             'out.txt'
+stream\*       false                              string             'stderr'
+glob+         false                              string             '\*.txt'
 filenames+    false                              string             ['out1.txt','out2.txt']
 ============  ========  =======================  =================  ===============
 

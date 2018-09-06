@@ -121,7 +121,7 @@ class TestExamples(unittest.TestCase):
         template_list_client = loomengine.template.Template(args, silent=True)
         result = self._poll_for_n(template_list_client, n=1,
                                   error_message='Failed to import template')
-        template = requests.get(result[0]['url']).json()
+        template = requests.get(result[0]['url'], verify=False).json()
         self._get_files_from_template(template)
         self.template_tags.add(template_tag)
         return template_tag

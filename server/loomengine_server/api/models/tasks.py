@@ -268,13 +268,13 @@ class Task(BaseModel):
         return tasks
 
     @classmethod
-    def create_unsaved_task_from_input_set(cls, input_set, run):
+    def create_unsaved_task_from_input_set(cls, input_set, run, run_outputs):
         try:
             if input_set:
                 data_path = input_set.data_path
                 if len(filter(lambda t: t.data_path==data_path, run.tasks.all())) > 0:
                     # No-op. Task already exists.
-                    return
+                    return None, [], [], {}
             else:
                 # If run has no inputs, we get an empty input_set.
                 # Task will go on the root node.
@@ -303,7 +303,7 @@ class Task(BaseModel):
                     mode=input_item.mode,
                     data_node = data_node))
                 data_nodes[data_node.uuid] = data_node
-            for run_output in run.outputs.all():
+            for run_output in run_outputs:
                 data_node = run_output.data_node.get_or_create_node(
                     data_path, save=False)
                 task_outputs.append(TaskOutput(
@@ -316,6 +316,7 @@ class Task(BaseModel):
                     parser=run_output.parser,
                     data_node=data_node))
                 data_nodes[run_output.data_node.uuid] = run_output.data_node
+                data_nodes[data_node.uuid] = data_node
             task.command = task.render_command(task_inputs, task_outputs)
             return task, task_inputs, task_outputs, data_nodes
         except Exception as e:

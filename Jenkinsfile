@@ -70,6 +70,9 @@ pipeline {
     }
     stage('Deploy Test Environment') {
       steps {
+        // Create doc building environment
+	sh 'virtualenv doc-env'
+	sh '. doc-env/bin/activate && pip install -r doc/requirements.pip'
         // Install loom client locally
         sh 'virtualenv env'
         sh 'build-tools/set-version.sh ${VERSION}'
@@ -89,9 +92,22 @@ pipeline {
 	}
       }
     }
+    stage('Doc build tests') {
+      steps {
+        sh '. doc-env/bin/activate && cd doc && make html'
+      }
+    }
     stage('Smoke Tests') {
       steps {
         sh '. env/bin/activate && loom test smoke'
+      }
+    }
+    stage('Integration Tests') {
+      when {
+        expression { env.TAG_NAME }
+      }
+      steps {
+        sh '. env/bin/activate && loom test integration'
       }
     }
     stage('Publish Release') {
