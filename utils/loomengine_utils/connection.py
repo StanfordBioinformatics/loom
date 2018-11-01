@@ -147,7 +147,6 @@ class Connection(object):
             elif e.response.status_code >= 400:
                 try:
                     message = e.response.json()
-                    import pdb; pdb.set_trace()
                 except:
                     message = e.response.text
                 if isinstance(message, list):
