@@ -51,7 +51,7 @@ pipeline {
     }
     stage('Unit Tests') {
       steps {
-        sh 'docker run loomengine/loom:${VERSION} /loom/src/bin/run-unit-tests.sh'
+        sh 'docker run loomengine/loom:${VERSION} /opt/loom/src/bin/run-unit-tests.sh'
       }
     }
     stage('Push Docker Image') {
