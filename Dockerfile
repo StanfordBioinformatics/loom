@@ -50,17 +50,17 @@ RUN pip install -U pip
 
 # Install Loom
 ADD ./portal /var/www/loom/portal
-ADD ./client /loom/src/client
-ADD ./server /loom/src/server
-ADD ./utils /loom/src/utils
-ADD ./worker /loom/src/worker
-ADD ./bin /loom/src/bin
-ADD ./NOTICES /loom/src/NOTICES
-ADD ./LICENSE /loom/src/LICENSE
-ADD ./README.rst /loom/src/README.rst
-ADD ./build-tools /loom/src/build-tools
+ADD ./client /opt/loom/src/client
+ADD ./server /opt/loom/src/server
+ADD ./utils /opt/loom/src/utils
+ADD ./worker /opt/loom/src/worker
+ADD ./bin /opt/loom/src/bin
+ADD ./NOTICES /opt/loom/src/NOTICES
+ADD ./LICENSE /opt/loom/src/LICENSE
+ADD ./README.rst /opt/loom/src/README.rst
+ADD ./build-tools /opt/loom/src/build-tools
 ARG LOOM_VERSION
-RUN cd /loom/src/build-tools \
+RUN cd /opt/loom/src/build-tools \
     && ./set-version.sh \
     && ./build-loom-packages.sh \
     && ./install-loom-packages.sh \
