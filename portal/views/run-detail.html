@@ -88,64 +88,47 @@
 	    </tr>
         </table>
     </div>
-    <div ng-show="activeData.run.steps.length">
-        <h4>Steps</h4>
-        <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Step</th>
-                        <th>Status</th>
-                        <th>Started</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr ng-repeat="step in activeData.run.steps">
-                        <td>
-                            <a ng-href="#/runs/{{step.uuid}}">
-                                {{step.name}}@{{step.uuid | limitTo: 8}}
-                            </a>
-                        </td>
-                        <td>
-			  <span ng-class="'label label-'+(step.status|statusColor)">
-			    {{step.status}}
-			  </span>
-			</td>
-                        <td>{{step.datetime_created | date:'medium'}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+    <h4>Steps</h4>
+    <div class="col-xs-12">
+      <div class="table-responsive">
+	<div class="table table-hover table-striped">
+	  <div class="container-fluid">
+	    <div class="row">
+	      <div class="col col-xs-5"></div>
+	      <div class="col col-xs-2">Status</div>
+	      <div class="col col-xs-3">Started</div>
+	      <div class="col col-xs-2">Logs</div>
+	    </div>
+	    <div class="row" ng-repeat="process in activeData.run | flattenRun">
+	      <div class="col col-xs-5" style="padding-left:calc(26px + (20px * {{process.level}}))">
+		<a href="#/runs/{{process.uuid}}" ng-if="process.type=='run'">
+		  {{ process.name }}@{{process.uuid | limitTo:8 }}
+		</a>
+		<a href="#/tasks/{{process.uuid}}" ng-if="process.type=='task'">
+		  task {{process.uuid | limitTo:8 }}
+		</a>
+		<a href="#/task-attempts/{{process.uuid}}" ng-if="process.type=='task-attempt'">
+		  attempt {{process.uuid | limitTo:8}}
+		</a>
+	      </div>
+	      <div class="col col-xs-2">
+		<span ng-class="'label label-' + (process.status | statusColor)">
+		  {{process.status}}
+		</span>
+	      </div>
+	      <div class="col col-xs-3">
+		{{process.datetime_created | date:'medium'}}
+	      </div>
+	      <div class="col col-xs-2">
+		<a ng-if="process.type=='task-attempt'" target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}/logs/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:%22{{process.uuid}}%22')),sort:!('@timestamp',desc))">
+		  <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
+		</a>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+      </div>
     </div>
-
-    <div ng-show="activeData.run.tasks">
-        <h4>Tasks</h4>
-        <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <th>Task ID</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                </thead>
-                <tbody ng-repeat="task in activeData.run.tasks">
-                    <tr>
-                        <td>
-                            <a ng-href="#/tasks/{{task.uuid}}">
-                                Task {{task.uuid}}
-                            </a>
-                        </td>
-                        <td>
-			  <span ng-class="'label label-'+(task.status|statusColor)">
-			    {{task.status}}
-			  </span>
-			</td>
-                        <td>{{task.datetime_created | date:'medium'}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
     <div ng-show="activeData.run.inputs.length">
         <h4>Inputs</h4>
         <div class="table-responsive" >

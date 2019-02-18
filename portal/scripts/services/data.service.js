@@ -34,8 +34,6 @@
             return $http.get("/api/runs/" + runId + "/")
 		.then(function(response) {
 		    activeData.run = response.data;
-		    expandDataChannels(activeData.run.inputs);
-		    expandDataChannels(activeData.run.outputs);
 		});
 	}
 
@@ -43,8 +41,6 @@
             return $http.get("/api/tasks/" + taskId + "/")
 		.then(function(response) {
 		    activeData.task = response.data;
-		    expandDataChannels(activeData.task.inputs);
-		    expandDataChannels(activeData.task.outputs);
 		});
 	}
 
@@ -52,8 +48,6 @@
             return $http.get("/api/task-attempts/" + taskAttemptId + "/")
 		.then(function(response) {
 		    activeData.taskAttempt = response.data;
-		    expandDataChannels(activeData.taskAttempt.inputs);
-		    expandDataChannels(activeData.taskAttempt.outputs);
 		});
 	}
 
@@ -61,30 +55,6 @@
             return $http.get("/api/templates/" + templateId + "/")
 		.then(function(response) {
 		    activeData.template = response.data;
-		    expandDataChannels(activeData.template.inputs);
-		    expandDataChannels(activeData.template.outputs);
-		});
-	}
-
-	function expandDataChannels(channels) {
-	    if (channels) {
-		if (channels==null){
-		    return;
-		}
-		for (var i=0; i < channels.length; i++) {
-		    expandDataChannel(channels[i]);
-		}
-	    }
-	}
-
-	function expandDataChannel(channel) {
-	    if (channel.data==null){
-		return;
-	    }
-            return $http.get(
-		"/api/data-nodes/"+channel.data.uuid+"?expand")
-		.then(function(response) {
-		    channel.data = response.data;
 		});
 	}
 
