@@ -15,8 +15,7 @@
 	this.setActiveTaskAttempt = setActiveTaskAttempt;
 	this.setActiveTemplate = setActiveTemplate;
 	this.setActiveFile = setActiveFile;
-	this.getAllActive = getAllActive;
-	this.getRunDetail = getRunDetail;
+	this.getActiveData = getActiveData;
 	this.getRuns = getRuns;
 	this.getTemplates = getTemplates;
 	this.getImportedFiles = getImportedFiles;
@@ -26,52 +25,52 @@
 
 	var activeData = {};
 
-	function getAllActive() {
+	function getActiveData() {
             return activeData;
 	}
 
 	function setActiveRun(runId) {
+	    activeData.focus = null
             return $http.get("/api/runs/" + runId + "/")
 		.then(function(response) {
-		    activeData.run = response.data;
+		    activeData.focus = response.data;
 		});
 	}
 
 	function setActiveTask(taskId) {
+	    activeData.focus = null
             return $http.get("/api/tasks/" + taskId + "/")
 		.then(function(response) {
-		    activeData.task = response.data;
+		    activeData.focus = response.data;
 		});
 	}
 
 	function setActiveTaskAttempt(taskAttemptId) {
+	    activeData.focus = null
             return $http.get("/api/task-attempts/" + taskAttemptId + "/")
 		.then(function(response) {
-		    activeData.taskAttempt = response.data;
+		    activeData.focus = response.data;
 		});
 	}
 
 	function setActiveTemplate(templateId) {
+	    activeData.focus = null
             return $http.get("/api/templates/" + templateId + "/")
 		.then(function(response) {
-		    activeData.template = response.data;
+		    activeData.focus = response.data;
 		});
 	}
 
 	function setActiveFile(fileId) {
+	    activeData.focus = null
             return $http.get("/api/data-objects/" + fileId + "/")
 		.then(function(response) {
-		    activeData.file = response.data;
+		    activeData.focus = response.data;
 		});
 	}
 
-	function getRunDetail(runId) {
-	    return $http.get("/api/runs/" + runId + "/")
-		.then(function(response) {
-		    return response.data;
-		});
-	}
 	function getRuns(limit, offset) {
+	    activeData.focus = null
             return $http.get("/api/runs/?parent_only&limit="+limit+"&offset="+offset)
 		.then(function(response) {
 		    return response.data;
@@ -79,6 +78,7 @@
 	}
 
 	function getTemplates(limit, offset) {
+	    activeData.focus = null
             return $http.get("/api/templates/?imported&limit="+limit+"&offset="+offset)
 		.then(function(response) {
 		    return response.data;
@@ -86,6 +86,7 @@
 	}
 
 	function getImportedFiles(limit, offset) {
+	    activeData.focus = null
             return $http.get("/api/data-objects/?source_type=imported&type=file&limit="+limit+"&offset="+offset)
 		.then(function(response) {
 		    return response.data;
@@ -93,6 +94,7 @@
 	}
 
 	function getResultFiles(limit, offset) {
+	    activeData.focus = null
             return $http.get("/api/data-objects/?source_type=result&type=file&limit="+limit+"&offset="+offset)
 		.then(function(response) {
 		    return response.data;
@@ -100,6 +102,7 @@
 	}
 
 	function getLogFiles(limit, offset) {
+	    activeData.focus = null
             return $http.get("/api/data-objects/?source_type=log&type=file&limit="+limit+"&offset="+offset)
 		.then(function(response) {
 		    return response.data;

@@ -11,7 +11,7 @@ VersionController.$inject = [
 
 function VersionController($scope, DataService) {
     DataService.getLoginAndVersionInfo().then(function() {
-	$scope.version = DataService.getAllActive().version
+	$scope.version = DataService.getActiveData().version
     });
 };
 }());
