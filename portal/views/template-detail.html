@@ -77,27 +77,27 @@
   </div>
   <div ng-show="activeData.focus.steps">
     <h4>Steps</h4>
-    <div class="table-responsive">
-      <table class="table table-striped">
-	<thead>
-	  <tr>
-	    <th>Template</th>
-	    <th>Created</th>
-	  </tr>
-	</thead>
-	<tbody>
-	  <tr ng-repeat="step in activeData.focus.steps">
-            <td>
-	      <a ng-href="#/templates/{{step.uuid}}">
-		{{step.name}}@{{step.uuid | limitTo: 8}}
-	      </a>
-	    </td>
-	    <td>
-	      {{step.datetime_created | date:'medium'}}
-	    </td>
-	  </tr>
-	</tbody>
-      </table>
+    <div class="col-xs-12">
+      <div class="table-responsive">
+	<div class="table table-hover table-striped">
+	  <div class="container-fluid">
+	    <div class="row">
+	      <div class="col col-xs-5"></div>
+	      <div class="col col-xs-3">Created</div>
+	    </div>
+	    <div class="row" ng-repeat="process in activeData.focus | flattenRun">
+	      <div class="col col-xs-5" style="padding-left:calc(26px + (20px * {{process.level}}))">
+		<a href="#/templates/{{process.uuid}}">
+		  {{ process.name }}@{{process.uuid | limitTo:8 }}
+		</a>
+	      </div>
+	      <div class="col col-xs-3">
+		{{process.datetime_created | date:'medium'}}
+	      </div>
+	    </div>
+	  </div>
+	</div>
+      </div>
     </div>
   </div>
   <div ng-show="activeData.focus.inputs.length">
