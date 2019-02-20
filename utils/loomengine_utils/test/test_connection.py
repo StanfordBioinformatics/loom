@@ -31,7 +31,7 @@ def MockResponse(status_code=200, content=None):
         content = default_response_data
     response = requests.Response()
     response.status_code = status_code
-    response._content = json.dumps(content).encode('utf-8')
+    response._content = json.dumps(content)
     return response
 
 

@@ -480,7 +480,7 @@ def _run_execute_task_attempt_playbook(task_attempt):
     terminal_output = ''
     for line in iter(p.stdout.readline, ''):
         terminal_output += line
-        print(line.strip())
+        print line.strip()
     p.wait()
     if p.returncode != 0:
         logger.error('_run_execute_task_attempt_playbook failed for '\

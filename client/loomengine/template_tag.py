@@ -61,10 +61,10 @@ class TemplateTagAdd(object):
                 templates[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-        print('Target "%s@%s" has been tagged as "%s"' % \
+        print 'Target "%s@%s" has been tagged as "%s"' % \
             (templates[0].get('name'),
              templates[0].get('uuid'),
-             tag.get('tag')))
+             tag.get('tag'))
 
 
 class TemplateTagRemove(object):
@@ -114,10 +114,10 @@ class TemplateTagRemove(object):
                 templates[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to remove tag: '%s'" % e)
-        print('Tag %s has been removed from template "%s@%s"' % \
+        print 'Tag %s has been removed from template "%s@%s"' % \
             (tag.get('tag'),
              templates[0].get('name'),
-             templates[0].get('uuid')))
+             templates[0].get('uuid'))
 
 
 class TemplateTagList(object):
@@ -172,9 +172,9 @@ class TemplateTagList(object):
             except LoomengineUtilsError as e:
                 raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
             tags = [item.get('tag') for item in tag_list]
-        print('[showing %s tags]' % len(tags))
+        print '[showing %s tags]' % len(tags)
         for tag in tags:
-            print(tag)
+            print tag
 
 
 class TemplateTag(object):

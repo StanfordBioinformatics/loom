@@ -35,7 +35,7 @@ class AbstractFileSubcommand(object):
 
     def _print(self, text):
         if not self.silent:
-            print(text)
+            print text
 
 
 class FileImport(AbstractFileSubcommand):
@@ -103,8 +103,8 @@ class FileImport(AbstractFileSubcommand):
         if not self.args.tag:
             return
         if len(files_imported) > 1:
-            print('WARNING! No tags were applied, because tags '\
-                'must be unique but multiple files were imported.')
+            print 'WARNING! No tags were applied, because tags '\
+                'must be unique but multiple files were imported.'
             return
         else:
             for tagname in self.args.tag:
@@ -340,7 +340,7 @@ class FileDelete(AbstractFileSubcommand):
             file_data_object.get('value')['filename'],
             file_data_object.get('uuid'))
         if not self.args.yes:
-            user_input = input(
+            user_input = raw_input(
                 'Do you really want to permanently delete file "%s"?\n'
                 '(y)es, (n)o: '
                 % file_id)

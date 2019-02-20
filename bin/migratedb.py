@@ -37,7 +37,7 @@ def migrate(skip_if_initialized=True):
     #  [ ] 0003_alter_user_email_max_length
     #  [ ] 0004_alter_user_username_opts
     # ...
-    text = p.stdout.read().decode()
+    text = p.stdout.read()
     pending_migrations = len(re.findall('\[ \]', text))
     completed_migrations = len(re.findall('\[X\]', text))
     total_migrations = pending_migrations + completed_migrations
@@ -45,10 +45,10 @@ def migrate(skip_if_initialized=True):
     if total_migrations == 0:
         raise SystemExit('No migrations found')
     if pending_migrations == 0:
-        print("No migrations pending")
+        print "No migrations pending"
         return
     if skip_if_initialized and completed_migrations > 0:
-        print("Skipping %s pending migrations" % pending_migrations)
+        print "Skipping %s pending migrations" % pending_migrations
         return
     p = subprocess.Popen([manage_executable, 'migrate'],
                          stdout=subprocess.PIPE,
@@ -57,8 +57,8 @@ def migrate(skip_if_initialized=True):
     if p.returncode != 0:
         raise SystemExit(
             'migratedb command failed with this output:\n "%s"' % p.stdout.read())
-    text = p.stdout.read().decode()
-    print(text)
+    text = p.stdout.read()
+    print text
 
 if __name__=='__main__':
     args = get_args()

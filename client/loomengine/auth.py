@@ -26,7 +26,7 @@ class AuthClient(object):
 
     def _print(self, text):
         if not self.silent:
-            print(text)
+            print text
 
     def _set_run_function(self):
         # Map user input command to method
@@ -59,7 +59,7 @@ class AuthClient(object):
             self._print("Token deleted.")
 
     def print_token(self):
-        print(get_token())
+        print get_token()
 
 
 def get_parser(parser=None):

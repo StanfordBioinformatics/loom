@@ -44,7 +44,7 @@ class AbstractRunSubcommand(object):
 
     def _print(self, text):
         if not self.silent:
-            print(text)
+            print text
 
 
 class RunStart(AbstractRunSubcommand):
@@ -121,7 +121,7 @@ class RunStart(AbstractRunSubcommand):
         except jsonschema.ValidationError:
             raise SystemExit("ERROR! Input file was invalid")
         input_dict = {}
-        for (channel, input_id) in file_inputs.items():
+        for (channel, input_id) in file_inputs.iteritems():
             input_dict[channel] = input_id
 
         if self.args.inputs:
@@ -131,7 +131,7 @@ class RunStart(AbstractRunSubcommand):
                     input_id)
 
         inputs = []
-        for (channel, contents) in input_dict.items():
+        for (channel, contents) in input_dict.iteritems():
             inputs.append({
                 'channel': channel,
                 'data': {
@@ -298,7 +298,7 @@ class RunRestart(RunStart):
             jsonschema.validate(file_inputs, file_input_schema)
         except jsonschema.ValidationError:
             raise SystemExit("ERROR! User inputs file is not valid")
-        for (channel, input_id) in file_inputs.items():
+        for (channel, input_id) in file_inputs.iteritems():
             input_dict[channel] = {
                 'channel': channel,
                 'data': {'contents': input_id}
@@ -313,7 +313,7 @@ class RunRestart(RunStart):
                         'contents':
                         self._parse_string_to_nested_lists(input_id)}
                 }
-        return list(input_dict.values())
+        return input_dict.values()
 
 
 class RunImport(AbstractRunSubcommand):
@@ -555,7 +555,7 @@ class RunKill(AbstractRunSubcommand):
         run = data[0]
         run_id = "%s@%s" % (run['name'], run['uuid'])
         if not self.args.yes:
-            user_input = input(
+            user_input = raw_input(
                 'Do you really want to permanently kill run "%s"?\n'
                 '(y)es, (n)o: ' % run_id)
             if user_input.lower() == 'n':
@@ -657,7 +657,7 @@ class RunDelete(AbstractRunSubcommand):
                                 run_outputs_to_delete.append(
                                     log_file['data_object'])
         if not self.args.yes:
-            user_input = input(
+            user_input = raw_input(
                 'Do you really want to permanently delete run "%s"?\n'
                 '(y)es, (n)o: ' % run_id)
             if user_input.lower() == 'n':
@@ -703,7 +703,7 @@ class RunDelete(AbstractRunSubcommand):
                 file_id = "%s@%s" % (
                     data_object['value']['filename'], data_object['uuid'])
                 if not self.args.yes:
-                    user_input = input(
+                    user_input = raw_input(
                         'Do you really want to delete result file "%s"?\n'
                         '(y)es, (n)o: ' % file_id)
                     if user_input.lower() == 'n':

@@ -28,8 +28,8 @@
 			case 403:
 			    $window.location = '#/login';
 			    break;
-			case 500:
-			    $window.location = './views/500.html';
+			case 500:e
+			    $window.location = './500.html';
 			    break;
 			}
 			return $q.reject(errorResponse);

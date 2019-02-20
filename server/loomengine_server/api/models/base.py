@@ -26,6 +26,7 @@ class FilterHelper(object):
 
     def filter_multiple_by_name_or_id_or_tag_or_hash(
             self, query_strings, queryset=None):
+        assert isinstance(query_strings, (list, set))
         query_strings = set(query_strings)
         if len(query_strings) == 0:
             return {}
@@ -52,6 +53,7 @@ class FilterHelper(object):
 
     def filter_multiple_by_name_or_id_or_tag(
             self, query_strings, queryset=None):
+        assert isinstance(query_strings, (list, set))
         query_strings = set(query_strings)
         if len(query_strings) == 0:
             return {}
@@ -256,7 +258,7 @@ class BaseModel(models.Model, _FilterMixin):
         count = 0
         obj=self
         while True:
-            for attribute, value in assignments.items():
+            for attribute, value in assignments.iteritems():
                 setattr(obj, attribute, value)
             try:
                 obj.full_clean()

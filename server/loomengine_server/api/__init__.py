@@ -25,7 +25,7 @@ def match_and_update_by_uuid(unsaved_models, field, saved_models):
         if not getattr(unsaved_model, field):
             continue
         uuid = getattr(unsaved_model, field).uuid
-        match = list(filter(lambda m: m.uuid==uuid, saved_models))
+        match = filter(lambda m: m.uuid==uuid, saved_models)
         assert len(match) == 1, 'Failed to match object by UUID'
         setattr(unsaved_model, field, match[0])
     return unsaved_models
@@ -40,10 +40,10 @@ def reload_models(ModelClass, models):
 def connect_data_nodes_to_parents(data_nodes, parent_child_relationships):
     params = []
     for parent_uuid, child_uuid in parent_child_relationships:
-        child = next(filter(
-            lambda r: r.uuid==child_uuid, data_nodes))
-        parent = next(filter(
-            lambda r: r.uuid==parent_uuid, data_nodes))
+        child = filter(
+            lambda r: r.uuid==child_uuid, data_nodes)[0]
+        parent = filter(
+            lambda r: r.uuid==parent_uuid, data_nodes)[0]
         params.append((child.id, parent.id))
     if params:
         case_statement = ' '.join(

@@ -62,10 +62,10 @@ class FileLabelAdd(object):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to create label: '%s'" % e)
         if not self.silent:
-            print('Target "%s@%s" has been labeled as "%s"' % \
+            print 'Target "%s@%s" has been labeled as "%s"' % \
                 (files[0]['value'].get('filename'),
                  files[0].get('uuid'),
-                 label.get('label')))
+                 label.get('label'))
 
 
 class FileLabelRemove(object):
@@ -116,10 +116,10 @@ class FileLabelRemove(object):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to remove label: '%s'" % e)
         if not self.silent:
-            print('Label %s has been removed from file "%s@%s"' % \
+            print 'Label %s has been removed from file "%s@%s"' % \
                 (label.get('label'),
                  files[0]['value'].get('filename'),
-                 files[0].get('uuid')))
+                 files[0].get('uuid'))
 
 
 class FileLabelList(object):
@@ -168,9 +168,9 @@ class FileLabelList(object):
                 raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
             labels = label_data.get('labels', [])
             if not self.silent:
-                print('[showing %s labels]' % len(labels))
+                print '[showing %s labels]' % len(labels)
                 for label in labels:
-                    print(label)
+                    print label
         else:
             try:
                 label_list = self.connection.get_data_label_index()
@@ -181,9 +181,9 @@ class FileLabelList(object):
                 label_counts.setdefault(item.get('label'), 0)
                 label_counts[item.get('label')] += 1
             if not self.silent:
-                print('[showing %s labels]' % len(label_counts))
+                print '[showing %s labels]' % len(label_counts)
                 for key in label_counts:
-                    print("%s (%s)" % (key, label_counts[key]))
+                    print "%s (%s)" % (key, label_counts[key])
 
 
 class FileLabel(object):

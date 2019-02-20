@@ -1,7 +1,7 @@
 import copy
 import re
 
-from .data_nodes import DegreeMismatchError
+from data_nodes import DegreeMismatchError
 
 """InputCalculator analyzes the set of nodes acting as inputs
 for one Run to determine when sufficient data is available to 

@@ -11,7 +11,7 @@ def request_run(template, **kwargs):
     run['template'] = '@%s' % str(template.uuid)
     run['user_inputs'] = []
 
-    for (channel, value) in kwargs.items():
+    for (channel, value) in kwargs.iteritems():
         input = template.get_input(channel)
         if input.type == 'file':
             # Files have to be pre-imported.

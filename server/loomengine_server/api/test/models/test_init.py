@@ -80,21 +80,21 @@ class TestCalculateContentsFingerprint(TestCase):
     def testString(self):
         value = 'help'
         self.assertEqual(calculate_contents_fingerprint(value),
-                        hashlib.md5(value.encode('utf-8')).hexdigest())
+                        hashlib.md5(value).hexdigest())
 
     def testNonstring(self):
         value = 1
         self.assertEqual(calculate_contents_fingerprint(value),
-                        hashlib.md5(str(value).encode('utf-8')).hexdigest())
+                        hashlib.md5(str(value)).hexdigest())
         
     def testList(self):
         list_value = [1, 2, 3]
-        list_with_items_hashed = [hashlib.md5(str(item).encode('utf-8')).hexdigest()
+        list_with_items_hashed = [hashlib.md5(str(item)).hexdigest()
                                   for item in list_value]
         list_string = json.dumps(list_with_items_hashed, separators=(',',':'))
         self.assertEqual(
             calculate_contents_fingerprint(list_value),
-            hashlib.md5(list_string.encode('utf-8')).hexdigest())
+            hashlib.md5(list_string).hexdigest())
 
     def testListOrderNotPreserved(self):
         list1_value = [1,2,3]
@@ -111,7 +111,7 @@ class TestCalculateContentsFingerprint(TestCase):
         sorted_dict_string = json.dumps(dict_with_items_hashed,
                                         sort_keys=True, separators=(',',':'))
         self.assertEqual(calculate_contents_fingerprint(dict_value),
-                         hashlib.md5(sorted_dict_string.encode('utf-8')).hexdigest())
+                         hashlib.md5(sorted_dict_string).hexdigest())
 
     def testDictOrderNotPreserved(self):
         dict1_value = {'a': True, 'b': False, 'c': True}

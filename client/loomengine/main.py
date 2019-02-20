@@ -38,8 +38,8 @@ class Version(argparse.Action):
             except LoomengineUtilsError as e:
                 server_version = '[client error! %s]' % e
 
-        print("client version: %s" % loomengine_utils.version.version())
-        print("server version: %s" % server_version)
+        print "client version: %s" % loomengine_utils.version.version()
+        print "server version: %s" % server_version
         exit(0)
 
 

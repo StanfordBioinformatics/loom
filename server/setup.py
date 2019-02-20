@@ -115,7 +115,7 @@ setup(
         'jsonfield',
         'jsonschema',
         'kombu',
-        'mysqlclient',
+        'MySQL-python',
         'oauth2client',
         'pyopenssl',
         'PyYAML',

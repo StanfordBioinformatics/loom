@@ -41,7 +41,7 @@ class AbstractTemplateSubcommand(object):
 
     def _print(self, text):
         if not self.silent:
-            print(text)
+            print text
 
 
 class TemplateImport(AbstractTemplateSubcommand):
@@ -331,7 +331,7 @@ class TemplateDelete(AbstractTemplateSubcommand):
                 except LoomengineUtilsError as e:
                     raise SystemExit("ERROR! Failed to get template: '%s'" % e)
         if not self.args.yes:
-            user_input = input(
+            user_input = raw_input(
                 'Do you really want to permanently delete template "%s"?\n'
                 '(y)es, (n)o: '
                 % template_id)
@@ -355,9 +355,9 @@ class TemplateDelete(AbstractTemplateSubcommand):
                 raise SystemExit("ERROR! Failed to delete template: '%s'" % e)
             self._print("Deleted template %s" % template_id)
         else:
-            print("Cannot delete template %s because it is still in use. "\
+            print "Cannot delete template %s because it is still in use. "\
                 "You must delete the following objects "\
-                "before deleting this template." % template_id)
+                "before deleting this template." % template_id
             self._print(self._render_dependencies(dependencies))
         for template in template_children_to_delete:
             self._delete_template(template)

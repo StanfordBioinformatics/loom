@@ -61,10 +61,10 @@ class RunTagAdd(object):
             tag = self.connection.post_run_tag(runs[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed create tag: '%s'" % e)
-        print('Target "%s@%s" has been tagged as "%s"' % \
+        print 'Target "%s@%s" has been tagged as "%s"' % \
             (runs[0].get('name'),
              runs[0].get('uuid'),
-             tag.get('tag')))
+             tag.get('tag'))
 
 
 class RunTagRemove(object):
@@ -114,10 +114,10 @@ class RunTagRemove(object):
             tag = self.connection.remove_run_tag(runs[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to remove tag: '%s'" % e)
-        print('Tag %s has been removed from run "%s@%s"' % \
+        print 'Tag %s has been removed from run "%s@%s"' % \
             (tag.get('tag'),
              runs[0].get('name'),
-             runs[0].get('uuid')))
+             runs[0].get('uuid'))
 
 
 class RunTagList(object):
@@ -171,9 +171,9 @@ class RunTagList(object):
                 raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
             tags = [item.get('tag') for item in tag_list]
 
-        print('[showing %s tags]' % len(tags))
+        print '[showing %s tags]' % len(tags)
         for tag in tags:
-            print(tag)
+            print tag
 
 
 class RunTag(object):

@@ -203,7 +203,7 @@ def postprocess_run(run_uuid):
     run = Run.objects.get(uuid=run_uuid)
     run.prefetch()
     for step in run.get_leaves():
-        for task in step.tasks.all():
+	for task in step.tasks.all():
             fingerprint = task.get_fingerprint()
             fingerprint.update_task_attempt_maybe(task.task_attempt)
     if not run.has_terminal_status():

@@ -107,13 +107,13 @@ CLEANUP_TASK_ATTEMPT_PLAYBOOK = os.getenv('LOOM_CLEANUP_TASK_ATTEMPT_PLAYBOOK')
 
 def _add_url_prefix(path):
     if STORAGE_TYPE.lower() == 'local':
-        return 'file://' + path
+	return 'file://' + path
     elif STORAGE_TYPE.lower() == 'google_storage':
         return 'gs://' + GOOGLE_STORAGE_BUCKET + path
     else:
         raise ValidationError(
             'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
-            % STORAGE_TYPE)
+	    % STORAGE_TYPE)
 STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loomdata'))
 INTERNAL_STORAGE_ROOT = os.path.expanduser(
     os.getenv('LOOM_INTERNAL_STORAGE_ROOT', STORAGE_ROOT))
@@ -157,7 +157,7 @@ EMAIL_PORT = to_int(os.getenv('LOOM_EMAIL_PORT', 587))
 EMAIL_HOST_USER = os.getenv('LOOM_EMAIL_HOST_USER', None)
 EMAIL_HOST_PASSWORD = os.getenv('LOOM_EMAIL_HOST_PASSWORD', None)
 EMAIL_USE_TLS = to_boolean(os.getenv('LOOM_EMAIL_USE_TLS', True))
-EMAIL_USE_SSL = to_boolean(os.getenv('LOOM_EMAIL_USE_SSL', False))
+EMAIL_USE_SSL = to_boolean(os.getenv('LOOM_EMAIL_USE_SSL', True))
 EMAIL_TIMEOUT = to_float(os.getenv('LOOM_EMAIL_TIMEOUT', 0.0))
 EMAIL_SSL_KEYFILE = os.getenv('LOOM_EMAIL_SSL_KEYFILE', None)
 EMAIL_SSL_CERTFILE = os.getenv('LOOM_EMAIL_SSL_CERTFILE', None)
@@ -175,7 +175,7 @@ LOOM_RABBITMQ_PORT = os.getenv('LOOM_RABBITMQ_PORT', '5672')
 def _get_ansible_inventory():
     ansible_inventory = os.getenv('LOOM_ANSIBLE_INVENTORY', 'localhost,')
     if ',' not in ansible_inventory:
-        ansible_inventory = os.path.join(
+	ansible_inventory = os.path.join(
             PLAYBOOK_PATH,
             os.getenv('LOOM_ANSIBLE_INVENTORY'))
     return ansible_inventory
@@ -226,13 +226,13 @@ INSTALLED_APPS = [
     'api',
 ]
 
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
+MIDDLEWARE_CLASSES = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -387,7 +387,7 @@ INTERNAL_IPS = ["127.0.0.1",]
 
 if DEBUG or (len(sys.argv) > 1 and sys.argv[1] == 'collectstatic'):
     INSTALLED_APPS.append('debug_toolbar')
-    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+    MIDDLEWARE_CLASSES.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
     def custom_show_toolbar(request):
         return True

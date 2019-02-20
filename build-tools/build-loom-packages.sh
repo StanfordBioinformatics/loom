@@ -26,6 +26,5 @@ done
 
 for package in $THISDIR/../utils $THISDIR/../server $THISDIR/../client $THISDIR/../worker
 do
-    cd $package;
-    python setup.py sdist;
+    echo "$(cd $package; python setup.py sdist;)"
 done

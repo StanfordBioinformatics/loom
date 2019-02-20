@@ -181,9 +181,8 @@ class TaskMonitor(object):
             with open(os.path.join(
                     self.working_dir,
                     self.LOOM_RUN_SCRIPT_NAME),
-                      'wb') as f:
-                self.logger.debug('writing user command')
-                f.write((user_command+'\n').encode('utf-8'))
+                      'w') as f:
+                f.write(user_command.encode('utf-8') + '\n')
         except Exception as e:
             error = self._get_error_text(e)
             self._report_system_error(
@@ -292,14 +291,12 @@ class TaskMonitor(object):
         thread.start()
         for line in self.docker_client.logs(self.container, stdout=True,
                                             stderr=False, stream=True):
-            self.logger.debug('writing stdout docker log')
             sys.stdout.write(line)
         thread.join()
 
     def _stderr_stream_worker(self):
         for line in self.docker_client.logs(self.container, stdout=False,
                                             stderr=True, stream=True):
-            self.logger.debug('writing stderr docker log')
             sys.stderr.write(line)
 
     def _get_returncode(self):
@@ -353,10 +350,8 @@ class TaskMonitor(object):
             init_directory(
                 os.path.dirname(self.log_dir))
             with open(stdout_file, 'w') as stdoutlog:
-                self.logger.debug('writing stdout file')
                 stdoutlog.write(self._get_stdout())
             with open(stderr_file, 'w') as stderrlog:
-                self.logger.debug('writing stderr file')
                 stderrlog.write(self._get_stderr())
             self._import_log_file(stderr_file, retry=True)
             self._import_log_file(stdout_file, retry=True)
@@ -368,11 +363,11 @@ class TaskMonitor(object):
 
     def _get_stdout(self):
         return self.docker_client.logs(
-            self.container, stderr=False, stdout=True).decode()
+            self.container, stderr=False, stdout=True)
 
     def _get_stderr(self):
         return self.docker_client.logs(
-            self.container, stderr=True, stdout=False).decode()
+            self.container, stderr=True, stdout=False)
 
     def _import_log_file(self, filepath, retry=True):
         try:

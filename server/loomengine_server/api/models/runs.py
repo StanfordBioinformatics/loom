@@ -122,6 +122,11 @@ class Run(BaseModel):
         assert len(inputs) == 1, 'missing input for channel %s' % channel
         return inputs[0]
 
+    def get_output(self, channel):
+        outputs = [o for o in self.outputs.filter(channel=channel)]
+        assert len(outputs) == 1, 'missing output for channel %s' % channel
+        return outputs[0]
+
     def get_user_input(self, channel):
         user_inputs = [i for i in self.user_inputs.filter(channel=channel)]
         assert len(user_inputs) < 2, 'too many user_inputs for channel %s' % channel
@@ -381,10 +386,10 @@ class Run(BaseModel):
         copy_prefetch(queried_runs_2, node_list,
                       child_field='steps', one_to_x_fields=['template',])
         # Prefetch all data nodes
-        data_nodes = []
-        for instance in instances:
+	data_nodes = []
+	for instance in instances:
             instance._get_data_nodes(data_nodes)
-        DataNode.prefetch_list(data_nodes)
+	DataNode.prefetch_list(data_nodes)
 
     def _get_data_nodes(self, data_nodes=None):
         if data_nodes is None:

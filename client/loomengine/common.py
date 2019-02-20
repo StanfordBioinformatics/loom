@@ -1,5 +1,5 @@
 import argparse
-import configparser
+import ConfigParser
 import distutils
 import googleapiclient.discovery
 import imp
@@ -9,7 +9,7 @@ import oauth2client.client
 import os
 import re
 import requests
-from io import StringIO
+from StringIO import StringIO
 import subprocess
 import sys
 import time
@@ -29,19 +29,19 @@ LOOM_TOKEN_FILE = 'token.txt'
 def parse_settings_file(settings_file):
     # dummy section name because ConfigParser needs sections
     PARSER_SECTION = 'settings'
-    parser = configparser.SafeConfigParser()
+    parser = ConfigParser.SafeConfigParser()
     # preserve uppercase in settings names
     parser.optionxform = lambda option: option.upper()
     try:
         with open(settings_file) as stream:
-            # Add a section, since configparser requires it
+            # Add a section, since ConfigParser requires it
             stream = StringIO("[%s]\n" % PARSER_SECTION + stream.read())
             parser.readfp(stream)
     except IOError:
         raise SystemExit(
             'ERROR! Could not open file to read settings at "%s".'
             % settings_file)
-    except configparser.ParsingError as e:
+    except ConfigParser.ParsingError as e:
         raise SystemExit(
             'ERROR! Could not parse settings in file "%s".\n %s'
             % (settings_file, e.message))
@@ -114,7 +114,7 @@ def get_server_type():
         raise Exception(
             "%s not found. Please run 'loom server set "
             "<servertype>' first." % server_location_file)
-    config = configparser.SafeConfigParser()
+    config = ConfigParser.SafeConfigParser()
     config.read(server_location_file)
     server_type = config.get('server', 'type')
     return server_type
@@ -127,7 +127,7 @@ def get_gcloud_server_name():
         raise Exception(
             "%s not found. Please run 'loom server set "
             "<servertype>' first." % server_location_file)
-    config = configparser.SafeConfigParser()
+    config = ConfigParser.SafeConfigParser()
     config.read(server_location_file)
     server_type = config.get('server', 'type')
     if server_type != 'gcloud':
@@ -156,7 +156,7 @@ def get_inventory():
         inv = json.loads(inv)
         return inv
     except subprocess.CalledProcessError as e:
-        print(e)
+        print e
 
 
 def delete_token():

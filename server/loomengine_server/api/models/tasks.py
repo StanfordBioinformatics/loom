@@ -235,7 +235,7 @@ class Task(BaseModel):
             attempt_output.data_node.clone(seed=output.data_node, save=False)
             task_attempt_output_data_nodes[output.data_node.uuid] = output.data_node
         DataNode.save_list_with_children(
-            list(task_attempt_output_data_nodes.values()))
+            task_attempt_output_data_nodes.values())
         self.run.push_all_outputs()
 
     @classmethod
@@ -243,8 +243,7 @@ class Task(BaseModel):
                           unsaved_task_outputs, unsaved_data_nodes, force_rerun):
         if get_setting('TEST_NO_CREATE_TASK'):
             return
-        all_data_nodes = DataNode.save_list_with_children(
-            list(unsaved_data_nodes.values()))
+        all_data_nodes = DataNode.save_list_with_children(unsaved_data_nodes.values())
 
         bulk_tasks = Task.objects.bulk_create(unsaved_tasks.values())
         tasks = reload_models(Task, bulk_tasks)
@@ -273,8 +272,7 @@ class Task(BaseModel):
         try:
             if input_set:
                 data_path = input_set.data_path
-                if len(list(filter(
-                        lambda t: t.data_path==data_path, run.tasks.all()))) > 0:
+                if len(filter(lambda t: t.data_path==data_path, run.tasks.all())) > 0:
                     # No-op. Task already exists.
                     return None, [], [], {}
             else:
@@ -406,6 +404,9 @@ class Task(BaseModel):
             self.raw_command,
             self.get_full_context(inputs=inputs, outputs=outputs, data_path=data_path))
 
+    def get_output(self, channel):
+        return self.outputs.get(channel=channel)
+
     def add_event(self, event, detail='', is_error=False):
         event = TaskEvent(
             event=event, task=self,
@@ -460,9 +461,9 @@ class Task(BaseModel):
                 instance._prefetched_objects_cache = task._prefetched_objects_cache
         # Prefetch all data nodes
         data_nodes = []
-        for instance in instances:
+	for instance in instances:
             instance._get_data_nodes(data_nodes)
-        DataNode.prefetch_list(data_nodes)
+	DataNode.prefetch_list(data_nodes)
 
     def _get_data_nodes(self, data_nodes=None):
         if data_nodes is None:

@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 import jsonschema
 import jsonschema.exceptions
 import re
-from urllib.parse import urlparse
+import urlparse
 
 
 class DataObjectValidator(object):
@@ -106,7 +106,7 @@ def validate_md5(value):
         raise ValidationError('Invalid md5 value "%s"' % value)
     
 def validate_url(value):
-    url = urlparse(value)
+    url = urlparse.urlparse(value)
     if not re.match(r'[A-Za-z]+', url.scheme):
         raise ValidationError(
             'Invalid scheme "%s" in URL "%s"' % (url.scheme, value))
@@ -290,7 +290,7 @@ class TemplateValidator(object):
         }
         try:
             jsonschema.validate(value, schema)
-        except jsonschema.exceptions.ValidationError as e:
+	except jsonschema.exceptions.ValidationError as e:
             raise ValidationError(e.message)
 
 def validate_ge0(value):

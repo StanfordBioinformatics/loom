@@ -123,7 +123,7 @@ pipeline {
         expression { env.TAG_NAME }
       }
       steps {
-        sh '. env/bin/activate && build-tools/release-to-pypi.sh'
+        sh '. env/bin/activate && build-tools/pypi-release.sh'
       }
     }
     stage('Verify PyPi release can be installed') {

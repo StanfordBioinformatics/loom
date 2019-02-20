@@ -19,5 +19,4 @@ fi
 echo Version set to \"$version\"
 echo Building docker image loomengine/loom:$version
 
-docker build .. -t loomengine/loom:$version
-docker run loomengine/loom:$version /opt/loom/src/bin/run-unit-tests.sh
+docker build .. -t loomengine/loom:$version --no-cache

@@ -31,7 +31,7 @@ class TestImportManager(unittest.TestCase):
             file_path = os.path.join(self.source_directory, filename)
             self.file_paths.append(file_path)
             self.file_urls.append('file://'+file_path)
-            self.md5_sums.append(self._get_md5(filename.encode('utf-8')))
+            self.md5_sums.append(self._get_md5(filename))
             with open(file_path, 'w') as f:
                 f.write(filename)
 

@@ -32,11 +32,11 @@ class ImportManager(object):
         self.silent = silent
         if storage_settings is None:
             storage_settings = connection.get_storage_settings()
-        self.storage_settings = storage_settings
+	self.storage_settings = storage_settings
 
     def _print(self, text):
         if not self.silent:
-            print(text)
+            print text
 
     def bulk_import(self, directory, link_files=False,
                     retry=False):
@@ -574,7 +574,7 @@ class ImportManager(object):
         return run
 
     def _get_template_duplicate(self, template):
-        md5 = template.get('md5')
+	md5 = template.get('md5')
         name = template.get('name')
         templates = self.connection.get_template_index(
             query_string='%s$%s' % (name, md5))
@@ -664,18 +664,18 @@ class ImportManager(object):
     def _get_matches_from_file_dependencies(self, file_dependencies, name, md5):
         file_data_objects = file_dependencies.file_data_objects
         if name and md5:
-            return list(filter(lambda do, name=name, md5=md5:
+            return filter(lambda do, name=name, md5=md5:
                           do['value'].get('filename') == name and
                           do['value'].get('md5') == md5,
-                          file_data_objects))
+                          file_data_objects)
         elif name:
-            return list(filter(lambda do, name=name,:
+            return filter(lambda do, name=name,:
                           do['value'].get('filename') == name,
-                          file_data_objects))
+                          file_data_objects)
         elif md5:
-            return list(filter(lambda do, md5=md5:
+            return filter(lambda do, md5=md5:
                           do['value'].get('md5') == md5,
-                          file_data_objects))
+                          file_data_objects)
         else:
             raise Exception('No name, md5, or uuid found for input')
 
@@ -689,7 +689,7 @@ class ImportManager(object):
             name = name_match.groups()[0]
         # id starts with @ and ends with $ or end of string
         uuid_match = re.match('^.*?@(.*?)($|\$|:)', input_data_string)
-        if uuid_match is not None:
+	if uuid_match is not None:
             uuid = uuid_match.groups()[0]
         # tag starts with $ and ends with @ or end of string
         tag_match = re.match('^.*?:(.*?)($|\$|@)', input_data_string)
