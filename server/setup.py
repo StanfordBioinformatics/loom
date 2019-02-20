@@ -94,7 +94,7 @@ setup(
         'ansible',
         'apache-libcloud',
         'celery',
-        'Django',
+        'Django<2',
         'django-celery-results',
         'django-cors-headers',
         'django-debug-toolbar',
