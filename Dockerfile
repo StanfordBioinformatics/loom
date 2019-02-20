@@ -46,7 +46,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install -U pip
+# Use pip3 and python3 as the default
+RUN unlink /usr/bin/python \
+    && ln -s /usr/bin/python3 /usr/bin/python \
+    && pip3 install -U pip
 
 # Install Loom
 ADD ./portal /var/www/loom/portal

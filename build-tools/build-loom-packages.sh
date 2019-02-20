@@ -27,5 +27,5 @@ done
 for package in $THISDIR/../utils $THISDIR/../server $THISDIR/../client $THISDIR/../worker
 do
     cd $package;
-    python3 setup.py sdist;
+    python setup.py sdist;
 done

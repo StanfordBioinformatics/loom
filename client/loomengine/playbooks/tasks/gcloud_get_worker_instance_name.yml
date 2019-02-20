@@ -1,5 +1,5 @@
 - name: Create a GCP-safe name for the worker instance.
-  command: python3 -c "import gcloud_utils; gcloud_utils.get_worker_name('{{server_name}}','{{step_name}}','{{task_attempt_id}}', '{{instance_name_max_length}}')"
+  command: python -c "import gcloud_utils; gcloud_utils.get_worker_name('{{server_name}}','{{step_name}}','{{task_attempt_id}}', '{{instance_name_max_length}}')"
   args:
     chdir: "{{playbook_dir}}/files"
   register: worker_name_result

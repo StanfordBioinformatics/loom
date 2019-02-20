@@ -8,7 +8,7 @@
   tasks:
     - include: tasks/gcloud_get_worker_instance_name.yml
     - name: Find the cheapest instance type that has at least the cores and memory needed by the task.
-      command: python3 -c "import gcloud_utils; gcloud_utils.get_cheapest_instance_type({{cores}}, {{memory}})"
+      command: python -c "import gcloud_utils; gcloud_utils.get_cheapest_instance_type({{cores}}, {{memory}})"
       args:
         chdir: "{{playbook_dir}}/files"
       register: instance_type_result

@@ -436,7 +436,7 @@ def _run_execute_task_attempt_playbook(task_attempt):
                 playbook,
                 # Without this, ansible uses /usr/bin/python,
                 # which may be missing needed modules
-                '-e', 'ansible_python_interpreter="/usr/bin/env python3"',
+                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
     ]
 
     if get_setting('DEBUG'):
