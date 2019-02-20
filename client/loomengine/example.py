@@ -65,8 +65,8 @@ class ExampleExport(object):
             raise SystemExit(
                 'Error exporting example to "%s": %s' % (target_dir, e))
         if not self.silent:
-            print 'Exported example "%s"\n    to "%s"' % \
-                (os.path.basename(example_path), target_dir)
+            print('Exported example "%s"\n    to "%s"' % \
+                (os.path.basename(example_path), target_dir))
 
 
 class ExampleList(object):
@@ -88,7 +88,7 @@ class ExampleList(object):
 
     def _render_example(self, example_name, description):
         if not self.silent:
-            print '%s:\n    %s\n' % (example_name, description)
+            print('%s:\n    %s\n' % (example_name, description))
 
 
 class Example(object):

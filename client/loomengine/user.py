@@ -21,7 +21,7 @@ class AbstractUserSubcommand(object):
 
     def _print(self, text):
         if not self.silent:
-            print text
+            print(text)
 
 
 class UserAdd(AbstractUserSubcommand):

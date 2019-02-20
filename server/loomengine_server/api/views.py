@@ -730,7 +730,7 @@ class StorageSettingsView(RetrieveAPIView):
 
 @require_http_methods(["GET"])
 def info(request):
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         username = request.user.username
     else:
         username = None
@@ -745,7 +745,7 @@ def info(request):
 def auth_status(request):
     if get_setting('LOGIN_REQUIRED')==False:
         return JsonResponse({'message': 'Authentication not required'})
-    elif request.user.is_authenticated():
+    elif request.user.is_authenticated:
         return JsonResponse({
             'message': 'User is authenticated as %s' % request.user.username})
     else:

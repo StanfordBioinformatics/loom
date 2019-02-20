@@ -80,13 +80,6 @@ class Template(BaseModel):
             'Found %s inputs for channel %s' % (inputs.count(), channel)
         return inputs.first()
 
-    def get_output(self, channel):
-        outputs = filter(lambda o: o.get('channel')==channel,
-                         self.outputs)
-        assert outputs.count() == 1, \
-            'Found %s outputs for channel %s' %(outputs.count(), channel)
-        return outputs.first()
-
     def add_step(self, step):
         TemplateMembership.add_step_to_workflow(step, self)
 
@@ -143,7 +136,7 @@ class Template(BaseModel):
         if self.parents.count() != 0:
             raise ProtectedByParentError
         nodes_to_delete = set()
-	queryset = DataNode.objects.filter(
+        queryset = DataNode.objects.filter(
             templateinput__template__uuid=self.uuid)
         for item in queryset.all():
             nodes_to_delete.add(item)
@@ -197,9 +190,9 @@ class Template(BaseModel):
         copy_prefetch(queried_templates_2, instances, child_field='steps')
         # Prefetch all data nodes
         data_nodes = []
-	for instance in instances:
+        for instance in instances:
             instance._get_data_nodes(data_nodes=data_nodes)
-	DataNode.prefetch_list(data_nodes)
+        DataNode.prefetch_list(data_nodes)
 
     def _get_data_nodes(self, data_nodes=None):
         if data_nodes is None:

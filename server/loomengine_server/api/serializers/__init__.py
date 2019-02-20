@@ -2,14 +2,14 @@ import rest_framework.serializers
 
 
 def strip_empty_values(data):
-    return dict((k, v) for k, v in data.iteritems() if v not in [None, '', []])
+    return dict((k, v) for k, v in data.items() if v not in [None, '', []])
 
 def match_and_update_by_uuid(unsaved_models, field, saved_models):
     for unsaved_model in unsaved_models:
         if not getattr(unsaved_model, field):
             continue
         uuid = getattr(unsaved_model, field).uuid
-        match = filter(lambda m: m.uuid==uuid, saved_models)
+        match = list(filter(lambda m: m.uuid==uuid, saved_models))
         assert len(match) == 1
         setattr(unsaved_model, field, match[0])
     return unsaved_models

@@ -277,7 +277,7 @@ class DataNode(BaseModel):
     def _get_child_by_index(self, index):
         self._check_index(index)
         # Don't use filter or get to avoid extra db query
-        matches = filter(lambda c: c.index==index, self.get_children())
+        matches = list(filter(lambda c: c.index==index, self.get_children()))
         assert len(matches) <= 1, "Duplicate children with the same index"
         if len(matches) == 1:
             return matches[0]
@@ -518,10 +518,10 @@ class DataNode(BaseModel):
                 preexisting_data_nodes[data_node.uuid] = data_node
             else:
                 unsaved_data_nodes[data_node.uuid] = data_node
-        bulk_data_nodes = DataNode.objects.bulk_create(unsaved_data_nodes.values())
+        bulk_data_nodes = DataNode.objects.bulk_create(list(unsaved_data_nodes.values()))
         new_data_nodes = reload_models(DataNode, bulk_data_nodes)
         all_data_nodes = [n for n in new_data_nodes]
-        all_data_nodes.extend(preexisting_data_nodes.values())
+        all_data_nodes.extend(list(preexisting_data_nodes.values()))
         connect_data_nodes_to_parents(all_data_nodes, parent_child_relationships)
         cls._update_degree(preexisting_data_nodes)
         cls._update_data_object(preexisting_data_nodes)

@@ -62,10 +62,10 @@ class TemplateLabelAdd(object):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to create label: '%s'" % e)
         if not self.silent:
-            print 'Target "%s@%s" has been labeled as "%s"' % \
+            print('Target "%s@%s" has been labeled as "%s"' % \
                 (templates[0].get('name'),
                  templates[0].get('uuid'),
-                 label.get('label'))
+                 label.get('label')))
 
 
 class TemplateLabelRemove(object):
@@ -116,10 +116,10 @@ class TemplateLabelRemove(object):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to remove label: '%s'" % e)
         if not self.silent:
-            print 'Label %s has been removed from template "%s@%s"' % \
+            print('Label %s has been removed from template "%s@%s"' % \
                 (label.get('label'),
                  templates[0].get('name'),
-                 templates[0].get('uuid'))
+                 templates[0].get('uuid')))
 
 
 class TemplateLabelList(object):
@@ -169,9 +169,9 @@ class TemplateLabelList(object):
                 raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
             labels = label_data.get('labels', [])
             if not self.silent:
-                print '[showing %s labels]' % len(labels)
+                print('[showing %s labels]' % len(labels))
                 for label in labels:
-                    print label
+                    print(label)
         else:
             try:
                 label_list = self.connection.get_template_label_index()
@@ -182,9 +182,9 @@ class TemplateLabelList(object):
                 label_counts.setdefault(item.get('label'), 0)
                 label_counts[item.get('label')] += 1
             if not self.silent:
-                print '[showing %s labels]' % len(label_counts)
+                print('[showing %s labels]' % len(label_counts))
                 for key in label_counts:
-                    print "%s (%s)" % (key, label_counts[key])
+                    print("%s (%s)" % (key, label_counts[key]))
 
 
 class TemplateLabel(object):

@@ -70,7 +70,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Run
-	fields = [
+        fields = [
             'uuid',
             'url',
             'name',
@@ -167,7 +167,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
 
     def _lookup_template(self, template_data):
         # This method should retrieve a template, given either a dict with a UUID
-        # or a string/unicode reference. It should never save a new template.
+        # or a string reference. It should never save a new template.
         # This is expected to be called only once and should complete in a small,
         # finite number of db queries.
         try:
@@ -182,7 +182,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
             pass
 
         # Not an object. Treat as a string reference.
-        if not isinstance(template_data, (str, unicode)):
+        if not isinstance(template_data, str):
             raise serializers.ValidationError(
                 'Invalid template. Expcted object or string but found "%s"'
                 % template_data)
@@ -298,7 +298,7 @@ class UnsavedObjectManager(object):
 
     def bulk_create_all(self):
         bulk_data_objects = DataObject.objects.bulk_create(
-            self._unsaved_data_objects.values())
+            list(self._unsaved_data_objects.values()))
         self._new_data_objects = reload_models(DataObject, bulk_data_objects)
         all_data_objects = [data_object for data_object in self._new_data_objects]
         all_data_objects.extend(self._preexisting_data_objects.values())
@@ -409,8 +409,8 @@ class UnsavedObjectManager(object):
         self._connect_runs_to_parents(all_runs)
 
         # Reload
-        matches = filter(
-            lambda r: r.uuid==self._root_run_uuid, all_runs)
+        matches = list(filter(
+            lambda r: r.uuid==self._root_run_uuid, all_runs))
         assert len(matches) == 1, '1 run should match uuid of root'
         return matches[0]
 
@@ -475,9 +475,9 @@ class UnsavedObjectManager(object):
 
         run._cached_user_inputs = []
         for user_input_data in user_inputs:
-            matches = filter(
+            matches = list(filter(
                 lambda i: i.channel==user_input_data.get('channel'),
-                template.inputs.all())
+                template.inputs.all()))
             if len(matches) != 1:
                 raise serializers.ValidationError(
                     'User input channel "%s" does not match any template inputs'
@@ -493,8 +493,8 @@ class UnsavedObjectManager(object):
 
         run._cached_inputs = []
         for template_input in template.inputs.all():
-            matches = filter(
-                lambda i: i.get("channel")==template_input.channel, inputs)
+            matches = list(filter(
+                lambda i: i.get("channel")==template_input.channel, inputs))
             assert len(matches) < 2, \
                 'Too many inputs with channel "%s"' % template_input.channel
             if len(matches) == 1:
@@ -510,9 +510,9 @@ class UnsavedObjectManager(object):
 
         run._cached_outputs = []
         for template_output in template.outputs:
-            matches = filter(
+            matches = list(filter(
                 lambda o: o.get("channel")==template_output.get('channel'),
-                outputs)
+                outputs))
             assert len(matches) < 2, \
                 'Too many outputs with channel "%s"' % template_output.get('channel')
             if len(matches) == 1:
@@ -533,8 +533,8 @@ class UnsavedObjectManager(object):
             for step in steps:
                 # Get the matching template for this step, without
                 # triggering new database queries
-                matches = filter(lambda s: s.name==step.get('name'),
-                                 template.steps.all())
+                matches = list(filter(lambda s: s.name==step.get('name'),
+                                 template.steps.all()))
                 if len(matches) == 0:
                     raise serializers.ValidationError(
                         'No template found for step "%s"' % step.get('name'))
@@ -645,7 +645,7 @@ class UnsavedObjectManager(object):
                     data_node.data_object.uuid] = data_node.data_object
         file_lookups = DataObject.filter_multiple_by_name_or_id_or_tag_or_hash(
             file_references.keys())
-        for reference, data_objects in file_lookups.iteritems():
+        for reference, data_objects in file_lookups.items():
             if len(data_objects) == 0:
                 raise serializers.ValidationError(
                     'No file found for reference "%s"' % reference)
@@ -743,8 +743,8 @@ class UnsavedObjectManager(object):
     def _validate_run_data_fields(self, run_data):
         data_keys = run_data.keys()
         serializer_keys = self._serializer_fields
-        extra_fields = filter(
-            lambda key: key not in serializer_keys, data_keys)
+        extra_fields = list(filter(
+            lambda key: key not in serializer_keys, data_keys))
         if extra_fields:
             raise serializers.ValidationError(
                 'Unrecognized fields %s' % extra_fields)
@@ -849,9 +849,9 @@ class UnsavedObjectManager(object):
     def _connect_tasks_to_active_task_attempts(self, tasks, task_attempts):
         params = []
         for task_uuid, task_attempt_uuid in self._task_to_task_attempt_relationships:
-            task = filter(lambda t: t.uuid==task_uuid, tasks)[0]
-            task_attempt = filter(
-                lambda ta: ta.uuid==task_attempt_uuid, task_attempts)[0]
+            task = list(filter(lambda t: t.uuid==task_uuid, tasks)[0])
+            task_attempt = list(filter(
+                lambda ta: ta.uuid==task_attempt_uuid, task_attempts)[0])
             params.append((task.id, task_attempt.id))
         if params:
             case_statement = ' '.join(
@@ -913,10 +913,10 @@ class UnsavedObjectManager(object):
     def _connect_runs_to_parents(self, runs):
         params = []
         for parent_uuid, child_uuid in self._run_parent_child_relationships:
-            child = filter(
-                lambda r: r.uuid==child_uuid, runs)[0]
-            parent = filter(
-                lambda r: r.uuid==parent_uuid, runs)[0]
+            child = next(filter(
+                lambda r: r.uuid==child_uuid, runs))
+            parent = next(filter(
+                lambda r: r.uuid==parent_uuid, runs))
             params.append((child.id, parent.id))
         if params:
             case_statement = ' '.join(
@@ -963,8 +963,8 @@ class UnsavedObjectManager(object):
                 raise serializers.ValidationError(
                     'Too many sources for channel "%s"' % input.channel)
 
-            matches = filter(lambda i: i.channel==input.channel,
-                             run._cached_user_inputs)
+            matches = list(filter(lambda i: i.channel==input.channel,
+                             run._cached_user_inputs))
             if len(matches) > 1:
                 raise serializers.ValidationError(
                     'More than one UserInput matched channel "%s"' % input.channel)

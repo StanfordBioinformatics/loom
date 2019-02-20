@@ -436,7 +436,7 @@ def _run_execute_task_attempt_playbook(task_attempt):
                 playbook,
                 # Without this, ansible uses /usr/bin/python,
                 # which may be missing needed modules
-                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
+                '-e', 'ansible_python_interpreter="/usr/bin/env python3"',
     ]
 
     if get_setting('DEBUG'):
@@ -480,7 +480,7 @@ def _run_execute_task_attempt_playbook(task_attempt):
     terminal_output = ''
     for line in iter(p.stdout.readline, ''):
         terminal_output += line
-        print line.strip()
+        print(line.strip())
     p.wait()
     if p.returncode != 0:
         logger.error('_run_execute_task_attempt_playbook failed for '\

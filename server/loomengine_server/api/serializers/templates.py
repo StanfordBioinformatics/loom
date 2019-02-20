@@ -34,7 +34,7 @@ def _set_leaf_template_defaults(data):
 def _convert_template_id_to_dict(data):
     # If data is a string instead of a dict value,
     # set that as _template_id
-    if isinstance(data, (str, unicode)):
+    if isinstance(data, str):
         return {'_template_id': data}
     if data.get('steps'):
         data['steps'] = [_convert_template_id_to_dict(step) for step in data['steps']]
@@ -157,7 +157,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
     def _validate_template_data_fields(self, template_data):
         data_keys = template_data.keys()
         serializer_keys = self.fields.keys()
-        extra_fields = filter(lambda key: key not in serializer_keys, data_keys)
+        extra_fields = list(filter(lambda key: key not in serializer_keys, data_keys))
         if extra_fields:
             raise serializers.ValidationError(
                 'Unrecognized fields %s' % extra_fields)
@@ -204,7 +204,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
 
     def _get_dummy_output_context(self, data):
         context = {}
-	for output in data.get('outputs', []):
+        for output in data.get('outputs', []):
             if output.get('as_channel'):
                 channel = output.get('as_channel')
             else:
@@ -356,7 +356,7 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             group = input.get('group')
             groups.setdefault(group, [])
             groups[group].append(input)
-        for (group, inputs) in groups.iteritems():
+        for (group, inputs) in groups.items():
             group_dimensions = None
             for input in inputs:
                 if input.get('data'):
@@ -417,8 +417,8 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
             TemplateInput.objects.bulk_create(self._unsaved_inputs)
             TemplateMembership.objects.bulk_create(self._unsaved_m2m_relationships)
                 
-            root_template = filter(
-                lambda t: t.uuid==self._root_template_uuid, templates)
+            root_template = list(filter(
+                lambda t: t.uuid==self._root_template_uuid, templates))
             assert len(root_template) == 1, '1 template should match uuid of root'
             return root_template[0]
 
@@ -488,9 +488,6 @@ class TemplateSerializer(serializers.HyperlinkedModelSerializer):
         existing_template = None
         # If a model already exists with this UUID, use the saved model
         if template_data.get('_template_id'):
-            #if isinstance(template_data, (unicode, str)):
-            # template_id is a string reference to an existing template.
-            #template_id = template_data
             template_id = template_data.get('_template_id')
             # Use the serializer to retrive the instance
             serializer = TemplateSerializer(

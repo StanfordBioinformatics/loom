@@ -61,10 +61,10 @@ class FileTagAdd(object):
             raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
 
         if not self.silent:
-            print 'Target "%s@%s" has been tagged as "%s"' % \
+            print('Target "%s@%s" has been tagged as "%s"' % \
                 (files[0]['value'].get('filename'),
                  files[0].get('uuid'),
-                 tag.get('tag'))
+                 tag.get('tag')))
 
 
 class FileTagRemove(object):
@@ -113,10 +113,10 @@ class FileTagRemove(object):
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to remove tag: '%s'" % e)
         if not self.silent:
-            print 'Tag %s has been removed from file "%s@%s"' % \
+            print('Tag %s has been removed from file "%s@%s"' % \
                 (tag.get('tag'),
                  files[0]['value'].get('filename'),
-                 files[0].get('uuid'))
+                 files[0].get('uuid')))
 
 
 class FileTagList(object):
@@ -172,9 +172,9 @@ class FileTagList(object):
                 raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
             tags = [item.get('tag') for item in tag_list]
         if not self.silent:
-            print '[showing %s tags]' % len(tags)
+            print('[showing %s tags]' % len(tags))
             for tag in tags:
-                print tag
+                print(tag)
 
 
 class FileTag(object):

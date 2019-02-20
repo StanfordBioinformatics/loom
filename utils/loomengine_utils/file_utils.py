@@ -13,7 +13,7 @@ import shutil
 import sys
 import tempfile
 import time
-import urlparse
+from urllib.parse import urlparse
 import warnings
 import yaml
 
@@ -68,13 +68,13 @@ def _validate_url(url):
 def _urlparse(path):
     """Like urlparse except it assumes 'file://' if no scheme is specified
     """
-    url = urlparse.urlparse(path)
+    url = urlparse(path)
     _validate_url(url)
     if not url.scheme or url.scheme == 'file://':
         # Normalize path, and set scheme to "file" if missing
         path = os.path.abspath(
             os.path.expanduser(path))
-        url = urlparse.urlparse('file://'+path)
+        url = urlparse('file://'+path)
     return url
 
 
@@ -134,10 +134,10 @@ class AbstractFilePattern:
             return all_matches
 
         # For any file <filename>.metadata.yaml, return just <filename>
-        return map(lambda path: path[:-len('.metadata.yaml')]
+        return list(map(lambda path: path[:-len('.metadata.yaml')]
                    if path.endswith('.metadata.yaml')
                    else path,
-                   all_matches)
+                   all_matches))
 
     def _strip_file_scheme(self, path):
         return re.sub('^file://', '', path)
@@ -172,7 +172,7 @@ class LocalFilePattern(AbstractFilePattern):
         return matches
 
     def _remove_directories(self, all_matches):
-        return filter(lambda path: os.path.isfile(path), all_matches)
+        return list(filter(lambda path: os.path.isfile(path), all_matches))
 
 
 class GoogleStorageClient:

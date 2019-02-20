@@ -7,7 +7,7 @@ def _get_string_data_object(text):
     )
 
 def _get_string_data_node(value):
-    if isinstance(value, (str, unicode)):
+    if isinstance(value, str):
         data_object = _get_string_data_object(value)
         data_node = DataNode.objects.create(type='string')
         data_node.add_data_object([], data_object, save=True)

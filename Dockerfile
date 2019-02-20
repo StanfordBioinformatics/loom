@@ -40,13 +40,13 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libmariadbclient-dev \
     libssl-dev \
-    python-dev \
-    python-pip \
+    python3-dev \
+    python3-pip \
     && apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install -U pip
+RUN pip3 install -U pip
 
 # Install Loom
 ADD ./portal /var/www/loom/portal

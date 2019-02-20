@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-import ConfigParser
+from configparser import ConfigParser
 import copy
 import errno
 import glob
@@ -9,7 +9,7 @@ import jinja2
 import os
 import shutil
 import subprocess
-import urlparse
+from urllib.parse import urlparse
 import warnings
 
 from loomengine.common import *
@@ -38,7 +38,7 @@ class ServerControls(object):
 
     def _print(self, text):
         if not self.silent:
-            print text
+            print(text)
 
     def _set_run_function(self):
         # Map user input command to method
@@ -222,7 +222,7 @@ class ServerControls(object):
             raise SystemExit(
                 'ERROR! Already connected to "%s".' % get_server_url())
 
-        parsed_url = urlparse.urlparse(server_url)
+        parsed_url = urlparse(server_url)
         if not parsed_url.scheme:
             if is_server_running(url='https://' + server_url):
                 server_url = 'https://' + server_url
@@ -272,7 +272,7 @@ class ServerControls(object):
         server_name = self._get_required_setting('LOOM_SERVER_NAME', settings)
         user_provided_server_name = self.args.confirm_server_name
         if not user_provided_server_name:
-            user_provided_server_name = raw_input(
+            user_provided_server_name = input(
                 'WARNING! This will delete the Loom server and all its data. '
                 'Data will be lost!\n'
                 'If you are sure you want to continue, please '
@@ -298,15 +298,15 @@ class ServerControls(object):
         # Do not attempt remove if value is missing or root
         if not LOOM_SETTINGS_HOME \
            or os.path.abspath(LOOM_SETTINGS_HOME) == os.path.abspath('/'):
-            print 'WARNING! LOOM_SETTINGS_HOME is "%s". Refusing to delete.' \
-                % LOOM_SETTINGS_HOME
+            print('WARNING! LOOM_SETTINGS_HOME is "%s". Refusing to delete.' \
+                % LOOM_SETTINGS_HOME)
         else:
             try:
                 if os.path.exists(LOOM_SETTINGS_HOME):
                     shutil.rmtree(LOOM_SETTINGS_HOME)
             except Exception as e:
-                print 'WARNING! Failed to remove settings directory %s.\n%s' \
-                    % (LOOM_SETTINGS_HOME, str(e))
+                print('WARNING! Failed to remove settings directory %s.\n%s' \
+                    % (LOOM_SETTINGS_HOME, str(e)))
 
     def _save_server_settings_file(self, settings):
         write_settings_file(
@@ -458,7 +458,7 @@ class ServerControls(object):
         # Pick up any LOOM_* settings from the environment, and
         # give precedence to env over settings file. Exclude
         # LOOM_SETTINGS_HOME because it is context-specific.
-        for key, value in os.environ.iteritems():
+        for key, value in os.environ.items():
             if key.startswith('LOOM_') and key != 'LOOM_SETTINGS_HOME':
                 settings.update({key: value})
 

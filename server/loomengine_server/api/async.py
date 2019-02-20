@@ -203,7 +203,7 @@ def postprocess_run(run_uuid):
     run = Run.objects.get(uuid=run_uuid)
     run.prefetch()
     for step in run.get_leaves():
-	for task in step.tasks.all():
+        for task in step.tasks.all():
             fingerprint = task.get_fingerprint()
             fingerprint.update_task_attempt_maybe(task.task_attempt)
     if not run.has_terminal_status():
@@ -227,7 +227,7 @@ def _run_cleanup_task_attempt_playbook(task_attempt):
                 playbook,
                 # Without this, ansible uses /usr/bin/python,
                 # which may be missing needed modules
-                '-e', 'ansible_python_interpreter="/usr/bin/env python"',
+                '-e', 'ansible_python_interpreter="/usr/bin/env python3"',
     ]
 
     if get_setting('DEBUG'):

@@ -22,7 +22,7 @@ class ExportManager(object):
 
     def _print(self, text):
         if not self.silent:
-            print text
+            print(text)
 
     def bulk_export_files(self, files, destination_directory=None,
                           retry=False, export_metadata=True,

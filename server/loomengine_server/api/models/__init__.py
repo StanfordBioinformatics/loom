@@ -10,7 +10,7 @@ def uuidstr():
 
 def render_from_template(raw_text, context):
     if not raw_text:
-	return ''
+        return ''
     loader = jinja2.DictLoader({'template': raw_text})
     env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)
     template = env.get_template('template')
@@ -18,8 +18,8 @@ def render_from_template(raw_text, context):
 
 def render_string_or_list(value, context):
     if isinstance(value, list):
-	return [render_from_template(member, context)
-		for member in value]
+        return [render_from_template(member, context)
+                for member in value]
     else:
         return render_from_template(value, context)
 
@@ -39,7 +39,7 @@ def calculate_contents_fingerprint(contents):
             separators=(',',':'))
     else:
         contents_string = str(contents)
-    return hashlib.md5(contents_string).hexdigest()
+    return hashlib.md5(contents_string.encode('utf-8')).hexdigest()
 
 def flatten_nodes(node, children_fieldname, node_list=None):
     # Converts a tree to a flat list of nodes
@@ -62,7 +62,7 @@ def copy_prefetch(
     # data to children.
     for instance in dest_nodes:
         uuid = instance.uuid
-        matches = filter(lambda n: n.uuid==uuid, source_nodes)
+        matches = list(filter(lambda n: n.uuid==uuid, source_nodes))
         assert len(matches) == 1, 'no unique match found'
         if hasattr(matches[0], '_prefetched_objects_cache'):
             if not hasattr(instance, '_prefetched_objects_cache'):
@@ -139,7 +139,7 @@ class DummyContext(str):
     """
 
     def __init__(self, *args, **kwargs):
-        super(DummyContext, self).__init__(self, *args, **kwargs)
+        super().__init__() #self, *args, **kwargs)
         string = args[0]
         self.items = [letter for letter in string]
 

@@ -53,7 +53,7 @@ def get_cheapest_instance_type(cores, memory):
     for instance_type in price_array:
         if int(instance_type['cores']) >= int(cores) \
            and float(instance_type['memory']) >= float(memory):
-            print instance_type['name']
+            print(instance_type['name'])
             return instance_type['name']
 
     # No instance type found that can fulfill requested cores and memory
@@ -108,7 +108,7 @@ def _get_base_name(hostname, step_name, attempt_id, max_length):
 def get_worker_name(hostname, step_name, attempt_id, max_length, silent=False):
     worker_name = _get_base_name(hostname, step_name, attempt_id, max_length)
     if not silent:
-        print worker_name
+        print(worker_name)
     return worker_name
 
 
@@ -132,5 +132,5 @@ def sanitize_server_name(name, max_length, silent=False):
     if not server_name:
         raise Exception('Failed to sanitize server name "%s"' % name)
     if not silent:
-        print server_name
+        print(server_name)
     return server_name
