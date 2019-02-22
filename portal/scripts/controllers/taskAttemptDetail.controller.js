@@ -11,7 +11,7 @@ TaskAttemptDetailController.$inject = [
 
 function TaskAttemptDetailController($scope, DataService, $routeParams, $location) {
     $scope.$location = $location;
-    $scope.activeData = DataService.getAllActive();
+    $scope.activeData = DataService.getActiveData();
     $scope.loading = true;
     DataService.setActiveTaskAttempt($routeParams.taskAttemptId).then(function() {
 	$scope.loading = false;

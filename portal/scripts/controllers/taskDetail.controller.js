@@ -10,7 +10,7 @@ TaskDetailController.$inject = [
 ];
 
 function TaskDetailController($scope, DataService, $routeParams) {
-    $scope.activeData = DataService.getAllActive();
+    $scope.activeData = DataService.getActiveData();
     $scope.loading = true;
     DataService.setActiveTask($routeParams.taskId).then(function() {
 	$scope.loading = false;

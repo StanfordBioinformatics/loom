@@ -5,37 +5,37 @@
       <tr>
         <th>Filename</th>
 	<td>
-          {{activeData.file.value.filename}}
+          {{activeData.focus.value.filename}}
 	</td>
       </tr>
       <tr>
         <th>File ID</th>
 	<td>
-          {{activeData.file.uuid}}
+          {{activeData.focus.uuid}}
 	</td>
       </tr>
       <tr>
 	<th>md5</th>
 	<td>
-          {{activeData.file.value.md5}}
+          {{activeData.focus.value.md5}}
         </td>
       </tr>
       <tr>
 	<th>File URL</th>
 	<td>
-	  {{activeData.file.value.file_url}}
+	  {{activeData.focus.value.file_url}}
         </td>
       </tr>
-      <tr ng-show="activeData.file.value.imported_from_url">
+      <tr ng-show="activeData.focus.value.imported_from_url">
         <th>Imported from URL</th>
 	<td>
-	  {{activeData.file.value.imported_from_url}}
+	  {{activeData.focus.value.imported_from_url}}
 	</td>
       </tr>
-      <tr ng-show="activeData.file.value.import_comments">
+      <tr ng-show="activeData.focus.value.import_comments">
 	<th>Import comments</th>
 	<td>
-	  {{activeData.file.value.import_comments}}
+	  {{activeData.focus.value.import_comments}}
 	</td>
       </tr>
     </tbody>

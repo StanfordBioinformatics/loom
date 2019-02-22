@@ -21,11 +21,8 @@ fi
 # We also allow alphanumeric strings to support using git commit versions in development builds.
 N=\[0-9\]+
 PEP440_VERSION="${N}(\.${N})*((a|b|rc)${N}|\.(post|dev)${N})?"
-ALPHANUM_VERSION="[a-zA-Z0-9]+"
-VALID_VERSION="(${PEP440_VERSION}|${ALPHANUM_VERSION})"
-if [[ ! "$version" =~ ^${VALID_VERSION}$ ]]; then
-    echo "ERROR! Invalid version" $version "does not follow PEP 440. See https://www.python.org/dev/peps/pep-0440/#public-version-identifiers"
-    exit 1
+if [[ ! "$version" =~ ^${PEP440_VERSION}$ ]]; then
+    echo "WARNING! Invalid version \"$version\" does not follow PEP 440. See https://www.python.org/dev/peps/pep-0440/#public-version-identifiers"
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

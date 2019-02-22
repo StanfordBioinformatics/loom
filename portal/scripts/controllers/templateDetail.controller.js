@@ -10,7 +10,7 @@ TemplateDetailController.$inject = [
 ];
 
 function TemplateDetailController($scope, DataService, $routeParams) {
-    $scope.activeData = DataService.getAllActive();
+    $scope.activeData = DataService.getActiveData();
     $scope.loading = true;
     DataService.setActiveTemplate($routeParams.templateId).then(function() {
 	$scope.loading = false;

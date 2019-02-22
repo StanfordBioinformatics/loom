@@ -7,7 +7,7 @@
 	  Name
 	</th>
 	<td>
-	  {{activeData.template.name}}
+	  {{activeData.focus.name}}
 	</td>
       </tr>
       <tr>
@@ -15,15 +15,15 @@
 	  Template ID
 	</th>
 	<td>
-	  {{activeData.template.uuid}}
+	  {{activeData.focus.uuid}}
 	</td>
       </tr>
-      <tr ng-show="activeData.template.md5">
+      <tr ng-show="activeData.focus.md5">
 	<th>
 	  Template md5
 	</th>
 	<td>
-	  {{activeData.template.md5}}
+	  {{activeData.focus.md5}}
 	</td>
       </tr>
       <tr>
@@ -31,76 +31,76 @@
 	  Created
 	</th>
 	<td>
-	  {{activeData.template.datetime_created | date:'medium'}}
+	  {{activeData.focus.datetime_created | date:'medium'}}
       </tr>
-      <tr ng-show="activeData.template.command">
+      <tr ng-show="activeData.focus.command">
 	<th>
 	  Command
 	</th>
 	<td>
-	  {{activeData.template.command}}
+	  {{activeData.focus.command}}
 	</td>
       </tr>
-      <tr ng-show="activeData.template.interpreter">
+      <tr ng-show="activeData.focus.interpreter">
 	<th>
 	  Interpreter
 	</th>
 	<td>
-	  {{activeData.template.interpreter}}
+	  {{activeData.focus.interpreter}}
 	</td>
       </tr>
-      <tr ng-show="activeData.template.environment.docker_image">
+      <tr ng-show="activeData.focus.environment.docker_image">
 	<th>Docker Image</th>
 	<td>
-	  {{activeData.template.environment.docker_image}}
+	  {{activeData.focus.environment.docker_image}}
 	</td>
       </tr>
-      <tr ng-show="activeData.template.resources.cores">
+      <tr ng-show="activeData.focus.resources.cores">
 	<th>Cores</th>
 	<td>
-	  {{activeData.template.resources.cores}}
+	  {{activeData.focus.resources.cores}}
 	</td>
       </tr>
-      <tr ng-show="activeData.template.resources.memory">
+      <tr ng-show="activeData.focus.resources.memory">
 	<th>Memory</th>
 	<td>
-	  {{activeData.template.resources.memory}}
+	  {{activeData.focus.resources.memory}}
 	</td>
       </tr>
-      <tr ng-show="activeData.template.resources.disk_size">
+      <tr ng-show="activeData.focus.resources.disk_size">
 	<th>Disk size</th>
 	<td>
-	  {{activeData.template.resources.disk_size}}
+	  {{activeData.focus.resources.disk_size}}
 	</td>
       </tr>
     </table>
   </div>
-  <div ng-show="activeData.template.steps">
+  <div ng-show="activeData.focus.steps">
     <h4>Steps</h4>
-    <div class="table-responsive">
-      <table class="table table-striped">
-	<thead>
-	  <tr>
-	    <th>Template</th>
-	    <th>Created</th>
-	  </tr>
-	</thead>
-	<tbody>
-	  <tr ng-repeat="step in activeData.template.steps">
-            <td>
-	      <a ng-href="#/templates/{{step.uuid}}">
-		{{step.name}}@{{step.uuid | limitTo: 8}}
-	      </a>
-	    </td>
-	    <td>
-	      {{step.datetime_created | date:'medium'}}
-	    </td>
-	  </tr>
-	</tbody>
-      </table>
+    <div class="col-xs-12">
+      <div class="table-responsive">
+	<div class="table table-hover table-striped">
+	  <div class="container-fluid">
+	    <div class="row">
+	      <div class="col col-xs-5"></div>
+	      <div class="col col-xs-3">Created</div>
+	    </div>
+	    <div class="row" ng-repeat="process in activeData.focus | flattenRun">
+	      <div class="col col-xs-5" style="padding-left:calc(26px + (20px * {{process.level}}))">
+		<a href="#/templates/{{process.uuid}}">
+		  {{ process.name }}@{{process.uuid | limitTo:8 }}
+		</a>
+	      </div>
+	      <div class="col col-xs-3">
+		{{process.datetime_created | date:'medium'}}
+	      </div>
+	    </div>
+	  </div>
+	</div>
+      </div>
     </div>
   </div>
-  <div ng-show="activeData.template.inputs.length">
+  <div ng-show="activeData.focus.inputs.length">
     <h4>Inputs</h4>
     <div class="table-responsive">
       <table class="table table-striped">
@@ -112,10 +112,10 @@
 	    <th>
 	      Type
 	    </th>
-	    <th ng-show="activeData.template.is_leaf">
+	    <th ng-show="activeData.focus.is_leaf">
 	      Mode
 	    </th>
-	    <th ng-show="activeData.template.is_leaf">
+	    <th ng-show="activeData.focus.is_leaf">
 	      Group
 	    </th>
 	    <th>
@@ -127,17 +127,17 @@
 	  </tr>
 	</thead>
 	<tbody>
-	  <tr ng-repeat="input in activeData.template.inputs">
+	  <tr ng-repeat="input in activeData.focus.inputs">
             <td>
 	      {{input.channel}}
 	    </td>
 	    <td>
 	      {{input.type}}
 	    </td>
-	    <td ng-show="activeData.template.is_leaf">
+	    <td ng-show="activeData.focus.is_leaf">
 	      {{input.mode}}
 	    </td>
-	    <td ng-show="activeData.template.is_leaf">
+	    <td ng-show="activeData.focus.is_leaf">
 	      {{input.group}}
 	    </td>
 	    <td>
@@ -151,7 +151,7 @@
       </table>
     </div>
   </div>
-  <div ng-show="activeData.template.outputs.length">
+  <div ng-show="activeData.focus.outputs.length">
     <h4>Outputs</h4>
     <div class="table-responsive">
       <table class="table table-striped">
@@ -163,16 +163,16 @@
 	    <th>
 	      Type
 	    </th>
-	    <th ng-show="activeData.template.is_leaf">
+	    <th ng-show="activeData.focus.is_leaf">
 	      Mode
 	    </th>
 	  </tr>
 	</thead>
 	<tbody>
-	  <tr ng-repeat="output in activeData.template.outputs">
+	  <tr ng-repeat="output in activeData.focus.outputs">
             <td>{{output.channel}}</td>
 	    <td>{{output.type}}</td>
-	    <td ng-show="activeData.template.is_leaf">
+	    <td ng-show="activeData.focus.is_leaf">
 	      {{output.mode}}
 	    </td>
 	  </tr>
