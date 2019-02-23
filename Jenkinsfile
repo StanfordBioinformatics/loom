@@ -51,7 +51,7 @@ pipeline {
     }
     stage('Unit Tests') {
       steps {
-        sh 'docker run loomengine/loom:${VERSION} /loom/src/bin/run-unit-tests.sh'
+        sh 'docker run loomengine/loom:${VERSION} /opt/loom/src/bin/run-unit-tests.sh'
       }
     }
     stage('Push Docker Image') {
@@ -130,7 +130,7 @@ pipeline {
       when {
         expression { env.TAG_NAME }
       }
-      options { retry(30) } // Retry for up to 600 seconds (plus runtime)
+      options { retry(45) } // Retry for up to 900 seconds (plus runtime)
       steps {
         sh 'sleep 20'
         sh 'rm -rf env-pypi && virtualenv env-pypi'
@@ -146,6 +146,8 @@ pipeline {
         if (loomServerStarted) {
           sh '. env/bin/activate && loom server delete --confirm-server-name ${LOOM_SERVER_NAME}'
 	}
+	// uses Workspace Cleanup Plugin to delete workspace dir.
+	cleanWs()
       }
     }
     success {

@@ -153,7 +153,7 @@ class Connection(object):
                     message = '; '.join(message)
                     raise ServerConnectionHttpError(message)
                 else:
-                    raise ServerConnectionHttpError(str(e))
+                    raise ServerConnectionHttpError(message)
 
     def _post_resource(self, object_data, relative_url):
         return self._post(object_data, relative_url).json()

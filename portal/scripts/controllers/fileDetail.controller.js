@@ -10,7 +10,7 @@ FileDetailController.$inject = [
 ];
 
 function FileDetailController($scope, DataService, $routeParams) {
-    $scope.activeData = DataService.getAllActive();
+    $scope.activeData = DataService.getActiveData();
     $scope.loading = true;
     DataService.setActiveFile($routeParams.fileId).then(function() {
 	$scope.loading = false;

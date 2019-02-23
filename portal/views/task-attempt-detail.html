@@ -7,7 +7,7 @@
                     Attempt ID
                 </th>
                 <td>
-                    {{activeData.taskAttempt.uuid}}
+                    {{activeData.focus.uuid}}
                 </td>
             </tr>
             <tr>
@@ -15,18 +15,18 @@
                     Logs
                 </th>
                 <td>
-                    <a target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}/logs/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:%22{{activeData.taskAttempt.uuid}}%22')),sort:!('@timestamp',desc))">
+                    <a target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}/logs/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:%22{{activeData.focus.uuid}}%22')),sort:!('@timestamp',desc))">
                         Logs &nbsp;<span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
                     </a>
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.status">
+            <tr ng-show="activeData.focus.status">
                 <th>
                     Status
                 </th>
                 <td>
-		  <span ng-class="'label label-'+(activeData.taskAttempt.status|statusColor)">
-                    {{activeData.taskAttempt.status}}
+		  <span ng-class="'label label-'+(activeData.focus.status|statusColor)">
+                    {{activeData.focus.status}}
 		  </span>
                 </td>
             </tr>
@@ -35,53 +35,53 @@
                     Created
                 </th>
                 <td>
-                    {{activeData.taskAttempt.datetime_created | date:'medium'}}
+                    {{activeData.focus.datetime_created | date:'medium'}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.command">
+            <tr ng-show="activeData.focus.command">
                 <th>
                     Command
                 </th>
                 <td>
-                    {{activeData.taskAttempt.command}}
+                    {{activeData.focus.command}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.interpreter">
+            <tr ng-show="activeData.focus.interpreter">
                 <th>
                     Interpreter
                 </th>
                 <td>
-                    {{activeData.taskAttempt.interpreter}}
+                    {{activeData.focus.interpreter}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.environment.docker_image">
+            <tr ng-show="activeData.focus.environment.docker_image">
                 <th>Docker Image</th>
                 <td>
-                    {{activeData.taskAttempt.environment.docker_image}}
+                    {{activeData.focus.environment.docker_image}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.resources.cores">
+            <tr ng-show="activeData.focus.resources.cores">
                 <th>Cores</th>
                 <td>
-                    {{activeData.taskAttempt.resources.cores}}
+                    {{activeData.focus.resources.cores}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.resources.memory">
+            <tr ng-show="activeData.focus.resources.memory">
                 <th>Memory</th>
                 <td>
-                    {{activeData.taskAttempt.resources.memory}}
+                    {{activeData.focus.resources.memory}}
                 </td>
             </tr>
-            <tr ng-show="activeData.taskAttempt.resources.disk_size">
+            <tr ng-show="activeData.focus.resources.disk_size">
                 <th>Disk size</th>
                 <td>
-                    {{activeData.taskAttempt.resources.disk_size}}
+                    {{activeData.focus.resources.disk_size}}
                 </td>
             </tr>
         </table>
     </div>
 
-    <div ng-show="activeData.taskAttempt.log_files">
+    <div ng-show="activeData.focus.log_files">
       <h4>Logfiles</h4>
       <div class="table-responsive" >
         <table class="table table-striped">
@@ -90,7 +90,7 @@
             <th>ID</th>
             <th>Created</th>
           </thead>
-          <tbody ng-repeat="log_file in activeData.taskAttempt.log_files">
+          <tbody ng-repeat="log_file in activeData.focus.log_files">
             <tr>
               <td>
 		<loom-data contents="log_file.data_object"></loom-data>
@@ -103,7 +103,7 @@
       </div>
     </div>
 
-    <div ng-show="activeData.taskAttempt.inputs.length">
+    <div ng-show="activeData.focus.inputs.length">
       <h4>Inputs</h4>
         <div class="table-responsive" >
           <table class="table table-striped">
@@ -114,7 +114,7 @@
               <th>Data</th>
             </thead>
             <tbody>
-              <tr ng-repeat="input in activeData.taskAttempt.inputs">
+              <tr ng-repeat="input in activeData.focus.inputs">
                 <td>{{input.channel}}</td>
                 <td>{{input.type}}</td>
 		<td>{{input.mode}}</td>
@@ -137,7 +137,7 @@
                 <th>Data</th>
             </thead>
             <tbody>
-                <tr ng-repeat="output in activeData.taskAttempt.outputs">
+                <tr ng-repeat="output in activeData.focus.outputs">
                     <td>{{output.channel}}</td>
                     <td>{{output.type}}</td>
 		    <td>{{output.mode}}</td>
@@ -149,7 +149,7 @@
         </table>
     </div>
 
-    <div ng-show="activeData.taskAttempt.events.length>0">
+    <div ng-show="activeData.focus.events.length>0">
         <h4>Events</h4>
         <div class="table-responsive" >
             <table class="table table-striped">
@@ -160,7 +160,7 @@
                     <th>Detail</th>
                 </thead>
                 <tbody>
-                    <tr ng-repeat="event in activeData.taskAttempt.events">
+                    <tr ng-repeat="event in activeData.focus.events">
                         <td>
                             {{event.timestamp | date:'medium'}}
                         </td>

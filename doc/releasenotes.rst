@@ -2,6 +2,17 @@
 Release Notes
 #############
 
+0.7.2
+------------
+* Bug fixes:
+  - The force_rerun setting was being ignored
+  - Duplicate task attempts were being created on failure
+  - Fixed import of nested templates with preexisting children
+  - Python package conflicts resolved, migrated Docker image to ubuntu
+  - Fixes to the Jenkins pipeline
+* Added "size" and "index" special functions to workflow language
+* Refactored views in portal for better performance
+
 0.7.1
 ------------
 * Bug fixes:

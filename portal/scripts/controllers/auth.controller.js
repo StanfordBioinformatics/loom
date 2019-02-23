@@ -13,7 +13,7 @@
             // autofill-event polyfill [4][5]
             $('#id_auth_form input').checkAndTriggerAutoFillEvent();
 
-	$scope.activeData = DataService.getAllActive();
+	$scope.activeData = DataService.getActiveData();
 	DataService.getLoginAndVersionInfo();
         $scope.getCredentials = function(){
 	    return {username: $scope.username, password: $scope.password};

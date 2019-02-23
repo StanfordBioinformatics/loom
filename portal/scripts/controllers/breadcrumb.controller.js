@@ -10,7 +10,7 @@
     function BreadcrumbController($scope, DataService, $location, $routeParams) {
 	$scope.$location = $location;
 	$scope.params = $routeParams;
-	$scope.activeData = DataService.getAllActive();
+	$scope.activeData = DataService.getActiveData();
     };
 
 }());

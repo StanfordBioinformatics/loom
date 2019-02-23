@@ -7,7 +7,7 @@
                     Name
                 </th>
                 <td>
-                    {{activeData.run.name}}
+                    {{activeData.focus.name}}
                 </td>
             </tr>
             <tr>
@@ -15,7 +15,7 @@
                     Run ID
                 </th>
                 <td>
-                    {{activeData.run.uuid}}
+                    {{activeData.focus.uuid}}
                 </td>
             </tr>
             <tr>
@@ -23,8 +23,8 @@
                     Status
                 </th>
                 <td>
-                  <span ng-class="'label label-'+(activeData.run.status|statusColor)">
-		    {{activeData.run.status}}
+                  <span ng-class="'label label-'+(activeData.focus.status|statusColor)">
+		    {{activeData.focus.status}}
 		  </span>
                 </td>
             </tr>
@@ -33,7 +33,7 @@
                     Created
                 </th>
                 <td>
-                    {{activeData.run.datetime_created | date:'medium'}}
+                    {{activeData.focus.datetime_created | date:'medium'}}
                 </td>
             </tr>
             <tr>
@@ -41,130 +41,115 @@
                     Template ID
                 </th>
                 <td>
-                    <a ng-href="#/templates/{{activeData.run.template.uuid}}">
-                        {{activeData.run.template.uuid}}
+                    <a ng-href="#/templates/{{activeData.focus.template.uuid}}">
+                        {{activeData.focus.template.uuid}}
                     </a>
                 </td>
             </tr>
-            <tr ng-show="activeData.run.command">
+            <tr ng-show="activeData.focus.command">
                 <th>
                     Command
                 </th>
                 <td>
-                    {{activeData.run.command}}
+                    {{activeData.focus.command}}
                 </td>
             </tr>
-            <tr ng-show="activeData.run.interpreter">
+            <tr ng-show="activeData.focus.interpreter">
                 <th>
                     Interpreter
                 </th>
                 <td>
-                    {{activeData.run.interpreter}}
+                    {{activeData.focus.interpreter}}
                 </td>
             </tr>
-	    <tr ng-show="activeData.run.environment.docker_image">
+	    <tr ng-show="activeData.focus.environment.docker_image">
               <th>Docker Image</th>
               <td>
-		{{activeData.run.environment.docker_image}}
+		{{activeData.focus.environment.docker_image}}
               </td>
 	    </tr>
-	    <tr ng-show="activeData.run.resources.cores">
+	    <tr ng-show="activeData.focus.resources.cores">
               <th>Cores</th>
               <td>
-		{{activeData.run.resources.cores}}
+		{{activeData.focus.resources.cores}}
               </td>
 	    </tr>
-	    <tr ng-show="activeData.run.resources.memory">
+	    <tr ng-show="activeData.focus.resources.memory">
               <th>Memory</th>
               <td>
-		{{activeData.run.resources.memory}}
+		{{activeData.focus.resources.memory}}
               </td>
 	    </tr>
-	    <tr ng-show="activeData.run.resources.disk_size">
+	    <tr ng-show="activeData.focus.resources.disk_size">
               <th>Disk size</th>
               <td>
-		{{activeData.run.resources.disk_size}}
+		{{activeData.focus.resources.disk_size}}
               </td>
 	    </tr>
         </table>
     </div>
-    <div ng-show="activeData.run.steps.length">
-        <h4>Steps</h4>
-        <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Step</th>
-                        <th>Status</th>
-                        <th>Started</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr ng-repeat="step in activeData.run.steps">
-                        <td>
-                            <a ng-href="#/runs/{{step.uuid}}">
-                                {{step.name}}@{{step.uuid | limitTo: 8}}
-                            </a>
-                        </td>
-                        <td>
-			  <span ng-class="'label label-'+(step.status|statusColor)">
-			    {{step.status}}
-			  </span>
-			</td>
-                        <td>{{step.datetime_created | date:'medium'}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+    <div ng-show="activeData.focus.steps || activeData.focus.tasks">
+      <h4>Steps</h4>
+      <div class="col-xs-12">
+	<div class="table-responsive">
+	  <div class="table table-hover table-striped">
+	    <div class="container-fluid">
+	      <div class="row">
+		<div class="col col-xs-5"></div>
+		<div class="col col-xs-2">Status</div>
+		<div class="col col-xs-3">Started</div>
+		<div class="col col-xs-2">Logs</div>
+	      </div>
+	      <div class="row" ng-repeat="process in activeData.focus | flattenRun">
+		<div class="col col-xs-5" style="padding-left:calc(26px + (20px * {{process.level}}))">
+		  <a href="#/runs/{{process.uuid}}" ng-if="process.type=='run'">
+		    {{ process.name }}@{{process.uuid | limitTo:8 }}
+		  </a>
+		  <a href="#/tasks/{{process.uuid}}" ng-if="process.type=='task'">
+		    task {{process.uuid | limitTo:8 }}
+		  </a>
+		  <a href="#/task-attempts/{{process.uuid}}" ng-if="process.type=='task-attempt'">
+		    attempt {{process.uuid | limitTo:8}}
+		  </a>
+		</div>
+		<div class="col col-xs-2">
+		  <span ng-class="'label label-' + (process.status | statusColor)">
+		    {{process.status}}
+		  </span>
+		</div>
+		<div class="col col-xs-3">
+		  {{process.datetime_created | date:'medium'}}
+		</div>
+		<div class="col col-xs-2">
+		  <a ng-if="process.type=='task-attempt'" target="_blank" ng-href="{{$location.protocol()}}://{{$location.host()}}/logs/app/kibana#/discover?_g=(refreshInterval:(display:'5%20seconds',pause:!f,section:1,value:5000),time:(from:now%2Fy,mode:quick,to:now))&_a=(columns:!(log,container_name),index:'*',interval:auto,query:(query_string:(analyze_wildcard:!t,query:'container_name:%22{{process.uuid}}%22')),sort:!('@timestamp',desc))">
+		    <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span>
+		  </a>
+		</div>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+      </div>
     </div>
-
-    <div ng-show="activeData.run.tasks">
-        <h4>Tasks</h4>
-        <div class="table-responsive" >
-            <table class="table table-striped">
-                <thead>
-                    <th>Task ID</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                </thead>
-                <tbody ng-repeat="task in activeData.run.tasks">
-                    <tr>
-                        <td>
-                            <a ng-href="#/tasks/{{task.uuid}}">
-                                Task {{task.uuid}}
-                            </a>
-                        </td>
-                        <td>
-			  <span ng-class="'label label-'+(task.status|statusColor)">
-			    {{task.status}}
-			  </span>
-			</td>
-                        <td>{{task.datetime_created | date:'medium'}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div ng-show="activeData.run.inputs.length">
+    <div ng-show="activeData.focus.inputs.length">
         <h4>Inputs</h4>
         <div class="table-responsive" >
             <table class="table table-striped">
                 <thead>
                     <th>Channel</th>
                     <th>Type</th>
-		    <th ng-show="activeData.run.is_leaf">Mode</th>
-		    <th ng-show="activeData.run.is_leaf">Group</th>
+		    <th ng-show="activeData.focus.is_leaf">Mode</th>
+		    <th ng-show="activeData.focus.is_leaf">Group</th>
                     <th>Data</th>
                 </thead>
                 <tbody>
-                    <tr ng-repeat="input in activeData.run.inputs">
+                    <tr ng-repeat="input in activeData.focus.inputs">
                         <td>{{input.channel}}</td>
                         <td>{{input.type}}</td>
-			<td ng-show="activeData.run.is_leaf">
+			<td ng-show="activeData.focus.is_leaf">
 			  {{input.mode}}
 			</td>
-			<td ng-show="activeData.run.is_leaf">
+			<td ng-show="activeData.focus.is_leaf">
 			  {{input.group}}
 			</td>
 			<td>
@@ -181,14 +166,14 @@
             <thead>
                 <th>Channel</th>
                 <th>Type</th>
-		<th ng-show="activeData.run.is_leaf">Mode</th>
+		<th ng-show="activeData.focus.is_leaf">Mode</th>
                 <th>Data</th>
             </thead>
             <tbody>
-                <tr ng-repeat="output in activeData.run.outputs">
+                <tr ng-repeat="output in activeData.focus.outputs">
                     <td>{{output.channel}}</td>
                     <td>{{output.type}}</td>
-		    <td ng-show="activeData.run.is_leaf">
+		    <td ng-show="activeData.focus.is_leaf">
 		      {{output.mode}}
 		    </td>
 		    <td>
@@ -199,7 +184,7 @@
         </table>
     </div>
 
-    <div ng-show="activeData.run.events.length>0">
+    <div ng-show="activeData.focus.events.length>0">
         <h4>Events</h4>
         <div class="table-responsive" >
             <table class="table table-striped">
@@ -210,7 +195,7 @@
                     <th>Detail</th>
                 </thead>
                 <tbody>
-                    <tr ng-repeat="event in activeData.run.events">
+                    <tr ng-repeat="event in activeData.focus.events">
                         <td>
                             {{event.timestamp | date:'medium'}}
                         </td>
