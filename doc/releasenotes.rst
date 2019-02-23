@@ -11,6 +11,7 @@ Release Notes
   - Python package conflicts resolved, migrated Docker image to ubuntu
   - Fixes to the Jenkins pipeline
 * Added "size" and "index" special functions to workflow language
+* Refactored views in portal for better performance
 
 0.7.1
 ------------
