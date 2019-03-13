@@ -30,7 +30,6 @@ from loomengine_worker.inputs import TaskAttemptInput
 
 class TaskMonitor(object):
 
-    DOCKER_SOCKET = 'unix://var/run/docker.sock'
     LOOM_RUN_SCRIPT_NAME = '.loom_run_script'
 
     def __init__(self, args=None, mock_connection=None,
@@ -101,7 +100,7 @@ class TaskMonitor(object):
         return settings
 
     def _init_docker_client(self):
-        self.docker_client = docker.Client(base_url=self.DOCKER_SOCKET)
+        self.docker_client = docker.from_env()
         self._verify_docker()
 
     def _verify_docker(self):

@@ -18,7 +18,15 @@ def _render_time(timestr):
 
 
 def to_bool(value):
-    if value and value.lower() in ['true', 't', 'yes', 'y']:
+    if value and value.lower() in ['true', 'yes', 'on', '1']:
         return True
-    else:
+    elif value and value.lower() in ['false', 'no', 'off', '0']:
         return False
+    else:
+        raise ValueError('Could not parse "%s" as boolean. '
+                         'Use true|yes|on|1 or false|no|off|0.' % value)
+
+def to_list(value):
+    if isinstance(value, list):
+        return value
+    return value.strip(',').split(',')

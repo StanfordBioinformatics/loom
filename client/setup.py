@@ -93,6 +93,7 @@ setup(
     install_requires=[
         'ansible',
         'apache-libcloud',
+        'docker',
         'google-api-python-client',
         'google-apitools>=0.5.8',
         'google-cloud',
