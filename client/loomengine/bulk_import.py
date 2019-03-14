@@ -2,8 +2,8 @@
 import argparse
 import os
 import sys
-from loomengine import server
-from loomengine.common import verify_has_connection_settings, get_server_url, \
+from loomengine import LoomClientError
+from loomengine.server import verify_has_connection_settings, get_server_url, \
     verify_server_is_running, get_token
 from loomengine_utils.exceptions import LoomengineUtilsError, APIError
 from loomengine_utils.connection import Connection
@@ -12,14 +12,13 @@ from loomengine_utils.import_manager import ImportManager
 
 class BulkImport(object):
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
 
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -60,12 +59,12 @@ class BulkImport(object):
                 link_files=self.args.link_files,
                 retry=self.args.retry)
         except APIError as e:
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! An external API failed. This may be transient. '
                 'Try again, and consider using "--retry", especially '
                 'if this step is automated. Original error: "%s"' % e)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! %s" % e.message)
+            raise LoomClientError("ERROR! %s" % e.message)
 
 
 if __name__ == '__main__':

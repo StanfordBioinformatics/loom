@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import os
 import sys
 
-from loomengine import server
-from loomengine.common import verify_has_connection_settings, \
+from loomengine import LoomClientError
+from loomengine.server import verify_has_connection_settings, \
     get_server_url, verify_server_is_running, get_token
 from loomengine_utils.connection import Connection
 from loomengine_utils.exceptions import LoomengineUtilsError
@@ -14,7 +15,7 @@ class FileLabelAdd(object):
     """Add a new file labels
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
 
         # Args may be given as an input argument for testing purposes
         # or from the main parser.
@@ -22,7 +23,6 @@ class FileLabelAdd(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -54,29 +54,27 @@ class FileLabelAdd(object):
                 min=1, max=1,
                 query_string=self.args.target, type='file')
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get data object list: '%s'" % e)
         label_data = {'label': self.args.label}
         try:
             label = self.connection.post_data_label(
                 files[0]['uuid'], label_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-        if not self.silent:
-            print 'Target "%s@%s" has been labeled as "%s"' % \
-                (files[0]['value'].get('filename'),
-                 files[0].get('uuid'),
-                 label.get('label'))
+            raise LoomClientError("ERROR! Failed to create label: '%s'" % e)
+        logging.info('Target "%s@%s" has been labeled as "%s"' % \
+                     (files[0]['value'].get('filename'),
+                      files[0].get('uuid'),
+                      label.get('label')))
 
 
 class FileLabelRemove(object):
     """Remove a file label
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -108,27 +106,25 @@ class FileLabelRemove(object):
                 min=1, max=1,
                 query_string=self.args.target, type='file')
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get data object list: '%s'" % e)
         label_data = {'label': self.args.label}
         try:
             label = self.connection.remove_data_label(
                 files[0]['uuid'], label_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to remove label: '%s'" % e)
-        if not self.silent:
-            print 'Label %s has been removed from file "%s@%s"' % \
-                (label.get('label'),
-                 files[0]['value'].get('filename'),
-                 files[0].get('uuid'))
+            raise LoomClientError("ERROR! Failed to remove label: '%s'" % e)
+        logging.info('Label %s has been removed from file "%s@%s"' % \
+                     (label.get('label'),
+                      files[0]['value'].get('filename'),
+                      files[0].get('uuid')))
 
 
 class FileLabelList(object):
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -160,41 +156,38 @@ class FileLabelList(object):
                     min=1, max=1,
                     query_string=self.args.target, type='file')
             except LoomengineUtilsError as e:
-                raise SystemExit(
+                raise LoomClientError(
                     "ERROR! Failed to get data object list: '%s'" % e)
             try:
                 label_data = self.connection.list_data_labels(files[0]['uuid'])
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get label list: '%s'" % e)
             labels = label_data.get('labels', [])
-            if not self.silent:
-                print '[showing %s labels]' % len(labels)
-                for label in labels:
-                    print label
+            logging.info('[showing %s labels]' % len(labels))
+            for label in labels:
+                logging.info(label)
         else:
             try:
                 label_list = self.connection.get_data_label_index()
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get label list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get label list: '%s'" % e)
             label_counts = {}
             for item in label_list:
                 label_counts.setdefault(item.get('label'), 0)
                 label_counts[item.get('label')] += 1
-            if not self.silent:
-                print '[showing %s labels]' % len(label_counts)
-                for key in label_counts:
-                    print "%s (%s)" % (key, label_counts[key])
+            logging.info('[showing %s labels]' % len(label_counts))
+            for key in label_counts:
+                logging.info("%s (%s)" % (key, label_counts[key]))
 
 
 class FileLabel(object):
     """Configures and executes subcommands under "label" on the parent parser.
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -229,7 +222,7 @@ class FileLabel(object):
 
     def run(self):
         return self.args.SubSubSubcommandClass(
-            self.args, silent=self.silent).run()
+            self.args).run()
 
 
 if __name__ == '__main__':

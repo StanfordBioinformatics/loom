@@ -22,7 +22,7 @@ class SmokeTest(unittest.TestCase):
         parser = loomengine.example.Example.get_parser()
         args = parser.parse_args(
             ['export', self.template_name, '-d', self.tempdir])
-        example_export_client = loomengine.example.Example(args, silent=True)
+        example_export_client = loomengine.example.Example(args)
         example_export_client.run()
         self.template_path = os.path.join(
             self.tempdir, self.template_name, self.template_name+'.yaml')
@@ -31,27 +31,27 @@ class SmokeTest(unittest.TestCase):
         shutil.rmtree(self.tempdir)
         parser = loomengine.run.RunClient.get_parser()
         args = parser.parse_args(['delete', '-y', ':%s' % self.run_tag])
-        run_client = loomengine.run.RunClient(args, silent=True)
+        run_client = loomengine.run.RunClient(args)
         try:
             run_client.run()
         except SystemExit:
             pass
 
         args = parser.parse_args(['list', ':%s' % self.run_tag])
-        run_list_client = loomengine.run.RunClient(args, silent=True)
+        run_list_client = loomengine.run.RunClient(args)
         self._poll_for_n(run_list_client, n=0,
                          error_message='Failed to delete run')
 
         parser = loomengine.template.Template.get_parser()
         args = parser.parse_args(['delete', '-y', ':%s' % self.template_tag])
-        template_client = loomengine.template.Template(args, silent=True)
+        template_client = loomengine.template.Template(args)
         try:
             template_client.run()
         except SystemExit:
             pass
 
         args = parser.parse_args(['list', ':%s' % self.template_tag])
-        template_list_client = loomengine.template.Template(args, silent=True)
+        template_list_client = loomengine.template.Template(args)
         self._poll_for_n(template_list_client, n=0,
                          error_message='Failed to delete template')
 
@@ -60,11 +60,11 @@ class SmokeTest(unittest.TestCase):
         args = parser.parse_args(['import', self.template_path,
                                   '-f', '-r', '-t', self.template_tag])
         template_import_client = loomengine.template.Template(
-            args, silent=True)
+            args)
         template_import_client.run()
 
         args = parser.parse_args(['list', ':%s' % self.template_tag])
-        template_list_client = loomengine.template.Template(args, silent=True)
+        template_list_client = loomengine.template.Template(args)
         self._poll_for_n(template_list_client, n=1,
                          error_message='Failed to import template')
 
@@ -72,11 +72,11 @@ class SmokeTest(unittest.TestCase):
         args = parser.parse_args(['start', ':%s' % self.template_tag, '-t',
                                   self.run_tag, '-f'])
 
-        run_client = loomengine.run.RunClient(args, silent=True)
+        run_client = loomengine.run.RunClient(args)
         run_client.run()
 
         args = parser.parse_args(['list', ':%s' % self.run_tag])
-        run_list_client = loomengine.run.RunClient(args, silent=True)
+        run_list_client = loomengine.run.RunClient(args)
         self._poll_for_n(run_list_client, n=1,
                          error_message='Failed to start run')
         self._poll_for_run_success(run_list_client,

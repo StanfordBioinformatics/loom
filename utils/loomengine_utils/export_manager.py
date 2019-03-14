@@ -8,8 +8,6 @@ from .exceptions import LoomengineUtilsError, ExportManagerError, \
     FileAlreadyExistsError
 from .file_utils import File
 
-logger = logging.getLogger(__name__)
-
 
 class ExportManager(object):
 
@@ -19,10 +17,6 @@ class ExportManager(object):
             storage_settings = connection.get_storage_settings()
         self.storage_settings = storage_settings
         self.silent = silent
-
-    def _print(self, text):
-        if not self.silent:
-            print text
 
     def bulk_export_files(self, files, destination_directory=None,
                           retry=False, export_metadata=True,
@@ -61,7 +55,7 @@ class ExportManager(object):
         destination_file_url = os.path.join(destination_directory,
                                             destination_filename)
 
-        logger.info('Exporting file %s@%s ...' % (
+        logging.info('Exporting file %s@%s ...' % (
             data_object['value']['filename'],
             data_object['uuid']))
 
@@ -71,7 +65,7 @@ class ExportManager(object):
             if destination.exists():
                 raise FileAlreadyExistsError(
                     'File already exists at %s' % destination_file_url)
-            logger.info('...copying file to %s' % (
+            logging.info('...copying file to %s' % (
                 destination.get_url()))
 
             # Copy from the first file location
@@ -83,22 +77,22 @@ class ExportManager(object):
             data_object['value'] = self._create_new_file_resource(
                 data_object['value'], destination.get_url())
         else:
-            logger.info('...skipping raw file')
+            logging.info('...skipping raw file')
 
         if export_metadata:
             data_object['value'].pop('link', None)
             data_object['value'].pop('upload_status', None)
             destination_metadata_url = os.path.join(
                 destination_file_url + '.metadata.yaml')
-            logger.info('...writing metadata to %s' % destination_metadata_url)
+            logging.info('...writing metadata to %s' % destination_metadata_url)
             metadata = yaml.safe_dump(data_object, default_flow_style=False)
             metadata_file = File(destination_metadata_url,
                                  self.storage_settings, retry=retry)
             metadata_file.write(metadata)
         else:
-            logger.info('...skipping metadata')
+            logging.info('...skipping metadata')
 
-        logger.info('...finished file export')
+        logging.info('...finished file export')
 
     def _create_new_file_resource(self, old_resource, new_file_url):
         # Most fields are the same as old_resource.
@@ -282,10 +276,10 @@ class ExportManager(object):
         return self.connection.get_run(run['uuid'], expand=True)
 
     def _save_run(self, run, destination, retry=False):
-        self._print('Exporting run %s@%s to %s...' % (
+        logging.info('Exporting run %s@%s to %s...' % (
             run.get('name'), run.get('uuid'), destination))
         self._save_yaml(run, destination, retry=retry)
-        self._print('...finished exporting run')
+        logging.info('...finished exporting run')
         
     def _expand_template(self, template):
         return self.connection.get_template(template.get('uuid'), expand=True)
@@ -374,10 +368,10 @@ class ExportManager(object):
         return os.path.join(destination_directory, template['name']+'.yaml')
 
     def _save_template(self, template, destination, retry=False):
-        self._print('Exporting template %s@%s to %s...' % (
+        logging.info('Exporting template %s@%s to %s...' % (
             template.get('name'), template.get('uuid'), destination))
         self._save_yaml(template, destination, retry=retry)
-        self._print('...finished exporting template')
+        logging.info('...finished exporting template')
 
     def _save_yaml(self, data, destination, retry=False):
         text = yaml.safe_dump(data, default_flow_style=False)

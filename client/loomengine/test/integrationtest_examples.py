@@ -43,20 +43,20 @@ class TestExamples(unittest.TestCase):
         for run_tag in self.run_tags:
             args = self.run_parser.parse_args(
                 ['delete', '-y', ':%s' % run_tag])
-            run_client = loomengine.run.RunClient(args, silent=True)
+            run_client = loomengine.run.RunClient(args)
             try:
                 run_client.run()
             except SystemExit:
                 pass
             args = self.run_parser.parse_args(['list', ':%s' % run_tag])
-            run_list_client = loomengine.run.RunClient(args, silent=True)
+            run_list_client = loomengine.run.RunClient(args)
             self._poll_for_n(run_list_client, n=0,
                              error_message='Failed to delete run')
 
         for template_tag in self.template_tags:
             args = self.template_parser.parse_args(
                 ['delete', '-y', ':%s' % template_tag])
-            template_client = loomengine.template.Template(args, silent=True)
+            template_client = loomengine.template.Template(args)
             try:
                 template_client.run()
             except SystemExit:
@@ -64,7 +64,7 @@ class TestExamples(unittest.TestCase):
             args = self.template_parser.parse_args(
                 ['list', ':%s' % template_tag])
             template_list_client = loomengine.template.Template(
-                args, silent=True)
+                args)
             self._poll_for_n(template_list_client, n=0,
                              error_message='Failed to delete template')
 
@@ -96,7 +96,7 @@ class TestExamples(unittest.TestCase):
     def _check_examples_list(self):
         # Verify that examples in this test match those listed by the client.
         args = self.example_parser.parse_args(['list'])
-        example_list_client = loomengine.example.Example(args, silent=True)
+        example_list_client = loomengine.example.Example(args)
         result = example_list_client.run()
         examples_from_client = set([item[0] for item in result])
         examples_from_test = set(self.examples)
@@ -105,7 +105,7 @@ class TestExamples(unittest.TestCase):
     def _export_example_to_tempdir(self, example):
         args = self.example_parser.parse_args(
             ['export', example, '-d', self.tempdir])
-        example_client = loomengine.example.Example(args, silent=True)
+        example_client = loomengine.example.Example(args)
         example_client.run()
 
     def _import_template(self, example):
@@ -115,10 +115,10 @@ class TestExamples(unittest.TestCase):
         args = self.template_parser.parse_args(
             ['import', template_path, '-f', '-r', '-t', template_tag])
         template_import_client = loomengine.template.Template(
-            args, silent=True)
+            args)
         template_import_client.run()
         args = self.template_parser.parse_args(['list', ':%s' % template_tag])
-        template_list_client = loomengine.template.Template(args, silent=True)
+        template_list_client = loomengine.template.Template(args)
         result = self._poll_for_n(template_list_client, n=1,
                                   error_message='Failed to import template')
         template = requests.get(result[0]['url'], verify=False).json()
@@ -130,11 +130,11 @@ class TestExamples(unittest.TestCase):
         run_tag = 'integration-test-%s' % uuid.uuid4()
         args = self.run_parser.parse_args(
             ['start', ':%s' % template_tag, '-t', run_tag, '-f'])
-        run_client = loomengine.run.RunClient(args, silent=True)
+        run_client = loomengine.run.RunClient(args)
         run_client.run()
 
         args = self.run_parser.parse_args(['list', ':%s' % run_tag])
-        run_list_client = loomengine.run.RunClient(args, silent=True)
+        run_list_client = loomengine.run.RunClient(args)
         self._poll_for_n(run_list_client, n=1,
                          error_message='Failed to start run')
         self.run_tags.add(run_tag)
@@ -146,7 +146,7 @@ class TestExamples(unittest.TestCase):
 
     def _wait_for_run_to_succeed(self, run_tag):
         args = self.run_parser.parse_args(['list', ':%s' % run_tag])
-        run_list_client = loomengine.run.RunClient(args, silent=True)
+        run_list_client = loomengine.run.RunClient(args)
         self._poll_for_run_success(run_list_client,
                                    error_message='Run failed')
 

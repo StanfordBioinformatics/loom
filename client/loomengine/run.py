@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import jsonschema
+import logging
 import os
 import re
 import requests.exceptions
 import yaml
 
-from loomengine import _render_time
-from loomengine.common import get_server_url, \
+from loomengine import _render_time, LoomClientError
+from loomengine.server import get_server_url, \
     verify_has_connection_settings, verify_server_is_running, get_token
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
@@ -20,10 +21,9 @@ from loomengine_utils.export_manager import ExportManager
 
 class AbstractRunSubcommand(object):
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         self._validate_args(args)
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -36,15 +36,11 @@ class AbstractRunSubcommand(object):
             self.export_manager = ExportManager(
                 self.connection, storage_settings=self.storage_settings)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to initialize client: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to initialize client: '%s'" % e)
 
     @classmethod
     def _validate_args(cls, args):
         pass
-
-    def _print(self, text):
-        if not self.silent:
-            print text
 
 
 class RunStart(AbstractRunSubcommand):
@@ -84,7 +80,7 @@ class RunStart(AbstractRunSubcommand):
         for input in args.inputs:
             vals = input.split('=')
             if not len(vals) == 2 or vals[0] == '':
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! Invalid input key-value pair "%s". '
                     'Must be of the form key=value or '
                     'key=value1,value2,...' % input)
@@ -101,9 +97,9 @@ class RunStart(AbstractRunSubcommand):
         try:
             run = self.connection.post_run(run_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to start run: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to start run: '%s'" % e)
 
-        self._print('Created run %s@%s' % (
+        logging.info('Created run %s@%s' % (
             run['name'],
             run['uuid']))
         self._apply_tags(run)
@@ -119,7 +115,7 @@ class RunStart(AbstractRunSubcommand):
         try:
             jsonschema.validate(file_inputs, file_input_schema)
         except jsonschema.ValidationError:
-            raise SystemExit("ERROR! Input file was invalid")
+            raise LoomClientError("ERROR! Input file was invalid")
         input_dict = {}
         for (channel, input_id) in file_inputs.iteritems():
             input_dict[channel] = input_id
@@ -155,8 +151,8 @@ class RunStart(AbstractRunSubcommand):
             try:
                 tag = self.connection.post_run_tag(run.get('uuid'), tag_data)
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-            self._print('Run "%s@%s" has been tagged as "%s"' %
+                raise LoomClientError("ERROR! Failed to create tag: '%s'" % e)
+            logging.info('Run "%s@%s" has been tagged as "%s"' %
                         (run.get('name'),
                          run.get('uuid'),
                          tag.get('tag')))
@@ -170,8 +166,8 @@ class RunStart(AbstractRunSubcommand):
                 label = self.connection.post_run_label(
                     run.get('uuid'), label_data)
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-            self._print('Run "%s@%s" has been labeled as "%s"' %
+                raise LoomClientError("ERROR! Failed to create label: '%s'" % e)
+            logging.info('Run "%s@%s" has been labeled as "%s"' %
                         (run.get('name'),
                          run.get('uuid'),
                          label.get('label')))
@@ -257,11 +253,11 @@ class RunRestart(RunStart):
                 query_string=self.args.run,
                 min=0, max=1)[0]
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
         try:
             run = self.connection.get_run(run.get('uuid'))
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get run: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get run: '%s'" % e)
         run_data = {
             'template': run.get('template'),
             'user_inputs': self._get_inputs(run.get('inputs')),
@@ -273,8 +269,8 @@ class RunRestart(RunStart):
         try:
             run = self.connection.post_run(run_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to restart run: '%s'" % e)
-        self._print('Created run %s@%s' % (
+            raise LoomClientError("ERROR! Failed to restart run: '%s'" % e)
+        logging.info('Created run %s@%s' % (
             run['name'],
             run['uuid']))
         self._apply_tags(run)
@@ -297,7 +293,7 @@ class RunRestart(RunStart):
         try:
             jsonschema.validate(file_inputs, file_input_schema)
         except jsonschema.ValidationError:
-            raise SystemExit("ERROR! User inputs file is not valid")
+            raise LoomClientError("ERROR! User inputs file is not valid")
         for (channel, input_id) in file_inputs.iteritems():
             input_dict[channel] = {
                 'channel': channel,
@@ -352,17 +348,17 @@ class RunImport(AbstractRunSubcommand):
                         retry=self.args.retry,
                         link_files=self.args.link_files)
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to import run: '%s'" % e)
+                    raise LoomClientError("ERROR! Failed to import run: '%s'" % e)
                 self._apply_tags(run)
                 self._apply_labels(run)
                 imported_runs.append(run)
         except APIError as e:
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! An external API failed. This may be transient. '
                 'Try again, and consider using "--retry", especially '
                 'if this step is automated. Original error: "%s"' % e)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! %s" % e.message)
+            raise LoomClientError("ERROR! %s" % e.message)
         return imported_runs
 
     def _apply_tags(self, run):
@@ -373,8 +369,8 @@ class RunImport(AbstractRunSubcommand):
             try:
                 tag = self.connection.post_run_tag(run.get('uuid'), tag_data)
             except LoomengineUtilsError as e:
-                raise SystemExit('ERROR! Failed to create tag: "%s"' % e)
-            self._print('Run "%s@%s" has been tagged as "%s"' %
+                raise LoomClientError('ERROR! Failed to create tag: "%s"' % e)
+            logging.info('Run "%s@%s" has been tagged as "%s"' %
                         (run.get('name'),
                          run.get('uuid'),
                          tag.get('tag')))
@@ -388,8 +384,8 @@ class RunImport(AbstractRunSubcommand):
                 label = self.connection.post_run_label(
                     run.get('uuid'), label_data)
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-            self._print('Run "%s@%s" has been labeled as "%s"' %
+                raise LoomClientError("ERROR! Failed to create label: '%s'" % e)
+            logging.info('Run "%s@%s" has been labeled as "%s"' %
                         (run.get('name'),
                          run.get('uuid'),
                          label.get('label')))
@@ -431,7 +427,7 @@ class RunExport(AbstractRunSubcommand):
                         limit=limit, offset=offset,
                         query_string=run_id)
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+                    raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
                 for run in data['results']:
                     found_at_least_one_match = True
                     if run.get('uuid') not in run_uuids:
@@ -442,7 +438,7 @@ class RunExport(AbstractRunSubcommand):
                 else:
                     break
             if not found_at_least_one_match:
-                raise SystemExit('ERROR! No runs matched %s"' % run_id)
+                raise LoomClientError('ERROR! No runs matched %s"' % run_id)
         if len(runs) > 1:
             try:
                 return self.export_manager.bulk_export_runs(
@@ -452,7 +448,7 @@ class RunExport(AbstractRunSubcommand):
                     link_files=self.args.link_files
                 )
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to export runs: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to export runs: '%s'" % e)
         else:
             try:
                 return self.export_manager.export_run(
@@ -462,7 +458,7 @@ class RunExport(AbstractRunSubcommand):
                     link_files=self.args.link_files,
                 )
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to export run: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to export run: '%s'" % e)
 
 
 class RunList(AbstractRunSubcommand):
@@ -501,9 +497,9 @@ class RunList(AbstractRunSubcommand):
                     limit=limit, offset=offset,
                     labels=self.args.label, parent_only=parent_only)
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
             if offset == 0:
-                self._print('[showing %s runs]' % data.get('count'))
+                logging.info('[showing %s runs]' % data.get('count'))
             self._list_runs(data['results'])
             if data.get('next'):
                 offset += limit
@@ -513,7 +509,7 @@ class RunList(AbstractRunSubcommand):
 
     def _list_runs(self, runs):
         for run in runs:
-            self._print(self._render_run(run))
+            logging.info(self._render_run(run))
 
     def _render_run(self, run):
         run_identifier = '%s@%s' % (run['name'], run['uuid'])
@@ -551,7 +547,7 @@ class RunKill(AbstractRunSubcommand):
                 query_string=self.args.run_id,
                 min=1, max=1)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
         run = data[0]
         run_id = "%s@%s" % (run['name'], run['uuid'])
         if not self.args.yes:
@@ -559,17 +555,17 @@ class RunKill(AbstractRunSubcommand):
                 'Do you really want to permanently kill run "%s"?\n'
                 '(y)es, (n)o: ' % run_id)
             if user_input.lower() == 'n':
-                raise SystemExit("Skipping run")
+                raise LoomClientError("Skipping run")
             elif user_input.lower() == 'y':
                 pass
             else:
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! Unrecognized response "%s"' % user_input)
         try:
             self.connection.kill_run(run['uuid'])
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to kill run: '%s'" % e)
-        self._print("Killed run %s" % run_id)
+            raise LoomClientError("ERROR! Failed to kill run: '%s'" % e)
+        logging.info("Killed run %s" % run_id)
 
 
 class RunDelete(AbstractRunSubcommand):
@@ -597,7 +593,7 @@ class RunDelete(AbstractRunSubcommand):
                 query_string=self.args.run_id,
                 min=1, max=1)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
         self._delete_run(data[0])
 
     def _delete_run(self, run):
@@ -612,7 +608,7 @@ class RunDelete(AbstractRunSubcommand):
                             min=1, max=1)[0]
                     )
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to delete run: '%s'" % e)
+                    raise LoomClientError("ERROR! Failed to delete run: '%s'" % e)
 
         # Placing the list in reverse order makes it easier
         # to handle outputs produced by one step and used by
@@ -634,7 +630,7 @@ class RunDelete(AbstractRunSubcommand):
                         data_node = self.connection.get_data_node(
                             output['data']['uuid'], expand=True)
                     except LoomengineUtilsError as e:
-                        raise SystemExit(
+                        raise LoomClientError(
                             "ERROR! Failed to get data node: '%s'" % e)
                     run_outputs_to_delete.extend(
                         self._parse_data_objects_from_data_node_contents(
@@ -644,13 +640,13 @@ class RunDelete(AbstractRunSubcommand):
                     try:
                         task = self.connection.get_task(task['uuid'])
                     except LoomengineUtilsError as e:
-                        raise SystemExit("ERROR! Failed to get task: '%s'" % e)
+                        raise LoomClientError("ERROR! Failed to get task: '%s'" % e)
                     for task_attempt in task.get('all_task_attempts', []):
                         try:
                             task_attempt = self.connection.get_task_attempt(
                                 task_attempt['uuid'])
                         except LoomengineUtilsError as e:
-                            raise SystemExit(
+                            raise LoomClientError(
                                 "ERROR! Failed to get task attempt: '%s'" % e)
                         for log_file in task_attempt.get('log_files', []):
                             if log_file.get('data_object'):
@@ -661,41 +657,41 @@ class RunDelete(AbstractRunSubcommand):
                 'Do you really want to permanently delete run "%s"?\n'
                 '(y)es, (n)o: ' % run_id)
             if user_input.lower() == 'n':
-                raise SystemExit("Skipping run")
+                raise LoomClientError("Skipping run")
             elif user_input.lower() == 'y':
                 pass
             else:
-                raise SystemExit('Unrecognized response "%s"' % user_input)
+                raise LoomClientError('Unrecognized response "%s"' % user_input)
         try:
             dependencies = self.connection.get_run_dependencies(
                 run.get('uuid'))
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get run dependencies: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get run dependencies: '%s'" % e)
 
         if len(dependencies['runs']) == 0:
             try:
                 self.connection.delete_run(run.get('uuid'))
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to delete run: '%s'" % e)
-            self._print("Deleted run %s" % run_id)
+                raise LoomClientError("ERROR! Failed to delete run: '%s'" % e)
+            logging.info("Deleted run %s" % run_id)
             for run in run_children_to_delete:
                 self._delete_run(run)
             for data_object in run_outputs_to_delete:
                 self._delete_data_object(data_object)
         else:
-            self._print(
+            logging.info(
                 "Cannot delete run %s because it is contained by other "
                 "run(s). You must delete the following runs before "
                 "deleting this run." % run_id)
             for run in dependencies.get('runs', []):
-                self._print("  run %s@%s" % (run['name'], run['uuid']))
+                logging.info("  run %s@%s" % (run['name'], run['uuid']))
 
     def _delete_data_object(self, data_object):
         try:
             dependencies = self.connection.get_data_object_dependencies(
                 data_object['uuid'])
         except LoomengineUtilsError as e:
-            raise SystemExit(
+            raise LoomClientError(
                 "ERROR! Failed to get data object dependencies: '%s'" % e)
         if len(dependencies['runs']) == 0 \
            and len(dependencies['templates']) == 0:
@@ -707,39 +703,39 @@ class RunDelete(AbstractRunSubcommand):
                         'Do you really want to delete result file "%s"?\n'
                         '(y)es, (n)o: ' % file_id)
                     if user_input.lower() == 'n':
-                        raise SystemExit("Skipping file")
+                        raise LoomClientError("Skipping file")
                     elif user_input.lower() == 'y':
                         pass
                     else:
-                        raise SystemExit(
+                        raise LoomClientError(
                             'Unrecognized response "%s"' % user_input)
                 try:
                     self.connection.delete_data_object(data_object['uuid'])
                 except LoomengineUtilsError as e:
-                    raise SystemExit(
+                    raise LoomClientError(
                         "ERROR! Failed to delete data object: '%s'" % e)
-                self._print("Deleted file %s" % file_id)
+                logging.info("Deleted file %s" % file_id)
             else:
                 try:
                     self.connection.delete_data_object(data_object['uuid'])
                 except LoomengineUtilsError as e:
-                    raise SystemExit(
+                    raise LoomClientError(
                         "ERROR! Failed to delete data object: '%s'" % e)
         else:
             if len(dependencies['runs']) > 0:
-                self._print("Cannot delete file %s "
+                logging.info("Cannot delete file %s "
                             "because it is contained by other run(s). "
                             "You must delete the following runs "
                             "before deleting this file." % run_id)
                 for run in dependencies.get('runs', []):
-                    self._print("  run %s@%s" % (run['name'], run['uuid']))
+                    logging.info("  run %s@%s" % (run['name'], run['uuid']))
             if len(dependencies['templates']) > 0:
-                self._print("Cannot delete file %s "
+                logging.info("Cannot delete file %s "
                             "because it is contained by other template(s). "
                             "You must delete the following templates "
                             "before deleting this file." % run_id)
                 for template in dependencies.get('templates', []):
-                    self._print("  template %s@%s" % (
+                    logging.info("  template %s@%s" % (
                         template['name'], template['uuid']))
 
     def _parse_data_objects_from_data_node_contents(self, contents):
@@ -759,11 +755,10 @@ class RunClient(object):
     """Handles subcommands under "run" on the main parser
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -825,7 +820,7 @@ class RunClient(object):
 
     def run(self):
         return self.args.SubSubcommandClass(
-            self.args, silent=self.silent).run()
+            self.args).run()
 
 
 file_input_schema = {

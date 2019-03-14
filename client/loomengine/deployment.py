@@ -1,25 +1,25 @@
 import collections
 import docker
 import errno
-import logging
 import jinja2
+import logging
 import os
+import random
+import re
 import shutil
+import time
 import uuid
-from loomengine import to_bool, to_list
-from loomengine.common import write_settings_file
-from . import SETTINGS_HOME
+
+from loomengine import to_bool, to_list, write_settings_file, LoomClientError
 
 
+SETTINGS_HOME = os.path.expanduser('~/.config/loom')
 RESOURCE_DIR = 'resources'
-CONFIG_DIR = 'third-party'
+CONFIG_DIR = 'third-party-config'
 SERVER_SETTINGS_FILE = 'server-settings.conf'
-CONFIG_FILES = {
-    'kibana': 'kibana.yml',
-    'fluentd': 'fluent.conf',
-    'nginx': 'nginx.conf'}
 CONFIG_FILE_TEMPLATE_PATH = os.path.join(
-    os.path.dirname(__file__), 'templates')
+    os.path.dirname(__file__), 'config_templates')
+
 
 # The jinja2 environment will be used by various components
 # to render third-party config files like nginx.conf
@@ -32,11 +32,10 @@ def _get_jinja_env():
     env.filters['boolean'] = to_bool
     env.filters['list'] = to_list
     return env
-
 JINJA_ENV = _get_jinja_env()
 
 
-class DeploymentManagerError(Exception):
+class LoomClientError(Exception):
     pass
 
 
@@ -49,21 +48,30 @@ class AbstractComponent(object):
         self.docker = docker_client
 
     def write_config_file(self, config_file):
+        config_file_path = os.path.join(
+            SETTINGS_HOME, CONFIG_DIR, config_file)
+        logging.info('Creating config file "%s"' % config_file_path)
         template = JINJA_ENV.get_template(config_file)
-        with open(os.path.join(
-                SETTINGS_HOME, CONFIG_DIR, config_file),
+        with open(config_file_path,
                   'w') as f:
             f.write(template.render(**self.settings)+'\n')
 
-    def delete_config_file(self, template_name):
-        os.remove(os.path.join(
-            SETTINGS_HOME, CONFIG_DIR, template_name))
+    def delete_config_file(self, config_file):
+        config_file_path = os.path.join(
+            SETTINGS_HOME, CONFIG_DIR, config_file)
+        logging.info('Deleting config file "%s"' % config_file_path)
+        try:
+            os.remove(config_file_path)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
+            # else no file to delete. Continue
 
     def get_setting(self, setting):
         try:
             return self.settings[setting]
         except KeyError:
-            raise DeploymentManagerError(
+            raise LoomClientError(
                 'ERROR! Missing required setting "%s".' % setting)
 
     def get_settings_as_environment_variables(self):
@@ -84,11 +92,14 @@ class AbstractComponent(object):
 
     def validate_settings(self):
         pass
-    
+
     def start(self):
         pass
 
-    def wait_until_started(self):
+    def wait(self):
+        pass
+
+    def runtime_configuration(self):
         pass
 
     def stop(self):
@@ -99,8 +110,9 @@ class AbstractComponent(object):
 
     def run_container(self, image, **kwargs):
         # Run a container, or noop if it already exits
+        logging.info('Creating container %s' % kwargs.get('name'))
         try:
-            self.docker.containers.run(image, **kwargs)
+            return self.docker.containers.run(image, **kwargs)
         except docker.errors.APIError as e:
             if e.response.status_code == 409:
                 logging.info('Container %s already exits. '
@@ -108,23 +120,60 @@ class AbstractComponent(object):
             else:
                 raise
 
+    def wait_for_0_return_code(self, container, command, retries=4, fail_message=None):
+        attempt = 0
+        while attempt <= retries:
+            (retcode, output) = container.exec_run(command)
+            if retcode == 0:
+                return output
+            delay = 2**attempt + random.random()
+            attempt += 1
+            logging.info('...retry %s of %s in %0.2f seconds' % (
+                attempt, retries, delay))
+            time.sleep(delay)
+        if fail_message is None:
+            fail_message = 'Command "%s" failed after %s retries '\
+                           'with output "%s"' % (command, retries, output)
+        raise LoomClientError(fail_message)
+
+    def wait_for_200_status_code(
+            self, container, url, retries=4, fail_message=None):
+        attempt = 0
+        command = 'curl -I %s' % url
+        while attempt < retries:
+            (retcode, output) = container.exec_run(command)
+            if '200 OK' in output:
+                return
+            delay = 2**attempt + random.random()
+            attempt += 1
+            logging.info('...retry %s of %s in %0.2f seconds' % (
+                attempt, retries, delay))
+            time.sleep(delay)
+        if fail_message is None:
+            fail_message = 'No 200 status code after %s retries to %s'\
+                           % (retries, url)
+        raise LoomClientError(fail_message)
+
     def stop_and_delete_container(self, container_name):
+        logging.info('Deleting container "%s"' % container_name)
         try:
             container = self.docker.containers.get(container_name)
             container.stop()
             container.remove()
-            logging.info("  deleted container %s" % container_name)
+            logging.info('...done')
         except docker.errors.NotFound:
-            # Ok. Just log and continue
-            logging.info("  container %s not found" % container_name)
+            # Container already absent. Continue
+            logging.info('...not found')
 
     def delete_volume(self, volume_name):
+        logging.info('Deleting volume "%s"' % volume_name)
         try:
             volume = self.docker.volumes.get(volume_name)
             volume.remove()
-            logging.info('  deleted volume %s')
+            logging.info('...done')
         except docker.errors.NotFound:
-            logging.info('  volume %s not found' % volume_name)
+            # Volume already absent. Continue
+            logging.info('...not found')
 
     def get_network_id(self):
         if not self.NETWORK_ID:
@@ -141,35 +190,44 @@ class AbstractComponent(object):
             if len(networks) == 1:
                 self.NETWORK_ID = networks[0].id
             elif len(networks) > 1:
-                raise DeploymentManagerError(
+                raise LoomClientError(
                     'Multiple networks found with name "%s". '
                     'Stop or delete the loom server to clean up '
                     'stale resources.' % network_name)
             else:
-                raise DeploymentManagerError(
+                raise LoomClientError(
                     'No network found with name "%s". '
                     'Start the "network" component to create it.'
                     % network_name)
 
     def make_dir_if_missing(self, path):
+        logging.info('Creating directory at "%s"' % path)
         try:
             os.makedirs(path)
         except OSError as e:
             if e.errno == errno.EEXIST and os.path.isdir(path):
                 pass  # Ok, dir exists
             else:
-                raise DeploymentManagerError(
+                raise LoomClientError(
                     'ERROR! Unable to create directory "%s"\n%s'
                     % (path, str(e)))
 
 
 class SettingsComponent(AbstractComponent):
 
+    def preprocess_settings(self):
+        if self.settings.get('storage_root'):
+            self.settings['storage_root'] = os.path.expanduser(
+                self.settings.get('storage_root'))
+
     def start(self):
         self.make_dir_if_missing(os.path.join(
             SETTINGS_HOME, CONFIG_DIR))
+        settings_file_path = os.path.join(SETTINGS_HOME,
+                                          SERVER_SETTINGS_FILE)
+        logging.info('Creating settings file at "%s"' % settings_file_path)
         write_settings_file(
-            os.path.join(SETTINGS_HOME,
+        os.path.join(SETTINGS_HOME,
                          SERVER_SETTINGS_FILE),
             self.settings)
 
@@ -179,15 +237,16 @@ class SettingsComponent(AbstractComponent):
     def delete(self):
         if not SETTINGS_HOME \
            or os.path.abspath(SETTINGS_HOME) == os.path.abspath('/'):
-            print 'WARNING! SETTINGS_HOME is "%s". Refusing to delete.' \
-                % SETTINGS_HOME
+            logging.warn('WARNING! SETTINGS_HOME is "%s". Refusing to delete.' \
+                % SETTINGS_HOME)
         else:
             try:
+                logging.info('Deleting settings directory %s' % SETTINGS_HOME)
                 if os.path.exists(SETTINGS_HOME):
                     shutil.rmtree(SETTINGS_HOME)
             except Exception as e:
-		print 'WARNING! Failed to remove settings directory %s.\n%s' \
-                    % (SETTINGS_HOME, str(e))
+		logging.warn('WARNING! Failed to delete settings directory %s.\n%s' \
+                    % (SETTINGS_HOME, str(e)))
 
 
 class NetworkComponent(AbstractComponent):
@@ -197,17 +256,21 @@ class NetworkComponent(AbstractComponent):
         networks = self.docker.networks.list(network_name)
         if len(networks) == 0:
             # Create network if none exists with that name
+            logging.info('Creating Docker network "%s"' % network_name)
             network = self.docker.networks.create(network_name)
             self.cache_network_id(network.id)
         elif len(networks) > 1:
-            raise DeploymentManagerError(
+            raise LoomClientError(
                 'Multiple networks found with name "%s". '
                 'Stop or delete the loom server to clean up '
                 'stale resources.')
-        # else no-op. Use existing network
+        else:
+            # Use existing network
+            logging.info('Using existing Docker network "%s"' % network_name)
 
     def stop(self):
         network_name = self.get_setting('network_name')
+        logging.info('Deleting network %s' % network_name)
         for network in self.docker.networks.list(network_name):
             network.remove()
 
@@ -270,13 +333,13 @@ class KibanaComponent(AbstractComponent):
             hostname=self.get_setting('kibana_container'),
             environment = {'ELASTICSEARCH_URL':
                            'http://%s:%s' % (
-                               self.get_setting('elasticsearch_container'),
+                               self.get_setting('elasticsearch_host'),
                                self.get_setting('elasticsearch_port'))},
             volumes={
                 os.path.join(
                     SETTINGS_HOME,
                     CONFIG_DIR,
-                    CONFIG_FILES['kibana']): {
+                    self.CONFIG_FILE): {
                         'bind': '/usr/share/kibana/config/%s'
                         % self.CONFIG_FILE,
                         'ro': True
@@ -285,9 +348,31 @@ class KibanaComponent(AbstractComponent):
             restart_policy={'Name': 'always'},
             detach=True)
 
-    def wait_until_started(self):
-        pass
-        
+    def wait(self):
+        logging.info('Waiting for elasticsearch to initialize')
+        kibana_container = self.docker.containers.get(
+            self.get_setting('kibana_container'))
+        url = 'http://%s:%s/.kibana' % (
+            self.get_setting('elasticsearch_host'),
+            self.get_setting('elasticsearch_port'))
+        self.wait_for_200_status_code(kibana_container, url, retries=8)
+
+    def runtime_configuration(self):
+        # Set the elasticsearch index pattern for Kibana
+        logging.info('Configuring Kibana index in elasticsearch')
+        kibana_container = self.docker.containers.get(
+            self.get_setting('kibana_container'))
+        url = 'http://%s:%s/.kibana/index-pattern/*' % (
+            self.get_setting('elasticsearch_host'),
+            self.get_setting('elasticsearch_port'))
+        payload = '\'{"title" : "*",  "timeFieldName": "@timestamp"}\''
+        command = 'curl -w "__%%{http_code}__" -X PUT -H '\
+                  '"Content-Type: application/json" -d %s %s' % (
+                      payload, url)
+        (retcode, output) = kibana_container.exec_run(command)
+        if not ('__200__' in output or '__201__' in output):
+            raise LoomClientError('ERROR! Failed to set Kibana index pattern')
+
     def stop(self):
         self.stop_and_delete_container(
             self.get_setting('kibana_container'))
@@ -295,6 +380,7 @@ class KibanaComponent(AbstractComponent):
 
     def delete(self):
         self.stop()
+
 
 class FluentdComponent(AbstractComponent):
 
@@ -307,17 +393,12 @@ class FluentdComponent(AbstractComponent):
             name=self.get_setting('fluentd_container'),
             hostname=self.get_setting('fluentd_container'),
             volumes={
-                os.path.join(
-                    SETTINGS_HOME,
-                    CONFIG_DIR,
-                    CONFIG_FILES['fluentd']): {
-                        'bind': '/fluent/fluentd/etc/%s' % self.CONFIG_FILE,
-                        'ro': True},
-                os.path.join(
-                    SETTINGS_HOME,
-                    'log'): {
-                        'bind': '/fluentd/log/',
-                        'ro': False}},
+                os.path.join(SETTINGS_HOME, CONFIG_DIR, self.CONFIG_FILE): {
+                    'bind': '/fluentd/etc/%s' % self.CONFIG_FILE,
+                    'ro': True},
+                os.path.join(SETTINGS_HOME, 'log'): {
+                    'bind': '/fluentd/log/',
+                    'ro': False}},
             ports={self.get_setting('fluentd_port'):
                    self.get_setting('fluentd_port')},
             network=self.get_network_id(),
@@ -337,8 +418,9 @@ class MySQLComponent(AbstractComponent):
 
     def preprocess_settings(self):
         # Create a random password if none provided
-        self.settings.setdefault('mysql_password', uuid.uuid4())
-            
+        if not self.settings.get('mysql_password'):
+            self.settings['mysql_password'] = uuid.uuid4()
+
     def start(self):
         environment={
             'MYSQL_USER': self.get_setting('mysql_user'),
@@ -351,10 +433,10 @@ class MySQLComponent(AbstractComponent):
             environment.update({'MYSQL_RANDOM_ROOT_PASSWORD': True,
                                 'MYSQL_ONETIME_PASSWORD': True})
 
-        self.run_container(
+        mysql_container = self.run_container(
             self.get_setting('mysql_image'),
             name=self.get_setting('mysql_container'),
-            hostname=self.get_setting('mysql_container'),
+            hostname=self.get_setting('mysql_host'),
             volumes={
                 self.get_setting('mysql_data_volume'): {
                     'bind': '/var/lib/mysql',
@@ -367,7 +449,8 @@ class MySQLComponent(AbstractComponent):
                 'type': 'fluentd',
                 'config': {
                     'fluentd-address': '%s:%s' % (
-                        self.get_setting('fluentd_container'),
+                        'localhost',
+                        #self.get_setting('fluentd_host'),
                         self.get_setting('fluentd_port')),
                     'fluentd-async-connect': 'true',
                     'tag': 'loom.{{.Name}}.{{.ID}}'
@@ -401,7 +484,17 @@ class RabbitMQComponent(AbstractComponent):
                 'RABBITMQ_VHOST': self.get_setting('rabbitmq_vhost')},
             network=self.get_network_id(),
             restart_policy={'Name': 'always'},
-            detach=True)
+            detach=True,
+            log_config={
+                'type': 'fluentd',
+                'config': {
+                    'fluentd-address': '%s:%s' % (
+                        'localhost',
+                        #self.get_setting('fluentd_host'),
+                        self.get_setting('fluentd_port')),
+                    'fluentd-async-connect': 'true',
+                    'tag': 'loom.{{.Name}}.{{.ID}}'
+                }})
 
     def stop(self):
         self.stop_and_delete_container(
@@ -410,18 +503,6 @@ class RabbitMQComponent(AbstractComponent):
     def delete(self):
         self.stop()
         self.delete_volume(self.get_setting('rabbitmq_data_volume'))
-
-class FlowerComponent(AbstractComponent):
-
-    def start(self):
-        pass
-
-    def stop(self):
-        self.stop_and_delete_container(
-            self.get_setting('flower_container'))
-
-    def delete(self):
-        self.stop()
 
 
 class AsyncWorkerComponent(AbstractComponent):
@@ -440,7 +521,17 @@ class AsyncWorkerComponent(AbstractComponent):
                     'ro': True}},
             network=self.get_network_id(),
             restart_policy={'Name': 'always'},
-            detach=True)
+            detach=True,
+            log_config={
+                'type': 'fluentd',
+                'config': {
+                    'fluentd-address': '%s:%s' % (
+                        'localhost',
+                        #self.get_setting('fluentd_host'),
+                        self.get_setting('fluentd_port')),
+                    'fluentd-async-connect': 'true',
+                    'tag': 'loom.{{.Name}}.{{.ID}}'
+                }})
 
     def stop(self):
         self.stop_and_delete_container(
@@ -472,7 +563,17 @@ class AsyncSchedulerComponent(AbstractComponent):
                     'ro': True}},
             network=self.get_network_id(),
             restart_policy={'Name': 'always'},
-            detach=True)
+            detach=True,
+            log_config={
+                'type': 'fluentd',
+                'config': {
+                    'fluentd-address': '%s:%s' % (
+                        'localhost',
+                        #self.get_setting('fluentd_host'),
+                        self.get_setting('fluentd_port')),
+                    'fluentd-async-connect': 'true',
+                    'tag': 'loom.{{.Name}}.{{.ID}}'
+                }})
 
     def stop(self):
         self.stop_and_delete_container(
@@ -483,6 +584,8 @@ class AsyncSchedulerComponent(AbstractComponent):
 
 
 class LoomComponent(AbstractComponent):
+
+    CONTAINER_SETTINGS_HOME = '/root/.config/loom'
 
     def start(self):
         self.run_container(
@@ -498,11 +601,56 @@ class LoomComponent(AbstractComponent):
                     'bind': self.get_setting('static_root'),
                     'ro': False},
                 SETTINGS_HOME: {
-                    'bind': '/root/.config/loom',
+                    'bind': self.CONTAINER_SETTINGS_HOME,
                     'ro': True}},
             network=self.get_network_id(),
             restart_policy={'Name': 'always'},
-            detach=True)
+            detach=True,
+            log_config={
+                'type': 'fluentd',
+                'config': {
+                    'fluentd-address': '%s:%s' % (
+                        'localhost',
+                        #self.get_setting('fluentd_host'),
+                        self.get_setting('fluentd_port')),
+                    'fluentd-async-connect': 'true',
+                    'tag': 'loom.{{.Name}}.{{.ID}}'
+                }})
+
+    def runtime_configuration(self):
+        self._apply_migrations()
+
+    def _apply_migrations(self):
+        apply_migrations = self.get_setting('apply_database_migrations')
+        loom_container = self.docker.containers.get(
+            self.get_setting('loom_container'))
+        logging.info('Waiting for database to be available to Loom')
+        output = self.wait_for_0_return_code(
+            loom_container, 'loom-manage showmigrations',
+            fail_message='Loom failed to connect to the database.')
+        # Typical output:
+        # api
+        #  [X] 0001_initial
+        # auth
+        #  [X] 0001_initial
+        #  [ ] 0002_alter_permission_name_max_length
+        # ...
+        pending_migrations = len(re.findall('\[ \]', output))
+        completed_migrations = len(re.findall('\[X\]', output))
+        total_migrations = pending_migrations + completed_migrations
+        if total_migrations == 0:
+            raise LoomClientError('No migrations found')
+        if pending_migrations == 0:
+            # nothing to do
+            return
+        if pending_migrations > 0:
+            logging.info('Found %s migrations pending' % pending_migrations)
+            if apply_migrations:
+                logging.info('Applying migrations')
+                loom_container.exec_run('loom-manage migrate')
+            else:
+                logging.warn('WARNING! Skipping migrations because ' \
+                             '"apply_database_migrations" setting is false')
 
     def stop(self):
         self.stop_and_delete_container(
@@ -551,8 +699,17 @@ class NginxComponent(AbstractComponent):
             network=self.get_network_id(),
             ports=ports,
             restart_policy={'Name': 'always'},
-            detach=True
-        )
+            detach=True,
+            log_config={
+                'type': 'fluentd',
+                'config': {
+                    'fluentd-address': '%s:%s' % (
+                        'localhost',
+                        #self.get_setting('fluentd_host'),
+                        self.get_setting('fluentd_port')),
+                    'fluentd-async-connect': 'true',
+                    'tag': 'loom.{{.Name}}.{{.ID}}'
+                }})
 
     def stop(self):
         self.stop_and_delete_container(
@@ -573,7 +730,6 @@ COMPONENTS = collections.OrderedDict([
     ('fluentd', FluentdComponent),
     ('mysql', MySQLComponent),
     ('rabbitmq', RabbitMQComponent),
-    ('flower', FlowerComponent),
     ('async-worker', AsyncWorkerComponent),
     ('async-scheduler', AsyncSchedulerComponent),
     ('loom', LoomComponent),
@@ -591,24 +747,34 @@ class DeploymentManager(object):
             component_names, skip_components)
 
     def start(self):
-        for component in self.components:
+        logging.info('Starting Loom server components %s'
+                     % ', '.join(self.components.keys()))
+
+        for component in self.components.values():
             component.preprocess_settings()
 
-        for component in self.components:
+        for component in self.components.values():
             component.validate_settings()
 
-        for component in self.components:
+        for component in self.components.values():
             component.start()
 
-        for component in self.components:
-            component.wait_until_started()
+        for component in self.components.values():
+            component.wait()
+
+        for component in self.components.values():
+            component.runtime_configuration()
 
     def stop(self):
-        for component in self.components[::-1]:
+        logging.info('Stopping Loom server components %s'
+                     % ', '.join(self.components.keys()))
+        for component in self.components.values()[::-1]:
             component.stop()
 
     def delete(self):
-        for component in self.components[::-1]:
+        logging.info('Deleting Loom server components %s'
+                     % ', '.join(self.components.keys()))
+        for component in self.components.values()[::-1]:
             component.delete()
 
     def _get_components(self, component_names, skip_components):
@@ -633,10 +799,10 @@ class DeploymentManager(object):
         if not component_names:
             component_names = [k for k in COMPONENTS.keys()]
         # Go in component order and build list of component classes
-        components = []
+        components = collections.OrderedDict()
         for name, Component in COMPONENTS.items():
             if name in component_names:
-                components.append(Component(self.settings, self.docker))
+                components[name] = Component(self.settings, self.docker)
         return components
 
     def _translate_components_none_or_all(self, components):
@@ -651,19 +817,3 @@ class DeploymentManager(object):
             return [key for key in COMPONENTS.keys()]
         else:
             return components
-
-    """
-    def _migrate_database(self, network_id):
-        self.run_container(
-            self.get_setting('loom_docker_image'),
-            name=self.get_setting('database_check_container'),
-            command='/opt/loom/src/bin/check-database.sh',
-            environment=self.get_settings_as_environment_variables(),
-            volumes={
-                SETTINGS_HOME: {
-                    'bind': self.get_setting('container_settings_home'),
-                    'ro': True}},
-            network=network_id,
-            restart_policy={'Name': 'always'},
-            detach=False)
-    """

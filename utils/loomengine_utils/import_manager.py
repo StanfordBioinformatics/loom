@@ -9,8 +9,6 @@ from .file_utils import File, FileSet, parse_as_yaml
 from .connection import ServerConnectionError
 from oauth2client.client import ApplicationDefaultCredentialsError
 
-logger = logging.getLogger(__name__)
-
 
 class DependencyNode(object):
     """This class helps keep track of file dependencies for a
@@ -27,16 +25,11 @@ class DependencyNode(object):
 
 class ImportManager(object):
 
-    def __init__(self, connection, storage_settings=None, silent=False):
+    def __init__(self, connection, storage_settings=None):
         self.connection = connection
-        self.silent = silent
         if storage_settings is None:
             storage_settings = connection.get_storage_settings()
 	self.storage_settings = storage_settings
-
-    def _print(self, text):
-        if not self.silent:
-            print text
 
     def bulk_import(self, directory, link_files=False,
                     retry=False):
@@ -220,7 +213,7 @@ class ImportManager(object):
             # Skip import if no UUID provided and duplicate is found.
             files = self._get_file_duplicates(filename, md5)
             if len(files) > 0:
-                logger.warn(
+                logging.warn(
                     'Found existing file that matches name and md5 hash "%s$%s". '\
                     'Using existing file and skipping new file import.'
                     % (filename, md5))
@@ -248,7 +241,7 @@ class ImportManager(object):
             comments = metadata_file_resource.get('import_comments', '')
         filename = metadata_file_resource.get('filename', source.get_filename())
         file_relative_path = metadata_file_resource.get('file_relative_path', None)
-        logger.info('Calculating md5 on file "%s"...' % source.get_url())
+        logging.info('Calculating md5 on file "%s"...' % source.get_url())
         md5 = source.calculate_md5()
         metadata_md5 = metadata_file_resource.get('md5')
         imported_from_url = metadata_file_resource.get(
@@ -286,7 +279,7 @@ class ImportManager(object):
         return file_data_object
 
     def import_result_file(self, task_attempt_output, source_url, retry=False):
-        logger.info('Calculating md5 on file "%s"...' % source_url)
+        logging.info('Calculating md5 on file "%s"...' % source_url)
         source = File(source_url, self.storage_settings, retry=retry)
         md5 = source.calculate_md5()
         task_attempt_output = self._create_task_attempt_output_file(
@@ -314,7 +307,7 @@ class ImportManager(object):
         md5_list = []
         filename_list = []
         for source_url in source_url_list:
-            logger.info('Calculating md5 on file "%s"...' % source_url)
+            logging.info('Calculating md5 on file "%s"...' % source_url)
             source = File(source_url, self.storage_settings, retry=retry)
             md5_list.append(source.calculate_md5())
             filename_list.append(source.get_filename())
@@ -352,7 +345,7 @@ class ImportManager(object):
         log_file = self.connection.post_task_attempt_log_file(
             task_attempt['uuid'], {'log_name': log_name})
 
-        logger.info('Calculating md5 on file "%s"...' % source_url)
+        logging.info('Calculating md5 on file "%s"...' % source_url)
         source = File(source_url, self.storage_settings, retry=retry)
         md5 = source.calculate_md5()
 
@@ -370,9 +363,9 @@ class ImportManager(object):
         return self._execute_file_import(data_object, source, retry=retry)
 
     def _execute_file_import(self, file_data_object, source, retry=False):
-        logger.info('Importing file from %s...' % source.get_url())
+        logging.info('Importing file from %s...' % source.get_url())
         if file_data_object['value'].get('upload_status') == 'complete':
-            logger.info(
+            logging.info(
                 '   Skipping upload because server already has the file %s@%s.' % (
                     file_data_object['value'].get('filename'),
                     file_data_object.get('uuid')))
@@ -382,7 +375,7 @@ class ImportManager(object):
                 file_data_object['value']['file_url'],
                 self.storage_settings,
                 retry=retry)
-            logger.info(
+            logging.info(
                 '   copying to destination %s ...' % destination.get_url())
             source.copy_to(destination)
         except ApplicationDefaultCredentialsError as e:
@@ -398,7 +391,7 @@ class ImportManager(object):
         # Signal that the upload completed successfully
         file_data_object = self._set_upload_status(
             file_data_object, 'complete')
-        logger.info('   imported file %s@%s' % (
+        logging.info('   imported file %s@%s' % (
             file_data_object['value']['filename'],
             file_data_object['uuid']))
         return file_data_object
@@ -415,7 +408,7 @@ class ImportManager(object):
     def import_template(self, template_file, comments=None,
                         force_duplicates=False,
                         retry=False, link_files=False):
-        self._print('Importing template from "%s".' % template_file.get_url())
+        logging.info('Importing template from "%s".' % template_file.get_url())
         template = self._get_template(template_file)
         importable_template = self._recursive_import_template(
             template, template_file.get_url(),
@@ -423,7 +416,7 @@ class ImportManager(object):
             retry=retry, link_files=link_files)
 
         if importable_template is None:
-            self._print('  Skipping import because template already exists.')
+            logging.info('  Skipping import because template already exists.')
             return
 
         if not importable_template.get('comments'):
@@ -442,7 +435,7 @@ class ImportManager(object):
             else:
                 raise
 
-        self._print('Imported template "%s@%s".' % (
+        logging.info('Imported template "%s@%s".' % (
             imported_template['name'],
             imported_template['uuid']))
         return imported_template
@@ -450,7 +443,7 @@ class ImportManager(object):
     def import_run(self, run_file,
                    force_duplicates=False,
                    retry=False, link_files=False):
-        self._print('Importing run from "%s".' % run_file.get_url())
+        logging.info('Importing run from "%s".' % run_file.get_url())
         run = self._get_run(run_file)
         dependencies_dir = run_file.get_url()+'.dependencies'
         files_dir = os.path.join(dependencies_dir, 'files')
@@ -471,7 +464,7 @@ class ImportManager(object):
             else:
                 raise
 
-        self._print('Imported run "%s@%s".' % (
+        logging.info('Imported run "%s@%s".' % (
             run['name'],
             run['uuid']))
         return run
@@ -485,7 +478,7 @@ class ImportManager(object):
             existing_template = self.connection.get_template(template.get('uuid'))
             if existing_template:
                 # No need to import
-                logger.warn(
+                logging.warn(
                     'Found existing template that matches name and uuid '\
                     '"%s@%s". Using existing template and skipping new '\
                     'template import.' \
@@ -496,7 +489,7 @@ class ImportManager(object):
             # check for duplicates based on hash
                 duplicate = self._get_template_duplicate(template)
                 if duplicate:
-                    logger.warn(
+                    logging.warn(
                         'Found existing template that matches name and md5 hash '\
                         '"%s$%s". Using existing template and skipping new '\
                         'template import.' % (duplicate['name'], duplicate['md5']))
@@ -528,7 +521,7 @@ class ImportManager(object):
                 match = True
                 continue
         if not match:
-            logger.warn('WARNING! Template dependency "%s" was not used. '\
+            logging.warn('WARNING! Template dependency "%s" was not used. '\
                         'Check "steps" in the parent template' \
                         % step_template.get('name'))
 

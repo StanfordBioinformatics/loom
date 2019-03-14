@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 from collections import OrderedDict
-import glob
+import logging
 import os
 import shutil
 
@@ -25,9 +25,8 @@ EXAMPLE_INDEX = [
 
 class ExampleExport(object):
 
-    def __init__(self, args, silent=False):
+    def __init__(self, args):
         self.args = args
-        self.silent = silent
 
     @classmethod
     def get_parser(cls, parser):
@@ -64,16 +63,14 @@ class ExampleExport(object):
         except Exception as e:
             raise SystemExit(
                 'Error exporting example to "%s": %s' % (target_dir, e))
-        if not self.silent:
-            print 'Exported example "%s"\n    to "%s"' % \
-                (os.path.basename(example_path), target_dir)
+        logging.info('Exported example "%s"\n    to "%s"' % \
+                     (os.path.basename(example_path), target_dir))
 
 
 class ExampleList(object):
 
-    def __init__(self, args, silent=False):
+    def __init__(self, args):
         self.args = args
-        self.silent = silent
 
     @classmethod
     def get_parser(cls, parser):
@@ -87,21 +84,19 @@ class ExampleList(object):
         return EXAMPLE_INDEX
 
     def _render_example(self, example_name, description):
-        if not self.silent:
-            print '%s:\n    %s\n' % (example_name, description)
+        logging.info('%s:\n    %s\n' % (example_name, description))
 
 
 class Example(object):
     """Configures and executes subcommands under "example" on the main parser.
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -131,7 +126,7 @@ class Example(object):
 
     def run(self):
         return self.args.SubSubcommandClass(
-            self.args, silent=self.silent).run()
+            self.args).run()
 
 
 if __name__ == '__main__':

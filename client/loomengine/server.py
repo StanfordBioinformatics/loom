@@ -1,42 +1,94 @@
 #!/usr/bin/env python
-
 import argparse
 import ConfigParser
-import copy
 import errno
 import imp
-import glob
+import logging
 import os
+import requests
 import shutil
-import subprocess
+from StringIO import StringIO
 import urlparse
-import uuid
-import warnings
 
-from loomengine import to_bool
-from loomengine.common import *
-from loomengine.deployment.manager import DeploymentManager, \
-    COMPONENT_CHOICES, SERVER_SETTINGS_FILE, RESOURCE_DIR
-from loomengine.deployment import SETTINGS_HOME
+from loomengine import write_settings_file, parse_settings_file, to_bool, \
+    LoomClientError
+from loomengine.deployment import DeploymentManager, COMPONENT_CHOICES, \
+    SETTINGS_HOME, SERVER_SETTINGS_FILE, RESOURCE_DIR
 import loomengine_utils.version
 
 
+CONNECTION_SETTINGS_FILE = 'connection-settings.conf'
 DEFAULT_SETTINGS_FILE = os.path.join(imp.find_module('loomengine')[1], 'default.conf')
+TOKEN_FILE = 'token.txt'
+
+
+def has_connection_settings():
+    return os.path.exists(
+        os.path.join(SETTINGS_HOME, CONNECTION_SETTINGS_FILE))
+
+
+def verify_has_connection_settings():
+    if not has_connection_settings():
+        raise LoomClientError(
+            'ERROR! Not connected to any server. First start a new server '
+            'or connect to an existing server.')
+
+
+def get_server_url():
+    connection_settings = parse_settings_file(
+        os.path.join(SETTINGS_HOME, CONNECTION_SETTINGS_FILE))
+    return connection_settings['server_url']
+
+
+def is_server_running(url=None):
+    if not url:
+        url = get_server_url()
+    try:
+        loomengine_utils.connection.disable_insecure_request_warning()
+        response = requests.get(url + '/api/status/', verify=False, timeout=30)
+    except requests.exceptions.ConnectionError:
+        return False
+    if response.status_code == 200:
+        return True
+    else:
+        raise LoomClientError('ERROR! Unexpected status code "%s" from server'
+                      % response.status_code)
+
+def verify_server_is_running(url=None):
+    if not is_server_running(url=url):
+        raise LoomClientError('ERROR! No response from server at %s' % url)
+
+
+def delete_token():
+    token_path = os.path.join(SETTINGS_HOME, TOKEN_FILE)
+    if os.path.exists(token_path):
+        os.remove(token_path)
+
+
+def save_token(token):
+    delete_token()
+    with open(os.path.join(SETTINGS_HOME, TOKEN_FILE), 'w') as f:
+        f.write(token)
+
+
+def get_token():
+    token_path = os.path.join(SETTINGS_HOME, TOKEN_FILE)
+    if os.path.exists(token_path):
+        with open(token_path) as f:
+            token = f.read()
+    else:
+        token = None
+    return token
 
 
 class ServerControls(object):
     """Class for managing the Loom server.
     """
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = _get_args()
         self.args = args
-        self.silent = silent
         self._set_run_function()
-
-    def _print(self, text):
-        if not self.silent:
-            print text
 
     def _set_run_function(self):
         # Map user input command to method
@@ -53,15 +105,15 @@ class ServerControls(object):
     def status(self):
         verify_has_connection_settings()
         if is_server_running():
-            self._print('OK, the server is up at %s' % get_server_url())
+            logging.info('OK, the server is up at %s' % get_server_url())
         else:
-            raise SystemExit(
+            raise LoomClientError(
                 'No response from server at %s' % get_server_url())
 
     def start(self):
         if self._has_server_settings():
             if self._user_provided_settings():
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! Server settings already exist in "%s". '
                     'The "--settings-file", "--extra-settings", and '
                     '"--resource-dir" flags are not allowed now because '
@@ -72,9 +124,9 @@ class ServerControls(object):
                 settings = parse_settings_file(
                     os.path.join(
                         SETTINGS_HOME, SERVER_SETTINGS_FILE))
-                self._print('Using existing settings.')
+                logging.info('Using existing settings.')
         elif has_connection_settings():
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! You are already connected to a server. '
                 'That lets you view or manage workflows, but you do not have '
                 'the settings needed to manage the server. If you want to '
@@ -89,7 +141,6 @@ class ServerControls(object):
             settings.update(user_settings)
             self._copy_resources_to_settings_dir()
 
-        self._print('Starting Loom server')
         deployment_manager = DeploymentManager(
             settings, self.args.component, self.args.skip_component)
         deployment_manager.start()
@@ -115,18 +166,18 @@ class ServerControls(object):
 
     def stop(self):
         if not self._has_server_settings():
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! No server settings found. Nothing to stop.')
         settings = parse_settings_file(
             os.path.join(SETTINGS_HOME, SERVER_SETTINGS_FILE))
-        self._print('Stopping Loom server')
+        logging.info('Stopping Loom server')
         DeploymentManager(settings, self.args.component,
                           self.args.skip_component).stop()
 
     def connect(self):
         server_url = self.args.server_url
         if has_connection_settings():
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! Already connected to "%s".' % get_server_url())
 
         parsed_url = urlparse.urlparse(server_url)
@@ -136,20 +187,20 @@ class ServerControls(object):
             elif is_server_running(url='http://' + server_url):
                 server_url = 'http://' + server_url
             else:
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! Loom server not found at "%s".' % server_url)
         elif not is_server_running(url=server_url):
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! Loom server not found at "%s".' % server_url)
         self._create_connection_settings(server_url)
-        self._print('Connected to Loom server at "%s".' % server_url)
+        logging.info('Connected to Loom server at "%s".' % server_url)
 
     def disconnect(self):
         if not has_connection_settings():
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! No server connection found. Nothing to disconnect.')
         if self._has_server_settings():
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! Server settings found. Disconnecting is not allowed. '
                 'If you really want to disconnect without deleting the '
                 'server, back up the settings in %s and manually remove them.'
@@ -165,12 +216,12 @@ class ServerControls(object):
             os.rmdir(SETTINGS_HOME)
         except OSError:
             pass
-        self._print('Disconnected from the Loom server at %s \nTo reconnect, '
+        logging.info('Disconnected from the Loom server at %s \nTo reconnect, '
                     'use "loom server connect %s"' % (server_url, server_url))
 
     def delete(self):
         if not self._has_server_settings():
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! No server settings found. Nothing to delete.')
         settings = parse_settings_file(
             os.path.join(SETTINGS_HOME, SERVER_SETTINGS_FILE))
@@ -179,12 +230,11 @@ class ServerControls(object):
                 'WARNING! This will delete the Loom server, '
                 'and all its data will be lost!\n'
                 'Are you sure you want to delete the server? '
-                '(Only "yes" is accepted.)\n> ')
-
-        if confirmation != 'yes':
-            self._print(
-                'Failed to confirm request. No action taken.')
-            return
+                '(only "yes" will proceed with deletion)\n> ')
+            if confirmation != 'yes':
+                logging.info(
+                    'Failed to confirm request. No action taken')
+                return
         DeploymentManager(settings, self.args.component,
                           self.args.skip_component).delete()
 
@@ -195,7 +245,7 @@ class ServerControls(object):
             if e.errno == errno.EEXIST and os.path.isdir(path):
                 pass  # Ok, dir exists
             else:
-                raise SystemExit('ERROR! Unable to create directory "%s"\n%s'
+                raise LoomClientError('ERROR! Unable to create directory "%s"\n%s'
                                  % (path, str(e)))
 
     def _copy_resources_to_settings_dir(self):
@@ -213,7 +263,7 @@ class ServerControls(object):
         try:
             return settings[key.lower()]
         except KeyError:
-            raise SystemExit('ERROR! Missing required setting "%s".' % key)
+            raise LoomClientError('ERROR! Missing required setting "%s"' % key)
 
     def _user_provided_settings(self):
         # True if user passed settings through commandline arguments
@@ -227,7 +277,7 @@ class ServerControls(object):
     def _get_server_settings(self):
         if self._has_server_settings():
             if self._user_provided_settings():
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! Server settings already exist in "%s". '
                     'The "--settings-file", "--extra-settings", '
                     'and "--resource-dir" '
@@ -241,7 +291,7 @@ class ServerControls(object):
                         SETTINGS_HOME, SERVER_SETTINGS_FILE))
         elif has_connection_settings():
             if self._user_provided_settings():
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! Connection settings already exist in "%s". '
                     'The "--settings-file", "--extra-settings", '
                     'and "--resource-dir" '
@@ -250,7 +300,7 @@ class ServerControls(object):
                     % os.path.join(
                         SETTINGS_HOME, CONNECTION_SETTINGS_FILE))
             else:
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! You are already connected to a server. '
                     'That lets you view or manage workflows, but you '
                     'do not have the settings needed to manage the server. '
@@ -294,7 +344,7 @@ class ServerControls(object):
             parser.read(DEFAULT_SETTINGS_FILE)
             settings = dict(parser.items(mode))
         except ConfigParser.Error as e:
-            raise Exception('Error parsing default settings file "%s": %s'
+            raise LoomClientError('Error parsing default settings file "%s": %s'
                             % (DEFAULT_SETTINGS_FILE, e))
         return settings
 
@@ -302,7 +352,7 @@ class ServerControls(object):
         settings_dict = {}
         for setting in extra_settings:
             if '=' not in setting:
-                raise SystemExit(
+                raise LoomClientError(
                     'Invalid format for extra setting "%s". '
                     'Use "-e key=value" format.' % setting)
             (key, value) = setting.split('=', 1)

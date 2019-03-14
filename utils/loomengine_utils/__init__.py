@@ -12,7 +12,7 @@ except ImportError:
         def emit(self, record):
             pass
 
-logging.getLogger(__name__).addHandler(NullHandler())
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 
 def execute_with_retries(retryable_function,

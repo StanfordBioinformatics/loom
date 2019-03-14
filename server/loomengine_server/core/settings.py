@@ -114,7 +114,7 @@ def _add_url_prefix(path):
         raise ValidationError(
             'Couldn\'t recognize value for setting STORAGE_TYPE="%s"'\
 	    % STORAGE_TYPE)
-STORAGE_ROOT = os.path.expanduser(os.getenv('LOOM_STORAGE_ROOT', '~/loomdata'))
+STORAGE_ROOT = os.getenv('LOOM_STORAGE_ROOT', os.path.expanduser('~/loom-data'))
 INTERNAL_STORAGE_ROOT = os.path.expanduser(
     os.getenv('LOOM_INTERNAL_STORAGE_ROOT', STORAGE_ROOT))
 STORAGE_ROOT_WITH_PREFIX =_add_url_prefix(STORAGE_ROOT)

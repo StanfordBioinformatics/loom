@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import os
 import sys
 
-from loomengine import server
-from loomengine.common import verify_has_connection_settings, \
+from loomengine import LoomClientError
+from loomengine.server import verify_has_connection_settings, \
     get_server_url, verify_server_is_running, get_token
 from loomengine_utils.connection import Connection
 from loomengine_utils.exceptions import LoomengineUtilsError
@@ -14,7 +15,7 @@ class TemplateTagAdd(object):
     """Add a new template tags
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
 
         # Args may be given as an input argument for testing purposes
         # or from the main parser.
@@ -22,7 +23,6 @@ class TemplateTagAdd(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -54,28 +54,27 @@ class TemplateTagAdd(object):
                 min=1, max=1,
                 query_string=self.args.target)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get template list: '%s'" % e)
         tag_data = {'tag': self.args.tag}
         try:
             tag = self.connection.post_template_tag(
                 templates[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-        print 'Target "%s@%s" has been tagged as "%s"' % \
-            (templates[0].get('name'),
-             templates[0].get('uuid'),
-             tag.get('tag'))
+            raise LoomClientError("ERROR! Failed to create tag: '%s'" % e)
+        logging.info('Target "%s@%s" has been tagged as "%s"' % \
+                     (templates[0].get('name'),
+                      templates[0].get('uuid'),
+                      tag.get('tag')))
 
 
 class TemplateTagRemove(object):
     """Remove a template tag
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -107,26 +106,25 @@ class TemplateTagRemove(object):
                 min=1, max=1,
                 query_string=self.args.target)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get template list: '%s'" % e)
         tag_data = {'tag': self.args.tag}
         try:
             tag = self.connection.remove_template_tag(
                 templates[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to remove tag: '%s'" % e)
-        print 'Tag %s has been removed from template "%s@%s"' % \
-            (tag.get('tag'),
-             templates[0].get('name'),
-             templates[0].get('uuid'))
+            raise LoomClientError("ERROR! Failed to remove tag: '%s'" % e)
+        logging.info('Tag %s has been removed from template "%s@%s"' % \
+                     (tag.get('tag'),
+                      templates[0].get('name'),
+                      templates[0].get('uuid')))
 
 
 class TemplateTagList(object):
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -158,34 +156,33 @@ class TemplateTagList(object):
                     min=1, max=1,
                     query_string=self.args.target)
             except LoomengineUtilsError as e:
-                raise SystemExit(
+                raise LoomClientError(
                     "ERROR! Failed to get template list: '%s'" % e)
             try:
                 tag_data = self.connection.list_template_tags(
                     templates[0]['uuid'])
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get tag list: '%s'" % e)
             tags = tag_data.get('tags', [])
         else:
             try:
                 tag_list = self.connection.get_template_tag_index()
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get tag list: '%s'" % e)
             tags = [item.get('tag') for item in tag_list]
-        print '[showing %s tags]' % len(tags)
+        logging.info('[showing %s tags]' % len(tags))
         for tag in tags:
-            print tag
+            logging.info(tag)
 
 
 class TemplateTag(object):
     """Configures and executes subcommands under "tag" on the parent parser.
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -220,7 +217,7 @@ class TemplateTag(object):
 
     def run(self):
         return self.args.SubSubSubcommandClass(
-            self.args, silent=self.silent).run()
+            self.args).run()
 
 
 if __name__ == '__main__':

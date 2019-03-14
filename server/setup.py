@@ -106,7 +106,6 @@ setup(
         'elasticsearch',
         'elasticsearch-curator',
         'eventlet',
-        'flower',
         'google-api-python-client',
         'google-apitools>=0.5.8',
         'google-cloud-storage',

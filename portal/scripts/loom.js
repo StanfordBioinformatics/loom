@@ -28,7 +28,7 @@
 			case 403:
 			    $window.location = '#/login';
 			    break;
-			case 500:e
+			case 500:
 			    $window.location = './500.html';
 			    break;
 			}

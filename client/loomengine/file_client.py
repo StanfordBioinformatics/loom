@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 import argparse
-import glob
-import os
-import sys
+import logging
 
-from loomengine import _render_time
-from loomengine.common import verify_server_is_running, get_server_url, \
+from loomengine import _render_time, LoomClientError
+from loomengine.server import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, get_token
 from loomengine.file_tag import FileTag
 from loomengine.file_label import FileLabel
@@ -17,11 +15,10 @@ from loomengine_utils.export_manager import ExportManager
 
 class AbstractFileSubcommand(object):
 
-    def __init__(self, args, silent=False):
+    def __init__(self, args):
         """Common init tasks for all File subcommands
         """
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -31,11 +28,7 @@ class AbstractFileSubcommand(object):
             self.export_manager = ExportManager(connection=self.connection)
             self.import_manager = ImportManager(connection=self.connection)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to initialize client: '%s'" % e)
-
-    def _print(self, text):
-        if not self.silent:
-            print text
+            raise LoomClientError("ERROR! Failed to initialize client: '%s'" % e)
 
 
 class FileImport(AbstractFileSubcommand):
@@ -89,12 +82,12 @@ class FileImport(AbstractFileSubcommand):
                 retry=self.args.retry
             )
         except APIError as e:
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! An external API failed. This may be transient. '
                 'Try again, and consider using "--retry", especially '
                 'if this step is automated. Original error: "%s"' % e)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to import files: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to import files: '%s'" % e)
         self._apply_tags(files_imported)
         self._apply_labels(files_imported)
         return files_imported
@@ -103,8 +96,8 @@ class FileImport(AbstractFileSubcommand):
         if not self.args.tag:
             return
         if len(files_imported) > 1:
-            print 'WARNING! No tags were applied, because tags '\
-                'must be unique but multiple files were imported.'
+            logging.warn('WARNING! No tags were applied, because tags '\
+                         'must be unique but multiple files were imported.')
             return
         else:
             for tagname in self.args.tag:
@@ -113,8 +106,8 @@ class FileImport(AbstractFileSubcommand):
                     tag = self.connection.post_data_tag(
                         files_imported[0].get('uuid'), tag_data)
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-                self._print('File "%s@%s" has been tagged as "%s"' %
+                    raise LoomClientError("ERROR! Failed to create tag: '%s'" % e)
+                logging.info('File "%s@%s" has been tagged as "%s"' %
                             (files_imported[0]['value'].get('filename'),
                              files_imported[0].get('uuid'),
                              tag.get('tag')))
@@ -129,8 +122,8 @@ class FileImport(AbstractFileSubcommand):
                     label = self.connection.post_data_label(
                         file_imported.get('uuid'), label_data)
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-                self._print('File "%s@%s" has been labeled as "%s"' %
+                    raise LoomClientError("ERROR! Failed to create label: '%s'" % e)
+                logging.info('File "%s@%s" has been labeled as "%s"' %
                             (file_imported['value'].get('filename'),
                              file_imported.get('uuid'),
                              label.get('label')))
@@ -180,7 +173,7 @@ class FileExport(AbstractFileSubcommand):
                         limit=limit, offset=offset,
                         query_string=file_id, type='file')
                 except LoomengineUtilsError as e:
-                    raise SystemExit(
+                    raise LoomClientError(
                         "ERROR! Failed to get data object list: '%s'" % e)
                 for data_object in data['results']:
                     found_at_least_one_match = True
@@ -192,7 +185,7 @@ class FileExport(AbstractFileSubcommand):
                 else:
                     break
             if not found_at_least_one_match:
-                raise SystemExit('ERROR! No files matched "%s"' % file_id)
+                raise LoomClientError('ERROR! No files matched "%s"' % file_id)
         try:
             if len(files) > 1:
                 try:
@@ -204,7 +197,7 @@ class FileExport(AbstractFileSubcommand):
                         link_files=self.args.link,
                     )
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to export files: '%s'" % e)
+                    raise LoomClientError("ERROR! Failed to export files: '%s'" % e)
             else:
                 try:
                     self.export_manager.export_file(
@@ -215,14 +208,14 @@ class FileExport(AbstractFileSubcommand):
                         export_raw_file=not self.args.link,
                     )
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to export files: '%s'" % e)
+                    raise LoomClientError("ERROR! Failed to export files: '%s'" % e)
         except APIError as e:
-            raise SystemExit(
+            raise LoomClientError(
                 'ERROR! An external API failed. This may be transient. '
                 'Try again, and consider using "--retry", especially '
                 'if this step is automated. Original error: "%s"' % e)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! %s" % e.message)
+            raise LoomClientError("ERROR! %s" % e.message)
 
 
 class FileList(AbstractFileSubcommand):
@@ -263,10 +256,10 @@ class FileList(AbstractFileSubcommand):
                     query_string=self.args.file_id, source_type=source_type,
                     labels=self.args.label, type='file')
             except LoomengineUtilsError as e:
-                raise SystemExit(
+                raise LoomClientError(
                     "ERROR! Failed to get data object list: '%s'" % e)
             if offset == 0:
-                self._print('[showing %s files]' % data.get('count'))
+                logging.info('[showing %s files]' % data.get('count'))
             self._list_files(data['results'])
             if data.get('next'):
                 offset += limit
@@ -278,7 +271,7 @@ class FileList(AbstractFileSubcommand):
         for file_data_object in files:
             text = self._render_file(file_data_object)
             if text is not None:
-                self._print(text)
+                logging.info(text)
 
     def _render_file(self, file_data_object):
         try:
@@ -332,7 +325,7 @@ class FileDelete(AbstractFileSubcommand):
                 query_string=self.args.file_id,
                 type='file', min=1, max=1)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get data object list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get data object list: '%s'" % e)
         self._delete_file(data[0])
 
     def _delete_file(self, file_data_object):
@@ -345,17 +338,17 @@ class FileDelete(AbstractFileSubcommand):
                 '(y)es, (n)o: '
                 % file_id)
             if user_input.lower() == 'n':
-                raise SystemExit('ERROR! Operation canceled by user')
+                raise LoomClientError('ERROR! Operation canceled by user')
             elif user_input.lower() == 'y':
                 pass
             else:
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! Unrecognized response "%s"' % user_input)
         try:
             dependencies = self.connection.get_data_object_dependencies(
                 file_data_object['uuid'])
         except LoomengineUtilsError as e:
-            raise SystemExit(
+            raise LoomClientError(
                 "ERROR! Failed to get data object dependencies: '%s'" % e)
         if len(dependencies['runs']) == 0 \
            and len(dependencies['templates']) == 0:
@@ -363,11 +356,11 @@ class FileDelete(AbstractFileSubcommand):
                 self.connection.delete_data_object(
                     file_data_object.get('uuid'))
             except LoomengineUtilsError as e:
-                raise SystemExit(
+                raise LoomClientError(
                     "ERROR! Failed to delete data object: '%s'" % e)
-            self._print("Deleted file %s" % file_id)
+            logging.info("Deleted file %s" % file_id)
         else:
-            raise SystemExit(
+            raise LoomClientError(
                 "ERROR! You cannot delete file %s "
                 "because it is still in use. "
                 "You must delete the following objects "
@@ -389,13 +382,12 @@ class FileClient(object):
     """Configures and executes subcommands under "file" on the main parser.
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -443,7 +435,7 @@ class FileClient(object):
 
     def run(self):
         return self.args.SubSubcommandClass(
-            self.args, silent=self.silent).run()
+            self.args).run()
 
 
 if __name__ == '__main__':

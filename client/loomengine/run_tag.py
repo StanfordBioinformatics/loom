@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import os
 import sys
 
-from loomengine import server
-from loomengine.common import verify_has_connection_settings, \
+from loomengine import LoomClientError
+from loomengine.server import verify_has_connection_settings, \
     get_server_url, verify_server_is_running, get_token
 from loomengine_utils.connection import Connection
 from loomengine_utils.exceptions import LoomengineUtilsError
@@ -14,7 +15,7 @@ class RunTagAdd(object):
     """Add new run tags
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
 
         # Args may be given as an input argument for testing purposes
         # or from the main parser.
@@ -22,7 +23,6 @@ class RunTagAdd(object):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -54,28 +54,27 @@ class RunTagAdd(object):
                 min=1, max=1,
                 query_string=self.args.target)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
 
         tag_data = {'tag': self.args.tag}
         try:
             tag = self.connection.post_run_tag(runs[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed create tag: '%s'" % e)
-        print 'Target "%s@%s" has been tagged as "%s"' % \
-            (runs[0].get('name'),
-             runs[0].get('uuid'),
-             tag.get('tag'))
+            raise LoomClientError("ERROR! Failed create tag: '%s'" % e)
+        logging.info('Target "%s@%s" has been tagged as "%s"' % \
+                     (runs[0].get('name'),
+                      runs[0].get('uuid'),
+                      tag.get('tag')))
 
 
 class RunTagRemove(object):
     """Remove a run tag
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -107,26 +106,25 @@ class RunTagRemove(object):
                 min=1, max=1,
                 query_string=self.args.target)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
 
         tag_data = {'tag': self.args.tag}
         try:
             tag = self.connection.remove_run_tag(runs[0]['uuid'], tag_data)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to remove tag: '%s'" % e)
-        print 'Tag %s has been removed from run "%s@%s"' % \
-            (tag.get('tag'),
-             runs[0].get('name'),
-             runs[0].get('uuid'))
+            raise LoomClientError("ERROR! Failed to remove tag: '%s'" % e)
+        logging.info('Tag %s has been removed from run "%s@%s"' % \
+                     (tag.get('tag'),
+                      runs[0].get('name'),
+                      runs[0].get('uuid')))
 
 
 class RunTagList(object):
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -158,33 +156,32 @@ class RunTagList(object):
                     min=1, max=1,
                     query_string=self.args.target)
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get run list: '%s'" % e)
             try:
                 tag_data = self.connection.list_run_tags(runs[0]['uuid'])
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get tag list: '%s'" % e)
             tags = tag_data.get('tags', [])
         else:
             try:
                 tag_list = self.connection.get_run_tag_index()
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to get tag list: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to get tag list: '%s'" % e)
             tags = [item.get('tag') for item in tag_list]
 
-        print '[showing %s tags]' % len(tags)
+        logging.info('[showing %s tags]' % len(tags))
         for tag in tags:
-            print tag
+            logging.info(tag)
 
 
 class RunTag(object):
     """Configures and executes subcommands under "tag" on the parent parser.
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -219,7 +216,7 @@ class RunTag(object):
 
     def run(self):
         return self.args.SubSubSubcommandClass(
-            self.args, silent=self.silent).run()
+            self.args).run()
 
 
 if __name__ == '__main__':

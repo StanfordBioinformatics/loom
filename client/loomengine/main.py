@@ -1,22 +1,15 @@
 #!/usr/bin/env python
 
 import argparse
+import logging
 import os
 import sys
 
-from loomengine.common import get_server_url, has_connection_settings, \
+from loomengine.server import get_server_url, has_connection_settings, \
     is_server_running
 from loomengine_utils.exceptions import LoomengineUtilsError
-from loomengine import browser
-from loomengine import bulk_import
-from loomengine import example
-from loomengine import file_client
-from loomengine import run
-from loomengine import server
-from loomengine import template
-from loomengine import test_runner
-from loomengine import auth
-from loomengine import user
+from loomengine import browser, bulk_import, example, file_client, run, server, \
+    template, test_runner, auth, user, LoomClientError
 import loomengine_utils.version
 from loomengine_utils.connection import Connection, ServerConnectionError, \
     ServerConnectionHttpError
@@ -38,19 +31,18 @@ class Version(argparse.Action):
             except LoomengineUtilsError as e:
                 server_version = '[client error! %s]' % e
 
-        print "client version: %s" % loomengine_utils.version.version()
-        print "server version: %s" % server_version
-        exit(0)
+        logging.info("client version: %s" % loomengine_utils.version.version())
+        logging.info("server version: %s" % server_version)
+        sys.exit(0)
 
 
 class Main(object):
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         if args is None:
             parser = self.get_parser()
             args = parser.parse_args()
         self.args = args
-        self.silent = silent
 
     def get_parser(cls):
         parser = argparse.ArgumentParser('loom')
@@ -112,7 +104,11 @@ class Main(object):
         return parser
 
     def run(self):
-        return self.args.SubcommandClass(self.args, silent=self.silent).run()
+        try:
+            return self.args.SubcommandClass(self.args).run()
+        except LoomClientError as e:
+            logging.error(e.message)
+            raise SystemExit
 
 
 # pip entrypoint requires a function with no arguments

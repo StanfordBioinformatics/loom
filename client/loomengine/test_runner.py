@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 from datetime import datetime
+import logging
 import os
 import re
 import subprocess
@@ -8,9 +9,9 @@ import sys
 import time
 import unittest
 
+from . import LoomClientError
 
 test_root = os.path.join(os.path.dirname(__file__), 'test')
-
 
 class IntegrationTestFailure(Exception):
     pass
@@ -18,13 +19,14 @@ class IntegrationTestFailure(Exception):
 
 class TestRunner(object):
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         # Parse arguments
         if args is None:
             args = _get_args()
         self.args = args
-        self.silent = silent
         self._set_run_function()
+        # Keep the test output clean
+        logging.disable(logging.INFO)
 
     def _set_run_function(self):
         # Map user input command to method
@@ -37,9 +39,9 @@ class TestRunner(object):
 
     def smoke_test(self):
         if not self._is_server_running():
-            raise SystemExit('ERROR! The client must be connected to a '
-                             'running Loom server to run smoke tests. '
-                             'Use "loom server start" to start a new server.')
+            raise LoomClientError('ERROR! The client must be connected to a '
+                                  'running Loom server to run smoke tests. '
+                                  'Use "loom server start" to start a new server.')
         suite = unittest.TestLoader().discover(
             test_root, pattern='smoketest*.py')
         test_result = unittest.TextTestRunner().run(suite)
@@ -48,7 +50,7 @@ class TestRunner(object):
 
     def integration_test(self):
         if not self._is_server_running():
-            raise SystemExit('ERROR! The client must be connected to a '
+            raise LoomClientError('ERROR! The client must be connected to a '
                              'running Loom server to run integration tests. '
                              'Use "loom server start" to start a new server.')
         suite = unittest.TestLoader().discover(

@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import glob
+import logging
 import os
 from requests.exceptions import HTTPError
 import sys
 import yaml
 
-from loomengine import _render_time
-from loomengine.common import verify_server_is_running, get_server_url, \
+from loomengine import _render_time, LoomClientError
+from loomengine.server import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, get_token
 from loomengine.template_tag import TemplateTag
 from loomengine.template_label import TemplateLabel
@@ -20,9 +21,8 @@ from loomengine_utils.export_manager import ExportManager
 
 class AbstractTemplateSubcommand(object):
 
-    def __init__(self, args, silent=False):
+    def __init__(self, args):
         self.args = args
-        self.silent = silent
         verify_has_connection_settings()
         server_url = get_server_url()
         verify_server_is_running(url=server_url)
@@ -32,16 +32,12 @@ class AbstractTemplateSubcommand(object):
             self.storage_settings = self.connection.get_storage_settings()
             self.import_manager = ImportManager(
                 self.connection,
-                storage_settings=self.storage_settings, silent=silent)
+                storage_settings=self.storage_settings)
             self.export_manager = ExportManager(
                 self.connection,
-                storage_settings=self.storage_settings, silent=silent)
+                storage_settings=self.storage_settings)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to initialize client: '%s'" % e)
-
-    def _print(self, text):
-        if not self.silent:
-            print text
+            raise LoomClientError("ERROR! Failed to initialize client: '%s'" % e)
 
 
 class TemplateImport(AbstractTemplateSubcommand):
@@ -92,13 +88,13 @@ class TemplateImport(AbstractTemplateSubcommand):
                     msg = str(e)
                     if not msg:
                         msg = e.__class__
-                    raise SystemExit(
+                    raise LoomClientError(
                         "ERROR! Failed to import template: '%s'" % msg)
                 self._apply_tags(template)
                 self._apply_labels(template)
                 imported_templates.append(template)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! %s" % e)
+            raise LoomClientError("ERROR! %s" % e)
         return imported_templates
 
     def _apply_tags(self, template):
@@ -110,8 +106,8 @@ class TemplateImport(AbstractTemplateSubcommand):
                 tag = self.connection.post_template_tag(
                     template.get('uuid'), tag_data)
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to create tag: '%s'" % e)
-            self._print('Template "%s@%s" has been tagged as "%s"' %
+                raise LoomClientError("ERROR! Failed to create tag: '%s'" % e)
+            logging.info('Template "%s@%s" has been tagged as "%s"' %
                         (template.get('name'),
                          template.get('uuid'),
                          tag.get('tag')))
@@ -125,8 +121,8 @@ class TemplateImport(AbstractTemplateSubcommand):
                 label = self.connection.post_template_label(
                     template.get('uuid'), label_data)
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to create label: '%s'" % e)
-            self._print('Template "%s@%s" has been labeled as "%s"' %
+                raise LoomClientError("ERROR! Failed to create label: '%s'" % e)
+            logging.info('Template "%s@%s" has been labeled as "%s"' %
                         (template.get('name'),
                          template.get('uuid'),
                          label.get('label')))
@@ -173,7 +169,7 @@ class TemplateExport(AbstractTemplateSubcommand):
                         limit=limit, offset=offset,
                         query_string=template_id)
                 except LoomengineUtilsError as e:
-                    raise SystemExit(
+                    raise LoomClientError(
                         "ERROR! Failed to get template list: '%s'" % e)
                 for template in data['results']:
                     found_at_least_one_match = True
@@ -185,7 +181,7 @@ class TemplateExport(AbstractTemplateSubcommand):
                 else:
                     break
             if not found_at_least_one_match:
-                raise SystemExit(
+                raise LoomClientError(
                     'ERROR! No templates matched "%s"' % template_id)
         if len(templates) > 1:
             try:
@@ -197,7 +193,7 @@ class TemplateExport(AbstractTemplateSubcommand):
                     editable=self.args.editable
                 )
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to export templates: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to export templates: '%s'" % e)
         else:
             try:
                 return self.export_manager.export_template(
@@ -208,7 +204,7 @@ class TemplateExport(AbstractTemplateSubcommand):
                     editable=self.args.editable
                 )
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to export template: '%s'" % e)
+                raise LoomClientError("ERROR! Failed to export template: '%s'" % e)
 
 
 class TemplateList(AbstractTemplateSubcommand):
@@ -248,10 +244,10 @@ class TemplateList(AbstractTemplateSubcommand):
                     query_string=self.args.template_id,
                     parent_only=parent_only)
             except LoomengineUtilsError as e:
-                raise SystemExit(
+                raise LoomClientError(
                     "ERROR! Failed to get template list: '%s'" % e)
             if offset == 0:
-                self._print('[showing %s templates]' % data.get('count'))
+                logging.info('[showing %s templates]' % data.get('count'))
             self._list_templates(data['results'])
             if data.get('next'):
                 offset += limit
@@ -261,7 +257,7 @@ class TemplateList(AbstractTemplateSubcommand):
 
     def _list_templates(self, templates):
         for template in templates:
-            self._print(self._render_template(template))
+            logging.info(self._render_template(template))
 
     def _render_template(self, template):
         template_identifier = '%s@%s' % (template['name'], template['uuid'])
@@ -312,7 +308,7 @@ class TemplateDelete(AbstractTemplateSubcommand):
                 query_string=self.args.template_id,
                 min=1, max=1)
         except LoomengineUtilsError as e:
-            raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
+            raise LoomClientError("ERROR! Failed to get template list: '%s'" % e)
         self._delete_template(data[0])
 
     def _delete_template(self, template):
@@ -329,36 +325,36 @@ class TemplateDelete(AbstractTemplateSubcommand):
                             min=1, max=1)[0]
                     )
                 except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to get template: '%s'" % e)
+                    raise LoomClientError("ERROR! Failed to get template: '%s'" % e)
         if not self.args.yes:
             user_input = raw_input(
                 'Do you really want to permanently delete template "%s"?\n'
                 '(y)es, (n)o: '
                 % template_id)
             if user_input.lower() == 'n':
-                raise SystemExit('Operation canceled by user')
+                raise LoomClientError('Operation canceled by user')
             elif user_input.lower() == 'y':
                 pass
             else:
-                raise SystemExit('Unrecognized response "%s"' % user_input)
+                raise LoomClientError('Unrecognized response "%s"' % user_input)
         try:
             dependencies = self.connection.get_template_dependencies(
                 template.get('uuid'))
         except LoomengineUtilsError as e:
-            raise SystemExit(
+            raise LoomClientError(
                 "ERROR! Failed to get template dependencies: '%s'" % e)
         if len(dependencies['runs']) == 0 \
            and len(dependencies['templates']) == 0:
             try:
                 self.connection.delete_template(template.get('uuid'))
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to delete template: '%s'" % e)
-            self._print("Deleted template %s" % template_id)
+                raise LoomClientError("ERROR! Failed to delete template: '%s'" % e)
+            logging.info("Deleted template %s" % template_id)
         else:
-            print "Cannot delete template %s because it is still in use. "\
-                "You must delete the following objects "\
-                "before deleting this template." % template_id
-            self._print(self._render_dependencies(dependencies))
+            logging.error("Cannot delete template %s because it is still in use. "\
+                          "You must delete the following objects "\
+                          "before deleting this template." % template_id)
+            logging.error(self._render_dependencies(dependencies))
         for template in template_children_to_delete:
             self._delete_template(template)
 
@@ -377,13 +373,12 @@ class Template(object):
     """Configures and executes subcommands under "template" on the main parser.
     """
 
-    def __init__(self, args=None, silent=False):
+    def __init__(self, args=None):
         # Args may be given as an input argument for testing purposes.
         # Otherwise get them from the parser.
         if args is None:
             args = self._get_args()
         self.args = args
-        self.silent = silent
 
     def _get_args(self):
         parser = self.get_parser()
@@ -433,7 +428,7 @@ class Template(object):
 
     def run(self):
         return self.args.SubSubcommandClass(
-            self.args, silent=self.silent).run()
+            self.args).run()
 
 
 if __name__ == '__main__':
