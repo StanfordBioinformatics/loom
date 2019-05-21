@@ -35,8 +35,8 @@
     ulimits: ['memlock:-1:-1','nofile:65536:65536']
     env:
       ES_JAVA_OPTS: "{{elasticsearch_java_opts}}"
-      http.host: 0.0.0.0
-      transport.host: 127.0.0.1
+      http.host: "0.0.0.0"
+      transport.host: "127.0.0.1"
 
 - name: Create a config file for Kibana
   template:
@@ -53,7 +53,7 @@
     volumes:
       - "{{server_settings_home}}/kibana.yml:/usr/share/kibana/config/kibana.yml"
     env:
-      ELASTICSEARCH_URL: http://{{elasticsearch_container_name}}:{{elasticsearch_port}}
+      ELASTICSEARCH_URL: "http://{{elasticsearch_container_name}}:{{elasticsearch_port}}"
     links:
       - "{{elasticsearch_container_name}}"
 
@@ -128,7 +128,7 @@
     api_version: auto
     env_file: "{{server_settings_home}}/{{server_settings_file}}"
     env:
-      C_FORCE_ROOT: true
+      C_FORCE_ROOT: "true"
       LOOM_SETTINGS_HOME: "{{container_settings_home}}"
       LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
@@ -157,7 +157,7 @@
     api_version: auto
     env_file: "{{server_settings_home}}/{{server_settings_file}}"
     env:
-      C_FORCE_ROOT: true
+      C_FORCE_ROOT: "true"
       LOOM_SETTINGS_HOME: "{{container_settings_home}}"
       LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
@@ -185,7 +185,7 @@
     api_version: auto
     env_file: "{{server_settings_home}}/{{server_settings_file}}"
     env:
-      C_FORCE_ROOT: true
+      C_FORCE_ROOT: "true"
       LOOM_SETTINGS_HOME: "{{container_settings_home}}"
       LOOM_MYSQL_HOST: "{{mysql_host}}"
       LOOM_RABBITMQ_HOST: "{{rabbitmq_container_name}}"
