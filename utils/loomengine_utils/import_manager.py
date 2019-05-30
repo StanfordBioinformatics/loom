@@ -266,7 +266,6 @@ class ImportManager(object):
                 'filename': filename,
                 'md5': md5,
                 'imported_from_url': imported_from_url,
-                'file_relative_path': file_relative_path,
                 'source_type': source_type,
                 'link': False,
             }
@@ -277,6 +276,8 @@ class ImportManager(object):
                 'upload_status': 'complete',
                 'link': True,
             })
+        if file_relative_path:
+            file_data_object['value']['file_relative_path'] = file_relative_path
         if comments:
             file_data_object['value']['import_comments'] = comments
         if metadata.get('uuid'):
