@@ -25,7 +25,7 @@ from loomengine_utils.exceptions import FileAlreadyExistsError
 from loomengine_utils.export_manager import ExportManager
 from loomengine_utils.import_manager import ImportManager
 from loomengine_worker.outputs import TaskAttemptOutput
-from loomengine_worker.inputs import TaskAttemptInput
+from loomengine_worker.inputs import TaskAttemptInputs
 
 
 class TaskMonitor(object):
@@ -160,14 +160,7 @@ class TaskMonitor(object):
         if self.task_attempt.get('inputs') is None:
             return
         try:
-            for input in self.task_attempt['inputs']:
-                TaskAttemptInput(input, self).copy()
-        except FileAlreadyExistsError as e:
-            error = self._get_error_text(e)
-            self._report_system_error(
-                detail='Copying inputs failed because file already exists. '
-                'Are there multiple inputs with the same name? %s' % error)
-            raise
+            TaskAttemptInputs(self.task_attempt['inputs'], self).copy()
         except Exception as e:
             error = self._get_error_text(e)
             self._report_system_error(
