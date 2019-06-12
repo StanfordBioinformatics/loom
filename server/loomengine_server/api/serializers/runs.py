@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import copy
 from rest_framework import serializers
 import django.db
@@ -263,23 +264,23 @@ class UnsavedObjectManager(object):
         # For all models related to the imported run, we check to see if they
         # already exist in the database, then sort them to 
         # _preexisting_* and _unsaved_* before calling bulk_create.
-        self._preexisting_runs = {}
-        self._preexisting_data_objects = {}
-        self._preexisting_data_nodes = {}
-        self._preexisting_task_attempts = {}
-        self._unsaved_runs = {}
+        self._preexisting_runs = OrderedDict()
+        self._preexisting_data_objects = OrderedDict()
+        self._preexisting_data_nodes = OrderedDict()
+        self._preexisting_task_attempts = OrderedDict()
+        self._unsaved_runs = OrderedDict()
         self._unsaved_run_events = []
         self._unsaved_run_outputs = []
         self._unsaved_run_inputs = []
         self._unsaved_run_user_inputs = []
-        self._unsaved_data_objects = {}
-        self._unsaved_data_nodes = {}
-        self._unsaved_root_data_nodes = {}
+        self._unsaved_data_objects = OrderedDict()
+        self._unsaved_data_nodes = OrderedDict()
+        self._unsaved_root_data_nodes = OrderedDict()
         self._unsaved_tasks = []
         self._unsaved_task_inputs = []
         self._unsaved_task_outputs = []
         self._unsaved_task_events = []
-        self._unsaved_task_attempts = {}
+        self._unsaved_task_attempts = OrderedDict()
         self._unsaved_task_attempt_inputs = []
         self._unsaved_task_attempt_outputs = []
         self._unsaved_task_attempt_events = []
