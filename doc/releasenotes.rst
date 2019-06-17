@@ -2,6 +2,17 @@
 Release Notes
 #############
 
+0.7.3
+------------
+* Support Google Cloud Registry authentication
+* Handle conflicting filenames with automatic index
+* Bug fixes:
+  - Preserve order of steps in a run to match the template
+  - Fix run, template, and data object delete functions
+  - Add docker-py dependency needed for local deployment
+  - Fix file_relative_path error related to run import
+  - Quote env values to support ansible>=2.8.0
+
 0.7.2
 ------------
 * Bug fixes:
