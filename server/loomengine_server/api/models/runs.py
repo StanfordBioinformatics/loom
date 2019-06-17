@@ -73,7 +73,7 @@ class Run(BaseModel):
         validators=[validators.validate_notification_context])
     parent = models.ForeignKey('self', null=True, blank=True,
                             related_name='steps', db_index=True,
-                            on_delete=models.SET_NULL)
+                            on_delete=models.CASCADE)
     template = models.ForeignKey('Template',
                                  related_name='runs',
                                  on_delete=models.PROTECT,
@@ -99,7 +99,6 @@ class Run(BaseModel):
     interpreter = models.CharField(max_length=1024, blank=True)
 
     force_rerun = models.BooleanField(default=False)
-    imported = models.BooleanField(default=False)
 
     @property
     def status(self):
@@ -259,7 +258,7 @@ class Run(BaseModel):
         return runs
 
     @classmethod
-    def get_dependencies(cls, uuid, request):
+    def get_dependencies(cls, uuid):
         run = cls.objects.filter(uuid=uuid)\
                          .prefetch_related('parent')
         if run.count() < 1:
@@ -291,23 +290,12 @@ class Run(BaseModel):
         task_attempts_to_cleanup = [item for item in TaskAttempt.objects.filter(
             tasks__run__uuid=self.uuid)]
 
-        # The "imported" flag handles the scenario where:
-        # Run A contains run B. A user exports run B and imports it into
-        # another loom server. Later another user imports A but then deletes it.
-        # B should be preserved. This is done by deleting only children where
-        # imported==False
-        runs_to_delete = set()
-        queryset = Run.objects.filter(parent__uuid=self.uuid, imported=False)
-        for item in queryset.all():
-            runs_to_delete.add(item)
         super(Run, self).delete()
         for item in nodes_to_delete:
             try:
                 item.delete()
             except models.ProtectedError:
                 pass
-        for run in runs_to_delete:
-            run.delete()
         for task_attempt in task_attempts_to_cleanup:
             task_attempt.cleanup()
 

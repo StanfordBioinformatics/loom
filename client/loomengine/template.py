@@ -11,7 +11,8 @@ from loomengine.common import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, get_token
 from loomengine.template_tag import TemplateTag
 from loomengine.template_label import TemplateLabel
-from loomengine_utils.exceptions import LoomengineUtilsError
+from loomengine_utils.exceptions import LoomengineUtilsError, \
+    ServerConnectionHttpError
 from loomengine_utils.connection import Connection
 from loomengine_utils.file_utils import FileSet, File
 from loomengine_utils.import_manager import ImportManager
@@ -311,56 +312,63 @@ class TemplateDelete(AbstractTemplateSubcommand):
             data = self.connection.get_template_index(
                 query_string=self.args.template_id,
                 min=1, max=1)
+            template = self.connection.get_template(data[0]['uuid'])
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to get template list: '%s'" % e)
-        self._delete_template(data[0])
-
-    def _delete_template(self, template):
-        template_id = "%s@%s" % (
-            template.get('name'),
-            template.get('uuid'))
-        template_children_to_delete = []
-        if not self.args.keep_children and template.get('steps'):
-            for step in template.get('steps'):
-                try:
-                    template_children_to_delete.append(
-                        self.connection.get_template_index(
-                            query_string='@%s' % step['uuid'],
-                            min=1, max=1)[0]
-                    )
-                except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to get template: '%s'" % e)
         if not self.args.yes:
-            user_input = raw_input(
-                'Do you really want to permanently delete template "%s"?\n'
-                '(y)es, (n)o: '
-                % template_id)
+            if self.args.keep_children:
+                user_input = raw_input(
+                    'Do you really want to permanently delete template "%s@%s"?\n'
+                    '(y)es, (n)o: '
+                    % (template.get('name'),template.get('uuid')))
+            else:
+                user_input = raw_input(
+                    'Do you really want to permanently delete template "%s@%s" '
+                    'and all its child templates?\n'
+                    '(y)es, (n)o: '
+                    % (template.get('name'),template.get('uuid')))
             if user_input.lower() == 'n':
                 raise SystemExit('Operation canceled by user')
             elif user_input.lower() == 'y':
                 pass
             else:
                 raise SystemExit('Unrecognized response "%s"' % user_input)
-        try:
-            dependencies = self.connection.get_template_dependencies(
-                template.get('uuid'))
-        except LoomengineUtilsError as e:
-            raise SystemExit(
-                "ERROR! Failed to get template dependencies: '%s'" % e)
-        if len(dependencies['runs']) == 0 \
-           and len(dependencies['templates']) == 0:
+        self._delete_template(template)
+
+    def _delete_template(self, template, showdependencies=False):
+        template_id = "%s@%s" % (
+            template.get('name'),
+            template.get('uuid'))
+        if showdependencies:
             try:
-                self.connection.delete_template(template.get('uuid'))
+                dependencies = self.connection.get_template_dependencies(
+                    template.get('uuid'))
             except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to delete template: '%s'" % e)
+                raise SystemExit(
+                    "ERROR! Failed to get template dependencies: '%s'" % e)
+            if len(dependencies.get('runs', [])) \
+                    + len(dependencies.get('templates', [])) > 0:
+                self._print("Cannot delete template %s because it is still in use. "\
+                    "You must delete the following objects "\
+                    "before deleting this template." % template_id)
+                self._print(self._render_dependencies(dependencies))
+                return
+        try:
+            self.connection.delete_template(template.get('uuid'))
             self._print("Deleted template %s" % template_id)
-        else:
-            print "Cannot delete template %s because it is still in use. "\
-                "You must delete the following objects "\
-                "before deleting this template." % template_id
-            self._print(self._render_dependencies(dependencies))
-        for template in template_children_to_delete:
-            self._delete_template(template)
+        except ServerConnectionHttpError as e:
+            if e.status_code == 409:
+                # Template is in use by another resource, so we leave it.
+                self._print('Template "%s" was not deleted '
+                            'because it is still in use.' % template_id)
+                return
+            else:
+                raise SystemExit("ERROR! Failed to delete template: '%s'" % e)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to delete template: '%s'" % e)
+        if not self.args.keep_children:
+            for template in template.get('steps', []):
+                self._delete_template(template)
 
     def _render_dependencies(self, dependencies):
         text = ''

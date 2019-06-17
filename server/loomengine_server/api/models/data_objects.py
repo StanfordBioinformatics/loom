@@ -144,7 +144,6 @@ class DataObject(BaseModel):
 
     @classmethod
     def get_dependencies(cls, uuid):
-
         from .data_nodes import DataNode
 
         # We truncate the dependencies listed if we exceed DEPENDENCY_LIMIT

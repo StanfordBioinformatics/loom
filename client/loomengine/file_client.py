@@ -241,7 +241,7 @@ class FileList(AbstractFileSubcommand):
         parser.add_argument(
             '-t', '--type',
             choices=['imported', 'result', 'log', 'all'],
-            default='imported',
+            default='all',
             help='List only files of the specified type. '
             '(ignored when FILE_IDENTIFIER is given)')
         parser.add_argument('-l', '--label', metavar='LABEL', action='append',

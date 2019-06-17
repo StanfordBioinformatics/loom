@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 import django.core.exceptions
 from django.http import JsonResponse
+from django.db.models import ProtectedError
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
@@ -109,7 +110,14 @@ class ProtectedDeleteModelViewSet(rest_framework.viewsets.ModelViewSet):
                 'message': 'Delete is forbidden because DISABLE_DELETE is True.'},
                                 status=403)
         else:
-            return super(ProtectedDeleteModelViewSet, self).destroy(*args, **kwargs)
+            try:
+                return super(ProtectedDeleteModelViewSet, self).destroy(
+                    *args, **kwargs)
+            except ProtectedError:
+                return JsonResponse({
+                        'message':
+                        'Delete failed because resource is still in use.'},
+                                    status=409)
 
 
 class DataObjectViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
@@ -238,7 +246,7 @@ class DataObjectViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelVi
         from api.serializers import URLRunSerializer, URLTemplateSerializer
         context = {'request': request}
         try:
-            dependencies = models.DataObject.get_dependencies(uuid, request)
+            dependencies = models.DataObject.get_dependencies(uuid)
             serialized_dependencies = {
                 'runs': [URLRunSerializer(
                         run, context=context).data 
@@ -493,7 +501,7 @@ class TemplateViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelView
         from api.serializers import URLRunSerializer, URLTemplateSerializer
         context = {'request': request}
         try:
-            dependencies = models.Template.get_dependencies(uuid, request)
+            dependencies = models.Template.get_dependencies(uuid)
             serialized_dependencies = {
                 'runs': [URLRunSerializer(
                         runs, context=context).data 
@@ -506,7 +514,7 @@ class TemplateViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelView
                 }
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
-        return JsonResponse(dependencies, status=200)
+        return JsonResponse(serialized_dependencies, status=200)
 
 
 class RunViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
@@ -640,7 +648,7 @@ class RunViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
         from api.serializers import URLRunSerializer
         context = {'request': request}
         try:
-            dependencies = models.Run.get_dependencies(uuid, request)
+            dependencies = models.Run.get_dependencies(uuid)
             serialized_dependencies = {
                 'runs': [URLRunSerializer(
                         run, context=context).data
@@ -649,7 +657,7 @@ class RunViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
         }
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
-        return JsonResponse(dependencies, status=200)
+        return JsonResponse(serialized_dependencies, status=200)
 
 
 class TaskAttemptLogFileViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):

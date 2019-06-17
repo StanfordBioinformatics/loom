@@ -8,7 +8,10 @@ class ServerConnectionError(LoomengineUtilsError):
     pass
 
 class ServerConnectionHttpError(ServerConnectionError):
-    pass
+
+    def __init__(self, message, status_code=None, **kwargs):
+        super(ServerConnectionHttpError, self).__init__(message, **kwargs)
+        self.status_code = status_code
 
 class ResourceCountError(LoomengineUtilsError):
     pass

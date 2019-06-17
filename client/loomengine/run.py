@@ -11,7 +11,8 @@ from loomengine.common import get_server_url, \
     verify_has_connection_settings, verify_server_is_running, get_token
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel
-from loomengine_utils.exceptions import APIError, LoomengineUtilsError
+from loomengine_utils.exceptions import APIError, LoomengineUtilsError, \
+    ServerConnectionHttpError
 from loomengine_utils.connection import Connection
 from loomengine_utils.file_utils import FileSet
 from loomengine_utils.import_manager import ImportManager
@@ -559,7 +560,7 @@ class RunKill(AbstractRunSubcommand):
                 'Do you really want to permanently kill run "%s"?\n'
                 '(y)es, (n)o: ' % run_id)
             if user_input.lower() == 'n':
-                raise SystemExit("Skipping run")
+                raise SystemExit("Operation canceled by user")
             elif user_input.lower() == 'y':
                 pass
             else:
@@ -583,12 +584,9 @@ class RunDelete(AbstractRunSubcommand):
         parser.add_argument('-y', '--yes', action='store_true',
                             default=False,
                             help='delete without prompting for confirmation')
-        parser.add_argument('-c', '--keep-children', action='store_true',
+        parser.add_argument('-r', '--keep-results', action='store_true',
                             default=False,
-                            help='do not delete child run')
-        parser.add_argument('-r', '--keep-result-files', action='store_true',
-                            default=False,
-                            help='do not delete run result files')
+                            help='do not delete run results')
         return parser
 
     def run(self):
@@ -596,151 +594,118 @@ class RunDelete(AbstractRunSubcommand):
             data = self.connection.get_run_index(
                 query_string=self.args.run_id,
                 min=1, max=1)
+            run = self.connection.get_run(data[0]['uuid'])
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to get run list: '%s'" % e)
-        self._delete_run(data[0])
-
-    def _delete_run(self, run):
-        run_id = "%s@%s" % (run['name'], run['uuid'])
-        run_children_to_delete = []
-        if not self.args.keep_children and run.get('steps'):
-            for step in run.get('steps'):
-                try:
-                    run_children_to_delete.append(
-                        self.connection.get_run_index(
-                            query_string='@%s' % step['uuid'],
-                            min=1, max=1)[0]
-                    )
-                except LoomengineUtilsError as e:
-                    raise SystemExit("ERROR! Failed to delete run: '%s'" % e)
-
-        # Placing the list in reverse order makes it easier
-        # to handle outputs produced by one step and used by
-        # another where both steps are being deleted.
-        run_children_to_delete = sorted(
-            run_children_to_delete,
-            key=lambda x: x['datetime_created'], reverse=True)
-        run_outputs_to_delete = []
-        # Only delete outputs on leaf nodes. Otherwise we will
-        # try to delete them more than once. Non-leaf nodes pointing
-        # to this output have to be deleted before we are allowed to
-        # delete the leaf anyway, so outputs are always referenced by
-        # at least the leaf leaf until the leaf is deleted.
-        if run.get('is_leaf'):
-            for output in run.get('outputs', []):
-                if output.get('type') != 'file' \
-                   or not self.args.keep_result_files:
-                    try:
-                        data_node = self.connection.get_data_node(
-                            output['data']['uuid'], expand=True)
-                    except LoomengineUtilsError as e:
-                        raise SystemExit(
-                            "ERROR! Failed to get data node: '%s'" % e)
-                    run_outputs_to_delete.extend(
-                        self._parse_data_objects_from_data_node_contents(
-                            data_node.get('contents')))
-            if not self.args.keep_result_files:
-                for task in run.get('tasks', []):
-                    try:
-                        task = self.connection.get_task(task['uuid'])
-                    except LoomengineUtilsError as e:
-                        raise SystemExit("ERROR! Failed to get task: '%s'" % e)
-                    for task_attempt in task.get('all_task_attempts', []):
-                        try:
-                            task_attempt = self.connection.get_task_attempt(
-                                task_attempt['uuid'])
-                        except LoomengineUtilsError as e:
-                            raise SystemExit(
-                                "ERROR! Failed to get task attempt: '%s'" % e)
-                        for log_file in task_attempt.get('log_files', []):
-                            if log_file.get('data_object'):
-                                run_outputs_to_delete.append(
-                                    log_file['data_object'])
         if not self.args.yes:
-            user_input = raw_input(
-                'Do you really want to permanently delete run "%s"?\n'
-                '(y)es, (n)o: ' % run_id)
+            if self.args.keep_results:
+                user_input = raw_input(
+                    'Do you really want to permanently delete run "%s@%s"?\n'
+                    '(y)es, (n)o: ' % (run['name'], run['uuid']))
+            else:
+                user_input = raw_input(
+                    'Do you really want to permanently delete run "%s@%s" '
+                    'and all its results?\n'
+                    '(y)es, (n)o: ' % (run['name'], run['uuid']))
             if user_input.lower() == 'n':
-                raise SystemExit("Skipping run")
+                raise SystemExit("Operation canceled by user")
             elif user_input.lower() == 'y':
                 pass
             else:
                 raise SystemExit('Unrecognized response "%s"' % user_input)
+
+        self._delete_run(run)
+
+    def _delete_run(self, run):
+        run_id = "%s@%s" % (run['name'], run['uuid'])
         try:
             dependencies = self.connection.get_run_dependencies(
                 run.get('uuid'))
         except LoomengineUtilsError as e:
             raise SystemExit("ERROR! Failed to get run dependencies: '%s'" % e)
+        if dependencies.get('runs'):
+            parent = dependencies['runs'][0]
+            parent_id = "%s@%s" % (parent['name'], parent['uuid'])
+            raise SystemExit(
+                'ERROR! Cannot delete run %s because it is contained by another '
+                'run. You must delete the parent run "%s".' % (
+                    run_id, parent_id))
 
-        if len(dependencies['runs']) == 0:
-            try:
-                self.connection.delete_run(run.get('uuid'))
-            except LoomengineUtilsError as e:
-                raise SystemExit("ERROR! Failed to delete run: '%s'" % e)
-            self._print("Deleted run %s" % run_id)
-            for run in run_children_to_delete:
-                self._delete_run(run)
-            for data_object in run_outputs_to_delete:
+        # Save task_attempts for cleanup after the run is deleted
+        task_attempts = []
+        self._get_task_attempts(run, task_attempts)
+
+        try:
+            self.connection.delete_run(run.get('uuid'))
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to delete run: '%s'" % e)
+        self._print("Deleted run %s" % run_id)
+
+        output_data_objects = []
+        for task_attempt in task_attempts:
+            output_data_objects.extend(self._get_task_attempt_output_data_objects(
+                    task_attempt))
+            self._delete_task_attempt(task_attempt)
+        if not self.args.keep_results:
+            for data_object in output_data_objects:
                 self._delete_data_object(data_object)
-        else:
-            self._print(
-                "Cannot delete run %s because it is contained by other "
-                "run(s). You must delete the following runs before "
-                "deleting this run." % run_id)
-            for run in dependencies.get('runs', []):
-                self._print("  run %s@%s" % (run['name'], run['uuid']))
+
+    def _delete_task_attempt(self, task_attempt):
+        # Try to delete the TaskAttempt. This will fail if it is in use
+        # by another run.
+        try:
+            self.connection.delete_task_attempt(task_attempt['uuid'])
+        except ServerConnectionHttpError as e:
+            if e.status_code == 409:
+                # TaskAttempt is in use by another resource, 
+                # so we leave it.
+                pass
+            else:
+                raise SystemExit("ERROR! Failed to delete TaskAttempt: '%s'" % e)
+        except LoomengineUtilsError as e:
+            raise SystemExit("ERROR! Failed to delete TaskAttempt: '%s'" % e)
+
+    def _get_task_attempts(self, run, task_attempts):
+        for step in run.get('steps', []):
+            self._get_task_attempts(step, task_attempts)
+        for task in run.get('tasks', []):
+            task_attempts.extend(task.get('all_task_attempts', []))
+
+    def _get_task_attempt_output_data_objects(self, task_attempt):
+        output_data_objects = []
+        for output in task_attempt.get('outputs', []):
+            output_data_objects.extend(
+                self._parse_data_objects_from_data_node_contents(
+                    output['data']['contents']))
+            for log_file in task_attempt.get('log_files', []):
+                if log_file.get('data_object'):
+                    output_data_objects.append(
+                        log_file['data_object'])
+        return output_data_objects
 
     def _delete_data_object(self, data_object):
-        try:
-            dependencies = self.connection.get_data_object_dependencies(
-                data_object['uuid'])
-        except LoomengineUtilsError as e:
-            raise SystemExit(
-                "ERROR! Failed to get data object dependencies: '%s'" % e)
-        if len(dependencies['runs']) == 0 \
-           and len(dependencies['templates']) == 0:
-            if data_object.get('type') == 'file':
-                file_id = "%s@%s" % (
-                    data_object['value']['filename'], data_object['uuid'])
-                if not self.args.yes:
-                    user_input = raw_input(
-                        'Do you really want to delete result file "%s"?\n'
-                        '(y)es, (n)o: ' % file_id)
-                    if user_input.lower() == 'n':
-                        raise SystemExit("Skipping file")
-                    elif user_input.lower() == 'y':
-                        pass
-                    else:
-                        raise SystemExit(
-                            'Unrecognized response "%s"' % user_input)
-                try:
-                    self.connection.delete_data_object(data_object['uuid'])
-                except LoomengineUtilsError as e:
-                    raise SystemExit(
-                        "ERROR! Failed to delete data object: '%s'" % e)
-                self._print("Deleted file %s" % file_id)
-            else:
-                try:
-                    self.connection.delete_data_object(data_object['uuid'])
-                except LoomengineUtilsError as e:
-                    raise SystemExit(
-                        "ERROR! Failed to delete data object: '%s'" % e)
+        if data_object.get('type') == 'file':
+            object_id = "%s@%s" % (
+                data_object['value']['filename'], data_object['uuid'])
         else:
-            if len(dependencies['runs']) > 0:
-                self._print("Cannot delete file %s "
-                            "because it is contained by other run(s). "
-                            "You must delete the following runs "
-                            "before deleting this file." % run_id)
-                for run in dependencies.get('runs', []):
-                    self._print("  run %s@%s" % (run['name'], run['uuid']))
-            if len(dependencies['templates']) > 0:
-                self._print("Cannot delete file %s "
-                            "because it is contained by other template(s). "
-                            "You must delete the following templates "
-                            "before deleting this file." % run_id)
-                for template in dependencies.get('templates', []):
-                    self._print("  template %s@%s" % (
-                        template['name'], template['uuid']))
+            object_id = "@%s" % data_object['uuid']
+        try:
+            self.connection.delete_data_object(data_object['uuid'])
+        except ServerConnectionHttpError as e:
+            if e.status_code == 409:
+                # DataObject is in use by another resource, 
+                # so we leave it.
+                self._print('Result "%s" was not deleted '
+                            'because it is still in use.' % object_id)
+                return
+            else: 
+                raise
+        except Exception as e:
+            self._print(
+                "ERROR! Failed to delete data object: '%s'" % e)
+            return
+        self._print("Deleted %s data object %s" % (
+                data_object.get('type'), object_id))
 
     def _parse_data_objects_from_data_node_contents(self, contents):
         if not isinstance(contents, list):

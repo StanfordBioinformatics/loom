@@ -139,11 +139,13 @@ class Connection(object):
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 403:
                 raise ServerConnectionHttpError(
-                    '(403) Permission denied. '\
-                    'Have you logged in with "loom auth login"?')
+                    'Permission denied. '\
+                    'Have you logged in with "loom auth login"?', 
+                    status_code=e.response.status_code)
             elif e.response.status_code >= 500:
                 message = "(%s) %s" % (e.response.status_code, e)
-                raise ServerConnectionHttpError(message)
+                raise ServerConnectionHttpError(
+                    message, status_code=e.response.status_code)
             elif e.response.status_code >= 400:
                 try:
                     message = e.response.json()
@@ -151,9 +153,11 @@ class Connection(object):
                     message = e.response.text
                 if isinstance(message, list):
                     message = '; '.join(message)
-                    raise ServerConnectionHttpError(message)
+                    raise ServerConnectionHttpError(
+                        message, status_code=e.response.status_code)
                 else:
-                    raise ServerConnectionHttpError(message)
+                    raise ServerConnectionHttpError(
+                        message, status_code=e.response.status_code)
 
     def _post_resource(self, object_data, relative_url):
         return self._post(object_data, relative_url).json()
@@ -456,6 +460,9 @@ class Connection(object):
             task_attempt_update,
             'task-attempts/%s/' % task_attempt_id)
 
+    def delete_task_attempt(self, task_attempt_id):
+        return self._delete_resource('task-attempts/%s/' % task_attempt_id)
+
     def get_task_attempt_output(self, task_attempt_output_id):
         return self._get_resource('outputs/%s/' % task_attempt_output_id)
 
@@ -503,6 +510,7 @@ class Connection(object):
 
     def get_task_attempt_settings(self, attempt_id):
         return self._get_resource('task-attempts/%s/settings/' % attempt_id)
+
 
     # User
 
