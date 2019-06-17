@@ -97,9 +97,6 @@ class Template(BaseModel):
 
     @classmethod
     def get_dependencies(cls, uuid, request):
-        from api.serializers import URLRunSerializer, URLTemplateSerializer
-
-        context = {'request': request}
         DEPENDENCY_LIMIT = 10
         truncated = False
         runs = set()
@@ -124,18 +121,8 @@ class Template(BaseModel):
                 break
             templates.add(template)
 
-        run_dependencies = []
-        for run in runs:
-            run_dependencies.append(
-                URLRunSerializer(run, context=context).data)
-
-        template_dependencies = []
-        for template in templates:
-            template_dependencies.append(
-                URLTemplateSerializer(template, context=context).data)
-
-        return {'runs': run_dependencies,
-                'templates': template_dependencies,
+        return {'runs': runs,
+                'templates': templates,
                 'truncated': truncated}
 
     def delete(self):

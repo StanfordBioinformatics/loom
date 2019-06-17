@@ -143,12 +143,10 @@ class DataObject(BaseModel):
         return data_object
 
     @classmethod
-    def get_dependencies(cls, uuid, request):
+    def get_dependencies(cls, uuid):
 
         from .data_nodes import DataNode
-        from api.serializers import URLRunSerializer, URLTemplateSerializer
 
-        context = {'request': request}
         # We truncate the dependencies listed if we exceed DEPENDENCY_LIMIT
         DEPENDENCY_LIMIT = 10
         truncated = False
@@ -225,22 +223,12 @@ class DataObject(BaseModel):
             if truncated == True:
                 break
 
-        run_dependencies = []
-        for run in runs:
-            run_dependencies.append(
-                URLRunSerializer(run, context=context).data)
-
-        template_dependencies = []
-        for template in templates:
-            template_dependencies.append(
-                URLTemplateSerializer(template, context=context).data)
-
-        return {'runs': run_dependencies,
-                'templates': template_dependencies,
+        return {'runs': runs,
+                'templates': templates,
                 'truncated': truncated}
 
     def has_dependencies(self):
-        dependencies = self.get_dependencies(self.uuid, {})
+        dependencies = self.get_dependencies(self.uuid)
         return any(dependencies.values())
 
     def delete(self):
@@ -348,7 +336,7 @@ class FileResource(BaseModel):
                     kwargs.pop('task_attempt', None)
                 )
                 kwargs['file_relative_path']  = file_relative_path
-            kwargs['file_url'] = os.path.join(file_root, file_relative_path)
+            kwargs['file_url'] = os.path.join(file_root, kwargs['file_relative_path'])
         file_resource = cls(**kwargs)
         return file_resource
 

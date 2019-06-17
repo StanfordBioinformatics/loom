@@ -260,15 +260,12 @@ class Run(BaseModel):
 
     @classmethod
     def get_dependencies(cls, uuid, request):
-        from api.serializers import URLRunSerializer
-
-        context = {'request': request}
         run = cls.objects.filter(uuid=uuid)\
                          .prefetch_related('parent')
         if run.count() < 1:
             raise cls.DoesNotExist
         if run.first().parent:
-            runs = [URLRunSerializer(run.first().parent, context=context).data]
+            runs = [run.first().parent]
         else:
             runs = []
         return {'runs': runs}

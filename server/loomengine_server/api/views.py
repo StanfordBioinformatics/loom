@@ -235,11 +235,23 @@ class DataObjectViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelVi
 
     @detail_route(methods=['get'], url_path='dependencies')
     def dependencies(self, request, uuid=None):
+        from api.serializers import URLRunSerializer, URLTemplateSerializer
+        context = {'request': request}
         try:
             dependencies = models.DataObject.get_dependencies(uuid, request)
+            serialized_dependencies = {
+                'runs': [URLRunSerializer(
+                        run, context=context).data 
+                         for run in dependencies.get('runs', [])],
+                'templates': [URLTemplateSerializer(
+                        template, context=context).data
+                              for template in dependencies.get(
+                        'templates', [])],
+                'truncated': dependencies.get('truncated')
+                }
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
-        return JsonResponse(dependencies, status=200)
+        return JsonResponse(serialized_dependencies, status=200)
 
 
 class DataNodeViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
@@ -478,8 +490,20 @@ class TemplateViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelView
 
     @detail_route(methods=['get'], url_path='dependencies')
     def dependencies(self, request, uuid=None):
+        from api.serializers import URLRunSerializer, URLTemplateSerializer
+        context = {'request': request}
         try:
             dependencies = models.Template.get_dependencies(uuid, request)
+            serialized_dependencies = {
+                'runs': [URLRunSerializer(
+                        runs, context=context).data 
+                         for run in dependencies.get('runs', [])],
+                'templates': [URLTemplateSerializer(
+                        template, context=context).data
+                              for template in dependencies.get(
+                        'templates', [])],
+                'truncated': dependencies.get('truncated')
+                }
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
         return JsonResponse(dependencies, status=200)
@@ -613,8 +637,16 @@ class RunViewSet(SelectableSerializerModelViewSet, ProtectedDeleteModelViewSet):
 
     @detail_route(methods=['get'], url_path='dependencies')
     def dependencies(self, request, uuid=None):
+        from api.serializers import URLRunSerializer
+        context = {'request': request}
         try:
             dependencies = models.Run.get_dependencies(uuid, request)
+            serialized_dependencies = {
+                'runs': [URLRunSerializer(
+                        run, context=context).data
+                         for run in dependencies.get('runs', [])],
+                'truncated': dependencies.get('truncated')
+        }
         except ObjectDoesNotExist:
             raise rest_framework.exceptions.NotFound()
         return JsonResponse(dependencies, status=200)
