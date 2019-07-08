@@ -2,7 +2,9 @@ loom_remote_user: loom
 worker_uses_internal_ip: "{{lookup('env','LOOM_GCLOUD_WORKER_USES_SERVER_INTERNAL_IP')|default(false, true)|bool}}"
 worker_connection_settings_file: "{{lookup('env','LOOM_GCLOUD_WORKER_CONNECTION_SETTINGS_FILE')|default('worker-connection-settings.conf', true)}}"
 
-disk_size_gb: "{{lookup('env','LOOM_GCLOUD_WORKER_DISK_SIZE_GB')|default('10',true)}}"
+min_disk_size_gb: "{{lookup('env','LOOM_GCLOUD_WORKER_DISK_SIZE_GB')|default('10',true)}}"
+requested_disk_size_gb: "{{lookup('env','LOOM_TASK_ATTEMPT_DISK_SIZE_GB')|default('0',true)}}"
+disk_size_gb: "{{[min_disk_size_gb|int,requested_disk_size_gb|int]|max}}"
 disk_type: "{{lookup('env','LOOM_GCLOUD_WORKER_DISK_TYPE')|default('pd-standard', true)}}"
 cores: "{{lookup('env','LOOM_TASK_ATTEMPT_CORES')|default('1',true)}}"
 external_ip: "{{lookup('env','LOOM_GCLOUD_WORKER_EXTERNAL_IP')}}"
