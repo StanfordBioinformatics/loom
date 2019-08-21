@@ -7,7 +7,7 @@ import sys
 import yaml
 
 from loomengine import _render_time
-from loomengine.common import verify_server_is_running, get_server_url, \
+from loomengine import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, get_token
 from loomengine.template_tag import TemplateTag
 from loomengine.template_label import TemplateLabel

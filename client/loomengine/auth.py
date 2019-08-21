@@ -3,7 +3,7 @@
 import argparse
 import os
 from getpass import getpass
-from loomengine.common import verify_has_connection_settings, \
+from loomengine import verify_has_connection_settings, \
     verify_server_is_running, get_server_url, \
     save_token, delete_token, get_token
 from loomengine_utils.connection import Connection

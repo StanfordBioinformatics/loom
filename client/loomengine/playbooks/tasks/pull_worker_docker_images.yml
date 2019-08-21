@@ -1,6 +1,0 @@
-  - name: Pull Loom image.
-    docker_image: name={{loom_docker_image}} api_version=auto source=pull
-    register: result
-    until: not result.failed is defined or not result.failed
-    retries: 10
-    delay: 10

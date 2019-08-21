@@ -1,2 +1,0 @@
-server_settings_home: "{{ settings_home }}"
-server_url: "{{server_protocol}}://127.0.0.1:{{server_port}}"

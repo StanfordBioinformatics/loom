@@ -3,7 +3,7 @@ import argparse
 import os
 import sys
 from loomengine import server
-from loomengine.common import verify_has_connection_settings, get_server_url, \
+from loomengine import verify_has_connection_settings, get_server_url, \
     verify_server_is_running, get_token
 from loomengine_utils.exceptions import LoomengineUtilsError, APIError
 from loomengine_utils.connection import Connection

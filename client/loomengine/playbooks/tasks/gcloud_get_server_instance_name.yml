@@ -1,8 +1,0 @@
-- name: Create a GCP-safe name for the server instance.
-  command: python -c "import gcloud_utils; gcloud_utils.sanitize_server_name('{{server_name}}','{{instance_name_max_length}}')"
-  args:
-    chdir: "{{playbook_dir}}/files"
-  register: server_name_result
-- name: Set worker instance name.
-  set_fact:
-    instance_name: "{{server_name_result.stdout}}"

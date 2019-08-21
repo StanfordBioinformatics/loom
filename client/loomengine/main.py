@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from loomengine.common import get_server_url, has_connection_settings, \
+from loomengine import get_server_url, has_connection_settings, \
     is_server_running
 from loomengine_utils.exceptions import LoomengineUtilsError
 from loomengine import browser

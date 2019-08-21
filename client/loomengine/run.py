@@ -7,7 +7,7 @@ import requests.exceptions
 import yaml
 
 from loomengine import _render_time
-from loomengine.common import get_server_url, \
+from loomengine import get_server_url, \
     verify_has_connection_settings, verify_server_is_running, get_token
 from loomengine.run_tag import RunTag
 from loomengine.run_label import RunLabel

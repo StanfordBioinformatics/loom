@@ -5,7 +5,7 @@ import os
 import sys
 
 from loomengine import _render_time
-from loomengine.common import verify_server_is_running, get_server_url, \
+from loomengine import verify_server_is_running, get_server_url, \
     verify_has_connection_settings, get_token
 from loomengine.file_tag import FileTag
 from loomengine.file_label import FileLabel

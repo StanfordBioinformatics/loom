@@ -1,4 +1,0 @@
-- name: Create {{ connection_settings_file }} with server connection settings
-  template:
-    src: templates/connection-settings.conf
-    dest: "{{ settings_home }}/{{ connection_settings_file }}"
