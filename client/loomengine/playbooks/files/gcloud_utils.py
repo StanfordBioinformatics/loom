@@ -35,7 +35,9 @@ def get_cheapest_instance_type(cores, memory):
     us_instance_types = {k: v for k, v in pricelist.items()
                          if k.startswith('CP-COMPUTEENGINE-VMIMAGE-')
                          and not k.endswith('-PREEMPTIBLE')
-                         and 'us' in v and v['cores'] != 'shared'}
+                         and 'us' in v
+                         and v.get('cores')
+                         and v['cores'] != 'shared'}
 
     # Convert to array and add keys (instance type names) as type names
     price_array = []
@@ -51,7 +53,7 @@ def get_cheapest_instance_type(cores, memory):
     # Look for an instance type that satisfies requested
     # cores and memory; first will be cheapest
     for instance_type in price_array:
-        if int(instance_type['cores']) >= int(cores) \
+        if float(instance_type['cores']) >= float(cores) \
            and float(instance_type['memory']) >= float(memory):
             print instance_type['name']
             return instance_type['name']
@@ -61,25 +63,29 @@ def get_cheapest_instance_type(cores, memory):
                     'and %f GB of RAM.' % (cores, memory))
 
 
-def get_gcloud_pricelist():
+def get_gcloud_pricelist(dynamic=True):
     """Retrieve latest pricelist from Google Cloud, or use
     cached copy if not reachable.
     """
+
+    with open('gcloudpricelist.json') as infile:
+        content = json.load(infile)
+    fixed_pricelist = content['gcp_price_list']
+    if not dynamic:
+        return fixed_pricelist
+
     try:
         r = requests.get('http://cloudpricingcalculator.appspot.com'
-                         '/static/data/pricelist.json')
+                         '/static/data/pricelist.jsonx')
         content = json.loads(r.content)
-    except ConnectionError:
-        logger.warning(
-            "Couldn't get updated pricelist from "
+        return content['gcp_price_list']
+    except:
+        print(
+            "Warning: Couldn't get updated pricelist from "
             "http://cloudpricingcalculator.appspot.com"
             "/static/data/pricelist.json. Falling back to cached "
             "copy, but prices may be out of date.")
-        with open('gcloudpricelist.json') as infile:
-            content = json.load(infile)
-
-    pricelist = content['gcp_price_list']
-    return pricelist
+        return fixed_pricelist
 
 
 MIN_TASK_ID_CHARS = 8
